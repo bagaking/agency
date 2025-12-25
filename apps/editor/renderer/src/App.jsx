@@ -17,6 +17,8 @@ const statusStyles = {
   paused: 'bg-amber-500/20 text-amber-200',
   archived: 'bg-slate-500/20 text-slate-200',
 };
+const lifecycleStates = ['draft', 'active', 'paused', 'archived'];
+const pathBaseName = (value) => value.split('/').filter(Boolean).pop() || value;
 
 function App() {
   const [cells, setCells] = useState([]);
@@ -53,6 +55,51 @@ function App() {
   useEffect(() => {
     loadCells();
   }, []);
+
+  useEffect(() => {
+    if (!window.agency || !window.agency.onCellsUpdated) {
+      return undefined;
+    }
+    const unsubscribe = window.agency.onCellsUpdated(() => loadCells());
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, []);
+
+  const handleStateChange = async (nextState) => {
+    if (!selectedCell || !window.agency?.updateCellState) {
+      return;
+    }
+    try {
+      await window.agency.updateCellState({
+        id: selectedCell.id,
+        state: nextState,
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleCreate = async ({ name, branch }) => {
+    if (!window.agency?.createCell) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const cell = await window.agency.createCell({ name, branch });
+      setShowCreate(false);
+      await loadCells();
+      if (cell?.id) {
+        setSelectedId(cell.id);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -157,8 +204,20 @@ function App() {
                 <div className="rounded-xl border border-border bg-card p-4">
                   <h3 className="text-sm font-semibold">Lifecycle</h3>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Status: <span className="font-medium text-foreground">{selectedCell.state}</span>
+                    Status
                   </p>
+                  <select
+                    className="mt-2 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
+                    value={selectedCell.state}
+                    onChange={(event) => handleStateChange(event.target.value)}
+                    data-testid="cell-state"
+                  >
+                    {lifecycleStates.map((state) => (
+                      <option key={state} value={state}>
+                        {state}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-4">
                   <h3 className="text-sm font-semibold">Validation (MVP)</h3>
@@ -185,14 +244,45 @@ function App() {
         </section>
       </main>
 
-      {showCreate ? <CreateCellModal onClose={() => setShowCreate(false)} /> : null}
+      {showCreate ? (
+        <CreateCellModal onClose={() => setShowCreate(false)} onCreate={handleCreate} />
+      ) : null}
     </div>
   );
 }
 
-function CreateCellModal({ onClose }) {
+function CreateCellModal({ onClose, onCreate }) {
   const [name, setName] = useState('');
   const [branch, setBranch] = useState('');
+  const [reuseExisting, setReuseExisting] = useState(false);
+  const [worktrees, setWorktrees] = useState([]);
+  const [selectedWorktree, setSelectedWorktree] = useState('');
+  const canSubmit = reuseExisting ? Boolean(selectedWorktree) : Boolean(name && branch);
+
+  useEffect(() => {
+    const loadWorktrees = async () => {
+      if (!window.agency?.listWorktrees) {
+        return;
+      }
+      try {
+        const items = await window.agency.listWorktrees();
+        setWorktrees(items);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    loadWorktrees();
+  }, []);
+
+  const handleWorktreeSelect = (event) => {
+    const nextPath = event.target.value;
+    setSelectedWorktree(nextPath);
+    const match = worktrees.find((item) => item.path === nextPath);
+    if (match) {
+      setName(pathBaseName(match.path));
+      setBranch(match.branch || '');
+    }
+  };
 
   return (
     <div
@@ -207,6 +297,34 @@ function CreateCellModal({ onClose }) {
           </button>
         </div>
         <div className="mt-4 space-y-4">
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={reuseExisting}
+              onChange={(event) => setReuseExisting(event.target.checked)}
+            />
+            Reuse existing worktree
+          </label>
+          {reuseExisting ? (
+            <div>
+              <label className="text-sm text-muted-foreground" htmlFor="reuse-worktree">
+                Worktree
+              </label>
+              <select
+                id="reuse-worktree"
+                className="mt-2 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
+                value={selectedWorktree}
+                onChange={handleWorktreeSelect}
+              >
+                <option value="">Select a worktree</option>
+                {worktrees.map((item) => (
+                  <option key={item.path} value={item.path}>
+                    {item.branch || 'detached'} · {item.path}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           <div>
             <label className="text-sm text-muted-foreground" htmlFor="cell-name">
               Cell name
@@ -217,6 +335,7 @@ function CreateCellModal({ onClose }) {
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="agent-editor"
+              disabled={reuseExisting}
             />
           </div>
           <div>
@@ -229,6 +348,7 @@ function CreateCellModal({ onClose }) {
               value={branch}
               onChange={(event) => setBranch(event.target.value)}
               placeholder="feature/agency-editor"
+              disabled={reuseExisting}
             />
           </div>
           <div className="flex items-center justify-end gap-3">
@@ -242,7 +362,14 @@ function CreateCellModal({ onClose }) {
             <button
               type="button"
               className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
-              disabled={!name || !branch}
+              disabled={!canSubmit}
+              onClick={() =>
+                onCreate({
+                  name,
+                  branch,
+                  reusePath: reuseExisting ? selectedWorktree : undefined,
+                })
+              }
             >
               Create
             </button>

@@ -1,7 +1,10 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
+const { setupCellHandlers } = require('./ipc/handlers/cells');
+const { setupWorktreeHandlers } = require('./ipc/handlers/worktrees');
 
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
+let mainWindow;
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -24,9 +27,13 @@ function createWindow() {
   } else {
     win.loadFile(path.join(__dirname, '../dist/renderer/index.html'));
   }
+
+  mainWindow = win;
 }
 
 app.whenReady().then(() => {
+  setupCellHandlers({ getMainWindow: () => mainWindow });
+  setupWorktreeHandlers();
   createWindow();
 
   app.on('activate', () => {
