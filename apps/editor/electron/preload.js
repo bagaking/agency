@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('agency', {
   startTerminal: (payload) => ipcRenderer.invoke('terminal:start', payload),
   writeTerminal: (payload) => ipcRenderer.send('terminal:write', payload),
   resizeTerminal: (payload) => ipcRenderer.send('terminal:resize', payload),
+  disposeTerminal: (payload) => ipcRenderer.send('terminal:dispose', payload),
   onTerminalData: (handler) => {
     const wrapped = (_event, payload) => handler(payload);
     ipcRenderer.on('terminal:data', wrapped);

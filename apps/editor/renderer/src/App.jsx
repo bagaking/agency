@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import 'xterm/css/xterm.css';
+import TerminalPane from './components/TerminalPane.jsx';
 
 const defaultCells = [
   {
@@ -25,6 +27,8 @@ function App() {
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [terminalOpen, setTerminalOpen] = useState(false);
+  const [terminalMode, setTerminalMode] = useState('shell');
   const selectedCell = useMemo(
     () => cells.find((cell) => cell.id === selectedId),
     [cells, selectedId]
@@ -188,12 +192,20 @@ function App() {
                   <button
                     type="button"
                     className="rounded-md border border-border px-3 py-2 text-sm"
+                    onClick={() => {
+                      setTerminalMode('shell');
+                      setTerminalOpen(true);
+                    }}
                   >
                     Open Terminal
                   </button>
                   <button
                     type="button"
                     className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground"
+                    onClick={() => {
+                      setTerminalMode('cli');
+                      setTerminalOpen(true);
+                    }}
                   >
                     Start CLI
                   </button>
@@ -235,8 +247,14 @@ function App() {
 
               <div className="rounded-xl border border-border bg-card p-4">
                 <h3 className="text-sm font-semibold">Terminal</h3>
-                <div className="mt-3 rounded-lg border border-border bg-black/40 p-4 text-xs text-muted-foreground">
-                  Terminal panel will appear here.
+                <div className="mt-3 h-64 rounded-lg border border-border bg-black/40 p-2 text-xs text-muted-foreground">
+                  {terminalOpen ? (
+                    <TerminalPane key={selectedCell.id} cell={selectedCell} mode={terminalMode} />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-muted-foreground">
+                      Open a terminal session to begin.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
