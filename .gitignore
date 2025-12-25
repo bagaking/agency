@@ -59,3 +59,5 @@ node_modules
 apps/**/dist
 apps/**/.vite
 apps/**/out
+apps/**/playwright-report
+apps/**/test-results
