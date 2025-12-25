@@ -99,6 +99,8 @@ function App() {
       if (cell?.id) {
         setSelectedId(cell.id);
       }
+      setTerminalMode('cli');
+      setTerminalOpen(true);
     } catch (error) {
       console.error(error);
     } finally {

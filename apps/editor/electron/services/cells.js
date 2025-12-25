@@ -41,8 +41,8 @@ async function ensureGitignore(repoRoot, entry) {
   }
 }
 
-function buildLifecycleFilePath(worktreePath, name) {
-  const fileName = `${LIFECYCLE_PREFIX}${name}.yaml`;
+function buildLifecycleFilePath(worktreePath, worktreeName) {
+  const fileName = `${LIFECYCLE_PREFIX}${worktreeName}.yaml`;
   return path.join(worktreePath, LIFECYCLE_DIR, fileName);
 }
 
@@ -152,13 +152,14 @@ async function createCell({ name, branch, reusePath }) {
       throw new Error('Selected worktree not found.');
     }
     const resolvedName = name || path.basename(target.path);
+    const worktreeName = path.basename(target.path);
     const safeName = normalizeName(resolvedName);
     const resolvedBranch = target.branch || branch;
     if (!resolvedBranch) {
       throw new Error('Branch is required for detached worktrees.');
     }
     const existingLifecycle = await findLifecycleFile(target.path);
-    const lifecyclePath = existingLifecycle || buildLifecycleFilePath(target.path, safeName);
+    const lifecyclePath = existingLifecycle || buildLifecycleFilePath(target.path, worktreeName);
     let lifecycle = {};
     if (existingLifecycle) {
       try {
@@ -189,6 +190,7 @@ async function createCell({ name, branch, reusePath }) {
   const worktreeDir = await ensureWorktreeDir(repoRoot);
   const safeName = normalizeName(name);
   const worktreePath = path.join(worktreeDir, safeName);
+  const worktreeName = path.basename(worktreePath);
 
   if (fs.existsSync(worktreePath)) {
     throw new Error(`Worktree already exists at ${worktreePath}`);
@@ -197,7 +199,7 @@ async function createCell({ name, branch, reusePath }) {
   const baseBranch = await resolveBaseBranch(repoRoot);
   await createWorktree(repoRoot, worktreePath, branch, baseBranch);
 
-  const lifecyclePath = buildLifecycleFilePath(worktreePath, safeName);
+  const lifecyclePath = buildLifecycleFilePath(worktreePath, worktreeName);
   await writeLifecycleFile(lifecyclePath, {
     version: 1,
     id: safeName,
