@@ -1,5 +1,17 @@
 # Agency Editor
 
+## Scope & Stack
+
+- v0.2 targets macOS first while keeping a path open for cross-platform support.
+- Electron + React + Tailwind CSS + Rive (animation placeholder).
+- Embedded terminal via xterm.js and node-pty.
+
+## Cell Lifecycle Files
+
+- Each worktree contains `.agency/cell-<worktree-name>.yaml`.
+- The editor reads and updates lifecycle state through this file.
+- Validation is minimal (temporary) and surfaces warnings only.
+
 ## Development
 
 ```bash

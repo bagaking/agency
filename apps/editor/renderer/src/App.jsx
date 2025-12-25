@@ -80,6 +80,7 @@ function App() {
       await window.agency.updateCellState({
         id: selectedCell.id,
         state: nextState,
+        worktreePath: selectedCell.worktreePath,
       });
     } catch (error) {
       console.error(error);

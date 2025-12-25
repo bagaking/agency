@@ -215,10 +215,15 @@ async function createCell({ name, branch, reusePath }) {
   });
 }
 
-async function updateCellState({ id, state }) {
+async function updateCellState({ id, state, worktreePath }) {
   const repoRoot = await getRepoRoot();
   const worktrees = await listWorktrees(repoRoot);
-  const target = worktrees.find((worktree) => worktree.branch === id || worktree.path.includes(id));
+  const target = worktrees.find((worktree) => {
+    if (worktreePath) {
+      return path.resolve(worktree.path) === path.resolve(worktreePath);
+    }
+    return worktree.branch === id || worktree.path.includes(id);
+  });
   if (!target) {
     throw new Error('Cell not found.');
   }
