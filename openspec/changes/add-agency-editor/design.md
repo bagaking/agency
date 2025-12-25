@@ -24,6 +24,13 @@
 - UI 设计与组件系统：`tailwind-design-system`
 - Electron 主/渲染进程通信：`electron-ipc`
 - VSCode 风格 WebView 模式（可选参考）：`vscode-webview-expert`
+- UI 自动化与视觉回归：`playwright-skill`
+
+## Observability & UI Validation (MVP)
+- 采用 Playwright 驱动 Electron 进行 UI 端到端测试
+- 使用 `data-testid` 提供稳定选择器
+- 使用截图基线进行视觉回归对比
+- 终端进程通过轻量 CLI Stub 或测试模式输出固定脚本，降低测试噪声
 
 ## Risks / Trade-offs
 - Electron 体积较大，但换取开发速度与生态成熟度
