@@ -1,0 +1,256 @@
+import React, { useEffect, useMemo, useState } from 'react';
+
+const defaultCells = [
+  {
+    id: 'sample-cell',
+    name: 'sample-cell',
+    branch: 'feature/sample-cell',
+    worktreePath: '/path/to/worktree',
+    state: 'draft',
+    validation: { warnings: ['Spec file not found (temporary validation).'] },
+  },
+];
+
+const statusStyles = {
+  draft: 'bg-muted text-muted-foreground',
+  active: 'bg-emerald-500/20 text-emerald-200',
+  paused: 'bg-amber-500/20 text-amber-200',
+  archived: 'bg-slate-500/20 text-slate-200',
+};
+
+function App() {
+  const [cells, setCells] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const selectedCell = useMemo(
+    () => cells.find((cell) => cell.id === selectedId),
+    [cells, selectedId]
+  );
+
+  const loadCells = async () => {
+    setLoading(true);
+    try {
+      if (window.agency && window.agency.listCells) {
+        const result = await window.agency.listCells();
+        setCells(result);
+        if (result.length && !selectedId) {
+          setSelectedId(result[0].id);
+        }
+      } else {
+        setCells(defaultCells);
+        setSelectedId(defaultCells[0].id);
+      }
+    } catch (error) {
+      console.error(error);
+      setCells(defaultCells);
+      setSelectedId(defaultCells[0].id);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCells();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="flex items-center justify-between border-b border-border px-6 py-4">
+        <div>
+          <h1 className="text-2xl font-semibold">Agency Editor</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage Cells, terminals, and agent workflows.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            className="rounded-md border border-border px-3 py-2 text-sm"
+            onClick={loadCells}
+            data-testid="refresh-cells"
+          >
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </button>
+          <button
+            type="button"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+            onClick={() => setShowCreate(true)}
+            data-testid="open-create-cell"
+          >
+            Create Cell
+          </button>
+        </div>
+      </header>
+
+      <main className="flex h-[calc(100vh-72px)] overflow-hidden">
+        <aside className="w-80 shrink-0 border-r border-border p-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Cells
+          </h2>
+          <div className="mt-4 flex flex-col gap-3" data-testid="cell-list">
+            {cells.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                No cells yet. Create your first cell to begin.
+              </div>
+            ) : (
+              cells.map((cell) => (
+                <button
+                  key={cell.id}
+                  type="button"
+                  className={`rounded-lg border border-border p-3 text-left transition hover:border-primary/60 ${
+                    selectedId === cell.id ? 'bg-card' : 'bg-transparent'
+                  }`}
+                  onClick={() => setSelectedId(cell.id)}
+                  data-testid={`cell-item-${cell.id}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium">{cell.name}</div>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${
+                        statusStyles[cell.state] || statusStyles.draft
+                      }`}
+                    >
+                      {cell.state}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {cell.branch}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </aside>
+
+        <section className="flex-1 overflow-y-auto p-6">
+          {!selectedCell ? (
+            <div className="rounded-lg border border-dashed border-border p-6 text-muted-foreground">
+              Select a cell to view details.
+            </div>
+          ) : (
+            <div className="space-y-6" data-testid="cell-details">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold">{selectedCell.name}</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedCell.worktreePath}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="rounded-md border border-border px-3 py-2 text-sm"
+                  >
+                    Open Terminal
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground"
+                  >
+                    Start CLI
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-xl border border-border bg-card p-4">
+                  <h3 className="text-sm font-semibold">Lifecycle</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Status: <span className="font-medium text-foreground">{selectedCell.state}</span>
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-card p-4">
+                  <h3 className="text-sm font-semibold">Validation (MVP)</h3>
+                  {selectedCell.validation?.warnings?.length ? (
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-200">
+                      {selectedCell.validation.warnings.map((warning) => (
+                        <li key={warning}>{warning}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-2 text-sm text-muted-foreground">No warnings.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-4">
+                <h3 className="text-sm font-semibold">Terminal</h3>
+                <div className="mt-3 rounded-lg border border-border bg-black/40 p-4 text-xs text-muted-foreground">
+                  Terminal panel will appear here.
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+      </main>
+
+      {showCreate ? <CreateCellModal onClose={() => setShowCreate(false)} /> : null}
+    </div>
+  );
+}
+
+function CreateCellModal({ onClose }) {
+  const [name, setName] = useState('');
+  const [branch, setBranch] = useState('');
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      data-testid="create-cell-modal"
+    >
+      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Create a new Cell</h3>
+          <button type="button" onClick={onClose} className="text-sm text-muted-foreground">
+            Close
+          </button>
+        </div>
+        <div className="mt-4 space-y-4">
+          <div>
+            <label className="text-sm text-muted-foreground" htmlFor="cell-name">
+              Cell name
+            </label>
+            <input
+              id="cell-name"
+              className="mt-2 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="agent-editor"
+            />
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground" htmlFor="cell-branch">
+              Branch
+            </label>
+            <input
+              id="cell-branch"
+              className="mt-2 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
+              value={branch}
+              onChange={(event) => setBranch(event.target.value)}
+              placeholder="feature/agency-editor"
+            />
+          </div>
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              className="rounded-md border border-border px-3 py-2 text-sm"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+              disabled={!name || !branch}
+            >
+              Create
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;

@@ -53,3 +53,9 @@ logs
 # !.codex/prompts/*.md
 .claude
 .bagakit
+
+# Node/Electron
+node_modules
+apps/**/dist
+apps/**/.vite
+apps/**/out
