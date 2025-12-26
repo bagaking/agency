@@ -24,7 +24,10 @@ function createWindow() {
 
   if (isDev) {
     win.loadURL(process.env.ELECTRON_RENDERER_URL);
-    win.webContents.openDevTools({ mode: 'detach' });
+    // Open DevTools only if NOT in test mode to avoid confusing Playwright
+    if (!process.env.AGENCY_TEST_MODE) {
+      win.webContents.openDevTools({ mode: 'detach' });
+    }
   } else {
     win.loadFile(path.join(__dirname, '../dist/renderer/index.html'));
   }

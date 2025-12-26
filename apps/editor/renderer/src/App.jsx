@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import 'xterm/css/xterm.css';
-import TerminalPane from './components/TerminalPane.jsx';
+import { ActivityBar } from './components/ActivityBar.jsx';
+import { Sidebar } from './components/Sidebar.jsx';
+import { StatusBar } from './components/StatusBar.jsx';
+import { EditorPane } from './components/EditorPane.jsx';
 
 const defaultCells = [
   {
@@ -13,13 +16,6 @@ const defaultCells = [
   },
 ];
 
-const statusStyles = {
-  draft: 'bg-muted text-muted-foreground',
-  active: 'bg-emerald-500/20 text-emerald-200',
-  paused: 'bg-amber-500/20 text-amber-200',
-  archived: 'bg-slate-500/20 text-slate-200',
-};
-const lifecycleStates = ['draft', 'active', 'paused', 'archived'];
 const branchPrefixes = ['feat', 'refactor', 'fix', 'lint', 'chore', 'doc'];
 const pathBaseName = (value) => value.split('/').filter(Boolean).pop() || value;
 const toBranchSlug = (value) => {
@@ -36,8 +32,14 @@ function App() {
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  
+  // Terminal State
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [terminalMode, setTerminalMode] = useState('shell');
+  
+  // View State
+  const [activeView, setActiveView] = useState('explorer'); // explorer, settings
+
   const selectedCell = useMemo(
     () => cells.find((cell) => cell.id === selectedId),
     [cells, selectedId]
@@ -54,12 +56,12 @@ function App() {
         }
       } else {
         setCells(defaultCells);
-        setSelectedId(defaultCells[0].id);
+        if (!selectedId) setSelectedId(defaultCells[0].id);
       }
     } catch (error) {
       console.error(error);
       setCells(defaultCells);
-      setSelectedId(defaultCells[0].id);
+      if (!selectedId) setSelectedId(defaultCells[0].id);
     } finally {
       setLoading(false);
     }
@@ -91,6 +93,8 @@ function App() {
         state: nextState,
         worktreePath: selectedCell.worktreePath,
       });
+      // Optimistic update
+      setCells(cells.map(c => c.id === selectedCell.id ? { ...c, state: nextState } : c));
     } catch (error) {
       console.error(error);
     }
@@ -118,166 +122,41 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="flex items-center justify-between border-b border-border px-6 py-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Agency Editor</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage Cells, terminals, and agent workflows.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="rounded-md border border-border px-3 py-2 text-sm"
-            onClick={loadCells}
-            data-testid="refresh-cells"
-          >
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
-          <button
-            type="button"
-            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
-            onClick={() => setShowCreate(true)}
-            data-testid="open-create-cell"
-          >
-            Create Cell
-          </button>
-        </div>
-      </header>
+    <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
+      
+      {/* Main Workspace Area (Activity Bar + Sidebar + Editor) */}
+      <div className="flex flex-1 overflow-hidden">
+        <ActivityBar activeView={activeView} onSwitchView={setActiveView} />
+        
+        {activeView === 'explorer' && (
+             <Sidebar 
+                cells={cells} 
+                selectedId={selectedId} 
+                onSelect={setSelectedId} 
+                onCreate={() => setShowCreate(true)}
+             />
+        )}
 
-      <main className="flex h-[calc(100vh-72px)] overflow-hidden">
-        <aside className="w-80 shrink-0 border-r border-border p-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Cells
-          </h2>
-          <div className="mt-4 flex flex-col gap-3" data-testid="cell-list">
-            {cells.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-                No cells yet. Create your first cell to begin.
-              </div>
-            ) : (
-              cells.map((cell) => (
-                <button
-                  key={cell.id}
-                  type="button"
-                  className={`rounded-lg border border-border p-3 text-left transition hover:border-primary/60 ${
-                    selectedId === cell.id ? 'bg-card' : 'bg-transparent'
-                  }`}
-                  onClick={() => setSelectedId(cell.id)}
-                  data-testid={`cell-item-${cell.id}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium">{cell.name}</div>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs ${
-                        statusStyles[cell.state] || statusStyles.draft
-                      }`}
-                    >
-                      {cell.state}
-                    </span>
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {cell.branch}
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </aside>
+        <EditorPane 
+            cell={selectedCell}
+            terminalMode={terminalMode}
+            terminalOpen={terminalOpen}
+            onStateChange={handleStateChange}
+            onOpenTerminal={() => {
+                setTerminalMode('shell');
+                setTerminalOpen(true);
+            }}
+            onStartCLI={() => {
+                setTerminalMode('cli');
+                setTerminalOpen(true);
+            }}
+        />
+      </div>
 
-        <section className="flex-1 overflow-y-auto p-6">
-          {!selectedCell ? (
-            <div className="rounded-lg border border-dashed border-border p-6 text-muted-foreground">
-              Select a cell to view details.
-            </div>
-          ) : (
-            <div className="space-y-6" data-testid="cell-details">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold">{selectedCell.name}</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedCell.worktreePath}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    className="rounded-md border border-border px-3 py-2 text-sm"
-                    onClick={() => {
-                      setTerminalMode('shell');
-                      setTerminalOpen(true);
-                    }}
-                    disabled={!selectedCell.worktreePath}
-                  >
-                    Open Terminal
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground"
-                    onClick={() => {
-                      setTerminalMode('cli');
-                      setTerminalOpen(true);
-                    }}
-                    disabled={!selectedCell.worktreePath}
-                  >
-                    Start CLI
-                  </button>
-                </div>
-              </div>
+      {/* Global Status Bar */}
+      <StatusBar loading={loading} onRefresh={loadCells} />
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-xl border border-border bg-card p-4">
-                  <h3 className="text-sm font-semibold">Lifecycle</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Status
-                  </p>
-                  <select
-                    className="mt-2 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
-                    value={selectedCell.state}
-                    onChange={(event) => handleStateChange(event.target.value)}
-                    data-testid="cell-state"
-                  >
-                    {lifecycleStates.map((state) => (
-                      <option key={state} value={state}>
-                        {state}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="rounded-xl border border-border bg-card p-4">
-                  <h3 className="text-sm font-semibold">Validation (MVP)</h3>
-                  {selectedCell.validation?.warnings?.length ? (
-                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-200">
-                      {selectedCell.validation.warnings.map((warning) => (
-                        <li key={warning}>{warning}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="mt-2 text-sm text-muted-foreground">No warnings.</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-border bg-card p-4">
-                <h3 className="text-sm font-semibold">Terminal</h3>
-                <div className="mt-3 h-64 rounded-lg border border-border bg-black/40 p-2 text-xs text-muted-foreground">
-                  {terminalOpen ? (
-                    <TerminalPane key={selectedCell.id} cell={selectedCell} mode={terminalMode} />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-muted-foreground">
-                      {selectedCell.worktreePath
-                        ? 'Open a terminal session to begin.'
-                        : 'Worktree path missing. Create or select a valid cell first.'}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-      </main>
-
+      {/* Modals */}
       {showCreate ? (
         <CreateCellModal onClose={() => setShowCreate(false)} onCreate={handleCreate} />
       ) : null}
@@ -330,37 +209,40 @@ function CreateCellModal({ onClose, onCreate }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       data-testid="create-cell-modal"
     >
-      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Create a new Cell</h3>
-          <button type="button" onClick={onClose} className="text-sm text-muted-foreground">
-            Close
+      <div className="w-full max-w-lg rounded-lg border border-border bg-popover text-popover-foreground shadow-lg p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold">Create New Agent</h3>
+          <button type="button" onClick={onClose} className="text-sm text-muted-foreground hover:text-foreground">
+            ✕
           </button>
         </div>
-        <div className="mt-4 space-y-4">
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+        
+        <div className="space-y-5">
+          <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
             <input
               type="checkbox"
+              className="rounded border-input bg-transparent text-primary focus:ring-1 focus:ring-primary"
               checked={reuseExisting}
               onChange={(event) => setReuseExisting(event.target.checked)}
             />
-            Reuse existing worktree
+            Link to existing git worktree
           </label>
+          
           {reuseExisting ? (
             <div>
-              <label className="text-sm text-muted-foreground" htmlFor="reuse-worktree">
-                Worktree
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block" htmlFor="reuse-worktree">
+                Select Worktree
               </label>
               <select
                 id="reuse-worktree"
-                className="mt-2 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                 value={selectedWorktree}
                 onChange={handleWorktreeSelect}
               >
-                <option value="">Select a worktree</option>
+                <option value="">-- Choose directory --</option>
                 {worktrees.map((item) => (
                   <option key={item.path} value={item.path}>
                     {item.branch || 'detached'} · {item.path}
@@ -369,53 +251,61 @@ function CreateCellModal({ onClose, onCreate }) {
               </select>
             </div>
           ) : null}
+          
           <div>
-            <label className="text-sm text-muted-foreground" htmlFor="cell-name">
-              Cell name
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block" htmlFor="cell-name">
+              Agent Name
             </label>
             <input
               id="cell-name"
-              className="mt-2 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/50"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="agent-editor"
-              disabled={reuseExisting}
+              placeholder="e.g. docs-updater"
+              disabled={reuseExisting && selectedWorktreeInfo?.branch}
             />
           </div>
+          
           <div>
-            <label className="text-sm text-muted-foreground" htmlFor="branch-prefix">
-              Branch type
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block" htmlFor="branch-prefix">
+              Branch Strategy
             </label>
-            <select
-              id="branch-prefix"
-              className="mt-2 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
-              value={branchPrefix}
-              onChange={(event) => setBranchPrefix(event.target.value)}
-              disabled={reuseExisting && Boolean(selectedWorktreeInfo?.branch)}
-            >
-              {branchPrefixes.map((prefix) => (
-                <option key={prefix} value={prefix}>
-                  {prefix}
-                </option>
-              ))}
-            </select>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {reuseExisting && selectedWorktreeInfo?.branch
-                ? `Existing branch: ${selectedWorktreeInfo.branch}`
-                : `Branch preview: ${generatedBranch || `${branchPrefix}/<cell-name>`}`}
+            <div className="flex gap-2">
+                <select
+                id="branch-prefix"
+                className="w-32 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                value={branchPrefix}
+                onChange={(event) => setBranchPrefix(event.target.value)}
+                disabled={reuseExisting && Boolean(selectedWorktreeInfo?.branch)}
+                >
+                {branchPrefixes.map((prefix) => (
+                    <option key={prefix} value={prefix}>
+                    {prefix}/
+                    </option>
+                ))}
+                </select>
+                <div className="flex-1 flex items-center px-3 text-sm text-muted-foreground border border-transparent">
+                     {toBranchSlug(name) || '<name>'}
+                </div>
+            </div>
+             <p className="mt-2 text-xs text-muted-foreground font-mono bg-muted/30 p-1.5 rounded">
+              git branch: {reuseExisting && selectedWorktreeInfo?.branch
+                ? selectedWorktreeInfo.branch
+                : (generatedBranch || '...')}
             </p>
           </div>
-          <div className="flex items-center justify-end gap-3">
+          
+          <div className="flex items-center justify-end gap-3 mt-8">
             <button
               type="button"
-              className="rounded-md border border-border px-3 py-2 text-sm"
+              className="rounded-md px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
               onClick={onClose}
             >
               Cancel
             </button>
             <button
               type="button"
-              className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!canSubmit}
               onClick={() =>
                 onCreate({
@@ -425,7 +315,7 @@ function CreateCellModal({ onClose, onCreate }) {
                 })
               }
             >
-              Create
+              Create Agent
             </button>
           </div>
         </div>

@@ -12,8 +12,8 @@
 
 ## Decisions
 - 技术栈：Electron（为未来跨平台保留路径，但 v0.2 先做 macOS）
-- UI 样式：Tailwind CSS
-- 动画：Rive（用户称 “rave”）
+- UI 样式：Tailwind CSS，采用 VSCode 风格的 IDE 布局（Activity Bar, Sidebar, Editor Pane, Status Bar）
+- 动画：Rive（用于状态指示、加载态与空状态，提升应用质感）
 - 内置终端：xterm.js + node-pty
 - 生命周期文件：放在每个 worktree 的 `.agency/` 目录下，文件名包含该 worktree 的唯一名字；格式采用 YAML（优先）或 Markdown（可选）
 - 校验策略：仅做最小化校验并标注为临时版本（例如：存在 spec 文件、分支与 worktree 绑定关系）

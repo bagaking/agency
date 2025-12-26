@@ -3,16 +3,48 @@
 @tailwind utilities;
 
 :root {
-  --background: 222 22% 10%;
-  --foreground: 0 0% 98%;
-  --card: 222 20% 14%;
-  --card-foreground: 0 0% 96%;
-  --primary: 196 78% 46%;
-  --primary-foreground: 0 0% 98%;
-  --muted: 220 12% 20%;
+  /* Core Base - VSCode-like Dark+ */
+  --background: 223 10% 12%;      /* Main Editor Area */
+  --foreground: 220 10% 98%;
+  
+  --card: 223 10% 15%;            /* Panels / Cards */
+  --card-foreground: 220 10% 96%;
+  
+  --popover: 223 10% 15%;
+  --popover-foreground: 220 10% 98%;
+
+  /* Primary Accent */
+  --primary: 210 100% 50%;        /* A clear blue like VSCode status bar */
+  --primary-foreground: 0 0% 100%;
+
+  /* Muted / Secondary */
+  --muted: 223 10% 20%;
   --muted-foreground: 220 8% 65%;
-  --border: 220 12% 25%;
-  --radius: 10px;
+  
+  --accent: 223 10% 20%;
+  --accent-foreground: 220 10% 98%;
+
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 223 10% 25%;
+  --input: 223 10% 25%;
+  --ring: 210 100% 50%;
+
+  /* IDE Specific Areas */
+  --activity-bar-bg: 223 10% 10%;
+  --activity-bar-fg: 220 10% 60%;
+  --activity-bar-active-fg: 0 0% 98%;
+  --activity-bar-border: 223 10% 25%; /* Optional separator */
+
+  --sidebar-bg: 223 10% 14%;
+  --sidebar-fg: 220 10% 96%;
+  --sidebar-border: 223 10% 25%;
+
+  --status-bar-bg: 210 100% 50%;
+  --status-bar-fg: 0 0% 100%;
+
+  --radius: 4px; /* Tighter radius for IDE feel */
 }
 
 * {
