@@ -3,7 +3,7 @@ GOLANGCI_LINT ?= golangci-lint
 export CODEX_HOME := $(PWD)/.codex
 export CODEX_HOME_PUB := $(PWD)/.codex_pub
 
-.PHONY: lint build
+.PHONY: lint build editor-install editor-dev editor-test editor-test-e2e
 
 # Lint/check basics: catches unused imports via build and common vet checks
 lint:
@@ -18,6 +18,17 @@ lint:
 # Convenience: full build
 build:
 	$(GO) build ./...
+
+editor-install:
+	cd apps/editor && npm install
+
+editor-dev:
+	cd apps/editor && npm run dev
+
+editor-test: editor-test-e2e
+
+editor-test-e2e:
+	cd apps/editor && npm run test:e2e
 
 codex-locale:
 	@echo "CODEX_HOME=$(CODEX_HOME)"

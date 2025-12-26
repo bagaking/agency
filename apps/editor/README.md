@@ -20,6 +20,13 @@ npm install
 npm run dev
 ```
 
+## Makefile (from repo root)
+
+```bash
+make editor-install
+make editor-dev
+```
+
 ## Environment Flags
 
 - `AGENCY_CLI_COMMAND="codex"` override the CLI command
