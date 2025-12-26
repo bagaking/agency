@@ -20,7 +20,16 @@ const statusStyles = {
   archived: 'bg-slate-500/20 text-slate-200',
 };
 const lifecycleStates = ['draft', 'active', 'paused', 'archived'];
+const branchPrefixes = ['feat', 'refactor', 'fix', 'lint', 'chore', 'doc'];
 const pathBaseName = (value) => value.split('/').filter(Boolean).pop() || value;
+const toBranchSlug = (value) => {
+  const slug = value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9-_]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || 'cell';
+};
 
 function App() {
   const [cells, setCells] = useState([]);
@@ -87,13 +96,13 @@ function App() {
     }
   };
 
-  const handleCreate = async ({ name, branch }) => {
+  const handleCreate = async ({ name, branch, reusePath }) => {
     if (!window.agency?.createCell) {
       return;
     }
     setLoading(true);
     try {
-      const cell = await window.agency.createCell({ name, branch });
+      const cell = await window.agency.createCell({ name, branch, reusePath });
       setShowCreate(false);
       await loadCells();
       if (cell?.id) {
@@ -274,11 +283,16 @@ function App() {
 
 function CreateCellModal({ onClose, onCreate }) {
   const [name, setName] = useState('');
-  const [branch, setBranch] = useState('');
   const [reuseExisting, setReuseExisting] = useState(false);
   const [worktrees, setWorktrees] = useState([]);
   const [selectedWorktree, setSelectedWorktree] = useState('');
-  const canSubmit = reuseExisting ? Boolean(selectedWorktree) : Boolean(name && branch);
+  const [branchPrefix, setBranchPrefix] = useState(branchPrefixes[0]);
+  const selectedWorktreeInfo = worktrees.find((item) => item.path === selectedWorktree);
+  const generatedBranch = name ? `${branchPrefix}/${toBranchSlug(name)}` : '';
+  const needsBranch = reuseExisting && selectedWorktreeInfo && !selectedWorktreeInfo.branch;
+  const canSubmit = reuseExisting
+    ? Boolean(selectedWorktree) && (selectedWorktreeInfo?.branch || generatedBranch)
+    : Boolean(generatedBranch);
 
   useEffect(() => {
     const loadWorktrees = async () => {
@@ -300,8 +314,13 @@ function CreateCellModal({ onClose, onCreate }) {
     setSelectedWorktree(nextPath);
     const match = worktrees.find((item) => item.path === nextPath);
     if (match) {
-      setName(pathBaseName(match.path));
-      setBranch(match.branch || '');
+      const branchParts = (match.branch || '').split('/');
+      if (branchParts.length > 1 && branchPrefixes.includes(branchParts[0])) {
+        setBranchPrefix(branchParts[0]);
+        setName(branchParts.slice(1).join('/'));
+      } else {
+        setName(pathBaseName(match.path));
+      }
     }
   };
 
@@ -360,17 +379,27 @@ function CreateCellModal({ onClose, onCreate }) {
             />
           </div>
           <div>
-            <label className="text-sm text-muted-foreground" htmlFor="cell-branch">
-              Branch
+            <label className="text-sm text-muted-foreground" htmlFor="branch-prefix">
+              Branch type
             </label>
-            <input
-              id="cell-branch"
+            <select
+              id="branch-prefix"
               className="mt-2 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
-              value={branch}
-              onChange={(event) => setBranch(event.target.value)}
-              placeholder="feature/agency-editor"
-              disabled={reuseExisting}
-            />
+              value={branchPrefix}
+              onChange={(event) => setBranchPrefix(event.target.value)}
+              disabled={reuseExisting && Boolean(selectedWorktreeInfo?.branch)}
+            >
+              {branchPrefixes.map((prefix) => (
+                <option key={prefix} value={prefix}>
+                  {prefix}
+                </option>
+              ))}
+            </select>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {reuseExisting && selectedWorktreeInfo?.branch
+                ? `Existing branch: ${selectedWorktreeInfo.branch}`
+                : `Branch preview: ${generatedBranch || `${branchPrefix}/<cell-name>`}`}
+            </p>
           </div>
           <div className="flex items-center justify-end gap-3">
             <button
@@ -387,7 +416,7 @@ function CreateCellModal({ onClose, onCreate }) {
               onClick={() =>
                 onCreate({
                   name,
-                  branch,
+                  branch: generatedBranch,
                   reusePath: reuseExisting ? selectedWorktree : undefined,
                 })
               }

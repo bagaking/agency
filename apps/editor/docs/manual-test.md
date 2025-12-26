@@ -5,7 +5,7 @@
 - [ ] Verify the Agency Editor window opens and renders the header.
 
 ## Cells
-- [ ] Create a new Cell with a new branch and confirm the worktree directory is created.
+- [ ] Create a new Cell with a branch type + name and confirm the worktree directory is created.
 - [ ] Reuse an existing worktree and confirm lifecycle file creation.
 - [ ] Change lifecycle state and confirm the `.agency` file updates.
 

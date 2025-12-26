@@ -12,6 +12,11 @@
 - The editor reads and updates lifecycle state through this file.
 - Validation is minimal (temporary) and surfaces warnings only.
 
+## Branch Naming
+
+- When creating a new Cell, the branch name is generated as `<type>/<cell-name>`.
+- Available types: `feat`, `refactor`, `fix`, `lint`, `chore`, `doc`.
+
 ## Development
 
 ```bash
