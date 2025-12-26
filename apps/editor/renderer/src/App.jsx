@@ -7,7 +7,7 @@ const defaultCells = [
     id: 'sample-cell',
     name: 'sample-cell',
     branch: 'feature/sample-cell',
-    worktreePath: '/path/to/worktree',
+    worktreePath: '',
     state: 'draft',
     validation: { warnings: ['Spec file not found (temporary validation).'] },
   },
@@ -208,6 +208,7 @@ function App() {
                       setTerminalMode('shell');
                       setTerminalOpen(true);
                     }}
+                    disabled={!selectedCell.worktreePath}
                   >
                     Open Terminal
                   </button>
@@ -218,6 +219,7 @@ function App() {
                       setTerminalMode('cli');
                       setTerminalOpen(true);
                     }}
+                    disabled={!selectedCell.worktreePath}
                   >
                     Start CLI
                   </button>
@@ -264,7 +266,9 @@ function App() {
                     <TerminalPane key={selectedCell.id} cell={selectedCell} mode={terminalMode} />
                   ) : (
                     <div className="flex h-full items-center justify-center text-muted-foreground">
-                      Open a terminal session to begin.
+                      {selectedCell.worktreePath
+                        ? 'Open a terminal session to begin.'
+                        : 'Worktree path missing. Create or select a valid cell first.'}
                     </div>
                   )}
                 </div>

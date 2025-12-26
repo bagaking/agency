@@ -14,6 +14,11 @@ contextBridge.exposeInMainWorld('agency', {
     ipcRenderer.on('terminal:data', wrapped);
     return () => ipcRenderer.removeListener('terminal:data', wrapped);
   },
+  onTerminalError: (handler) => {
+    const wrapped = (_event, payload) => handler(payload);
+    ipcRenderer.on('terminal:error', wrapped);
+    return () => ipcRenderer.removeListener('terminal:error', wrapped);
+  },
   onCellsUpdated: (handler) => {
     const wrapped = (_event, payload) => handler(payload);
     ipcRenderer.on('cells:updated', wrapped);

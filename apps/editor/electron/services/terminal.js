@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const pty = require('node-pty');
 
@@ -27,16 +28,50 @@ function resolveShellCommand() {
   return { file: shell, args: [] };
 }
 
+function resolveExecutable(command) {
+  if (!command) {
+    return null;
+  }
+  if (command.includes('/') && fs.existsSync(command)) {
+    return command;
+  }
+  const paths = (process.env.PATH || '').split(path.delimiter);
+  for (const candidatePath of paths) {
+    const candidate = path.join(candidatePath, command);
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+function resolveCwd(cwd) {
+  if (cwd && fs.existsSync(cwd)) {
+    return cwd;
+  }
+  return process.env.AGENCY_DEFAULT_CWD || process.cwd();
+}
+
 function startSession({ cellId, cwd, mode }) {
   if (sessions.has(cellId)) {
     return sessions.get(cellId);
   }
   const { file, args } = mode === 'cli' ? resolveCliCommand() : resolveShellCommand();
-  const ptyProcess = pty.spawn(file, args, {
+  const executable = resolveExecutable(file);
+  if (!executable) {
+    const commandLabel = mode === 'cli' ? 'CLI' : 'shell';
+    const suggestion =
+      mode === 'cli'
+        ? 'Set AGENCY_CLI_COMMAND or AGENCY_CLI_STUB=1.'
+        : 'Set SHELL or AGENCY_DEFAULT_CWD.';
+    throw new Error(`${commandLabel} command not found: ${file}. ${suggestion}`);
+  }
+  const resolvedCwd = resolveCwd(cwd);
+  const ptyProcess = pty.spawn(executable, args, {
     name: 'xterm-color',
     cols: 120,
     rows: 30,
-    cwd,
+    cwd: resolvedCwd,
     env: {
       ...process.env,
       TERM: 'xterm-256color',
