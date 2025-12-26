@@ -2,6 +2,7 @@
   "name": "agency-editor",
   "version": "0.2.0",
   "private": true,
+  "packageManager": "pnpm@9.15.1",
   "main": "electron/main.js",
   "scripts": {
     "dev:renderer": "vite --port 5173",

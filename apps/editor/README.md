@@ -21,14 +21,14 @@
 
 ```bash
 cd apps/editor
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 If the embedded terminal fails on macOS, run:
 
 ```bash
-npm run postinstall
+pnpm run postinstall
 ```
 
 ## Makefile (from repo root)
@@ -48,12 +48,12 @@ make editor-dev
 
 ```bash
 cd apps/editor
-npx playwright install
-npm run test:e2e
+pnpm dlx playwright install
+pnpm run test:e2e
 ```
 
 To create/update visual baselines:
 
 ```bash
-npx playwright test --update-snapshots
+pnpm dlx playwright test --update-snapshots
 ```

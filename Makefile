@@ -1,5 +1,6 @@
 GO ?= go
 GOLANGCI_LINT ?= golangci-lint
+PNPM ?= pnpm
 export CODEX_HOME := $(PWD)/.codex
 export CODEX_HOME_PUB := $(PWD)/.codex_pub
 
@@ -20,15 +21,15 @@ build:
 	$(GO) build ./...
 
 editor-install:
-	cd apps/editor && npm install
+	cd apps/editor && $(PNPM) install
 
 editor-dev:
-	cd apps/editor && npm run dev
+	cd apps/editor && $(PNPM) run dev
 
 editor-test: editor-test-e2e
 
 editor-test-e2e:
-	cd apps/editor && npm run test:e2e
+	cd apps/editor && $(PNPM) run test:e2e
 
 codex-locale:
 	@echo "CODEX_HOME=$(CODEX_HOME)"
