@@ -9,7 +9,8 @@
     "dev": "concurrently \"npm:dev:renderer\" \"npm:dev:main\"",
     "build:renderer": "vite build",
     "preview": "vite preview",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "postinstall": "node scripts/postinstall.js"
   },
   "dependencies": {
     "@rive-app/react-canvas": "^4.6.6",

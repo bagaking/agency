@@ -25,6 +25,12 @@ npm install
 npm run dev
 ```
 
+If the embedded terminal fails on macOS, run:
+
+```bash
+npm run postinstall
+```
+
 ## Makefile (from repo root)
 
 ```bash
