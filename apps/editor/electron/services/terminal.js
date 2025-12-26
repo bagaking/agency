@@ -24,6 +24,29 @@ function resolveCliCommandString() {
   return process.env.AGENCY_CLI_COMMAND || 'codex';
 }
 
+function ensureSpawnHelperExecutable() {
+  try {
+    const resolved = require.resolve('node-pty');
+    const root = path.dirname(path.dirname(resolved));
+    const prebuilds = path.join(root, 'prebuilds');
+    if (!fs.existsSync(prebuilds)) {
+      return;
+    }
+    const entries = fs.readdirSync(prebuilds, { withFileTypes: true });
+    entries.forEach((entry) => {
+      if (!entry.isDirectory()) {
+        return;
+      }
+      const helperPath = path.join(prebuilds, entry.name, 'spawn-helper');
+      if (fs.existsSync(helperPath)) {
+        fs.chmodSync(helperPath, 0o755);
+      }
+    });
+  } catch (error) {
+    // Ignore chmod failures; fall back to existing error handling.
+  }
+}
+
 function resolveNodeBinary() {
   if (process.versions.electron) {
     return resolveExecutable(process.env.NODE_BINARY || 'node') || process.execPath;
@@ -82,6 +105,7 @@ function trySpawn({ cellId, cwd, mode, file, args }) {
   }
   const resolvedCwd = resolveCwd(cwd);
   try {
+    ensureSpawnHelperExecutable();
     return pty.spawn(executable, args, {
       name: 'xterm-color',
       cols: 120,
