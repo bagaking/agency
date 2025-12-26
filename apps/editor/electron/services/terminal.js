@@ -11,22 +11,17 @@ function splitCommand(command) {
   return command.split(' ').filter(Boolean);
 }
 
-function resolveCliCommand() {
-  if (process.env.AGENCY_TEST_MODE === '1' || process.env.AGENCY_CLI_STUB === '1') {
-    const nodeBinary = resolveNodeBinary();
-    return {
-      file: nodeBinary,
-      args: [path.join(__dirname, '../../scripts/cli_stub.js')],
-    };
-  }
-  const command = process.env.AGENCY_CLI_COMMAND || 'codex';
-  const [file, ...args] = splitCommand(command);
-  return { file, args };
-}
-
 function resolveShellCommand() {
   const shell = process.env.SHELL || 'bash';
   return { file: shell, args: [] };
+}
+
+function resolveCliCommandString() {
+  if (process.env.AGENCY_TEST_MODE === '1' || process.env.AGENCY_CLI_STUB === '1') {
+    const nodeBinary = resolveNodeBinary();
+    return `${nodeBinary} ${path.join(__dirname, '../../scripts/cli_stub.js')}`;
+  }
+  return process.env.AGENCY_CLI_COMMAND || 'codex';
 }
 
 function resolveNodeBinary() {
@@ -111,24 +106,12 @@ function startSession({ cellId, cwd, mode }) {
   if (sessions.has(cellId)) {
     return sessions.get(cellId);
   }
-  const { file, args } = mode === 'cli' ? resolveCliCommand() : resolveShellCommand();
+  const { file, args } = resolveShellCommand();
   let ptyProcess;
   try {
     ptyProcess = trySpawn({ cellId, cwd, mode, file, args });
   } catch (error) {
-    if (mode === 'cli') {
-      const fallback = {
-        file: resolveNodeBinary(),
-        args: [path.join(__dirname, '../../scripts/cli_stub.js')],
-      };
-      try {
-        ptyProcess = trySpawn({ cellId, cwd, mode, ...fallback });
-      } catch (fallbackError) {
-        ptyProcess = null;
-      }
-    }
-
-    if (!ptyProcess && mode !== 'cli') {
+    if (!ptyProcess) {
       for (const fallbackShell of ['/bin/zsh', '/bin/bash']) {
         try {
           ptyProcess = trySpawn({ cellId, cwd, mode, file: fallbackShell, args: [] });
@@ -142,7 +125,7 @@ function startSession({ cellId, cwd, mode }) {
     if (!ptyProcess) {
       const hint =
         mode === 'cli'
-          ? 'Try AGENCY_CLI_STUB=1 or set AGENCY_CLI_COMMAND to a valid executable.'
+          ? 'Set SHELL to a valid shell or ensure PATH contains it.'
           : 'Set SHELL to a valid shell or ensure PATH contains it.';
       throw buildSpawnError(`Terminal spawn failed: ${error.message}.`, hint);
     }
@@ -152,6 +135,17 @@ function startSession({ cellId, cwd, mode }) {
   ptyProcess.onExit(() => {
     sessions.delete(cellId);
   });
+
+  if (mode === 'cli') {
+    const cliCommand = resolveCliCommandString();
+    const [binary] = splitCommand(cliCommand);
+    if (binary && !resolveExecutable(binary)) {
+      ptyProcess.write(
+        `echo \"CLI command not found: ${binary}. Set AGENCY_CLI_COMMAND or AGENCY_CLI_STUB=1.\"\\r`
+      );
+    }
+    ptyProcess.write(`${cliCommand}\\r`);
+  }
   return session;
 }
 
