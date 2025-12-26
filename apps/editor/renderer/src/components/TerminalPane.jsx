@@ -9,7 +9,7 @@ function TerminalPane({ cell, mode }) {
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    if (!cell || !containerRef.current) {
+    if (!cell || !containerRef.current || !cell.worktreePath) {
       return undefined;
     }
 

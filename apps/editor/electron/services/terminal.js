@@ -33,13 +33,23 @@ function resolveExecutable(command) {
     return null;
   }
   if (command.includes('/') && fs.existsSync(command)) {
-    return command;
+    try {
+      fs.accessSync(command, fs.constants.X_OK);
+      return command;
+    } catch (error) {
+      return null;
+    }
   }
   const paths = (process.env.PATH || '').split(path.delimiter);
   for (const candidatePath of paths) {
     const candidate = path.join(candidatePath, command);
     if (fs.existsSync(candidate)) {
-      return candidate;
+      try {
+        fs.accessSync(candidate, fs.constants.X_OK);
+        return candidate;
+      } catch (error) {
+        continue;
+      }
     }
   }
   return null;
@@ -52,11 +62,12 @@ function resolveCwd(cwd) {
   return process.env.AGENCY_DEFAULT_CWD || process.cwd();
 }
 
-function startSession({ cellId, cwd, mode }) {
-  if (sessions.has(cellId)) {
-    return sessions.get(cellId);
-  }
-  const { file, args } = mode === 'cli' ? resolveCliCommand() : resolveShellCommand();
+function buildSpawnError(message, suggestion) {
+  const suffix = suggestion ? ` ${suggestion}` : '';
+  return new Error(`${message}${suffix}`);
+}
+
+function trySpawn({ cellId, cwd, mode, file, args }) {
   const executable = resolveExecutable(file);
   if (!executable) {
     const commandLabel = mode === 'cli' ? 'CLI' : 'shell';
@@ -64,10 +75,10 @@ function startSession({ cellId, cwd, mode }) {
       mode === 'cli'
         ? 'Set AGENCY_CLI_COMMAND or AGENCY_CLI_STUB=1.'
         : 'Set SHELL or AGENCY_DEFAULT_CWD.';
-    throw new Error(`${commandLabel} command not found: ${file}. ${suggestion}`);
+    throw buildSpawnError(`${commandLabel} command not found or not executable: ${file}.`, suggestion);
   }
   const resolvedCwd = resolveCwd(cwd);
-  const ptyProcess = pty.spawn(executable, args, {
+  return pty.spawn(executable, args, {
     name: 'xterm-color',
     cols: 120,
     rows: 30,
@@ -77,6 +88,38 @@ function startSession({ cellId, cwd, mode }) {
       TERM: 'xterm-256color',
     },
   });
+}
+
+function startSession({ cellId, cwd, mode }) {
+  if (sessions.has(cellId)) {
+    return sessions.get(cellId);
+  }
+  const { file, args } = mode === 'cli' ? resolveCliCommand() : resolveShellCommand();
+  let ptyProcess;
+  try {
+    ptyProcess = trySpawn({ cellId, cwd, mode, file, args });
+  } catch (error) {
+    if (mode === 'cli' && !process.env.AGENCY_CLI_COMMAND) {
+      const fallback = {
+        file: process.execPath,
+        args: [path.join(__dirname, '../../scripts/cli_stub.js')],
+      };
+      ptyProcess = trySpawn({ cellId, cwd, mode, ...fallback });
+    } else if (mode !== 'cli') {
+      for (const fallbackShell of ['/bin/zsh', '/bin/bash']) {
+        try {
+          ptyProcess = trySpawn({ cellId, cwd, mode, file: fallbackShell, args: [] });
+          break;
+        } catch (fallbackError) {
+          continue;
+        }
+      }
+    }
+
+    if (!ptyProcess) {
+      throw error;
+    }
+  }
   const session = { cellId, ptyProcess, mode };
   sessions.set(cellId, session);
   ptyProcess.onExit(() => {
