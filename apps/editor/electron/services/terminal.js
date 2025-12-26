@@ -13,8 +13,9 @@ function splitCommand(command) {
 
 function resolveCliCommand() {
   if (process.env.AGENCY_TEST_MODE === '1' || process.env.AGENCY_CLI_STUB === '1') {
+    const nodeBinary = resolveNodeBinary();
     return {
-      file: process.execPath,
+      file: nodeBinary,
       args: [path.join(__dirname, '../../scripts/cli_stub.js')],
     };
   }
@@ -26,6 +27,13 @@ function resolveCliCommand() {
 function resolveShellCommand() {
   const shell = process.env.SHELL || 'bash';
   return { file: shell, args: [] };
+}
+
+function resolveNodeBinary() {
+  if (process.versions.electron) {
+    return resolveExecutable(process.env.NODE_BINARY || 'node') || process.execPath;
+  }
+  return process.execPath;
 }
 
 function resolveExecutable(command) {
@@ -99,13 +107,19 @@ function startSession({ cellId, cwd, mode }) {
   try {
     ptyProcess = trySpawn({ cellId, cwd, mode, file, args });
   } catch (error) {
-    if (mode === 'cli' && !process.env.AGENCY_CLI_COMMAND) {
+    if (mode === 'cli') {
       const fallback = {
-        file: process.execPath,
+        file: resolveNodeBinary(),
         args: [path.join(__dirname, '../../scripts/cli_stub.js')],
       };
-      ptyProcess = trySpawn({ cellId, cwd, mode, ...fallback });
-    } else if (mode !== 'cli') {
+      try {
+        ptyProcess = trySpawn({ cellId, cwd, mode, ...fallback });
+      } catch (fallbackError) {
+        ptyProcess = null;
+      }
+    }
+
+    if (!ptyProcess && mode !== 'cli') {
       for (const fallbackShell of ['/bin/zsh', '/bin/bash']) {
         try {
           ptyProcess = trySpawn({ cellId, cwd, mode, file: fallbackShell, args: [] });
@@ -117,7 +131,11 @@ function startSession({ cellId, cwd, mode }) {
     }
 
     if (!ptyProcess) {
-      throw error;
+      const hint =
+        mode === 'cli'
+          ? 'Try AGENCY_CLI_STUB=1 or set AGENCY_CLI_COMMAND to a valid executable.'
+          : 'Set SHELL to a valid shell or ensure PATH contains it.';
+      throw buildSpawnError(`Terminal spawn failed: ${error.message}.`, hint);
     }
   }
   const session = { cellId, ptyProcess, mode };
