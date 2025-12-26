@@ -13,7 +13,9 @@ test('renders the Agency Editor shell', async () => {
   });
 
   const window = await electronApp.firstWindow();
-  await expect(window.getByText('Agency Editor')).toBeVisible();
+  
+  // The UI has been updated to an IDE layout, so we check for the Sidebar
+  await expect(window.getByTestId('sidebar')).toBeVisible();
   await expect(window.getByTestId('cell-list')).toBeVisible();
 
   await window.getByTestId('open-create-cell').click();
