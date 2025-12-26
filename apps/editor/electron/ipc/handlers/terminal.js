@@ -12,6 +12,9 @@ function setupTerminalHandlers({ getMainWindow }) {
     if (!cellId || !worktreePath) {
       throw new Error('cellId and worktreePath are required.');
     }
+    if (!require('fs').existsSync(worktreePath)) {
+      throw new Error(`Worktree path does not exist: ${worktreePath}`);
+    }
     try {
       const session = startSession({
         cellId,

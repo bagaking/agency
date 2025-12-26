@@ -86,16 +86,25 @@ function trySpawn({ cellId, cwd, mode, file, args }) {
     throw buildSpawnError(`${commandLabel} command not found or not executable: ${file}.`, suggestion);
   }
   const resolvedCwd = resolveCwd(cwd);
-  return pty.spawn(executable, args, {
-    name: 'xterm-color',
-    cols: 120,
-    rows: 30,
-    cwd: resolvedCwd,
-    env: {
-      ...process.env,
-      TERM: 'xterm-256color',
-    },
-  });
+  try {
+    return pty.spawn(executable, args, {
+      name: 'xterm-color',
+      cols: 120,
+      rows: 30,
+      cwd: resolvedCwd,
+      env: {
+        ...process.env,
+        TERM: 'xterm-256color',
+      },
+    });
+  } catch (error) {
+    throw buildSpawnError(
+      `Terminal spawn failed for ${executable} (cwd: ${resolvedCwd}). ${error.message}.`,
+      mode === 'cli'
+        ? 'Check AGENCY_CLI_COMMAND or set AGENCY_CLI_STUB=1.'
+        : 'Check SHELL or ensure the worktree path exists.'
+    );
+  }
 }
 
 function startSession({ cellId, cwd, mode }) {
