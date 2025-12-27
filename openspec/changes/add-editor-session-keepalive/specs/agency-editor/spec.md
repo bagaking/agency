@@ -48,6 +48,13 @@ The editor SHALL provide a dedicated navigation entry for quick action configura
 - **WHEN** a user selects the quick actions item in the activity bar
 - **THEN** the editor shows the configuration view for quick actions
 
+### Requirement: Workflow-Ready Quick Actions
+The editor SHALL keep quick action definitions forward-compatible with future workflow features.
+
+#### Scenario: Preserve workflow metadata
+- **WHEN** a quick action definition includes workflow metadata or additional fields
+- **THEN** the editor preserves the data when saving and editing
+
 ### Requirement: UI State Persistence
 The editor SHALL persist UI state for the last selected Cell and active session.
 

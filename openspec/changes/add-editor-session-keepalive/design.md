@@ -20,6 +20,7 @@ Editor 关闭后会终止 node-pty 会话，导致 CLI 任务丢失。需要可�
 - 快捷指令：每个工具支持 `startCommand` 与 `resumeCommand`（可为空）
 - UI：在 Cell 内提供会话列表、创建新会话、恢复/关闭会话的入口
 - 导航：Activity Bar 增加独立的 Quick Actions 入口用于管理快捷指令
+- 扩展：Quick Actions 作为未来 Workflow 管理入口，配置与信息架构需前向兼容
 
 ## Recovery Behavior
 - Editor 重启后：读取 session registry，尝试逐个附加；不可用则标记为“stale”
