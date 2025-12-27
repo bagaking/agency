@@ -12,6 +12,13 @@ The editor SHALL maintain a per-Cell session registry and restore sessions on re
 - **WHEN** a registered session cannot be recovered
 - **THEN** the editor marks it as stale and prompts the user to start a new session
 
+### Requirement: tmux Dependency
+The editor SHALL require tmux to provide session keepalive and recovery.
+
+#### Scenario: tmux missing
+- **WHEN** tmux is not available on the host
+- **THEN** the editor blocks session creation and shows an installation prompt
+
 ### Requirement: Per-Cell Multi-Session Terminals
 The editor SHALL allow multiple terminal sessions per Cell.
 

@@ -11,7 +11,7 @@ Editor 关闭后会终止 node-pty 会话，导致 CLI 任务丢失。需要可�
   - 解决跨平台 PTY 差异（仍以 macOS 为主）
 
 ## Decisions
-- 会话后端：优先使用 tmux 作为可恢复后端（若不可用则退化为新 shell 会话）
+- 会话后端：强依赖 tmux 作为可恢复后端（无 tmux 则阻断会话创建并提示安装）
 - 会话命名：`agency:<cell-id>:<session-id>`，确保稳定可重连
 - 持久化：
   - 会话注册表：每个 worktree 的 `.agency/sessions-<worktreeName>.yaml`
