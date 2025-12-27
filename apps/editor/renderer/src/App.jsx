@@ -27,6 +27,30 @@ const toBranchSlug = (value) => {
     .replace(/^-+|-+$/g, '');
   return slug || 'cell';
 };
+const STORAGE_KEY = 'agency.editor.state';
+
+const loadPersistedState = () => {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (error) {
+    return {};
+  }
+};
+
+const persistState = (nextState) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
+  } catch (error) {
+    // Ignore persistence failures.
+  }
+};
 
 function App() {
   const [cells, setCells] = useState([]);
@@ -57,7 +81,11 @@ function App() {
         const result = await window.agency.listCells();
         setCells(result);
         if (result.length && !selectedId) {
-          setSelectedId(result[0].id);
+          const persisted = loadPersistedState();
+          const match = persisted?.selectedId
+            ? result.find((cell) => cell.id === persisted.selectedId)
+            : null;
+          setSelectedId(match ? match.id : result[0].id);
         }
       } else {
         setCells(defaultCells);
@@ -87,6 +115,15 @@ function App() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!selectedCell?.id) {
+      return;
+    }
+    persistState({ selectedId: selectedCell.id });
+    setTerminalMode('shell');
+    setTerminalOpen(true);
+  }, [selectedCell?.id]);
 
   const handleStateChange = async (nextState) => {
     if (!selectedCell || !window.agency?.updateCellState) {
