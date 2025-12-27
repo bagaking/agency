@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TerminalSquare, AlertTriangle, MonitorPlay, ChevronRight, CheckCircle2, Circle } from 'lucide-react';
+import { TerminalSquare, AlertTriangle, MonitorPlay, ChevronRight, CheckCircle2, Circle, Play } from 'lucide-react';
 import TerminalPane from './TerminalPane.jsx';
 import { RiveAnimation } from './RiveAnimation.jsx';
 import { GateList } from './GateList.jsx';
