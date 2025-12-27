@@ -15,6 +15,7 @@
 - UI 样式：Tailwind CSS，采用 VSCode 风格的 IDE 布局（Activity Bar, Sidebar, Editor Pane, Status Bar）
 - 动画：Rive（用于状态指示、加载态与空状态，提升应用质感）
 - 内置终端：xterm.js + node-pty
+- 终端策略：默认只启动 shell，不自动运行 CLI；提供快捷指令（codex/gemini/claude）触发 CLI；应用关闭后需重新启动会话
 - 生命周期文件：放在每个 worktree 的 `.agency/` 目录下，文件名包含该 worktree 的唯一名字；格式采用 YAML（优先）或 Markdown（可选）
 - 校验策略：仅做最小化校验并标注为临时版本（例如：存在 spec 文件、分支与 worktree 绑定关系）
 

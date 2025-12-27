@@ -26,6 +26,11 @@ The editor SHALL provide an embedded terminal and manage CLI processes (e.g., Co
 - **WHEN** a user starts a CLI task for a Cell
 - **THEN** the CLI runs inside the embedded terminal and its output is visible
 
+#### Scenario: Shell-first with quick commands
+- **WHEN** a user opens a Cell terminal
+- **THEN** the terminal starts in shell mode without auto-running a CLI
+- **AND** the user can trigger CLI tools via quick commands (e.g., `codex`, `gemini`, `claude`)
+
 ### Requirement: Lifecycle State File
 The editor SHALL persist Cell lifecycle state in a per-worktree file under `.agency/` whose filename includes the worktree's unique name.
 The file MUST be YAML or Markdown and MUST be treated as a mergeable record.
