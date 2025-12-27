@@ -2,16 +2,32 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from '@xterm/addon-fit';
 
-function TerminalPane({ cell, mode }) {
+function TerminalPane({ cell, mode, pendingCommand, onCommandSent }) {
   const containerRef = useRef(null);
   const terminalRef = useRef(null);
   const fitRef = useRef(null);
+  const commandQueueRef = useRef([]);
+  const lastQueuedRef = useRef(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [sessionReady, setSessionReady] = useState(false);
+
+  const sendCommand = (command) => {
+    if (!command || !cell?.id) {
+      return;
+    }
+    window.agency?.writeTerminal({ cellId: cell.id, data: `${command}\r` });
+    if (onCommandSent) {
+      onCommandSent({ cellId: cell.id, command });
+    }
+  };
 
   useEffect(() => {
     if (!cell || !containerRef.current || !cell.worktreePath) {
       return undefined;
     }
+    commandQueueRef.current = [];
+    lastQueuedRef.current = null;
+    setSessionReady(false);
 
     const terminal = new Terminal({
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
@@ -43,13 +59,24 @@ function TerminalPane({ cell, mode }) {
       }
     });
 
-    window.agency
-      ?.startTerminal({
-        cellId: cell.id,
-        worktreePath: cell.worktreePath,
-        mode,
-      })
-      .catch((error) => console.error(error));
+    const startTerminal = async () => {
+      try {
+        await window.agency?.startTerminal({
+          cellId: cell.id,
+          worktreePath: cell.worktreePath,
+          mode,
+        });
+        setSessionReady(true);
+        if (commandQueueRef.current.length) {
+          const queue = [...commandQueueRef.current];
+          commandQueueRef.current = [];
+          queue.forEach((command) => sendCommand(command));
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    startTerminal();
 
     terminal.onData((data) => {
       window.agency?.writeTerminal({ cellId: cell.id, data });
@@ -81,8 +108,24 @@ function TerminalPane({ cell, mode }) {
       terminal.dispose();
       terminalRef.current = null;
       fitRef.current = null;
+      setSessionReady(false);
     };
   }, [cell, mode]);
+
+  useEffect(() => {
+    if (!pendingCommand || !cell || pendingCommand.cellId !== cell.id) {
+      return;
+    }
+    if (pendingCommand.command === lastQueuedRef.current) {
+      return;
+    }
+    lastQueuedRef.current = pendingCommand.command;
+    if (sessionReady) {
+      sendCommand(pendingCommand.command);
+    } else {
+      commandQueueRef.current.push(pendingCommand.command);
+    }
+  }, [pendingCommand, sessionReady, cell?.id]);
 
   if (errorMessage) {
     return (

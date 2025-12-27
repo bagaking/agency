@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { TerminalSquare, AlertTriangle, MonitorPlay, ChevronRight, CheckCircle2, Circle, Play } from 'lucide-react';
 import TerminalPane from './TerminalPane.jsx';
 import { RiveAnimation } from './RiveAnimation.jsx';
 import { GateList } from './GateList.jsx';
 
-export function EditorPane({ cell, terminalMode, terminalOpen, onStateChange, onOpenTerminal, onStartCLI }) {
-  // Auto-start CLI view if active
-  useEffect(() => {
-    if (cell?.state === 'active' && !terminalOpen) {
-      onStartCLI();
-    }
-  }, [cell?.id, cell?.state]);
-
+export function EditorPane({
+  cell,
+  terminalMode,
+  terminalOpen,
+  onStateChange,
+  onOpenTerminal,
+  onRunCommand,
+  pendingCommand,
+  onCommandSent,
+}) {
   if (!cell) {
     return (
       <div className="flex h-full flex-col items-center justify-center bg-background text-muted-foreground">
@@ -110,17 +112,38 @@ export function EditorPane({ cell, terminalMode, terminalOpen, onStateChange, on
                 </h2>
                 <div className="flex gap-2">
                      <button 
-                        onClick={onStartCLI}
+                        onClick={onOpenTerminal}
                         className="text-xs flex items-center gap-1.5 rounded-sm bg-primary/10 px-2 py-1 text-primary hover:bg-primary/20 transition-colors"
                     >
                         <Play size={10} />
-                        Restart CLI
+                        Open Shell
                      </button>
+                     <div className="hidden items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground md:flex">
+                        Quick
+                     </div>
+                     <div className="flex items-center gap-1">
+                        {['codex', 'gemini', 'claude'].map((command) => (
+                          <button
+                            key={command}
+                            type="button"
+                            onClick={() => onRunCommand?.(command)}
+                            className="rounded-sm border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:border-primary/60 hover:text-primary transition-colors"
+                          >
+                            {command}
+                          </button>
+                        ))}
+                     </div>
                 </div>
              </div>
              <div className="flex-1 rounded-lg border border-border bg-black/95 overflow-hidden shadow-inner relative">
                 {terminalOpen ? (
-                    <TerminalPane key={cell.id} cell={cell} mode={terminalMode} />
+                    <TerminalPane
+                      key={cell.id}
+                      cell={cell}
+                      mode={terminalMode}
+                      pendingCommand={pendingCommand}
+                      onCommandSent={onCommandSent}
+                    />
                 ) : (
                         <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
                         <p className="text-sm">Terminal Idle</p>

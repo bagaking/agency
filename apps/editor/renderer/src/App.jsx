@@ -36,6 +36,7 @@ function App() {
   const [pendingTransition, setPendingTransition] = useState(null);
   const [transitionError, setTransitionError] = useState('');
   const [transitionLoading, setTransitionLoading] = useState(false);
+  const [pendingCommand, setPendingCommand] = useState(null);
   
   // Terminal State
   const [terminalOpen, setTerminalOpen] = useState(false);
@@ -124,7 +125,7 @@ function App() {
       if (cell?.id) {
         setSelectedId(cell.id);
       }
-      setTerminalMode('cli');
+      setTerminalMode('shell');
       setTerminalOpen(true);
     } catch (error) {
       console.error(error);
@@ -158,9 +159,25 @@ function App() {
                 setTerminalMode('shell');
                 setTerminalOpen(true);
             }}
-            onStartCLI={() => {
-                setTerminalMode('cli');
-                setTerminalOpen(true);
+            onRunCommand={(command) => {
+              if (!selectedCell) {
+                return;
+              }
+              setTerminalMode('shell');
+              setTerminalOpen(true);
+              setPendingCommand({ cellId: selectedCell.id, command });
+            }}
+            pendingCommand={pendingCommand}
+            onCommandSent={(payload) => {
+              setPendingCommand((current) => {
+                if (!current) {
+                  return current;
+                }
+                if (current.cellId !== payload?.cellId || current.command !== payload?.command) {
+                  return current;
+                }
+                return null;
+              });
             }}
         />
       </div>
