@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld('agency', {
   closeSession: (payload) => ipcRenderer.invoke('sessions:close', payload),
   getUiState: () => ipcRenderer.invoke('ui-state:get'),
   setUiState: (payload) => ipcRenderer.invoke('ui-state:set', payload),
+  getQuickActions: () => ipcRenderer.invoke('quick-actions:get'),
+  setQuickActions: (payload) => ipcRenderer.invoke('quick-actions:set', payload),
   createCell: (payload) => ipcRenderer.invoke('cells:create', payload),
   updateCellState: (payload) => ipcRenderer.invoke('cells:updateState', payload),
   startTerminal: (payload) => ipcRenderer.invoke('terminal:start', payload),

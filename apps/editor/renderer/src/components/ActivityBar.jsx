@@ -5,7 +5,7 @@ export function ActivityBar({ activeView, onSwitchView }) {
   const items = [
     { id: 'explorer', icon: Layers, label: 'Explorer' },
     { id: 'terminal', icon: Terminal, label: 'Terminal' },
-    // { id: 'commands', icon: Command, label: 'Commands' },
+    { id: 'quick-actions', icon: Command, label: 'Quick Actions' },
   ];
 
   const bottomItems = [

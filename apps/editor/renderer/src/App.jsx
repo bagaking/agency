@@ -5,6 +5,7 @@ import { Sidebar } from './components/Sidebar.jsx';
 import { StatusBar } from './components/StatusBar.jsx';
 import { EditorPane } from './components/EditorPane.jsx';
 import { GateList } from './components/GateList.jsx';
+import { QuickActionsView } from './components/QuickActionsView.jsx';
 
 const defaultCells = [
   {
@@ -42,13 +43,16 @@ function App() {
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionError, setSessionError] = useState('');
   const [uiStateLoaded, setUiStateLoaded] = useState(false);
+  const [quickActions, setQuickActions] = useState([]);
+  const [quickActionsError, setQuickActionsError] = useState('');
+  const [quickActionsSaving, setQuickActionsSaving] = useState(false);
   
   // Terminal State
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [terminalMode, setTerminalMode] = useState('shell');
   
   // View State
-  const [activeView, setActiveView] = useState('explorer'); // explorer, settings
+  const [activeView, setActiveView] = useState('explorer'); // explorer, quick-actions, settings
 
   const selectedCell = useMemo(
     () => cells.find((cell) => cell.id === selectedId),
@@ -109,6 +113,21 @@ function App() {
       setUiStateLoaded(true);
     };
     bootstrap();
+  }, []);
+
+  useEffect(() => {
+    const loadQuickActions = async () => {
+      if (!window.agency?.getQuickActions) {
+        return;
+      }
+      try {
+        const actions = await window.agency.getQuickActions();
+        setQuickActions(Array.isArray(actions) ? actions : []);
+      } catch (error) {
+        setQuickActionsError(error?.message || 'Failed to load quick actions.');
+      }
+    };
+    loadQuickActions();
   }, []);
 
   useEffect(() => {
@@ -227,6 +246,51 @@ function App() {
     }
   };
 
+  const generateActionId = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return `action-${Date.now()}`;
+  };
+
+  const addQuickAction = () => {
+    setQuickActions((current) => [
+      ...current,
+      {
+        id: generateActionId(),
+        label: 'New Action',
+        startCommand: '',
+        resumeCommand: '',
+      },
+    ]);
+  };
+
+  const updateQuickAction = (id, patch) => {
+    setQuickActions((current) =>
+      current.map((action) => (action.id === id ? { ...action, ...patch } : action))
+    );
+  };
+
+  const removeQuickAction = (id) => {
+    setQuickActions((current) => current.filter((action) => action.id !== id));
+  };
+
+  const saveQuickActions = async () => {
+    if (!window.agency?.setQuickActions) {
+      return;
+    }
+    setQuickActionsSaving(true);
+    setQuickActionsError('');
+    try {
+      const saved = await window.agency.setQuickActions(quickActions);
+      setQuickActions(Array.isArray(saved) ? saved : quickActions);
+    } catch (error) {
+      setQuickActionsError(error?.message || 'Failed to save quick actions.');
+    } finally {
+      setQuickActionsSaving(false);
+    }
+  };
+
   return (
     <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
       
@@ -234,7 +298,7 @@ function App() {
       <div className="flex flex-1 overflow-hidden">
         <ActivityBar activeView={activeView} onSwitchView={setActiveView} />
         
-        {activeView === 'explorer' && (
+        {(activeView === 'explorer' || activeView === 'quick-actions') && (
              <Sidebar 
                 cells={cells} 
                 selectedId={selectedId} 
@@ -243,93 +307,106 @@ function App() {
              />
         )}
 
-        <EditorPane 
-            cell={selectedCell}
-            terminalMode={terminalMode}
-            terminalOpen={terminalOpen}
-            sessionId={activeSessionId}
-            sessions={sessions}
-            sessionLoading={sessionLoading}
-            sessionError={sessionError}
-            onCreateSession={async () => {
-              if (!selectedCell || !window.agency?.createSession) {
-                return;
-              }
-              setSessionLoading(true);
-              setSessionError('');
-              try {
-                const created = await window.agency.createSession({
-                  cellId: selectedCell.id,
-                  worktreePath: selectedCell.worktreePath,
-                });
-                const nextSessions = created ? [...sessions, created] : sessions;
-                setSessions(nextSessions);
-                if (created?.id) {
-                  setActiveSessionByCellId((current) => ({
-                    ...current,
-                    [selectedCell.id]: created.id,
-                  }));
+        {activeView === 'quick-actions' ? (
+          <QuickActionsView
+            actions={quickActions}
+            error={quickActionsError}
+            saving={quickActionsSaving}
+            onAddAction={addQuickAction}
+            onRemoveAction={removeQuickAction}
+            onUpdateAction={updateQuickAction}
+            onSaveActions={saveQuickActions}
+          />
+        ) : (
+          <EditorPane 
+              cell={selectedCell}
+              terminalMode={terminalMode}
+              terminalOpen={terminalOpen}
+              sessionId={activeSessionId}
+              sessions={sessions}
+              sessionLoading={sessionLoading}
+              sessionError={sessionError}
+              quickActions={quickActions}
+              onCreateSession={async () => {
+                if (!selectedCell || !window.agency?.createSession) {
+                  return;
                 }
-              } catch (error) {
-                setSessionError(error?.message || 'Failed to create session.');
-              } finally {
-                setSessionLoading(false);
-              }
-            }}
-            onRefreshSessions={() => loadSessionsForCell(selectedCell)}
-            onSelectSession={(sessionId) => {
-              if (!selectedCell) {
-                return;
-              }
-              setActiveSessionByCellId((current) => ({
-                ...current,
-                [selectedCell.id]: sessionId,
-              }));
-            }}
-            onCloseSession={async (sessionId) => {
-              if (!selectedCell || !window.agency?.closeSession) {
-                return;
-              }
-              setSessionLoading(true);
-              setSessionError('');
-              try {
-                await window.agency.closeSession({
-                  worktreePath: selectedCell.worktreePath,
-                  sessionId,
-                });
-                await loadSessionsForCell(selectedCell);
-              } catch (error) {
-                setSessionError(error?.message || 'Failed to close session.');
-              } finally {
-                setSessionLoading(false);
-              }
-            }}
-            onStateChange={handleStateChange}
-            onOpenTerminal={() => {
+                setSessionLoading(true);
+                setSessionError('');
+                try {
+                  const created = await window.agency.createSession({
+                    cellId: selectedCell.id,
+                    worktreePath: selectedCell.worktreePath,
+                  });
+                  const nextSessions = created ? [...sessions, created] : sessions;
+                  setSessions(nextSessions);
+                  if (created?.id) {
+                    setActiveSessionByCellId((current) => ({
+                      ...current,
+                      [selectedCell.id]: created.id,
+                    }));
+                  }
+                } catch (error) {
+                  setSessionError(error?.message || 'Failed to create session.');
+                } finally {
+                  setSessionLoading(false);
+                }
+              }}
+              onRefreshSessions={() => loadSessionsForCell(selectedCell)}
+              onSelectSession={(sessionId) => {
+                if (!selectedCell) {
+                  return;
+                }
+                setActiveSessionByCellId((current) => ({
+                  ...current,
+                  [selectedCell.id]: sessionId,
+                }));
+              }}
+              onCloseSession={async (sessionId) => {
+                if (!selectedCell || !window.agency?.closeSession) {
+                  return;
+                }
+                setSessionLoading(true);
+                setSessionError('');
+                try {
+                  await window.agency.closeSession({
+                    worktreePath: selectedCell.worktreePath,
+                    sessionId,
+                  });
+                  await loadSessionsForCell(selectedCell);
+                } catch (error) {
+                  setSessionError(error?.message || 'Failed to close session.');
+                } finally {
+                  setSessionLoading(false);
+                }
+              }}
+              onStateChange={handleStateChange}
+              onOpenTerminal={() => {
+                  setTerminalMode('shell');
+                  setTerminalOpen(true);
+              }}
+              onRunCommand={(command) => {
+                if (!selectedCell) {
+                  return;
+                }
                 setTerminalMode('shell');
                 setTerminalOpen(true);
-            }}
-            onRunCommand={(command) => {
-              if (!selectedCell) {
-                return;
-              }
-              setTerminalMode('shell');
-              setTerminalOpen(true);
-              setPendingCommand({ cellId: selectedCell.id, command });
-            }}
-            pendingCommand={pendingCommand}
-            onCommandSent={(payload) => {
-              setPendingCommand((current) => {
-                if (!current) {
-                  return current;
-                }
-                if (current.cellId !== payload?.cellId || current.command !== payload?.command) {
-                  return current;
-                }
-                return null;
-              });
-            }}
-        />
+                setPendingCommand({ cellId: selectedCell.id, command });
+              }}
+              pendingCommand={pendingCommand}
+              onCommandSent={(payload) => {
+                setPendingCommand((current) => {
+                  if (!current) {
+                    return current;
+                  }
+                  if (current.cellId !== payload?.cellId || current.command !== payload?.command) {
+                    return current;
+                  }
+                  return null;
+                });
+              }}
+          />
+        )}
       </div>
 
       {/* Global Status Bar */}

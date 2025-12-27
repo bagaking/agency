@@ -1,5 +1,5 @@
 import React from 'react';
-import { TerminalSquare, AlertTriangle, MonitorPlay, ChevronRight, CheckCircle2, Circle, Play, Plus, RefreshCw, X } from 'lucide-react';
+import { TerminalSquare, AlertTriangle, MonitorPlay, ChevronRight, CheckCircle2, Circle, Play, Plus, RefreshCw, X, RotateCcw } from 'lucide-react';
 import TerminalPane from './TerminalPane.jsx';
 import { RiveAnimation } from './RiveAnimation.jsx';
 import { GateList } from './GateList.jsx';
@@ -12,6 +12,7 @@ export function EditorPane({
   sessions,
   sessionLoading,
   sessionError,
+  quickActions,
   onCreateSession,
   onRefreshSessions,
   onSelectSession,
@@ -142,7 +143,7 @@ export function EditorPane({
               </div>
             ) : null}
             {sessionLoading ? (
-              <div className="mt-2 text-xs text-muted-foreground">Loading sessions…</div>
+              <div className="mt-2 text-xs text-muted-foreground">Loading sessions...</div>
             ) : (
               <div className="mt-3 space-y-1">
                 {sessions && sessions.length ? (
@@ -212,16 +213,33 @@ export function EditorPane({
                         Quick
                      </div>
                      <div className="flex items-center gap-1">
-                        {['codex', 'gemini', 'claude'].map((command) => (
-                          <button
-                            key={command}
-                            type="button"
-                            onClick={() => onRunCommand?.(command)}
-                            className="rounded-sm border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:border-primary/60 hover:text-primary transition-colors"
-                          >
-                            {command}
-                          </button>
-                        ))}
+                        {quickActions && quickActions.length ? (
+                          quickActions.map((action) => (
+                            <div key={action.id} className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => onRunCommand?.(action.startCommand || '')}
+                                className="rounded-sm border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:border-primary/60 hover:text-primary transition-colors"
+                                disabled={!action.startCommand}
+                                title={action.startCommand || 'Start command not set'}
+                              >
+                                {action.label || action.id}
+                              </button>
+                              {action.resumeCommand ? (
+                                <button
+                                  type="button"
+                                  onClick={() => onRunCommand?.(action.resumeCommand)}
+                                  className="rounded-sm border border-border px-1.5 py-1 text-[11px] text-muted-foreground hover:border-primary/60 hover:text-primary transition-colors"
+                                  title="Resume"
+                                >
+                                  <RotateCcw size={12} />
+                                </button>
+                              ) : null}
+                            </div>
+                          ))
+                        ) : (
+                          <span className="text-[11px] text-muted-foreground">No quick actions</span>
+                        )}
                      </div>
                 </div>
              </div>
