@@ -21,8 +21,8 @@ function normalizeId(value) {
 }
 
 function buildTmuxSessionName(cellId, sessionId) {
-  const safeCell = normalizeId(cellId);
-  const safeSession = normalizeId(sessionId);
+  const safeCell = normalizeId(cellId) || 'cell';
+  const safeSession = normalizeId(sessionId) || 'session';
   return `agency-${safeCell}-${safeSession}`;
 }
 
@@ -72,7 +72,10 @@ async function createNewSession({ cellId, worktreePath, name, sessionId: provide
   ensureWorktreePath(worktreePath);
   await ensureTmuxAvailable();
   const registry = await readRegistry(worktreePath);
-  const sessionId = normalizeId(providedId || generateSessionId());
+  let sessionId = normalizeId(providedId || generateSessionId());
+  if (registry.sessions.some((session) => session.id === sessionId)) {
+    sessionId = `${sessionId}-${Date.now()}`;
+  }
   const tmuxSession = buildTmuxSessionName(cellId, sessionId);
   const createdAt = new Date().toISOString();
 

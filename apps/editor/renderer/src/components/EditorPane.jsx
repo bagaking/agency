@@ -1,5 +1,5 @@
 import React from 'react';
-import { TerminalSquare, AlertTriangle, MonitorPlay, ChevronRight, CheckCircle2, Circle, Play } from 'lucide-react';
+import { TerminalSquare, AlertTriangle, MonitorPlay, ChevronRight, CheckCircle2, Circle, Play, Plus, RefreshCw, X } from 'lucide-react';
 import TerminalPane from './TerminalPane.jsx';
 import { RiveAnimation } from './RiveAnimation.jsx';
 import { GateList } from './GateList.jsx';
@@ -9,6 +9,13 @@ export function EditorPane({
   terminalMode,
   terminalOpen,
   sessionId,
+  sessions,
+  sessionLoading,
+  sessionError,
+  onCreateSession,
+  onRefreshSessions,
+  onSelectSession,
+  onCloseSession,
   onStateChange,
   onOpenTerminal,
   onRunCommand,
@@ -104,6 +111,88 @@ export function EditorPane({
             </p>
         </div>
 
+        {/* Sessions */}
+        <div className="shrink-0 border-b border-border bg-card/10 px-6 py-3">
+            <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Sessions
+                </h3>
+                <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={onRefreshSessions}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <RefreshCw size={12} />
+                      Refresh
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onCreateSession}
+                      className="flex items-center gap-1 rounded-sm border border-border px-2 py-1 text-xs text-muted-foreground hover:border-primary/60 hover:text-primary"
+                    >
+                      <Plus size={12} />
+                      New
+                    </button>
+                </div>
+            </div>
+            {sessionError ? (
+              <div className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-200">
+                {sessionError}
+              </div>
+            ) : null}
+            {sessionLoading ? (
+              <div className="mt-2 text-xs text-muted-foreground">Loading sessions…</div>
+            ) : (
+              <div className="mt-3 space-y-1">
+                {sessions && sessions.length ? (
+                  sessions.map((session) => {
+                    const isActive = session.id === sessionId;
+                    const isClosed = session.status === 'closed';
+                    const statusColor =
+                      session.status === 'active'
+                        ? 'text-emerald-400'
+                        : session.status === 'stale'
+                          ? 'text-amber-400'
+                          : 'text-muted-foreground';
+                    return (
+                      <div
+                        key={session.id}
+                        className={`flex items-center gap-2 rounded px-2 py-1 text-xs ${
+                          isActive ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          className="flex flex-1 items-center gap-2"
+                          onClick={() => onSelectSession?.(session.id)}
+                          disabled={isClosed}
+                        >
+                          <Circle size={10} className={statusColor} fill="currentColor" />
+                          <span className="truncate">{session.name || session.id}</span>
+                          <span className="ml-auto text-[10px] uppercase tracking-wide opacity-70">
+                            {session.status}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onCloseSession?.(session.id)}
+                          className="text-muted-foreground hover:text-foreground"
+                          disabled={isClosed}
+                          title="Close session"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-xs text-muted-foreground">No sessions yet.</div>
+                )}
+              </div>
+            )}
+        </div>
+
         {/* Main Content: Terminal */}
         <div className="flex-1 flex flex-col min-h-0 p-4">
              <div className="flex items-center justify-between mb-2 shrink-0">
@@ -137,9 +226,9 @@ export function EditorPane({
                 </div>
              </div>
              <div className="flex-1 rounded-lg border border-border bg-black/95 overflow-hidden shadow-inner relative">
-                {terminalOpen ? (
+                {terminalOpen && sessionId ? (
                     <TerminalPane
-                      key={cell.id}
+                      key={`${cell.id}:${sessionId || 'none'}`}
                       cell={cell}
                       sessionId={sessionId}
                       mode={terminalMode}
@@ -148,7 +237,7 @@ export function EditorPane({
                     />
                 ) : (
                         <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
-                        <p className="text-sm">Terminal Idle</p>
+                        <p className="text-sm">{terminalOpen ? 'Select a session to connect' : 'Terminal Idle'}</p>
                         <button onClick={onOpenTerminal} className="mt-2 text-xs underline hover:text-primary">Connect</button>
                     </div>
                 )}

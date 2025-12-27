@@ -27,30 +27,6 @@ const toBranchSlug = (value) => {
     .replace(/^-+|-+$/g, '');
   return slug || 'cell';
 };
-const STORAGE_KEY = 'agency.editor.state';
-
-const loadPersistedState = () => {
-  if (typeof window === 'undefined') {
-    return {};
-  }
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch (error) {
-    return {};
-  }
-};
-
-const persistState = (nextState) => {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
-  } catch (error) {
-    // Ignore persistence failures.
-  }
-};
 
 function App() {
   const [cells, setCells] = useState([]);
@@ -61,7 +37,11 @@ function App() {
   const [transitionError, setTransitionError] = useState('');
   const [transitionLoading, setTransitionLoading] = useState(false);
   const [pendingCommand, setPendingCommand] = useState(null);
-  const [activeSessionId, setActiveSessionId] = useState('default');
+  const [activeSessionByCellId, setActiveSessionByCellId] = useState({});
+  const [sessions, setSessions] = useState([]);
+  const [sessionLoading, setSessionLoading] = useState(false);
+  const [sessionError, setSessionError] = useState('');
+  const [uiStateLoaded, setUiStateLoaded] = useState(false);
   
   // Terminal State
   const [terminalOpen, setTerminalOpen] = useState(false);
@@ -74,17 +54,21 @@ function App() {
     () => cells.find((cell) => cell.id === selectedId),
     [cells, selectedId]
   );
+  const activeSessionId = selectedCell
+    ? activeSessionByCellId[selectedCell.id] ||
+      sessions.find((session) => session.status === 'active')?.id ||
+      sessions[0]?.id
+    : undefined;
 
-  const loadCells = async () => {
+  const loadCells = async (preferredSelection) => {
     setLoading(true);
     try {
       if (window.agency && window.agency.listCells) {
         const result = await window.agency.listCells();
         setCells(result);
         if (result.length && !selectedId) {
-          const persisted = loadPersistedState();
-          const match = persisted?.selectedId
-            ? result.find((cell) => cell.id === persisted.selectedId)
+          const match = preferredSelection
+            ? result.find((cell) => cell.id === preferredSelection)
             : null;
           setSelectedId(match ? match.id : result[0].id);
         }
@@ -102,7 +86,29 @@ function App() {
   };
 
   useEffect(() => {
-    loadCells();
+    const bootstrap = async () => {
+      if (window.agency?.getUiState) {
+        try {
+          const state = await window.agency.getUiState();
+          if (state?.activeSessionByCellId && typeof state.activeSessionByCellId === 'object') {
+            setActiveSessionByCellId(state.activeSessionByCellId);
+          }
+          if (state?.selectedId) {
+            setSelectedId(state.selectedId);
+          }
+          await loadCells(state?.selectedId);
+        } catch (error) {
+          console.error(error);
+          await loadCells();
+        } finally {
+          setUiStateLoaded(true);
+        }
+        return;
+      }
+      await loadCells();
+      setUiStateLoaded(true);
+    };
+    bootstrap();
   }, []);
 
   useEffect(() => {
@@ -121,11 +127,15 @@ function App() {
     if (!selectedCell?.id) {
       return;
     }
-    persistState({ selectedId: selectedCell.id });
-    setActiveSessionId('default');
+    if (uiStateLoaded && window.agency?.setUiState) {
+      window.agency.setUiState({
+        selectedId: selectedCell.id,
+        activeSessionByCellId,
+      }).catch(() => undefined);
+    }
     setTerminalMode('shell');
     setTerminalOpen(true);
-  }, [selectedCell?.id]);
+  }, [selectedCell?.id, activeSessionByCellId, uiStateLoaded]);
 
   const handleStateChange = async (nextState) => {
     if (!selectedCell || !window.agency?.updateCellState) {
@@ -151,6 +161,50 @@ function App() {
       gates: freshCell.gates || [],
     });
   };
+
+  const loadSessionsForCell = async (cell) => {
+    if (!cell || !window.agency?.listSessions) {
+      return;
+    }
+    setSessionLoading(true);
+    setSessionError('');
+    try {
+      let nextSessions = await window.agency.listSessions({ worktreePath: cell.worktreePath });
+      if (nextSessions.length === 0 && window.agency?.createSession) {
+        const created = await window.agency.createSession({
+          cellId: cell.id,
+          worktreePath: cell.worktreePath,
+          name: 'Default',
+        });
+        nextSessions = created ? [created] : nextSessions;
+      }
+      setSessions(nextSessions);
+
+      const preferred = activeSessionByCellId[cell.id];
+      const active =
+        (preferred && nextSessions.find((session) => session.id === preferred)) ||
+        nextSessions.find((session) => session.status === 'active') ||
+        nextSessions[0];
+      if (active && active.id) {
+        setActiveSessionByCellId((current) => ({
+          ...current,
+          [cell.id]: active.id,
+        }));
+      }
+    } catch (error) {
+      setSessionError(error?.message || 'Failed to load sessions.');
+      setSessions([]);
+    } finally {
+      setSessionLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedCell) {
+      return;
+    }
+    loadSessionsForCell(selectedCell);
+  }, [selectedCell?.id]);
 
   const handleCreate = async ({ name, branch, reusePath }) => {
     if (!window.agency?.createCell) {
@@ -194,6 +248,62 @@ function App() {
             terminalMode={terminalMode}
             terminalOpen={terminalOpen}
             sessionId={activeSessionId}
+            sessions={sessions}
+            sessionLoading={sessionLoading}
+            sessionError={sessionError}
+            onCreateSession={async () => {
+              if (!selectedCell || !window.agency?.createSession) {
+                return;
+              }
+              setSessionLoading(true);
+              setSessionError('');
+              try {
+                const created = await window.agency.createSession({
+                  cellId: selectedCell.id,
+                  worktreePath: selectedCell.worktreePath,
+                });
+                const nextSessions = created ? [...sessions, created] : sessions;
+                setSessions(nextSessions);
+                if (created?.id) {
+                  setActiveSessionByCellId((current) => ({
+                    ...current,
+                    [selectedCell.id]: created.id,
+                  }));
+                }
+              } catch (error) {
+                setSessionError(error?.message || 'Failed to create session.');
+              } finally {
+                setSessionLoading(false);
+              }
+            }}
+            onRefreshSessions={() => loadSessionsForCell(selectedCell)}
+            onSelectSession={(sessionId) => {
+              if (!selectedCell) {
+                return;
+              }
+              setActiveSessionByCellId((current) => ({
+                ...current,
+                [selectedCell.id]: sessionId,
+              }));
+            }}
+            onCloseSession={async (sessionId) => {
+              if (!selectedCell || !window.agency?.closeSession) {
+                return;
+              }
+              setSessionLoading(true);
+              setSessionError('');
+              try {
+                await window.agency.closeSession({
+                  worktreePath: selectedCell.worktreePath,
+                  sessionId,
+                });
+                await loadSessionsForCell(selectedCell);
+              } catch (error) {
+                setSessionError(error?.message || 'Failed to close session.');
+              } finally {
+                setSessionLoading(false);
+              }
+            }}
             onStateChange={handleStateChange}
             onOpenTerminal={() => {
                 setTerminalMode('shell');

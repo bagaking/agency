@@ -4,6 +4,7 @@ const { setupCellHandlers } = require('./ipc/handlers/cells');
 const { setupWorktreeHandlers } = require('./ipc/handlers/worktrees');
 const { setupTerminalHandlers } = require('./ipc/handlers/terminal');
 const { setupSessionHandlers } = require('./ipc/handlers/sessions');
+const { setupUiStateHandlers } = require('./ipc/handlers/uiState');
 
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
 let mainWindow;
@@ -41,6 +42,7 @@ app.whenReady().then(() => {
   setupWorktreeHandlers();
   setupTerminalHandlers({ getMainWindow: () => mainWindow });
   setupSessionHandlers();
+  setupUiStateHandlers();
   createWindow();
 
   app.on('activate', () => {
