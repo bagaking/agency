@@ -37,6 +37,8 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
       fontSize: 13,
       cursorBlink: true,
+      scrollback: 5000,
+      scrollOnUserInput: true,
       theme: {
         background: '#0b0d12',
         foreground: '#f8fafc',
@@ -45,12 +47,89 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
     terminal.open(containerRef.current);
-    fitAddon.fit();
 
     terminalRef.current = terminal;
     fitRef.current = fitAddon;
 
+    let resizeFrame = null;
+    const scheduleResize = () => {
+      if (!terminalRef.current || !fitRef.current) {
+        return;
+      }
+      if (resizeFrame) {
+        cancelAnimationFrame(resizeFrame);
+      }
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = null;
+        if (!terminalRef.current || !fitRef.current) {
+          return;
+        }
+        fitRef.current.fit();
+        window.agency?.resizeTerminal({
+          cellId: cell.id,
+          sessionId,
+          cols: terminalRef.current.cols,
+          rows: terminalRef.current.rows,
+        });
+      });
+    };
+
+    const resizeObserver =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => scheduleResize())
+        : null;
+    if (resizeObserver) {
+      resizeObserver.observe(containerRef.current);
+    }
+    scheduleResize();
+    terminal.focus();
+
     setErrorMessage('');
+
+    const handleCustomKeyEvent = (event) => {
+      if (event.key === 'Enter' && event.metaKey) {
+        if (event.type === 'keydown') {
+          window.agency?.writeTerminal({ cellId: cell.id, sessionId, data: '\r' });
+        }
+        event.preventDefault();
+        return false;
+      }
+      return true;
+    };
+    terminal.attachCustomKeyEventHandler(handleCustomKeyEvent);
+
+    const wheelTargets = [
+      terminal.element,
+      terminal.element?.querySelector('.xterm-viewport'),
+      containerRef.current,
+    ].filter(Boolean);
+    const handleWheel = (event) => {
+      if (!terminalRef.current) {
+        return;
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const delta = event.deltaY;
+      if (delta === 0) {
+        return;
+      }
+      const viewport = terminalRef.current?._core?.viewport;
+      let lines = viewport?.getLinesScrolled ? viewport.getLinesScrolled(event) : 0;
+      if (!lines && delta !== 0) {
+        const base = Math.round(Math.abs(delta) / 40);
+        const adjusted = base === 0 ? 1 : base;
+        lines = adjusted * (delta > 0 ? 1 : -1);
+        if (event.shiftKey) {
+          lines *= 3;
+        }
+      }
+      if (lines) {
+        terminalRef.current.scrollLines(lines);
+      }
+    };
+    wheelTargets.forEach((target) => {
+      target.addEventListener('wheel', handleWheel, { passive: false, capture: true });
+    });
 
     const unsubscribe = window.agency?.onTerminalData((payload) => {
       if (payload?.cellId === cell.id && payload?.sessionId === sessionId) {
@@ -87,24 +166,19 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
       window.agency?.writeTerminal({ cellId: cell.id, sessionId, data });
     });
 
-    const handleResize = () => {
-      if (!terminalRef.current || !fitRef.current) {
-        return;
-      }
-      fitRef.current.fit();
-      window.agency?.resizeTerminal({
-        cellId: cell.id,
-        sessionId,
-        cols: terminalRef.current.cols,
-        rows: terminalRef.current.rows,
-      });
-    };
-
-    window.addEventListener('resize', handleResize);
-    handleResize();
+    window.addEventListener('resize', scheduleResize);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('resize', scheduleResize);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+      if (resizeFrame) {
+        cancelAnimationFrame(resizeFrame);
+      }
+      wheelTargets.forEach((target) => {
+        target.removeEventListener('wheel', handleWheel, { capture: true });
+      });
       if (unsubscribe) {
         unsubscribe();
       }

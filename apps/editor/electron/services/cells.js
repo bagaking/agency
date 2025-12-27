@@ -9,6 +9,7 @@ const {
   createWorktree,
   runGit,
 } = require('./git');
+const { readConfig: readWorktreeLinksConfig, applyAllLinks } = require('./worktreeLinks');
 
 const LIFECYCLE_DIR = '.agency';
 const LIFECYCLE_PREFIX = 'cell-';
@@ -305,6 +306,7 @@ async function createCell({ name, branch, reusePath }) {
       createdAt: lifecycle.createdAt || now,
       updatedAt: now,
     });
+    await maybeAutoLinkWorktree(repoRoot, target.path);
     return hydrateCell(repoRoot, {
       path: target.path,
       branch: resolvedBranch,
@@ -337,11 +339,25 @@ async function createCell({ name, branch, reusePath }) {
     createdAt: now,
     updatedAt: now,
   });
+  await maybeAutoLinkWorktree(repoRoot, worktreePath);
 
   return hydrateCell(repoRoot, {
     path: worktreePath,
     branch,
   });
+}
+
+async function maybeAutoLinkWorktree(repoRoot, worktreePath) {
+  try {
+    const config = await readWorktreeLinksConfig(repoRoot);
+    if (!config.autoLinkOnCreate || !config.links.length) {
+      return;
+    }
+    await applyAllLinks({ repoRoot, worktreePath, bestEffort: true });
+  } catch (error) {
+    // Avoid failing Cell creation if linking fails.
+    console.warn('Auto-link worktree failed:', error?.message || error);
+  }
 }
 
 async function updateCellState({ id, state, worktreePath }) {

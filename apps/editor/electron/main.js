@@ -7,6 +7,7 @@ const { setupSessionHandlers } = require('./ipc/handlers/sessions');
 const { setupUiStateHandlers } = require('./ipc/handlers/uiState');
 const { setupQuickActionsHandlers } = require('./ipc/handlers/quickActions');
 const { setupTmuxHandlers } = require('./ipc/handlers/tmux');
+const { setupWorktreeLinksHandlers } = require('./ipc/handlers/worktreeLinks');
 
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
 let mainWindow;
@@ -47,6 +48,7 @@ app.whenReady().then(() => {
   setupUiStateHandlers();
   setupQuickActionsHandlers();
   setupTmuxHandlers();
+  setupWorktreeLinksHandlers();
   createWindow();
 
   app.on('activate', () => {

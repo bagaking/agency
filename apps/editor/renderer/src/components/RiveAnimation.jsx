@@ -1,19 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useRive, Layout, Fit, Alignment } from '@rive-app/react-canvas';
 
-export function RiveAnimation({ 
-  src, 
-  artboard, 
-  animations, 
-  stateMachines, 
-  className, 
-  fit = Fit.Contain, 
-  alignment = Alignment.Center,
-  fallback
+function RivePlayer({
+  src,
+  artboard,
+  animations,
+  stateMachines,
+  className,
+  fit,
+  alignment,
+  fallback,
 }) {
   const [error, setError] = useState(false);
 
-  const { RiveComponent, rive } = useRive({
+  const { RiveComponent } = useRive({
     src,
     artboard,
     animations,
@@ -35,11 +35,61 @@ export function RiveAnimation({
     return fallback || <div className={`bg-muted/20 ${className}`} />;
   }
 
-  // If we can't load (e.g. valid src but network error), useRive doesn't always throw immediately,
-  // but if src is missing/empty, we handle it.
-  if (!src) {
-      return fallback || null;
+  return <RiveComponent className={className} />;
+}
+
+export function RiveAnimation({
+  src,
+  artboard,
+  animations,
+  stateMachines,
+  className,
+  fit = Fit.Contain,
+  alignment = Alignment.Center,
+  fallback,
+}) {
+  const [canLoad, setCanLoad] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    if (!src) {
+      setCanLoad(false);
+      return () => {
+        active = false;
+      };
+    }
+    fetch(src, { method: 'HEAD' })
+      .then((response) => {
+        if (!active) {
+          return;
+        }
+        setCanLoad(response.ok);
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+        setCanLoad(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [src]);
+
+  if (!src || !canLoad) {
+    return fallback || null;
   }
 
-  return <RiveComponent className={className} />;
+  return (
+    <RivePlayer
+      src={src}
+      artboard={artboard}
+      animations={animations}
+      stateMachines={stateMachines}
+      className={className}
+      fit={fit}
+      alignment={alignment}
+      fallback={fallback}
+    />
+  );
 }

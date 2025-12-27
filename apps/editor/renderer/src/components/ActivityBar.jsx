@@ -1,11 +1,10 @@
 import React from 'react';
-import { Layers, Settings, Terminal, Command } from 'lucide-react';
+import { Layers, Settings, Terminal } from 'lucide-react';
 
 export function ActivityBar({ activeView, onSwitchView }) {
   const items = [
     { id: 'explorer', icon: Layers, label: 'Explorer' },
     { id: 'terminal', icon: Terminal, label: 'Terminal' },
-    { id: 'quick-actions', icon: Command, label: 'Quick Actions' },
   ];
 
   const bottomItems = [

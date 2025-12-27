@@ -1,5 +1,18 @@
-import React from 'react';
-import { TerminalSquare, AlertTriangle, MonitorPlay, ChevronRight, CheckCircle2, Circle, Play, Plus, RefreshCw, X, RotateCcw } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  TerminalSquare,
+  AlertTriangle,
+  MonitorPlay,
+  ChevronRight,
+  CheckCircle2,
+  Circle,
+  Play,
+  Plus,
+  RefreshCw,
+  X,
+  RotateCcw,
+  MoreHorizontal,
+} from 'lucide-react';
 import TerminalPane from './TerminalPane.jsx';
 import { RiveAnimation } from './RiveAnimation.jsx';
 import { GateList } from './GateList.jsx';
@@ -25,6 +38,31 @@ export function EditorPane({
   onCommandSent,
 }) {
   const tmuxAvailable = tmuxStatus?.available !== false;
+  const [closedMenuOpen, setClosedMenuOpen] = useState(false);
+  const closedMenuRef = useRef(null);
+  const openSessions = useMemo(
+    () => (sessions || []).filter((session) => session.status !== 'closed'),
+    [sessions]
+  );
+  const closedSessions = useMemo(
+    () => (sessions || []).filter((session) => session.status === 'closed'),
+    [sessions]
+  );
+
+  useEffect(() => {
+    if (!closedMenuOpen) {
+      return undefined;
+    }
+    const handleClick = (event) => {
+      if (!closedMenuRef.current || closedMenuRef.current.contains(event.target)) {
+        return;
+      }
+      setClosedMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [closedMenuOpen]);
+
   if (!cell) {
     return (
       <div className="flex h-full flex-col items-center justify-center bg-background text-muted-foreground">
@@ -116,7 +154,7 @@ export function EditorPane({
 
         {/* Sessions */}
         <div className="shrink-0 border-b border-border bg-card/10 px-6 py-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Sessions
                 </h3>
@@ -132,13 +170,47 @@ export function EditorPane({
                     </button>
                     <button
                       type="button"
-                      onClick={onCreateSession}
+                      onClick={() => onCreateSession?.()}
                       disabled={!tmuxAvailable}
                       className="flex items-center gap-1 rounded-sm border border-border px-2 py-1 text-xs text-muted-foreground hover:border-primary/60 hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Plus size={12} />
                       New
                     </button>
+                    {closedSessions.length ? (
+                      <div className="relative" ref={closedMenuRef}>
+                        <button
+                          type="button"
+                          onClick={() => setClosedMenuOpen((current) => !current)}
+                          className="flex items-center justify-center rounded-sm border border-border px-2 py-1 text-xs text-muted-foreground hover:border-primary/60 hover:text-primary"
+                          title="Closed sessions"
+                        >
+                          <MoreHorizontal size={14} />
+                        </button>
+                        {closedMenuOpen ? (
+                          <div className="absolute right-0 mt-2 w-52 rounded-md border border-border bg-popover py-1 text-xs text-foreground shadow-lg">
+                            <div className="px-3 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                              Closed
+                            </div>
+                            {closedSessions.map((session) => (
+                              <button
+                                key={session.id}
+                                type="button"
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+                                onClick={() => {
+                                  setClosedMenuOpen(false);
+                                  onCreateSession?.({ name: session.name || session.id });
+                                }}
+                              >
+                                <Circle size={8} className="text-muted-foreground" fill="currentColor" />
+                                <span className="flex-1 truncate">{session.name || session.id}</span>
+                                <span className="text-[10px] uppercase tracking-wide">Reopen</span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
                 </div>
             </div>
             {!tmuxAvailable ? (
@@ -154,48 +226,64 @@ export function EditorPane({
             {sessionLoading ? (
               <div className="mt-2 text-xs text-muted-foreground">Loading sessions...</div>
             ) : (
-              <div className="mt-3 space-y-1">
-                {sessions && sessions.length ? (
-                  sessions.map((session) => {
-                    const isActive = session.id === sessionId;
-                    const isClosed = session.status === 'closed';
-                    const statusColor =
-                      session.status === 'active'
-                        ? 'text-emerald-400'
-                        : session.status === 'stale'
-                          ? 'text-amber-400'
-                          : 'text-muted-foreground';
-                    return (
-                      <div
-                        key={session.id}
-                        className={`flex items-center gap-2 rounded px-2 py-1 text-xs ${
-                          isActive ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          className="flex flex-1 items-center gap-2"
-                          onClick={() => onSelectSession?.(session.id)}
-                          disabled={isClosed}
+              <div className="mt-3">
+                {openSessions.length ? (
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    {openSessions.map((session) => {
+                      const isActive = session.id === sessionId;
+                      const statusColor =
+                        session.status === 'active'
+                          ? 'text-emerald-400'
+                          : session.status === 'stale'
+                            ? 'text-amber-400'
+                            : 'text-muted-foreground';
+                      const handleSelect = () => onSelectSession?.(session.id);
+                      return (
+                        <div
+                          key={session.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={handleSelect}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              handleSelect();
+                            }
+                          }}
+                          className={`group flex items-center gap-2 rounded-full border px-3 py-1 text-xs transition-colors cursor-pointer ${
+                            isActive
+                              ? 'border-primary/40 bg-primary/10 text-foreground'
+                              : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                          }`}
                         >
-                          <Circle size={10} className={statusColor} fill="currentColor" />
-                          <span className="truncate">{session.name || session.id}</span>
-                          <span className="ml-auto text-[10px] uppercase tracking-wide opacity-70">
-                            {session.status}
+                          <Circle size={8} className={statusColor} fill="currentColor" />
+                          <span className="max-w-[140px] truncate">
+                            {session.name || session.id}
                           </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onCloseSession?.(session.id)}
-                          className="text-muted-foreground hover:text-foreground"
-                          disabled={isClosed}
-                          title="Close session"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    );
-                  })
+                          {session.status === 'stale' ? (
+                            <span className="text-[10px] uppercase tracking-wide text-amber-200">
+                              stale
+                            </span>
+                          ) : null}
+                          <span className="ml-1 flex items-center">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onCloseSession?.(session.id);
+                              }}
+                              className={`text-muted-foreground transition-opacity hover:text-foreground ${
+                                isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                              }`}
+                              title="Close session"
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 ) : (
                   <div className="text-xs text-muted-foreground">No sessions yet.</div>
                 )}
@@ -227,7 +315,13 @@ export function EditorPane({
                             <div key={action.id} className="flex items-center gap-1">
                               <button
                                 type="button"
-                                onClick={() => onRunCommand?.(action.startCommand || '')}
+                                onClick={() =>
+                                  onRunCommand?.({
+                                    command: action.startCommand || '',
+                                    kind: 'start',
+                                    label: action.label || action.id,
+                                  })
+                                }
                                 className="rounded-sm border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:border-primary/60 hover:text-primary transition-colors"
                                 disabled={!action.startCommand}
                                 title={action.startCommand || 'Start command not set'}
@@ -237,7 +331,13 @@ export function EditorPane({
                               {action.resumeCommand ? (
                                 <button
                                   type="button"
-                                  onClick={() => onRunCommand?.(action.resumeCommand)}
+                                  onClick={() =>
+                                    onRunCommand?.({
+                                      command: action.resumeCommand,
+                                      kind: 'resume',
+                                      label: action.label || action.id,
+                                    })
+                                  }
                                   className="rounded-sm border border-border px-1.5 py-1 text-[11px] text-muted-foreground hover:border-primary/60 hover:text-primary transition-colors"
                                   title="Resume"
                                 >

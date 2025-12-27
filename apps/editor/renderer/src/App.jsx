@@ -4,8 +4,8 @@ import { ActivityBar } from './components/ActivityBar.jsx';
 import { Sidebar } from './components/Sidebar.jsx';
 import { StatusBar } from './components/StatusBar.jsx';
 import { EditorPane } from './components/EditorPane.jsx';
-import { GateList } from './components/GateList.jsx';
 import { QuickActionsView } from './components/QuickActionsView.jsx';
+import { WorktreeLinksView } from './components/WorktreeLinksView.jsx';
 
 const defaultCells = [
   {
@@ -29,25 +29,98 @@ const toBranchSlug = (value) => {
   return slug || 'cell';
 };
 
-const mergeQuickActions = (globalActions, projectActions) => {
+const mergeQuickActions = (...scopes) => {
   const merged = [];
   const indexById = new Map();
-  (globalActions || []).forEach((action, index) => {
-    const id = action?.id || `global-${index}`;
-    const normalized = { ...action, id };
-    indexById.set(id, merged.length);
-    merged.push(normalized);
-  });
-  (projectActions || []).forEach((action, index) => {
-    const id = action?.id || `project-${index}`;
+  scopes.flat().forEach((action, index) => {
+    if (!action) {
+      return;
+    }
+    const id = action?.id || `action-${index}`;
     const normalized = { ...action, id };
     if (indexById.has(id)) {
       merged[indexById.get(id)] = { ...merged[indexById.get(id)], ...normalized };
     } else {
+      indexById.set(id, merged.length);
       merged.push(normalized);
     }
   });
   return merged;
+};
+
+const indexActions = (actions) => {
+  const map = new Map();
+  (actions || []).forEach((action) => {
+    if (action?.id) {
+      map.set(action.id, action);
+    }
+  });
+  return map;
+};
+
+const buildActionRows = ({ scope, globalActions, projectActions, agentActions }) => {
+  const globalMap = indexActions(globalActions);
+  const projectMap = indexActions(projectActions);
+  const agentMap = indexActions(agentActions);
+  const effectiveActions =
+    scope === 'global'
+      ? globalActions
+      : scope === 'project'
+        ? mergeQuickActions(globalActions, projectActions)
+        : mergeQuickActions(globalActions, projectActions, agentActions);
+  return (effectiveActions || []).map((action) => {
+    const id = action.id;
+    const hasGlobal = globalMap.has(id);
+    const hasProject = projectMap.has(id);
+    const hasAgent = agentMap.has(id);
+    const isLocal =
+      (scope === 'global' && hasGlobal) ||
+      (scope === 'project' && hasProject) ||
+      (scope === 'agent' && hasAgent);
+    const inheritedFrom = isLocal
+      ? null
+      : scope === 'project'
+        ? 'global'
+        : hasProject
+          ? 'project'
+          : 'global';
+    const overriddenBy =
+      scope === 'global'
+        ? hasAgent
+          ? 'agent'
+          : hasProject
+            ? 'project'
+            : null
+        : scope === 'project'
+          ? hasAgent
+            ? 'agent'
+            : null
+          : null;
+    const hasParent =
+      scope === 'project'
+        ? hasGlobal
+        : scope === 'agent'
+          ? hasProject || hasGlobal
+          : false;
+    const parentScope =
+      scope === 'project' && hasGlobal
+        ? 'global'
+        : scope === 'agent' && hasProject
+          ? 'project'
+          : scope === 'agent' && hasGlobal
+            ? 'global'
+            : null;
+    return {
+      ...action,
+      meta: {
+        isLocal,
+        inheritedFrom,
+        overriddenBy,
+        hasParent,
+        parentScope,
+      },
+    };
+  });
 };
 
 function App() {
@@ -60,15 +133,27 @@ function App() {
   const [transitionLoading, setTransitionLoading] = useState(false);
   const [pendingCommand, setPendingCommand] = useState(null);
   const [activeSessionByCellId, setActiveSessionByCellId] = useState({});
-  const [sessions, setSessions] = useState([]);
+  const [sessionsByCellId, setSessionsByCellId] = useState({});
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionError, setSessionError] = useState('');
   const [uiStateLoaded, setUiStateLoaded] = useState(false);
-  const [quickActionsScope, setQuickActionsScope] = useState('global');
+  const [explorerMode, setExplorerMode] = useState('agent');
+  const [actionsScope, setActionsScope] = useState('global');
   const [globalQuickActions, setGlobalQuickActions] = useState([]);
   const [projectQuickActions, setProjectQuickActions] = useState([]);
+  const [agentQuickActions, setAgentQuickActions] = useState([]);
   const [quickActionsError, setQuickActionsError] = useState('');
   const [quickActionsSaving, setQuickActionsSaving] = useState(false);
+  const [worktreeLinks, setWorktreeLinks] = useState([]);
+  const [worktreeLinksAuto, setWorktreeLinksAuto] = useState(false);
+  const [worktreeLinksCandidates, setWorktreeLinksCandidates] = useState([]);
+  const [worktreeLinksStatuses, setWorktreeLinksStatuses] = useState([]);
+  const [worktreeLinksStatusesByPath, setWorktreeLinksStatusesByPath] = useState({});
+  const [repoRoot, setRepoRoot] = useState('');
+  const [worktreeLinksConfigPath, setWorktreeLinksConfigPath] = useState('');
+  const [worktreeLinksLoading, setWorktreeLinksLoading] = useState(false);
+  const [worktreeLinksError, setWorktreeLinksError] = useState('');
+  const [worktreeLinksDirty, setWorktreeLinksDirty] = useState(false);
   const [tmuxStatus, setTmuxStatus] = useState({ available: true });
   
   // Terminal State
@@ -76,29 +161,48 @@ function App() {
   const [terminalMode, setTerminalMode] = useState('shell');
   
   // View State
-  const [activeView, setActiveView] = useState('explorer'); // explorer, quick-actions, settings
+  const [activeView, setActiveView] = useState('explorer'); // explorer, terminal, settings
 
   const selectedCell = useMemo(
     () => cells.find((cell) => cell.id === selectedId),
     [cells, selectedId]
   );
+  const sessions = selectedCell ? sessionsByCellId[selectedCell.id] || [] : [];
   const activeSessionId = selectedCell
     ? activeSessionByCellId[selectedCell.id] ||
       sessions.find((session) => session.status === 'active')?.id ||
       sessions[0]?.id
     : undefined;
   const resolvedQuickActions = useMemo(
-    () => mergeQuickActions(globalQuickActions, projectQuickActions),
-    [globalQuickActions, projectQuickActions]
+    () => mergeQuickActions(globalQuickActions, projectQuickActions, agentQuickActions),
+    [globalQuickActions, projectQuickActions, agentQuickActions]
   );
-  const scopedQuickActions = quickActionsScope === 'project' ? projectQuickActions : globalQuickActions;
   const canUseProjectScope = Boolean(selectedCell?.worktreePath);
-
-  useEffect(() => {
-    if (!canUseProjectScope && quickActionsScope === 'project') {
-      setQuickActionsScope('global');
-    }
-  }, [canUseProjectScope, quickActionsScope]);
+  const canUseAgentScope = Boolean(selectedCell?.worktreePath);
+  const actionsRows = useMemo(
+    () =>
+      buildActionRows({
+        scope: actionsScope,
+        globalActions: globalQuickActions,
+        projectActions: projectQuickActions,
+        agentActions: agentQuickActions,
+      }),
+    [actionsScope, globalQuickActions, projectQuickActions, agentQuickActions]
+  );
+  const scopeActions =
+    actionsScope === 'project'
+      ? projectQuickActions
+      : actionsScope === 'agent'
+        ? agentQuickActions
+        : globalQuickActions;
+  const worktreeName = selectedCell?.worktreePath ? pathBaseName(selectedCell.worktreePath) : '';
+  const projectActionsPath = selectedCell?.worktreePath
+    ? `${selectedCell.worktreePath}/.agency/quick-actions.yaml`
+    : '';
+  const agentActionsPath = selectedCell?.worktreePath
+    ? `${selectedCell.worktreePath}/.agency/quick-actions-${worktreeName}.yaml`
+    : '';
+  const scopeDisabled = actionsScope !== 'global' && !selectedCell?.worktreePath;
 
   const loadCells = async (preferredSelection) => {
     setLoading(true);
@@ -122,6 +226,35 @@ function App() {
       if (!selectedId) setSelectedId(defaultCells[0].id);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadWorktreeLinks = async ({ preserveEdits = false } = {}) => {
+    if (!window.agency?.getWorktreeLinks) {
+      return;
+    }
+    setWorktreeLinksLoading(true);
+    setWorktreeLinksError('');
+    try {
+      const summary = await window.agency.getWorktreeLinks({
+        worktreePath: selectedCell?.worktreePath,
+        worktreePaths: cells.map((cell) => cell.worktreePath).filter(Boolean),
+      });
+      if (!preserveEdits) {
+        const config = summary?.config || {};
+        setWorktreeLinks(Array.isArray(config.links) ? config.links : []);
+        setWorktreeLinksAuto(Boolean(config.autoLinkOnCreate));
+        setWorktreeLinksDirty(false);
+      }
+      setWorktreeLinksCandidates(Array.isArray(summary?.candidates) ? summary.candidates : []);
+      setWorktreeLinksStatuses(Array.isArray(summary?.statuses) ? summary.statuses : []);
+      setWorktreeLinksStatusesByPath(summary?.statusesByPath || {});
+      setRepoRoot(summary?.repoRoot || '');
+      setWorktreeLinksConfigPath(summary?.configPath || '');
+    } catch (error) {
+      setWorktreeLinksError(error?.message || 'Failed to load worktree links.');
+    } finally {
+      setWorktreeLinksLoading(false);
     }
   };
 
@@ -167,26 +300,35 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const loadProjectQuickActions = async () => {
+    const loadScopedQuickActions = async () => {
       if (!window.agency?.getQuickActions) {
         return;
       }
       if (!selectedCell?.worktreePath) {
         setProjectQuickActions([]);
+        setAgentQuickActions([]);
         return;
       }
       try {
-        const actions = await window.agency.getQuickActions({
-          scope: 'project',
-          worktreePath: selectedCell.worktreePath,
-        });
-        setProjectQuickActions(Array.isArray(actions) ? actions : []);
+        const [project, agent] = await Promise.all([
+          window.agency.getQuickActions({
+            scope: 'project',
+            worktreePath: selectedCell.worktreePath,
+          }),
+          window.agency.getQuickActions({
+            scope: 'agent',
+            worktreePath: selectedCell.worktreePath,
+          }),
+        ]);
+        setProjectQuickActions(Array.isArray(project) ? project : []);
+        setAgentQuickActions(Array.isArray(agent) ? agent : []);
       } catch (error) {
         setQuickActionsError(error?.message || 'Failed to load quick actions.');
         setProjectQuickActions([]);
+        setAgentQuickActions([]);
       }
     };
-    loadProjectQuickActions();
+    loadScopedQuickActions();
   }, [selectedCell?.worktreePath]);
 
   useEffect(() => {
@@ -206,6 +348,14 @@ function App() {
     };
     loadTmuxStatus();
   }, []);
+
+  useEffect(() => {
+    loadWorktreeLinks({ preserveEdits: false });
+  }, []);
+
+  useEffect(() => {
+    loadWorktreeLinks({ preserveEdits: worktreeLinksDirty });
+  }, [selectedCell?.worktreePath, cells.length]);
 
   useEffect(() => {
     if (!window.agency || !window.agency.onCellsUpdated) {
@@ -264,7 +414,7 @@ function App() {
     }
     if (tmuxStatus?.available === false) {
       setSessionError(tmuxStatus.error || 'tmux is required. Install tmux and try again.');
-      setSessions([]);
+      setSessionsByCellId((current) => ({ ...current, [cell.id]: [] }));
       return;
     }
     setSessionLoading(true);
@@ -279,7 +429,7 @@ function App() {
         });
         nextSessions = created ? [created] : nextSessions;
       }
-      setSessions(nextSessions);
+      setSessionsByCellId((current) => ({ ...current, [cell.id]: nextSessions }));
 
       const preferred = activeSessionByCellId[cell.id];
       const active =
@@ -294,7 +444,7 @@ function App() {
       }
     } catch (error) {
       setSessionError(error?.message || 'Failed to load sessions.');
-      setSessions([]);
+      setSessionsByCellId((current) => ({ ...current, [cell.id]: [] }));
     } finally {
       setSessionLoading(false);
     }
@@ -319,6 +469,7 @@ function App() {
       if (cell?.id) {
         setSelectedId(cell.id);
       }
+      setExplorerMode('agent');
       setTerminalMode('shell');
       setTerminalOpen(true);
     } catch (error) {
@@ -335,15 +486,49 @@ function App() {
     return `action-${Date.now()}`;
   };
 
+  const generateLinkId = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return `link-${Date.now()}`;
+  };
+
+  const updateWorktreeLinks = (updater) => {
+    setWorktreeLinks((current) => {
+      const next = typeof updater === 'function' ? updater(current) : updater;
+      return next;
+    });
+    setWorktreeLinksDirty(true);
+  };
+
+  const persistWorktreeLinks = async () => {
+    const saved = await window.agency.setWorktreeLinks({
+      autoLinkOnCreate: worktreeLinksAuto,
+      links: worktreeLinks,
+    });
+    setWorktreeLinks(Array.isArray(saved?.links) ? saved.links : []);
+    setWorktreeLinksAuto(Boolean(saved?.autoLinkOnCreate));
+    setWorktreeLinksDirty(false);
+    return saved;
+  };
+
   const updateScopedActions = (updater) => {
-    if (quickActionsScope === 'project') {
+    if (actionsScope === 'project') {
       setProjectQuickActions(updater);
+      return;
+    }
+    if (actionsScope === 'agent') {
+      setAgentQuickActions(updater);
       return;
     }
     setGlobalQuickActions(updater);
   };
 
   const addQuickAction = () => {
+    if (actionsScope !== 'global' && !selectedCell?.worktreePath) {
+      setQuickActionsError('Select a Cell to edit project or agent actions.');
+      return;
+    }
     updateScopedActions((current) => [
       ...current,
       {
@@ -361,25 +546,190 @@ function App() {
     );
   };
 
+  const overrideQuickAction = (id) => {
+    const source = actionsRows.find((action) => action.id === id);
+    if (!source) {
+      return;
+    }
+    const { meta, ...payload } = source;
+    updateScopedActions((current) => {
+      if (current.some((action) => action.id === id)) {
+        return current;
+      }
+      return [...current, payload];
+    });
+  };
+
   const removeQuickAction = (id) => {
     updateScopedActions((current) => current.filter((action) => action.id !== id));
+  };
+
+  const resetQuickAction = (id) => {
+    updateScopedActions((current) => current.filter((action) => action.id !== id));
+  };
+
+  const runActionCommand = async ({ command, kind, label }) => {
+    if (!selectedCell || !command) {
+      return;
+    }
+    setTerminalMode('shell');
+    setTerminalOpen(true);
+    if (kind === 'start') {
+      if (tmuxStatus?.available === false) {
+        setSessionError(tmuxStatus.error || 'tmux is required. Install tmux and try again.');
+        return;
+      }
+      if (!window.agency?.createSession) {
+        return;
+      }
+      setSessionLoading(true);
+      setSessionError('');
+      try {
+        const created = await window.agency.createSession({
+          cellId: selectedCell.id,
+          worktreePath: selectedCell.worktreePath,
+          name: label ? `CLI - ${label}` : 'CLI',
+        });
+        if (created?.id) {
+          setSessionsByCellId((current) => ({
+            ...current,
+            [selectedCell.id]: [...(current[selectedCell.id] || []), created],
+          }));
+          setActiveSessionByCellId((current) => ({
+            ...current,
+            [selectedCell.id]: created.id,
+          }));
+        }
+        setPendingCommand({ cellId: selectedCell.id, command });
+      } catch (error) {
+        setSessionError(error?.message || 'Failed to create session.');
+      } finally {
+        setSessionLoading(false);
+      }
+      return;
+    }
+    setPendingCommand({ cellId: selectedCell.id, command });
+  };
+
+  const addWorktreeLink = () => {
+    updateWorktreeLinks((current) => [
+      ...current,
+      {
+        id: generateLinkId(),
+        label: '',
+        source: '',
+        target: '',
+      },
+    ]);
+  };
+
+  const addWorktreeLinkFromCandidate = (candidate) => {
+    if (!candidate) {
+      return;
+    }
+    updateWorktreeLinks((current) => [
+      ...current,
+      {
+        id: generateLinkId(),
+        label: candidate,
+        source: candidate,
+        target: candidate,
+      },
+    ]);
+  };
+
+  const updateWorktreeLink = (id, patch) => {
+    updateWorktreeLinks((current) =>
+      current.map((link) => (link.id === id ? { ...link, ...patch } : link))
+    );
+  };
+
+  const removeWorktreeLink = (id) => {
+    updateWorktreeLinks((current) => current.filter((link) => link.id !== id));
+  };
+
+  const saveWorktreeLinks = async () => {
+    if (!window.agency?.setWorktreeLinks) {
+      return;
+    }
+    setWorktreeLinksLoading(true);
+    setWorktreeLinksError('');
+    try {
+      await persistWorktreeLinks();
+      await loadWorktreeLinks({ preserveEdits: true });
+    } catch (error) {
+      setWorktreeLinksError(error?.message || 'Failed to save worktree links.');
+    } finally {
+      setWorktreeLinksLoading(false);
+    }
+  };
+
+  const applyWorktreeLink = async (linkId, options = {}) => {
+    const targetPath = options.worktreePath || selectedCell?.worktreePath;
+    if (!targetPath || !window.agency?.applyWorktreeLink) {
+      return;
+    }
+    setWorktreeLinksLoading(true);
+    setWorktreeLinksError('');
+    try {
+      if (worktreeLinksDirty) {
+        await persistWorktreeLinks();
+      }
+      await window.agency.applyWorktreeLink({
+        worktreePath: targetPath,
+        linkId,
+      });
+      await loadWorktreeLinks({ preserveEdits: false });
+    } catch (error) {
+      setWorktreeLinksError(error?.message || 'Failed to link worktree.');
+    } finally {
+      setWorktreeLinksLoading(false);
+    }
+  };
+
+  const applyAllWorktreeLinks = async (options = {}) => {
+    const targetPath = options.worktreePath || selectedCell?.worktreePath;
+    if (!targetPath || !window.agency?.applyAllWorktreeLinks) {
+      return;
+    }
+    setWorktreeLinksLoading(true);
+    setWorktreeLinksError('');
+    try {
+      if (worktreeLinksDirty) {
+        await persistWorktreeLinks();
+      }
+      await window.agency.applyAllWorktreeLinks({
+        worktreePath: targetPath,
+      });
+      await loadWorktreeLinks({ preserveEdits: false });
+    } catch (error) {
+      setWorktreeLinksError(error?.message || 'Failed to link worktree.');
+    } finally {
+      setWorktreeLinksLoading(false);
+    }
   };
 
   const saveQuickActions = async () => {
     if (!window.agency?.setQuickActions) {
       return;
     }
+    if (actionsScope !== 'global' && !selectedCell?.worktreePath) {
+      setQuickActionsError('Select a Cell to edit project or agent actions.');
+      return;
+    }
     setQuickActionsSaving(true);
     setQuickActionsError('');
     try {
-      const actionsToSave = quickActionsScope === 'project' ? projectQuickActions : globalQuickActions;
+      const actionsToSave = scopeActions;
       const saved = await window.agency.setQuickActions({
-        scope: quickActionsScope,
+        scope: actionsScope,
         worktreePath: selectedCell?.worktreePath,
         actions: actionsToSave,
       });
-      if (quickActionsScope === 'project') {
+      if (actionsScope === 'project') {
         setProjectQuickActions(Array.isArray(saved) ? saved : actionsToSave);
+      } else if (actionsScope === 'agent') {
+        setAgentQuickActions(Array.isArray(saved) ? saved : actionsToSave);
       } else {
         setGlobalQuickActions(Array.isArray(saved) ? saved : actionsToSave);
       }
@@ -397,31 +747,82 @@ function App() {
       <div className="flex flex-1 overflow-hidden">
         <ActivityBar activeView={activeView} onSwitchView={setActiveView} />
         
-        {(activeView === 'explorer' || activeView === 'quick-actions') && (
-             <Sidebar 
-                cells={cells} 
-                selectedId={selectedId} 
-                onSelect={setSelectedId} 
-                onCreate={() => setShowCreate(true)}
-             />
+        {activeView === 'explorer' && (
+          <Sidebar 
+            cells={cells} 
+            selectedId={selectedId} 
+            onSelect={(id) => {
+              setSelectedId(id);
+              setExplorerMode('agent');
+            }} 
+            onCreate={() => setShowCreate(true)}
+            explorerMode={explorerMode}
+            actionsScope={actionsScope}
+            onSelectActionsScope={(scope) => {
+              setActionsScope(scope);
+              setExplorerMode('actions');
+              setQuickActionsError('');
+            }}
+            onSelectLinks={() => {
+              setExplorerMode('links');
+              setWorktreeLinksError('');
+            }}
+            canUseProjectScope={canUseProjectScope}
+            canUseAgentScope={canUseAgentScope}
+            actionSummary={{
+              globalOverrides:
+                projectQuickActions.length > 0 || agentQuickActions.length > 0,
+              projectOverrides: projectQuickActions.length > 0,
+              agentOverrides: agentQuickActions.length > 0,
+              agentLabel: selectedCell?.name || 'Select Cell',
+            }}
+          />
         )}
 
-        {activeView === 'quick-actions' ? (
+        {activeView === 'explorer' && explorerMode === 'actions' ? (
           <QuickActionsView
-            actions={scopedQuickActions}
-            scope={quickActionsScope}
-            canUseProjectScope={canUseProjectScope}
-            projectPath={selectedCell?.worktreePath}
+            actions={actionsRows}
+            scope={actionsScope}
+            scopeDisabled={scopeDisabled}
+            scopePaths={{
+              project: projectActionsPath,
+              agent: agentActionsPath,
+            }}
             error={quickActionsError}
             saving={quickActionsSaving}
             onAddAction={addQuickAction}
             onRemoveAction={removeQuickAction}
+            onOverrideAction={overrideQuickAction}
+            onResetAction={resetQuickAction}
             onUpdateAction={updateQuickAction}
             onSaveActions={saveQuickActions}
-            onScopeChange={(scope) => {
-              setQuickActionsScope(scope);
-              setQuickActionsError('');
+          />
+        ) : activeView === 'explorer' && explorerMode === 'links' ? (
+          <WorktreeLinksView
+            links={worktreeLinks}
+            autoLinkOnCreate={worktreeLinksAuto}
+            candidates={worktreeLinksCandidates}
+            statuses={worktreeLinksStatuses}
+            statusesByPath={worktreeLinksStatusesByPath}
+            configPath={worktreeLinksConfigPath}
+            selectedCell={selectedCell}
+            cells={cells}
+            repoRoot={repoRoot}
+            loading={worktreeLinksLoading}
+            error={worktreeLinksError}
+            dirty={worktreeLinksDirty}
+            onToggleAuto={(next) => {
+              setWorktreeLinksAuto(next);
+              setWorktreeLinksDirty(true);
             }}
+            onAddLink={addWorktreeLink}
+            onAddFromCandidate={addWorktreeLinkFromCandidate}
+            onUpdateLink={updateWorktreeLink}
+            onRemoveLink={removeWorktreeLink}
+            onApplyLink={applyWorktreeLink}
+            onApplyAll={applyAllWorktreeLinks}
+            onSave={saveWorktreeLinks}
+            onRefresh={() => loadWorktreeLinks({ preserveEdits: worktreeLinksDirty })}
           />
         ) : (
           <EditorPane 
@@ -434,7 +835,7 @@ function App() {
               sessionError={sessionError}
               quickActions={resolvedQuickActions}
               tmuxStatus={tmuxStatus}
-            onCreateSession={async () => {
+            onCreateSession={async (options = {}) => {
               if (!selectedCell || !window.agency?.createSession) {
                 return;
               }
@@ -445,12 +846,17 @@ function App() {
               setSessionLoading(true);
               setSessionError('');
                 try {
+                  const { name } = options || {};
                   const created = await window.agency.createSession({
                     cellId: selectedCell.id,
                     worktreePath: selectedCell.worktreePath,
+                    name: name || undefined,
                   });
-                  const nextSessions = created ? [...sessions, created] : sessions;
-                  setSessions(nextSessions);
+                  setSessionsByCellId((current) => {
+                    const currentSessions = current[selectedCell.id] || [];
+                    const nextSessions = created ? [...currentSessions, created] : currentSessions;
+                    return { ...current, [selectedCell.id]: nextSessions };
+                  });
                   if (created?.id) {
                     setActiveSessionByCellId((current) => ({
                       ...current,
@@ -496,14 +902,7 @@ function App() {
                   setTerminalMode('shell');
                   setTerminalOpen(true);
               }}
-              onRunCommand={(command) => {
-                if (!selectedCell) {
-                  return;
-                }
-                setTerminalMode('shell');
-                setTerminalOpen(true);
-                setPendingCommand({ cellId: selectedCell.id, command });
-              }}
+              onRunCommand={runActionCommand}
               pendingCommand={pendingCommand}
               onCommandSent={(payload) => {
                 setPendingCommand((current) => {

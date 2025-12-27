@@ -13,6 +13,11 @@
 - [ ] Open a terminal session and verify output appears.
 - [ ] Start CLI and confirm Codex (or stub) launches in the embedded terminal.
 
+## Worktree Links
+- [ ] Open Worktree Links view and confirm ignored/untracked candidates appear.
+- [ ] Add a link for `.codex`, save, and link it into the selected Cell.
+- [ ] Enable auto-link, create a new Cell, and verify links are created in the worktree.
+
 ## Validation
 - [ ] Remove the spec folder and confirm warnings appear (temporary validation).
 - [ ] Restore spec folder and confirm warnings clear after refresh.
