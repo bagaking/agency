@@ -61,6 +61,7 @@ function App() {
   const [transitionError, setTransitionError] = useState('');
   const [transitionLoading, setTransitionLoading] = useState(false);
   const [pendingCommand, setPendingCommand] = useState(null);
+  const [activeSessionId, setActiveSessionId] = useState('default');
   
   // Terminal State
   const [terminalOpen, setTerminalOpen] = useState(false);
@@ -121,6 +122,7 @@ function App() {
       return;
     }
     persistState({ selectedId: selectedCell.id });
+    setActiveSessionId('default');
     setTerminalMode('shell');
     setTerminalOpen(true);
   }, [selectedCell?.id]);
@@ -191,6 +193,7 @@ function App() {
             cell={selectedCell}
             terminalMode={terminalMode}
             terminalOpen={terminalOpen}
+            sessionId={activeSessionId}
             onStateChange={handleStateChange}
             onOpenTerminal={() => {
                 setTerminalMode('shell');

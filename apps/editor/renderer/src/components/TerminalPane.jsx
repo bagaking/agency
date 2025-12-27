@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from '@xterm/addon-fit';
 
-function TerminalPane({ cell, mode, pendingCommand, onCommandSent }) {
+function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) {
   const containerRef = useRef(null);
   const terminalRef = useRef(null);
   const fitRef = useRef(null);
@@ -15,7 +15,7 @@ function TerminalPane({ cell, mode, pendingCommand, onCommandSent }) {
     if (!command || !cell?.id) {
       return;
     }
-    window.agency?.writeTerminal({ cellId: cell.id, data: `${command}\r` });
+    window.agency?.writeTerminal({ cellId: cell.id, sessionId, data: `${command}\r` });
     if (onCommandSent) {
       onCommandSent({ cellId: cell.id, command });
     }
@@ -49,12 +49,12 @@ function TerminalPane({ cell, mode, pendingCommand, onCommandSent }) {
     setErrorMessage('');
 
     const unsubscribe = window.agency?.onTerminalData((payload) => {
-      if (payload?.cellId === cell.id) {
+      if (payload?.cellId === cell.id && payload?.sessionId === sessionId) {
         terminal.write(payload.data);
       }
     });
     const unsubscribeError = window.agency?.onTerminalError((payload) => {
-      if (payload?.cellId === cell.id) {
+      if (payload?.cellId === cell.id && payload?.sessionId === sessionId) {
         setErrorMessage(payload.message || 'Terminal failed to start.');
       }
     });
@@ -63,6 +63,7 @@ function TerminalPane({ cell, mode, pendingCommand, onCommandSent }) {
       try {
         await window.agency?.startTerminal({
           cellId: cell.id,
+          sessionId,
           worktreePath: cell.worktreePath,
           mode,
         });
@@ -79,7 +80,7 @@ function TerminalPane({ cell, mode, pendingCommand, onCommandSent }) {
     startTerminal();
 
     terminal.onData((data) => {
-      window.agency?.writeTerminal({ cellId: cell.id, data });
+      window.agency?.writeTerminal({ cellId: cell.id, sessionId, data });
     });
 
     const handleResize = () => {
@@ -89,6 +90,7 @@ function TerminalPane({ cell, mode, pendingCommand, onCommandSent }) {
       fitRef.current.fit();
       window.agency?.resizeTerminal({
         cellId: cell.id,
+        sessionId,
         cols: terminalRef.current.cols,
         rows: terminalRef.current.rows,
       });
@@ -110,7 +112,7 @@ function TerminalPane({ cell, mode, pendingCommand, onCommandSent }) {
       fitRef.current = null;
       setSessionReady(false);
     };
-  }, [cell, mode]);
+  }, [cell, mode, sessionId]);
 
   useEffect(() => {
     if (!pendingCommand || !cell || pendingCommand.cellId !== cell.id) {
@@ -125,7 +127,7 @@ function TerminalPane({ cell, mode, pendingCommand, onCommandSent }) {
     } else {
       commandQueueRef.current.push(pendingCommand.command);
     }
-  }, [pendingCommand, sessionReady, cell?.id]);
+  }, [pendingCommand, sessionReady, cell?.id, sessionId]);
 
   if (errorMessage) {
     return (

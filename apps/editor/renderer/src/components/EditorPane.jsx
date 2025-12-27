@@ -8,6 +8,7 @@ export function EditorPane({
   cell,
   terminalMode,
   terminalOpen,
+  sessionId,
   onStateChange,
   onOpenTerminal,
   onRunCommand,
@@ -140,6 +141,7 @@ export function EditorPane({
                     <TerminalPane
                       key={cell.id}
                       cell={cell}
+                      sessionId={sessionId}
                       mode={terminalMode}
                       pendingCommand={pendingCommand}
                       onCommandSent={onCommandSent}

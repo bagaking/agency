@@ -3,6 +3,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('agency', {
   listCells: () => ipcRenderer.invoke('cells:list'),
   listWorktrees: () => ipcRenderer.invoke('worktrees:list'),
+  listSessions: (payload) => ipcRenderer.invoke('sessions:list', payload),
+  createSession: (payload) => ipcRenderer.invoke('sessions:create', payload),
+  closeSession: (payload) => ipcRenderer.invoke('sessions:close', payload),
   createCell: (payload) => ipcRenderer.invoke('cells:create', payload),
   updateCellState: (payload) => ipcRenderer.invoke('cells:updateState', payload),
   startTerminal: (payload) => ipcRenderer.invoke('terminal:start', payload),

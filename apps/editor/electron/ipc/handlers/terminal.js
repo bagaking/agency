@@ -5,21 +5,29 @@ const {
   resizeSession,
   disposeSession,
 } = require('../../services/terminal');
+const { ensureDefaultSession, resolveSessionForAttach } = require('../../services/sessions');
 
 function setupTerminalHandlers({ getMainWindow }) {
   ipcMain.handle('terminal:start', async (_event, payload) => {
-    const { cellId, worktreePath, mode } = payload || {};
+    const { cellId, worktreePath, mode, sessionId } = payload || {};
     if (!cellId || !worktreePath) {
       throw new Error('cellId and worktreePath are required.');
     }
     if (!require('fs').existsSync(worktreePath)) {
       throw new Error(`Worktree path does not exist: ${worktreePath}`);
     }
+    let resolvedSessionId = sessionId || 'default';
     try {
+      const resolvedSession = sessionId
+        ? await resolveSessionForAttach({ worktreePath, sessionId })
+        : await ensureDefaultSession({ cellId, worktreePath });
+      resolvedSessionId = resolvedSession.id;
       const session = startSession({
         cellId,
+        sessionId: resolvedSession.id,
+        tmuxSession: resolvedSession.tmuxSession,
         cwd: worktreePath,
-        mode: mode || 'cli',
+        mode: mode || 'shell',
       });
 
       if (!session.subscribed) {
@@ -27,7 +35,11 @@ function setupTerminalHandlers({ getMainWindow }) {
         session.ptyProcess.onData((data) => {
           const win = getMainWindow();
           if (win) {
-            win.webContents.send('terminal:data', { cellId, data });
+            win.webContents.send('terminal:data', {
+              cellId,
+              sessionId: resolvedSession.id,
+              data,
+            });
           }
         });
       }
@@ -38,6 +50,7 @@ function setupTerminalHandlers({ getMainWindow }) {
       if (win) {
         win.webContents.send('terminal:error', {
           cellId,
+          sessionId: resolvedSessionId,
           message: error.message || 'Terminal failed to start.',
         });
       }
@@ -49,21 +62,21 @@ function setupTerminalHandlers({ getMainWindow }) {
     if (!payload) {
       return;
     }
-    writeSession(payload.cellId, payload.data || '');
+    writeSession(payload.cellId, payload.sessionId, payload.data || '');
   });
 
   ipcMain.on('terminal:resize', (_event, payload) => {
     if (!payload) {
       return;
     }
-    resizeSession(payload.cellId, payload.cols, payload.rows);
+    resizeSession(payload.cellId, payload.sessionId, payload.cols, payload.rows);
   });
 
   ipcMain.on('terminal:dispose', (_event, payload) => {
     if (!payload) {
       return;
     }
-    disposeSession(payload.cellId);
+    disposeSession(payload.cellId, payload.sessionId);
   });
 }
 

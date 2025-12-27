@@ -11,11 +11,6 @@ function splitCommand(command) {
   return command.split(' ').filter(Boolean);
 }
 
-function resolveShellCommand() {
-  const shell = process.env.SHELL || 'bash';
-  return { file: shell, args: [] };
-}
-
 function resolveCliCommandString() {
   if (process.env.AGENCY_TEST_MODE === '1' || process.env.AGENCY_CLI_STUB === '1') {
     const nodeBinary = resolveNodeBinary();
@@ -96,11 +91,11 @@ function buildSpawnError(message, suggestion) {
 function trySpawn({ cellId, cwd, mode, file, args }) {
   const executable = resolveExecutable(file);
   if (!executable) {
-    const commandLabel = mode === 'cli' ? 'CLI' : 'shell';
+    const commandLabel = file === 'tmux' ? 'tmux' : mode === 'cli' ? 'CLI' : 'shell';
     const suggestion =
       mode === 'cli'
         ? 'Set AGENCY_CLI_COMMAND or AGENCY_CLI_STUB=1.'
-        : 'Set SHELL or AGENCY_DEFAULT_CWD.';
+        : 'Install tmux and ensure it is on PATH.';
     throw buildSpawnError(`${commandLabel} command not found or not executable: ${file}.`, suggestion);
   }
   const resolvedCwd = resolveCwd(cwd);
@@ -121,43 +116,37 @@ function trySpawn({ cellId, cwd, mode, file, args }) {
       `Terminal spawn failed for ${executable} (cwd: ${resolvedCwd}). ${error.message}.`,
       mode === 'cli'
         ? 'Check AGENCY_CLI_COMMAND or set AGENCY_CLI_STUB=1.'
-        : 'Check SHELL or ensure the worktree path exists.'
+        : 'Check tmux installation and session state.'
     );
   }
 }
 
-function startSession({ cellId, cwd, mode }) {
-  if (sessions.has(cellId)) {
-    return sessions.get(cellId);
+function buildSessionKey(cellId, sessionId) {
+  return `${cellId}:${sessionId}`;
+}
+
+function startSession({ cellId, sessionId, tmuxSession, cwd, mode }) {
+  const key = buildSessionKey(cellId, sessionId);
+  if (sessions.has(key)) {
+    return sessions.get(key);
   }
-  const { file, args } = resolveShellCommand();
+  if (!tmuxSession) {
+    throw buildSpawnError('Terminal session is missing tmux target.', 'Create a session first.');
+  }
+  const file = 'tmux';
+  const args = ['attach-session', '-t', tmuxSession];
   let ptyProcess;
   try {
     ptyProcess = trySpawn({ cellId, cwd, mode, file, args });
   } catch (error) {
     if (!ptyProcess) {
-      for (const fallbackShell of ['/bin/zsh', '/bin/bash']) {
-        try {
-          ptyProcess = trySpawn({ cellId, cwd, mode, file: fallbackShell, args: [] });
-          break;
-        } catch (fallbackError) {
-          continue;
-        }
-      }
-    }
-
-    if (!ptyProcess) {
-      const hint =
-        mode === 'cli'
-          ? 'Set SHELL to a valid shell or ensure PATH contains it.'
-          : 'Set SHELL to a valid shell or ensure PATH contains it.';
-      throw buildSpawnError(`Terminal spawn failed: ${error.message}.`, hint);
+      throw buildSpawnError(`Terminal spawn failed: ${error.message}.`, 'Install tmux and retry.');
     }
   }
-  const session = { cellId, ptyProcess, mode };
-  sessions.set(cellId, session);
+  const session = { cellId, sessionId, tmuxSession, ptyProcess, mode };
+  sessions.set(key, session);
   ptyProcess.onExit(() => {
-    sessions.delete(cellId);
+    sessions.delete(key);
   });
 
   if (mode === 'cli') {
@@ -173,29 +162,29 @@ function startSession({ cellId, cwd, mode }) {
   return session;
 }
 
-function writeSession(cellId, data) {
-  const session = sessions.get(cellId);
+function writeSession(cellId, sessionId, data) {
+  const session = sessions.get(buildSessionKey(cellId, sessionId));
   if (!session) {
     return;
   }
   session.ptyProcess.write(data);
 }
 
-function resizeSession(cellId, cols, rows) {
-  const session = sessions.get(cellId);
+function resizeSession(cellId, sessionId, cols, rows) {
+  const session = sessions.get(buildSessionKey(cellId, sessionId));
   if (!session) {
     return;
   }
   session.ptyProcess.resize(cols, rows);
 }
 
-function disposeSession(cellId) {
-  const session = sessions.get(cellId);
+function disposeSession(cellId, sessionId) {
+  const session = sessions.get(buildSessionKey(cellId, sessionId));
   if (!session) {
     return;
   }
   session.ptyProcess.kill();
-  sessions.delete(cellId);
+  sessions.delete(buildSessionKey(cellId, sessionId));
 }
 
 module.exports = {
@@ -203,4 +192,5 @@ module.exports = {
   writeSession,
   resizeSession,
   disposeSession,
+  buildSessionKey,
 };
