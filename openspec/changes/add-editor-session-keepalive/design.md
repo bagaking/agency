@@ -12,7 +12,7 @@ Editor 关闭后会终止 node-pty 会话，导致 CLI 任务丢失。需要可�
 
 ## Decisions
 - 会话后端：强依赖 tmux 作为可恢复后端（无 tmux 则阻断会话创建并提示安装）
-- 会话命名：`agency:<cell-id>:<session-id>`，确保稳定可重连
+- 会话命名：`agency-<cell-id>-<session-id>`，确保稳定可重连
 - 持久化：
   - 会话注册表：每个 worktree 的 `.agency/sessions-<worktreeName>.yaml`
   - 快捷指令配置：用户级配置文件（Editor userData 目录）
