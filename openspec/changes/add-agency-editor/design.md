@@ -18,6 +18,15 @@
 - 生命周期文件：放在每个 worktree 的 `.agency/` 目录下，文件名包含该 worktree 的唯一名字；格式采用 YAML（优先）或 Markdown（可选）
 - 校验策略：仅做最小化校验并标注为临时版本（例如：存在 spec 文件、分支与 worktree 绑定关系）
 
+## Lifecycle Gates & Confirmation
+- 生命周期切换必须二次确认；确认弹窗展示目标状态所需的 Gate 结果
+- Gate 通过前不允许切换状态（Active/Archived）
+- Gate 规则（v0.2 最小实现）：
+  - Spec 已创建：存在 `openspec/changes/*/proposal.md` 与 `openspec/changes/*/specs/**/spec.md`
+  - Checklist 已完成：`openspec/changes/*/tasks.md` 中无未勾选项
+  - 无未解决冲突：worktree 中无 `git ls-files -u` 记录
+- UI 必须明确展示 Gate 清单与失败原因，并提供下一步提示
+
 ## Skill Guidance
 - worktree 管理与隔离：`git-worktree`、`using-git-worktrees`
 - 内置终端与 xterm.js 集成：`xterm-js`

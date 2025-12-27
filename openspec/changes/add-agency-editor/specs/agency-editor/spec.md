@@ -35,6 +35,19 @@ The editor SHALL read and update this file to reflect lifecycle changes.
 - **WHEN** the lifecycle file changes due to an external workflow
 - **THEN** the editor reflects the updated lifecycle state
 
+### Requirement: Lifecycle Gates and Confirmation
+The editor SHALL require a confirmation step for lifecycle transitions.
+The confirmation MUST show gate results for the target state and MUST block the transition when any required gate fails.
+Required gates MUST include at least: spec created, checklist completed, and no unresolved merge conflicts.
+
+#### Scenario: Transition allowed
+- **WHEN** a user transitions a Cell to Active or Archived and all required gates pass
+- **THEN** the editor allows the transition after explicit confirmation
+
+#### Scenario: Transition blocked
+- **WHEN** a user transitions a Cell to Active or Archived and any required gate fails
+- **THEN** the editor blocks the transition and surfaces the failing gate(s)
+
 ### Requirement: Minimal Validation (MVP)
 The editor SHALL perform minimal validation of spec/branch context and MUST label this validation as a temporary version.
 Validation failures MUST surface as warnings and MUST NOT block the workflow.
