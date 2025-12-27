@@ -19,6 +19,17 @@ The editor SHALL require tmux to provide session keepalive and recovery.
 - **WHEN** tmux is not available on the host
 - **THEN** the editor blocks session creation and shows an installation prompt
 
+### Requirement: tmux Status Indicator
+The editor SHALL surface tmux availability in the status bar.
+
+#### Scenario: tmux available
+- **WHEN** tmux is available
+- **THEN** the status bar shows the tmux version
+
+#### Scenario: tmux missing
+- **WHEN** tmux is missing
+- **THEN** the status bar shows a missing indicator
+
 ### Requirement: Per-Cell Multi-Session Terminals
 The editor SHALL allow multiple terminal sessions per Cell.
 
