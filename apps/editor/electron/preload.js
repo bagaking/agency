@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('agency', {
   setUiState: (payload) => ipcRenderer.invoke('ui-state:set', payload),
   getQuickActions: () => ipcRenderer.invoke('quick-actions:get'),
   setQuickActions: (payload) => ipcRenderer.invoke('quick-actions:set', payload),
+  getTmuxStatus: () => ipcRenderer.invoke('tmux:status'),
   createCell: (payload) => ipcRenderer.invoke('cells:create', payload),
   updateCellState: (payload) => ipcRenderer.invoke('cells:updateState', payload),
   startTerminal: (payload) => ipcRenderer.invoke('terminal:start', payload),

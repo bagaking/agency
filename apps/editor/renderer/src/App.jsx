@@ -46,6 +46,7 @@ function App() {
   const [quickActions, setQuickActions] = useState([]);
   const [quickActionsError, setQuickActionsError] = useState('');
   const [quickActionsSaving, setQuickActionsSaving] = useState(false);
+  const [tmuxStatus, setTmuxStatus] = useState({ available: true });
   
   // Terminal State
   const [terminalOpen, setTerminalOpen] = useState(false);
@@ -131,6 +132,24 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const loadTmuxStatus = async () => {
+      if (!window.agency?.getTmuxStatus) {
+        return;
+      }
+      try {
+        const status = await window.agency.getTmuxStatus();
+        setTmuxStatus(status || { available: false, error: 'Unable to detect tmux.' });
+      } catch (error) {
+        setTmuxStatus({
+          available: false,
+          error: error?.message || 'Unable to detect tmux.',
+        });
+      }
+    };
+    loadTmuxStatus();
+  }, []);
+
+  useEffect(() => {
     if (!window.agency || !window.agency.onCellsUpdated) {
       return undefined;
     }
@@ -185,6 +204,11 @@ function App() {
     if (!cell || !window.agency?.listSessions) {
       return;
     }
+    if (tmuxStatus?.available === false) {
+      setSessionError(tmuxStatus.error || 'tmux is required. Install tmux and try again.');
+      setSessions([]);
+      return;
+    }
     setSessionLoading(true);
     setSessionError('');
     try {
@@ -223,7 +247,7 @@ function App() {
       return;
     }
     loadSessionsForCell(selectedCell);
-  }, [selectedCell?.id]);
+  }, [selectedCell?.id, tmuxStatus?.available]);
 
   const handleCreate = async ({ name, branch, reusePath }) => {
     if (!window.agency?.createCell) {
@@ -327,12 +351,17 @@ function App() {
               sessionLoading={sessionLoading}
               sessionError={sessionError}
               quickActions={quickActions}
-              onCreateSession={async () => {
-                if (!selectedCell || !window.agency?.createSession) {
-                  return;
-                }
-                setSessionLoading(true);
-                setSessionError('');
+              tmuxStatus={tmuxStatus}
+            onCreateSession={async () => {
+              if (!selectedCell || !window.agency?.createSession) {
+                return;
+              }
+              if (tmuxStatus?.available === false) {
+                setSessionError(tmuxStatus.error || 'tmux is required. Install tmux and try again.');
+                return;
+              }
+              setSessionLoading(true);
+              setSessionError('');
                 try {
                   const created = await window.agency.createSession({
                     cellId: selectedCell.id,
@@ -410,7 +439,7 @@ function App() {
       </div>
 
       {/* Global Status Bar */}
-      <StatusBar loading={loading} onRefresh={loadCells} />
+      <StatusBar loading={loading} onRefresh={loadCells} tmuxStatus={tmuxStatus} />
 
       {/* Modals */}
       {showCreate ? (

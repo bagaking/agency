@@ -13,6 +13,7 @@ export function EditorPane({
   sessionLoading,
   sessionError,
   quickActions,
+  tmuxStatus,
   onCreateSession,
   onRefreshSessions,
   onSelectSession,
@@ -23,6 +24,7 @@ export function EditorPane({
   pendingCommand,
   onCommandSent,
 }) {
+  const tmuxAvailable = tmuxStatus?.available !== false;
   if (!cell) {
     return (
       <div className="flex h-full flex-col items-center justify-center bg-background text-muted-foreground">
@@ -122,7 +124,8 @@ export function EditorPane({
                     <button
                       type="button"
                       onClick={onRefreshSessions}
-                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                      disabled={!tmuxAvailable}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <RefreshCw size={12} />
                       Refresh
@@ -130,13 +133,19 @@ export function EditorPane({
                     <button
                       type="button"
                       onClick={onCreateSession}
-                      className="flex items-center gap-1 rounded-sm border border-border px-2 py-1 text-xs text-muted-foreground hover:border-primary/60 hover:text-primary"
+                      disabled={!tmuxAvailable}
+                      className="flex items-center gap-1 rounded-sm border border-border px-2 py-1 text-xs text-muted-foreground hover:border-primary/60 hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Plus size={12} />
                       New
                     </button>
                 </div>
             </div>
+            {!tmuxAvailable ? (
+              <div className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-200">
+                tmux is required. Install with: <span className="font-mono">brew install tmux</span>
+              </div>
+            ) : null}
             {sessionError ? (
               <div className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-200">
                 {sessionError}

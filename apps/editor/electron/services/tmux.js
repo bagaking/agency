@@ -11,6 +11,21 @@ async function ensureTmuxAvailable() {
   }
 }
 
+async function getTmuxStatus() {
+  try {
+    const result = await execFileAsync('tmux', ['-V']);
+    return {
+      available: true,
+      version: result.stdout.trim(),
+    };
+  } catch (error) {
+    return {
+      available: false,
+      error: 'tmux is required. Install tmux and try again.',
+    };
+  }
+}
+
 async function hasSession(sessionName) {
   try {
     await execFileAsync('tmux', ['has-session', '-t', sessionName]);
@@ -33,4 +48,5 @@ module.exports = {
   hasSession,
   createSession,
   killSession,
+  getTmuxStatus,
 };

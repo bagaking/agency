@@ -2,7 +2,10 @@ import React from 'react';
 import { Radio, RefreshCw } from 'lucide-react';
 import { RiveAnimation } from './RiveAnimation.jsx';
 
-export function StatusBar({ loading, message, onRefresh }) {
+export function StatusBar({ loading, message, onRefresh, tmuxStatus }) {
+  const tmuxLabel = tmuxStatus?.available ? (tmuxStatus.version || 'tmux') : 'tmux missing';
+  const tmuxColor = tmuxStatus?.available ? 'text-emerald-300' : 'text-amber-300';
+
   return (
     <footer className="flex h-6 w-full items-center justify-between bg-status-bar px-3 text-xs text-status-bar-foreground select-none overflow-hidden">
       <div className="flex items-center gap-3">
@@ -15,6 +18,9 @@ export function StatusBar({ loading, message, onRefresh }) {
           <Radio size={12} />
           <span>Agency Remote</span>
         </button>
+        <span className={`border-l border-status-bar-foreground/20 pl-3 ${tmuxColor}`} title={tmuxStatus?.error || tmuxLabel}>
+          {tmuxLabel}
+        </span>
         {message && <span className="opacity-80 border-l border-status-bar-foreground/20 pl-3">Process: {message}</span>}
       </div>
       
