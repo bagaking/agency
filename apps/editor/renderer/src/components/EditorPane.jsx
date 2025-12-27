@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { TerminalSquare, Play, Pause, Archive, AlertTriangle, MonitorPlay, ChevronRight, CheckCircle2, Circle } from 'lucide-react';
+import { TerminalSquare, AlertTriangle, MonitorPlay, ChevronRight, CheckCircle2, Circle } from 'lucide-react';
 import TerminalPane from './TerminalPane.jsx';
 import { RiveAnimation } from './RiveAnimation.jsx';
+import { GateList } from './GateList.jsx';
 
 export function EditorPane({ cell, terminalMode, terminalOpen, onStateChange, onOpenTerminal, onStartCLI }) {
   // Auto-start CLI view if active
@@ -82,6 +83,22 @@ export function EditorPane({ cell, terminalMode, terminalOpen, onStateChange, on
                     );
                 })}
              </div>
+        </div>
+
+        {/* Lifecycle Gates */}
+        <div className="shrink-0 border-b border-border bg-card/20 px-6 py-3">
+            <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Lifecycle Gates
+                </h3>
+                <span className="text-[10px] uppercase text-muted-foreground">v0.2 temporary</span>
+            </div>
+            <div className="mt-3">
+                <GateList gates={cell.gates} />
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+                Active/Archived transitions require all gates to pass.
+            </p>
         </div>
 
         {/* Main Content: Terminal */}
