@@ -41,6 +41,13 @@ The editor SHALL allow users to configure quick actions with `startCommand` and 
 - **WHEN** a user resumes a quick action and `resumeCommand` is configured
 - **THEN** the editor runs the `resumeCommand` in the selected session
 
+### Requirement: Dedicated Quick Actions View
+The editor SHALL provide a dedicated navigation entry for quick action configuration.
+
+#### Scenario: Open quick actions view
+- **WHEN** a user selects the quick actions item in the activity bar
+- **THEN** the editor shows the configuration view for quick actions
+
 ### Requirement: UI State Persistence
 The editor SHALL persist UI state for the last selected Cell and active session.
 
