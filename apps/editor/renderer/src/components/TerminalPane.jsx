@@ -15,7 +15,11 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
     if (!command || !cell?.id) {
       return;
     }
-    window.agency?.writeTerminal({ cellId: cell.id, sessionId, data: `${command}\r` });
+    const text = String(command).replace(/\r\n/g, '\n');
+    const lines = text.split('\n');
+    lines.forEach((line) => {
+      window.agency?.writeTerminal({ cellId: cell.id, sessionId, data: `${line}\r` });
+    });
     if (onCommandSent) {
       onCommandSent({ cellId: cell.id, command });
     }

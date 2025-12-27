@@ -24,7 +24,9 @@
 
 - Quick Actions are configured in the Activity Bar.
 - Each action provides `startCommand` and optional `resumeCommand`.
-- Definitions are stored in the editor user data directory as `quick-actions.json`.
+- Definitions are stored in the editor user data directory as `quick-actions.json` (global scope).
+- Project overrides live at `.agency/quick-actions.yaml` and can replace global actions with matching `id`.
+- Commands can be multi-line scripts executed line-by-line in the active session.
 
 ## Branch Naming
 

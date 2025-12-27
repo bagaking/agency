@@ -43,6 +43,8 @@ The editor SHALL allow multiple terminal sessions per Cell.
 
 ### Requirement: Configurable Quick Actions
 The editor SHALL allow users to configure quick actions with `startCommand` and `resumeCommand`.
+Quick actions SHALL support a global scope and a project scope, where project definitions override global ones when identifiers match.
+Quick action commands SHALL accept multi-line scripts.
 
 #### Scenario: Run a quick action
 - **WHEN** a user invokes a quick action
@@ -51,6 +53,10 @@ The editor SHALL allow users to configure quick actions with `startCommand` and 
 #### Scenario: Resume a quick action
 - **WHEN** a user resumes a quick action and `resumeCommand` is configured
 - **THEN** the editor runs the `resumeCommand` in the selected session
+
+#### Scenario: Override quick actions per project
+- **WHEN** a project scope action shares the same identifier as a global action
+- **THEN** the project definition is used for execution
 
 ### Requirement: Dedicated Quick Actions View
 The editor SHALL provide a dedicated navigation entry for quick action configuration.

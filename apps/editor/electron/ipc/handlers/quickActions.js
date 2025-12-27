@@ -1,13 +1,20 @@
 const { ipcMain } = require('electron');
-const { readQuickActions, writeQuickActions } = require('../../services/quickActions');
+const { getQuickActions, setQuickActions } = require('../../services/quickActions');
 
 function setupQuickActionsHandlers() {
-  ipcMain.handle('quick-actions:get', async () => readQuickActions());
+  ipcMain.handle('quick-actions:get', async (_event, payload) => {
+    const scope = payload?.scope || 'resolved';
+    const worktreePath = payload?.worktreePath;
+    return getQuickActions({ scope, worktreePath });
+  });
   ipcMain.handle('quick-actions:set', async (_event, payload) => {
-    if (!Array.isArray(payload)) {
+    const scope = payload?.scope || 'global';
+    const actions = payload?.actions;
+    const worktreePath = payload?.worktreePath;
+    if (!Array.isArray(actions)) {
       throw new Error('quick actions payload must be an array.');
     }
-    return writeQuickActions(payload);
+    return setQuickActions({ scope, worktreePath, actions });
   });
 }
 

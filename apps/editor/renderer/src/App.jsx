@@ -29,6 +29,27 @@ const toBranchSlug = (value) => {
   return slug || 'cell';
 };
 
+const mergeQuickActions = (globalActions, projectActions) => {
+  const merged = [];
+  const indexById = new Map();
+  (globalActions || []).forEach((action, index) => {
+    const id = action?.id || `global-${index}`;
+    const normalized = { ...action, id };
+    indexById.set(id, merged.length);
+    merged.push(normalized);
+  });
+  (projectActions || []).forEach((action, index) => {
+    const id = action?.id || `project-${index}`;
+    const normalized = { ...action, id };
+    if (indexById.has(id)) {
+      merged[indexById.get(id)] = { ...merged[indexById.get(id)], ...normalized };
+    } else {
+      merged.push(normalized);
+    }
+  });
+  return merged;
+};
+
 function App() {
   const [cells, setCells] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -43,7 +64,9 @@ function App() {
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionError, setSessionError] = useState('');
   const [uiStateLoaded, setUiStateLoaded] = useState(false);
-  const [quickActions, setQuickActions] = useState([]);
+  const [quickActionsScope, setQuickActionsScope] = useState('global');
+  const [globalQuickActions, setGlobalQuickActions] = useState([]);
+  const [projectQuickActions, setProjectQuickActions] = useState([]);
   const [quickActionsError, setQuickActionsError] = useState('');
   const [quickActionsSaving, setQuickActionsSaving] = useState(false);
   const [tmuxStatus, setTmuxStatus] = useState({ available: true });
@@ -64,6 +87,18 @@ function App() {
       sessions.find((session) => session.status === 'active')?.id ||
       sessions[0]?.id
     : undefined;
+  const resolvedQuickActions = useMemo(
+    () => mergeQuickActions(globalQuickActions, projectQuickActions),
+    [globalQuickActions, projectQuickActions]
+  );
+  const scopedQuickActions = quickActionsScope === 'project' ? projectQuickActions : globalQuickActions;
+  const canUseProjectScope = Boolean(selectedCell?.worktreePath);
+
+  useEffect(() => {
+    if (!canUseProjectScope && quickActionsScope === 'project') {
+      setQuickActionsScope('global');
+    }
+  }, [canUseProjectScope, quickActionsScope]);
 
   const loadCells = async (preferredSelection) => {
     setLoading(true);
@@ -117,19 +152,42 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const loadQuickActions = async () => {
+    const loadGlobalQuickActions = async () => {
       if (!window.agency?.getQuickActions) {
         return;
       }
       try {
-        const actions = await window.agency.getQuickActions();
-        setQuickActions(Array.isArray(actions) ? actions : []);
+        const actions = await window.agency.getQuickActions({ scope: 'global' });
+        setGlobalQuickActions(Array.isArray(actions) ? actions : []);
       } catch (error) {
         setQuickActionsError(error?.message || 'Failed to load quick actions.');
       }
     };
-    loadQuickActions();
+    loadGlobalQuickActions();
   }, []);
+
+  useEffect(() => {
+    const loadProjectQuickActions = async () => {
+      if (!window.agency?.getQuickActions) {
+        return;
+      }
+      if (!selectedCell?.worktreePath) {
+        setProjectQuickActions([]);
+        return;
+      }
+      try {
+        const actions = await window.agency.getQuickActions({
+          scope: 'project',
+          worktreePath: selectedCell.worktreePath,
+        });
+        setProjectQuickActions(Array.isArray(actions) ? actions : []);
+      } catch (error) {
+        setQuickActionsError(error?.message || 'Failed to load quick actions.');
+        setProjectQuickActions([]);
+      }
+    };
+    loadProjectQuickActions();
+  }, [selectedCell?.worktreePath]);
 
   useEffect(() => {
     const loadTmuxStatus = async () => {
@@ -277,8 +335,16 @@ function App() {
     return `action-${Date.now()}`;
   };
 
+  const updateScopedActions = (updater) => {
+    if (quickActionsScope === 'project') {
+      setProjectQuickActions(updater);
+      return;
+    }
+    setGlobalQuickActions(updater);
+  };
+
   const addQuickAction = () => {
-    setQuickActions((current) => [
+    updateScopedActions((current) => [
       ...current,
       {
         id: generateActionId(),
@@ -290,13 +356,13 @@ function App() {
   };
 
   const updateQuickAction = (id, patch) => {
-    setQuickActions((current) =>
+    updateScopedActions((current) =>
       current.map((action) => (action.id === id ? { ...action, ...patch } : action))
     );
   };
 
   const removeQuickAction = (id) => {
-    setQuickActions((current) => current.filter((action) => action.id !== id));
+    updateScopedActions((current) => current.filter((action) => action.id !== id));
   };
 
   const saveQuickActions = async () => {
@@ -306,8 +372,17 @@ function App() {
     setQuickActionsSaving(true);
     setQuickActionsError('');
     try {
-      const saved = await window.agency.setQuickActions(quickActions);
-      setQuickActions(Array.isArray(saved) ? saved : quickActions);
+      const actionsToSave = quickActionsScope === 'project' ? projectQuickActions : globalQuickActions;
+      const saved = await window.agency.setQuickActions({
+        scope: quickActionsScope,
+        worktreePath: selectedCell?.worktreePath,
+        actions: actionsToSave,
+      });
+      if (quickActionsScope === 'project') {
+        setProjectQuickActions(Array.isArray(saved) ? saved : actionsToSave);
+      } else {
+        setGlobalQuickActions(Array.isArray(saved) ? saved : actionsToSave);
+      }
     } catch (error) {
       setQuickActionsError(error?.message || 'Failed to save quick actions.');
     } finally {
@@ -333,13 +408,20 @@ function App() {
 
         {activeView === 'quick-actions' ? (
           <QuickActionsView
-            actions={quickActions}
+            actions={scopedQuickActions}
+            scope={quickActionsScope}
+            canUseProjectScope={canUseProjectScope}
+            projectPath={selectedCell?.worktreePath}
             error={quickActionsError}
             saving={quickActionsSaving}
             onAddAction={addQuickAction}
             onRemoveAction={removeQuickAction}
             onUpdateAction={updateQuickAction}
             onSaveActions={saveQuickActions}
+            onScopeChange={(scope) => {
+              setQuickActionsScope(scope);
+              setQuickActionsError('');
+            }}
           />
         ) : (
           <EditorPane 
@@ -350,7 +432,7 @@ function App() {
               sessions={sessions}
               sessionLoading={sessionLoading}
               sessionError={sessionError}
-              quickActions={quickActions}
+              quickActions={resolvedQuickActions}
               tmuxStatus={tmuxStatus}
             onCreateSession={async () => {
               if (!selectedCell || !window.agency?.createSession) {
