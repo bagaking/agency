@@ -1,6 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { useRive, Layout, Fit, Alignment } from '@rive-app/react-canvas';
 
+const riveAssetCache = new Map();
+
+const isRenderableRive = (response) => {
+  if (!response?.ok) {
+    return false;
+  }
+  const contentType = (response.headers.get('content-type') || '').toLowerCase();
+  if (contentType.includes('text/html')) {
+    return false;
+  }
+  if (contentType.includes('application/json')) {
+    return false;
+  }
+  if (contentType.includes('text/plain')) {
+    return false;
+  }
+  return true;
+};
+
 function RivePlayer({
   src,
   artboard,
@@ -10,6 +29,7 @@ function RivePlayer({
   fit,
   alignment,
   fallback,
+  onLoadError,
 }) {
   const [error, setError] = useState(false);
 
@@ -23,7 +43,12 @@ function RivePlayer({
       alignment,
     }),
     autoplay: true,
-    onError: () => setError(true),
+    onError: () => {
+      setError(true);
+      if (onLoadError) {
+        onLoadError();
+      }
+    },
   });
 
   // Reset error if src changes
@@ -58,17 +83,26 @@ export function RiveAnimation({
         active = false;
       };
     }
+    if (riveAssetCache.has(src)) {
+      setCanLoad(riveAssetCache.get(src));
+      return () => {
+        active = false;
+      };
+    }
     fetch(src, { method: 'HEAD' })
       .then((response) => {
         if (!active) {
           return;
         }
-        setCanLoad(response.ok);
+        const ok = isRenderableRive(response);
+        riveAssetCache.set(src, ok);
+        setCanLoad(ok);
       })
       .catch(() => {
         if (!active) {
           return;
         }
+        riveAssetCache.set(src, false);
         setCanLoad(false);
       });
     return () => {
@@ -90,6 +124,10 @@ export function RiveAnimation({
       fit={fit}
       alignment={alignment}
       fallback={fallback}
+      onLoadError={() => {
+        riveAssetCache.set(src, false);
+        setCanLoad(false);
+      }}
     />
   );
 }

@@ -52,7 +52,6 @@ export function EditorPane({
   onSessionActivity,
   onSessionAttached,
 }) {
-  const tmuxAvailable = tmuxStatus?.available !== false;
   const [closedMenuOpen, setClosedMenuOpen] = useState(false);
   const [showGates, setShowGates] = useState(false);
   const closedMenuRef = useRef(null);
