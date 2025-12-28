@@ -113,9 +113,13 @@ export function EditorPane({
   }, [contextMenu]);
 
   useEffect(() => {
+    if (!isVisible) {
+      return undefined;
+    }
+    setIdleNow(Date.now());
     const interval = setInterval(() => setIdleNow(Date.now()), 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isVisible]);
 
   if (!cell) {
     return (
