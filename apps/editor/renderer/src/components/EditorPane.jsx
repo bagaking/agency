@@ -233,7 +233,7 @@ export function EditorPane({
         <div className="flex-1 flex flex-col min-h-0 bg-black/20">
              {/* Toolbar / Tab Bar */}
              <div className="flex h-9 shrink-0 items-center justify-between border-b border-border/60 bg-muted/10 px-2 gap-4">
-                <div className="flex items-center gap-1 flex-1 overflow-x-auto no-scrollbar">
+                <div className="flex items-center gap-1 flex-1 overflow-x-auto overflow-y-visible no-scrollbar">
                     {openSessions.map((session) => {
                         const isActive = session.id === sessionId;
                         const statusColor = session.status === 'active' ? 'bg-emerald-400' : 'bg-amber-400';

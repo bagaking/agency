@@ -128,6 +128,12 @@ function TerminalPane({
       const proposed = fitRef.current.proposeDimensions?.();
       if (!proposed || !proposed.cols || !proposed.rows) {
         logResizeSkip('missing-dimensions', { width, height, reason });
+        if (!deferredResizeRef.current) {
+          deferredResizeRef.current = setTimeout(() => {
+            deferredResizeRef.current = null;
+            scheduleResize(true, 'deferred-missing');
+          }, 120);
+        }
         return;
       }
       if (proposed.cols < MIN_COLS || proposed.rows < MIN_ROWS) {
