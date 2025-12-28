@@ -146,7 +146,7 @@ export function EditorPane({
 
         {/* Collapsible Lifecycle Gates */}
         {showGates && (
-            <div className="shrink-0 border-b border-border bg-card/30 px-6 py-4 animate-in slide-in-from-top duration-200">
+            <div className="shrink-0 border-b border-border bg-card/30 px-6 py-4 animate-slide-down">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                         <CheckCircle2 size={12} />
@@ -173,19 +173,19 @@ export function EditorPane({
                             <div
                                 key={session.id}
                                 onClick={() => onSelectSession?.(session.id)}
-                                className={`group flex items-center gap-2 px-3 py-1 text-[11px] rounded-t-md border-x border-t transition-all cursor-pointer h-full ${
+                                className={`group flex items-center gap-2 px-3 py-1 text-[11px] rounded-t-md border-x border-t transition-all cursor-pointer h-full animate-tab-in ${
                                     isActive
-                                        ? 'bg-black/40 border-border/80 text-foreground'
+                                        ? 'bg-black/40 border-border/80 text-foreground active-tab-glow'
                                         : 'bg-transparent border-transparent text-muted-foreground hover:bg-muted/20'
                                 }`}
                             >
-                                <div className={`h-1.5 w-1.5 rounded-full ${statusColor}`} />
+                                <div className={`h-1.5 w-1.5 rounded-full ${statusColor} ${isActive ? 'ring-2 ring-emerald-400/20' : ''}`} />
                                 <span className="max-w-[120px] truncate font-medium">
                                     {session.name || session.id}
                                 </span>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onCloseSession?.(session.id); }}
-                                    className={`opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-all`}
+                                    className={`opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-all p-0.5 rounded-sm hover:bg-rose-500/10`}
                                 >
                                     <X size={10} />
                                 </button>
@@ -194,7 +194,7 @@ export function EditorPane({
                     })}
                     <button
                         onClick={() => onCreateSession?.()}
-                        className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
+                        className="p-1.5 text-muted-foreground hover:text-primary transition-all hover:scale-110 active:scale-95"
                         title="New Session"
                     >
                         <Plus size={14} />
@@ -208,13 +208,13 @@ export function EditorPane({
                                 <MoreHorizontal size={14} />
                             </button>
                             {closedMenuOpen && (
-                                <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-md border border-border bg-popover py-1 shadow-xl">
+                                <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-md border border-border bg-popover py-1 shadow-xl animate-slide-down">
                                     <div className="px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground">Reopen Session</div>
                                     {closedSessions.map(s => (
                                         <button 
                                             key={s.id}
                                             onClick={() => { setClosedMenuOpen(false); onCreateSession?.({ name: s.name || s.id }); }}
-                                            className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate"
+                                            className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate transition-colors"
                                         >
                                             {s.name || s.id}
                                         </button>
@@ -231,7 +231,7 @@ export function EditorPane({
                             <button
                                 key={action.id}
                                 onClick={() => onRunCommand?.({ command: action.startCommand || '', kind: 'start', label: action.label || action.id })}
-                                className="px-2 py-0.5 rounded border border-border/40 bg-muted/20 text-[10px] text-muted-foreground hover:border-primary/50 hover:text-primary transition-all whitespace-nowrap"
+                                className="px-2 py-0.5 rounded border border-border/40 bg-muted/20 text-[10px] text-muted-foreground hover:border-primary/50 hover:text-primary transition-all whitespace-nowrap active:scale-95"
                             >
                                 {action.label || action.id}
                             </button>
@@ -239,12 +239,12 @@ export function EditorPane({
                     </div>
                     <button 
                         onClick={onOpenTerminal}
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-primary text-[10px] font-bold text-primary-foreground hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-primary text-[10px] font-bold text-primary-foreground hover:bg-primary/90 transition-all shadow-sm shadow-primary/20 active:scale-95"
                     >
                         <Play size={10} fill="currentColor" />
                         SHELL
                     </button>
-                    <button onClick={onRefreshSessions} className="p-1.5 text-muted-foreground hover:text-foreground">
+                    <button onClick={onRefreshSessions} className="p-1.5 text-muted-foreground hover:text-foreground transition-all active:rotate-180 duration-500">
                         <RefreshCw size={12} className={sessionLoading ? 'animate-spin' : ''} />
                     </button>
                 </div>
@@ -252,21 +252,40 @@ export function EditorPane({
 
              <div className="flex-1 overflow-hidden relative bg-black/20">
                 {terminalOpen && sessionId ? (
-                    <TerminalPane
-                      key={`${cell.id}:${sessionId || 'none'}`}
-                      cell={cell}
-                      sessionId={sessionId}
-                      mode={terminalMode}
-                      pendingCommand={pendingCommand}
-                      onCommandSent={onCommandSent}
-                    />
+                    sessionLoading ? (
+                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
+                             <div className="h-24 w-24 opacity-60">
+                                <RiveAnimation 
+                                    src="/assets/animations/loading.riv"
+                                    animations="Idle"
+                                    className="w-full h-full"
+                                    fallback={<RefreshCw size={32} className="animate-spin text-primary/40" />}
+                                />
+                             </div>
+                             <p className="mt-4 text-[10px] font-bold uppercase tracking-widest text-primary/60">Establishing Connection</p>
+                        </div>
+                    ) : (
+                        <TerminalPane
+                          key={`${cell.id}:${sessionId || 'none'}`}
+                          cell={cell}
+                          sessionId={sessionId}
+                          mode={terminalMode}
+                          pendingCommand={pendingCommand}
+                          onCommandSent={onCommandSent}
+                        />
+                    )
                 ) : (
                     <div className="flex h-full flex-col items-center justify-center text-muted-foreground bg-black/40 backdrop-blur-sm">
-                        <div className="mb-4 opacity-20">
-                            <TerminalSquare size={48} />
+                        <div className="mb-4 opacity-20 hover:opacity-40 transition-opacity duration-700">
+                            <RiveAnimation 
+                                src="/assets/animations/terminal-idle.riv"
+                                animations="Idle"
+                                className="w-16 h-16"
+                                fallback={<TerminalSquare size={48} />}
+                            />
                         </div>
-                        <p className="text-xs font-medium">No active terminal session</p>
-                        <button onClick={onOpenTerminal} className="mt-3 text-[11px] font-bold text-primary px-4 py-1.5 border border-primary/30 rounded-full hover:bg-primary/10 transition-all">
+                        <p className="text-xs font-medium tracking-wide">No active terminal session</p>
+                        <button onClick={onOpenTerminal} className="mt-3 text-[10px] font-bold text-primary px-5 py-2 border border-primary/30 rounded-full hover:bg-primary/10 transition-all active:scale-95 hover:border-primary">
                             SPAWN AGENT SHELL
                         </button>
                     </div>
