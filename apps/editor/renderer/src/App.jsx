@@ -18,6 +18,12 @@ const defaultCells = [
   },
 ];
 
+const DEFAULT_FONT_SIZE = 13;
+const MIN_FONT_SIZE = 10;
+const MAX_FONT_SIZE = 20;
+
+const buildSessionKey = (cellId, sessionId) => `${cellId}:${sessionId}`;
+
 const branchPrefixes = ['feat', 'refactor', 'fix', 'lint', 'chore', 'doc'];
 const pathBaseName = (value) => value.split('/').filter(Boolean).pop() || value;
 const toBranchSlug = (value) => {
@@ -134,6 +140,8 @@ function App() {
   const [pendingCommand, setPendingCommand] = useState(null);
   const [activeSessionByCellId, setActiveSessionByCellId] = useState({});
   const [sessionsByCellId, setSessionsByCellId] = useState({});
+  const [sessionFontSizeByKey, setSessionFontSizeByKey] = useState({});
+  const [sessionActivityByKey, setSessionActivityByKey] = useState({});
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionError, setSessionError] = useState('');
   const [uiStateLoaded, setUiStateLoaded] = useState(false);
@@ -167,16 +175,30 @@ function App() {
     [cells, selectedId]
   );
   const sessions = selectedCell ? sessionsByCellId[selectedCell.id] || [] : [];
-  const openSessions = useMemo(
-    () => sessions.filter((session) => session.status !== 'closed'),
-    [sessions]
-  );
+  const openSessions = useMemo(() => {
+    const preferred = activeSessionByCellId[selectedCell?.id];
+    return sessions.filter((session) => {
+      if (session.status === 'closed') {
+        return false;
+      }
+      if (session.status === 'detached') {
+        return session.id === preferred;
+      }
+      return true;
+    });
+  }, [sessions, activeSessionByCellId, selectedCell?.id]);
   const preferredSessionId = selectedCell ? activeSessionByCellId[selectedCell.id] : undefined;
   const activeSessionId = selectedCell
     ? openSessions.find((session) => session.id === preferredSessionId)?.id ||
       openSessions.find((session) => session.status === 'active')?.id ||
       openSessions[0]?.id
     : undefined;
+  const activeSessionKey =
+    selectedCell && activeSessionId ? buildSessionKey(selectedCell.id, activeSessionId) : null;
+  const activeFontSize = activeSessionKey
+    ? sessionFontSizeByKey[activeSessionKey] || DEFAULT_FONT_SIZE
+    : DEFAULT_FONT_SIZE;
+  const lastActivityAt = activeSessionKey ? sessionActivityByKey[activeSessionKey] : null;
   const resolvedQuickActions = useMemo(
     () => mergeQuickActions(globalQuickActions, projectQuickActions, agentQuickActions),
     [globalQuickActions, projectQuickActions, agentQuickActions]
@@ -439,7 +461,9 @@ function App() {
       }
       setSessionsByCellId((current) => ({ ...current, [cell.id]: nextSessions }));
 
-      const open = nextSessions.filter((session) => session.status !== 'closed');
+      const open = nextSessions.filter(
+        (session) => session.status !== 'closed' && session.status !== 'detached'
+      );
       const preferred = activeSessionByCellId[cell.id];
       const active =
         (preferred && open.find((session) => session.id === preferred)) ||
@@ -473,6 +497,18 @@ function App() {
     }
     loadSessionsForCell(selectedCell);
   }, [selectedCell?.id, tmuxStatus?.available]);
+
+  useEffect(() => {
+    if (!activeSessionKey) {
+      return;
+    }
+    if (!sessionActivityByKey[activeSessionKey]) {
+      setSessionActivityByKey((current) => ({
+        ...current,
+        [activeSessionKey]: Date.now(),
+      }));
+    }
+  }, [activeSessionKey, sessionActivityByKey]);
 
   const handleCreate = async ({ name, branch, reusePath }) => {
     if (!window.agency?.createCell) {
@@ -508,6 +544,27 @@ function App() {
       return crypto.randomUUID();
     }
     return `link-${Date.now()}`;
+  };
+
+  const clampFontSize = (value) => Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, value));
+
+  const updateSessionActivity = ({ cellId, sessionId }) => {
+    if (!cellId || !sessionId) {
+      return;
+    }
+    const key = buildSessionKey(cellId, sessionId);
+    setSessionActivityByKey((current) => ({ ...current, [key]: Date.now() }));
+  };
+
+  const updateFontSizeForSession = ({ cellId, sessionId, nextSize }) => {
+    if (!cellId || !sessionId) {
+      return;
+    }
+    const key = buildSessionKey(cellId, sessionId);
+    setSessionFontSizeByKey((current) => ({
+      ...current,
+      [key]: clampFontSize(nextSize),
+    }));
   };
 
   const updateWorktreeLinks = (updater) => {
@@ -860,6 +917,7 @@ function App() {
               sessionError={sessionError}
               quickActions={resolvedQuickActions}
               tmuxStatus={tmuxStatus}
+              idleSince={lastActivityAt}
             onCreateSession={async (options = {}) => {
               if (!selectedCell || !window.agency?.createSession) {
                 return;
@@ -903,6 +961,7 @@ function App() {
                   ...current,
                   [selectedCell.id]: sessionId,
                 }));
+                updateSessionActivity({ cellId: selectedCell.id, sessionId });
               }}
               onCloseSession={async (sessionId) => {
                 if (!selectedCell || !window.agency?.closeSession) {
@@ -922,10 +981,77 @@ function App() {
                   setSessionLoading(false);
                 }
               }}
+              onDetachSession={async (sessionId) => {
+                if (!selectedCell || !window.agency?.detachSession) {
+                  return;
+                }
+                setSessionLoading(true);
+                setSessionError('');
+                try {
+                  await window.agency.detachSession({
+                    worktreePath: selectedCell.worktreePath,
+                    sessionId,
+                  });
+                  await loadSessionsForCell(selectedCell);
+                } catch (error) {
+                  setSessionError(error?.message || 'Failed to detach session.');
+                } finally {
+                  setSessionLoading(false);
+                }
+              }}
+              onRenameSession={async (sessionId, name) => {
+                if (!selectedCell || !window.agency?.renameSession) {
+                  return;
+                }
+                setSessionLoading(true);
+                setSessionError('');
+                try {
+                  await window.agency.renameSession({
+                    worktreePath: selectedCell.worktreePath,
+                    sessionId,
+                    name,
+                  });
+                  await loadSessionsForCell(selectedCell);
+                } catch (error) {
+                  setSessionError(error?.message || 'Failed to rename session.');
+                } finally {
+                  setSessionLoading(false);
+                }
+              }}
               onStateChange={handleStateChange}
               onOpenTerminal={() => {
                   setTerminalMode('shell');
                   setTerminalOpen(true);
+              }}
+              onZoomIn={() => {
+                if (!selectedCell || !activeSessionId) {
+                  return;
+                }
+                updateFontSizeForSession({
+                  cellId: selectedCell.id,
+                  sessionId: activeSessionId,
+                  nextSize: activeFontSize + 1,
+                });
+              }}
+              onZoomOut={() => {
+                if (!selectedCell || !activeSessionId) {
+                  return;
+                }
+                updateFontSizeForSession({
+                  cellId: selectedCell.id,
+                  sessionId: activeSessionId,
+                  nextSize: activeFontSize - 1,
+                });
+              }}
+              onZoomReset={() => {
+                if (!selectedCell || !activeSessionId) {
+                  return;
+                }
+                updateFontSizeForSession({
+                  cellId: selectedCell.id,
+                  sessionId: activeSessionId,
+                  nextSize: DEFAULT_FONT_SIZE,
+                });
               }}
               onRunCommand={runActionCommand}
               pendingCommand={pendingCommand}
@@ -940,6 +1066,13 @@ function App() {
                   return null;
                 });
               }}
+              onSessionActivity={updateSessionActivity}
+              onSessionAttached={() => {
+                if (selectedCell) {
+                  loadSessionsForCell(selectedCell);
+                }
+              }}
+              terminalFontSize={activeFontSize}
           />
         )}
       </div>

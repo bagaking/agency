@@ -15,6 +15,9 @@ import {
   Layout,
   ChevronDown,
   ChevronUp,
+  ZoomIn,
+  ZoomOut,
+  Clock,
 } from 'lucide-react';
 import TerminalPane from './TerminalPane.jsx';
 import { RiveAnimation } from './RiveAnimation.jsx';
@@ -30,23 +33,48 @@ export function EditorPane({
   sessionError,
   quickActions,
   tmuxStatus,
+  idleSince,
+  terminalFontSize,
   onCreateSession,
   onRefreshSessions,
   onSelectSession,
   onCloseSession,
+  onDetachSession,
+  onRenameSession,
   onStateChange,
   onOpenTerminal,
+  onZoomIn,
+  onZoomOut,
+  onZoomReset,
   onRunCommand,
   pendingCommand,
   onCommandSent,
+  onSessionActivity,
+  onSessionAttached,
 }) {
   const tmuxAvailable = tmuxStatus?.available !== false;
   const [closedMenuOpen, setClosedMenuOpen] = useState(false);
   const [showGates, setShowGates] = useState(false);
   const closedMenuRef = useRef(null);
+  const contextMenuRef = useRef(null);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [idleNow, setIdleNow] = useState(Date.now());
   
   const openSessions = useMemo(
-    () => (sessions || []).filter((session) => session.status !== 'closed'),
+    () =>
+      (sessions || []).filter((session) => {
+        if (session.status === 'closed') {
+          return false;
+        }
+        if (session.status === 'detached') {
+          return session.id === sessionId;
+        }
+        return true;
+      }),
+    [sessions, sessionId]
+  );
+  const detachedSessions = useMemo(
+    () => (sessions || []).filter((session) => session.status === 'detached'),
     [sessions]
   );
   const closedSessions = useMemo(
@@ -68,6 +96,25 @@ export function EditorPane({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [closedMenuOpen]);
 
+  useEffect(() => {
+    if (!contextMenu) {
+      return undefined;
+    }
+    const handleClick = (event) => {
+      if (!contextMenuRef.current || contextMenuRef.current.contains(event.target)) {
+        return;
+      }
+      setContextMenu(null);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [contextMenu]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setIdleNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   if (!cell) {
     return (
       <div className="flex h-full flex-col items-center justify-center bg-background text-muted-foreground">
@@ -85,6 +132,16 @@ export function EditorPane({
   }
 
   const failedGatesCount = (cell.gates || []).filter(g => !g.passed).length;
+  const idleMs = idleSince ? Math.max(0, idleNow - idleSince) : 0;
+  const idleSeconds = Math.floor(idleMs / 1000);
+  const idleHours = Math.floor(idleSeconds / 3600);
+  const idleMinutes = Math.floor((idleSeconds % 3600) / 60);
+  const idleRemaining = idleSeconds % 60;
+  const idleLabel = idleHours
+    ? `${idleHours}:${String(idleMinutes).padStart(2, '0')}:${String(idleRemaining).padStart(2, '0')}`
+    : `${String(idleMinutes).padStart(2, '0')}:${String(idleRemaining).padStart(2, '0')}`;
+  const contextTarget =
+    contextMenu && sessions?.find((session) => session.id === contextMenu.sessionId);
 
   return (
     <main className="flex h-full flex-1 flex-col bg-background overflow-hidden">
@@ -173,6 +230,14 @@ export function EditorPane({
                             <div
                                 key={session.id}
                                 onClick={() => onSelectSession?.(session.id)}
+                                onContextMenu={(event) => {
+                                    event.preventDefault();
+                                    setContextMenu({
+                                        sessionId: session.id,
+                                        x: event.clientX,
+                                        y: event.clientY,
+                                    });
+                                }}
                                 className={`group flex items-center gap-2 px-3 py-1 text-[11px] rounded-t-md border-x border-t transition-all cursor-pointer h-full animate-tab-in ${
                                     isActive
                                         ? 'bg-black/40 border-border/80 text-foreground active-tab-glow'
@@ -199,7 +264,7 @@ export function EditorPane({
                     >
                         <Plus size={14} />
                     </button>
-                    {closedSessions.length > 0 && (
+                    {(detachedSessions.length > 0 || closedSessions.length > 0) && (
                         <div className="relative" ref={closedMenuRef}>
                             <button
                                 onClick={() => setClosedMenuOpen(!closedMenuOpen)}
@@ -209,16 +274,38 @@ export function EditorPane({
                             </button>
                             {closedMenuOpen && (
                                 <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-md border border-border bg-popover py-1 shadow-xl animate-slide-down">
-                                    <div className="px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground">Reopen Session</div>
-                                    {closedSessions.map(s => (
-                                        <button 
-                                            key={s.id}
-                                            onClick={() => { setClosedMenuOpen(false); onCreateSession?.({ name: s.name || s.id }); }}
-                                            className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate transition-colors"
-                                        >
-                                            {s.name || s.id}
-                                        </button>
-                                    ))}
+                                    {detachedSessions.length > 0 && (
+                                        <>
+                                            <div className="px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground">Detached Sessions</div>
+                                            {detachedSessions.map(s => (
+                                                <button
+                                                    key={s.id}
+                                                    onClick={() => {
+                                                        setClosedMenuOpen(false);
+                                                        onSelectSession?.(s.id);
+                                                        onOpenTerminal?.();
+                                                    }}
+                                                    className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate transition-colors"
+                                                >
+                                                    {s.name || s.id}
+                                                </button>
+                                            ))}
+                                        </>
+                                    )}
+                                    {closedSessions.length > 0 && (
+                                        <>
+                                            <div className="px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground">Closed Sessions</div>
+                                            {closedSessions.map(s => (
+                                                <button
+                                                    key={s.id}
+                                                    onClick={() => { setClosedMenuOpen(false); onCreateSession?.({ name: s.name || s.id }); }}
+                                                    className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate transition-colors"
+                                                >
+                                                    {s.name || s.id}
+                                                </button>
+                                            ))}
+                                        </>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -226,6 +313,10 @@ export function EditorPane({
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0 px-2">
+                    <div className="flex items-center gap-1 border-r border-border/50 pr-2 mr-1 text-[10px] text-muted-foreground">
+                        <Clock size={10} />
+                        <span className="tabular-nums">Idle {idleLabel}</span>
+                    </div>
                     <div className="flex items-center gap-1 border-r border-border/50 pr-2 mr-1">
                         {quickActions && quickActions.slice(0, 3).map((action) => (
                             <button
@@ -244,11 +335,67 @@ export function EditorPane({
                         <Play size={10} fill="currentColor" />
                         SHELL
                     </button>
+                    <div className="flex items-center gap-1 border-l border-border/50 pl-2 ml-1">
+                        <button
+                            onClick={onZoomOut}
+                            className="p-1.5 text-muted-foreground hover:text-foreground transition-all"
+                            title="Zoom out"
+                        >
+                            <ZoomOut size={12} />
+                        </button>
+                        <span className="text-[10px] text-muted-foreground tabular-nums min-w-[20px] text-center">
+                            {terminalFontSize}
+                        </span>
+                        <button
+                            onClick={onZoomIn}
+                            className="p-1.5 text-muted-foreground hover:text-foreground transition-all"
+                            title="Zoom in"
+                        >
+                            <ZoomIn size={12} />
+                        </button>
+                        <button
+                            onClick={onZoomReset}
+                            className="p-1.5 text-muted-foreground hover:text-foreground transition-all"
+                            title="Reset zoom"
+                        >
+                            <RotateCcw size={12} />
+                        </button>
+                    </div>
                     <button onClick={onRefreshSessions} className="p-1.5 text-muted-foreground hover:text-foreground transition-all active:rotate-180 duration-500">
                         <RefreshCw size={12} className={sessionLoading ? 'animate-spin' : ''} />
                     </button>
                 </div>
              </div>
+
+             {contextMenu && contextTarget ? (
+                <div
+                    ref={contextMenuRef}
+                    className="fixed z-[60] w-44 rounded-md border border-border bg-popover py-1 shadow-xl text-[11px]"
+                    style={{ top: contextMenu.y, left: contextMenu.x }}
+                >
+                    <button
+                        onClick={() => {
+                            setContextMenu(null);
+                            onDetachSession?.(contextTarget.id);
+                        }}
+                        className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    >
+                        Detach Session
+                    </button>
+                    <button
+                        onClick={() => {
+                            setContextMenu(null);
+                            const nextName = window.prompt('Rename session', contextTarget.name || contextTarget.id);
+                            if (nextName && nextName.trim()) {
+                                onRenameSession?.(contextTarget.id, nextName.trim());
+                            }
+                        }}
+                        className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    >
+                        Rename Session
+                    </button>
+                </div>
+             ) : null}
 
              <div className="flex-1 overflow-hidden relative bg-black/20">
                 {terminalOpen && sessionId ? (
@@ -272,6 +419,9 @@ export function EditorPane({
                           mode={terminalMode}
                           pendingCommand={pendingCommand}
                           onCommandSent={onCommandSent}
+                          onActivity={onSessionActivity}
+                          fontSize={terminalFontSize}
+                          onSessionAttached={onSessionAttached}
                         />
                     )
                 ) : (

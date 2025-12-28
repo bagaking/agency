@@ -2,7 +2,16 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from '@xterm/addon-fit';
 
-function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) {
+function TerminalPane({
+  cell,
+  sessionId,
+  mode,
+  pendingCommand,
+  onCommandSent,
+  onActivity,
+  onSessionAttached,
+  fontSize,
+}) {
   const containerRef = useRef(null);
   const terminalRef = useRef(null);
   const fitRef = useRef(null);
@@ -12,6 +21,7 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
   const lastOutputAtRef = useRef(0);
   const deferredResizeRef = useRef(null);
   const resizeLogRef = useRef({});
+  const resizeHandlerRef = useRef(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [sessionReady, setSessionReady] = useState(false);
 
@@ -27,6 +37,9 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
     if (onCommandSent) {
       onCommandSent({ cellId: cell.id, command });
     }
+    if (onActivity) {
+      onActivity({ cellId: cell.id, sessionId });
+    }
   };
 
   useEffect(() => {
@@ -37,9 +50,10 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
     lastQueuedRef.current = null;
     setSessionReady(false);
 
+    const resolvedFontSize = Number.isFinite(Number(fontSize)) ? Number(fontSize) : 13;
     const terminal = new Terminal({
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-      fontSize: 13,
+      fontSize: resolvedFontSize,
       cursorBlink: true,
       scrollback: 5000,
       scrollOnUserInput: true,
@@ -154,6 +168,8 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
       });
     };
 
+    resizeHandlerRef.current = scheduleResize;
+
     const resizeObserver =
       typeof ResizeObserver !== 'undefined'
         ? new ResizeObserver(() => scheduleResize(false, 'resize-observer'))
@@ -220,6 +236,9 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
       if (payload?.cellId === cell.id && payload?.sessionId === sessionId) {
         lastOutputAtRef.current = Date.now();
         terminal.write(payload.data);
+        if (onActivity) {
+          onActivity({ cellId: cell.id, sessionId });
+        }
       }
     });
     const unsubscribeError = window.agency?.onTerminalError((payload) => {
@@ -248,6 +267,12 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
         });
         setSessionReady(true);
         setTimeout(() => scheduleResize(true, 'post-start'), 60);
+        if (onActivity) {
+          onActivity({ cellId: cell.id, sessionId });
+        }
+        if (onSessionAttached) {
+          onSessionAttached({ cellId: cell.id, sessionId });
+        }
         if (commandQueueRef.current.length) {
           const queue = [...commandQueueRef.current];
           commandQueueRef.current = [];
@@ -261,6 +286,9 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
 
     terminal.onData((data) => {
       window.agency?.writeTerminal({ cellId: cell.id, sessionId, data });
+      if (onActivity) {
+        onActivity({ cellId: cell.id, sessionId });
+      }
     });
 
     const handleWindowResize = () => scheduleResize(false, 'window-resize');
@@ -289,6 +317,7 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
       terminal.dispose();
       terminalRef.current = null;
       fitRef.current = null;
+      resizeHandlerRef.current = null;
       setSessionReady(false);
     };
   }, [cell, mode, sessionId]);
@@ -307,6 +336,22 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
       commandQueueRef.current.push(pendingCommand.command);
     }
   }, [pendingCommand, sessionReady, cell?.id, sessionId]);
+
+  useEffect(() => {
+    if (!terminalRef.current || !fontSize) {
+      return;
+    }
+    const nextFontSize = Number(fontSize);
+    if (!Number.isFinite(nextFontSize) || nextFontSize <= 0) {
+      return;
+    }
+    if (terminalRef.current.options.fontSize === nextFontSize) {
+      return;
+    }
+    terminalRef.current.options.fontSize = nextFontSize;
+    terminalRef.current.refresh(0, terminalRef.current.rows - 1);
+    resizeHandlerRef.current?.(true, 'font-size');
+  }, [fontSize]);
 
   if (errorMessage) {
     return (
