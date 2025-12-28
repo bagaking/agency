@@ -415,6 +415,11 @@ function App() {
     if (nextState === selectedCell.state) {
       return;
     }
+    const requiresGates = ['active', 'archived'].includes(nextState);
+    const failedGates = (selectedCell.gates || []).filter((gate) => !gate.passed);
+    if (requiresGates && failedGates.length > 0) {
+      return;
+    }
     setTransitionError('');
     let nextCells = cells;
     if (window.agency?.listCells) {

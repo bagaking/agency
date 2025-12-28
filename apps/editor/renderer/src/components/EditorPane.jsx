@@ -130,7 +130,8 @@ export function EditorPane({
     );
   }
 
-  const failedGatesCount = (cell.gates || []).filter(g => !g.passed).length;
+  const gates = cell.gates || [];
+  const failedGatesCount = gates.filter((gate) => !gate.passed).length;
   const idleMs = idleSince ? Math.max(0, idleNow - idleSince) : 0;
   const idleSeconds = Math.floor(idleMs / 1000);
   const idleHours = Math.floor(idleSeconds / 3600);
@@ -160,6 +161,8 @@ export function EditorPane({
                     {['draft', 'active', 'archived'].map((step, index, arr) => {
                         const isActive = cell.state === step || (step === 'active' && cell.state === 'paused');
                         const isPast = arr.indexOf(cell.state) > index || (cell.state === 'paused' && step === 'active');
+                        const requiresGates = step === 'active' || step === 'archived';
+                        const blockTransition = requiresGates && failedGatesCount > 0 && step !== cell.state;
                         
                         let dotColor = 'bg-muted-foreground/30';
                         if (cell.state === step) {
@@ -171,9 +174,19 @@ export function EditorPane({
                         return (
                             <button 
                                 key={step} 
-                                onClick={() => onStateChange(step)}
-                                className={`flex items-center gap-1 group transition-all`}
-                                title={`Switch to ${step}`}
+                                onClick={() => {
+                                    if (blockTransition) {
+                                        return;
+                                    }
+                                    onStateChange(step);
+                                }}
+                                disabled={blockTransition}
+                                className={`flex items-center gap-1 group transition-all disabled:opacity-40 disabled:cursor-not-allowed`}
+                                title={
+                                    blockTransition
+                                        ? `Resolve gates before switching to ${step}`
+                                        : `Switch to ${step}`
+                                }
                             >
                                 <div className={`h-1.5 w-1.5 rounded-full ${dotColor} ${isActive ? 'ring-2 ring-primary/20 ring-offset-1 ring-offset-background' : ''}`} />
                                 <span className={`text-[10px] capitalize transition-colors ${isActive ? 'text-foreground font-medium' : 'text-muted-foreground/60 group-hover:text-muted-foreground'}`}>
