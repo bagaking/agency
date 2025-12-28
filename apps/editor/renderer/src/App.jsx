@@ -167,10 +167,15 @@ function App() {
     [cells, selectedId]
   );
   const sessions = selectedCell ? sessionsByCellId[selectedCell.id] || [] : [];
+  const openSessions = useMemo(
+    () => sessions.filter((session) => session.status !== 'closed'),
+    [sessions]
+  );
+  const preferredSessionId = selectedCell ? activeSessionByCellId[selectedCell.id] : undefined;
   const activeSessionId = selectedCell
-    ? activeSessionByCellId[selectedCell.id] ||
-      sessions.find((session) => session.status === 'active')?.id ||
-      sessions[0]?.id
+    ? openSessions.find((session) => session.id === preferredSessionId)?.id ||
+      openSessions.find((session) => session.status === 'active')?.id ||
+      openSessions[0]?.id
     : undefined;
   const resolvedQuickActions = useMemo(
     () => mergeQuickActions(globalQuickActions, projectQuickActions, agentQuickActions),
@@ -413,6 +418,11 @@ function App() {
     if (tmuxStatus?.available === false) {
       setSessionError(tmuxStatus.error || 'tmux is required. Install tmux and try again.');
       setSessionsByCellId((current) => ({ ...current, [cell.id]: [] }));
+      setActiveSessionByCellId((current) => {
+        const next = { ...current };
+        delete next[cell.id];
+        return next;
+      });
       return;
     }
     setSessionLoading(true);
@@ -429,20 +439,29 @@ function App() {
       }
       setSessionsByCellId((current) => ({ ...current, [cell.id]: nextSessions }));
 
+      const open = nextSessions.filter((session) => session.status !== 'closed');
       const preferred = activeSessionByCellId[cell.id];
       const active =
-        (preferred && nextSessions.find((session) => session.id === preferred)) ||
-        nextSessions.find((session) => session.status === 'active') ||
-        nextSessions[0];
-      if (active && active.id) {
-        setActiveSessionByCellId((current) => ({
-          ...current,
-          [cell.id]: active.id,
-        }));
-      }
+        (preferred && open.find((session) => session.id === preferred)) ||
+        open.find((session) => session.status === 'active') ||
+        open[0];
+      setActiveSessionByCellId((current) => {
+        const next = { ...current };
+        if (active && active.id) {
+          next[cell.id] = active.id;
+        } else {
+          delete next[cell.id];
+        }
+        return next;
+      });
     } catch (error) {
       setSessionError(error?.message || 'Failed to load sessions.');
       setSessionsByCellId((current) => ({ ...current, [cell.id]: [] }));
+      setActiveSessionByCellId((current) => {
+        const next = { ...current };
+        delete next[cell.id];
+        return next;
+      });
     } finally {
       setSessionLoading(false);
     }

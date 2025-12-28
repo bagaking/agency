@@ -12,6 +12,9 @@ import {
   X,
   RotateCcw,
   MoreHorizontal,
+  Layout,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import TerminalPane from './TerminalPane.jsx';
 import { RiveAnimation } from './RiveAnimation.jsx';
@@ -39,7 +42,9 @@ export function EditorPane({
 }) {
   const tmuxAvailable = tmuxStatus?.available !== false;
   const [closedMenuOpen, setClosedMenuOpen] = useState(false);
+  const [showGates, setShowGates] = useState(false);
   const closedMenuRef = useRef(null);
+  
   const openSessions = useMemo(
     () => (sessions || []).filter((session) => session.status !== 'closed'),
     [sessions]
@@ -79,280 +84,173 @@ export function EditorPane({
     );
   }
 
+  const failedGatesCount = (cell.gates || []).filter(g => !g.passed).length;
+
   return (
     <main className="flex h-full flex-1 flex-col bg-background overflow-hidden">
         {/* Header */}
-        <header className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-background px-4">
-            <div className="flex items-center gap-2 text-sm text-foreground">
-                <span className="text-primary font-bold">AGENCY</span>
-                <ChevronRight size={14} className="text-muted-foreground" />
-                <span className="font-medium">{cell.name}</span>
-                <span className="mx-2 text-muted-foreground/30">|</span>
-                <span className="font-mono text-xs text-muted-foreground" title={cell.worktreePath}>{cell.branch}</span>
+        <header className="flex h-10 shrink-0 items-center justify-between border-b border-border bg-background px-4">
+            <div className="flex items-center gap-2 text-xs text-foreground">
+                <span className="text-primary font-bold tracking-tight">AGENCY</span>
+                <ChevronRight size={12} className="text-muted-foreground/50" />
+                <span className="font-semibold">{cell.name}</span>
+                <span className="text-muted-foreground/30 mx-1">/</span>
+                <span className="font-mono text-[10px] text-muted-foreground opacity-70">{cell.branch}</span>
             </div>
-            <div className="flex items-center gap-2">
-                 {cell.validation?.warnings?.length > 0 && (
-                    <div className="flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-xs text-amber-500" title={cell.validation.warnings.join('\n')}>
-                        <AlertTriangle size={12} />
-                        <span>Validation Warning</span>
-                    </div>
-                )}
+            
+            <div className="flex items-center gap-3">
+                {/* Compact Lifecycle Stepper */}
+                <div className="flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded-md border border-border/50">
+                    {['draft', 'active', 'archived'].map((step, index, arr) => {
+                        const isActive = cell.state === step || (step === 'active' && cell.state === 'paused');
+                        const isPast = arr.indexOf(cell.state) > index || (cell.state === 'paused' && step === 'active');
+                        
+                        let dotColor = 'bg-muted-foreground/30';
+                        if (cell.state === step) {
+                            dotColor = step === 'active' ? 'bg-emerald-400' : step === 'paused' ? 'bg-amber-400' : 'bg-primary';
+                        } else if (isPast) {
+                            dotColor = 'bg-primary/40';
+                        }
+
+                        return (
+                            <button 
+                                key={step} 
+                                onClick={() => onStateChange(step)}
+                                className={`flex items-center gap-1 group transition-all`}
+                                title={`Switch to ${step}`}
+                            >
+                                <div className={`h-1.5 w-1.5 rounded-full ${dotColor} ${isActive ? 'ring-2 ring-primary/20 ring-offset-1 ring-offset-background' : ''}`} />
+                                <span className={`text-[10px] capitalize transition-colors ${isActive ? 'text-foreground font-medium' : 'text-muted-foreground/60 group-hover:text-muted-foreground'}`}>
+                                    {step === 'active' && cell.state === 'paused' ? 'paused' : step}
+                                </span>
+                                {index < arr.length - 1 && <div className="h-2 w-[1px] bg-border mx-1" />}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                <button 
+                    onClick={() => setShowGates(!showGates)}
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium transition-colors ${
+                        failedGatesCount > 0 
+                            ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' 
+                            : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'
+                    }`}
+                >
+                    <Layout size={12} />
+                    <span>Gates {failedGatesCount > 0 ? `(${failedGatesCount} failing)` : '(All OK)'}</span>
+                    {showGates ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                </button>
             </div>
         </header>
 
-        {/* Lifecycle Stepper (Compact) */}
-        <div className="shrink-0 border-b border-border bg-card/30 px-6 py-3">
-             <div className="flex items-center justify-center gap-4">
-                {['draft', 'active', 'archived'].map((step, index, arr) => {
-                    const isActive = cell.state === step || (step === 'active' && cell.state === 'paused');
-                    const isPast = arr.indexOf(cell.state) > index || (cell.state === 'paused' && step === 'active');
-                    // Simple logic: draft < active/paused < archived
-                    // If current is 'paused', it counts as 'active' step for visual (or we add paused)
-                    // Let's keep it simple: Draft -> Active -> Archived
-                    
-                    let stateColor = 'text-muted-foreground';
-                    let icon = <Circle size={16} />;
-                    
-                    if (cell.state === step) {
-                        stateColor = step === 'active' ? 'text-emerald-400' : step === 'paused' ? 'text-amber-400' : 'text-primary';
-                        icon = <CheckCircle2 size={16} className={stateColor} />;
-                    } else if (isPast) { // crude approximation
-                        stateColor = 'text-primary/60';
-                         icon = <CheckCircle2 size={16} className={stateColor} />;
-                    }
+        {/* Collapsible Lifecycle Gates */}
+        {showGates && (
+            <div className="shrink-0 border-b border-border bg-card/30 px-6 py-4 animate-in slide-in-from-top duration-200">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                        <CheckCircle2 size={12} />
+                        Compliance Checklist
+                    </h3>
+                </div>
+                <GateList gates={cell.gates} />
+                <p className="mt-3 text-[10px] text-muted-foreground italic bg-muted/20 p-2 rounded border border-border/50">
+                    * Agents must satisfy all gates before transitioning to Active or Archived states.
+                </p>
+            </div>
+        )}
 
-                    return (
-                        <div key={step} className="flex items-center gap-2 cursor-pointer" onClick={() => onStateChange(step)}>
-                            <div className={`flex items-center gap-2 ${cell.state === step ? 'font-bold ' + stateColor : 'text-muted-foreground'}`}>
-                                {icon}
-                                <span className="capitalize text-xs">{step === 'active' && cell.state === 'paused' ? 'Paused' : step}</span>
+        {/* Integrated Terminal Area */}
+        <div className="flex-1 flex flex-col min-h-0 bg-black/20">
+             {/* Toolbar / Tab Bar */}
+             <div className="flex h-9 shrink-0 items-center justify-between border-b border-border/60 bg-muted/10 px-2 gap-4">
+                <div className="flex items-center gap-1 flex-1 overflow-x-auto no-scrollbar">
+                    {openSessions.map((session) => {
+                        const isActive = session.id === sessionId;
+                        const statusColor = session.status === 'active' ? 'bg-emerald-400' : 'bg-amber-400';
+                        
+                        return (
+                            <div
+                                key={session.id}
+                                onClick={() => onSelectSession?.(session.id)}
+                                className={`group flex items-center gap-2 px-3 py-1 text-[11px] rounded-t-md border-x border-t transition-all cursor-pointer h-full ${
+                                    isActive
+                                        ? 'bg-black/40 border-border/80 text-foreground'
+                                        : 'bg-transparent border-transparent text-muted-foreground hover:bg-muted/20'
+                                }`}
+                            >
+                                <div className={`h-1.5 w-1.5 rounded-full ${statusColor}`} />
+                                <span className="max-w-[120px] truncate font-medium">
+                                    {session.name || session.id}
+                                </span>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onCloseSession?.(session.id); }}
+                                    className={`opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-all`}
+                                >
+                                    <X size={10} />
+                                </button>
                             </div>
-                            {index < arr.length - 1 && (
-                                <div className="h-px w-12 bg-border" />
+                        );
+                    })}
+                    <button
+                        onClick={() => onCreateSession?.()}
+                        className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
+                        title="New Session"
+                    >
+                        <Plus size={14} />
+                    </button>
+                    {closedSessions.length > 0 && (
+                        <div className="relative" ref={closedMenuRef}>
+                            <button
+                                onClick={() => setClosedMenuOpen(!closedMenuOpen)}
+                                className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
+                            >
+                                <MoreHorizontal size={14} />
+                            </button>
+                            {closedMenuOpen && (
+                                <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-md border border-border bg-popover py-1 shadow-xl">
+                                    <div className="px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground">Reopen Session</div>
+                                    {closedSessions.map(s => (
+                                        <button 
+                                            key={s.id}
+                                            onClick={() => { setClosedMenuOpen(false); onCreateSession?.({ name: s.name || s.id }); }}
+                                            className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate"
+                                        >
+                                            {s.name || s.id}
+                                        </button>
+                                    ))}
+                                </div>
                             )}
                         </div>
-                    );
-                })}
-             </div>
-        </div>
-
-        {/* Lifecycle Gates */}
-        <div className="shrink-0 border-b border-border bg-card/20 px-6 py-3">
-            <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Lifecycle Gates
-                </h3>
-                <span className="text-[10px] uppercase text-muted-foreground">v0.2 temporary</span>
-            </div>
-            <div className="mt-3">
-                <GateList gates={cell.gates} />
-            </div>
-            <p className="mt-2 text-[11px] text-muted-foreground">
-                Active/Archived transitions require all gates to pass.
-            </p>
-        </div>
-
-        {/* Sessions */}
-        <div className="shrink-0 border-b border-border bg-card/10 px-6 py-3">
-            <div className="flex items-center justify-between gap-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Sessions
-                </h3>
-                <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={onRefreshSessions}
-                      disabled={!tmuxAvailable}
-                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <RefreshCw size={12} />
-                      Refresh
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onCreateSession?.()}
-                      disabled={!tmuxAvailable}
-                      className="flex items-center gap-1 rounded-sm border border-border px-2 py-1 text-xs text-muted-foreground hover:border-primary/60 hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Plus size={12} />
-                      New
-                    </button>
-                    {closedSessions.length ? (
-                      <div className="relative" ref={closedMenuRef}>
-                        <button
-                          type="button"
-                          onClick={() => setClosedMenuOpen((current) => !current)}
-                          className="flex items-center justify-center rounded-sm border border-border px-2 py-1 text-xs text-muted-foreground hover:border-primary/60 hover:text-primary"
-                          title="Closed sessions"
-                        >
-                          <MoreHorizontal size={14} />
-                        </button>
-                        {closedMenuOpen ? (
-                          <div className="absolute right-0 mt-2 w-52 rounded-md border border-border bg-popover py-1 text-xs text-foreground shadow-lg">
-                            <div className="px-3 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                              Closed
-                            </div>
-                            {closedSessions.map((session) => (
-                              <button
-                                key={session.id}
-                                type="button"
-                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-muted-foreground hover:bg-muted/30 hover:text-foreground"
-                                onClick={() => {
-                                  setClosedMenuOpen(false);
-                                  onCreateSession?.({ name: session.name || session.id });
-                                }}
-                              >
-                                <Circle size={8} className="text-muted-foreground" fill="currentColor" />
-                                <span className="flex-1 truncate">{session.name || session.id}</span>
-                                <span className="text-[10px] uppercase tracking-wide">Reopen</span>
-                              </button>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
+                    )}
                 </div>
-            </div>
-            {!tmuxAvailable ? (
-              <div className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-200">
-                tmux is required. Install with: <span className="font-mono">brew install tmux</span>
-              </div>
-            ) : null}
-            {sessionError ? (
-              <div className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-200">
-                {sessionError}
-              </div>
-            ) : null}
-            {sessionLoading ? (
-              <div className="mt-2 text-xs text-muted-foreground">Loading sessions...</div>
-            ) : (
-              <div className="mt-3">
-                {openSessions.length ? (
-                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                    {openSessions.map((session) => {
-                      const isActive = session.id === sessionId;
-                      const statusColor =
-                        session.status === 'active'
-                          ? 'text-emerald-400'
-                          : session.status === 'stale'
-                            ? 'text-amber-400'
-                            : 'text-muted-foreground';
-                      const handleSelect = () => onSelectSession?.(session.id);
-                      return (
-                        <div
-                          key={session.id}
-                          role="button"
-                          tabIndex={0}
-                          onClick={handleSelect}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault();
-                              handleSelect();
-                            }
-                          }}
-                          className={`group flex items-center gap-2 rounded-full border px-3 py-1 text-xs transition-colors cursor-pointer ${
-                            isActive
-                              ? 'border-primary/40 bg-primary/10 text-foreground'
-                              : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
-                          }`}
-                        >
-                          <Circle size={8} className={statusColor} fill="currentColor" />
-                          <span className="max-w-[140px] truncate">
-                            {session.name || session.id}
-                          </span>
-                          {session.status === 'stale' ? (
-                            <span className="text-[10px] uppercase tracking-wide text-amber-200">
-                              stale
-                            </span>
-                          ) : null}
-                          <span className="ml-1 flex items-center">
+
+                <div className="flex items-center gap-1.5 shrink-0 px-2">
+                    <div className="flex items-center gap-1 border-r border-border/50 pr-2 mr-1">
+                        {quickActions && quickActions.slice(0, 3).map((action) => (
                             <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                onCloseSession?.(session.id);
-                              }}
-                              className={`text-muted-foreground transition-opacity hover:text-foreground ${
-                                isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                              }`}
-                              title="Close session"
+                                key={action.id}
+                                onClick={() => onRunCommand?.({ command: action.startCommand || '', kind: 'start', label: action.label || action.id })}
+                                className="px-2 py-0.5 rounded border border-border/40 bg-muted/20 text-[10px] text-muted-foreground hover:border-primary/50 hover:text-primary transition-all whitespace-nowrap"
                             >
-                              <X size={12} />
-                            </button>
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-xs text-muted-foreground">No sessions yet.</div>
-                )}
-              </div>
-            )}
-        </div>
-
-        {/* Main Content: Terminal */}
-        <div className="flex-1 flex flex-col min-h-0 p-4">
-             <div className="flex items-center justify-between mb-2 shrink-0">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                    <TerminalSquare size={14} />
-                    Terminal Session
-                </h2>
-                <div className="flex gap-2">
-                     <button 
-                        onClick={onOpenTerminal}
-                        className="text-xs flex items-center gap-1.5 rounded-sm bg-primary/10 px-2 py-1 text-primary hover:bg-primary/20 transition-colors"
-                    >
-                        <Play size={10} />
-                        Open Shell
-                     </button>
-                     <div className="hidden items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground md:flex">
-                        Quick
-                     </div>
-                     <div className="flex items-center gap-1">
-                        {quickActions && quickActions.length ? (
-                          quickActions.map((action) => (
-                            <div key={action.id} className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  onRunCommand?.({
-                                    command: action.startCommand || '',
-                                    kind: 'start',
-                                    label: action.label || action.id,
-                                  })
-                                }
-                                className="rounded-sm border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground hover:border-primary/60 hover:text-primary transition-colors"
-                                disabled={!action.startCommand}
-                                title={action.startCommand || 'Start command not set'}
-                              >
                                 {action.label || action.id}
-                              </button>
-                              {action.resumeCommand ? (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    onRunCommand?.({
-                                      command: action.resumeCommand,
-                                      kind: 'resume',
-                                      label: action.label || action.id,
-                                    })
-                                  }
-                                  className="rounded-sm border border-border px-1.5 py-1 text-[11px] text-muted-foreground hover:border-primary/60 hover:text-primary transition-colors"
-                                  title="Resume"
-                                >
-                                  <RotateCcw size={12} />
-                                </button>
-                              ) : null}
-                            </div>
-                          ))
-                        ) : (
-                          <span className="text-[11px] text-muted-foreground">No quick actions</span>
-                        )}
-                     </div>
+                            </button>
+                        ))}
+                    </div>
+                    <button 
+                        onClick={onOpenTerminal}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-primary text-[10px] font-bold text-primary-foreground hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
+                    >
+                        <Play size={10} fill="currentColor" />
+                        SHELL
+                    </button>
+                    <button onClick={onRefreshSessions} className="p-1.5 text-muted-foreground hover:text-foreground">
+                        <RefreshCw size={12} className={sessionLoading ? 'animate-spin' : ''} />
+                    </button>
                 </div>
              </div>
-             <div className="flex-1 rounded-lg border border-border bg-black/95 overflow-hidden shadow-inner relative">
+
+             <div className="flex-1 overflow-hidden relative bg-black/20">
                 {terminalOpen && sessionId ? (
                     <TerminalPane
                       key={`${cell.id}:${sessionId || 'none'}`}
@@ -363,12 +261,24 @@ export function EditorPane({
                       onCommandSent={onCommandSent}
                     />
                 ) : (
-                        <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
-                        <p className="text-sm">{terminalOpen ? 'Select a session to connect' : 'Terminal Idle'}</p>
-                        <button onClick={onOpenTerminal} className="mt-2 text-xs underline hover:text-primary">Connect</button>
+                    <div className="flex h-full flex-col items-center justify-center text-muted-foreground bg-black/40 backdrop-blur-sm">
+                        <div className="mb-4 opacity-20">
+                            <TerminalSquare size={48} />
+                        </div>
+                        <p className="text-xs font-medium">No active terminal session</p>
+                        <button onClick={onOpenTerminal} className="mt-3 text-[11px] font-bold text-primary px-4 py-1.5 border border-primary/30 rounded-full hover:bg-primary/10 transition-all">
+                            SPAWN AGENT SHELL
+                        </button>
                     </div>
                 )}
              </div>
+             
+             {sessionError && (
+                <div className="absolute bottom-4 right-4 max-w-xs rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[10px] text-rose-300 backdrop-blur-md shadow-lg flex items-start gap-2">
+                    <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                    <span>{sessionError}</span>
+                </div>
+             )}
         </div>
     </main>
   );
