@@ -23,6 +23,7 @@ function TerminalPane({
   const deferredResizeRef = useRef(null);
   const resizeLogRef = useRef({});
   const resizeHandlerRef = useRef(null);
+  const focusHandlerRef = useRef(null);
   const resizeAttemptsRef = useRef(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [sessionReady, setSessionReady] = useState(false);
@@ -178,6 +179,9 @@ function TerminalPane({
     };
 
     resizeHandlerRef.current = scheduleResize;
+    focusHandlerRef.current = () => {
+      terminalRef.current?.focus();
+    };
 
     const resizeObserver =
       typeof ResizeObserver !== 'undefined'
@@ -193,6 +197,11 @@ function TerminalPane({
         .catch(() => {});
     }
     terminal.focus();
+
+    const handleFocus = () => {
+      terminalRef.current?.focus();
+    };
+    containerRef.current.addEventListener('mousedown', handleFocus);
 
     setErrorMessage('');
 
@@ -308,6 +317,9 @@ function TerminalPane({
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
+      if (containerRef.current) {
+        containerRef.current.removeEventListener('mousedown', handleFocus);
+      }
       if (resizeFrame) {
         cancelAnimationFrame(resizeFrame);
       }
@@ -327,6 +339,7 @@ function TerminalPane({
       terminalRef.current = null;
       fitRef.current = null;
       resizeHandlerRef.current = null;
+      focusHandlerRef.current = null;
       setSessionReady(false);
     };
   }, [cell, mode, sessionId]);
@@ -369,6 +382,7 @@ function TerminalPane({
     requestAnimationFrame(() => {
       terminalRef.current?.refresh(0, terminalRef.current.rows - 1);
       resizeHandlerRef.current?.(true, 'visible');
+      focusHandlerRef.current?.();
     });
   }, [isVisible]);
 
