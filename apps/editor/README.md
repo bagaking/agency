@@ -18,8 +18,11 @@
 - tmux is required; session creation is blocked if tmux is missing.
 - Each worktree stores a session registry at `.agency/sessions-<worktree-name>.yaml`.
 - Each Cell can have multiple sessions; stale sessions are flagged when tmux is missing or detached.
-- Sessions render as tabs; closed sessions are available from the overflow menu.
+- Sessions render as tabs; the tab close (X) terminates tmux, and Detach is available via the session context menu.
+- Detached sessions remain available from the overflow menu, while closed sessions can be restarted.
+- Sessions can be renamed from the session context menu.
 - On relaunch, the editor restores the last selected Cell and active session.
+- The terminal toolbar includes zoom controls and an idle timer.
 
 ## Quick Actions
 
@@ -88,6 +91,10 @@ make editor-dev
 - Run a start action and verify a new session is created and selected before the command runs.
 - Launch a TUI tool (e.g., `codex`), resize the window, and confirm the terminal does not switch to 1-column output.
 - Confirm a new log file appears under `logs/runtime` and resize warnings are logged when applicable.
+- Rename a session from the context menu and confirm the tab label updates after refresh.
+- Detach a session from the context menu and confirm it appears under Detached Sessions.
+- Zoom in/out/reset and verify the terminal font size changes and content reflows.
+- Leave the terminal idle and confirm the idle timer increments and resets on activity.
 
 ## UI Testing (Playwright)
 
