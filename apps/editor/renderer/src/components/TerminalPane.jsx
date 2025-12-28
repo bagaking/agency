@@ -22,6 +22,7 @@ function TerminalPane({
   const deferredResizeRef = useRef(null);
   const resizeLogRef = useRef({});
   const resizeHandlerRef = useRef(null);
+  const resizeAttemptsRef = useRef(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [sessionReady, setSessionReady] = useState(false);
 
@@ -49,6 +50,7 @@ function TerminalPane({
     commandQueueRef.current = [];
     lastQueuedRef.current = null;
     setSessionReady(false);
+    resizeAttemptsRef.current = 0;
 
     const resolvedFontSize = Number.isFinite(Number(fontSize)) ? Number(fontSize) : 13;
     const terminal = new Terminal({
@@ -94,6 +96,20 @@ function TerminalPane({
       });
     };
 
+    const scheduleDeferredResize = (delay, reason) => {
+      if (resizeAttemptsRef.current >= 6) {
+        return;
+      }
+      resizeAttemptsRef.current += 1;
+      if (deferredResizeRef.current) {
+        return;
+      }
+      deferredResizeRef.current = setTimeout(() => {
+        deferredResizeRef.current = null;
+        scheduleResize(true, reason);
+      }, delay);
+    };
+
     const scheduleResize = (force = false, reason = 'auto') => {
       if (!terminalRef.current || !fitRef.current || !containerRef.current) {
         return;
@@ -101,12 +117,7 @@ function TerminalPane({
       const now = Date.now();
       if (!force && now - lastOutputAtRef.current < OUTPUT_SUPPRESS_MS) {
         logResizeSkip('output-throttle', { reason });
-        if (!deferredResizeRef.current) {
-          deferredResizeRef.current = setTimeout(() => {
-            deferredResizeRef.current = null;
-            scheduleResize(true, 'deferred-output');
-          }, 250);
-        }
+        scheduleDeferredResize(250, 'deferred-output');
         return;
       }
       const rect = containerRef.current.getBoundingClientRect();
@@ -114,12 +125,7 @@ function TerminalPane({
       const height = Math.round(rect.height);
       if (!width || !height) {
         logResizeSkip('zero-dimensions', { width, height, reason });
-        if (!deferredResizeRef.current) {
-          deferredResizeRef.current = setTimeout(() => {
-            deferredResizeRef.current = null;
-            scheduleResize(true, 'deferred-zero');
-          }, 100);
-        }
+        scheduleDeferredResize(120, 'deferred-zero');
         return;
       }
       if (!force && width === lastResizeRef.current.width && height === lastResizeRef.current.height) {
@@ -128,12 +134,7 @@ function TerminalPane({
       const proposed = fitRef.current.proposeDimensions?.();
       if (!proposed || !proposed.cols || !proposed.rows) {
         logResizeSkip('missing-dimensions', { width, height, reason });
-        if (!deferredResizeRef.current) {
-          deferredResizeRef.current = setTimeout(() => {
-            deferredResizeRef.current = null;
-            scheduleResize(true, 'deferred-missing');
-          }, 120);
-        }
+        scheduleDeferredResize(140, 'deferred-missing');
         return;
       }
       if (proposed.cols < MIN_COLS || proposed.rows < MIN_ROWS) {
@@ -164,6 +165,7 @@ function TerminalPane({
           lastResizeRef.current = { width, height, cols, rows };
           return;
         }
+        resizeAttemptsRef.current = 0;
         lastResizeRef.current = { width, height, cols, rows };
         window.agency?.resizeTerminal({
           cellId: cell.id,

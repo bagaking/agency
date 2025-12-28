@@ -52,9 +52,10 @@ export function EditorPane({
   onSessionActivity,
   onSessionAttached,
 }) {
-  const [closedMenuOpen, setClosedMenuOpen] = useState(false);
+  const [closedMenu, setClosedMenu] = useState(null);
   const [showGates, setShowGates] = useState(false);
   const closedMenuRef = useRef(null);
+  const closedMenuButtonRef = useRef(null);
   const contextMenuRef = useRef(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [idleNow, setIdleNow] = useState(Date.now());
@@ -82,18 +83,18 @@ export function EditorPane({
   );
 
   useEffect(() => {
-    if (!closedMenuOpen) {
+    if (!closedMenu) {
       return undefined;
     }
     const handleClick = (event) => {
       if (!closedMenuRef.current || closedMenuRef.current.contains(event.target)) {
         return;
       }
-      setClosedMenuOpen(false);
+      setClosedMenu(null);
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [closedMenuOpen]);
+  }, [closedMenu]);
 
   useEffect(() => {
     if (!contextMenu) {
@@ -277,49 +278,24 @@ export function EditorPane({
                         <Plus size={14} />
                     </button>
                     {(detachedSessions.length > 0 || closedSessions.length > 0) && (
-                        <div className="relative" ref={closedMenuRef}>
+                        <div className="relative">
                             <button
-                                onClick={() => setClosedMenuOpen(!closedMenuOpen)}
+                                ref={closedMenuButtonRef}
+                                onClick={() => {
+                                    if (closedMenuButtonRef.current) {
+                                        const rect = closedMenuButtonRef.current.getBoundingClientRect();
+                                        setClosedMenu({
+                                            x: rect.left,
+                                            y: rect.bottom + 6,
+                                        });
+                                    } else {
+                                        setClosedMenu((current) => (current ? null : { x: 0, y: 0 }));
+                                    }
+                                }}
                                 className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
                             >
                                 <MoreHorizontal size={14} />
                             </button>
-                            {closedMenuOpen && (
-                                <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-md border border-border bg-popover py-1 shadow-xl animate-slide-down">
-                                    {detachedSessions.length > 0 && (
-                                        <>
-                                            <div className="px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground">Detached Sessions</div>
-                                            {detachedSessions.map(s => (
-                                                <button
-                                                    key={s.id}
-                                                    onClick={() => {
-                                                        setClosedMenuOpen(false);
-                                                        onSelectSession?.(s.id);
-                                                        onOpenTerminal?.();
-                                                    }}
-                                                    className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate transition-colors"
-                                                >
-                                                    {s.name || s.id}
-                                                </button>
-                                            ))}
-                                        </>
-                                    )}
-                                    {closedSessions.length > 0 && (
-                                        <>
-                                            <div className="px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground">Closed Sessions</div>
-                                            {closedSessions.map(s => (
-                                                <button
-                                                    key={s.id}
-                                                    onClick={() => { setClosedMenuOpen(false); onCreateSession?.({ name: s.name || s.id }); }}
-                                                    className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate transition-colors"
-                                                >
-                                                    {s.name || s.id}
-                                                </button>
-                                            ))}
-                                        </>
-                                    )}
-                                </div>
-                            )}
                         </div>
                     )}
                 </div>
@@ -378,6 +354,50 @@ export function EditorPane({
                     </button>
                 </div>
              </div>
+
+             {closedMenu ? (
+                <div
+                    ref={closedMenuRef}
+                    className="fixed z-[60] w-48 rounded-md border border-border bg-popover py-1 shadow-xl text-[11px]"
+                    style={{ top: closedMenu.y, left: closedMenu.x }}
+                >
+                    {detachedSessions.length > 0 && (
+                        <>
+                            <div className="px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground">Detached Sessions</div>
+                            {detachedSessions.map(s => (
+                                <button
+                                    key={s.id}
+                                    onClick={() => {
+                                        setClosedMenu(null);
+                                        onSelectSession?.(s.id);
+                                        onOpenTerminal?.();
+                                    }}
+                                    className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate transition-colors"
+                                >
+                                    {s.name || s.id}
+                                </button>
+                            ))}
+                        </>
+                    )}
+                    {closedSessions.length > 0 && (
+                        <>
+                            <div className="px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground">Closed Sessions</div>
+                            {closedSessions.map(s => (
+                                <button
+                                    key={s.id}
+                                    onClick={() => {
+                                        setClosedMenu(null);
+                                        onCreateSession?.({ name: s.name || s.id });
+                                    }}
+                                    className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate transition-colors"
+                                >
+                                    {s.name || s.id}
+                                </button>
+                            ))}
+                        </>
+                    )}
+                </div>
+             ) : null}
 
              {contextMenu && contextTarget ? (
                 <div
