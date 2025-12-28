@@ -433,12 +433,14 @@ function App() {
     });
   };
 
-  const loadSessionsForCell = async (cell) => {
+  const loadSessionsForCell = async (cell, { silent = false } = {}) => {
     if (!cell || !window.agency?.listSessions) {
       return;
     }
     if (tmuxStatus?.available === false) {
-      setSessionError(tmuxStatus.error || 'tmux is required. Install tmux and try again.');
+      if (!silent) {
+        setSessionError(tmuxStatus.error || 'tmux is required. Install tmux and try again.');
+      }
       setSessionsByCellId((current) => ({ ...current, [cell.id]: [] }));
       setActiveSessionByCellId((current) => {
         const next = { ...current };
@@ -447,8 +449,10 @@ function App() {
       });
       return;
     }
-    setSessionLoading(true);
-    setSessionError('');
+    if (!silent) {
+      setSessionLoading(true);
+      setSessionError('');
+    }
     try {
       let nextSessions = await window.agency.listSessions({ worktreePath: cell.worktreePath });
       if (nextSessions.length === 0 && window.agency?.createSession) {
@@ -479,7 +483,9 @@ function App() {
         return next;
       });
     } catch (error) {
-      setSessionError(error?.message || 'Failed to load sessions.');
+      if (!silent) {
+        setSessionError(error?.message || 'Failed to load sessions.');
+      }
       setSessionsByCellId((current) => ({ ...current, [cell.id]: [] }));
       setActiveSessionByCellId((current) => {
         const next = { ...current };
@@ -487,7 +493,9 @@ function App() {
         return next;
       });
     } finally {
-      setSessionLoading(false);
+      if (!silent) {
+        setSessionLoading(false);
+      }
     }
   };
 
@@ -1069,7 +1077,7 @@ function App() {
               onSessionActivity={updateSessionActivity}
               onSessionAttached={() => {
                 if (selectedCell) {
-                  loadSessionsForCell(selectedCell);
+                  loadSessionsForCell(selectedCell, { silent: true });
                 }
               }}
               terminalFontSize={activeFontSize}

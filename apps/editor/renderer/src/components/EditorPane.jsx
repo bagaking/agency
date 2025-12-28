@@ -399,19 +399,7 @@ export function EditorPane({
 
              <div className="flex-1 overflow-hidden relative bg-black/20">
                 {terminalOpen && sessionId ? (
-                    sessionLoading ? (
-                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
-                             <div className="h-24 w-24 opacity-60">
-                                <RiveAnimation 
-                                    src="/assets/animations/loading.riv"
-                                    animations="Idle"
-                                    className="w-full h-full"
-                                    fallback={<RefreshCw size={32} className="animate-spin text-primary/40" />}
-                                />
-                             </div>
-                             <p className="mt-4 text-[10px] font-bold uppercase tracking-widest text-primary/60">Establishing Connection</p>
-                        </div>
-                    ) : (
+                    <>
                         <TerminalPane
                           key={`${cell.id}:${sessionId || 'none'}`}
                           cell={cell}
@@ -423,7 +411,20 @@ export function EditorPane({
                           fontSize={terminalFontSize}
                           onSessionAttached={onSessionAttached}
                         />
-                    )
+                        {sessionLoading ? (
+                            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
+                                 <div className="h-24 w-24 opacity-60">
+                                    <RiveAnimation 
+                                        src="/assets/animations/loading.riv"
+                                        animations="Idle"
+                                        className="w-full h-full"
+                                        fallback={<RefreshCw size={32} className="animate-spin text-primary/40" />}
+                                    />
+                                 </div>
+                                 <p className="mt-4 text-[10px] font-bold uppercase tracking-widest text-primary/60">Establishing Connection</p>
+                            </div>
+                        ) : null}
+                    </>
                 ) : (
                     <div className="flex h-full flex-col items-center justify-center text-muted-foreground bg-black/40 backdrop-blur-sm">
                         <div className="mb-4 opacity-20 hover:opacity-40 transition-opacity duration-700">
