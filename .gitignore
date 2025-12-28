@@ -63,3 +63,4 @@ apps/**/playwright-report
 apps/**/test-results
 apps/**/package-lock.json
 .worktrees
+.agency
