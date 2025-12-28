@@ -18,6 +18,7 @@ import {
   ZoomIn,
   ZoomOut,
   Clock,
+  Pencil,
 } from 'lucide-react';
 import TerminalPane from './TerminalPane.jsx';
 import { RiveAnimation } from './RiveAnimation.jsx';
@@ -35,6 +36,7 @@ export function EditorPane({
   tmuxStatus,
   idleSince,
   terminalFontSize,
+  isVisible,
   onCreateSession,
   onRefreshSessions,
   onSelectSession,
@@ -262,8 +264,22 @@ export function EditorPane({
                                     {session.name || session.id}
                                 </span>
                                 <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        const nextName = window.prompt('Rename session', session.name || session.id);
+                                        if (nextName && nextName.trim()) {
+                                            onRenameSession?.(session.id, nextName.trim());
+                                        }
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 hover:text-primary transition-all p-0.5 rounded-sm hover:bg-primary/10"
+                                    title="Rename Session"
+                                >
+                                    <Pencil size={10} />
+                                </button>
+                                <button
                                     onClick={(e) => { e.stopPropagation(); onCloseSession?.(session.id); }}
                                     className={`opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-all p-0.5 rounded-sm hover:bg-rose-500/10`}
+                                    title="Terminate Session"
                                 >
                                     <X size={10} />
                                 </button>
@@ -442,6 +458,7 @@ export function EditorPane({
                           onActivity={onSessionActivity}
                           fontSize={terminalFontSize}
                           onSessionAttached={onSessionAttached}
+                          isVisible={isVisible}
                         />
                         {sessionLoading ? (
                             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">

@@ -875,52 +875,17 @@ function App() {
           />
         )}
 
-        {activeView === 'explorer' && explorerMode === 'actions' ? (
-          <QuickActionsView
-            actions={actionsRows}
-            scope={actionsScope}
-            scopeDisabled={scopeDisabled}
-            scopePaths={{
-              project: projectActionsPath,
-              agent: agentActionsPath,
-            }}
-            error={quickActionsError}
-            saving={quickActionsSaving}
-            onAddAction={addQuickAction}
-            onRemoveAction={removeQuickAction}
-            onOverrideAction={overrideQuickAction}
-            onResetAction={resetQuickAction}
-            onUpdateAction={updateQuickAction}
-            onSaveActions={saveQuickActions}
-          />
-        ) : activeView === 'explorer' && explorerMode === 'links' ? (
-          <WorktreeLinksView
-            links={worktreeLinks}
-            autoLinkOnCreate={worktreeLinksAuto}
-            candidates={worktreeLinksCandidates}
-            statusesByPath={worktreeLinksStatusesByPath}
-            configPath={worktreeLinksConfigPath}
-            selectedCell={selectedCell}
-            cells={cells}
-            repoRoot={repoRoot}
-            loading={worktreeLinksLoading}
-            error={worktreeLinksError}
-            dirty={worktreeLinksDirty}
-            onToggleAuto={(next) => {
-              setWorktreeLinksAuto(next);
-              setWorktreeLinksDirty(true);
-            }}
-            onAddLink={addWorktreeLink}
-            onAddFromCandidate={addWorktreeLinkFromCandidate}
-            onUpdateLink={updateWorktreeLink}
-            onRemoveLink={removeWorktreeLink}
-            onApplyLink={applyWorktreeLink}
-            onApplyAll={applyAllWorktreeLinks}
-            onSave={saveWorktreeLinks}
-            onRefresh={() => loadWorktreeLinks({ preserveEdits: worktreeLinksDirty })}
-          />
-        ) : (
-          <EditorPane 
+        <div className="relative flex-1 overflow-hidden">
+          <div
+            className={`absolute inset-0 ${
+              activeView === 'explorer' && explorerMode === 'actions'
+                ? 'opacity-0 invisible pointer-events-none'
+                : activeView === 'explorer' && explorerMode === 'links'
+                  ? 'opacity-0 invisible pointer-events-none'
+                  : 'opacity-100 visible'
+            }`}
+          >
+            <EditorPane 
               cell={selectedCell}
               terminalMode={terminalMode}
               terminalOpen={terminalOpen}
@@ -931,7 +896,11 @@ function App() {
               quickActions={resolvedQuickActions}
               tmuxStatus={tmuxStatus}
               idleSince={lastActivityAt}
-            onCreateSession={async (options = {}) => {
+              isVisible={
+                !(activeView === 'explorer' && explorerMode === 'actions') &&
+                !(activeView === 'explorer' && explorerMode === 'links')
+              }
+              onCreateSession={async (options = {}) => {
               if (!selectedCell || !window.agency?.createSession) {
                 return;
               }
@@ -1087,7 +1056,58 @@ function App() {
               }}
               terminalFontSize={activeFontSize}
           />
-        )}
+          </div>
+          {activeView === 'explorer' && explorerMode === 'actions' ? (
+            <div className="absolute inset-0">
+              <QuickActionsView
+                actions={actionsRows}
+                scope={actionsScope}
+                scopeDisabled={scopeDisabled}
+                scopePaths={{
+                  project: projectActionsPath,
+                  agent: agentActionsPath,
+                }}
+                error={quickActionsError}
+                saving={quickActionsSaving}
+                onAddAction={addQuickAction}
+                onRemoveAction={removeQuickAction}
+                onOverrideAction={overrideQuickAction}
+                onResetAction={resetQuickAction}
+                onUpdateAction={updateQuickAction}
+                onSaveActions={saveQuickActions}
+              />
+            </div>
+          ) : null}
+          {activeView === 'explorer' && explorerMode === 'links' ? (
+            <div className="absolute inset-0">
+              <WorktreeLinksView
+                links={worktreeLinks}
+                autoLinkOnCreate={worktreeLinksAuto}
+                candidates={worktreeLinksCandidates}
+                statusesByPath={worktreeLinksStatusesByPath}
+                configPath={worktreeLinksConfigPath}
+                selectedCell={selectedCell}
+                cells={cells}
+                repoRoot={repoRoot}
+                loading={worktreeLinksLoading}
+                error={worktreeLinksError}
+                dirty={worktreeLinksDirty}
+                onToggleAuto={(next) => {
+                  setWorktreeLinksAuto(next);
+                  setWorktreeLinksDirty(true);
+                }}
+                onAddLink={addWorktreeLink}
+                onAddFromCandidate={addWorktreeLinkFromCandidate}
+                onUpdateLink={updateWorktreeLink}
+                onRemoveLink={removeWorktreeLink}
+                onApplyLink={applyWorktreeLink}
+                onApplyAll={applyAllWorktreeLinks}
+                onSave={saveWorktreeLinks}
+                onRefresh={() => loadWorktreeLinks({ preserveEdits: worktreeLinksDirty })}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {/* Global Status Bar */}

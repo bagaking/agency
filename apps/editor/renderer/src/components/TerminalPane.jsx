@@ -11,6 +11,7 @@ function TerminalPane({
   onActivity,
   onSessionAttached,
   fontSize,
+  isVisible,
 }) {
   const containerRef = useRef(null);
   const terminalRef = useRef(null);
@@ -360,6 +361,16 @@ function TerminalPane({
     terminalRef.current.refresh(0, terminalRef.current.rows - 1);
     resizeHandlerRef.current?.(true, 'font-size');
   }, [fontSize]);
+
+  useEffect(() => {
+    if (!isVisible || !terminalRef.current) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      terminalRef.current?.refresh(0, terminalRef.current.rows - 1);
+      resizeHandlerRef.current?.(true, 'visible');
+    });
+  }, [isVisible]);
 
   if (errorMessage) {
     return (
