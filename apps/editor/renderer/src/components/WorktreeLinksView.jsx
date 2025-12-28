@@ -28,7 +28,6 @@ export function WorktreeLinksView({
   links,
   autoLinkOnCreate,
   candidates,
-  statuses,
   statusesByPath,
   configPath,
   selectedCell,

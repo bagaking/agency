@@ -54,6 +54,23 @@ function normalizeLinks(links) {
   });
 }
 
+async function listTrackedTopLevelDirs(repoRoot) {
+  try {
+    const output = await runGit(['ls-tree', '-d', '--name-only', 'HEAD'], { cwd: repoRoot });
+    if (!output) {
+      return new Set();
+    }
+    return new Set(
+      output
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+    );
+  } catch (error) {
+    return new Set();
+  }
+}
+
 async function readConfig(repoRoot) {
   const configPath = getConfigPath(repoRoot);
   if (!fs.existsSync(configPath)) {
@@ -101,6 +118,7 @@ async function listCandidateDirectories(repoRoot) {
   if (!combined) {
     return [];
   }
+  const trackedRoots = await listTrackedTopLevelDirs(repoRoot);
   const candidates = new Set();
   combined
     .split('\n')
@@ -113,6 +131,9 @@ async function listCandidateDirectories(repoRoot) {
       }
       const root = normalized.split('/')[0];
       if (!root) {
+        return;
+      }
+      if (trackedRoots.has(root)) {
         return;
       }
       const candidatePath = path.join(repoRoot, root);

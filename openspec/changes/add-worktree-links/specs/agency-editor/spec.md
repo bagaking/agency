@@ -1,6 +1,6 @@
 ## ADDED Requirements
 ### Requirement: Worktree Link Configuration
-The editor SHALL store a project-level worktree link configuration for untracked directories.
+The editor SHALL store a project-level worktree link configuration for ignored or untracked directories.
 
 #### Scenario: Save link configuration
 - **WHEN** a user saves worktree link settings

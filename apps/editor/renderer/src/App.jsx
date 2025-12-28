@@ -147,7 +147,6 @@ function App() {
   const [worktreeLinks, setWorktreeLinks] = useState([]);
   const [worktreeLinksAuto, setWorktreeLinksAuto] = useState(false);
   const [worktreeLinksCandidates, setWorktreeLinksCandidates] = useState([]);
-  const [worktreeLinksStatuses, setWorktreeLinksStatuses] = useState([]);
   const [worktreeLinksStatusesByPath, setWorktreeLinksStatusesByPath] = useState({});
   const [repoRoot, setRepoRoot] = useState('');
   const [worktreeLinksConfigPath, setWorktreeLinksConfigPath] = useState('');
@@ -247,7 +246,6 @@ function App() {
         setWorktreeLinksDirty(false);
       }
       setWorktreeLinksCandidates(Array.isArray(summary?.candidates) ? summary.candidates : []);
-      setWorktreeLinksStatuses(Array.isArray(summary?.statuses) ? summary.statuses : []);
       setWorktreeLinksStatusesByPath(summary?.statusesByPath || {});
       setRepoRoot(summary?.repoRoot || '');
       setWorktreeLinksConfigPath(summary?.configPath || '');
@@ -698,10 +696,19 @@ function App() {
       if (worktreeLinksDirty) {
         await persistWorktreeLinks();
       }
-      await window.agency.applyAllWorktreeLinks({
+      const results = await window.agency.applyAllWorktreeLinks({
         worktreePath: targetPath,
       });
       await loadWorktreeLinks({ preserveEdits: false });
+      const failures = Array.isArray(results) ? results.filter((item) => !item.ok) : [];
+      if (failures.length) {
+        const details = failures
+          .slice(0, 3)
+          .map((item) => `${item.id}: ${item.error}`)
+          .join('; ');
+        const suffix = failures.length > 3 ? ` (+${failures.length - 3} more)` : '';
+        setWorktreeLinksError(`Link all completed with ${failures.length} failures. ${details}${suffix}`);
+      }
     } catch (error) {
       setWorktreeLinksError(error?.message || 'Failed to link worktree.');
     } finally {
@@ -802,7 +809,6 @@ function App() {
             links={worktreeLinks}
             autoLinkOnCreate={worktreeLinksAuto}
             candidates={worktreeLinksCandidates}
-            statuses={worktreeLinksStatuses}
             statusesByPath={worktreeLinksStatusesByPath}
             configPath={worktreeLinksConfigPath}
             selectedCell={selectedCell}

@@ -8,7 +8,7 @@ them into each worktree on demand or automatically.
   - Store project-level worktree link configuration in a YAML file at the repo root.
   - Provide a UI to view link status and link missing directories per Cell.
   - Support auto-linking on Cell creation when enabled.
-  - Surface untracked directory candidates to help users configure links.
+  - Surface ignored or untracked directory candidates to help users configure links.
 - Non-Goals:
   - Enforce OS-level sandboxing or permissions.
   - Support non-symlink copy/rsync workflows in v0.2.
