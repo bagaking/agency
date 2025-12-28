@@ -3,6 +3,8 @@ const {
   listSessions,
   createNewSession,
   closeSessionById,
+  detachSessionById,
+  renameSessionById,
 } = require('../../services/sessions');
 
 function setupSessionHandlers() {
@@ -28,6 +30,22 @@ function setupSessionHandlers() {
       throw new Error('worktreePath and sessionId are required.');
     }
     return closeSessionById({ worktreePath, sessionId });
+  });
+
+  ipcMain.handle('sessions:detach', async (_event, payload) => {
+    const { worktreePath, sessionId } = payload || {};
+    if (!worktreePath || !sessionId) {
+      throw new Error('worktreePath and sessionId are required.');
+    }
+    return detachSessionById({ worktreePath, sessionId });
+  });
+
+  ipcMain.handle('sessions:rename', async (_event, payload) => {
+    const { worktreePath, sessionId, name } = payload || {};
+    if (!worktreePath || !sessionId || !name) {
+      throw new Error('worktreePath, sessionId, and name are required.');
+    }
+    return renameSessionById({ worktreePath, sessionId, name });
   });
 }
 

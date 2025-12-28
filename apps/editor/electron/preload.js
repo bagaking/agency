@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('agency', {
   listSessions: (payload) => ipcRenderer.invoke('sessions:list', payload),
   createSession: (payload) => ipcRenderer.invoke('sessions:create', payload),
   closeSession: (payload) => ipcRenderer.invoke('sessions:close', payload),
+  detachSession: (payload) => ipcRenderer.invoke('sessions:detach', payload),
+  renameSession: (payload) => ipcRenderer.invoke('sessions:rename', payload),
   getUiState: () => ipcRenderer.invoke('ui-state:get'),
   setUiState: (payload) => ipcRenderer.invoke('ui-state:set', payload),
   getQuickActions: (payload) => ipcRenderer.invoke('quick-actions:get', payload),

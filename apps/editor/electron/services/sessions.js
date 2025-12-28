@@ -11,6 +11,7 @@ const { ensureTmuxAvailable, hasSession, createSession, killSession } = require(
 const SESSION_STATUSES = {
   active: 'active',
   stale: 'stale',
+  detached: 'detached',
   closed: 'closed',
 };
 
@@ -52,7 +53,14 @@ async function listSessions({ worktreePath }) {
         return session;
       }
       const isAlive = await hasSession(session.tmuxSession);
-      const nextStatus = isAlive ? SESSION_STATUSES.active : SESSION_STATUSES.stale;
+      const nextStatus =
+        session.status === SESSION_STATUSES.detached
+          ? isAlive
+            ? SESSION_STATUSES.detached
+            : SESSION_STATUSES.stale
+          : isAlive
+            ? SESSION_STATUSES.active
+            : SESSION_STATUSES.stale;
       if (nextStatus !== session.status) {
         changed = true;
         return { ...session, status: nextStatus };
@@ -130,6 +138,49 @@ async function closeSessionById({ worktreePath, sessionId }) {
   return nextRegistry.sessions.find((session) => session.id === sessionId);
 }
 
+async function detachSessionById({ worktreePath, sessionId }) {
+  ensureWorktreePath(worktreePath);
+  await ensureTmuxAvailable();
+  const registry = await readRegistry(worktreePath);
+  const existing = registry.sessions.find((session) => session.id === sessionId);
+  if (!existing) {
+    throw new Error('Session not found.');
+  }
+  if (existing.status === SESSION_STATUSES.closed) {
+    throw new Error('Session already closed.');
+  }
+  const updatedAt = new Date().toISOString();
+  const nextRegistry = upsertSession(registry, {
+    ...existing,
+    status: SESSION_STATUSES.detached,
+    updatedAt,
+    detachedAt: updatedAt,
+  });
+  await writeRegistry(worktreePath, nextRegistry);
+  return nextRegistry.sessions.find((session) => session.id === sessionId);
+}
+
+async function renameSessionById({ worktreePath, sessionId, name }) {
+  ensureWorktreePath(worktreePath);
+  const registry = await readRegistry(worktreePath);
+  const existing = registry.sessions.find((session) => session.id === sessionId);
+  if (!existing) {
+    throw new Error('Session not found.');
+  }
+  const trimmed = String(name || '').trim();
+  if (!trimmed) {
+    throw new Error('Session name cannot be empty.');
+  }
+  const updatedAt = new Date().toISOString();
+  const nextRegistry = upsertSession(registry, {
+    ...existing,
+    name: trimmed,
+    updatedAt,
+  });
+  await writeRegistry(worktreePath, nextRegistry);
+  return nextRegistry.sessions.find((session) => session.id === sessionId);
+}
+
 async function resolveSessionForAttach({ worktreePath, sessionId }) {
   ensureWorktreePath(worktreePath);
   await ensureTmuxAvailable();
@@ -164,6 +215,8 @@ module.exports = {
   createNewSession,
   ensureDefaultSession,
   closeSessionById,
+  detachSessionById,
+  renameSessionById,
   resolveSessionForAttach,
   buildTmuxSessionName,
   SESSION_STATUSES,
