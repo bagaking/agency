@@ -8,6 +8,9 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
   const fitRef = useRef(null);
   const commandQueueRef = useRef([]);
   const lastQueuedRef = useRef(null);
+  const lastResizeRef = useRef({ width: 0, height: 0, cols: 0, rows: 0 });
+  const lastOutputAtRef = useRef(0);
+  const deferredResizeRef = useRef(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [sessionReady, setSessionReady] = useState(false);
 
@@ -52,8 +55,33 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
     fitRef.current = fitAddon;
 
     let resizeFrame = null;
-    const scheduleResize = () => {
-      if (!terminalRef.current || !fitRef.current) {
+    const scheduleResize = (force = false) => {
+      if (!terminalRef.current || !fitRef.current || !containerRef.current) {
+        return;
+      }
+      const now = Date.now();
+      if (!force && now - lastOutputAtRef.current < 200) {
+        if (!deferredResizeRef.current) {
+          deferredResizeRef.current = setTimeout(() => {
+            deferredResizeRef.current = null;
+            scheduleResize(true);
+          }, 250);
+        }
+        return;
+      }
+      const rect = containerRef.current.getBoundingClientRect();
+      const width = Math.round(rect.width);
+      const height = Math.round(rect.height);
+      if (!width || !height) {
+        if (!deferredResizeRef.current) {
+          deferredResizeRef.current = setTimeout(() => {
+            deferredResizeRef.current = null;
+            scheduleResize(true);
+          }, 100);
+        }
+        return;
+      }
+      if (!force && width === lastResizeRef.current.width && height === lastResizeRef.current.height) {
         return;
       }
       if (resizeFrame) {
@@ -61,15 +89,21 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
       }
       resizeFrame = requestAnimationFrame(() => {
         resizeFrame = null;
-        if (!terminalRef.current || !fitRef.current) {
+        if (!terminalRef.current || !fitRef.current || !containerRef.current) {
           return;
         }
         fitRef.current.fit();
+        const { cols, rows } = terminalRef.current;
+        if (!force && cols === lastResizeRef.current.cols && rows === lastResizeRef.current.rows) {
+          lastResizeRef.current = { width, height, cols, rows };
+          return;
+        }
+        lastResizeRef.current = { width, height, cols, rows };
         window.agency?.resizeTerminal({
           cellId: cell.id,
           sessionId,
-          cols: terminalRef.current.cols,
-          rows: terminalRef.current.rows,
+          cols,
+          rows,
         });
       });
     };
@@ -133,6 +167,7 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
 
     const unsubscribe = window.agency?.onTerminalData((payload) => {
       if (payload?.cellId === cell.id && payload?.sessionId === sessionId) {
+        lastOutputAtRef.current = Date.now();
         terminal.write(payload.data);
       }
     });
@@ -175,6 +210,9 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
       }
       if (resizeFrame) {
         cancelAnimationFrame(resizeFrame);
+      }
+      if (deferredResizeRef.current) {
+        clearTimeout(deferredResizeRef.current);
       }
       wheelTargets.forEach((target) => {
         target.removeEventListener('wheel', handleWheel, { capture: true });
