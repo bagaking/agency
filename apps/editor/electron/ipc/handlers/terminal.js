@@ -5,15 +5,21 @@ const {
   resizeSession,
   disposeSession,
 } = require('../../services/terminal');
+const { logRuntime } = require('../../services/runtimeLog');
 const { ensureDefaultSession, resolveSessionForAttach } = require('../../services/sessions');
 
 function setupTerminalHandlers({ getMainWindow }) {
   ipcMain.handle('terminal:start', async (_event, payload) => {
     const { cellId, worktreePath, mode, sessionId } = payload || {};
     if (!cellId || !worktreePath) {
+      logRuntime('error', 'terminal start failed (missing context)', { cellId, worktreePath });
       throw new Error('cellId and worktreePath are required.');
     }
     if (!require('fs').existsSync(worktreePath)) {
+      logRuntime('error', 'terminal start failed (missing worktree)', {
+        cellId,
+        worktreePath,
+      });
       throw new Error(`Worktree path does not exist: ${worktreePath}`);
     }
     let resolvedSessionId = sessionId || 'default';
@@ -46,6 +52,12 @@ function setupTerminalHandlers({ getMainWindow }) {
 
       return { ok: true };
     } catch (error) {
+      logRuntime('error', 'terminal start failed', {
+        cellId,
+        sessionId: resolvedSessionId,
+        mode,
+        error: error.message,
+      });
       const win = getMainWindow();
       if (win) {
         win.webContents.send('terminal:error', {

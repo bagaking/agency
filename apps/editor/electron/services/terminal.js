@@ -2,7 +2,11 @@ const fs = require('fs');
 const path = require('path');
 const pty = require('node-pty');
 
+const { logRuntime } = require('./runtimeLog');
+
 const sessions = new Map();
+const MIN_BACKEND_COLS = 2;
+const MIN_BACKEND_ROWS = 2;
 
 function splitCommand(command) {
   if (!command) {
@@ -112,6 +116,13 @@ function trySpawn({ cellId, cwd, mode, file, args }) {
       },
     });
   } catch (error) {
+    logRuntime('error', 'terminal spawn failed', {
+      cellId,
+      mode,
+      file,
+      args,
+      error: error.message,
+    });
     throw buildSpawnError(
       `Terminal spawn failed for ${executable} (cwd: ${resolvedCwd}). ${error.message}.`,
       mode === 'cli'
@@ -140,6 +151,13 @@ function startSession({ cellId, sessionId, tmuxSession, cwd, mode }) {
     ptyProcess = trySpawn({ cellId, cwd, mode, file, args });
   } catch (error) {
     if (!ptyProcess) {
+      logRuntime('error', 'terminal session start failed', {
+        cellId,
+        sessionId,
+        tmuxSession,
+        mode,
+        error: error.message,
+      });
       throw buildSpawnError(`Terminal spawn failed: ${error.message}.`, 'Install tmux and retry.');
     }
   }
@@ -175,7 +193,37 @@ function resizeSession(cellId, sessionId, cols, rows) {
   if (!session) {
     return;
   }
-  session.ptyProcess.resize(cols, rows);
+  const nextCols = Number(cols);
+  const nextRows = Number(rows);
+  if (!Number.isFinite(nextCols) || !Number.isFinite(nextRows)) {
+    logRuntime('warn', 'terminal resize ignored (invalid size)', {
+      cellId,
+      sessionId,
+      cols,
+      rows,
+    });
+    return;
+  }
+  if (nextCols < MIN_BACKEND_COLS || nextRows < MIN_BACKEND_ROWS) {
+    logRuntime('warn', 'terminal resize clamped (below minimum)', {
+      cellId,
+      sessionId,
+      cols: nextCols,
+      rows: nextRows,
+    });
+    return;
+  }
+  try {
+    session.ptyProcess.resize(nextCols, nextRows);
+  } catch (error) {
+    logRuntime('error', 'terminal resize failed', {
+      cellId,
+      sessionId,
+      cols: nextCols,
+      rows: nextRows,
+      error: error.message,
+    });
+  }
 }
 
 function disposeSession(cellId, sessionId) {

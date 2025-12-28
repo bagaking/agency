@@ -11,6 +11,7 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
   const lastResizeRef = useRef({ width: 0, height: 0, cols: 0, rows: 0 });
   const lastOutputAtRef = useRef(0);
   const deferredResizeRef = useRef(null);
+  const resizeLogRef = useRef({});
   const [errorMessage, setErrorMessage] = useState('');
   const [sessionReady, setSessionReady] = useState(false);
 
@@ -55,16 +56,41 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
     fitRef.current = fitAddon;
 
     let resizeFrame = null;
-    const scheduleResize = (force = false) => {
+    const MIN_COLS = 20;
+    const MIN_ROWS = 5;
+    const OUTPUT_SUPPRESS_MS = 220;
+    const LOG_THROTTLE_MS = 1200;
+
+    const logResizeSkip = (reason, meta) => {
+      const now = Date.now();
+      const last = resizeLogRef.current[reason] || 0;
+      if (now - last < LOG_THROTTLE_MS) {
+        return;
+      }
+      resizeLogRef.current[reason] = now;
+      window.agency?.logRuntime?.({
+        level: 'warn',
+        message: `terminal resize skipped: ${reason}`,
+        meta: {
+          cellId: cell.id,
+          sessionId,
+          mode,
+          ...meta,
+        },
+      });
+    };
+
+    const scheduleResize = (force = false, reason = 'auto') => {
       if (!terminalRef.current || !fitRef.current || !containerRef.current) {
         return;
       }
       const now = Date.now();
-      if (!force && now - lastOutputAtRef.current < 200) {
+      if (!force && now - lastOutputAtRef.current < OUTPUT_SUPPRESS_MS) {
+        logResizeSkip('output-throttle', { reason });
         if (!deferredResizeRef.current) {
           deferredResizeRef.current = setTimeout(() => {
             deferredResizeRef.current = null;
-            scheduleResize(true);
+            scheduleResize(true, 'deferred-output');
           }, 250);
         }
         return;
@@ -73,15 +99,31 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
       const width = Math.round(rect.width);
       const height = Math.round(rect.height);
       if (!width || !height) {
+        logResizeSkip('zero-dimensions', { width, height, reason });
         if (!deferredResizeRef.current) {
           deferredResizeRef.current = setTimeout(() => {
             deferredResizeRef.current = null;
-            scheduleResize(true);
+            scheduleResize(true, 'deferred-zero');
           }, 100);
         }
         return;
       }
       if (!force && width === lastResizeRef.current.width && height === lastResizeRef.current.height) {
+        return;
+      }
+      const proposed = fitRef.current.proposeDimensions?.();
+      if (!proposed || !proposed.cols || !proposed.rows) {
+        logResizeSkip('missing-dimensions', { width, height, reason });
+        return;
+      }
+      if (proposed.cols < MIN_COLS || proposed.rows < MIN_ROWS) {
+        logResizeSkip('below-minimum', {
+          width,
+          height,
+          cols: proposed.cols,
+          rows: proposed.rows,
+          reason,
+        });
         return;
       }
       if (resizeFrame) {
@@ -94,6 +136,10 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
         }
         fitRef.current.fit();
         const { cols, rows } = terminalRef.current;
+        if (cols < MIN_COLS || rows < MIN_ROWS) {
+          logResizeSkip('below-minimum', { cols, rows, reason });
+          return;
+        }
         if (!force && cols === lastResizeRef.current.cols && rows === lastResizeRef.current.rows) {
           lastResizeRef.current = { width, height, cols, rows };
           return;
@@ -110,12 +156,17 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
 
     const resizeObserver =
       typeof ResizeObserver !== 'undefined'
-        ? new ResizeObserver(() => scheduleResize())
+        ? new ResizeObserver(() => scheduleResize(false, 'resize-observer'))
         : null;
     if (resizeObserver) {
       resizeObserver.observe(containerRef.current);
     }
-    scheduleResize();
+    scheduleResize(true, 'init');
+    if (document.fonts?.ready) {
+      document.fonts.ready
+        .then(() => scheduleResize(true, 'fonts-ready'))
+        .catch(() => {});
+    }
     terminal.focus();
 
     setErrorMessage('');
@@ -174,6 +225,16 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
     const unsubscribeError = window.agency?.onTerminalError((payload) => {
       if (payload?.cellId === cell.id && payload?.sessionId === sessionId) {
         setErrorMessage(payload.message || 'Terminal failed to start.');
+        window.agency?.logRuntime?.({
+          level: 'error',
+          message: 'terminal error received',
+          meta: {
+            cellId: cell.id,
+            sessionId,
+            mode,
+            error: payload.message,
+          },
+        });
       }
     });
 
@@ -186,6 +247,7 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
           mode,
         });
         setSessionReady(true);
+        setTimeout(() => scheduleResize(true, 'post-start'), 60);
         if (commandQueueRef.current.length) {
           const queue = [...commandQueueRef.current];
           commandQueueRef.current = [];
@@ -201,10 +263,11 @@ function TerminalPane({ cell, sessionId, mode, pendingCommand, onCommandSent }) 
       window.agency?.writeTerminal({ cellId: cell.id, sessionId, data });
     });
 
-    window.addEventListener('resize', scheduleResize);
+    const handleWindowResize = () => scheduleResize(false, 'window-resize');
+    window.addEventListener('resize', handleWindowResize);
 
     return () => {
-      window.removeEventListener('resize', scheduleResize);
+      window.removeEventListener('resize', handleWindowResize);
       if (resizeObserver) {
         resizeObserver.disconnect();
       }

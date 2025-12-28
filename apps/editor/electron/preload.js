@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('agency', {
   getTmuxStatus: () => ipcRenderer.invoke('tmux:status'),
   createCell: (payload) => ipcRenderer.invoke('cells:create', payload),
   updateCellState: (payload) => ipcRenderer.invoke('cells:updateState', payload),
+  logRuntime: (payload) => ipcRenderer.send('runtime-log:write', payload),
   startTerminal: (payload) => ipcRenderer.invoke('terminal:start', payload),
   writeTerminal: (payload) => ipcRenderer.send('terminal:write', payload),
   resizeTerminal: (payload) => ipcRenderer.send('terminal:resize', payload),

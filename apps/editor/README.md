@@ -39,6 +39,12 @@
 - Candidate discovery includes ignored or untracked directories.
 - Auto-link can be enabled to apply links when new Cells are created.
 
+## Runtime Logs
+
+- Each editor launch writes logs to `logs/runtime/runtime-<timestamp>.log` at the repo root.
+- The latest 20 runs stay in `logs/runtime`; older runs move to `logs/runtime/history`.
+- Logs chunk automatically when they reach the size limit.
+
 ## Branch Naming
 
 - When creating a new Cell, the branch name is generated as `<type>/<cell-name>`.
@@ -70,6 +76,7 @@ make editor-dev
 - `AGENCY_CLI_COMMAND="codex"` override the CLI command
 - `AGENCY_CLI_STUB=1` use the CLI stub script
 - `AGENCY_TEST_MODE=1` use stubbed cells/worktrees
+- `AGENCY_RUNTIME_LOG_MAX_BYTES=5242880` override runtime log chunk size
 
 ## Manual Verification
 
@@ -79,6 +86,8 @@ make editor-dev
 - Add a quick action with both commands and verify start/resume run in the active session.
 - Switch to Project or Agent actions, confirm inherited actions are read-only, and verify Override/Reset behavior.
 - Run a start action and verify a new session is created and selected before the command runs.
+- Launch a TUI tool (e.g., `codex`), resize the window, and confirm the terminal does not switch to 1-column output.
+- Confirm a new log file appears under `logs/runtime` and resize warnings are logged when applicable.
 
 ## UI Testing (Playwright)
 
