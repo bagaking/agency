@@ -36,7 +36,16 @@ async function hasSession(sessionName) {
 }
 
 async function createSession(sessionName, cwd) {
-  await execFileAsync('tmux', ['new-session', '-d', '-s', sessionName, '-c', cwd]);
+  try {
+    await execFileAsync('tmux', ['new-session', '-d', '-s', sessionName, '-c', cwd]);
+  } catch (error) {
+    const stderr = String(error?.stderr || '');
+    const message = String(error?.message || '');
+    if (stderr.includes('duplicate session') || message.includes('duplicate session')) {
+      return;
+    }
+    throw error;
+  }
 }
 
 async function killSession(sessionName) {

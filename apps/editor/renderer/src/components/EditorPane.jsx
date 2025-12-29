@@ -21,6 +21,7 @@ import {
 import { RiveAnimation } from './RiveAnimation.jsx';
 import { GateList } from './GateList.jsx';
 import { TerminalArea } from './TerminalArea.jsx';
+import { SessionContextMenu, SessionOverflowMenu } from './SessionMenus.jsx';
 
 export function EditorPane({
   cell,
@@ -57,6 +58,8 @@ export function EditorPane({
 }) {
   const [closedMenu, setClosedMenu] = useState(null);
   const [showGates, setShowGates] = useState(false);
+  const [editingSessionId, setEditingSessionId] = useState(null);
+  const [editingSessionName, setEditingSessionName] = useState('');
   const closedMenuRef = useRef(null);
   const closedMenuButtonRef = useRef(null);
   const contextMenuRef = useRef(null);
@@ -112,6 +115,30 @@ export function EditorPane({
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [contextMenu]);
+
+  const beginRenameSession = (session) => {
+    if (!session) {
+      return;
+    }
+    setEditingSessionId(session.id);
+    setEditingSessionName(session.name || session.id);
+  };
+
+  const cancelRenameSession = () => {
+    setEditingSessionId(null);
+    setEditingSessionName('');
+  };
+
+  const commitRenameSession = () => {
+    if (!editingSessionId) {
+      return;
+    }
+    const nextName = editingSessionName.trim();
+    if (nextName) {
+      onRenameSession?.(editingSessionId, nextName);
+    }
+    cancelRenameSession();
+  };
 
   useEffect(() => {
     if (!isVisible) {
@@ -259,6 +286,7 @@ export function EditorPane({
                 <div className="flex items-center gap-1 flex-1 overflow-x-auto overflow-y-visible no-scrollbar">
                     {openSessions.map((session) => {
                         const isActive = session.id === sessionId;
+                        const isEditing = editingSessionId === session.id;
                         const statusColor = session.status === 'active' ? 'bg-emerald-400' : 'bg-amber-400';
                         
                         return (
@@ -280,22 +308,44 @@ export function EditorPane({
                                 }`}
                             >
                                 <div className={`h-1.5 w-1.5 rounded-full ${statusColor} ${isActive ? 'ring-2 ring-emerald-400/20' : ''}`} />
-                                <span className="max-w-[120px] truncate font-medium">
-                                    {session.name || session.id}
-                                </span>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        const nextName = window.prompt('Rename session', session.name || session.id);
-                                        if (nextName && nextName.trim()) {
-                                            onRenameSession?.(session.id, nextName.trim());
-                                        }
-                                    }}
-                                    className="opacity-0 group-hover:opacity-100 hover:text-primary transition-all p-0.5 rounded-sm hover:bg-primary/10"
-                                    title="Rename Session"
-                                >
-                                    <Pencil size={10} />
-                                </button>
+                                {isEditing ? (
+                                    <input
+                                        value={editingSessionName}
+                                        onChange={(event) => setEditingSessionName(event.target.value)}
+                                        onClick={(event) => event.stopPropagation()}
+                                        onBlur={() => commitRenameSession()}
+                                        onKeyDown={(event) => {
+                                            if (event.key === 'Enter') {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                commitRenameSession();
+                                            }
+                                            if (event.key === 'Escape') {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                cancelRenameSession();
+                                            }
+                                        }}
+                                        className="max-w-[120px] rounded border border-border/40 bg-background/70 px-1 py-0.5 text-[11px] font-medium text-foreground focus:border-primary focus:outline-none"
+                                        autoFocus
+                                    />
+                                ) : (
+                                    <span className="max-w-[120px] truncate font-medium">
+                                        {session.name || session.id}
+                                    </span>
+                                )}
+                                {!isEditing && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            beginRenameSession(session);
+                                        }}
+                                        className="opacity-0 group-hover:opacity-100 hover:text-primary transition-all p-0.5 rounded-sm hover:bg-primary/10"
+                                        title="Rename Session"
+                                    >
+                                        <Pencil size={10} />
+                                    </button>
+                                )}
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onCloseSession?.(session.id); }}
                                     className={`opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-all p-0.5 rounded-sm hover:bg-rose-500/10`}
@@ -391,79 +441,36 @@ export function EditorPane({
                 </div>
              </div>
 
-             {closedMenu ? (
-                <div
-                    ref={closedMenuRef}
-                    className="fixed z-[60] w-48 rounded-md border border-border bg-popover py-1 shadow-xl text-[11px]"
-                    style={{ top: closedMenu.y, left: closedMenu.x }}
-                >
-                    {detachedSessions.length > 0 && (
-                        <>
-                            <div className="px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground">Detached Sessions</div>
-                            {detachedSessions.map(s => (
-                                <button
-                                    key={s.id}
-                                    onClick={() => {
-                                        setClosedMenu(null);
-                                        onSelectSession?.(s.id);
-                                        onOpenTerminal?.();
-                                    }}
-                                    className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate transition-colors"
-                                >
-                                    {s.name || s.id}
-                                </button>
-                            ))}
-                        </>
-                    )}
-                    {closedSessions.length > 0 && (
-                        <>
-                            <div className="px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground">Closed Sessions</div>
-                            {closedSessions.map(s => (
-                                <button
-                                    key={s.id}
-                                    onClick={() => {
-                                        setClosedMenu(null);
-                                        onCreateSession?.({ name: s.name || s.id });
-                                    }}
-                                    className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate transition-colors"
-                                >
-                                    {s.name || s.id}
-                                </button>
-                            ))}
-                        </>
-                    )}
-                </div>
-             ) : null}
+             <SessionOverflowMenu
+                isOpen={Boolean(closedMenu)}
+                position={closedMenu}
+                containerRef={closedMenuRef}
+                detachedSessions={detachedSessions}
+                closedSessions={closedSessions}
+                onSelectDetached={(session) => {
+                  setClosedMenu(null);
+                  onSelectSession?.(session.id);
+                  onOpenTerminal?.();
+                }}
+                onRestoreClosed={(session) => {
+                  setClosedMenu(null);
+                  onCreateSession?.({ name: session.name || session.id });
+                }}
+             />
 
-             {contextMenu && contextTarget ? (
-                <div
-                    ref={contextMenuRef}
-                    className="fixed z-[60] w-44 rounded-md border border-border bg-popover py-1 shadow-xl text-[11px]"
-                    style={{ top: contextMenu.y, left: contextMenu.x }}
-                >
-                    <button
-                        onClick={() => {
-                            setContextMenu(null);
-                            onDetachSession?.(contextTarget.id);
-                        }}
-                        className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                    >
-                        Detach Session
-                    </button>
-                    <button
-                        onClick={() => {
-                            setContextMenu(null);
-                            const nextName = window.prompt('Rename session', contextTarget.name || contextTarget.id);
-                            if (nextName && nextName.trim()) {
-                                onRenameSession?.(contextTarget.id, nextName.trim());
-                            }
-                        }}
-                        className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                    >
-                        Rename Session
-                    </button>
-                </div>
-             ) : null}
+             <SessionContextMenu
+                isOpen={Boolean(contextMenu && contextTarget)}
+                position={contextMenu}
+                containerRef={contextMenuRef}
+                onDetach={() => {
+                  setContextMenu(null);
+                  onDetachSession?.(contextTarget.id);
+                }}
+                onRename={() => {
+                  setContextMenu(null);
+                  beginRenameSession(contextTarget);
+                }}
+             />
 
              <TerminalArea
                 cell={cell}

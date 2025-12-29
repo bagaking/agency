@@ -25,19 +25,36 @@ async function readRegistry(worktreePath) {
       sessions: [],
     };
   }
-  const raw = await fsp.readFile(registryPath, 'utf-8');
-  const parsed = yaml.load(raw) || {};
-  return {
-    version: parsed.version || 1,
-    sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
-  };
+  try {
+    const raw = await fsp.readFile(registryPath, 'utf-8');
+    const parsed = yaml.load(raw) || {};
+    return {
+      version: parsed.version || 1,
+      sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
+    };
+  } catch (error) {
+    const suffix = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupPath = `${registryPath}.corrupt-${suffix}`;
+    try {
+      await fsp.rename(registryPath, backupPath);
+      console.warn(`Session registry was invalid. Backed up to ${backupPath}`);
+    } catch (renameError) {
+      console.warn('Session registry was invalid and could not be backed up.', renameError);
+    }
+    return {
+      version: 1,
+      sessions: [],
+    };
+  }
 }
 
 async function writeRegistry(worktreePath, registry) {
   const registryPath = getSessionRegistryPath(worktreePath);
   await fsp.mkdir(path.dirname(registryPath), { recursive: true });
   const content = yaml.dump(registry, { lineWidth: 120 });
-  await fsp.writeFile(registryPath, content, 'utf-8');
+  const tempPath = `${registryPath}.tmp`;
+  await fsp.writeFile(tempPath, content, 'utf-8');
+  await fsp.rename(tempPath, registryPath);
 }
 
 function upsertSession(registry, session) {

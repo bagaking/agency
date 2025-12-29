@@ -85,6 +85,7 @@ export function useSessions({
             cellId: cell.id,
             worktreePath: cell.worktreePath,
             name: 'Default',
+            sessionId: 'default',
           });
           nextSessions = created ? [created] : nextSessions;
         }
@@ -190,11 +191,12 @@ export function useSessions({
       setSessionLoading(true);
       setSessionError('');
       try {
-        const { name } = options || {};
+        const { name, sessionId } = options || {};
         const created = await window.agency.createSession({
           cellId: selectedCell.id,
           worktreePath: selectedCell.worktreePath,
           name: name || undefined,
+          sessionId: sessionId || undefined,
         });
         setSessionsByCellId((current) => {
           const currentSessions = current[selectedCell.id] || [];

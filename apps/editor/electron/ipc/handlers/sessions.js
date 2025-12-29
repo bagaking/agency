@@ -17,11 +17,11 @@ function setupSessionHandlers() {
   });
 
   ipcMain.handle('sessions:create', async (_event, payload) => {
-    const { cellId, worktreePath, name } = payload || {};
+    const { cellId, worktreePath, name, sessionId } = payload || {};
     if (!cellId || !worktreePath) {
       throw new Error('cellId and worktreePath are required.');
     }
-    return createNewSession({ cellId, worktreePath, name });
+    return createNewSession({ cellId, worktreePath, name, sessionId });
   });
 
   ipcMain.handle('sessions:close', async (_event, payload) => {
