@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { disposeTerminalEntry } from '../terminal/terminalManager.js';
 
 const DEFAULT_FONT_SIZE = 13;
 const MIN_FONT_SIZE = 10;
@@ -16,6 +17,8 @@ export function useSessions({
   const [activeSessionByCellId, setActiveSessionByCellId] = useState(
     initialActiveSessions || {}
   );
+  const activeSessionByCellIdRef = useRef(initialActiveSessions || {});
+  const selectionVersionRef = useRef(0);
   const [sessionsByCellId, setSessionsByCellId] = useState({});
   const [sessionFontSizeByKey, setSessionFontSizeByKey] = useState({});
   const [sessionActivityByKey, setSessionActivityByKey] = useState({});
@@ -26,8 +29,13 @@ export function useSessions({
   useEffect(() => {
     if (initialActiveSessions && typeof initialActiveSessions === 'object') {
       setActiveSessionByCellId(initialActiveSessions);
+      activeSessionByCellIdRef.current = initialActiveSessions;
     }
   }, [initialActiveSessions]);
+
+  useEffect(() => {
+    activeSessionByCellIdRef.current = activeSessionByCellId;
+  }, [activeSessionByCellId]);
 
   const sessions = selectedCell ? sessionsByCellId[selectedCell.id] || [] : [];
 
@@ -62,6 +70,7 @@ export function useSessions({
       if (!cell || !window.agency?.listSessions) {
         return;
       }
+      const selectionVersion = selectionVersionRef.current;
       if (tmuxStatus?.available === false) {
         if (!silent) {
           setSessionError(tmuxStatus.error || 'tmux is required. Install tmux and try again.');
@@ -91,22 +100,47 @@ export function useSessions({
         }
         setSessionsByCellId((current) => ({ ...current, [cell.id]: nextSessions }));
 
-        const open = nextSessions.filter(
-          (session) => session.status !== 'closed' && session.status !== 'detached'
-        );
-        const preferred = activeSessionByCellId[cell.id];
+        const preferred = activeSessionByCellIdRef.current[cell.id];
+        const open = nextSessions.filter((session) => {
+          if (session.status === 'closed') {
+            return false;
+          }
+          if (session.status === 'detached') {
+            return session.id === preferred;
+          }
+          return true;
+        });
+        const resolvedPreferred = preferred && open.find((session) => session.id === preferred);
         const active =
-          (preferred && open.find((session) => session.id === preferred)) ||
+          resolvedPreferred ||
           open.find((session) => session.status === 'active') ||
           open[0];
+        if (selectionVersionRef.current !== selectionVersion) {
+          return;
+        }
+        if (active?.id && active.id !== preferred) {
+          activeSessionByCellIdRef.current = {
+            ...activeSessionByCellIdRef.current,
+            [cell.id]: active.id,
+          };
+        }
         setActiveSessionByCellId((current) => {
-          const next = { ...current };
-          if (active && active.id) {
-            next[cell.id] = active.id;
-          } else {
+          const nextId = active?.id;
+          if (!nextId) {
+            if (!current[cell.id]) {
+              return current;
+            }
+            const next = { ...current };
             delete next[cell.id];
+            return next;
           }
-          return next;
+          if (current[cell.id] === nextId) {
+            return current;
+          }
+          return {
+            ...current,
+            [cell.id]: nextId,
+          };
         });
       } catch (error) {
         if (!silent) {
@@ -124,7 +158,7 @@ export function useSessions({
         }
       }
     },
-    [activeSessionByCellId, tmuxStatus?.available, tmuxStatus?.error]
+    [tmuxStatus?.available, tmuxStatus?.error]
   );
 
   useEffect(() => {
@@ -170,6 +204,11 @@ export function useSessions({
       if (!selectedCell) {
         return;
       }
+      selectionVersionRef.current += 1;
+      activeSessionByCellIdRef.current = {
+        ...activeSessionByCellIdRef.current,
+        [selectedCell.id]: sessionId,
+      };
       setActiveSessionByCellId((current) => ({
         ...current,
         [selectedCell.id]: sessionId,
@@ -204,6 +243,11 @@ export function useSessions({
           return { ...current, [selectedCell.id]: nextSessions };
         });
         if (created?.id) {
+          selectionVersionRef.current += 1;
+          activeSessionByCellIdRef.current = {
+            ...activeSessionByCellIdRef.current,
+            [selectedCell.id]: created.id,
+          };
           setActiveSessionByCellId((current) => ({
             ...current,
             [selectedCell.id]: created.id,
@@ -236,6 +280,8 @@ export function useSessions({
           worktreePath: selectedCell.worktreePath,
           sessionId,
         });
+        window.agency?.disposeTerminal?.({ cellId: selectedCell.id, sessionId });
+        disposeTerminalEntry({ cellId: selectedCell.id, sessionId });
         await loadSessionsForCell(selectedCell);
       } catch (error) {
         setSessionError(error?.message || 'Failed to close session.');
@@ -258,6 +304,8 @@ export function useSessions({
           worktreePath: selectedCell.worktreePath,
           sessionId,
         });
+        window.agency?.disposeTerminal?.({ cellId: selectedCell.id, sessionId });
+        disposeTerminalEntry({ cellId: selectedCell.id, sessionId });
         await loadSessionsForCell(selectedCell);
       } catch (error) {
         setSessionError(error?.message || 'Failed to detach session.');

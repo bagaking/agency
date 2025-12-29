@@ -1,5 +1,5 @@
 import React from 'react';
-import { Radio, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { RiveAnimation } from './RiveAnimation.jsx';
 
 export function StatusBar({ loading, message, onRefresh, tmuxStatus }) {
@@ -12,11 +12,11 @@ export function StatusBar({ loading, message, onRefresh, tmuxStatus }) {
         <button 
             onClick={onRefresh} 
             className={`flex items-center gap-1.5 hover:opacity-80 transition-opacity ${loading ? 'cursor-wait' : 'cursor-pointer'}`}
-            title="Refresh State"
+            title="Refresh cells"
             data-testid="refresh-cells"
         >
-          <Radio size={12} />
-          <span>Agency Remote</span>
+          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+          <span>Refresh Cells</span>
         </button>
         <span className={`border-l border-status-bar-foreground/20 pl-3 ${tmuxColor}`} title={tmuxStatus?.error || tmuxLabel}>
           {tmuxLabel}

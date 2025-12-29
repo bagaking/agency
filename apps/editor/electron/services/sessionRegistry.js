@@ -52,7 +52,8 @@ async function writeRegistry(worktreePath, registry) {
   const registryPath = getSessionRegistryPath(worktreePath);
   await fsp.mkdir(path.dirname(registryPath), { recursive: true });
   const content = yaml.dump(registry, { lineWidth: 120 });
-  const tempPath = `${registryPath}.tmp`;
+  const tempSuffix = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const tempPath = `${registryPath}.tmp-${tempSuffix}`;
   await fsp.writeFile(tempPath, content, 'utf-8');
   await fsp.rename(tempPath, registryPath);
 }

@@ -5,7 +5,8 @@ import { RiveAnimation } from './RiveAnimation.jsx';
 
 export function TerminalArea({
   cell,
-  sessionId,
+  sessions,
+  activeSessionId,
   terminalOpen,
   terminalMode,
   pendingCommand,
@@ -18,24 +19,41 @@ export function TerminalArea({
   sessionError,
   onOpenTerminal,
 }) {
-  const showLoadingOverlay = sessionLoading && !(terminalOpen && sessionId);
+  const hasSessions = Boolean(sessions && sessions.length > 0);
+  const hasActiveSession = Boolean(activeSessionId && hasSessions);
+  const showLoadingOverlay = sessionLoading && !(terminalOpen && hasActiveSession);
 
   return (
     <div className="flex-1 overflow-hidden relative bg-black/20">
-      {terminalOpen && sessionId ? (
+      {terminalOpen && hasActiveSession ? (
         <>
-          <TerminalPane
-            key={`${cell.id}:${sessionId || 'none'}`}
-            cell={cell}
-            sessionId={sessionId}
-            mode={terminalMode}
-            pendingCommand={pendingCommand}
-            onCommandSent={onCommandSent}
-            onActivity={onSessionActivity}
-            fontSize={terminalFontSize}
-            onSessionAttached={onSessionAttached}
-            isVisible={isVisible}
-          />
+          <div className="absolute inset-0">
+            {sessions.map((session) => {
+              const isActive = session.id === activeSessionId;
+              return (
+                <div
+                  key={`${cell.id}:${session.id}`}
+                  className={`absolute inset-0 transition-opacity duration-150 ${
+                    isActive ? 'opacity-100 visible z-10' : 'opacity-0 invisible z-0'
+                  }`}
+                  aria-hidden={!isActive}
+                >
+                  <TerminalPane
+                    cell={cell}
+                    sessionId={session.id}
+                    mode={terminalMode}
+                    pendingCommand={pendingCommand}
+                    onCommandSent={onCommandSent}
+                    onActivity={onSessionActivity}
+                    fontSize={terminalFontSize}
+                    onSessionAttached={onSessionAttached}
+                    isVisible={isVisible}
+                    isActive={isActive}
+                  />
+                </div>
+              );
+            })}
+          </div>
           {showLoadingOverlay ? (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
               <div className="h-24 w-24 opacity-60">

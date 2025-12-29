@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Terminal } from 'xterm';
-import { FitAddon } from '@xterm/addon-fit';
+import {
+  attachTerminal,
+  ensureInputListener,
+  ensureStarted,
+  ensureTerminalEntry,
+} from '../terminal/terminalManager.js';
 
 function TerminalPane({
   cell,
@@ -12,8 +16,10 @@ function TerminalPane({
   onSessionAttached,
   fontSize,
   isVisible,
+  isActive,
 }) {
   const containerRef = useRef(null);
+  const entryRef = useRef(null);
   const terminalRef = useRef(null);
   const fitRef = useRef(null);
   const commandQueueRef = useRef([]);
@@ -25,53 +31,59 @@ function TerminalPane({
   const resizeHandlerRef = useRef(null);
   const focusHandlerRef = useRef(null);
   const resizeAttemptsRef = useRef(0);
+  const activationWarnedRef = useRef(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [sessionReady, setSessionReady] = useState(false);
+  const cellId = cell?.id;
+  const worktreePath = cell?.worktreePath;
 
   const sendCommand = (command) => {
-    if (!command || !cell?.id) {
+    if (!command || !cellId) {
       return;
     }
     const text = String(command).replace(/\r\n/g, '\n');
     const lines = text.split('\n');
     lines.forEach((line) => {
-      window.agency?.writeTerminal({ cellId: cell.id, sessionId, data: `${line}\r` });
+      window.agency?.writeTerminal({ cellId, sessionId, data: `${line}\r` });
     });
     if (onCommandSent) {
-      onCommandSent({ cellId: cell.id, command });
+      onCommandSent({ cellId, command });
     }
     if (onActivity) {
-      onActivity({ cellId: cell.id, sessionId });
+      onActivity({ cellId, sessionId });
     }
   };
 
   useEffect(() => {
-    if (!cell || !containerRef.current || !cell.worktreePath) {
+    if (!cellId || !sessionId || !containerRef.current || !worktreePath) {
       return undefined;
     }
     commandQueueRef.current = [];
     lastQueuedRef.current = null;
-    setSessionReady(false);
     resizeAttemptsRef.current = 0;
 
-    const resolvedFontSize = Number.isFinite(Number(fontSize)) ? Number(fontSize) : 13;
-    const terminal = new Terminal({
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-      fontSize: resolvedFontSize,
-      cursorBlink: true,
-      scrollback: 5000,
-      scrollOnUserInput: true,
-      theme: {
-        background: '#0b0d12',
-        foreground: '#f8fafc',
+    const entry = ensureTerminalEntry({ cellId, sessionId, fontSize });
+    entryRef.current = entry;
+    terminalRef.current = entry?.terminal || null;
+    fitRef.current = entry?.fitAddon || null;
+
+    if (!entry) {
+      return undefined;
+    }
+
+    attachTerminal({ entry, container: containerRef.current });
+    ensureInputListener({
+      entry,
+      onInput: (data) => {
+        window.agency?.writeTerminal({ cellId, sessionId, data });
+        if (onActivity) {
+          onActivity({ cellId, sessionId });
+        }
       },
     });
-    const fitAddon = new FitAddon();
-    terminal.loadAddon(fitAddon);
-    terminal.open(containerRef.current);
 
-    terminalRef.current = terminal;
-    fitRef.current = fitAddon;
+    setSessionReady(entry.started);
+    setErrorMessage('');
 
     let resizeFrame = null;
     const MIN_COLS = 20;
@@ -90,7 +102,7 @@ function TerminalPane({
         level: 'warn',
         message: `terminal resize skipped: ${reason}`,
         meta: {
-          cellId: cell.id,
+          cellId,
           sessionId,
           mode,
           ...meta,
@@ -170,7 +182,7 @@ function TerminalPane({
         resizeAttemptsRef.current = 0;
         lastResizeRef.current = { width, height, cols, rows };
         window.agency?.resizeTerminal({
-          cellId: cell.id,
+          cellId,
           sessionId,
           cols,
           rows,
@@ -196,30 +208,30 @@ function TerminalPane({
         .then(() => scheduleResize(true, 'fonts-ready'))
         .catch(() => {});
     }
-    terminal.focus();
+    if (isActive) {
+      terminalRef.current?.focus();
+    }
 
     const handleFocus = () => {
       terminalRef.current?.focus();
     };
     containerRef.current.addEventListener('mousedown', handleFocus);
 
-    setErrorMessage('');
-
     const handleCustomKeyEvent = (event) => {
       if (event.key === 'Enter' && event.metaKey) {
         if (event.type === 'keydown') {
-          window.agency?.writeTerminal({ cellId: cell.id, sessionId, data: '\r' });
+          window.agency?.writeTerminal({ cellId, sessionId, data: '\r' });
         }
         event.preventDefault();
         return false;
       }
       return true;
     };
-    terminal.attachCustomKeyEventHandler(handleCustomKeyEvent);
+    entry.terminal.attachCustomKeyEventHandler(handleCustomKeyEvent);
 
     const wheelTargets = [
-      terminal.element,
-      terminal.element?.querySelector('.xterm-viewport'),
+      entry.terminal.element,
+      entry.terminal.element?.querySelector('.xterm-viewport'),
       containerRef.current,
     ].filter(Boolean);
     const handleWheel = (event) => {
@@ -251,61 +263,27 @@ function TerminalPane({
     });
 
     const unsubscribe = window.agency?.onTerminalData((payload) => {
-      if (payload?.cellId === cell.id && payload?.sessionId === sessionId) {
+      if (payload?.cellId === cellId && payload?.sessionId === sessionId) {
         lastOutputAtRef.current = Date.now();
-        terminal.write(payload.data);
+        entry.terminal.write(payload.data);
         if (onActivity) {
-          onActivity({ cellId: cell.id, sessionId });
+          onActivity({ cellId, sessionId });
         }
       }
     });
     const unsubscribeError = window.agency?.onTerminalError((payload) => {
-      if (payload?.cellId === cell.id && payload?.sessionId === sessionId) {
+      if (payload?.cellId === cellId && payload?.sessionId === sessionId) {
         setErrorMessage(payload.message || 'Terminal failed to start.');
         window.agency?.logRuntime?.({
           level: 'error',
           message: 'terminal error received',
           meta: {
-            cellId: cell.id,
+            cellId,
             sessionId,
             mode,
             error: payload.message,
           },
         });
-      }
-    });
-
-    const startTerminal = async () => {
-      try {
-        await window.agency?.startTerminal({
-          cellId: cell.id,
-          sessionId,
-          worktreePath: cell.worktreePath,
-          mode,
-        });
-        setSessionReady(true);
-        setTimeout(() => scheduleResize(true, 'post-start'), 60);
-        if (onActivity) {
-          onActivity({ cellId: cell.id, sessionId });
-        }
-        if (onSessionAttached) {
-          onSessionAttached({ cellId: cell.id, sessionId });
-        }
-        if (commandQueueRef.current.length) {
-          const queue = [...commandQueueRef.current];
-          commandQueueRef.current = [];
-          queue.forEach((command) => sendCommand(command));
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    startTerminal();
-
-    terminal.onData((data) => {
-      window.agency?.writeTerminal({ cellId: cell.id, sessionId, data });
-      if (onActivity) {
-        onActivity({ cellId: cell.id, sessionId });
       }
     });
 
@@ -335,17 +313,75 @@ function TerminalPane({
       if (unsubscribeError) {
         unsubscribeError();
       }
-      terminal.dispose();
-      terminalRef.current = null;
-      fitRef.current = null;
       resizeHandlerRef.current = null;
       focusHandlerRef.current = null;
       setSessionReady(false);
+      if (entryRef.current) {
+        entryRef.current.container = null;
+      }
+      entryRef.current = null;
+      terminalRef.current = null;
+      fitRef.current = null;
     };
-  }, [cell, mode, sessionId]);
+  }, [cellId, sessionId, worktreePath]);
 
   useEffect(() => {
-    if (!pendingCommand || !cell || pendingCommand.cellId !== cell.id) {
+    if (!entryRef.current || !isActive || !cellId || !sessionId || !worktreePath) {
+      return undefined;
+    }
+    let canceled = false;
+    ensureStarted({
+      entry: entryRef.current,
+      payload: {
+        cellId,
+        sessionId,
+        worktreePath,
+        mode,
+      },
+    })
+      .then((result) => {
+        if (canceled) {
+          return;
+        }
+        setSessionReady(result.started);
+        if (result.didStart) {
+          setTimeout(() => resizeHandlerRef.current?.(true, 'post-start'), 60);
+          if (onActivity) {
+            onActivity({ cellId, sessionId });
+          }
+          if (onSessionAttached) {
+            onSessionAttached({ cellId, sessionId });
+          }
+          if (commandQueueRef.current.length) {
+            const queue = [...commandQueueRef.current];
+            commandQueueRef.current = [];
+            queue.forEach((command) => sendCommand(command));
+          }
+        }
+      })
+      .catch((error) => {
+        if (!canceled) {
+          setErrorMessage(error?.message || 'Terminal failed to start.');
+          window.agency?.logRuntime?.({
+            level: 'error',
+            message: 'terminal start failed',
+            meta: {
+              cellId,
+              sessionId,
+              mode,
+              error: error?.message || String(error),
+            },
+          });
+          console.error(error);
+        }
+      });
+    return () => {
+      canceled = true;
+    };
+  }, [isActive, cellId, sessionId, worktreePath, mode]);
+
+  useEffect(() => {
+    if (!pendingCommand || !cellId || !isActive || pendingCommand.cellId !== cellId) {
       return;
     }
     if (pendingCommand.command === lastQueuedRef.current) {
@@ -357,7 +393,7 @@ function TerminalPane({
     } else {
       commandQueueRef.current.push(pendingCommand.command);
     }
-  }, [pendingCommand, sessionReady, cell?.id, sessionId]);
+  }, [pendingCommand, sessionReady, cellId, sessionId, isActive]);
 
   useEffect(() => {
     if (!terminalRef.current || !fontSize) {
@@ -376,7 +412,7 @@ function TerminalPane({
   }, [fontSize]);
 
   useEffect(() => {
-    if (!isVisible || !terminalRef.current) {
+    if (!isVisible || !isActive || !terminalRef.current) {
       return;
     }
     requestAnimationFrame(() => {
@@ -384,7 +420,38 @@ function TerminalPane({
       resizeHandlerRef.current?.(true, 'visible');
       focusHandlerRef.current?.();
     });
-  }, [isVisible]);
+  }, [isVisible, isActive]);
+
+  useEffect(() => {
+    if (!sessionReady || !isVisible || !isActive) {
+      return undefined;
+    }
+    if (!terminalRef.current || !resizeHandlerRef.current) {
+      if (!activationWarnedRef.current) {
+        activationWarnedRef.current = true;
+        window.agency?.logRuntime?.({
+          level: 'warn',
+          message: 'terminal activation refresh skipped',
+          meta: { cellId, sessionId },
+        });
+      }
+      return undefined;
+    }
+    let frame = null;
+    const timeout = setTimeout(() => {
+      resizeHandlerRef.current?.(true, 'visibility-stabilize');
+    }, 120);
+    frame = requestAnimationFrame(() => {
+      terminalRef.current?.refresh(0, terminalRef.current.rows - 1);
+      resizeHandlerRef.current?.(true, 'visibility-refresh');
+    });
+    return () => {
+      clearTimeout(timeout);
+      if (frame) {
+        cancelAnimationFrame(frame);
+      }
+    };
+  }, [sessionReady, isVisible, isActive, cellId, sessionId]);
 
   if (errorMessage) {
     return (

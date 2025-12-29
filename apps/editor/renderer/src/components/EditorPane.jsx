@@ -306,6 +306,8 @@ export function EditorPane({
                                         ? 'bg-black/40 border-border/80 text-foreground active-tab-glow'
                                         : 'bg-transparent border-transparent text-muted-foreground hover:bg-muted/20'
                                 }`}
+                                data-testid={`session-tab-${session.id}`}
+                                data-active={isActive ? 'true' : 'false'}
                             >
                                 <div className={`h-1.5 w-1.5 rounded-full ${statusColor} ${isActive ? 'ring-2 ring-emerald-400/20' : ''}`} />
                                 {isEditing ? (
@@ -435,7 +437,12 @@ export function EditorPane({
                             <RotateCcw size={12} />
                         </button>
                     </div>
-                    <button onClick={onRefreshSessions} className="p-1.5 text-muted-foreground hover:text-foreground transition-all active:rotate-180 duration-500">
+                    <button
+                        onClick={onRefreshSessions}
+                        className="p-1.5 text-muted-foreground hover:text-foreground transition-all active:rotate-180 duration-500"
+                        data-testid="refresh-sessions"
+                        title="Refresh sessions"
+                    >
                         <RefreshCw size={12} className={sessionLoading ? 'animate-spin' : ''} />
                     </button>
                 </div>
@@ -474,7 +481,8 @@ export function EditorPane({
 
              <TerminalArea
                 cell={cell}
-                sessionId={sessionId}
+                sessions={openSessions}
+                activeSessionId={sessionId}
                 terminalOpen={terminalOpen}
                 terminalMode={terminalMode}
                 pendingCommand={pendingCommand}

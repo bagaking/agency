@@ -4,6 +4,9 @@ const { promisify } = require('util');
 const execFileAsync = promisify(execFile);
 
 async function ensureTmuxAvailable() {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    return;
+  }
   try {
     await execFileAsync('tmux', ['-V']);
   } catch (error) {
@@ -12,6 +15,12 @@ async function ensureTmuxAvailable() {
 }
 
 async function getTmuxStatus() {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    return {
+      available: true,
+      version: 'tmux (test)',
+    };
+  }
   try {
     const result = await execFileAsync('tmux', ['-V']);
     return {
@@ -27,6 +36,9 @@ async function getTmuxStatus() {
 }
 
 async function hasSession(sessionName) {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    return true;
+  }
   try {
     await execFileAsync('tmux', ['has-session', '-t', sessionName]);
     return true;
@@ -36,6 +48,9 @@ async function hasSession(sessionName) {
 }
 
 async function createSession(sessionName, cwd) {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    return;
+  }
   try {
     await execFileAsync('tmux', ['new-session', '-d', '-s', sessionName, '-c', cwd]);
   } catch (error) {
@@ -49,6 +64,9 @@ async function createSession(sessionName, cwd) {
 }
 
 async function killSession(sessionName) {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    return;
+  }
   await execFileAsync('tmux', ['kill-session', '-t', sessionName]);
 }
 
