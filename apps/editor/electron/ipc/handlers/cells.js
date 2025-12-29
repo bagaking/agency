@@ -9,6 +9,8 @@ function buildTestCell() {
     branch: 'feature/test-cell',
     worktreePath: '/tmp/agency/test-cell',
     state: 'active',
+    gatesStage: 'active',
+    gates: [],
     validation: {
       temporary: true,
       warnings: ['Spec file not found (temporary validation).'],

@@ -7,6 +7,12 @@
 - Embedded terminal via xterm.js and node-pty.
 - Session keepalive uses tmux (required).
 
+## Navigation
+
+- The activity bar includes Agent Cells and Hierarchy entries.
+- Agent Cells focuses on Cell management and offers jump links to Actions, Gates, and Softlinks.
+- Hierarchy hosts configuration for Actions, Gates, and Softlinks.
+
 ## Cell Lifecycle Files
 
 - Each worktree contains `.agency/cell-<worktree-name>.yaml`.
@@ -26,7 +32,7 @@
 
 ## Quick Actions
 
-- Quick Actions are configured in the Explorer under Actions.
+- Quick Actions are configured under Hierarchy -> Actions.
 - Each action provides `startCommand` and optional `resumeCommand`.
 - Definitions are stored in the editor user data directory as `quick-actions.json` (global scope).
 - Project overrides live at `.agency/quick-actions.yaml` and can replace global actions with matching `id`.
@@ -34,9 +40,19 @@
 - Actions resolve by scope order: Global -> Project -> Agent.
 - Commands can be multi-line scripts executed line-by-line in the active session.
 
-## Worktree Links (Local Directories)
+## Gates
 
-- Worktree link configuration lives at `.agency/worktree-links.yaml` in the repo root.
+- Gates are configured under Hierarchy -> Gates.
+- Gate definitions are grouped by stage: `draft`, `active`, and `archived`.
+- Global gates live in the editor user data directory as `gates.json`.
+- Project gates live at `.agency/gates.yaml` in the repo root.
+- Agent gates live at `.agency/gates-<worktreeName>.yaml` in the worktree.
+- Gates resolve by scope order: Global -> Project -> Agent, matching by `id`.
+- Gate commands run line-by-line shell scripts; failures block transitions to Active/Archived.
+
+## Softlinks (Local Directories)
+
+- Softlink configuration lives at `.agency/worktree-links.yaml` in the repo root.
 - Links define `source` (repo root) and `target` (worktree root) paths.
 - The editor can link missing directories into a selected Cell with one click.
 - Candidate discovery includes ignored or untracked directories.
@@ -88,6 +104,8 @@ make editor-dev
 - Close a session, verify it appears under the overflow menu, and reopen it to create a new session.
 - Add a quick action with both commands and verify start/resume run in the active session.
 - Switch to Project or Agent actions, confirm inherited actions are read-only, and verify Override/Reset behavior.
+- Open Hierarchy -> Gates, add a failing gate command for Active, and confirm the Active transition is blocked until the gate passes.
+- From Agent Cells, use the jump links to open Actions, Gates, and Softlinks views.
 - Run a start action and verify a new session is created and selected before the command runs.
 - Launch a TUI tool (e.g., `codex`), resize the window, and confirm the terminal does not switch to 1-column output.
 - Confirm a new log file appears under `logs/runtime` and resize warnings are logged when applicable.

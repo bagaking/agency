@@ -5,6 +5,7 @@ const {
   readRegistry,
   writeRegistry,
   upsertSession,
+  removeSession,
 } = require('./sessionRegistry');
 const { ensureTmuxAvailable, hasSession, createSession, killSession } = require('./tmux');
 
@@ -112,6 +113,21 @@ async function ensureDefaultSession({ cellId, worktreePath }) {
   return createNewSession({ cellId, worktreePath, name: 'Default', sessionId: 'default' });
 }
 
+async function recreateSession({ cellId, worktreePath, sessionId }) {
+  ensureWorktreePath(worktreePath);
+  await ensureTmuxAvailable();
+  const registry = await readRegistry(worktreePath);
+  const existing = registry.sessions.find((session) => session.id === sessionId);
+  const nextRegistry = removeSession(registry, sessionId);
+  await writeRegistry(worktreePath, nextRegistry);
+  return createNewSession({
+    cellId,
+    worktreePath,
+    name: existing?.name,
+    sessionId,
+  });
+}
+
 async function closeSessionById({ worktreePath, sessionId }) {
   ensureWorktreePath(worktreePath);
   await ensureTmuxAvailable();
@@ -214,6 +230,7 @@ module.exports = {
   listSessions,
   createNewSession,
   ensureDefaultSession,
+  recreateSession,
   closeSessionById,
   detachSessionById,
   renameSessionById,

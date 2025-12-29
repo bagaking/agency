@@ -7,137 +7,14 @@ const {
   listWorktrees,
   resolveBaseBranch,
   createWorktree,
-  runGit,
 } = require('./git');
 const { readConfig: readWorktreeLinksConfig, applyAllLinks } = require('./worktreeLinks');
+const { checkGates } = require('./gates');
 
 const LIFECYCLE_DIR = '.agency';
 const LIFECYCLE_PREFIX = 'cell-';
 const LIFECYCLE_EXTS = ['.yaml', '.yml', '.md'];
 
-async function listChangeDirs(changesDir) {
-  if (!fs.existsSync(changesDir)) {
-    return [];
-  }
-  const entries = await fsp.readdir(changesDir, { withFileTypes: true });
-  return entries
-    .filter((entry) => entry.isDirectory() && entry.name !== 'archive')
-    .map((entry) => path.join(changesDir, entry.name));
-}
-
-async function findSpecFiles(dir) {
-  const results = [];
-  if (!fs.existsSync(dir)) {
-    return results;
-  }
-  const entries = await fsp.readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const entryPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      // eslint-disable-next-line no-await-in-loop
-      results.push(...(await findSpecFiles(entryPath)));
-    } else if (entry.isFile() && entry.name === 'spec.md') {
-      results.push(entryPath);
-    }
-  }
-  return results;
-}
-
-async function computeGates(worktreePath) {
-  const gateResults = [];
-
-  if (!worktreePath || !fs.existsSync(worktreePath)) {
-    return [
-      {
-        id: 'spec-created',
-        label: 'Spec created',
-        passed: false,
-        detail: 'Worktree path is missing.',
-      },
-      {
-        id: 'checklist-complete',
-        label: 'Checklist completed',
-        passed: false,
-        detail: 'Worktree path is missing.',
-      },
-      {
-        id: 'merge-clean',
-        label: 'No unresolved conflicts',
-        passed: false,
-        detail: 'Worktree path is missing.',
-      },
-    ];
-  }
-
-  const openspecDir = path.join(worktreePath, 'openspec');
-  const changesDir = path.join(openspecDir, 'changes');
-  const changeDirs = await listChangeDirs(changesDir);
-
-  const specIssues = [];
-  const checklistIssues = [];
-
-  if (changeDirs.length === 0) {
-    specIssues.push('No change proposal found in openspec/changes.');
-    checklistIssues.push('No tasks.md found in openspec/changes.');
-  }
-
-  for (const changeDir of changeDirs) {
-    const proposalPath = path.join(changeDir, 'proposal.md');
-    const tasksPath = path.join(changeDir, 'tasks.md');
-    const specsDir = path.join(changeDir, 'specs');
-
-    if (!fs.existsSync(proposalPath)) {
-      specIssues.push(`${path.basename(changeDir)} missing proposal.md`);
-    }
-
-    const specFiles = await findSpecFiles(specsDir);
-    if (specFiles.length === 0) {
-      specIssues.push(`${path.basename(changeDir)} missing spec deltas`);
-    }
-
-    if (!fs.existsSync(tasksPath)) {
-      checklistIssues.push(`${path.basename(changeDir)} missing tasks.md`);
-    } else {
-      const tasksContent = await fsp.readFile(tasksPath, 'utf-8');
-      if (tasksContent.match(/^\s*-\s*\[\s\]/m)) {
-        checklistIssues.push(`${path.basename(changeDir)} has incomplete checklist`);
-      }
-    }
-  }
-
-  gateResults.push({
-    id: 'spec-created',
-    label: 'Spec created',
-    passed: specIssues.length === 0,
-    detail: specIssues.length ? specIssues.join(' ') : 'Spec proposal and deltas found.',
-  });
-
-  gateResults.push({
-    id: 'checklist-complete',
-    label: 'Checklist completed',
-    passed: checklistIssues.length === 0,
-    detail: checklistIssues.length ? checklistIssues.join(' ') : 'All checklists completed.',
-  });
-
-  try {
-    const unmerged = await runGit(['ls-files', '-u'], { cwd: worktreePath });
-    gateResults.push({
-      id: 'merge-clean',
-      label: 'No unresolved conflicts',
-      passed: !unmerged,
-      detail: unmerged ? 'Unresolved merge entries detected.' : 'No unresolved merge entries.',
-    });
-  } catch (error) {
-    gateResults.push({
-      id: 'merge-clean',
-      label: 'No unresolved conflicts',
-      passed: false,
-      detail: 'Unable to check merge conflict status.',
-    });
-  }
-
-  return gateResults;
-}
 
 async function ensureWorktreeDir(repoRoot) {
   const preferred = path.join(repoRoot, '.worktrees');
@@ -239,7 +116,6 @@ async function hydrateCell(repoRoot, worktree) {
   }
   const name = lifecycle.name || lifecycle.id || worktree.branch || path.basename(worktree.path);
   const state = lifecycle.state || 'draft';
-  const gates = await computeGates(worktree.path);
   return {
     id: lifecycle.id || normalizeName(name),
     name,
@@ -247,7 +123,7 @@ async function hydrateCell(repoRoot, worktree) {
     worktreePath: worktree.path,
     state,
     lifecycleFile: lifecyclePath,
-    gates,
+    gates: [],
     validation: {
       temporary: true,
       warnings: validationWarnings(repoRoot, worktree, lifecyclePath),
@@ -378,7 +254,7 @@ async function updateCellState({ id, state, worktreePath }) {
   }
 
   if (['active', 'archived'].includes(state)) {
-    const gates = await computeGates(target.path);
+    const gates = await checkGates({ worktreePath: target.path, stage: state });
     const failed = gates.filter((gate) => !gate.passed);
     if (failed.length) {
       const labels = failed.map((gate) => gate.label).join(', ');

@@ -6,7 +6,11 @@ const {
   disposeSession,
 } = require('../../services/terminal');
 const { logRuntime } = require('../../services/runtimeLog');
-const { ensureDefaultSession, resolveSessionForAttach } = require('../../services/sessions');
+const {
+  ensureDefaultSession,
+  resolveSessionForAttach,
+  recreateSession,
+} = require('../../services/sessions');
 
 function setupTerminalHandlers({ getMainWindow }) {
   ipcMain.handle('terminal:start', async (_event, payload) => {
@@ -24,9 +28,21 @@ function setupTerminalHandlers({ getMainWindow }) {
     }
     let resolvedSessionId = sessionId || 'default';
     try {
-      const resolvedSession = sessionId
-        ? await resolveSessionForAttach({ worktreePath, sessionId })
-        : await ensureDefaultSession({ cellId, worktreePath });
+      let resolvedSession;
+      if (sessionId) {
+        try {
+          resolvedSession = await resolveSessionForAttach({ worktreePath, sessionId });
+        } catch (error) {
+          const message = error?.message || '';
+          if (message.includes('Session not found') || message.includes('Session is stale')) {
+            resolvedSession = await recreateSession({ cellId, worktreePath, sessionId });
+          } else {
+            throw error;
+          }
+        }
+      } else {
+        resolvedSession = await ensureDefaultSession({ cellId, worktreePath });
+      }
       resolvedSessionId = resolvedSession.id;
       const session = startSession({
         cellId,

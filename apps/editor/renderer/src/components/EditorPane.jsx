@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  TerminalSquare,
-  AlertTriangle,
   MonitorPlay,
   ChevronRight,
   CheckCircle2,
@@ -20,9 +18,9 @@ import {
   Clock,
   Pencil,
 } from 'lucide-react';
-import TerminalPane from './TerminalPane.jsx';
 import { RiveAnimation } from './RiveAnimation.jsx';
 import { GateList } from './GateList.jsx';
+import { TerminalArea } from './TerminalArea.jsx';
 
 export function EditorPane({
   cell,
@@ -34,6 +32,9 @@ export function EditorPane({
   sessionError,
   quickActions,
   tmuxStatus,
+  gateResultsByStage,
+  gatesCheckingByStage,
+  gateDisplayStage,
   idleSince,
   terminalFontSize,
   isVisible,
@@ -137,8 +138,11 @@ export function EditorPane({
     );
   }
 
-  const gates = cell.gates || [];
+  const activeStage = gateDisplayStage || 'active';
+  const gates = gateResultsByStage?.[activeStage] || cell.gates || [];
+  const hasGateStatus = gates.length > 0;
   const failedGatesCount = gates.filter((gate) => !gate.passed).length;
+  const isGateChecking = Boolean(gatesCheckingByStage?.[activeStage]);
   const idleMs = idleSince ? Math.max(0, idleNow - idleSince) : 0;
   const idleSeconds = Math.floor(idleMs / 1000);
   const idleHours = Math.floor(idleSeconds / 3600);
@@ -169,7 +173,11 @@ export function EditorPane({
                         const isActive = cell.state === step || (step === 'active' && cell.state === 'paused');
                         const isPast = arr.indexOf(cell.state) > index || (cell.state === 'paused' && step === 'active');
                         const requiresGates = step === 'active' || step === 'archived';
-                        const blockTransition = requiresGates && failedGatesCount > 0 && step !== cell.state;
+                        const stepGates = gateResultsByStage?.[step] || [];
+                        const stepFailures = stepGates.filter((gate) => !gate.passed).length;
+                        const hasGateResults = stepGates.length > 0;
+                        const blockTransition =
+                          requiresGates && hasGateResults && stepFailures > 0 && step !== cell.state;
                         
                         let dotColor = 'bg-muted-foreground/30';
                         if (cell.state === step) {
@@ -214,7 +222,15 @@ export function EditorPane({
                     }`}
                 >
                     <Layout size={12} />
-                    <span>Gates {failedGatesCount > 0 ? `(${failedGatesCount} failing)` : '(All OK)'}</span>
+                    <span>
+                      {isGateChecking
+                        ? `Gates (${activeStage}: checking)`
+                        : !hasGateStatus
+                          ? `Gates (${activeStage}: not checked)`
+                          : failedGatesCount > 0
+                            ? `Gates (${activeStage}: ${failedGatesCount} failing)`
+                            : `Gates (${activeStage}: all ok)`}
+                    </span>
                     {showGates ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                 </button>
             </div>
@@ -226,10 +242,10 @@ export function EditorPane({
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                         <CheckCircle2 size={12} />
-                        Compliance Checklist
+                        Compliance Checklist ({activeStage})
                     </h3>
                 </div>
-                <GateList gates={cell.gates} />
+                <GateList gates={gates} />
                 <p className="mt-3 text-[10px] text-muted-foreground italic bg-muted/20 p-2 rounded border border-border/50">
                     * Agents must satisfy all gates before transitioning to Active or Archived states.
                 </p>
@@ -449,59 +465,21 @@ export function EditorPane({
                 </div>
              ) : null}
 
-             <div className="flex-1 overflow-hidden relative bg-black/20">
-                {terminalOpen && sessionId ? (
-                    <>
-                        <TerminalPane
-                          key={`${cell.id}:${sessionId || 'none'}`}
-                          cell={cell}
-                          sessionId={sessionId}
-                          mode={terminalMode}
-                          pendingCommand={pendingCommand}
-                          onCommandSent={onCommandSent}
-                          onActivity={onSessionActivity}
-                          fontSize={terminalFontSize}
-                          onSessionAttached={onSessionAttached}
-                          isVisible={isVisible}
-                        />
-                        {sessionLoading ? (
-                            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
-                                 <div className="h-24 w-24 opacity-60">
-                                    <RiveAnimation 
-                                        src="/assets/animations/loading.riv"
-                                        animations="Idle"
-                                        className="w-full h-full"
-                                        fallback={<RefreshCw size={32} className="animate-spin text-primary/40" />}
-                                    />
-                                 </div>
-                                 <p className="mt-4 text-[10px] font-bold uppercase tracking-widest text-primary/60">Establishing Connection</p>
-                            </div>
-                        ) : null}
-                    </>
-                ) : (
-                    <div className="flex h-full flex-col items-center justify-center text-muted-foreground bg-black/40 backdrop-blur-sm">
-                        <div className="mb-4 opacity-20 hover:opacity-40 transition-opacity duration-700">
-                            <RiveAnimation 
-                                src="/assets/animations/terminal-idle.riv"
-                                animations="Idle"
-                                className="w-16 h-16"
-                                fallback={<TerminalSquare size={48} />}
-                            />
-                        </div>
-                        <p className="text-xs font-medium tracking-wide">No active terminal session</p>
-                        <button onClick={onOpenTerminal} className="mt-3 text-[10px] font-bold text-primary px-5 py-2 border border-primary/30 rounded-full hover:bg-primary/10 transition-all active:scale-95 hover:border-primary">
-                            SPAWN AGENT SHELL
-                        </button>
-                    </div>
-                )}
-             </div>
-             
-             {sessionError && (
-                <div className="absolute bottom-4 right-4 max-w-xs rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[10px] text-rose-300 backdrop-blur-md shadow-lg flex items-start gap-2">
-                    <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                    <span>{sessionError}</span>
-                </div>
-             )}
+             <TerminalArea
+                cell={cell}
+                sessionId={sessionId}
+                terminalOpen={terminalOpen}
+                terminalMode={terminalMode}
+                pendingCommand={pendingCommand}
+                onCommandSent={onCommandSent}
+                onSessionActivity={onSessionActivity}
+                terminalFontSize={terminalFontSize}
+                onSessionAttached={onSessionAttached}
+                isVisible={isVisible}
+                sessionLoading={sessionLoading}
+                sessionError={sessionError}
+                onOpenTerminal={onOpenTerminal}
+             />
         </div>
     </main>
   );

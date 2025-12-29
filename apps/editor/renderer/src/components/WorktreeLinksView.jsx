@@ -61,11 +61,11 @@ export function WorktreeLinksView({
       <header className="flex items-center justify-between border-b border-border px-6 py-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-foreground">Worktree Links</h2>
+            <h2 className="text-lg font-semibold text-foreground">Softlinks</h2>
             {dirty && <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-200 border border-amber-500/20">Unsaved</span>}
           </div>
           <p className="text-xs text-muted-foreground">
-            Manage untracked directory symbolic links across all agents.
+            Manage symbolic links for untracked directories across all agents.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -196,10 +196,10 @@ export function WorktreeLinksView({
             <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-4 flex items-start gap-3">
               <Info size={16} className="text-blue-400 shrink-0 mt-0.5" />
               <div className="text-xs text-blue-200/80 leading-relaxed">
-                <p className="font-medium text-blue-200 mb-1">About Status Matrix</p>
-                The matrix shows the link status for each agent. 
-                <strong> Main Repo</strong> contains the actual directories and doesn't need linking.
-                Use <strong>Link All</strong> to create all missing symbolic links for a specific agent.
+              <p className="font-medium text-blue-200 mb-1">About Status Matrix</p>
+              The matrix shows the link status for each agent.
+              <strong> Main Repo</strong> contains the actual directories and doesn't need linking.
+              Use <strong>Link All</strong> to create all missing symbolic links for a specific agent.
               </div>
             </div>
           </div>
