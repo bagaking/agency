@@ -18,6 +18,8 @@ export function TerminalArea({
   sessionError,
   onOpenTerminal,
 }) {
+  const showLoadingOverlay = sessionLoading && !(terminalOpen && sessionId);
+
   return (
     <div className="flex-1 overflow-hidden relative bg-black/20">
       {terminalOpen && sessionId ? (
@@ -34,7 +36,7 @@ export function TerminalArea({
             onSessionAttached={onSessionAttached}
             isVisible={isVisible}
           />
-          {sessionLoading ? (
+          {showLoadingOverlay ? (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
               <div className="h-24 w-24 opacity-60">
                 <RiveAnimation

@@ -88,6 +88,22 @@ async function createNewSession({ cellId, worktreePath, name, sessionId: provide
   const tmuxSession = buildTmuxSessionName(cellId, sessionId);
   const createdAt = new Date().toISOString();
 
+  const isAlive = await hasSession(tmuxSession);
+  if (isAlive) {
+    const session = {
+      id: sessionId,
+      name: name || `Session ${registry.sessions.length + 1}`,
+      tmuxSession,
+      status: SESSION_STATUSES.active,
+      createdAt,
+      updatedAt: createdAt,
+      lastAttachedAt: createdAt,
+    };
+    const nextRegistry = upsertSession(registry, session);
+    await writeRegistry(worktreePath, nextRegistry);
+    return session;
+  }
+
   await createSession(tmuxSession, worktreePath);
 
   const session = {
