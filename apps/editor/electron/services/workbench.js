@@ -18,7 +18,7 @@ function normalizeRelPath(value) {
   if (!value) {
     return '';
   }
-  return value.replace(/\/g, '/').replace(/^\.?\//, '').replace(/\/+$/, '');
+  return value.replace(/\\/g, '/').replace(/^\.?\//, '').replace(/\/+$/, '');
 }
 
 function resolveSafePath(rootPath, relativePath) {
