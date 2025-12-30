@@ -2,10 +2,20 @@ import React, { useMemo, useState } from 'react';
 import {
   ChevronRight,
   ChevronDown,
-  Folder,
-  File,
+  FolderClosed,
+  FolderOpen,
+  FileText,
+  FileCode,
+  FileJson,
+  FileImage,
+  FileAudio,
+  FileVideo,
+  FileArchive,
+  FileCog,
+  FileSearch2,
+  FileType2,
   RefreshCw,
-  FilePlus,
+  FilePlus2,
   FolderPlus,
   Search,
   X,
@@ -14,8 +24,30 @@ import {
   Trash2,
   ArrowRightLeft,
   Eye,
+  EyeOff,
   Filter,
+  Link2,
+  AlertCircle,
+  Info,
 } from 'lucide-react';
+
+const getFileIcon = (name, isSymbolicLink) => {
+  if (isSymbolicLink) return Link2;
+  const ext = name.split('.').pop().toLowerCase();
+  
+  if (['js', 'jsx', 'ts', 'tsx', 'py', 'go', 'rs', 'c', 'cpp', 'java', 'rb', 'php', 'swift', 'sh', 'bash'].includes(ext)) return FileCode;
+  if (['json', 'yaml', 'yml', 'toml', 'xml', 'html', 'css', 'scss', 'less'].includes(ext)) return FileJson;
+  if (['md', 'txt', 'rtf', 'log'].includes(ext)) return FileText;
+  if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp'].includes(ext)) return FileImage;
+  if (['mp3', 'wav', 'ogg', 'flac', 'm4a'].includes(ext)) return FileAudio;
+  if (['mp4', 'mkv', 'avi', 'mov', 'webm'].includes(ext)) return FileVideo;
+  if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2'].includes(ext)) return FileArchive;
+  if (['env', 'config', 'ini', 'properties', 'yaml', 'yml'].includes(ext)) return FileCog;
+  if (['sql', 'db', 'sqlite'].includes(ext)) return FileSearch2;
+  if (['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext)) return FileType2;
+
+  return FileText;
+};
 import { useProjectExplorer, explorerPathUtils } from '../../hooks/useProjectExplorer.js';
 
 const statusColors = {
@@ -295,12 +327,18 @@ export function ProjectExplorerSidebar({
     const isLoading = loadingPaths.has(path);
     const showDraft = draftEntry?.parentPath === path;
     const isRenaming = renameTarget?.path === path;
+    const isLink = node.isSymbolicLink;
+
+    const gitEntry = isDir ? folderStatusByPath[path] : statusByPath[path];
+    const isIgnored = gitEntry?.status === 'ignored';
+
+    const FileIcon = isDir ? (isExpanded ? FolderOpen : FolderClosed) : getFileIcon(node.name, isLink);
 
     const row = path ? (
       <div
-        className={`group flex items-center gap-2 rounded px-2 py-1 text-xs transition-colors ${
+        className={`group flex items-center gap-2 rounded px-2 py-1 text-xs transition-colors relative ${
           isSelected ? 'bg-primary/20 text-foreground' : 'text-muted-foreground hover:text-foreground'
-        }`}
+        } ${isIgnored ? 'opacity-50 italic' : ''}`}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
         onClick={(event) => {
           handleSelectPath(path, event);
@@ -349,14 +387,32 @@ export function ProjectExplorerSidebar({
               event.stopPropagation();
               togglePath(path);
             }}
-            className="text-muted-foreground/60 hover:text-muted-foreground"
+            className="text-muted-foreground/60 hover:text-muted-foreground shrink-0"
           >
-            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            {isExpanded ? <ChevronDown size={14} strokeWidth={1.5} /> : <ChevronRight size={14} strokeWidth={1.5} />}
           </button>
         ) : (
-          <span className="w-4" />
+          <span className="w-4 shrink-0" />
         )}
-        {isDir ? <Folder size={14} /> : <File size={14} />}
+        
+        <div className="relative shrink-0">
+            <FileIcon 
+                size={14} 
+                strokeWidth={1.5} 
+                className={isDir ? "text-primary/70" : (isLink ? "text-sky-400" : (isIgnored ? "text-muted-foreground/30" : "text-muted-foreground/70"))} 
+            />
+            {isLink && (
+                 <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-[0.5px] ring-1 ring-sky-500/50">
+                    <Link2 size={8} className="text-sky-400" strokeWidth={3} />
+                 </div>
+            )}
+            {isIgnored && (
+                 <div className="absolute -top-1 -right-1 bg-background rounded-full p-[0.5px]">
+                    <EyeOff size={8} className="text-muted-foreground/60" strokeWidth={2} />
+                 </div>
+            )}
+        </div>
+
         {isRenaming ? (
           <input
             autoFocus
@@ -376,7 +432,21 @@ export function ProjectExplorerSidebar({
             className="flex-1 rounded border border-border bg-transparent px-1 text-xs text-foreground focus:outline-none"
           />
         ) : (
-          <span className="flex-1 truncate">{node.name}</span>
+          <div className="flex flex-1 items-center gap-2 min-w-0">
+            <span className={`truncate select-none ${isIgnored ? 'text-muted-foreground/40 line-through decoration-muted-foreground/20' : ''}`}>
+                {node.name}
+            </span>
+            {isLink && (
+                <span className="shrink-0 px-1 rounded-[2px] bg-sky-500/10 border border-sky-500/20 text-[8px] font-bold uppercase tracking-tighter text-sky-400">
+                    Link
+                </span>
+            )}
+            {isIgnored && (
+                <span className="shrink-0 text-[8px] font-medium text-muted-foreground/30 italic">
+                    ignored
+                </span>
+            )}
+          </div>
         )}
         {renderStatus(path, node.type)}
         {renderCellBadges(path, node.type)}
@@ -393,7 +463,7 @@ export function ProjectExplorerSidebar({
             style={{ paddingLeft: `${depth * 12 + 24}px` }}
           >
             <span className="text-xs text-muted-foreground">
-              {draftEntry.type === 'dir' ? <FolderPlus size={12} /> : <FilePlus size={12} />}
+              {draftEntry.type === 'dir' ? <FolderPlus size={12} strokeWidth={1.5} /> : <FilePlus2 size={12} strokeWidth={1.5} />}
             </span>
             <input
               autoFocus
@@ -423,107 +493,104 @@ export function ProjectExplorerSidebar({
   };
 
   return (
-    <aside className="flex w-full flex-col">
-      <header className="border-b border-border px-4 py-3">
+    <aside className="flex h-full w-full flex-col bg-sidebar select-none">
+      <header className="shrink-0 space-y-3 px-4 py-3 border-b border-border/50">
         <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm font-semibold text-foreground">Explorer</div>
-            <div
-              className="text-[11px] text-muted-foreground/70 truncate"
-              title={rootPath || repoRoot}
-            >
-              {activeRootLabel}
+          <div className="flex flex-col min-w-0">
+            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">Explorer</h2>
+            <div className="flex items-center gap-1.5 mt-0.5">
+               <span className="text-xs font-semibold text-foreground truncate">{activeRootLabel}</span>
+               <div className="h-1 w-1 rounded-full bg-primary/40" />
             </div>
           </div>
-          <button
-            type="button"
-            className="rounded border border-border p-1 text-muted-foreground hover:text-foreground"
-            onClick={() => refreshAll()}
-            title="Refresh"
-          >
-            <RefreshCw size={14} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+                type="button"
+                className="p-1 text-muted-foreground/60 hover:text-foreground transition-colors rounded hover:bg-muted/30"
+                onClick={() => startDraft('file')}
+                title="New File"
+            >
+                <FilePlus2 size={14} strokeWidth={1.5} />
+            </button>
+            <button
+                type="button"
+                className="p-1 text-muted-foreground/60 hover:text-foreground transition-colors rounded hover:bg-muted/30"
+                onClick={() => startDraft('dir')}
+                title="New Folder"
+            >
+                <FolderPlus size={14} strokeWidth={1.5} />
+            </button>
+            <button
+                type="button"
+                className="p-1 text-muted-foreground/60 hover:text-foreground transition-colors rounded hover:bg-muted/30"
+                onClick={() => refreshAll()}
+                title="Refresh"
+            >
+                <RefreshCw size={14} strokeWidth={1.5} className={Object.keys(loadingPaths).length > 0 ? "animate-spin" : ""} />
+            </button>
+          </div>
         </div>
-        {hasCells ? (
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-[10px] font-semibold uppercase text-muted-foreground/60">
-              Scope
-            </span>
+
+        {hasCells && (
+          <div className="group relative">
             <select
-              className="flex-1 rounded border border-border bg-transparent px-2 py-1 text-xs text-foreground focus:outline-none"
+              className="w-full appearance-none rounded border border-border/40 bg-muted/20 px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-all focus:border-primary/50 focus:outline-none hover:border-border/80 cursor-pointer"
               value={selectedId || ''}
               onChange={(event) => onSelectCell?.(event.target.value)}
             >
               {cells.map((cell) => (
                 <option key={cell.id} value={cell.id}>
-                  {cell.name}
+                  Agent: {cell.name}
                 </option>
               ))}
             </select>
-          </div>
-        ) : (
-          <div className="mt-2 text-[10px] text-muted-foreground/60">
-            Repository scope (no active Cells).
+            <ChevronDown size={10} className="absolute right-2 top-2.5 text-muted-foreground/40 pointer-events-none group-hover:text-muted-foreground transition-colors" />
           </div>
         )}
-        <div className="mt-3 flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search size={12} className="absolute left-2 top-2.5 text-muted-foreground/60" />
+
+        <div className="flex items-center gap-1.5">
+          <div className="relative flex-1 group">
+            <Search size={12} strokeWidth={2} className="absolute left-2.5 top-2 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Filter files..."
-              className="w-full rounded border border-border bg-transparent px-7 py-1.5 text-xs text-foreground focus:outline-none"
+              placeholder="Search files..."
+              className="w-full rounded-full border border-border/40 bg-muted/10 px-8 py-1.5 text-[11px] text-foreground transition-all placeholder:text-muted-foreground/30 focus:bg-background focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
             />
             {searchQuery && (
               <button
                 type="button"
-                className="absolute right-2 top-2 text-muted-foreground/60 hover:text-foreground"
+                className="absolute right-2.5 top-1.5 text-muted-foreground/40 hover:text-foreground"
                 onClick={() => setSearchQuery('')}
               >
-                <X size={12} />
+                <X size={12} strokeWidth={1.5} />
               </button>
             )}
           </div>
           <button
             type="button"
-            className={`rounded border px-2 py-1 text-[10px] ${
-              showChangesOnly ? 'border-primary text-primary' : 'border-border text-muted-foreground'
+            className={`flex h-7 w-7 items-center justify-center rounded-full border transition-all ${
+              showChangesOnly ? 'border-primary/40 bg-primary/10 text-primary active-tab-glow' : 'border-border/40 text-muted-foreground/50 hover:border-border hover:text-foreground'
             }`}
             onClick={() => setShowChangesOnly((value) => !value)}
-            title="Show changes only"
+            title="Changes Only"
           >
-            <Filter size={12} />
+            <Filter size={12} strokeWidth={1.5} />
           </button>
         </div>
+
         {searchTruncated && (
-          <div className="mt-2 text-[10px] text-amber-200/70">
-            Search limited to first {searchResults.length} matches.
+          <div className="flex items-center gap-1.5 px-1 text-[10px] text-amber-400/70 italic">
+            <Info size={10} />
+            Search results truncated
           </div>
         )}
       </header>
 
-      <div className="flex items-center gap-2 border-b border-border px-4 py-2 text-[10px] text-muted-foreground/70">
-        <button
-          type="button"
-          className="rounded border border-border px-2 py-1 hover:text-foreground"
-          onClick={() => startDraft('file')}
-        >
-          <FilePlus size={12} />
-        </button>
-        <button
-          type="button"
-          className="rounded border border-border px-2 py-1 hover:text-foreground"
-          onClick={() => startDraft('dir')}
-        >
-          <FolderPlus size={12} />
-        </button>
-        <span className="text-[10px]">New</span>
-      </div>
-
       {error && (
-        <div className="border-b border-border px-4 py-2 text-xs text-rose-300">
-          {error}
+        <div className="mx-2 mt-2 flex items-start gap-2 rounded border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-[11px] text-rose-300 animate-tab-in">
+          <AlertCircle size={14} className="mt-0.5 shrink-0" />
+          <span>{error}</span>
         </div>
       )}
 
@@ -533,73 +600,40 @@ export function ProjectExplorerSidebar({
 
       {contextMenu && (
         <div
-          className="fixed z-[70] w-48 rounded border border-border bg-popover py-1 text-xs shadow-xl"
+          className="fixed z-[70] w-48 rounded-lg border border-border/60 bg-popover/90 py-1 text-[11px] shadow-2xl backdrop-blur-md animate-tab-in"
           style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={closeContextMenu}
         >
-          <button
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted"
-            onClick={() => startDraft('file')}
-          >
-            <FilePlus size={12} /> New File
-          </button>
-          <button
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted"
-            onClick={() => startDraft('dir')}
-          >
-            <FolderPlus size={12} /> New Folder
-          </button>
-          <button
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted"
-            onClick={() =>
-              setRenameTarget({
-                path: activeTarget,
-                value: explorerPathUtils.basename(activeTarget),
-              })
-            }
-            disabled={!activeTarget}
-          >
-            <Pencil size={12} /> Rename
-          </button>
-          <button
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted"
-            onClick={() => handleDuplicate(activeTarget)}
-            disabled={!activeTarget}
-          >
-            <Copy size={12} /> Duplicate
-          </button>
-          <button
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted"
-            onClick={() => handleCopyPath(activeTarget)}
-            disabled={!activeTarget}
-          >
-            <Copy size={12} /> Copy Path
-          </button>
-          <button
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted"
-            onClick={() => revealEntry({ targetPath: activeTarget })}
-            disabled={!activeTarget}
-          >
-            <Eye size={12} /> Reveal in Finder
-          </button>
-          <button
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-rose-300 hover:bg-rose-500/10"
-            onClick={() => handleDelete(activeTarget)}
-            disabled={!activeTarget}
-          >
-            <Trash2 size={12} /> Delete
-          </button>
-          <button
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted"
-            onClick={() => {
-              clearSelection();
-              closeContextMenu();
-            }}
-          >
-            <ArrowRightLeft size={12} /> Clear Selection
-          </button>
+          <ContextMenuItem icon={FilePlus2} label="New File" onClick={() => startDraft('file')} />
+          <ContextMenuItem icon={FolderPlus} label="New Folder" onClick={() => startDraft('dir')} />
+          <div className="my-1 border-t border-border/40" />
+          <ContextMenuItem icon={Pencil} label="Rename" onClick={() => setRenameTarget({ path: activeTarget, value: explorerPathUtils.basename(activeTarget) })} disabled={!activeTarget} />
+          <ContextMenuItem icon={Copy} label="Duplicate" onClick={() => handleDuplicate(activeTarget)} disabled={!activeTarget} />
+          <ContextMenuItem icon={Copy} label="Copy Path" onClick={() => handleCopyPath(activeTarget)} disabled={!activeTarget} />
+          <div className="my-1 border-t border-border/40" />
+          <ContextMenuItem icon={Eye} label="Reveal in Finder" onClick={() => revealEntry({ targetPath: activeTarget })} disabled={!activeTarget} />
+          <ContextMenuItem icon={Trash2} label="Delete" onClick={() => handleDelete(activeTarget)} disabled={!activeTarget} variant="destructive" />
+          <div className="my-1 border-t border-border/40" />
+          <ContextMenuItem icon={ArrowRightLeft} label="Clear Selection" onClick={() => { clearSelection(); closeContextMenu(); }} />
         </div>
       )}
     </aside>
   );
+}
+
+function ContextMenuItem({ icon: Icon, label, onClick, disabled, variant }) {
+    return (
+        <button
+            className={`flex w-full items-center gap-2.5 px-3 py-1.5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                variant === 'destructive' 
+                    ? 'text-rose-400 hover:bg-rose-500/10' 
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            }`}
+            onClick={(e) => { e.stopPropagation(); !disabled && onClick(); }}
+            disabled={disabled}
+        >
+            <Icon size={12} strokeWidth={1.5} />
+            <span className="truncate">{label}</span>
+        </button>
+    );
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, GitBranch, Circle, Command, Link2, ShieldCheck, ArrowUpRight } from 'lucide-react';
+import { Plus, GitBranch, Circle, SquareTerminal, Link2, ShieldCheck, ArrowUpRight } from 'lucide-react';
 
 const statusColors = {
   draft: 'text-muted-foreground',
@@ -25,14 +25,14 @@ export function AgentCellsSidebar({
           title="New Cell"
           data-testid="open-create-cell"
         >
-          <Plus size={16} />
+          <Plus size={16} strokeWidth={1.5} />
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-2">
         <div className="mb-2 px-2 text-xs font-medium text-muted-foreground">CONFIGURATION</div>
         <div className="grid grid-cols-2 gap-1">
-          <NavItem icon={Command} label="Actions" onClick={() => onJump?.('actions')} />
+          <NavItem icon={SquareTerminal} label="Actions" onClick={() => onJump?.('actions')} />
           <NavItem icon={ShieldCheck} label="Gates" onClick={() => onJump?.('gates')} />
           <NavItem icon={Link2} label="Softlinks" onClick={() => onJump?.('softlinks')} />
         </div>
@@ -67,10 +67,10 @@ function NavItem({ icon: Icon, label, onClick }) {
       className="group flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground"
     >
       <span className="flex items-center gap-1.5 truncate">
-        <Icon size={14} className="opacity-70" />
+        <Icon size={14} strokeWidth={1.5} className="opacity-70" />
         <span className="truncate">{label}</span>
       </span>
-      <ArrowUpRight size={12} className="opacity-50" />
+      <ArrowUpRight size={12} strokeWidth={1.5} className="opacity-50" />
     </button>
   );
 }
@@ -87,7 +87,7 @@ function CellItem({ cell, selected, onClick }) {
           : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'
       }`}
     >
-      <GitBranch size={14} className={selected ? 'text-primary' : 'opacity-70'} />
+      <GitBranch size={14} strokeWidth={1.5} className={selected ? 'text-primary' : 'opacity-70'} />
       <span className="truncate">{cell.name}</span>
       <div className="ml-auto opacity-0 transition-opacity group-hover:opacity-100">
         <Circle

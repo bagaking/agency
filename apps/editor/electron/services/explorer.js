@@ -102,6 +102,7 @@ async function listDirectory({ rootPath, relativePath = '', showHidden = true })
         path: entryPath,
         name: entry.name,
         type: entry.isDirectory() ? ENTRY_TYPES.dir : ENTRY_TYPES.file,
+        isSymbolicLink: entry.isSymbolicLink(),
       };
     })
     .sort(sortEntries);

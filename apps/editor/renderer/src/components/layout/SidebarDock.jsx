@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -14,12 +14,12 @@ export function SidebarDock({
   children,
 }) {
   const dragStateRef = useRef(null);
+  const [isHoveringBorder, setIsHoveringBorder] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handlePointerMove = (event) => {
     const state = dragStateRef.current;
-    if (!state) {
-      return;
-    }
+    if (!state) return;
     const nextWidth = clamp(state.startWidth + (event.clientX - state.startX), minWidth, maxWidth);
     state.lastWidth = nextWidth;
     onResize?.(nextWidth);
@@ -27,10 +27,9 @@ export function SidebarDock({
 
   const handlePointerUp = () => {
     const state = dragStateRef.current;
-    if (!state) {
-      return;
-    }
+    if (!state) return;
     dragStateRef.current = null;
+    setIsDragging(false);
     window.removeEventListener('pointermove', handlePointerMove);
     window.removeEventListener('pointerup', handlePointerUp);
     document.body.style.cursor = '';
@@ -41,47 +40,71 @@ export function SidebarDock({
   };
 
   const handlePointerDown = (event) => {
-    if (collapsed) {
-      return;
-    }
+    if (collapsed) return;
     dragStateRef.current = {
       startX: event.clientX,
       startWidth: width,
       lastWidth: width,
     };
+    setIsDragging(true);
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   };
 
-  const toggleStyle = collapsed ? { left: 6 } : { right: 6 };
-
   return (
     <aside
-      className="relative h-full shrink-0 overflow-visible border-r border-sidebar-border bg-sidebar"
+      className={`relative h-full shrink-0 border-r border-sidebar-border bg-sidebar ${
+        collapsed ? 'border-r-0' : ''
+      } ${isDragging ? '' : 'transition-[width] duration-300 ease-in-out'}`}
       style={{ width: collapsed ? 0 : width }}
     >
-      <div className={collapsed ? 'hidden' : 'flex h-full'}>
+      <div className={`h-full w-full overflow-hidden ${collapsed ? 'opacity-0' : 'opacity-100'}`}>
         {children}
       </div>
-      <button
-        type="button"
-        onClick={onToggleCollapse}
-        className="absolute top-2 z-10 rounded border border-border bg-popover p-1 text-muted-foreground hover:text-foreground shadow-sm"
-        style={toggleStyle}
-        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+
+      {/* Modern Resizer & Toggle Handle */}
+      <div
+        className={`absolute top-0 -right-[2px] z-50 h-full w-[4px] cursor-col-resize transition-colors duration-200 group ${
+          collapsed ? 'cursor-default pointer-events-none' : 'hover:bg-primary/40'
+        }`}
+        onPointerDown={handlePointerDown}
+        onMouseEnter={() => setIsHoveringBorder(true)}
+        onMouseLeave={() => setIsHoveringBorder(false)}
       >
-        {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-      </button>
-      {!collapsed && (
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          onPointerDown={handlePointerDown}
-          onDoubleClick={onToggleCollapse}
-          className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-transparent"
-        />
+        {/* The Toggle Trigger: A slim, elegant vertical handle */}
+        {!collapsed && (
+          <div 
+            className={`absolute top-1/2 -translate-y-1/2 -left-1 flex flex-col items-center gap-4 transition-all duration-300 ${
+              isHoveringBorder ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-1'
+            }`}
+          >
+            <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onToggleCollapse(); }}
+                className="group/btn flex h-16 w-3 items-center justify-center rounded-full bg-primary/80 text-white shadow-lg backdrop-blur-md hover:bg-primary hover:w-4 transition-all"
+                title="Collapse sidebar"
+            >
+                <ChevronLeft size={10} strokeWidth={3} className="group-hover/btn:scale-125 transition-transform" />
+            </button>
+            <div className="h-8 w-[2px] bg-primary/20 rounded-full" />
+            <GripVertical size={12} className="text-primary/40" />
+          </div>
+        )}
+      </div>
+
+      {/* Expand Trigger when collapsed: An ultra-slim floating line at the edge */}
+      {collapsed && (
+        <div 
+            className="absolute top-0 left-0 z-[60] h-full w-1.5 group cursor-pointer"
+            onClick={onToggleCollapse}
+        >
+            <div className="absolute inset-y-0 left-0 w-[2px] bg-primary/0 group-hover:bg-primary/40 transition-colors" />
+            <div className="absolute top-1/2 -translate-y-1/2 left-0 h-24 w-[4px] rounded-r-full bg-primary/0 group-hover:bg-primary/80 transition-all flex items-center justify-center overflow-hidden">
+                <ChevronRight size={10} strokeWidth={3} className="text-white opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
+            </div>
+        </div>
       )}
     </aside>
   );
