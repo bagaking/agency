@@ -11,6 +11,7 @@ const { setupTmuxHandlers } = require('./ipc/handlers/tmux');
 const { setupWorktreeLinksHandlers } = require('./ipc/handlers/worktreeLinks');
 const { setupExplorerHandlers } = require('./ipc/handlers/explorer');
 const { setupRuntimeLogHandlers } = require('./ipc/handlers/runtimeLog');
+const { setupWorkbenchHandlers } = require('./ipc/handlers/workbench');
 const {
   initRuntimeLogger,
   logRuntime,
@@ -20,6 +21,8 @@ const {
 
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
 let mainWindow;
+
+app.setName('Agency Editor');
 
 function createWindow() {
   const iconPath = path.join(__dirname, '../renderer/public/icon.png');
@@ -31,6 +34,7 @@ function createWindow() {
     backgroundColor: '#111318',
     autoHideMenuBar: true,
     icon: iconPath,
+    title: 'Agency Editor',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -71,6 +75,7 @@ app.whenReady().then(async () => {
   setupTmuxHandlers();
   setupWorktreeLinksHandlers();
   setupExplorerHandlers();
+  setupWorkbenchHandlers();
   setupRuntimeLogHandlers();
 
   if (process.platform === 'darwin') {

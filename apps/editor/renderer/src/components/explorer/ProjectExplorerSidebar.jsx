@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ChevronRight,
   ChevronDown,
@@ -83,12 +83,31 @@ const sortCells = (cells) => {
   });
 };
 
+const formatIdle = (ms) => {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes <= 0) {
+    return `${seconds}s`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const remMinutes = minutes % 60;
+  if (hours <= 0) {
+    return `${remMinutes}m`;
+  }
+  return `${hours}h ${remMinutes}m`;
+};
+
 export function ProjectExplorerSidebar({
   rootPath: scopeRootPath,
   rootLabel: scopeRootLabel,
   cells,
   selectedId,
   onSelectCell,
+  selectedCell,
+  sessions,
+  activeSessionId,
+  sessionActivityByKey,
   onOpenFile,
 }) {
   const {
@@ -129,6 +148,7 @@ export function ProjectExplorerSidebar({
   const [draftEntry, setDraftEntry] = useState(null);
   const [renameTarget, setRenameTarget] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
+  const [now, setNow] = useState(Date.now());
 
   const isSearchActive = searchQuery.trim().length > 0;
   const tree = isSearchActive ? searchTree : { nodes: nodesByPath, children: childrenByPath };
@@ -137,6 +157,11 @@ export function ProjectExplorerSidebar({
   const hasCells = cells && cells.length > 0;
 
   const selectionSet = useMemo(() => new Set(selectedPaths), [selectedPaths]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const closeContextMenu = () => setContextMenu(null);
 
@@ -343,7 +368,13 @@ export function ProjectExplorerSidebar({
         onClick={(event) => {
           handleSelectPath(path, event);
           if (!isDir && !event.metaKey && !event.ctrlKey && !event.shiftKey) {
-            onOpenFile?.(path);
+            onOpenFile?.({ path, mode: 'preview' });
+          }
+        }}
+        onDoubleClick={(event) => {
+          if (!isDir) {
+            event.stopPropagation();
+            onOpenFile?.({ path, mode: 'pinned' });
           }
         }}
         onContextMenu={(event) => {
@@ -586,6 +617,42 @@ export function ProjectExplorerSidebar({
           </div>
         )}
       </header>
+
+      {selectedCell ? (
+        <div className="border-b border-border/50 px-4 py-2 text-[10px] text-muted-foreground/70">
+          <div className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground/60">
+            Sessions
+          </div>
+          <div className="space-y-1">
+            {(sessions || []).filter((session) => session.status !== 'closed').map((session) => {
+              const key = `${selectedCell.id}:${session.id}`;
+              const lastActivity = sessionActivityByKey?.[key];
+              const fallbackTime = session.updatedAt ? new Date(session.updatedAt).getTime() : now;
+              const idleMs = now - (lastActivity || fallbackTime);
+              const isActive = session.id === activeSessionId;
+              const statusLabel =
+                session.status === 'detached'
+                  ? 'Detached'
+                  : session.status === 'stale'
+                    ? 'Stale'
+                    : isActive
+                      ? 'Active'
+                      : `Idle ${formatIdle(idleMs)}`;
+              return (
+                <div key={session.id} className="flex items-center justify-between gap-2">
+                  <span className="truncate">{session.name || session.id}</span>
+                  <span className={isActive ? 'text-emerald-400' : 'text-muted-foreground/50'}>
+                    {statusLabel}
+                  </span>
+                </div>
+              );
+            })}
+            {sessions && sessions.filter((session) => session.status !== 'closed').length === 0 ? (
+              <div className="text-[10px] text-muted-foreground/50">No active sessions</div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {error && (
         <div className="mx-2 mt-2 flex items-start gap-2 rounded border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-[11px] text-rose-300 animate-tab-in">

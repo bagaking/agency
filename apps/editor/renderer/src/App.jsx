@@ -8,6 +8,7 @@ import { useQuickActions } from './hooks/useQuickActions.js';
 import { useGates } from './hooks/useGates.js';
 import { useWorktreeLinks } from './hooks/useWorktreeLinks.js';
 import { useSessions } from './hooks/useSessions.js';
+import { useWorkbench } from './hooks/useWorkbench.js';
 const defaultCells = [
   {
     id: 'sample-cell',
@@ -40,7 +41,8 @@ function App() {
   const [terminalMode, setTerminalMode] = useState('shell');
   const [tmuxStatus, setTmuxStatus] = useState({ available: true });
   const [initialActiveSessions, setInitialActiveSessions] = useState({});
-  const [explorerFile, setExplorerFile] = useState('');
+  const [initialWorkbenchTabs, setInitialWorkbenchTabs] = useState({});
+  const [initialWorkbenchActiveTabs, setInitialWorkbenchActiveTabs] = useState({});
   const selectedCell = useMemo(
     () => cells.find((cell) => cell.id === selectedId),
     [cells, selectedId]
@@ -79,6 +81,12 @@ function App() {
           const state = await window.agency.getUiState();
           if (state?.activeSessionByCellId && typeof state.activeSessionByCellId === 'object') {
             setInitialActiveSessions(state.activeSessionByCellId);
+          }
+          if (state?.workbenchTabsByCellId && typeof state.workbenchTabsByCellId === 'object') {
+            setInitialWorkbenchTabs(state.workbenchTabsByCellId);
+          }
+          if (state?.workbenchActiveTabByCellId && typeof state.workbenchActiveTabByCellId === 'object') {
+            setInitialWorkbenchActiveTabs(state.workbenchActiveTabByCellId);
           }
           if (state?.selectedId) {
             setSelectedId(state.selectedId);
@@ -203,6 +211,7 @@ function App() {
     activeSessionId,
     activeFontSize,
     lastActivityAt,
+    sessionActivityByKey,
     sessionLoading,
     sessionError,
     pendingCommand,
@@ -225,6 +234,12 @@ function App() {
     tmuxStatus,
     onOpenTerminal: handleOpenTerminal,
     initialActiveSessions,
+  });
+  const workbench = useWorkbench({
+    selectedCell,
+    repoRoot,
+    initialTabsByCellId: initialWorkbenchTabs,
+    initialActiveTabByCellId: initialWorkbenchActiveTabs,
   });
   useEffect(() => {
     if (!selectedCell?.id) {
@@ -252,11 +267,20 @@ function App() {
           sidebarWidth,
           sidebarCollapsed,
           activeView,
+          workbenchTabsByCellId: workbench.serializeTabs(workbench.tabsByCellId),
+          workbenchActiveTabByCellId: workbench.activeTabByCellId,
         })
         .catch(() => undefined);
     }, 200);
     return () => clearTimeout(handle);
-  }, [activeView, sidebarCollapsed, sidebarWidth, uiStateLoaded]);
+  }, [
+    activeView,
+    sidebarCollapsed,
+    sidebarWidth,
+    uiStateLoaded,
+    workbench.activeTabByCellId,
+    workbench.tabsByCellId,
+  ]);
   const gateDisplayStage = selectedCell?.state === 'archived' ? 'archived' : 'active';
   const gateResultsByStage = selectedCell ? gateResultsByCellId[selectedCell.id] || {} : {};
   const gatesCheckingByStage = selectedCell ? gatesCheckingByCellId[selectedCell.id] || {} : {};
@@ -352,11 +376,8 @@ function App() {
     onSessionAttached: handleSessionAttached,
     terminalFontSize: activeFontSize,
   };
-  const explorerRootPath = selectedCell?.worktreePath || '';
-  const explorerRootLabel = selectedCell?.name || '';
-  useEffect(() => {
-    setExplorerFile('');
-  }, [selectedCell?.id]);
+  const explorerRootPath = selectedCell?.worktreePath || repoRoot || '';
+  const explorerRootLabel = selectedCell?.name || 'Repository';
   const handleSwitchView = useCallback(
     (view) => {
       setActiveView(view);
@@ -380,15 +401,6 @@ function App() {
     },
     [sidebarCollapsed]
   );
-  const handleRevealExplorerFile = useCallback(() => {
-    if (!explorerFile) {
-      return;
-    }
-    window.agency?.revealExplorerEntry({
-      targetPath: explorerFile,
-      rootPath: explorerRootPath || undefined,
-    });
-  }, [explorerFile, explorerRootPath]);
   const handleHierarchyJump = useCallback(
     (target) => {
       setHierarchySection(target);
@@ -507,12 +519,18 @@ function App() {
           cells,
           selectedId,
           onSelectCell: setSelectedId,
-          onOpenFile: setExplorerFile,
+          selectedCell,
+          sessions,
+          activeSessionId,
+          sessionActivityByKey,
+          onOpenFile: ({ path, mode }) => {
+            workbench.openFile({ path, mode, rootPath: explorerRootPath });
+          },
         }}
         explorerPaneProps={{
-          rootPath: explorerRootPath,
-          filePath: explorerFile,
-          onReveal: explorerFile ? handleRevealExplorerFile : undefined,
+          workbench,
+          activeRootPath: explorerRootPath,
+          activeRootLabel: explorerRootLabel,
         }}
       />
 

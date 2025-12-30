@@ -3,7 +3,7 @@ import { ActivityBar } from './ActivityBar.jsx';
 import { AgentCellsSidebar } from './AgentCellsSidebar.jsx';
 import { HierarchySidebar } from './HierarchySidebar.jsx';
 import { ProjectExplorerSidebar } from './explorer/ProjectExplorerSidebar.jsx';
-import { ProjectExplorerPane } from './explorer/ProjectExplorerPane.jsx';
+import { WorkbenchPane } from './workbench/WorkbenchPane.jsx';
 import { EditorPane } from './EditorPane.jsx';
 import { QuickActionsView } from './QuickActionsView.jsx';
 import { GatesView } from './GatesView.jsx';
@@ -124,17 +124,25 @@ export function AppLayout({
       ) : null}
 
       <div className="relative flex-1 overflow-hidden">
-        {activeView === 'agent-cells' ? (
-          <div className="absolute inset-0">
-            <EditorPane {...editorPaneProps} />
-          </div>
-        ) : null}
+        <div
+          className={`absolute inset-0 ${
+            activeView === 'agent-cells'
+              ? 'opacity-100 visible'
+              : 'opacity-0 invisible pointer-events-none'
+          }`}
+        >
+          <EditorPane {...editorPaneProps} />
+        </div>
 
-        {activeView === 'explorer' ? (
-          <div className="absolute inset-0">
-            <ProjectExplorerPane {...explorerPaneProps} />
-          </div>
-        ) : null}
+        <div
+          className={`absolute inset-0 ${
+            activeView === 'explorer'
+              ? 'opacity-100 visible'
+              : 'opacity-0 invisible pointer-events-none'
+          }`}
+        >
+          <WorkbenchPane {...explorerPaneProps} />
+        </div>
 
         {activeView === 'hierarchy' && hierarchySection === 'actions' ? (
           <div className="absolute inset-0">

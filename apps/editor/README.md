@@ -14,7 +14,8 @@
 - Agent Cells focuses on Cell management and offers jump links to Actions, Gates, and Softlinks.
 - Hierarchy hosts configuration for Actions, Gates, and Softlinks.
 - Explorer provides a project file tree with git status and per-Cell change attribution.
-- Explorer scopes to the active Agent Cell worktree (or repo root) and opens file previews in the main pane.
+- Explorer scopes to the active Agent Cell worktree (or repo root) and opens files in the workbench.
+- The workbench supports multi-tab previews, quick open, diff/blame toggles, and media previews.
 
 ## Cell Lifecycle Files
 
@@ -32,6 +33,7 @@
 - Sessions can be renamed from the session context menu.
 - On relaunch, the editor restores the last selected Cell and active session.
 - The terminal toolbar includes zoom controls and an idle timer.
+- Explorer surfaces session activity and idle duration for the selected Cell.
 
 ## Quick Actions
 
@@ -105,8 +107,12 @@ make editor-dev
 
 - Open Explorer, expand folders, and confirm the tree loads lazily with refresh support.
 - Create, rename, delete, and drag/drop a file or folder from the Explorer view.
-- Select a file in Explorer and confirm the preview opens in the main pane.
-- Switch the Explorer scope to another Cell and confirm the tree resets to that worktree.
+- Select a file in Explorer and confirm it opens in a workbench tab with line numbers and syntax highlighting.
+- Double-click a file to pin its tab, drag tabs to reorder, and close tabs from the tab strip menu.
+- Use Cmd/Ctrl+P to quick-open a file and confirm it opens as a preview tab.
+- Toggle diff and blame on a modified file and confirm decorations/hover metadata appear.
+- Open an image or PDF file and confirm media preview renders with zoom/fit controls.
+- Switch the Explorer scope to another Cell and confirm the tree and workbench tabs reset per worktree.
 - Modify a file in multiple worktrees, refresh Explorer, and confirm per-Cell badges appear.
 - Toggle "changes only" and verify clean files are filtered out.
 - Open the editor with tmux installed, create a session, restart the editor, and confirm the session reattaches.

@@ -443,6 +443,7 @@ export function useSessions({
     activeSessionKey,
     activeFontSize,
     lastActivityAt,
+    sessionActivityByKey,
     sessionLoading,
     sessionError,
     pendingCommand,
