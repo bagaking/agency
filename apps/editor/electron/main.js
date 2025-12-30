@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, nativeImage } = require('electron');
 const path = require('path');
 const { setupCellHandlers } = require('./ipc/handlers/cells');
 const { setupWorktreeHandlers } = require('./ipc/handlers/worktrees');
@@ -22,6 +22,7 @@ const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
 let mainWindow;
 
 function createWindow() {
+  const iconPath = path.join(__dirname, '../renderer/public/icon.png');
   const win = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -29,6 +30,7 @@ function createWindow() {
     minHeight: 700,
     backgroundColor: '#111318',
     autoHideMenuBar: true,
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -70,6 +72,12 @@ app.whenReady().then(async () => {
   setupWorktreeLinksHandlers();
   setupExplorerHandlers();
   setupRuntimeLogHandlers();
+
+  if (process.platform === 'darwin') {
+    const iconPath = path.join(__dirname, '../renderer/public/icon.png');
+    app.dock.setIcon(iconPath);
+  }
+
   createWindow();
 
   logRuntime('info', 'main window created');
