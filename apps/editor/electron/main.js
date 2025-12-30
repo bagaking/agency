@@ -9,6 +9,7 @@ const { setupQuickActionsHandlers } = require('./ipc/handlers/quickActions');
 const { setupGatesHandlers } = require('./ipc/handlers/gates');
 const { setupTmuxHandlers } = require('./ipc/handlers/tmux');
 const { setupWorktreeLinksHandlers } = require('./ipc/handlers/worktreeLinks');
+const { setupExplorerHandlers } = require('./ipc/handlers/explorer');
 const { setupRuntimeLogHandlers } = require('./ipc/handlers/runtimeLog');
 const {
   initRuntimeLogger,
@@ -67,6 +68,7 @@ app.whenReady().then(async () => {
   setupGatesHandlers();
   setupTmuxHandlers();
   setupWorktreeLinksHandlers();
+  setupExplorerHandlers();
   setupRuntimeLogHandlers();
   createWindow();
 

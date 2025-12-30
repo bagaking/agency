@@ -2,6 +2,7 @@ import React from 'react';
 import { ActivityBar } from './ActivityBar.jsx';
 import { AgentCellsSidebar } from './AgentCellsSidebar.jsx';
 import { HierarchySidebar } from './HierarchySidebar.jsx';
+import { ProjectExplorerSidebar } from './explorer/ProjectExplorerSidebar.jsx';
 import { EditorPane } from './EditorPane.jsx';
 import { QuickActionsView } from './QuickActionsView.jsx';
 import { GatesView } from './GatesView.jsx';
@@ -76,7 +77,7 @@ export function AppLayout({
     <div className="flex flex-1 overflow-hidden">
       <ActivityBar activeView={activeView} onSwitchView={onSwitchView} />
 
-      {activeView === 'explorer' && (
+      {activeView === 'agent-cells' && (
         <AgentCellsSidebar
           cells={cells}
           selectedId={selectedId}
@@ -85,6 +86,8 @@ export function AppLayout({
           onJump={onJumpToHierarchy}
         />
       )}
+
+      {activeView === 'explorer' && <ProjectExplorerSidebar />}
 
       {activeView === 'hierarchy' && (
         <HierarchySidebar

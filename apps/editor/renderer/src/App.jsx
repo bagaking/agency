@@ -29,7 +29,7 @@ function App() {
   const [transitionError, setTransitionError] = useState('');
   const [transitionLoading, setTransitionLoading] = useState(false);
   const [uiStateLoaded, setUiStateLoaded] = useState(false);
-  const [activeView, setActiveView] = useState('explorer');
+  const [activeView, setActiveView] = useState('agent-cells');
   const [hierarchySection, setHierarchySection] = useState('actions');
   const [actionsScope, setActionsScope] = useState('global');
   const [gateScope, setGateScope] = useState('global');
