@@ -16,10 +16,7 @@ export function AgentCellsSidebar({
   onJump,
 }) {
   return (
-    <aside
-      className="flex w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
-      data-testid="sidebar"
-    >
+    <aside className="flex w-full flex-col text-sidebar-foreground" data-testid="sidebar">
       <div className="flex items-center justify-between px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         <span>Agent Cells</span>
         <button

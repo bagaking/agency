@@ -3,10 +3,12 @@ import { ActivityBar } from './ActivityBar.jsx';
 import { AgentCellsSidebar } from './AgentCellsSidebar.jsx';
 import { HierarchySidebar } from './HierarchySidebar.jsx';
 import { ProjectExplorerSidebar } from './explorer/ProjectExplorerSidebar.jsx';
+import { ProjectExplorerPane } from './explorer/ProjectExplorerPane.jsx';
 import { EditorPane } from './EditorPane.jsx';
 import { QuickActionsView } from './QuickActionsView.jsx';
 import { GatesView } from './GatesView.jsx';
 import { WorktreeLinksView } from './WorktreeLinksView.jsx';
+import { SidebarDock } from './layout/SidebarDock.jsx';
 
 export function AppLayout({
   activeView,
@@ -72,48 +74,67 @@ export function AppLayout({
   canUseProjectScope,
   canUseAgentScope,
   editorPaneProps,
+  sidebarWidth,
+  sidebarCollapsed,
+  onResizeSidebar,
+  onResizeSidebarEnd,
+  onToggleSidebar,
+  explorerSidebarProps,
+  explorerPaneProps,
 }) {
+  const activeSidebar =
+    activeView === 'explorer' ? (
+      <ProjectExplorerSidebar {...explorerSidebarProps} />
+    ) : activeView === 'agent-cells' ? (
+      <AgentCellsSidebar
+        cells={cells}
+        selectedId={selectedId}
+        onSelect={onSelectCell}
+        onCreate={onCreateCell}
+        onJump={onJumpToHierarchy}
+      />
+    ) : activeView === 'hierarchy' ? (
+      <HierarchySidebar
+        section={hierarchySection}
+        actionsScope={actionsScope}
+        gateScope={gateScope}
+        onSelectActionsScope={onSelectActionsScope}
+        onSelectGateScope={onSelectGateScope}
+        onSelectSoftlinks={() => onSelectHierarchySection('softlinks')}
+        canUseProjectScope={canUseProjectScope}
+        canUseAgentScope={canUseAgentScope}
+        actionSummary={actionSummary}
+        gateSummary={gateSummary}
+      />
+    ) : null;
   return (
     <div className="flex flex-1 overflow-hidden">
       <ActivityBar activeView={activeView} onSwitchView={onSwitchView} />
 
-      {activeView === 'agent-cells' && (
-        <AgentCellsSidebar
-          cells={cells}
-          selectedId={selectedId}
-          onSelect={onSelectCell}
-          onCreate={onCreateCell}
-          onJump={onJumpToHierarchy}
-        />
-      )}
-
-      {activeView === 'explorer' && <ProjectExplorerSidebar />}
-
-      {activeView === 'hierarchy' && (
-        <HierarchySidebar
-          section={hierarchySection}
-          actionsScope={actionsScope}
-          gateScope={gateScope}
-          onSelectActionsScope={onSelectActionsScope}
-          onSelectGateScope={onSelectGateScope}
-          onSelectSoftlinks={() => onSelectHierarchySection('softlinks')}
-          canUseProjectScope={canUseProjectScope}
-          canUseAgentScope={canUseAgentScope}
-          actionSummary={actionSummary}
-          gateSummary={gateSummary}
-        />
-      )}
+      {activeSidebar ? (
+        <SidebarDock
+          width={sidebarWidth}
+          collapsed={sidebarCollapsed}
+          onResize={onResizeSidebar}
+          onResizeEnd={onResizeSidebarEnd}
+          onToggleCollapse={onToggleSidebar}
+        >
+          {activeSidebar}
+        </SidebarDock>
+      ) : null}
 
       <div className="relative flex-1 overflow-hidden">
-        <div
-          className={`absolute inset-0 ${
-            activeView === 'hierarchy'
-              ? 'opacity-0 invisible pointer-events-none'
-              : 'opacity-100 visible'
-          }`}
-        >
-          <EditorPane {...editorPaneProps} />
-        </div>
+        {activeView === 'agent-cells' ? (
+          <div className="absolute inset-0">
+            <EditorPane {...editorPaneProps} />
+          </div>
+        ) : null}
+
+        {activeView === 'explorer' ? (
+          <div className="absolute inset-0">
+            <ProjectExplorerPane {...explorerPaneProps} />
+          </div>
+        ) : null}
 
         {activeView === 'hierarchy' && hierarchySection === 'actions' ? (
           <div className="absolute inset-0">

@@ -10,9 +10,11 @@
 ## Navigation
 
 - The activity bar includes Explorer, Agent Cells, and Hierarchy entries.
+- The docked sidebar supports resize/collapse and persists width state across launches.
 - Agent Cells focuses on Cell management and offers jump links to Actions, Gates, and Softlinks.
 - Hierarchy hosts configuration for Actions, Gates, and Softlinks.
 - Explorer provides a project file tree with git status and per-Cell change attribution.
+- Explorer scopes to the active Agent Cell worktree (or repo root) and opens file previews in the main pane.
 
 ## Cell Lifecycle Files
 
@@ -103,6 +105,8 @@ make editor-dev
 
 - Open Explorer, expand folders, and confirm the tree loads lazily with refresh support.
 - Create, rename, delete, and drag/drop a file or folder from the Explorer view.
+- Select a file in Explorer and confirm the preview opens in the main pane.
+- Switch the Explorer scope to another Cell and confirm the tree resets to that worktree.
 - Modify a file in multiple worktrees, refresh Explorer, and confirm per-Cell badges appear.
 - Toggle "changes only" and verify clean files are filtered out.
 - Open the editor with tmux installed, create a session, restart the editor, and confirm the session reattaches.

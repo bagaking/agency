@@ -1,12 +1,12 @@
 import React from 'react';
-import { Layers, Settings, Terminal, ListTree, Folder } from 'lucide-react';
+import { Layers, Settings, ListTree, Folder } from 'lucide-react';
+import { Logo } from './Logo.jsx';
 
 export function ActivityBar({ activeView, onSwitchView }) {
   const items = [
     { id: 'explorer', icon: Folder, label: 'Explorer' },
     { id: 'agent-cells', icon: Layers, label: 'Agent Cells' },
     { id: 'hierarchy', icon: ListTree, label: 'Hierarchy' },
-    { id: 'terminal', icon: Terminal, label: 'Terminal' },
   ];
 
   const bottomItems = [
@@ -15,7 +15,10 @@ export function ActivityBar({ activeView, onSwitchView }) {
 
   return (
     <aside className="flex w-12 flex-col items-center justify-between bg-activity-bar py-3 border-r border-activity-bar-border">
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 items-center">
+        <div className="mb-2">
+            <Logo size={28} className="hover:scale-110 transition-transform cursor-pointer" />
+        </div>
         {items.map((item) => (
           <ActivityItem
             key={item.id}

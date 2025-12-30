@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('agency', {
   listExplorerEntries: (payload) => ipcRenderer.invoke('explorer:list', payload),
   getExplorerStatus: () => ipcRenderer.invoke('explorer:status'),
   searchExplorerFiles: (payload) => ipcRenderer.invoke('explorer:search', payload),
+  readExplorerEntry: (payload) => ipcRenderer.invoke('explorer:read', payload),
   createExplorerEntry: (payload) => ipcRenderer.invoke('explorer:create', payload),
   renameExplorerEntry: (payload) => ipcRenderer.invoke('explorer:rename', payload),
   deleteExplorerEntry: (payload) => ipcRenderer.invoke('explorer:delete', payload),

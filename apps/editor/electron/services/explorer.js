@@ -38,6 +38,7 @@ const ENTRY_TYPES = {
 };
 
 const DEFAULT_EXCLUDES = new Set(['.git']);
+const MAX_PREVIEW_BYTES = 200 * 1024;
 
 function normalizeRelPath(value) {
   if (!value) {
@@ -46,14 +47,28 @@ function normalizeRelPath(value) {
   return value.replace(/\\/g, '/').replace(/^\.?\//, '').replace(/\/+$/, '');
 }
 
-function resolveSafePath(repoRoot, relativePath) {
+function resolveSafePath(rootPath, relativePath) {
   const normalized = normalizeRelPath(relativePath);
-  const absolute = path.resolve(repoRoot, normalized);
-  const rel = path.relative(repoRoot, absolute);
+  const absolute = path.resolve(rootPath, normalized);
+  const rel = path.relative(rootPath, absolute);
   if (rel.startsWith('..') || path.isAbsolute(rel)) {
     throw new Error('Path escapes repository root.');
   }
   return absolute;
+}
+
+async function resolveExplorerRoot(rootPath) {
+  if (!rootPath) {
+    const repoRoot = await getRepoRoot();
+    return { repoRoot, rootPath: repoRoot };
+  }
+  try {
+    const repoRoot = await getRepoRoot(rootPath);
+    return { repoRoot, rootPath };
+  } catch (error) {
+    const repoRoot = await getRepoRoot();
+    return { repoRoot, rootPath: repoRoot };
+  }
 }
 
 function sortEntries(a, b) {
@@ -63,8 +78,9 @@ function sortEntries(a, b) {
   return a.name.localeCompare(b.name);
 }
 
-async function listDirectory({ repoRoot, relativePath = '', showHidden = true }) {
-  const targetPath = resolveSafePath(repoRoot, relativePath);
+async function listDirectory({ rootPath, relativePath = '', showHidden = true }) {
+  const resolved = await resolveExplorerRoot(rootPath);
+  const targetPath = resolveSafePath(resolved.rootPath, relativePath);
   const stats = await fsp.stat(targetPath);
   if (!stats.isDirectory()) {
     throw new Error('Target path is not a directory.');
@@ -382,13 +398,14 @@ async function getExplorerStatus() {
   };
 }
 
-async function searchFiles({ repoRoot, query, limit = 1000 }) {
+async function searchFiles({ rootPath, query, limit = 1000 }) {
   if (!query) {
     return { matches: [], truncated: false };
   }
+  const resolved = await resolveExplorerRoot(rootPath);
   const lowerQuery = query.toLowerCase();
-  const tracked = await runGitRaw(['ls-files', '-z'], repoRoot);
-  const untracked = await runGitRaw(['ls-files', '--others', '--exclude-standard', '-z'], repoRoot);
+  const tracked = await runGitRaw(['ls-files', '-z'], resolved.rootPath);
+  const untracked = await runGitRaw(['ls-files', '--others', '--exclude-standard', '-z'], resolved.rootPath);
   const tokens = `${tracked}\0${untracked}`.split('\0').filter(Boolean);
   const matches = [];
   for (const token of tokens) {
@@ -403,13 +420,14 @@ async function searchFiles({ repoRoot, query, limit = 1000 }) {
   return { matches, truncated: false };
 }
 
-async function createEntry({ repoRoot, parentPath, name, type }) {
+async function createEntry({ rootPath, parentPath, name, type }) {
   if (!name) {
     throw new Error('Name is required.');
   }
+  const resolved = await resolveExplorerRoot(rootPath);
   const relativeParent = normalizeRelPath(parentPath);
   const targetRel = normalizeRelPath(path.join(relativeParent, name));
-  const targetPath = resolveSafePath(repoRoot, targetRel);
+  const targetPath = resolveSafePath(resolved.rootPath, targetRel);
   if (fs.existsSync(targetPath)) {
     throw new Error('Target already exists.');
   }
@@ -422,9 +440,10 @@ async function createEntry({ repoRoot, parentPath, name, type }) {
   return { path: targetRel };
 }
 
-async function renameEntry({ repoRoot, sourcePath, targetPath }) {
-  const fromPath = resolveSafePath(repoRoot, sourcePath);
-  const toPath = resolveSafePath(repoRoot, targetPath);
+async function renameEntry({ rootPath, sourcePath, targetPath }) {
+  const resolved = await resolveExplorerRoot(rootPath);
+  const fromPath = resolveSafePath(resolved.rootPath, sourcePath);
+  const toPath = resolveSafePath(resolved.rootPath, targetPath);
   if (!fs.existsSync(fromPath)) {
     throw new Error('Source does not exist.');
   }
@@ -436,8 +455,9 @@ async function renameEntry({ repoRoot, sourcePath, targetPath }) {
   return { path: normalizeRelPath(targetPath) };
 }
 
-async function deleteEntry({ repoRoot, targetPath }) {
-  const absolute = resolveSafePath(repoRoot, targetPath);
+async function deleteEntry({ rootPath, targetPath }) {
+  const resolved = await resolveExplorerRoot(rootPath);
+  const absolute = resolveSafePath(resolved.rootPath, targetPath);
   if (!fs.existsSync(absolute)) {
     return { path: normalizeRelPath(targetPath) };
   }
@@ -445,9 +465,10 @@ async function deleteEntry({ repoRoot, targetPath }) {
   return { path: normalizeRelPath(targetPath) };
 }
 
-async function copyEntry({ repoRoot, sourcePath, targetPath }) {
-  const fromPath = resolveSafePath(repoRoot, sourcePath);
-  const toPath = resolveSafePath(repoRoot, targetPath);
+async function copyEntry({ rootPath, sourcePath, targetPath }) {
+  const resolved = await resolveExplorerRoot(rootPath);
+  const fromPath = resolveSafePath(resolved.rootPath, sourcePath);
+  const toPath = resolveSafePath(resolved.rootPath, targetPath);
   if (!fs.existsSync(fromPath)) {
     throw new Error('Source does not exist.');
   }
@@ -459,10 +480,37 @@ async function copyEntry({ repoRoot, sourcePath, targetPath }) {
   return { path: normalizeRelPath(targetPath) };
 }
 
-async function revealEntry({ repoRoot, targetPath }) {
-  const absolute = resolveSafePath(repoRoot, targetPath);
+async function revealEntry({ rootPath, targetPath }) {
+  const resolved = await resolveExplorerRoot(rootPath);
+  const absolute = resolveSafePath(resolved.rootPath, targetPath);
   shell.showItemInFolder(absolute);
   return { path: normalizeRelPath(targetPath) };
+}
+
+async function readEntry({ rootPath, targetPath }) {
+  if (!targetPath) {
+    throw new Error('targetPath is required.');
+  }
+  const resolved = await resolveExplorerRoot(rootPath);
+  const absolute = resolveSafePath(resolved.rootPath, targetPath);
+  const stats = await fsp.stat(absolute);
+  if (!stats.isFile()) {
+    throw new Error('Target is not a file.');
+  }
+  const size = stats.size || 0;
+  const length = Math.min(size, MAX_PREVIEW_BYTES);
+  const handle = await fsp.open(absolute, 'r');
+  const buffer = Buffer.alloc(length);
+  await handle.read(buffer, 0, length, 0);
+  await handle.close();
+  const isBinary = buffer.includes(0);
+  return {
+    path: normalizeRelPath(targetPath),
+    size,
+    truncated: size > MAX_PREVIEW_BYTES,
+    binary: isBinary,
+    content: isBinary ? '' : buffer.toString('utf-8'),
+  };
 }
 
 module.exports = {
@@ -474,5 +522,6 @@ module.exports = {
   deleteEntry,
   copyEntry,
   revealEntry,
+  readEntry,
   STATUS_LABELS,
 };

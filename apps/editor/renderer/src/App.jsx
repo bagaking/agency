@@ -30,6 +30,8 @@ function App() {
   const [transitionLoading, setTransitionLoading] = useState(false);
   const [uiStateLoaded, setUiStateLoaded] = useState(false);
   const [activeView, setActiveView] = useState('agent-cells');
+  const [sidebarWidth, setSidebarWidth] = useState(320);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [hierarchySection, setHierarchySection] = useState('actions');
   const [actionsScope, setActionsScope] = useState('global');
   const [gateScope, setGateScope] = useState('global');
@@ -38,6 +40,7 @@ function App() {
   const [terminalMode, setTerminalMode] = useState('shell');
   const [tmuxStatus, setTmuxStatus] = useState({ available: true });
   const [initialActiveSessions, setInitialActiveSessions] = useState({});
+  const [explorerFile, setExplorerFile] = useState('');
   const selectedCell = useMemo(
     () => cells.find((cell) => cell.id === selectedId),
     [cells, selectedId]
@@ -79,6 +82,18 @@ function App() {
           }
           if (state?.selectedId) {
             setSelectedId(state.selectedId);
+          }
+          if (typeof state?.sidebarWidth === 'number') {
+            setSidebarWidth(state.sidebarWidth);
+          }
+          if (typeof state?.sidebarCollapsed === 'boolean') {
+            setSidebarCollapsed(state.sidebarCollapsed);
+          }
+          if (typeof state?.activeView === 'string') {
+            const allowedViews = new Set(['agent-cells', 'explorer', 'hierarchy', 'settings']);
+            if (allowedViews.has(state.activeView)) {
+              setActiveView(state.activeView);
+            }
           }
           await loadCells(state?.selectedId);
         } catch (error) {
@@ -226,6 +241,22 @@ function App() {
     setTerminalMode('shell');
     setTerminalOpen(true);
   }, [selectedCell?.id, activeSessionByCellId, uiStateLoaded]);
+
+  useEffect(() => {
+    if (!uiStateLoaded || !window.agency?.setUiState) {
+      return;
+    }
+    const handle = setTimeout(() => {
+      window.agency
+        .setUiState({
+          sidebarWidth,
+          sidebarCollapsed,
+          activeView,
+        })
+        .catch(() => undefined);
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [activeView, sidebarCollapsed, sidebarWidth, uiStateLoaded]);
   const gateDisplayStage = selectedCell?.state === 'archived' ? 'archived' : 'active';
   const gateResultsByStage = selectedCell ? gateResultsByCellId[selectedCell.id] || {} : {};
   const gatesCheckingByStage = selectedCell ? gatesCheckingByCellId[selectedCell.id] || {} : {};
@@ -302,7 +333,7 @@ function App() {
     gatesCheckingByStage,
     gateDisplayStage,
     idleSince: lastActivityAt,
-    isVisible: activeView !== 'hierarchy',
+    isVisible: activeView === 'agent-cells',
     onCreateSession: createSession,
     onRefreshSessions: refreshSessions,
     onSelectSession: selectSession,
@@ -321,6 +352,43 @@ function App() {
     onSessionAttached: handleSessionAttached,
     terminalFontSize: activeFontSize,
   };
+  const explorerRootPath = selectedCell?.worktreePath || '';
+  const explorerRootLabel = selectedCell?.name || '';
+  useEffect(() => {
+    setExplorerFile('');
+  }, [selectedCell?.id]);
+  const handleSwitchView = useCallback(
+    (view) => {
+      setActiveView(view);
+      if (sidebarCollapsed) {
+        setSidebarCollapsed(false);
+      }
+    },
+    [sidebarCollapsed]
+  );
+  const handleSidebarResizeEnd = useCallback(
+    (nextWidth) => {
+      setSidebarWidth(nextWidth);
+      if (window.agency?.setUiState) {
+        window.agency
+          .setUiState({
+            sidebarWidth: nextWidth,
+            sidebarCollapsed,
+          })
+          .catch(() => undefined);
+      }
+    },
+    [sidebarCollapsed]
+  );
+  const handleRevealExplorerFile = useCallback(() => {
+    if (!explorerFile) {
+      return;
+    }
+    window.agency?.revealExplorerEntry({
+      targetPath: explorerFile,
+      rootPath: explorerRootPath || undefined,
+    });
+  }, [explorerFile, explorerRootPath]);
   const handleHierarchyJump = useCallback(
     (target) => {
       setHierarchySection(target);
@@ -366,7 +434,7 @@ function App() {
     <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
       <AppLayout
         activeView={activeView}
-        onSwitchView={setActiveView}
+        onSwitchView={handleSwitchView}
         hierarchySection={hierarchySection}
         onSelectHierarchySection={handleSelectHierarchySection}
         cells={cells}
@@ -428,6 +496,24 @@ function App() {
         canUseProjectScope={canUseScopedConfig}
         canUseAgentScope={canUseScopedConfig}
         editorPaneProps={editorPaneProps}
+        sidebarWidth={sidebarWidth}
+        sidebarCollapsed={sidebarCollapsed}
+        onResizeSidebar={setSidebarWidth}
+        onResizeSidebarEnd={handleSidebarResizeEnd}
+        onToggleSidebar={() => setSidebarCollapsed((value) => !value)}
+        explorerSidebarProps={{
+          rootPath: explorerRootPath,
+          rootLabel: explorerRootLabel,
+          cells,
+          selectedId,
+          onSelectCell: setSelectedId,
+          onOpenFile: setExplorerFile,
+        }}
+        explorerPaneProps={{
+          rootPath: explorerRootPath,
+          filePath: explorerFile,
+          onReveal: explorerFile ? handleRevealExplorerFile : undefined,
+        }}
       />
 
       <StatusBar loading={loading} onRefresh={loadCells} tmuxStatus={tmuxStatus} />

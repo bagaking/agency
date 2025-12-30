@@ -51,10 +51,18 @@ const sortCells = (cells) => {
   });
 };
 
-export function ProjectExplorerSidebar() {
+export function ProjectExplorerSidebar({
+  rootPath: scopeRootPath,
+  rootLabel: scopeRootLabel,
+  cells,
+  selectedId,
+  onSelectCell,
+  onOpenFile,
+}) {
   const {
+    rootPath,
+    rootLabel,
     repoRoot,
-    rootName,
     nodesByPath,
     childrenByPath,
     expandedPaths,
@@ -84,7 +92,7 @@ export function ProjectExplorerSidebar() {
     copyEntry,
     revealEntry,
     handleSelectPath,
-  } = useProjectExplorer();
+  } = useProjectExplorer({ rootPath: scopeRootPath, rootLabel: scopeRootLabel });
 
   const [draftEntry, setDraftEntry] = useState(null);
   const [renameTarget, setRenameTarget] = useState(null);
@@ -93,7 +101,8 @@ export function ProjectExplorerSidebar() {
   const isSearchActive = searchQuery.trim().length > 0;
   const tree = isSearchActive ? searchTree : { nodes: nodesByPath, children: childrenByPath };
 
-  const rootLabel = rootName || 'Project';
+  const activeRootLabel = rootLabel || 'Project';
+  const hasCells = cells && cells.length > 0;
 
   const selectionSet = useMemo(() => new Set(selectedPaths), [selectedPaths]);
 
@@ -151,7 +160,8 @@ export function ProjectExplorerSidebar() {
 
   const handleCopyPath = async (targetPath) => {
     try {
-      const fullPath = repoRoot ? `${repoRoot}/${targetPath}` : targetPath;
+      const base = rootPath || repoRoot || '';
+      const fullPath = base ? `${base}/${targetPath}` : targetPath;
       await navigator.clipboard.writeText(fullPath);
     } catch (err) {
       // ignore clipboard errors silently
@@ -292,7 +302,12 @@ export function ProjectExplorerSidebar() {
           isSelected ? 'bg-primary/20 text-foreground' : 'text-muted-foreground hover:text-foreground'
         }`}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
-        onClick={(event) => handleSelectPath(path, event)}
+        onClick={(event) => {
+          handleSelectPath(path, event);
+          if (!isDir && !event.metaKey && !event.ctrlKey && !event.shiftKey) {
+            onOpenFile?.(path);
+          }
+        }}
         onContextMenu={(event) => {
           event.preventDefault();
           handleSelectPath(path, event);
@@ -408,13 +423,16 @@ export function ProjectExplorerSidebar() {
   };
 
   return (
-    <aside className="flex w-80 flex-col border-r border-border bg-muted/10">
+    <aside className="flex w-full flex-col">
       <header className="border-b border-border px-4 py-3">
         <div className="flex items-center justify-between">
           <div>
             <div className="text-sm font-semibold text-foreground">Explorer</div>
-            <div className="text-[11px] text-muted-foreground/70 truncate" title={repoRoot}>
-              {rootLabel}
+            <div
+              className="text-[11px] text-muted-foreground/70 truncate"
+              title={rootPath || repoRoot}
+            >
+              {activeRootLabel}
             </div>
           </div>
           <button
@@ -426,6 +444,28 @@ export function ProjectExplorerSidebar() {
             <RefreshCw size={14} />
           </button>
         </div>
+        {hasCells ? (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase text-muted-foreground/60">
+              Scope
+            </span>
+            <select
+              className="flex-1 rounded border border-border bg-transparent px-2 py-1 text-xs text-foreground focus:outline-none"
+              value={selectedId || ''}
+              onChange={(event) => onSelectCell?.(event.target.value)}
+            >
+              {cells.map((cell) => (
+                <option key={cell.id} value={cell.id}>
+                  {cell.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div className="mt-2 text-[10px] text-muted-foreground/60">
+            Repository scope (no active Cells).
+          </div>
+        )}
         <div className="mt-3 flex items-center gap-2">
           <div className="relative flex-1">
             <Search size={12} className="absolute left-2 top-2.5 text-muted-foreground/60" />

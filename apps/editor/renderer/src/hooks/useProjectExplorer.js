@@ -60,16 +60,17 @@ const toRelativePath = (value) => value.replace(/\\/g, '/').replace(/^\.?\//, ''
 const dirname = (value) => value.split('/').slice(0, -1).join('/');
 const basename = (value) => value.split('/').pop() || value;
 
-export function useProjectExplorer() {
+const pathBaseName = (value) => value.split('/').filter(Boolean).pop() || value;
+
+export function useProjectExplorer({ rootPath, rootLabel } = {}) {
   const [repoRoot, setRepoRoot] = useState('');
-  const [rootName, setRootName] = useState('');
+  const [repoName, setRepoName] = useState('');
   const [nodesByPath, setNodesByPath] = useState({ '': { path: '', name: '', type: 'dir' } });
   const [childrenByPath, setChildrenByPath] = useState({ '': [] });
   const [expandedPaths, setExpandedPaths] = useState(() => new Set(['']));
   const [loadingPaths, setLoadingPaths] = useState(() => new Set());
   const [statusByPath, setStatusByPath] = useState({});
   const [folderStatusByPath, setFolderStatusByPath] = useState({});
-  const [cells, setCells] = useState([]);
   const [statusLabels, setStatusLabels] = useState({});
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -87,7 +88,7 @@ export function useProjectExplorer() {
     try {
       const info = await window.agency.getExplorerRoot();
       setRepoRoot(info?.repoRoot || '');
-      setRootName(info?.name || '');
+      setRepoName(info?.name || '');
     } catch (err) {
       setError(err?.message || 'Failed to resolve repository root.');
     }
@@ -101,10 +102,9 @@ export function useProjectExplorer() {
       const status = await window.agency.getExplorerStatus();
       setStatusByPath(status?.files || {});
       setFolderStatusByPath(status?.folders || {});
-      setCells(status?.cells || []);
       setStatusLabels(status?.statusLabels || {});
       setRepoRoot(status?.repoRoot || '');
-      setRootName(status?.rootName || '');
+      setRepoName(status?.rootName || '');
     } catch (err) {
       setError(err?.message || 'Failed to load explorer status.');
     }
@@ -121,6 +121,7 @@ export function useProjectExplorer() {
         const result = await window.agency.listExplorerEntries({
           path: normalized,
           showHidden,
+          rootPath: rootPath || undefined,
         });
         const entries = result?.entries || [];
         setNodesByPath((current) => {
@@ -144,18 +145,32 @@ export function useProjectExplorer() {
         });
       }
     },
-    [showHidden]
+    [rootPath, showHidden]
   );
 
   const refreshAll = useCallback(async () => {
-    await refreshRoot();
+    if (!rootPath) {
+      await refreshRoot();
+    }
     await refreshStatus();
     await loadDirectory('');
-  }, [refreshRoot, refreshStatus, loadDirectory]);
+  }, [loadDirectory, refreshRoot, refreshStatus, rootPath]);
 
   useEffect(() => {
     refreshAll();
-  }, [refreshAll]);
+  }, [refreshAll, rootPath]);
+
+  useEffect(() => {
+    setNodesByPath({ '': { path: '', name: '', type: 'dir' } });
+    setChildrenByPath({ '': [] });
+    setExpandedPaths(new Set(['']));
+    setLoadingPaths(new Set());
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchTruncated(false);
+    setSelectedPaths([]);
+    lastSelectedRef.current = '';
+  }, [rootPath]);
 
   const expandPath = useCallback(
     async (path) => {
@@ -237,53 +252,68 @@ export function useProjectExplorer() {
     if (!window.agency?.createExplorerEntry) {
       return null;
     }
-    const result = await window.agency.createExplorerEntry(payload);
+    const result = await window.agency.createExplorerEntry({
+      ...payload,
+      rootPath: rootPath || undefined,
+    });
     const parentPath = payload?.parentPath || '';
     await loadDirectory(parentPath);
     await refreshStatus();
     return result;
-  }, [loadDirectory, refreshStatus]);
+  }, [loadDirectory, refreshStatus, rootPath]);
 
   const renameEntry = useCallback(async (payload) => {
     if (!window.agency?.renameExplorerEntry) {
       return null;
     }
-    const result = await window.agency.renameExplorerEntry(payload);
+    const result = await window.agency.renameExplorerEntry({
+      ...payload,
+      rootPath: rootPath || undefined,
+    });
     const sourceParent = dirname(toRelativePath(payload?.sourcePath || ''));
     const targetParent = dirname(toRelativePath(payload?.targetPath || ''));
     await Promise.all([loadDirectory(sourceParent), loadDirectory(targetParent)]);
     await refreshStatus();
     return result;
-  }, [loadDirectory, refreshStatus]);
+  }, [loadDirectory, refreshStatus, rootPath]);
 
   const deleteEntry = useCallback(async (payload) => {
     if (!window.agency?.deleteExplorerEntry) {
       return null;
     }
-    const result = await window.agency.deleteExplorerEntry(payload);
+    const result = await window.agency.deleteExplorerEntry({
+      ...payload,
+      rootPath: rootPath || undefined,
+    });
     const parentPath = dirname(toRelativePath(payload?.targetPath || ''));
     await loadDirectory(parentPath);
     await refreshStatus();
     return result;
-  }, [loadDirectory, refreshStatus]);
+  }, [loadDirectory, refreshStatus, rootPath]);
 
   const copyEntry = useCallback(async (payload) => {
     if (!window.agency?.copyExplorerEntry) {
       return null;
     }
-    const result = await window.agency.copyExplorerEntry(payload);
+    const result = await window.agency.copyExplorerEntry({
+      ...payload,
+      rootPath: rootPath || undefined,
+    });
     const targetParent = dirname(toRelativePath(payload?.targetPath || ''));
     await loadDirectory(targetParent);
     await refreshStatus();
     return result;
-  }, [loadDirectory, refreshStatus]);
+  }, [loadDirectory, refreshStatus, rootPath]);
 
   const revealEntry = useCallback(async (payload) => {
     if (!window.agency?.revealExplorerEntry) {
       return null;
     }
-    return window.agency.revealExplorerEntry(payload);
-  }, []);
+    return window.agency.revealExplorerEntry({
+      ...payload,
+      rootPath: rootPath || undefined,
+    });
+  }, [rootPath]);
 
   const search = useCallback(
     async (query) => {
@@ -297,14 +327,17 @@ export function useProjectExplorer() {
         return;
       }
       try {
-        const result = await window.agency.searchExplorerFiles({ query });
+        const result = await window.agency.searchExplorerFiles({
+          query,
+          rootPath: rootPath || undefined,
+        });
         setSearchResults(result?.matches || []);
         setSearchTruncated(Boolean(result?.truncated));
       } catch (err) {
         setError(err?.message || 'Failed to search files.');
       }
     },
-    []
+    [rootPath]
   );
 
   useEffect(() => {
@@ -317,8 +350,9 @@ export function useProjectExplorer() {
   const searchTree = useMemo(() => buildTreeFromMatches(searchResults), [searchResults]);
 
   return {
+    rootPath: rootPath || repoRoot,
+    rootLabel: rootLabel || repoName || pathBaseName(rootPath || repoRoot) || 'Project',
     repoRoot,
-    rootName,
     nodesByPath,
     childrenByPath,
     expandedPaths,
@@ -326,7 +360,6 @@ export function useProjectExplorer() {
     statusByPath,
     folderStatusByPath,
     statusLabels,
-    cells,
     error,
     setErrorMessage: setError,
     searchQuery,
