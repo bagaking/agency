@@ -6,7 +6,7 @@ The configuration surfaces for Actions and lifecycle Gates are scattered and tig
 ## What Changes
 - Add a new Activity Bar entry named "Hierarchy" that hosts configuration for Actions, Gates, and Softlinks.
 - Rename the Explorer to "Agent Cells" and retain jump links to Actions/Gates/Softlinks for quick access.
-- Introduce configurable Gates with Global/Project/Agent scopes, stored in userData and `.agency` files, and executed as line-by-line shell scripts.
+- Introduce configurable Gates with Global/Project/Agent scopes, stored as YAML in userData and `.agency` files, and executed as line-by-line shell scripts.
 - Define separate Gate sets per lifecycle stage (draft/active/archived) with Active/Archived transitions blocked when their gates fail.
 
 ## Impact

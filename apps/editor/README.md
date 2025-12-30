@@ -44,11 +44,12 @@
 
 - Gates are configured under Hierarchy -> Gates.
 - Gate definitions are grouped by stage: `draft`, `active`, and `archived`.
-- Global gates live in the editor user data directory as `gates.json`.
+- Global gates live in the editor user data directory as `gates.yaml`.
 - Project gates live at `.agency/gates.yaml` in the repo root.
 - Agent gates live at `.agency/gates-<worktreeName>.yaml` in the worktree.
 - Gates resolve by scope order: Global -> Project -> Agent, matching by `id`.
-- Gate commands run line-by-line shell scripts; failures block transitions to Active/Archived.
+- Gate commands run line-by-line via `/bin/zsh -lc` from the repo root; empty/comment lines are skipped and failures block transitions to Active/Archived.
+- Gate commands receive context in `AGENCY_CELL_NAME`, `AGENCY_WORKTREE_PATH`, and `AGENCY_LIFECYCLE_TARGET`.
 
 ## Softlinks (Local Directories)
 

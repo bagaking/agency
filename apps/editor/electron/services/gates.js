@@ -61,11 +61,17 @@ const DEFAULT_GATES = {
 const PROJECT_FILENAME = 'gates.yaml';
 const AGENT_PREFIX = 'gates-';
 const AGENT_EXT = '.yaml';
+const GLOBAL_FILENAME = 'gates.yaml';
+const LEGACY_GLOBAL_FILENAME = 'gates.json';
 
 const fsp = fs.promises;
 
 function getGlobalGatesPath() {
-  return path.join(app.getPath('userData'), 'gates.json');
+  return path.join(app.getPath('userData'), GLOBAL_FILENAME);
+}
+
+function getLegacyGlobalGatesPath() {
+  return path.join(app.getPath('userData'), LEGACY_GLOBAL_FILENAME);
 }
 
 async function getProjectGatesPath(worktreePath) {
@@ -126,14 +132,24 @@ function normalizeConfig(raw) {
 
 async function readGlobalGates() {
   const filePath = getGlobalGatesPath();
-  if (!fs.existsSync(filePath)) {
+  const legacyPath = getLegacyGlobalGatesPath();
+  const targetPath = fs.existsSync(filePath)
+    ? filePath
+    : fs.existsSync(legacyPath)
+      ? legacyPath
+      : null;
+  if (!targetPath) {
     return normalizeConfig(DEFAULT_GATES);
   }
   try {
-    const raw = await fsp.readFile(filePath, 'utf-8');
-    const parsed = JSON.parse(raw);
+    const raw = await fsp.readFile(targetPath, 'utf-8');
+    const parsed = targetPath.endsWith('.json') ? JSON.parse(raw) : yaml.load(raw);
     return normalizeConfig(parsed);
   } catch (error) {
+    logRuntime('warn', 'failed to parse global gates config', {
+      path: targetPath,
+      error: error?.message || String(error),
+    });
     return normalizeConfig(DEFAULT_GATES);
   }
 }
@@ -173,7 +189,7 @@ async function writeGlobalGates(config) {
   const filePath = getGlobalGatesPath();
   await fsp.mkdir(path.dirname(filePath), { recursive: true });
   const normalized = normalizeConfig(config);
-  await fsp.writeFile(filePath, JSON.stringify(normalized, null, 2), 'utf-8');
+  await fsp.writeFile(filePath, yaml.dump(normalized, { lineWidth: 120 }), 'utf-8');
   return normalized;
 }
 
@@ -251,16 +267,26 @@ async function setGates({ scope = 'global', worktreePath, gates }) {
   return writeGlobalGates(gates);
 }
 
-function runCommand(command, cwd) {
+function buildGateEnv({ cellName, worktreePath, stage }) {
+  return {
+    AGENCY_CELL_NAME: cellName || '',
+    AGENCY_WORKTREE_PATH: worktreePath || '',
+    AGENCY_LIFECYCLE_TARGET: stage || '',
+  };
+}
+
+function runCommand(command, cwd, envOverrides) {
   return new Promise((resolve) => {
     if (!command) {
       resolve({ code: 0, stdout: '', stderr: '' });
       return;
     }
-    const child = spawn(command, {
+    const child = spawn('/bin/zsh', ['-lc', command], {
       cwd,
-      shell: true,
-      env: process.env,
+      env: {
+        ...process.env,
+        ...(envOverrides || {}),
+      },
     });
     let stdout = '';
     let stderr = '';
@@ -288,18 +314,18 @@ function formatFailureDetail({ command, code, stderr, stdout }) {
   return parts.join('\n');
 }
 
-async function evaluateGate({ gate, cwd }) {
+async function evaluateGate({ gate, cwd, env }) {
   const commands = Array.isArray(gate.commands) ? gate.commands : [];
   if (commands.length === 0) {
     return { ...gate, passed: true, detail: 'No commands configured.' };
   }
   for (const command of commands) {
     const trimmed = String(command || '').trim();
-    if (!trimmed) {
+    if (!trimmed || trimmed.startsWith('#')) {
       continue;
     }
     // eslint-disable-next-line no-await-in-loop
-    const result = await runCommand(trimmed, cwd);
+    const result = await runCommand(trimmed, cwd, env);
     if (result.code !== 0) {
       return {
         ...gate,
@@ -316,7 +342,7 @@ async function evaluateGate({ gate, cwd }) {
   return { ...gate, passed: true, detail: 'All commands passed.' };
 }
 
-async function evaluateGates({ worktreePath, stage }) {
+async function evaluateGates({ worktreePath, stage, cellName }) {
   if (!worktreePath) {
     throw new Error('worktreePath is required to evaluate gates.');
   }
@@ -325,10 +351,21 @@ async function evaluateGates({ worktreePath, stage }) {
   }
   const resolved = await getGates({ scope: 'resolved', worktreePath });
   const gates = resolved[stage] || [];
+  let repoRoot = worktreePath;
+  try {
+    repoRoot = await getRepoRoot(worktreePath);
+  } catch (error) {
+    repoRoot = worktreePath;
+  }
+  const env = buildGateEnv({
+    cellName: cellName || path.basename(worktreePath),
+    worktreePath,
+    stage,
+  });
   const results = [];
   for (const gate of gates) {
     // eslint-disable-next-line no-await-in-loop
-    const result = await evaluateGate({ gate, cwd: worktreePath });
+    const result = await evaluateGate({ gate, cwd: repoRoot, env });
     results.push(result);
     if (!result.passed) {
       logRuntime('warn', 'gate check failed', {
@@ -351,8 +388,8 @@ module.exports = {
   getGates,
   setGates,
   evaluateGates,
-  checkGates: async ({ worktreePath, stage }) => {
-    const result = await evaluateGates({ worktreePath, stage });
+  checkGates: async ({ worktreePath, stage, cellName }) => {
+    const result = await evaluateGates({ worktreePath, stage, cellName });
     return result.gates;
   },
   normalizeConfig,

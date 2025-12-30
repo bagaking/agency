@@ -253,8 +253,14 @@ async function updateCellState({ id, state, worktreePath }) {
     throw new Error('Lifecycle file missing.');
   }
 
+  const lifecycle = await readLifecycleFile(lifecyclePath);
+
   if (['active', 'archived'].includes(state)) {
-    const gates = await checkGates({ worktreePath: target.path, stage: state });
+    const gates = await checkGates({
+      worktreePath: target.path,
+      stage: state,
+      cellName: lifecycle.name || lifecycle.id,
+    });
     const failed = gates.filter((gate) => !gate.passed);
     if (failed.length) {
       const labels = failed.map((gate) => gate.label).join(', ');
@@ -262,7 +268,6 @@ async function updateCellState({ id, state, worktreePath }) {
     }
   }
 
-  const lifecycle = await readLifecycleFile(lifecyclePath);
   lifecycle.state = state;
   lifecycle.updatedAt = new Date().toISOString();
   await writeLifecycleFile(lifecyclePath, lifecycle);

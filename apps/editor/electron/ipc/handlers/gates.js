@@ -21,13 +21,14 @@ function setupGatesHandlers() {
   ipcMain.handle('gates:check', async (_event, payload) => {
     const worktreePath = payload?.worktreePath;
     const stage = payload?.stage || 'active';
+    const cellName = payload?.cellName;
     if (!worktreePath) {
       throw new Error('worktreePath is required.');
     }
     if (!STAGES.includes(stage)) {
       throw new Error('Invalid gate stage.');
     }
-    return checkGates({ worktreePath, stage });
+    return checkGates({ worktreePath, stage, cellName });
   });
 }
 

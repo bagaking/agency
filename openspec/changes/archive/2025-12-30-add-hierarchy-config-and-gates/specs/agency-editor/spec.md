@@ -21,13 +21,24 @@ The editor SHALL resolve gate definitions by id using Global -> Project -> Agent
 Gate definitions SHALL be grouped by lifecycle stage (draft, active, archived).
 Gate definitions SHALL execute line-by-line shell commands.
 Gate definitions SHALL be stored as:
-- Global: the editor user data directory as `gates.json`
+- Global: the editor user data directory as `gates.yaml`
 - Project: `.agency/gates.yaml` at the repository root
 - Agent: `.agency/gates-<worktree-name>.yaml` in the worktree root
 
 #### Scenario: Override gate definition
 - **WHEN** a project gate shares an id with a global gate
 - **THEN** the project definition is used for evaluation
+
+### Requirement: Gate Execution Semantics
+The editor SHALL execute gate command lines using `/bin/zsh -lc`.
+The editor SHALL skip empty lines and lines that start with `#`.
+The editor SHALL stop gate evaluation on the first non-zero exit status.
+The editor SHALL run gate commands with the repository root as the working directory.
+The editor SHALL provide gate context via environment variables, including `AGENCY_CELL_NAME`, `AGENCY_WORKTREE_PATH`, and `AGENCY_LIFECYCLE_TARGET`.
+
+#### Scenario: Gate line handling
+- **WHEN** a gate definition contains empty lines or comment lines
+- **THEN** the editor skips them and executes only the command lines in order
 
 ### Requirement: Softlinks Configuration View
 The editor SHALL provide a Softlinks configuration entry under Hierarchy for worktree link settings.

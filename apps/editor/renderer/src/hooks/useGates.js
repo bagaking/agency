@@ -133,6 +133,7 @@ export function useGates({ selectedCell, gateScope, gateStage, repoRoot }) {
       const results = await window.agency.checkGates({
         worktreePath: cell.worktreePath,
         stage: resolvedStage,
+        cellName: cell.name,
       });
       const normalized = Array.isArray(results) ? results : [];
       updateGateResults(cell.id, resolvedStage, normalized);
