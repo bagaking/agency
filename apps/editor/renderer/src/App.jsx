@@ -387,6 +387,15 @@ function App() {
     },
     [sidebarCollapsed]
   );
+  const handleOpenExplorerForCell = useCallback(
+    (cellId) => {
+      if (cellId) {
+        setSelectedId(cellId);
+      }
+      handleSwitchView('explorer');
+    },
+    [handleSwitchView]
+  );
   const handleSidebarResizeEnd = useCallback(
     (nextWidth) => {
       setSidebarWidth(nextWidth);
@@ -455,6 +464,7 @@ function App() {
         onSelectCell={setSelectedId}
         onCreateCell={() => setShowCreate(true)}
         onJumpToHierarchy={handleHierarchyJump}
+        onOpenExplorerForCell={handleOpenExplorerForCell}
         actionsScope={actionsScope}
         onSelectActionsScope={handleSelectActionsScope}
         actionsScopeDisabled={actionsScopeDisabled}
@@ -523,6 +533,7 @@ function App() {
           sessions,
           activeSessionId,
           sessionActivityByKey,
+          onJumpToAgents: () => handleSwitchView('agent-cells'),
           onOpenFile: ({ path, mode }) => {
             workbench.openFile({ path, mode, rootPath: explorerRootPath });
           },

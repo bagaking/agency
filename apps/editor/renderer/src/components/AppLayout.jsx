@@ -21,6 +21,7 @@ export function AppLayout({
   onSelectCell,
   onCreateCell,
   onJumpToHierarchy,
+  onOpenExplorerForCell,
   actionsScope,
   onSelectActionsScope,
   actionsScopeDisabled,
@@ -92,6 +93,7 @@ export function AppLayout({
         onSelect={onSelectCell}
         onCreate={onCreateCell}
         onJump={onJumpToHierarchy}
+        onOpenExplorer={onOpenExplorerForCell}
       />
     ) : activeView === 'hierarchy' ? (
       <HierarchySidebar

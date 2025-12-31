@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, GitBranch, Circle, SquareTerminal, Link2, ShieldCheck, ArrowUpRight } from 'lucide-react';
+import { Plus, GitBranch, Circle, SquareTerminal, Link2, ShieldCheck, ArrowUpRight, FolderOpen } from 'lucide-react';
 
 const statusColors = {
   draft: 'text-muted-foreground',
@@ -14,6 +14,7 @@ export function AgentCellsSidebar({
   onSelect,
   onCreate,
   onJump,
+  onOpenExplorer,
 }) {
   return (
     <aside className="flex w-full flex-col text-sidebar-foreground" data-testid="sidebar">
@@ -50,6 +51,7 @@ export function AgentCellsSidebar({
                 cell={cell}
                 selected={selectedId === cell.id}
                 onClick={() => onSelect(cell.id)}
+                onOpenExplorer={() => onOpenExplorer?.(cell.id)}
               />
             ))}
           </div>
@@ -75,7 +77,7 @@ function NavItem({ icon: Icon, label, onClick }) {
   );
 }
 
-function CellItem({ cell, selected, onClick }) {
+function CellItem({ cell, selected, onClick, onOpenExplorer }) {
   return (
     <button
       type="button"
@@ -89,7 +91,18 @@ function CellItem({ cell, selected, onClick }) {
     >
       <GitBranch size={14} strokeWidth={1.5} className={selected ? 'text-primary' : 'opacity-70'} />
       <span className="truncate">{cell.name}</span>
-      <div className="ml-auto opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="ml-auto flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+        <button
+          type="button"
+          className="rounded p-1 text-muted-foreground/60 hover:text-foreground hover:bg-muted/30"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenExplorer?.();
+          }}
+          title="Open in Explorer"
+        >
+          <FolderOpen size={12} strokeWidth={1.5} />
+        </button>
         <Circle
           size={8}
           className={statusColors[cell.state] || statusColors.draft}

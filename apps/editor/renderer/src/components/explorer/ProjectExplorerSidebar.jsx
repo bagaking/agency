@@ -29,6 +29,7 @@ import {
   Link2,
   AlertCircle,
   Info,
+  Layers,
 } from 'lucide-react';
 
 const getFileIcon = (name, isSymbolicLink) => {
@@ -57,7 +58,7 @@ const statusColors = {
   renamed: 'text-sky-400',
   copied: 'text-sky-400',
   untracked: 'text-lime-300',
-  ignored: 'text-muted-foreground/70',
+  ignored: 'text-slate-400',
   conflict: 'text-rose-500',
 };
 
@@ -90,7 +91,7 @@ const statusBadgeStyles = {
   renamed: 'border-sky-400/40 bg-sky-400/10',
   copied: 'border-sky-400/40 bg-sky-400/10',
   untracked: 'border-lime-500/40 bg-lime-500/10',
-  ignored: 'border-muted-foreground/30 bg-muted/30',
+  ignored: 'border-slate-400/40 bg-slate-400/10',
   conflict: 'border-rose-500/50 bg-rose-500/15',
 };
 
@@ -140,6 +141,7 @@ export function ProjectExplorerSidebar({
   activeSessionId,
   sessionActivityByKey,
   onOpenFile,
+  onJumpToAgents,
 }) {
   const {
     rootPath,
@@ -462,7 +464,7 @@ export function ProjectExplorerSidebar({
     if (isDir && !directEntry && status === 'ignored') {
       status = null;
     }
-    const isIgnored = (directEntry?.status === 'ignored') || hasIgnoredAncestor(path);
+    const isIgnored = directEntry?.status === 'ignored' || hasIgnoredAncestor(path);
     const isUntracked = status === 'untracked';
     const isAdded = status === 'added';
 
@@ -472,7 +474,7 @@ export function ProjectExplorerSidebar({
       <div
         className={`group flex items-center gap-2 rounded px-2 py-1 text-xs transition-colors relative ${
           isSelected ? 'bg-primary/20 text-foreground' : 'text-muted-foreground hover:text-foreground'
-        } ${isIgnored ? 'opacity-50 italic' : ''}`}
+        } ${isIgnored ? 'opacity-60 italic' : ''}`}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
         onClick={(event) => {
           handleSelectPath(path, event);
@@ -539,7 +541,7 @@ export function ProjectExplorerSidebar({
             <FileIcon 
                 size={14} 
                 strokeWidth={1.5} 
-                className={isDir ? "text-primary/70" : (isLink ? "text-sky-400" : (isIgnored ? "text-muted-foreground/30" : "text-muted-foreground/70"))} 
+                className={isDir ? "text-primary/70" : (isLink ? "text-sky-400" : (isIgnored ? "text-slate-400" : "text-muted-foreground/70"))} 
             />
             {isLink && (
                  <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-[0.5px] ring-1 ring-sky-500/50">
@@ -548,7 +550,7 @@ export function ProjectExplorerSidebar({
             )}
             {isIgnored && (
                  <div className="absolute -top-1 -right-1 bg-background rounded-full p-[0.5px]">
-                    <EyeOff size={8} className="text-muted-foreground/60" strokeWidth={2} />
+                    <EyeOff size={8} className="text-slate-400" strokeWidth={2} />
                  </div>
             )}
         </div>
@@ -573,7 +575,7 @@ export function ProjectExplorerSidebar({
           />
         ) : (
           <div className="flex flex-1 items-center gap-2 min-w-0">
-            <span className={`truncate select-none ${isIgnored ? 'text-muted-foreground/40 line-through decoration-muted-foreground/20' : ''}`}>
+            <span className={`truncate select-none ${isIgnored ? 'text-muted-foreground/50 line-through decoration-muted-foreground/30' : ''}`}>
                 {node.name}
             </span>
             {isLink && (
@@ -582,7 +584,7 @@ export function ProjectExplorerSidebar({
                 </span>
             )}
             {isIgnored && (
-                <span className="shrink-0 text-[8px] font-medium text-muted-foreground/30 italic">
+                <span className="shrink-0 text-[8px] font-semibold text-slate-400 italic">
                     ignored
                 </span>
             )}
@@ -654,6 +656,14 @@ export function ProjectExplorerSidebar({
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <button
+                type="button"
+                className="p-1 text-muted-foreground/60 hover:text-foreground transition-colors rounded hover:bg-muted/30"
+                onClick={() => onJumpToAgents?.()}
+                title="Go to Agent Cells"
+            >
+                <Layers size={14} strokeWidth={1.5} />
+            </button>
             <button
                 type="button"
                 className="p-1 text-muted-foreground/60 hover:text-foreground transition-colors rounded hover:bg-muted/30"
