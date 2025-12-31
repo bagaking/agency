@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ChevronRight,
   ChevronDown,
@@ -72,6 +72,17 @@ const statusBadges = {
   conflict: '!',
 };
 
+const STATUS_PRIORITY = [
+  'conflict',
+  'deleted',
+  'added',
+  'modified',
+  'renamed',
+  'copied',
+  'untracked',
+  'ignored',
+];
+
 const statusBadgeStyles = {
   added: 'border-emerald-500/40 bg-emerald-500/10',
   modified: 'border-amber-400/40 bg-amber-400/10',
@@ -107,6 +118,15 @@ const formatIdle = (ms) => {
     return `${remMinutes}m`;
   }
   return `${hours}h ${remMinutes}m`;
+};
+
+const pickPrimaryStatus = (statusCounts = {}) => {
+  for (const status of STATUS_PRIORITY) {
+    if (statusCounts[status]) {
+      return status;
+    }
+  }
+  return null;
 };
 
 export function ProjectExplorerSidebar({
@@ -166,17 +186,47 @@ export function ProjectExplorerSidebar({
 
   const activeRootLabel = rootLabel || 'Project';
   const hasCells = cells && cells.length > 0;
+  const selectedCellId = selectedCell?.id || null;
 
   const selectionSet = useMemo(() => new Set(selectedPaths), [selectedPaths]);
+  const getScopedEntry = useCallback(
+    (entry, type) => {
+      if (!entry || !selectedCellId || !entry.cells?.[selectedCellId]) {
+        return entry;
+      }
+      const cellInfo = entry.cells[selectedCellId];
+      if (!cellInfo) {
+        return entry;
+      }
+      if (type === 'dir') {
+        const status = pickPrimaryStatus(cellInfo.statusCounts || {});
+        return {
+          ...entry,
+          status,
+          added: cellInfo.added || 0,
+          deleted: cellInfo.deleted || 0,
+        };
+      }
+      return {
+        ...entry,
+        status: cellInfo.status || entry.status,
+        added: cellInfo.added || 0,
+        deleted: cellInfo.deleted || 0,
+      };
+    },
+    [selectedCellId]
+  );
+
   const ignoredPaths = useMemo(() => {
     const paths = new Set();
-    Object.values(statusByPath || {}).forEach((entry) => {
-      if (entry?.status === 'ignored' && entry.path) {
-        paths.add(entry.path);
+    Object.entries(folderStatusByPath || {}).forEach(([path, entry]) => {
+      const scoped = getScopedEntry(entry, 'dir');
+      if (scoped?.status === 'ignored' && path) {
+        paths.add(path);
       }
     });
     return paths;
-  }, [statusByPath]);
+  }, [folderStatusByPath, getScopedEntry]);
 
   const hasIgnoredAncestor = (targetPath) => {
     if (!targetPath) {
@@ -320,7 +370,9 @@ export function ProjectExplorerSidebar({
   };
 
   const renderStatus = (path, type) => {
-    const entry = type === 'dir' ? folderStatusByPath[path] || statusByPath[path] : statusByPath[path];
+    const rawEntry =
+      type === 'dir' ? folderStatusByPath[path] || statusByPath[path] : statusByPath[path];
+    const entry = getScopedEntry(rawEntry, type);
     if (!entry) {
       return null;
     }
@@ -396,7 +448,8 @@ export function ProjectExplorerSidebar({
     const isLink = node.isSymbolicLink;
 
     const gitEntry = isDir ? folderStatusByPath[path] || statusByPath[path] : statusByPath[path];
-    const status = gitEntry?.status;
+    const scopedEntry = getScopedEntry(gitEntry, isDir ? 'dir' : 'file');
+    const status = scopedEntry?.status;
     const isIgnored = status === 'ignored' || (isDir && !status && hasIgnoredAncestor(path));
     const isUntracked = status === 'untracked';
     const isAdded = status === 'added';
