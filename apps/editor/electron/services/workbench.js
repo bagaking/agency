@@ -13,6 +13,7 @@ const MAX_TEXT_BYTES = Number(process.env.AGENCY_WORKBENCH_MAX_BYTES || 1024 * 1
 const MAX_BLAME_BYTES = Number(process.env.AGENCY_WORKBENCH_BLAME_MAX_BYTES || 512 * 1024);
 const MAX_DIFF_BYTES = Number(process.env.AGENCY_WORKBENCH_DIFF_MAX_BYTES || 512 * 1024);
 const BINARY_CHECK_BYTES = 8000;
+const ROOT_CACHE = new Map();
 
 function normalizeRelPath(value) {
   if (!value) {
@@ -32,16 +33,26 @@ function resolveSafePath(rootPath, relativePath) {
 }
 
 async function resolveWorkbenchRoot(rootPath) {
+  const cacheKey = rootPath || '__default__';
+  if (ROOT_CACHE.has(cacheKey)) {
+    return ROOT_CACHE.get(cacheKey);
+  }
   if (!rootPath) {
     const repoRoot = await getRepoRoot();
-    return { repoRoot, rootPath: repoRoot };
+    const resolved = { repoRoot, rootPath: repoRoot };
+    ROOT_CACHE.set(cacheKey, resolved);
+    return resolved;
   }
   try {
     const repoRoot = await getRepoRoot(rootPath);
-    return { repoRoot, rootPath };
+    const resolved = { repoRoot, rootPath };
+    ROOT_CACHE.set(cacheKey, resolved);
+    return resolved;
   } catch (error) {
     const repoRoot = await getRepoRoot();
-    return { repoRoot, rootPath: repoRoot };
+    const resolved = { repoRoot, rootPath: repoRoot };
+    ROOT_CACHE.set(cacheKey, resolved);
+    return resolved;
   }
 }
 

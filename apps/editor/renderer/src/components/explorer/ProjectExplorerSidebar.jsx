@@ -157,6 +157,32 @@ export function ProjectExplorerSidebar({
   const hasCells = cells && cells.length > 0;
 
   const selectionSet = useMemo(() => new Set(selectedPaths), [selectedPaths]);
+  const ignoredPaths = useMemo(() => {
+    const paths = new Set();
+    Object.values(statusByPath || {}).forEach((entry) => {
+      if (entry?.status === 'ignored' && entry.path) {
+        paths.add(entry.path);
+      }
+    });
+    return paths;
+  }, [statusByPath]);
+
+  const hasIgnoredAncestor = (targetPath) => {
+    if (!targetPath) {
+      return false;
+    }
+    const parts = targetPath.split('/').filter(Boolean);
+    if (parts.length <= 1) {
+      return false;
+    }
+    for (let index = parts.length - 1; index > 0; index -= 1) {
+      const ancestor = parts.slice(0, index).join('/');
+      if (ignoredPaths.has(ancestor)) {
+        return true;
+      }
+    }
+    return false;
+  };
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 5000);
@@ -354,8 +380,13 @@ export function ProjectExplorerSidebar({
     const isRenaming = renameTarget?.path === path;
     const isLink = node.isSymbolicLink;
 
-    const gitEntry = isDir ? folderStatusByPath[path] : statusByPath[path];
-    const isIgnored = gitEntry?.status === 'ignored';
+    const gitEntry = isDir
+      ? folderStatusByPath[path] || statusByPath[path]
+      : statusByPath[path];
+    const isIgnored =
+      gitEntry?.status === 'ignored' ||
+      statusByPath[path]?.status === 'ignored' ||
+      hasIgnoredAncestor(path);
 
     const FileIcon = isDir ? (isExpanded ? FolderOpen : FolderClosed) : getFileIcon(node.name, isLink);
 

@@ -222,7 +222,10 @@ function mergeCount(map, entry) {
 }
 
 async function collectWorktreeStatus(worktreePath) {
-  const statusOutput = await runGitRaw(['status', '--porcelain', '-z', '--ignored=matching'], worktreePath);
+  const statusOutput = await runGitRaw(
+    ['status', '--porcelain', '-z', '--ignored=matching', '--untracked-files=all'],
+    worktreePath
+  );
   const statusEntries = parsePorcelainZ(statusOutput);
 
   const diffOutput = await runGitRaw(['diff', '--numstat', '-z'], worktreePath);
