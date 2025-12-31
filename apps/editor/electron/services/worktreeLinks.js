@@ -54,23 +54,6 @@ function normalizeLinks(links) {
   });
 }
 
-async function listTrackedTopLevelDirs(repoRoot) {
-  try {
-    const output = await runGit(['ls-tree', '-d', '--name-only', 'HEAD'], { cwd: repoRoot });
-    if (!output) {
-      return new Set();
-    }
-    return new Set(
-      output
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean)
-    );
-  } catch (error) {
-    return new Set();
-  }
-}
-
 async function readConfig(repoRoot) {
   const configPath = getConfigPath(repoRoot);
   if (!fs.existsSync(configPath)) {
@@ -111,35 +94,27 @@ async function listCandidateDirectories(repoRoot) {
     }
   };
   const [untracked, ignored] = await Promise.all([
-    fetchList(['ls-files', '-o', '--exclude-standard', '--directory']),
-    fetchList(['ls-files', '-o', '-i', '--exclude-standard', '--directory']),
+    fetchList(['ls-files', '-o', '--exclude-standard', '--directory', '-z']),
+    fetchList(['ls-files', '-o', '-i', '--exclude-standard', '--directory', '-z']),
   ]);
-  const combined = [untracked, ignored].filter(Boolean).join('\n');
+  const combined = [untracked, ignored].filter(Boolean).join('');
   if (!combined) {
     return [];
   }
-  const trackedRoots = await listTrackedTopLevelDirs(repoRoot);
   const candidates = new Set();
   combined
-    .split('\n')
+    .split('\0')
     .map((line) => line.trim())
     .filter(Boolean)
     .forEach((entry) => {
-      const normalized = entry.replace(/\/$/, '');
-      if (!normalized) {
+      const normalized = entry.replace(/\\/g, '/').replace(/\/$/, '');
+      if (!normalized || normalized === '.git') {
         return;
       }
-      const root = normalized.split('/')[0];
-      if (!root) {
-        return;
-      }
-      if (trackedRoots.has(root)) {
-        return;
-      }
-      const candidatePath = path.join(repoRoot, root);
+      const candidatePath = path.join(repoRoot, normalized);
       try {
         if (fs.existsSync(candidatePath) && fs.statSync(candidatePath).isDirectory()) {
-          candidates.add(root);
+          candidates.add(normalized);
         }
       } catch (error) {
         // Ignore fs errors for stale paths.

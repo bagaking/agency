@@ -137,6 +137,7 @@ export function WorkbenchPane({
         error: '',
         kind: tab.kind,
         needsReload: false,
+        fallback: false,
       });
       try {
         if (['image', 'video', 'audio', 'pdf'].includes(tab.kind)) {
@@ -169,9 +170,41 @@ export function WorkbenchPane({
           isDirty: false,
         });
       } catch (error) {
+        const message = error?.message || 'Failed to load file.';
+        const shouldFallback =
+          message.includes('No handler registered for') &&
+          message.includes('workbench:read') &&
+          window.agency?.readExplorerEntry;
+        if (shouldFallback) {
+          try {
+            const fallback = await window.agency.readExplorerEntry({
+              rootPath: tab.rootPath,
+              targetPath: tab.path,
+            });
+            updateTabState(tab.id, {
+              loading: false,
+              content: fallback?.content || '',
+              size: fallback?.size || 0,
+              mtimeMs: fallback?.mtimeMs || 0,
+              binary: Boolean(fallback?.binary),
+              truncated: Boolean(fallback?.truncated),
+              kind: fallback?.binary ? 'binary' : tab.kind,
+              language: languageFromPath(tab.path),
+              isDirty: false,
+              fallback: true,
+            });
+            return;
+          } catch (fallbackError) {
+            updateTabState(tab.id, {
+              loading: false,
+              error: fallbackError?.message || message,
+            });
+            return;
+          }
+        }
         updateTabState(tab.id, {
           loading: false,
-          error: error?.message || 'Failed to load file.',
+          error: message,
         });
       }
     },
@@ -214,6 +247,9 @@ export function WorkbenchPane({
 
   const handleSave = useCallback(async () => {
     if (!activeTab || !activeState || !window.agency?.writeWorkbenchEntry) {
+      return;
+    }
+    if (activeState.fallback) {
       return;
     }
     if (activeState.kind !== 'code') {
@@ -429,6 +465,7 @@ export function WorkbenchPane({
                   }`}
                   onClick={toggleDiff}
                   title="Toggle diff decorations"
+                  disabled={activeState.fallback}
                 >
                   <GitCompare size={12} />
                 </button>
@@ -441,6 +478,7 @@ export function WorkbenchPane({
                   }`}
                   onClick={toggleBlame}
                   title="Toggle blame"
+                  disabled={activeState.fallback}
                 >
                   <GitCommit size={12} />
                 </button>
@@ -490,7 +528,7 @@ export function WorkbenchPane({
               className="rounded border border-border px-2 py-1 hover:text-foreground"
               onClick={handleSave}
               title="Save (Cmd/Ctrl+S)"
-              disabled={!activeState.isDirty || activeState.truncated}
+              disabled={!activeState.isDirty || activeState.truncated || activeState.fallback}
             >
               <Save size={12} />
             </button>
@@ -501,6 +539,11 @@ export function WorkbenchPane({
       {activeTab && (activeState.diffError || activeState.blameError) ? (
         <div className="border-b border-border bg-card px-4 py-2 text-xs text-rose-300">
           {activeState.diffError || activeState.blameError}
+        </div>
+      ) : null}
+      {activeTab && activeState.fallback ? (
+        <div className="border-b border-border bg-card px-4 py-2 text-xs text-amber-200/80">
+          Workbench IPC unavailable. Restart the main process to enable save, diff, and blame.
         </div>
       ) : null}
 
@@ -555,6 +598,9 @@ export function WorkbenchPane({
             ) : null}
             {activeState.binary ? (
               <span className="text-rose-300">Binary file</span>
+            ) : null}
+            {activeState.fallback ? (
+              <span className="text-amber-200/80">Workbench IPC unavailable</span>
             ) : null}
             {activeState.blameTruncated ? (
               <span className="text-amber-200/80">Blame truncated</span>

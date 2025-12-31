@@ -106,7 +106,7 @@ function trySpawn({ cellId, cwd, mode, file, args }) {
   try {
     ensureSpawnHelperExecutable();
     return pty.spawn(executable, args, {
-      name: 'xterm-color',
+      name: 'xterm-256color',
       cols: 120,
       rows: 30,
       cwd: resolvedCwd,
