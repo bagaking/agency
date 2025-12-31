@@ -10,9 +10,37 @@
     "dev:main": "wait-on tcp:5173 && cross-env ELECTRON_RENDERER_URL=http://localhost:5173 electron electron/main.js",
     "dev": "concurrently \"npm:dev:renderer\" \"npm:dev:main\"",
     "build:renderer": "vite build",
+    "package": "pnpm run build:renderer && electron-builder --mac",
+    "package:dir": "pnpm run build:renderer && electron-builder --mac --dir",
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "postinstall": "node scripts/postinstall.js"
+  },
+  "build": {
+    "appId": "com.agency.editor",
+    "productName": "Agency",
+    "directories": {
+      "output": "dist/release",
+      "buildResources": "renderer/public"
+    },
+    "files": [
+      "electron/**/*",
+      "dist/renderer/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node-pty/**"
+    ],
+    "npmRebuild": true,
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "renderer/public/icon.png"
+    }
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -33,6 +61,7 @@
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
     "electron": "^32.1.2",
+    "electron-builder": "^26.0.12",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.16",
     "vite": "^5.4.11",

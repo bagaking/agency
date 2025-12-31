@@ -75,6 +75,29 @@
 - When creating a new Cell, the branch name is generated as `<type>/<cell-name>`.
 - Available types: `feat`, `refactor`, `fix`, `lint`, `chore`, `doc`.
 
+## Packaging & Install (macOS)
+
+From `apps/editor`:
+
+```bash
+pnpm run package
+```
+
+Artifacts are written to `apps/editor/dist/release` (DMG + ZIP). Install by opening the DMG or unzipping the app and dragging `Agency.app` to `/Applications`.
+Unsigned builds may require Gatekeeper bypass (right-click → Open once, or run `xattr -dr com.apple.quarantine /Applications/Agency.app`).
+
+From repo root:
+
+```bash
+make editor-package
+```
+
+For an unpacked build (no DMG), run:
+
+```bash
+pnpm run package:dir
+```
+
 ## Development
 
 ```bash

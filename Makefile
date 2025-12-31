@@ -4,7 +4,7 @@ PNPM ?= pnpm
 export CODEX_HOME := $(PWD)/.codex
 export CODEX_HOME_PUB := $(PWD)/.codex_pub
 
-.PHONY: lint build editor-install editor-dev editor-test editor-test-e2e
+.PHONY: lint build editor-install editor-dev editor-test editor-test-e2e editor-package editor-package-dir
 
 # Lint/check basics: catches unused imports via build and common vet checks
 lint:
@@ -30,6 +30,12 @@ editor-test: editor-test-e2e
 
 editor-test-e2e:
 	cd apps/editor && $(PNPM) run test:e2e
+
+editor-package:
+	cd apps/editor && $(PNPM) run package
+
+editor-package-dir:
+	cd apps/editor && $(PNPM) run package:dir
 
 codex-locale:
 	@echo "CODEX_HOME=$(CODEX_HOME)"
