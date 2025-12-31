@@ -1,4 +1,99 @@
 const { contextBridge, ipcRenderer } = require('electron');
+const fs = require('fs');
+const path = require('path');
+const { pathToFileURL } = require('url');
+
+const MAX_TEXT_BYTES = Number(process.env.AGENCY_WORKBENCH_MAX_BYTES || 1024 * 1024);
+const BINARY_CHECK_BYTES = 8000;
+const WORKBENCH_TIMEOUT_MS = Number(process.env.AGENCY_WORKBENCH_TIMEOUT_MS || 8000);
+
+function normalizeRelPath(value) {
+  if (!value) {
+    return '';
+  }
+  return value.replace(/\\/g, '/').replace(/^\.?\//, '').replace(/\/+$/, '');
+}
+
+function resolveSafePath(rootPath, targetPath) {
+  const base = rootPath ? path.resolve(rootPath) : process.cwd();
+  const normalized = normalizeRelPath(targetPath);
+  const absolute = path.resolve(base, normalized);
+  const rel = path.relative(base, absolute);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+    throw new Error('Path escapes repository root.');
+  }
+  return absolute;
+}
+
+async function readLocalTextFile({ rootPath, targetPath }) {
+  if (!targetPath) {
+    throw new Error('targetPath is required.');
+  }
+  const absolute = resolveSafePath(rootPath, targetPath);
+  const stats = await fs.promises.stat(absolute);
+  if (!stats.isFile()) {
+    throw new Error('Target is not a file.');
+  }
+  const size = stats.size || 0;
+  const length = Math.min(size, MAX_TEXT_BYTES);
+  const handle = await fs.promises.open(absolute, 'r');
+  const buffer = Buffer.alloc(length);
+  try {
+    await handle.read(buffer, 0, length, 0);
+  } finally {
+    await handle.close();
+  }
+  const binary = buffer.slice(0, Math.min(length, BINARY_CHECK_BYTES)).includes(0);
+  return {
+    path: normalizeRelPath(targetPath),
+    size,
+    mtimeMs: stats.mtimeMs || 0,
+    truncated: size > MAX_TEXT_BYTES,
+    binary,
+    content: binary ? '' : buffer.toString('utf-8'),
+  };
+}
+
+async function statLocalEntry({ rootPath, targetPath }) {
+  if (!targetPath) {
+    throw new Error('targetPath is required.');
+  }
+  const absolute = resolveSafePath(rootPath, targetPath);
+  const stats = await fs.promises.stat(absolute);
+  return {
+    path: normalizeRelPath(targetPath),
+    absolutePath: absolute,
+    size: stats.size || 0,
+    mtimeMs: stats.mtimeMs || 0,
+    isFile: stats.isFile(),
+    isDirectory: stats.isDirectory(),
+  };
+}
+
+async function resolveLocalFileUrl({ rootPath, targetPath }) {
+  const entry = await statLocalEntry({ rootPath, targetPath });
+  return {
+    path: entry.path,
+    url: pathToFileURL(entry.absolutePath).toString(),
+  };
+}
+
+function invokeWithTimeout(channel, payload, timeoutMs = WORKBENCH_TIMEOUT_MS) {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return ipcRenderer.invoke(channel, payload);
+  }
+  let timeoutHandle;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(new Error(`IPC timeout for ${channel}`));
+    }, timeoutMs);
+  });
+  return Promise.race([ipcRenderer.invoke(channel, payload), timeoutPromise]).finally(() => {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  });
+}
 
 contextBridge.exposeInMainWorld('agency', {
   listCells: () => ipcRenderer.invoke('cells:list'),
@@ -25,12 +120,30 @@ contextBridge.exposeInMainWorld('agency', {
   getExplorerStatus: () => ipcRenderer.invoke('explorer:status'),
   searchExplorerFiles: (payload) => ipcRenderer.invoke('explorer:search', payload),
   readExplorerEntry: (payload) => ipcRenderer.invoke('explorer:read', payload),
-  readWorkbenchEntry: (payload) => ipcRenderer.invoke('workbench:read', payload),
+  readWorkbenchEntry: async (payload) => {
+    try {
+      return await invokeWithTimeout('workbench:read', payload);
+    } catch (error) {
+      return readLocalTextFile(payload || {});
+    }
+  },
   writeWorkbenchEntry: (payload) => ipcRenderer.invoke('workbench:write', payload),
-  statWorkbenchEntry: (payload) => ipcRenderer.invoke('workbench:stat', payload),
+  statWorkbenchEntry: async (payload) => {
+    try {
+      return await invokeWithTimeout('workbench:stat', payload);
+    } catch (error) {
+      return statLocalEntry(payload || {});
+    }
+  },
   diffWorkbenchEntry: (payload) => ipcRenderer.invoke('workbench:diff', payload),
   blameWorkbenchEntry: (payload) => ipcRenderer.invoke('workbench:blame', payload),
-  getWorkbenchFileUrl: (payload) => ipcRenderer.invoke('workbench:fileUrl', payload),
+  getWorkbenchFileUrl: async (payload) => {
+    try {
+      return await invokeWithTimeout('workbench:fileUrl', payload);
+    } catch (error) {
+      return resolveLocalFileUrl(payload || {});
+    }
+  },
   createExplorerEntry: (payload) => ipcRenderer.invoke('explorer:create', payload),
   renameExplorerEntry: (payload) => ipcRenderer.invoke('explorer:rename', payload),
   deleteExplorerEntry: (payload) => ipcRenderer.invoke('explorer:delete', payload),
