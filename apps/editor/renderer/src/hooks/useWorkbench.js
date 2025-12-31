@@ -46,20 +46,51 @@ const serializeTabs = (tabsByCellId) => {
   return next;
 };
 
+const hydrateTab = (tab, cellId, fallbackRoot) => {
+  if (!tab?.path) {
+    return null;
+  }
+  const rootPath = tab.rootPath || fallbackRoot || '';
+  const id = tab.id || buildTabId(cellId, rootPath, tab.path);
+  return {
+    id,
+    path: tab.path,
+    rootPath,
+    title: basename(tab.path),
+    kind: detectKind(tab.path),
+    isPreview: Boolean(tab.isPreview),
+  };
+};
+
+const normalizeTabsByCellId = (tabsByCellId, fallbackRoot) => {
+  const next = {};
+  Object.entries(tabsByCellId || {}).forEach(([cellId, tabs]) => {
+    const hydrated = (tabs || [])
+      .map((tab) => hydrateTab(tab, cellId, fallbackRoot))
+      .filter(Boolean);
+    if (hydrated.length) {
+      next[cellId] = hydrated;
+    }
+  });
+  return next;
+};
+
 export function useWorkbench({
   selectedCell,
   repoRoot,
   initialTabsByCellId,
   initialActiveTabByCellId,
 }) {
-  const [tabsByCellId, setTabsByCellId] = useState(initialTabsByCellId || {});
+  const [tabsByCellId, setTabsByCellId] = useState(
+    normalizeTabsByCellId(initialTabsByCellId, repoRoot)
+  );
   const [activeTabByCellId, setActiveTabByCellId] = useState(initialActiveTabByCellId || {});
 
   useEffect(() => {
     if (initialTabsByCellId && Object.keys(initialTabsByCellId).length) {
-      setTabsByCellId(initialTabsByCellId);
+      setTabsByCellId(normalizeTabsByCellId(initialTabsByCellId, repoRoot));
     }
-  }, [initialTabsByCellId]);
+  }, [initialTabsByCellId, repoRoot]);
 
   useEffect(() => {
     if (initialActiveTabByCellId && Object.keys(initialActiveTabByCellId).length) {
@@ -91,7 +122,8 @@ export function useWorkbench({
       }
       return;
     }
-    if (activeTabByCellId[cellKey]) {
+    const currentActive = activeTabByCellId[cellKey];
+    if (currentActive && currentTabs.find((tab) => tab.id === currentActive)) {
       return;
     }
     setActiveTabByCellId((current) => ({
