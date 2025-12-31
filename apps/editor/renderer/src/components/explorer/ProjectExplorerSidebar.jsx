@@ -166,7 +166,6 @@ export function ProjectExplorerSidebar({
     setErrorMessage,
     searchQuery,
     setSearchQuery,
-    searchResults,
     searchTruncated,
     searchTree,
     showHidden,
