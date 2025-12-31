@@ -80,6 +80,7 @@ export function useProjectExplorer({ rootPath, rootLabel, getVisiblePaths } = {}
   const [showChangesOnly, setShowChangesOnly] = useState(false);
   const [selectedPaths, setSelectedPaths] = useState([]);
   const lastSelectedRef = useRef('');
+  const selectionAnchorRef = useRef('');
   const statusInFlightRef = useRef(null);
   const statusCacheRef = useRef(null);
   const statusCacheAtRef = useRef(0);
@@ -197,32 +198,33 @@ export function useProjectExplorer({ rootPath, rootLabel, getVisiblePaths } = {}
 
   useEffect(() => {
     refreshAll();
-  }, [refreshAll, rootPath]);
+  }, [refreshAll]);
+
+  const resetTreeState = useCallback(
+    ({ resetSearch = false } = {}) => {
+      setNodesByPath({ '': { path: '', name: '', type: 'dir' } });
+      setChildrenByPath({ '': [] });
+      setExpandedPaths(new Set(['']));
+      setLoadingPaths(new Set());
+      setSelectedPaths([]);
+      lastSelectedRef.current = '';
+      selectionAnchorRef.current = '';
+      if (resetSearch) {
+        setSearchQuery('');
+        setSearchResults([]);
+        setSearchTruncated(false);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
-    refreshAll();
-  }, [refreshAll, showHidden]);
+    resetTreeState({ resetSearch: true });
+  }, [resetTreeState, rootPath]);
 
   useEffect(() => {
-    setNodesByPath({ '': { path: '', name: '', type: 'dir' } });
-    setChildrenByPath({ '': [] });
-    setExpandedPaths(new Set(['']));
-    setLoadingPaths(new Set());
-    setSearchQuery('');
-    setSearchResults([]);
-    setSearchTruncated(false);
-    setSelectedPaths([]);
-    lastSelectedRef.current = '';
-  }, [rootPath]);
-
-  useEffect(() => {
-    setNodesByPath({ '': { path: '', name: '', type: 'dir' } });
-    setChildrenByPath({ '': [] });
-    setExpandedPaths(new Set(['']));
-    setLoadingPaths(new Set());
-    setSelectedPaths([]);
-    lastSelectedRef.current = '';
-  }, [showHidden]);
+    resetTreeState();
+  }, [resetTreeState, showHidden]);
 
   const expandPath = useCallback(
     async (path) => {
@@ -264,7 +266,11 @@ export function useProjectExplorer({ rootPath, rootLabel, getVisiblePaths } = {}
       const normalized = toRelativePath(path);
       const isMulti = event?.metaKey || event?.ctrlKey;
       const isRange = event?.shiftKey;
-      if (isRange && lastSelectedRef.current) {
+      const anchor = selectionAnchorRef.current || lastSelectedRef.current || normalized;
+      if (isRange && anchor) {
+        if (!selectionAnchorRef.current) {
+          selectionAnchorRef.current = anchor;
+        }
         const visible =
           typeof getVisiblePaths === 'function'
             ? getVisiblePaths()
@@ -276,11 +282,12 @@ export function useProjectExplorer({ rootPath, rootLabel, getVisiblePaths } = {}
                 statusByPath,
                 folderStatusByPath,
               });
-        const start = visible.indexOf(lastSelectedRef.current);
+        const start = visible.indexOf(anchor);
         const end = visible.indexOf(normalized);
         if (start !== -1 && end !== -1) {
           const [from, to] = start < end ? [start, end] : [end, start];
           setSelectedPaths(visible.slice(from, to + 1));
+          lastSelectedRef.current = normalized;
           return;
         }
       }
@@ -293,6 +300,7 @@ export function useProjectExplorer({ rootPath, rootLabel, getVisiblePaths } = {}
       } else {
         setSelectedPaths([normalized]);
       }
+      selectionAnchorRef.current = normalized;
       lastSelectedRef.current = normalized;
     },
     [

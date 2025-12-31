@@ -308,6 +308,9 @@ export function ProjectExplorerSidebar({
       if (!node) {
         return false;
       }
+      if (path && !showHidden && node.name.startsWith('.')) {
+        return false;
+      }
       if (path && !showIgnored && isPathIgnored(path)) {
         return false;
       }
@@ -363,6 +366,15 @@ export function ProjectExplorerSidebar({
     () => visibleItems.map((item) => item.path).filter((path) => !path.startsWith('__draft__')),
     [visibleItems]
   );
+  const rowIndexByPath = useMemo(() => {
+    const map = new Map();
+    visibleItems.forEach((item, index) => {
+      if (!item.draft) {
+        map.set(item.path, index);
+      }
+    });
+    return map;
+  }, [visibleItems]);
 
   useEffect(() => {
     visiblePathsRef.current = visiblePaths;
@@ -893,8 +905,8 @@ export function ProjectExplorerSidebar({
       if (!el || !path) {
         return;
       }
-      const index = visiblePathsRef.current.indexOf(path);
-      if (index < 0) {
+      const index = rowIndexByPath.get(path);
+      if (index == null) {
         return;
       }
       const top = index * ROW_HEIGHT;
