@@ -219,14 +219,13 @@ export function ProjectExplorerSidebar({
 
   const ignoredPaths = useMemo(() => {
     const paths = new Set();
-    Object.entries(folderStatusByPath || {}).forEach(([path, entry]) => {
-      const scoped = getScopedEntry(entry, 'dir');
-      if (scoped?.status === 'ignored' && path) {
+    Object.entries(statusByPath || {}).forEach(([path, entry]) => {
+      if (entry?.status === 'ignored' && path) {
         paths.add(path);
       }
     });
     return paths;
-  }, [folderStatusByPath, getScopedEntry]);
+  }, [statusByPath]);
 
   const hasIgnoredAncestor = (targetPath) => {
     if (!targetPath) {
@@ -370,26 +369,35 @@ export function ProjectExplorerSidebar({
   };
 
   const renderStatus = (path, type) => {
-    const rawEntry =
-      type === 'dir' ? folderStatusByPath[path] || statusByPath[path] : statusByPath[path];
+    const directEntry = statusByPath[path];
+    const aggregateEntry = type === 'dir' ? folderStatusByPath[path] : null;
+    const rawEntry = directEntry || aggregateEntry;
     const entry = getScopedEntry(rawEntry, type);
     if (!entry) {
       return null;
     }
-    const status = entry.status;
+    let status = entry.status;
+    if (type === 'dir' && !directEntry && status === 'ignored') {
+      status = null;
+    }
     const badge = statusBadges[status] || '?';
     const color = statusColors[status] || 'text-muted-foreground';
     const badgeStyle = statusBadgeStyles[status] || 'border-border bg-muted/30';
     const added = entry.added || 0;
     const deleted = entry.deleted || 0;
+    if (!status && !added && !deleted) {
+      return null;
+    }
     return (
       <div className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
-        <span
-          className={`rounded border px-1 ${badgeStyle} ${color}`}
-          title={statusLabels[status] || status}
-        >
-          {badge}
-        </span>
+        {status ? (
+          <span
+            className={`rounded border px-1 ${badgeStyle} ${color}`}
+            title={statusLabels[status] || status}
+          >
+            {badge}
+          </span>
+        ) : null}
         {(added || deleted) && (
           <span className="text-[10px] text-muted-foreground/70">
             +{added}/-{deleted}
@@ -447,10 +455,14 @@ export function ProjectExplorerSidebar({
     const isRenaming = renameTarget?.path === path;
     const isLink = node.isSymbolicLink;
 
-    const gitEntry = isDir ? folderStatusByPath[path] || statusByPath[path] : statusByPath[path];
-    const scopedEntry = getScopedEntry(gitEntry, isDir ? 'dir' : 'file');
-    const status = scopedEntry?.status;
-    const isIgnored = status === 'ignored' || (isDir && !status && hasIgnoredAncestor(path));
+    const directEntry = statusByPath[path];
+    const aggregateEntry = isDir ? folderStatusByPath[path] : null;
+    const scopedEntry = getScopedEntry(directEntry || aggregateEntry, isDir ? 'dir' : 'file');
+    let status = scopedEntry?.status || null;
+    if (isDir && !directEntry && status === 'ignored') {
+      status = null;
+    }
+    const isIgnored = (directEntry?.status === 'ignored') || hasIgnoredAncestor(path);
     const isUntracked = status === 'untracked';
     const isAdded = status === 'added';
 
