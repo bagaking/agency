@@ -2,7 +2,7 @@
 
 ## Launch
 - [ ] Start the renderer and main process with `npm run dev`.
-- [ ] Verify the Agency Editor window opens and renders the header.
+- [ ] Verify the Agency window opens and renders the header.
 
 ## Cells
 - [ ] Create a new Cell with a branch type + name and confirm the worktree directory is created.

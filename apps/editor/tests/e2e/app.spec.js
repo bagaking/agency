@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { test, expect, _electron: electron } = require('@playwright/test');
 
-test('renders the Agency Editor shell', async () => {
+test('renders the Agency shell', async () => {
   fs.mkdirSync('/tmp/agency/test-cell', { recursive: true });
   fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
   const electronApp = await electron.launch({

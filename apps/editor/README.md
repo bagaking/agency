@@ -1,4 +1,4 @@
-# Agency Editor
+# Agency
 
 ## Scope & Stack
 

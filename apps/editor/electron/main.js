@@ -22,7 +22,7 @@ const {
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
 let mainWindow;
 
-app.setName('Agency Editor');
+app.setName('Agency');
 
 function createWindow() {
   const iconPath = path.join(__dirname, '../renderer/public/icon.png');
@@ -34,7 +34,7 @@ function createWindow() {
     backgroundColor: '#111318',
     autoHideMenuBar: true,
     icon: iconPath,
-    title: 'Agency Editor',
+    title: 'Agency',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
