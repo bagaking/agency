@@ -474,7 +474,7 @@ export function ProjectExplorerSidebar({
       <div
         className={`group flex items-center gap-2 rounded px-2 py-1 text-xs transition-colors relative ${
           isSelected ? 'bg-primary/20 text-foreground' : 'text-muted-foreground hover:text-foreground'
-        } ${isIgnored ? 'opacity-60 italic' : ''}`}
+        } ${isIgnored ? 'opacity-70' : ''}`}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
         onClick={(event) => {
           handleSelectPath(path, event);
@@ -575,17 +575,12 @@ export function ProjectExplorerSidebar({
           />
         ) : (
           <div className="flex flex-1 items-center gap-2 min-w-0">
-            <span className={`truncate select-none ${isIgnored ? 'text-muted-foreground/50 line-through decoration-muted-foreground/30' : ''}`}>
+            <span className={`truncate select-none ${isIgnored ? 'text-muted-foreground/70' : ''}`}>
                 {node.name}
             </span>
             {isLink && (
                 <span className="shrink-0 px-1 rounded-[2px] bg-sky-500/10 border border-sky-500/20 text-[8px] font-bold uppercase tracking-tighter text-sky-400">
                     Link
-                </span>
-            )}
-            {isIgnored && (
-                <span className="shrink-0 text-[8px] font-semibold text-slate-400 italic">
-                    ignored
                 </span>
             )}
             {isUntracked && !isIgnored && (
