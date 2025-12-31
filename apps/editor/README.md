@@ -13,7 +13,7 @@
 - The docked sidebar supports resize/collapse and persists width state across launches.
 - Agent Cells focuses on Cell management and offers jump links to Actions, Gates, and Softlinks.
 - Hierarchy hosts configuration for Actions, Gates, and Softlinks.
-- Explorer provides a project file tree with git status and per-Cell change attribution.
+- Explorer provides a project file tree with git status (including added, untracked, ignored) and per-Cell change attribution.
 - Explorer scopes to the active Agent Cell worktree (or repo root) and opens files in the workbench.
 - The workbench supports multi-tab previews, quick open, diff/blame toggles, and media previews.
 
@@ -61,7 +61,7 @@
 - Softlink configuration lives at `.agency/worktree-links.yaml` in the repo root.
 - Links define `source` (repo root) and `target` (worktree root) paths.
 - The editor can link missing directories into a selected Cell with one click.
-- Candidate discovery includes ignored or untracked directories.
+- Candidate discovery includes ignored or untracked directories (including nested directories detected by git).
 - Auto-link can be enabled to apply links when new Cells are created.
 
 ## Runtime Logs

@@ -212,6 +212,7 @@ The editor SHALL surface worktree link status per selected Cell and allow one-cl
 
 ### Requirement: Local Directory Discovery
 The editor SHALL list ignored or untracked directory candidates to assist configuration.
+Discovery MUST use git metadata and include nested ignored/untracked directories when detected.
 
 #### Scenario: Show local candidates
 - **WHEN** a user opens the worktree links view
@@ -422,6 +423,7 @@ The explorer SHALL provide a manual refresh control for the tree.
 
 ### Requirement: VCS Status Decorations
 The explorer SHALL decorate files and folders with git status (modified, added, deleted, renamed, untracked, ignored).
+The explorer SHOULD visually distinguish ignored, untracked, and added entries.
 The explorer SHALL show per-file line change counts (added/removed) based on git diff data.
 The explorer SHALL aggregate status and line counts for folders based on their descendants.
 
@@ -511,4 +513,3 @@ The workbench SHALL display breadcrumbs for the active file and provide a quick-
 #### Scenario: Quick-open a file
 - **WHEN** a user invokes quick-open and selects a file
 - **THEN** the editor opens the file in a new workbench tab
-

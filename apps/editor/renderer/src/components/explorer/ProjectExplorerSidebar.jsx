@@ -56,8 +56,8 @@ const statusColors = {
   deleted: 'text-rose-400',
   renamed: 'text-sky-400',
   copied: 'text-sky-400',
-  untracked: 'text-emerald-300',
-  ignored: 'text-muted-foreground',
+  untracked: 'text-lime-300',
+  ignored: 'text-muted-foreground/70',
   conflict: 'text-rose-500',
 };
 
@@ -70,6 +70,17 @@ const statusBadges = {
   untracked: '?',
   ignored: 'I',
   conflict: '!',
+};
+
+const statusBadgeStyles = {
+  added: 'border-emerald-500/40 bg-emerald-500/10',
+  modified: 'border-amber-400/40 bg-amber-400/10',
+  deleted: 'border-rose-400/40 bg-rose-400/10',
+  renamed: 'border-sky-400/40 bg-sky-400/10',
+  copied: 'border-sky-400/40 bg-sky-400/10',
+  untracked: 'border-lime-500/40 bg-lime-500/10',
+  ignored: 'border-muted-foreground/30 bg-muted/30',
+  conflict: 'border-rose-500/50 bg-rose-500/15',
 };
 
 const sortCells = (cells) => {
@@ -309,18 +320,22 @@ export function ProjectExplorerSidebar({
   };
 
   const renderStatus = (path, type) => {
-    const entry = type === 'dir' ? folderStatusByPath[path] : statusByPath[path];
+    const entry = type === 'dir' ? folderStatusByPath[path] || statusByPath[path] : statusByPath[path];
     if (!entry) {
       return null;
     }
     const status = entry.status;
     const badge = statusBadges[status] || '?';
     const color = statusColors[status] || 'text-muted-foreground';
+    const badgeStyle = statusBadgeStyles[status] || 'border-border bg-muted/30';
     const added = entry.added || 0;
     const deleted = entry.deleted || 0;
     return (
       <div className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
-        <span className={`rounded border border-border px-1 ${color}`} title={statusLabels[status] || status}>
+        <span
+          className={`rounded border px-1 ${badgeStyle} ${color}`}
+          title={statusLabels[status] || status}
+        >
           {badge}
         </span>
         {(added || deleted) && (
@@ -380,13 +395,11 @@ export function ProjectExplorerSidebar({
     const isRenaming = renameTarget?.path === path;
     const isLink = node.isSymbolicLink;
 
-    const gitEntry = isDir
-      ? folderStatusByPath[path] || statusByPath[path]
-      : statusByPath[path];
-    const isIgnored =
-      gitEntry?.status === 'ignored' ||
-      statusByPath[path]?.status === 'ignored' ||
-      hasIgnoredAncestor(path);
+    const gitEntry = isDir ? folderStatusByPath[path] || statusByPath[path] : statusByPath[path];
+    const status = gitEntry?.status;
+    const isIgnored = status === 'ignored' || (isDir && !status && hasIgnoredAncestor(path));
+    const isUntracked = status === 'untracked';
+    const isAdded = status === 'added';
 
     const FileIcon = isDir ? (isExpanded ? FolderOpen : FolderClosed) : getFileIcon(node.name, isLink);
 
@@ -507,6 +520,16 @@ export function ProjectExplorerSidebar({
                 <span className="shrink-0 text-[8px] font-medium text-muted-foreground/30 italic">
                     ignored
                 </span>
+            )}
+            {isUntracked && !isIgnored && (
+              <span className="shrink-0 text-[8px] font-semibold uppercase tracking-tight text-lime-300">
+                untracked
+              </span>
+            )}
+            {isAdded && !isIgnored && (
+              <span className="shrink-0 text-[8px] font-semibold uppercase tracking-tight text-emerald-300">
+                added
+              </span>
             )}
           </div>
         )}
