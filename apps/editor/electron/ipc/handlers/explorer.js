@@ -1,6 +1,7 @@
-const { ipcMain } = require('electron');
+const { ipcMain, BrowserWindow } = require('electron');
 const path = require('path');
 const { getRepoRoot } = require('../../services/git');
+const { startExplorerWatch, stopExplorerWatch } = require('../../services/explorerWatch');
 const {
   listDirectory,
   getExplorerStatus,
@@ -93,6 +94,22 @@ function setupExplorerHandlers() {
     const rootPath = payload?.rootPath;
     const targetPath = payload?.targetPath;
     return readEntry({ rootPath, targetPath });
+  });
+
+  ipcMain.handle('explorer:watch', async (_event, payload) => {
+    const rootPath = payload?.rootPath || '';
+    if (!rootPath) {
+      stopExplorerWatch();
+      return { watching: false };
+    }
+    const result = startExplorerWatch(rootPath, (change) => {
+      BrowserWindow.getAllWindows().forEach((win) => {
+        if (!win.isDestroyed()) {
+          win.webContents.send('explorer:changed', change);
+        }
+      });
+    });
+    return result;
   });
 }
 

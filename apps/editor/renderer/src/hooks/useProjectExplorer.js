@@ -62,7 +62,7 @@ const basename = (value) => value.split('/').pop() || value;
 
 const pathBaseName = (value) => value.split('/').filter(Boolean).pop() || value;
 
-export function useProjectExplorer({ rootPath, rootLabel } = {}) {
+export function useProjectExplorer({ rootPath, rootLabel, getVisiblePaths } = {}) {
   const [repoRoot, setRepoRoot] = useState('');
   const [repoName, setRepoName] = useState('');
   const [nodesByPath, setNodesByPath] = useState({ '': { path: '', name: '', type: 'dir' } });
@@ -80,6 +80,15 @@ export function useProjectExplorer({ rootPath, rootLabel } = {}) {
   const [showChangesOnly, setShowChangesOnly] = useState(false);
   const [selectedPaths, setSelectedPaths] = useState([]);
   const lastSelectedRef = useRef('');
+  const statusInFlightRef = useRef(null);
+  const statusCacheRef = useRef(null);
+  const statusCacheAtRef = useRef(0);
+  const statusRefreshHandle = useRef(null);
+  const childrenByPathRef = useRef(childrenByPath);
+
+  useEffect(() => {
+    childrenByPathRef.current = childrenByPath;
+  }, [childrenByPath]);
 
   const refreshRoot = useCallback(async () => {
     if (!window.agency?.getExplorerRoot) {
@@ -94,21 +103,51 @@ export function useProjectExplorer({ rootPath, rootLabel } = {}) {
     }
   }, []);
 
-  const refreshStatus = useCallback(async () => {
+  const refreshStatus = useCallback(async ({ force = false } = {}) => {
     if (!window.agency?.getExplorerStatus) {
       return;
     }
-    try {
-      const status = await window.agency.getExplorerStatus();
-      setStatusByPath(status?.files || {});
-      setFolderStatusByPath(status?.folders || {});
-      setStatusLabels(status?.statusLabels || {});
-      setRepoRoot(status?.repoRoot || '');
-      setRepoName(status?.rootName || '');
-    } catch (err) {
-      setError(err?.message || 'Failed to load explorer status.');
+    const now = Date.now();
+    if (!force && statusCacheRef.current && now - statusCacheAtRef.current < 500) {
+      const cached = statusCacheRef.current;
+      setStatusByPath(cached.files || {});
+      setFolderStatusByPath(cached.folders || {});
+      setStatusLabels(cached.statusLabels || {});
+      setRepoRoot(cached.repoRoot || '');
+      setRepoName(cached.rootName || '');
+      return;
     }
+    if (statusInFlightRef.current) {
+      return statusInFlightRef.current;
+    }
+    statusInFlightRef.current = (async () => {
+      try {
+        const status = await window.agency.getExplorerStatus();
+        statusCacheRef.current = status;
+        statusCacheAtRef.current = Date.now();
+        setStatusByPath(status?.files || {});
+        setFolderStatusByPath(status?.folders || {});
+        setStatusLabels(status?.statusLabels || {});
+        setRepoRoot(status?.repoRoot || '');
+        setRepoName(status?.rootName || '');
+      } catch (err) {
+        setError(err?.message || 'Failed to load explorer status.');
+      } finally {
+        statusInFlightRef.current = null;
+      }
+    })();
+    return statusInFlightRef.current;
   }, []);
+
+  const scheduleStatusRefresh = useCallback(() => {
+    if (statusRefreshHandle.current) {
+      clearTimeout(statusRefreshHandle.current);
+    }
+    statusRefreshHandle.current = setTimeout(() => {
+      statusRefreshHandle.current = null;
+      refreshStatus();
+    }, 250);
+  }, [refreshStatus]);
 
   const loadDirectory = useCallback(
     async (relativePath) => {
@@ -161,6 +200,10 @@ export function useProjectExplorer({ rootPath, rootLabel } = {}) {
   }, [refreshAll, rootPath]);
 
   useEffect(() => {
+    refreshAll();
+  }, [refreshAll, showHidden]);
+
+  useEffect(() => {
     setNodesByPath({ '': { path: '', name: '', type: 'dir' } });
     setChildrenByPath({ '': [] });
     setExpandedPaths(new Set(['']));
@@ -171,6 +214,15 @@ export function useProjectExplorer({ rootPath, rootLabel } = {}) {
     setSelectedPaths([]);
     lastSelectedRef.current = '';
   }, [rootPath]);
+
+  useEffect(() => {
+    setNodesByPath({ '': { path: '', name: '', type: 'dir' } });
+    setChildrenByPath({ '': [] });
+    setExpandedPaths(new Set(['']));
+    setLoadingPaths(new Set());
+    setSelectedPaths([]);
+    lastSelectedRef.current = '';
+  }, [showHidden]);
 
   const expandPath = useCallback(
     async (path) => {
@@ -213,14 +265,17 @@ export function useProjectExplorer({ rootPath, rootLabel } = {}) {
       const isMulti = event?.metaKey || event?.ctrlKey;
       const isRange = event?.shiftKey;
       if (isRange && lastSelectedRef.current) {
-        const visible = getVisiblePaths({
-          nodes: nodesByPath,
-          children: childrenByPath,
-          expanded: expandedPaths,
-          showChangesOnly,
-          statusByPath,
-          folderStatusByPath,
-        });
+        const visible =
+          typeof getVisiblePaths === 'function'
+            ? getVisiblePaths()
+            : getVisiblePathsDefault({
+                nodes: nodesByPath,
+                children: childrenByPath,
+                expanded: expandedPaths,
+                showChangesOnly,
+                statusByPath,
+                folderStatusByPath,
+              });
         const start = visible.indexOf(lastSelectedRef.current);
         const end = visible.indexOf(normalized);
         if (start !== -1 && end !== -1) {
@@ -240,7 +295,15 @@ export function useProjectExplorer({ rootPath, rootLabel } = {}) {
       }
       lastSelectedRef.current = normalized;
     },
-    [childrenByPath, expandedPaths, folderStatusByPath, nodesByPath, showChangesOnly, statusByPath]
+    [
+      childrenByPath,
+      expandedPaths,
+      folderStatusByPath,
+      getVisiblePaths,
+      nodesByPath,
+      showChangesOnly,
+      statusByPath,
+    ]
   );
 
   const clearSelection = useCallback(() => {
@@ -349,6 +412,36 @@ export function useProjectExplorer({ rootPath, rootLabel } = {}) {
 
   const searchTree = useMemo(() => buildTreeFromMatches(searchResults), [searchResults]);
 
+  useEffect(() => {
+    if (!window.agency?.watchExplorer || !window.agency?.onExplorerChanged) {
+      return undefined;
+    }
+    const watchRoot = rootPath || repoRoot || '';
+    if (watchRoot) {
+      window.agency.watchExplorer({ rootPath: watchRoot }).catch(() => undefined);
+    }
+    const unsubscribe = window.agency.onExplorerChanged((payload) => {
+      if (!payload) {
+        return;
+      }
+      if (payload.rootPath && watchRoot && payload.rootPath !== watchRoot) {
+        return;
+      }
+      const paths = payload.paths || [];
+      const loaded = childrenByPathRef.current;
+      paths.forEach((dir) => {
+        if (dir === '' || loaded[dir]) {
+          loadDirectory(dir);
+        }
+      });
+      scheduleStatusRefresh();
+    });
+    return () => {
+      unsubscribe?.();
+      window.agency.watchExplorer({ rootPath: '' }).catch(() => undefined);
+    };
+  }, [loadDirectory, repoRoot, rootPath, scheduleStatusRefresh]);
+
   return {
     rootPath: rootPath || repoRoot,
     rootLabel: rootLabel || repoName || pathBaseName(rootPath || repoRoot) || 'Project',
@@ -390,7 +483,7 @@ export function useProjectExplorer({ rootPath, rootLabel } = {}) {
   };
 }
 
-function getVisiblePaths({
+function getVisiblePathsDefault({
   nodes,
   children,
   expanded,

@@ -241,6 +241,16 @@ function App() {
     initialTabsByCellId: initialWorkbenchTabs,
     initialActiveTabByCellId: initialWorkbenchActiveTabs,
   });
+  const [workbenchMetaByCellId, setWorkbenchMetaByCellId] = useState({});
+  const handleWorkbenchMetaChange = useCallback((cellId, meta) => {
+    if (!cellId) {
+      return;
+    }
+    setWorkbenchMetaByCellId((current) => ({
+      ...current,
+      [cellId]: meta || {},
+    }));
+  }, []);
   useEffect(() => {
     if (!selectedCell?.id) {
       return;
@@ -378,6 +388,7 @@ function App() {
   };
   const explorerRootPath = selectedCell?.worktreePath || repoRoot || '';
   const explorerRootLabel = selectedCell?.name || 'Repository';
+  const explorerMeta = workbenchMetaByCellId[selectedCell?.id || 'repo'] || {};
   const handleSwitchView = useCallback(
     (view) => {
       setActiveView(view);
@@ -534,6 +545,7 @@ function App() {
           activeSessionId,
           sessionActivityByKey,
           onJumpToAgents: () => handleSwitchView('agent-cells'),
+          workbenchMeta: explorerMeta,
           onOpenFile: ({ path, mode }) => {
             workbench.openFile({ path, mode, rootPath: explorerRootPath });
           },
@@ -542,6 +554,8 @@ function App() {
           workbench,
           activeRootPath: explorerRootPath,
           activeRootLabel: explorerRootLabel,
+          cellId: selectedCell?.id || 'repo',
+          onTabMetaChange: handleWorkbenchMetaChange,
         }}
       />
 

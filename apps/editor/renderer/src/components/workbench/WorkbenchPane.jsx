@@ -78,6 +78,8 @@ export function WorkbenchPane({
   workbench,
   activeRootPath,
   activeRootLabel,
+  onTabMetaChange,
+  cellId,
 }) {
   const {
     tabs,
@@ -96,6 +98,7 @@ export function WorkbenchPane({
   const [statusPosition, setStatusPosition] = useState({ line: 1, column: 1 });
   const [tabMenu, setTabMenu] = useState(null);
   const dragSourceRef = useRef(null);
+  const tabMetaRef = useRef({});
 
   const activeState = activeTab ? tabStateById[activeTab.id] || {} : {};
   const diffSummary = useMemo(() => {
@@ -126,6 +129,39 @@ export function WorkbenchPane({
       },
     }));
   }, []);
+
+  const reportTabMeta = useCallback(() => {
+    if (!onTabMetaChange) {
+      return;
+    }
+    const next = {};
+    tabs.forEach((tab) => {
+      const state = tabStateById[tab.id] || {};
+      next[tab.path] = {
+        dirty: Boolean(state.isDirty),
+      };
+    });
+    const prev = tabMetaRef.current;
+    const nextKeys = Object.keys(next);
+    const prevKeys = Object.keys(prev);
+    let changed = nextKeys.length !== prevKeys.length;
+    if (!changed) {
+      for (const key of nextKeys) {
+        if (!prev[key] || prev[key].dirty !== next[key].dirty) {
+          changed = true;
+          break;
+        }
+      }
+    }
+    if (changed) {
+      tabMetaRef.current = next;
+      onTabMetaChange(cellId || 'repo', next);
+    }
+  }, [cellId, onTabMetaChange, tabStateById, tabs]);
+
+  useEffect(() => {
+    reportTabMeta();
+  }, [reportTabMeta]);
 
   const loadTab = useCallback(
     async (tab) => {
@@ -412,13 +448,14 @@ export function WorkbenchPane({
           {tabs.length === 0 ? (
             <div className="px-2 text-xs text-muted-foreground">No open files</div>
           ) : (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1" data-testid="workbench-tabs">
               {tabs.map((tab) => {
                 const state = tabStateById[tab.id] || {};
                 const isActive = activeTab?.id === tab.id;
                 return (
                   <div
                     key={tab.id}
+                    data-workbench-tab={tab.path}
                     className={`group flex items-center gap-2 rounded px-2 py-1 text-xs transition-colors ${
                       isActive ? 'bg-primary/20 text-foreground' : 'text-muted-foreground hover:text-foreground'
                     }`}

@@ -120,6 +120,7 @@ contextBridge.exposeInMainWorld('agency', {
   getExplorerStatus: () => ipcRenderer.invoke('explorer:status'),
   searchExplorerFiles: (payload) => ipcRenderer.invoke('explorer:search', payload),
   readExplorerEntry: (payload) => ipcRenderer.invoke('explorer:read', payload),
+  watchExplorer: (payload) => ipcRenderer.invoke('explorer:watch', payload),
   readWorkbenchEntry: async (payload) => {
     try {
       return await invokeWithTimeout('workbench:read', payload);
@@ -170,5 +171,10 @@ contextBridge.exposeInMainWorld('agency', {
     const wrapped = (_event, payload) => handler(payload);
     ipcRenderer.on('cells:updated', wrapped);
     return () => ipcRenderer.removeListener('cells:updated', wrapped);
+  },
+  onExplorerChanged: (handler) => {
+    const wrapped = (_event, payload) => handler(payload);
+    ipcRenderer.on('explorer:changed', wrapped);
+    return () => ipcRenderer.removeListener('explorer:changed', wrapped);
   },
 });

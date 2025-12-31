@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronRight,
   ChevronDown,
@@ -31,11 +31,12 @@ import {
   Info,
   Layers,
 } from 'lucide-react';
+import { useProjectExplorer, explorerPathUtils } from '../../hooks/useProjectExplorer.js';
 
 const getFileIcon = (name, isSymbolicLink) => {
   if (isSymbolicLink) return Link2;
   const ext = name.split('.').pop().toLowerCase();
-  
+
   if (['js', 'jsx', 'ts', 'tsx', 'py', 'go', 'rs', 'c', 'cpp', 'java', 'rb', 'php', 'swift', 'sh', 'bash'].includes(ext)) return FileCode;
   if (['json', 'yaml', 'yml', 'toml', 'xml', 'html', 'css', 'scss', 'less'].includes(ext)) return FileJson;
   if (['md', 'txt', 'rtf', 'log'].includes(ext)) return FileText;
@@ -49,7 +50,6 @@ const getFileIcon = (name, isSymbolicLink) => {
 
   return FileText;
 };
-import { useProjectExplorer, explorerPathUtils } from '../../hooks/useProjectExplorer.js';
 
 const statusColors = {
   added: 'text-emerald-400',
@@ -94,6 +94,11 @@ const statusBadgeStyles = {
   ignored: 'border-slate-400/40 bg-slate-400/10',
   conflict: 'border-rose-500/50 bg-rose-500/15',
 };
+
+const ROW_HEIGHT = 24;
+const OVERSCAN = 6;
+const VIRTUALIZE_THRESHOLD = 200;
+const STATUS_FILTERS = [...STATUS_PRIORITY];
 
 const sortCells = (cells) => {
   return Object.values(cells || {}).sort((a, b) => {
@@ -142,7 +147,10 @@ export function ProjectExplorerSidebar({
   sessionActivityByKey,
   onOpenFile,
   onJumpToAgents,
+  workbenchMeta,
 }) {
+  const listRef = useRef(null);
+  const visiblePathsRef = useRef([]);
   const {
     rootPath,
     rootLabel,
@@ -161,6 +169,8 @@ export function ProjectExplorerSidebar({
     searchResults,
     searchTruncated,
     searchTree,
+    showHidden,
+    setShowHidden,
     showChangesOnly,
     setShowChangesOnly,
     selectedPaths,
@@ -176,21 +186,46 @@ export function ProjectExplorerSidebar({
     copyEntry,
     revealEntry,
     handleSelectPath,
-  } = useProjectExplorer({ rootPath: scopeRootPath, rootLabel: scopeRootLabel });
+  } = useProjectExplorer({
+    rootPath: scopeRootPath,
+    rootLabel: scopeRootLabel,
+    getVisiblePaths: () => visiblePathsRef.current,
+  });
 
   const [draftEntry, setDraftEntry] = useState(null);
   const [renameTarget, setRenameTarget] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [now, setNow] = useState(Date.now());
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [showIgnored, setShowIgnored] = useState(true);
+  const [statusFilters, setStatusFilters] = useState([]);
+  const [focusedPath, setFocusedPath] = useState('');
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
 
   const isSearchActive = searchQuery.trim().length > 0;
   const tree = isSearchActive ? searchTree : { nodes: nodesByPath, children: childrenByPath };
+  const hasStatusFilters = statusFilterSet.size > 0;
+  const hasChangeFilter = showChangesOnly || hasStatusFilters;
+  const hasVisibilityFilters = !showHidden || !showIgnored;
+  const hasActiveFilters = hasChangeFilter || hasVisibilityFilters;
 
   const activeRootLabel = rootLabel || 'Project';
   const hasCells = cells && cells.length > 0;
   const selectedCellId = selectedCell?.id || null;
 
   const selectionSet = useMemo(() => new Set(selectedPaths), [selectedPaths]);
+  const statusFilterSet = useMemo(() => new Set(statusFilters), [statusFilters]);
+  const openFiles = useMemo(() => new Set(Object.keys(workbenchMeta || {})), [workbenchMeta]);
+  const dirtyFiles = useMemo(
+    () =>
+      new Set(
+        Object.entries(workbenchMeta || {})
+          .filter(([, meta]) => meta?.dirty)
+          .map(([path]) => path)
+      ),
+    [workbenchMeta]
+  );
   const getScopedEntry = useCallback(
     (entry, type) => {
       if (!entry || !selectedCellId || !entry.cells?.[selectedCellId]) {
@@ -246,9 +281,155 @@ export function ProjectExplorerSidebar({
     return false;
   };
 
+  const isPathIgnored = (targetPath) =>
+    Boolean(targetPath) && (ignoredPaths.has(targetPath) || hasIgnoredAncestor(targetPath));
+
+  const buildVisibleList = useCallback(() => {
+    const items = [];
+    const shouldIncludeByStatus = (path, node) => {
+      if (!hasChangeFilter) {
+        return true;
+      }
+      const entry = node.type === 'dir' ? folderStatusByPath[path] : statusByPath[path];
+      const scopedEntry = getScopedEntry(entry, node.type === 'dir' ? 'dir' : 'file');
+      let status = scopedEntry?.status || null;
+      if (node.type === 'dir' && !statusByPath[path] && status === 'ignored') {
+        status = null;
+      }
+      if (!status) {
+        return false;
+      }
+      if (hasStatusFilters && !statusFilterSet.has(status)) {
+        return false;
+      }
+      return true;
+    };
+    const walk = (path, depth) => {
+      const node = tree.nodes[path];
+      if (!node) {
+        return false;
+      }
+      if (path && !showIgnored && isPathIgnored(path)) {
+        return false;
+      }
+      const isDir = node.type === 'dir';
+      let childHasMatch = false;
+      if (isDir && (isSearchActive || expandedPaths.has(path))) {
+        const children = tree.children[path] || [];
+        for (const child of children) {
+          if (walk(child, depth + 1)) {
+            childHasMatch = true;
+          }
+        }
+      }
+      const selfMatches = path ? shouldIncludeByStatus(path, node) : true;
+      const shouldShow = path ? selfMatches || childHasMatch : true;
+      if (path && shouldShow) {
+        items.push({ path, depth, type: node.type, isSymbolicLink: node.isSymbolicLink });
+      }
+      return selfMatches || childHasMatch;
+    };
+    walk('', 0);
+    if (draftEntry?.parentPath) {
+      const parentIndex = items.findIndex((item) => item.path === draftEntry.parentPath);
+      if (parentIndex >= 0) {
+        const parentDepth = items[parentIndex].depth;
+        items.splice(parentIndex + 1, 0, {
+          path: `__draft__${draftEntry.parentPath}`,
+          depth: parentDepth + 1,
+          type: draftEntry.type,
+          draft: true,
+          parentPath: draftEntry.parentPath,
+        });
+      }
+    }
+    return items;
+  }, [
+    draftEntry,
+    expandedPaths,
+    folderStatusByPath,
+    getScopedEntry,
+    hasChangeFilter,
+    hasStatusFilters,
+    isSearchActive,
+    showIgnored,
+    statusByPath,
+    statusFilterSet,
+    tree.children,
+    tree.nodes,
+  ]);
+
+  const visibleItems = useMemo(() => buildVisibleList(), [buildVisibleList]);
+  const visiblePaths = useMemo(
+    () => visibleItems.map((item) => item.path).filter((path) => !path.startsWith('__draft__')),
+    [visibleItems]
+  );
+
+  useEffect(() => {
+    visiblePathsRef.current = visiblePaths;
+  }, [visiblePaths]);
+
+  useEffect(() => {
+    if (focusedPath && visiblePaths.includes(focusedPath)) {
+      return;
+    }
+    if (selectedPaths.length && visiblePaths.includes(selectedPaths[0])) {
+      setFocusedPath(selectedPaths[0]);
+      return;
+    }
+    setFocusedPath(visiblePaths[0] || '');
+  }, [focusedPath, selectedPaths, visiblePaths]);
+
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 5000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (!filterMenuOpen) {
+      return undefined;
+    }
+    const handleClick = (event) => {
+      const target = event.target;
+      if (target.closest('[data-explorer-filter-menu]')) {
+        return;
+      }
+      if (target.closest('[data-explorer-filter-toggle]')) {
+        return;
+      }
+      setFilterMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [filterMenuOpen]);
+
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) {
+      return undefined;
+    }
+    const handleScroll = () => {
+      setScrollTop(el.scrollTop);
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(() => {
+        setViewportHeight(el.clientHeight);
+      });
+      observer.observe(el);
+      return () => {
+        el.removeEventListener('scroll', handleScroll);
+        observer.disconnect();
+      };
+    }
+    const handleResize = () => setViewportHeight(el.clientHeight);
+    window.addEventListener('resize', handleResize);
+    handleResize();
+    return () => {
+      el.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   const closeContextMenu = () => setContextMenu(null);
@@ -303,24 +484,38 @@ export function ProjectExplorerSidebar({
     setRenameTarget(null);
   };
 
-  const handleCopyPath = async (targetPath) => {
+  const handleCopyPath = async (targets) => {
+    const list = (Array.isArray(targets) ? targets : [targets]).filter(Boolean);
+    if (!list.length) {
+      return;
+    }
     try {
       const base = rootPath || repoRoot || '';
-      const fullPath = base ? `${base}/${targetPath}` : targetPath;
-      await navigator.clipboard.writeText(fullPath);
+      const payload = list
+        .map((item) => (base ? `${base}/${item}` : item))
+        .join('\n');
+      await navigator.clipboard.writeText(payload);
     } catch (err) {
       // ignore clipboard errors silently
     }
   };
 
-  const handleDelete = async (targetPath) => {
-    const confirmed = window.confirm(`Delete ${targetPath}? This cannot be undone.`);
+  const handleDelete = async (targets) => {
+    const list = (Array.isArray(targets) ? targets : [targets]).filter(Boolean);
+    if (!list.length) {
+      return;
+    }
+    const label = list.length === 1 ? list[0] : `${list.length} items`;
+    const confirmed = window.confirm(`Delete ${label}? This cannot be undone.`);
     if (!confirmed) {
       return;
     }
     try {
-      await deleteEntry({ targetPath });
-      setSelectedPaths((current) => current.filter((item) => item !== targetPath));
+      for (const targetPath of list) {
+        // eslint-disable-next-line no-await-in-loop
+        await deleteEntry({ targetPath });
+      }
+      setSelectedPaths((current) => current.filter((item) => !list.includes(item)));
       clearError();
     } catch (err) {
       setErrorMessage(err?.message || 'Failed to delete entry.');
@@ -343,6 +538,22 @@ export function ProjectExplorerSidebar({
     }
   };
 
+  const handleReveal = async (targets) => {
+    const list = (Array.isArray(targets) ? targets : [targets]).filter(Boolean);
+    if (!list.length) {
+      return;
+    }
+    try {
+      for (const targetPath of list) {
+        // eslint-disable-next-line no-await-in-loop
+        await revealEntry({ targetPath });
+      }
+      clearError();
+    } catch (err) {
+      setErrorMessage(err?.message || 'Failed to reveal entry.');
+    }
+  };
+
   const handleMove = async (paths, targetDir) => {
     for (const sourcePath of paths) {
       if (!sourcePath) {
@@ -361,6 +572,12 @@ export function ProjectExplorerSidebar({
         break;
       }
     }
+  };
+
+  const toggleStatusFilter = (status) => {
+    setStatusFilters((current) =>
+      current.includes(status) ? current.filter((item) => item !== status) : [...current, status]
+    );
   };
 
   const buildDragPayload = (path) => {
@@ -437,69 +654,101 @@ export function ProjectExplorerSidebar({
     );
   };
 
-  const renderNode = (path, depth = 0) => {
-    const node = tree.nodes[path];
+  const renderDraftRow = (item) => (
+    <div
+      key={item.path}
+      className="flex items-center gap-2 px-2 py-1 text-xs"
+      style={{ paddingLeft: `${item.depth * 12 + 24}px` }}
+    >
+      <span className="text-xs text-muted-foreground">
+        {draftEntry?.type === 'dir' ? <FolderPlus size={12} strokeWidth={1.5} /> : <FilePlus2 size={12} strokeWidth={1.5} />}
+      </span>
+      <input
+        autoFocus
+        value={draftEntry?.value || ''}
+        onChange={(event) =>
+          setDraftEntry((current) => ({ ...current, value: event.target.value }))
+        }
+        onBlur={handleDraftSubmit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            handleDraftSubmit();
+          }
+          if (event.key === 'Escape') {
+            setDraftEntry(null);
+          }
+        }}
+        className="flex-1 rounded border border-border bg-transparent px-1 text-xs text-foreground focus:outline-none"
+        placeholder={draftEntry?.type === 'dir' ? 'New folder' : 'New file'}
+      />
+    </div>
+  );
+
+  const renderRow = (item) => {
+    if (item.draft) {
+      return renderDraftRow(item);
+    }
+    const node = tree.nodes[item.path];
     if (!node) {
       return null;
     }
-    if (showChangesOnly && path) {
-      const hasChange =
-        node.type === 'dir' ? Boolean(folderStatusByPath[path]) : Boolean(statusByPath[path]);
-      if (!hasChange) {
-        return null;
-      }
-    }
     const isDir = node.type === 'dir';
-    const isExpanded = isSearchActive ? true : expandedPaths.has(path);
-    const isSelected = selectionSet.has(path);
-    const isLoading = loadingPaths.has(path);
-    const showDraft = draftEntry?.parentPath === path;
-    const isRenaming = renameTarget?.path === path;
+    const isExpanded = isSearchActive ? true : expandedPaths.has(item.path);
+    const isSelected = selectionSet.has(item.path);
+    const isFocused = focusedPath === item.path;
+    const isLoading = loadingPaths.has(item.path);
     const isLink = node.isSymbolicLink;
 
-    const directEntry = statusByPath[path];
-    const aggregateEntry = isDir ? folderStatusByPath[path] : null;
+    const directEntry = statusByPath[item.path];
+    const aggregateEntry = isDir ? folderStatusByPath[item.path] : null;
     const scopedEntry = getScopedEntry(directEntry || aggregateEntry, isDir ? 'dir' : 'file');
     let status = scopedEntry?.status || null;
     if (isDir && !directEntry && status === 'ignored') {
       status = null;
     }
-    const isIgnored = directEntry?.status === 'ignored' || hasIgnoredAncestor(path);
+    const ignored = isPathIgnored(item.path);
     const isUntracked = status === 'untracked';
     const isAdded = status === 'added';
+    const isOpen = !isDir && openFiles.has(item.path);
+    const isDirty = !isDir && dirtyFiles.has(item.path);
 
     const FileIcon = isDir ? (isExpanded ? FolderOpen : FolderClosed) : getFileIcon(node.name, isLink);
 
-    const row = path ? (
+    return (
       <div
+        key={item.path}
+        data-explorer-path={item.path}
         className={`group flex items-center gap-2 rounded px-2 py-1 text-xs transition-colors relative ${
           isSelected ? 'bg-primary/20 text-foreground' : 'text-muted-foreground hover:text-foreground'
-        } ${isIgnored ? 'opacity-70' : ''}`}
-        style={{ paddingLeft: `${depth * 12 + 8}px` }}
+        } ${ignored ? 'opacity-70' : ''} ${isFocused ? 'ring-1 ring-primary/30' : ''}`}
+        style={{ paddingLeft: `${item.depth * 12 + 8}px` }}
         onClick={(event) => {
-          handleSelectPath(path, event);
+          handleSelectPath(item.path, event);
+          setFocusedPath(item.path);
+          listRef.current?.focus();
           if (!isDir && !event.metaKey && !event.ctrlKey && !event.shiftKey) {
-            onOpenFile?.({ path, mode: 'preview' });
+            onOpenFile?.({ path: item.path, mode: 'preview' });
           }
         }}
         onDoubleClick={(event) => {
           if (!isDir) {
             event.stopPropagation();
-            onOpenFile?.({ path, mode: 'pinned' });
+            onOpenFile?.({ path: item.path, mode: 'pinned' });
           }
         }}
         onContextMenu={(event) => {
           event.preventDefault();
-          handleSelectPath(path, event);
+          handleSelectPath(item.path, event);
+          setFocusedPath(item.path);
           setContextMenu({
             x: event.clientX,
             y: event.clientY,
-            path,
+            path: item.path,
           });
         }}
         draggable
         onDragStart={(event) => {
-          const payload = buildDragPayload(path);
+          const payload = buildDragPayload(item.path);
           event.dataTransfer.setData('application/agency-paths', JSON.stringify(payload));
           event.dataTransfer.effectAllowed = 'move';
         }}
@@ -519,7 +768,7 @@ export function ProjectExplorerSidebar({
             return;
           }
           const paths = JSON.parse(payload);
-          await handleMove(paths, path);
+          await handleMove(paths, item.path);
         }}
       >
         {isDir ? (
@@ -527,7 +776,7 @@ export function ProjectExplorerSidebar({
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              togglePath(path);
+              togglePath(item.path);
             }}
             className="text-muted-foreground/60 hover:text-muted-foreground shrink-0"
           >
@@ -536,26 +785,34 @@ export function ProjectExplorerSidebar({
         ) : (
           <span className="w-4 shrink-0" />
         )}
-        
+
         <div className="relative shrink-0">
-            <FileIcon 
-                size={14} 
-                strokeWidth={1.5} 
-                className={isDir ? "text-primary/70" : (isLink ? "text-sky-400" : (isIgnored ? "text-slate-400" : "text-muted-foreground/70"))} 
-            />
-            {isLink && (
-                 <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-[0.5px] ring-1 ring-sky-500/50">
-                    <Link2 size={8} className="text-sky-400" strokeWidth={3} />
-                 </div>
-            )}
-            {isIgnored && (
-                 <div className="absolute -top-1 -right-1 bg-background rounded-full p-[0.5px]">
-                    <EyeOff size={8} className="text-slate-400" strokeWidth={2} />
-                 </div>
-            )}
+          <FileIcon
+            size={14}
+            strokeWidth={1.5}
+            className={
+              isDir
+                ? 'text-primary/70'
+                : isLink
+                  ? 'text-sky-400'
+                  : ignored
+                    ? 'text-slate-400'
+                    : 'text-muted-foreground/70'
+            }
+          />
+          {isLink && (
+            <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-[0.5px] ring-1 ring-sky-500/50">
+              <Link2 size={8} className="text-sky-400" strokeWidth={3} />
+            </div>
+          )}
+          {ignored && (
+            <div className="absolute -top-1 -right-1 bg-background rounded-full p-[0.5px]">
+              <EyeOff size={8} className="text-slate-400" strokeWidth={2} />
+            </div>
+          )}
         </div>
 
-        {isRenaming ? (
+        {renameTarget?.path === item.path ? (
           <input
             autoFocus
             value={renameTarget.value}
@@ -575,73 +832,168 @@ export function ProjectExplorerSidebar({
           />
         ) : (
           <div className="flex flex-1 items-center gap-2 min-w-0">
-            <span className={`truncate select-none ${isIgnored ? 'text-muted-foreground/70' : ''}`}>
-                {node.name}
+            <span className={`truncate select-none ${ignored ? 'text-muted-foreground/70' : ''}`}>
+              {node.name}
             </span>
+            {isOpen ? (
+              <span className="h-1.5 w-1.5 rounded-full bg-sky-400" title="Open" />
+            ) : null}
+            {isDirty ? (
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" title="Dirty" />
+            ) : null}
             {isLink && (
-                <span className="shrink-0 px-1 rounded-[2px] bg-sky-500/10 border border-sky-500/20 text-[8px] font-bold uppercase tracking-tighter text-sky-400">
-                    Link
-                </span>
+              <span className="shrink-0 px-1 rounded-[2px] bg-sky-500/10 border border-sky-500/20 text-[8px] font-bold uppercase tracking-tighter text-sky-400">
+                Link
+              </span>
             )}
-            {isUntracked && !isIgnored && (
+            {isUntracked && !ignored && (
               <span className="shrink-0 text-[8px] font-semibold uppercase tracking-tight text-lime-300">
                 untracked
               </span>
             )}
-            {isAdded && !isIgnored && (
+            {isAdded && !ignored && (
               <span className="shrink-0 text-[8px] font-semibold uppercase tracking-tight text-emerald-300">
                 added
               </span>
             )}
           </div>
         )}
-        {renderStatus(path, node.type)}
-        {renderCellBadges(path, node.type)}
+        {renderStatus(item.path, node.type)}
+        {renderCellBadges(item.path, node.type)}
         {isLoading && <RefreshCw size={12} className="animate-spin text-muted-foreground/50" />}
-      </div>
-    ) : null;
-
-    return (
-      <div key={path || 'root'}>
-        {row}
-        {isDir && isExpanded && showDraft ? (
-          <div
-            className="flex items-center gap-2 px-2 py-1"
-            style={{ paddingLeft: `${depth * 12 + 24}px` }}
-          >
-            <span className="text-xs text-muted-foreground">
-              {draftEntry.type === 'dir' ? <FolderPlus size={12} strokeWidth={1.5} /> : <FilePlus2 size={12} strokeWidth={1.5} />}
-            </span>
-            <input
-              autoFocus
-              value={draftEntry.value}
-              onChange={(event) =>
-                setDraftEntry((current) => ({ ...current, value: event.target.value }))
-              }
-              onBlur={handleDraftSubmit}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  handleDraftSubmit();
-                }
-                if (event.key === 'Escape') {
-                  setDraftEntry(null);
-                }
-              }}
-              className="flex-1 rounded border border-border bg-transparent px-1 text-xs text-foreground focus:outline-none"
-              placeholder={draftEntry.type === 'dir' ? 'New folder' : 'New file'}
-            />
-          </div>
-        ) : null}
-        {isDir && isExpanded
-          ? (tree.children[path] || []).map((child) => renderNode(child, depth + 1))
-          : null}
       </div>
     );
   };
 
+  const selectionTargets = selectedPaths.length
+    ? selectedPaths
+    : activeTarget
+      ? [activeTarget]
+      : [];
+  const selectionCount = selectionTargets.length;
+  const shouldVirtualize = visibleItems.length > VIRTUALIZE_THRESHOLD;
+  const totalHeight = visibleItems.length * ROW_HEIGHT;
+  const startIndex = shouldVirtualize
+    ? Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN)
+    : 0;
+  const endIndex = shouldVirtualize
+    ? Math.min(visibleItems.length, Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + OVERSCAN)
+    : visibleItems.length;
+  const visibleSlice = visibleItems.slice(startIndex, endIndex);
+  const offsetY = startIndex * ROW_HEIGHT;
+
+  const handleKeyDown = (event) => {
+    if (event.target?.tagName === 'INPUT') {
+      return;
+    }
+    if (!visiblePathsRef.current.length) {
+      return;
+    }
+    const scrollToPath = (path) => {
+      const el = listRef.current;
+      if (!el || !path) {
+        return;
+      }
+      const index = visiblePathsRef.current.indexOf(path);
+      if (index < 0) {
+        return;
+      }
+      const top = index * ROW_HEIGHT;
+      const bottom = top + ROW_HEIGHT;
+      if (top < el.scrollTop) {
+        el.scrollTop = top;
+      } else if (bottom > el.scrollTop + el.clientHeight) {
+        el.scrollTop = bottom - el.clientHeight;
+      }
+    };
+    const currentIndex = visiblePathsRef.current.indexOf(focusedPath);
+    const fallbackIndex = currentIndex >= 0 ? currentIndex : 0;
+    const nextIndex = (delta) =>
+      Math.min(visiblePathsRef.current.length - 1, Math.max(0, fallbackIndex + delta));
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      const next = visiblePathsRef.current[nextIndex(1)];
+      if (next) {
+        handleSelectPath(next, { shiftKey: event.shiftKey });
+        setFocusedPath(next);
+        scrollToPath(next);
+      }
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      const next = visiblePathsRef.current[nextIndex(-1)];
+      if (next) {
+        handleSelectPath(next, { shiftKey: event.shiftKey });
+        setFocusedPath(next);
+        scrollToPath(next);
+      }
+      return;
+    }
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      const node = tree.nodes[focusedPath];
+      if (node?.type === 'dir') {
+        if (!expandedPaths.has(focusedPath)) {
+          togglePath(focusedPath);
+        } else {
+          const firstChild = (tree.children[focusedPath] || [])[0];
+          if (firstChild) {
+            handleSelectPath(firstChild, { shiftKey: event.shiftKey });
+            setFocusedPath(firstChild);
+            scrollToPath(firstChild);
+          }
+        }
+      }
+      return;
+    }
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      const node = tree.nodes[focusedPath];
+      if (node?.type === 'dir' && expandedPaths.has(focusedPath)) {
+        togglePath(focusedPath);
+        return;
+      }
+      const parent = explorerPathUtils.dirname(focusedPath);
+      if (parent !== focusedPath && parent !== undefined) {
+        handleSelectPath(parent, { shiftKey: event.shiftKey });
+        setFocusedPath(parent);
+        scrollToPath(parent);
+      }
+      return;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const node = tree.nodes[focusedPath];
+      if (node?.type === 'dir') {
+        togglePath(focusedPath);
+      } else if (focusedPath) {
+        onOpenFile?.({ path: focusedPath, mode: 'pinned' });
+      }
+      return;
+    }
+    if (event.key === 'F2') {
+      if (focusedPath) {
+        event.preventDefault();
+        setRenameTarget({ path: focusedPath, value: explorerPathUtils.basename(focusedPath) });
+      }
+      return;
+    }
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+      if (selectionTargets.length) {
+        event.preventDefault();
+        handleDelete(selectionTargets);
+      }
+    }
+  };
+
   return (
-    <aside className="flex h-full w-full flex-col bg-sidebar select-none">
-      <header className="shrink-0 space-y-3 px-4 py-3 border-b border-border/50">
+    <aside className="relative flex h-full w-full flex-col bg-sidebar select-none">
+      <header
+        data-testid="explorer-header"
+        className="shrink-0 space-y-3 px-4 py-3 border-b border-border/50"
+      >
         <div className="flex items-center justify-between">
           <div className="flex flex-col min-w-0">
             <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">Explorer</h2>
@@ -724,11 +1076,15 @@ export function ProjectExplorerSidebar({
           </div>
           <button
             type="button"
+            data-testid="explorer-filter-toggle"
+            data-explorer-filter-toggle
             className={`flex h-7 w-7 items-center justify-center rounded-full border transition-all ${
-              showChangesOnly ? 'border-primary/40 bg-primary/10 text-primary active-tab-glow' : 'border-border/40 text-muted-foreground/50 hover:border-border hover:text-foreground'
+              hasActiveFilters
+                ? 'border-primary/40 bg-primary/10 text-primary active-tab-glow'
+                : 'border-border/40 text-muted-foreground/50 hover:border-border hover:text-foreground'
             }`}
-            onClick={() => setShowChangesOnly((value) => !value)}
-            title="Changes Only"
+            onClick={() => setFilterMenuOpen((value) => !value)}
+            title="Explorer filters"
           >
             <Filter size={12} strokeWidth={1.5} />
           </button>
@@ -740,7 +1096,107 @@ export function ProjectExplorerSidebar({
             Search results truncated
           </div>
         )}
+
+        {selectionCount > 0 ? (
+          <div className="flex items-center justify-between rounded border border-border/50 bg-muted/20 px-2 py-1 text-[10px] text-muted-foreground/80">
+            <span>{selectionCount} selected</span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className="rounded border border-border/60 px-2 py-0.5 text-[10px] hover:text-foreground"
+                onClick={() => handleCopyPath(selectionTargets)}
+              >
+                Copy Paths
+              </button>
+              <button
+                type="button"
+                className="rounded border border-rose-500/40 px-2 py-0.5 text-[10px] text-rose-300 hover:text-rose-200"
+                onClick={() => handleDelete(selectionTargets)}
+              >
+                Delete
+              </button>
+              <button
+                type="button"
+                className="rounded border border-border/60 px-2 py-0.5 text-[10px] hover:text-foreground"
+                onClick={clearSelection}
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        ) : null}
       </header>
+
+      {filterMenuOpen && (
+        <div
+          data-explorer-filter-menu
+          className="absolute right-4 top-[128px] z-50 w-56 rounded-lg border border-border/60 bg-popover/95 p-3 text-[11px] text-muted-foreground shadow-2xl backdrop-blur-md"
+        >
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+            Visibility
+          </div>
+          <div className="space-y-1">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded px-2 py-1 hover:bg-muted/40 hover:text-foreground"
+              onClick={() => setShowHidden((value) => !value)}
+            >
+              <span>Show hidden</span>
+              <span className={`h-3 w-3 rounded border ${showHidden ? 'bg-primary/50 border-primary/60' : 'border-border'}`} />
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded px-2 py-1 hover:bg-muted/40 hover:text-foreground"
+              onClick={() => setShowIgnored((value) => !value)}
+            >
+              <span>Show ignored</span>
+              <span className={`h-3 w-3 rounded border ${showIgnored ? 'bg-primary/50 border-primary/60' : 'border-border'}`} />
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded px-2 py-1 hover:bg-muted/40 hover:text-foreground"
+              onClick={() => setShowChangesOnly((value) => !value)}
+            >
+              <span>Changes only</span>
+              <span className={`h-3 w-3 rounded border ${showChangesOnly ? 'bg-primary/50 border-primary/60' : 'border-border'}`} />
+            </button>
+          </div>
+          <div className="mt-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+            Status Filters
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-1">
+            {STATUS_FILTERS.map((status) => {
+              const active = statusFilterSet.has(status);
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  className={`flex items-center gap-2 rounded px-2 py-1 text-left hover:bg-muted/40 hover:text-foreground ${
+                    active ? 'bg-muted/40 text-foreground' : ''
+                  }`}
+                  onClick={() => toggleStatusFilter(status)}
+                >
+                  <span
+                    className={`rounded border px-1 text-[9px] font-semibold ${statusBadgeStyles[status]} ${statusColors[status]}`}
+                  >
+                    {statusBadges[status]}
+                  </span>
+                  <span className="truncate">{statusLabels[status] || status}</span>
+                </button>
+              );
+            })}
+          </div>
+          {statusFilters.length > 0 ? (
+            <button
+              type="button"
+              className="mt-3 w-full rounded border border-border/60 px-2 py-1 text-[10px] hover:text-foreground"
+              onClick={() => setStatusFilters([])}
+            >
+              Clear status filters
+            </button>
+          ) : null}
+        </div>
+      )}
 
       {selectedCell ? (
         <div className="border-b border-border/50 px-4 py-2 text-[10px] text-muted-foreground/70">
@@ -785,8 +1241,27 @@ export function ProjectExplorerSidebar({
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-1 py-2" onClick={() => closeContextMenu()}>
-        {renderNode('')}
+      <div
+        ref={listRef}
+        data-testid="explorer-tree"
+        className="flex-1 overflow-y-auto px-1 py-2 focus:outline-none"
+        tabIndex={0}
+        onClick={() => closeContextMenu()}
+        onKeyDown={handleKeyDown}
+      >
+        {visibleItems.length === 0 ? (
+          <div className="px-3 py-2 text-xs text-muted-foreground/60">No files to display.</div>
+        ) : shouldVirtualize ? (
+          <div style={{ height: totalHeight, position: 'relative' }}>
+            <div style={{ transform: `translateY(${offsetY}px)` }}>
+              {visibleSlice.map((item) => renderRow(item))}
+            </div>
+          </div>
+        ) : (
+          <div>
+            {visibleSlice.map((item) => renderRow(item))}
+          </div>
+        )}
       </div>
 
       {contextMenu && (
@@ -798,12 +1273,43 @@ export function ProjectExplorerSidebar({
           <ContextMenuItem icon={FilePlus2} label="New File" onClick={() => startDraft('file')} />
           <ContextMenuItem icon={FolderPlus} label="New Folder" onClick={() => startDraft('dir')} />
           <div className="my-1 border-t border-border/40" />
-          <ContextMenuItem icon={Pencil} label="Rename" onClick={() => setRenameTarget({ path: activeTarget, value: explorerPathUtils.basename(activeTarget) })} disabled={!activeTarget} />
-          <ContextMenuItem icon={Copy} label="Duplicate" onClick={() => handleDuplicate(activeTarget)} disabled={!activeTarget} />
-          <ContextMenuItem icon={Copy} label="Copy Path" onClick={() => handleCopyPath(activeTarget)} disabled={!activeTarget} />
+          <ContextMenuItem
+            icon={Pencil}
+            label="Rename"
+            onClick={() =>
+              setRenameTarget({
+                path: selectionTargets[0],
+                value: explorerPathUtils.basename(selectionTargets[0]),
+              })
+            }
+            disabled={selectionTargets.length !== 1}
+          />
+          <ContextMenuItem
+            icon={Copy}
+            label="Duplicate"
+            onClick={() => handleDuplicate(selectionTargets[0])}
+            disabled={selectionTargets.length !== 1}
+          />
+          <ContextMenuItem
+            icon={Copy}
+            label={selectionTargets.length > 1 ? 'Copy Paths' : 'Copy Path'}
+            onClick={() => handleCopyPath(selectionTargets)}
+            disabled={!selectionTargets.length}
+          />
           <div className="my-1 border-t border-border/40" />
-          <ContextMenuItem icon={Eye} label="Reveal in Finder" onClick={() => revealEntry({ targetPath: activeTarget })} disabled={!activeTarget} />
-          <ContextMenuItem icon={Trash2} label="Delete" onClick={() => handleDelete(activeTarget)} disabled={!activeTarget} variant="destructive" />
+          <ContextMenuItem
+            icon={Eye}
+            label="Reveal in Finder"
+            onClick={() => handleReveal(selectionTargets)}
+            disabled={!selectionTargets.length}
+          />
+          <ContextMenuItem
+            icon={Trash2}
+            label={selectionTargets.length > 1 ? `Delete (${selectionTargets.length})` : 'Delete'}
+            onClick={() => handleDelete(selectionTargets)}
+            disabled={!selectionTargets.length}
+            variant="destructive"
+          />
           <div className="my-1 border-t border-border/40" />
           <ContextMenuItem icon={ArrowRightLeft} label="Clear Selection" onClick={() => { clearSelection(); closeContextMenu(); }} />
         </div>

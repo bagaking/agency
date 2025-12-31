@@ -39,6 +39,12 @@ const ENTRY_TYPES = {
 
 const DEFAULT_EXCLUDES = new Set(['.git']);
 const MAX_PREVIEW_BYTES = 200 * 1024;
+const STATUS_CACHE_TTL_MS = Number(process.env.AGENCY_EXPLORER_STATUS_TTL_MS || 800);
+const statusCache = {
+  value: null,
+  timestamp: 0,
+  promise: null,
+};
 
 function normalizeRelPath(value) {
   if (!value) {
@@ -222,14 +228,12 @@ function mergeCount(map, entry) {
 }
 
 async function collectWorktreeStatus(worktreePath) {
-  const statusOutput = await runGitRaw(
-    ['status', '--porcelain', '-z', '--ignored=matching', '--untracked-files=all'],
-    worktreePath
-  );
+  const [statusOutput, diffOutput, cachedOutput] = await Promise.all([
+    runGitRaw(['status', '--porcelain', '-z', '--ignored=matching', '--untracked-files=all'], worktreePath),
+    runGitRaw(['diff', '--numstat', '-z'], worktreePath),
+    runGitRaw(['diff', '--cached', '--numstat', '-z'], worktreePath),
+  ]);
   const statusEntries = parsePorcelainZ(statusOutput);
-
-  const diffOutput = await runGitRaw(['diff', '--numstat', '-z'], worktreePath);
-  const cachedOutput = await runGitRaw(['diff', '--cached', '--numstat', '-z'], worktreePath);
   const diffEntries = [...parseNumstatZ(diffOutput), ...parseNumstatZ(cachedOutput)];
   const counts = new Map();
   diffEntries.forEach((entry) => mergeCount(counts, entry));
@@ -360,46 +364,68 @@ function buildFolderSummaries(fileMap) {
 }
 
 async function getExplorerStatus() {
-  const repoRoot = await getRepoRoot();
-  const cells = await listCells();
-  const fileMap = new Map();
-
-  for (const cell of cells) {
-    if (!cell.worktreePath) {
-      continue;
-    }
-    // eslint-disable-next-line no-await-in-loop
-    const { statusByPath, countsByPath } = await collectWorktreeStatus(cell.worktreePath);
-    statusByPath.forEach((statusInfo, filePath) => {
-      const counts = countsByPath.get(filePath);
-      applyFileEntry(fileMap, filePath, cell, statusInfo, counts);
-    });
+  const now = Date.now();
+  if (statusCache.value && now - statusCache.timestamp < STATUS_CACHE_TTL_MS) {
+    return statusCache.value;
   }
+  if (statusCache.promise) {
+    return statusCache.promise;
+  }
+  statusCache.promise = (async () => {
+    const repoRoot = await getRepoRoot();
+    const cells = await listCells();
+    const fileMap = new Map();
+    const statusResults = await Promise.all(
+      cells
+        .filter((cell) => cell.worktreePath)
+        .map(async (cell) => ({
+          cell,
+          ...(await collectWorktreeStatus(cell.worktreePath)),
+        }))
+    );
 
-  const folderMap = buildFolderSummaries(fileMap);
+    statusResults.forEach(({ cell, statusByPath, countsByPath }) => {
+      statusByPath.forEach((statusInfo, filePath) => {
+        const counts = countsByPath.get(filePath);
+        applyFileEntry(fileMap, filePath, cell, statusInfo, counts);
+      });
+    });
 
-  const files = {};
-  fileMap.forEach((value, key) => {
-    files[key] = value;
-  });
+    const folderMap = buildFolderSummaries(fileMap);
 
-  const folders = {};
-  folderMap.forEach((value, key) => {
-    folders[key] = value;
-  });
+    const files = {};
+    fileMap.forEach((value, key) => {
+      files[key] = value;
+    });
 
-  return {
-    repoRoot,
-    rootName: path.basename(repoRoot),
-    files,
-    folders,
-    cells: cells.map((cell) => ({
-      id: cell.id,
-      name: cell.name,
-      worktreePath: cell.worktreePath,
-    })),
-    statusLabels: STATUS_LABELS,
-  };
+    const folders = {};
+    folderMap.forEach((value, key) => {
+      folders[key] = value;
+    });
+
+    const result = {
+      repoRoot,
+      rootName: path.basename(repoRoot),
+      files,
+      folders,
+      cells: cells.map((cell) => ({
+        id: cell.id,
+        name: cell.name,
+        worktreePath: cell.worktreePath,
+      })),
+      statusLabels: STATUS_LABELS,
+    };
+    statusCache.value = result;
+    statusCache.timestamp = Date.now();
+    statusCache.promise = null;
+    return result;
+  })();
+  try {
+    return await statusCache.promise;
+  } catch (error) {
+    statusCache.promise = null;
+    throw error;
+  }
 }
 
 async function searchFiles({ rootPath, query, limit = 1000 }) {

@@ -15,6 +15,7 @@
 - Hierarchy hosts configuration for Actions, Gates, and Softlinks.
 - Explorer provides a project file tree with git status (including added, untracked, ignored) and per-Cell change attribution.
 - Explorer scopes to the active Agent Cell worktree (or repo root) and opens files in the workbench.
+- Explorer supports filters (hidden/ignored/status), keyboard navigation, open/dirty indicators, and watch-based auto refresh.
 - The workbench supports multi-tab previews, quick open, diff/blame toggles, and media previews.
 
 ## Cell Lifecycle Files
@@ -129,6 +130,8 @@ make editor-dev
 ## Manual Verification
 
 - Open Explorer, expand folders, and confirm the tree loads lazily with refresh support.
+- Toggle Explorer filters (hidden/ignored/status) and confirm the tree updates accordingly.
+- Use arrow keys + Enter/F2 in Explorer to navigate, open files, and rename entries.
 - Create, rename, delete, and drag/drop a file or folder from the Explorer view.
 - Select a file in Explorer and confirm it opens in a workbench tab with line numbers and syntax highlighting.
 - Double-click a file to pin its tab, drag tabs to reorder, and close tabs from the tab strip menu.
