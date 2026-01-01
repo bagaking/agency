@@ -1,6 +1,7 @@
 const { ipcMain, BrowserWindow } = require('electron');
 const path = require('path');
 const { getRepoRoot } = require('../../services/git');
+const { resolveProjectRoot } = require('../../services/projectRoot');
 const { startExplorerWatch, stopExplorerWatch } = require('../../services/explorerWatch');
 const {
   listDirectory,
@@ -17,12 +18,14 @@ const {
 function setupExplorerHandlers() {
   ipcMain.handle('explorer:root', async (_event, payload) => {
     const rootPath = payload?.rootPath;
-    const repoRoot = rootPath ? await getRepoRoot(rootPath) : await getRepoRoot();
-    const resolvedRoot = rootPath || repoRoot;
+    const repoRoot = rootPath
+      ? await getRepoRoot(rootPath)
+      : await resolveProjectRoot();
+    const resolvedRoot = repoRoot ? rootPath || repoRoot : '';
     return {
-      repoRoot,
+      repoRoot: repoRoot || '',
       rootPath: resolvedRoot,
-      name: path.basename(resolvedRoot) || resolvedRoot,
+      name: resolvedRoot ? path.basename(resolvedRoot) || resolvedRoot : '',
     };
   });
 
@@ -33,8 +36,8 @@ function setupExplorerHandlers() {
     return listDirectory({ rootPath, relativePath, showHidden });
   });
 
-  ipcMain.handle('explorer:status', async () => {
-    return getExplorerStatus();
+  ipcMain.handle('explorer:status', async (_event, payload) => {
+    return getExplorerStatus({ rootPath: payload?.rootPath });
   });
 
   ipcMain.handle('explorer:search', async (_event, payload) => {

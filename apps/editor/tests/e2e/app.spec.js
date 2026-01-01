@@ -33,6 +33,7 @@ test('renders the Agency shell', async () => {
       ELECTRON_RENDERER_URL: 'http://localhost:5173',
       AGENCY_TEST_MODE: '1',
       AGENCY_CLI_STUB: '1',
+      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
     },
   });
 
@@ -50,6 +51,28 @@ test('renders the Agency shell', async () => {
   await electronApp.close();
 });
 
+test('shows project selection empty state', async () => {
+  setupTestRepo();
+  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
+  const electronApp = await electron.launch({
+    args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
+    env: {
+      ...process.env,
+      ELECTRON_RENDERER_URL: 'http://localhost:5173',
+      AGENCY_TEST_MODE: '1',
+      AGENCY_CLI_STUB: '1',
+      AGENCY_TEST_EMPTY_STATE: '1',
+      AGENCY_TEST_PROJECT_ROOT: '',
+    },
+  });
+
+  const window = await electronApp.firstWindow();
+  await expect(window.getByText('No project selected')).toBeVisible();
+  await expect(window.getByText('Select Project')).toBeVisible();
+
+  await electronApp.close();
+});
+
 test('keeps the active session stable while switching tabs', async () => {
   setupTestRepo();
   fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
@@ -60,6 +83,7 @@ test('keeps the active session stable while switching tabs', async () => {
       ELECTRON_RENDERER_URL: 'http://localhost:5173',
       AGENCY_TEST_MODE: '1',
       AGENCY_CLI_STUB: '1',
+      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
     },
   });
 
@@ -99,6 +123,7 @@ test('explorer filters and keyboard navigation', async () => {
       ELECTRON_RENDERER_URL: 'http://localhost:5173',
       AGENCY_TEST_MODE: '1',
       AGENCY_CLI_STUB: '1',
+      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
     },
   });
 
@@ -141,6 +166,7 @@ test('explorer drag and drop moves files', async () => {
       ELECTRON_RENDERER_URL: 'http://localhost:5173',
       AGENCY_TEST_MODE: '1',
       AGENCY_CLI_STUB: '1',
+      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
     },
   });
 

@@ -98,6 +98,10 @@ function invokeWithTimeout(channel, payload, timeoutMs = WORKBENCH_TIMEOUT_MS) {
 contextBridge.exposeInMainWorld('agency', {
   listCells: () => ipcRenderer.invoke('cells:list'),
   listWorktrees: () => ipcRenderer.invoke('worktrees:list'),
+  getProjectContext: () => ipcRenderer.invoke('project:get'),
+  selectProjectRoot: () => ipcRenderer.invoke('project:select'),
+  setProjectRoot: (payload) => ipcRenderer.invoke('project:set', payload),
+  clearProjectRoot: () => ipcRenderer.invoke('project:clear'),
   listSessions: (payload) => ipcRenderer.invoke('sessions:list', payload),
   createSession: (payload) => ipcRenderer.invoke('sessions:create', payload),
   closeSession: (payload) => ipcRenderer.invoke('sessions:close', payload),

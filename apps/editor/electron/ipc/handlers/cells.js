@@ -39,11 +39,14 @@ function setupCellHandlers({ getMainWindow }) {
     }
   };
 
-  ipcMain.handle('cells:list', async () => {
+  ipcMain.handle('cells:list', async (_event, payload) => {
     if (isTestMode) {
+      if (process.env.AGENCY_TEST_EMPTY_STATE === '1') {
+        return [];
+      }
       return [buildTestCell()];
     }
-    const cells = await listCells();
+    const cells = await listCells(payload || {});
     cells.forEach((cell) => watchLifecycleFile(cell.lifecycleFile));
     return cells;
   });

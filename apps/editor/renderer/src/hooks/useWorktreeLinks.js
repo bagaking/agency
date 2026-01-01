@@ -7,7 +7,7 @@ const generateLinkId = () => {
   return `link-${Date.now()}`;
 };
 
-export function useWorktreeLinks({ selectedCell, cells }) {
+export function useWorktreeLinks({ selectedCell, cells, projectRoot }) {
   const [links, setLinks] = useState([]);
   const [autoLinkOnCreate, setAutoLinkOnCreate] = useState(false);
   const [candidates, setCandidates] = useState([]);
@@ -23,10 +23,22 @@ export function useWorktreeLinks({ selectedCell, cells }) {
       if (!window.agency?.getWorktreeLinks) {
         return;
       }
+      if (!projectRoot) {
+        setLinks([]);
+        setCandidates([]);
+        setStatusesByPath({});
+        setRepoRoot('');
+        setConfigPath('');
+        setDirty(false);
+        setError('');
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setError('');
       try {
         const summary = await window.agency.getWorktreeLinks({
+          rootPath: projectRoot,
           worktreePath: selectedCell?.worktreePath,
           worktreePaths: (cells || []).map((cell) => cell.worktreePath).filter(Boolean),
         });
@@ -46,7 +58,7 @@ export function useWorktreeLinks({ selectedCell, cells }) {
         setLoading(false);
       }
     },
-    [selectedCell?.worktreePath, cells]
+    [selectedCell?.worktreePath, cells, projectRoot]
   );
 
   useEffect(() => {
@@ -67,6 +79,7 @@ export function useWorktreeLinks({ selectedCell, cells }) {
 
   const persistWorktreeLinks = useCallback(async () => {
     const saved = await window.agency.setWorktreeLinks({
+      rootPath: projectRoot,
       autoLinkOnCreate,
       links,
     });
@@ -74,7 +87,7 @@ export function useWorktreeLinks({ selectedCell, cells }) {
     setAutoLinkOnCreate(Boolean(saved?.autoLinkOnCreate));
     setDirty(false);
     return saved;
-  }, [autoLinkOnCreate, links]);
+  }, [autoLinkOnCreate, links, projectRoot]);
 
   const toggleAuto = useCallback((next) => {
     setAutoLinkOnCreate(next);
@@ -131,6 +144,10 @@ export function useWorktreeLinks({ selectedCell, cells }) {
     if (!window.agency?.setWorktreeLinks) {
       return;
     }
+    if (!projectRoot) {
+      setError('Project root is not configured.');
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -141,7 +158,7 @@ export function useWorktreeLinks({ selectedCell, cells }) {
     } finally {
       setLoading(false);
     }
-  }, [loadWorktreeLinks, persistWorktreeLinks]);
+  }, [loadWorktreeLinks, persistWorktreeLinks, projectRoot]);
 
   const applyLink = useCallback(
     async (linkId, options = {}) => {
@@ -156,6 +173,7 @@ export function useWorktreeLinks({ selectedCell, cells }) {
           await persistWorktreeLinks();
         }
         await window.agency.applyWorktreeLink({
+          rootPath: projectRoot,
           worktreePath: targetPath,
           linkId,
         });
@@ -166,7 +184,7 @@ export function useWorktreeLinks({ selectedCell, cells }) {
         setLoading(false);
       }
     },
-    [dirty, loadWorktreeLinks, persistWorktreeLinks, selectedCell?.worktreePath]
+    [dirty, loadWorktreeLinks, persistWorktreeLinks, projectRoot, selectedCell?.worktreePath]
   );
 
   const applyAll = useCallback(
@@ -182,6 +200,7 @@ export function useWorktreeLinks({ selectedCell, cells }) {
           await persistWorktreeLinks();
         }
         const results = await window.agency.applyAllWorktreeLinks({
+          rootPath: projectRoot,
           worktreePath: targetPath,
         });
         await loadWorktreeLinks({ preserveEdits: false });
@@ -200,7 +219,7 @@ export function useWorktreeLinks({ selectedCell, cells }) {
         setLoading(false);
       }
     },
-    [dirty, loadWorktreeLinks, persistWorktreeLinks, selectedCell?.worktreePath]
+    [dirty, loadWorktreeLinks, persistWorktreeLinks, projectRoot, selectedCell?.worktreePath]
   );
 
   const refreshLinks = useCallback(

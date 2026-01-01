@@ -76,6 +76,11 @@
 - When creating a new Cell, the branch name is generated as `<type>/<cell-name>`.
 - Available types: `feat`, `refactor`, `fix`, `lint`, `chore`, `doc`.
 
+## Project Selection
+
+- If no project directory is configured, the editor opens Explorer with an empty-state prompt.
+- Use **Select Project** to choose a repository; the path is stored locally and restored on relaunch.
+
 ## Packaging & Install (macOS)
 
 From `apps/editor`:

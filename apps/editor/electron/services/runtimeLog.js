@@ -1,7 +1,8 @@
+const { app } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
-const { getRepoRoot } = require('./git');
+const { resolveProjectRoot } = require('./projectRoot');
 
 const fsp = fs.promises;
 const MAX_RUNS = 20;
@@ -67,10 +68,14 @@ function safeStringify(value) {
 
 async function getRepoRootSafe() {
   try {
-    return await getRepoRoot();
+    const resolved = await resolveProjectRoot();
+    if (resolved) {
+      return resolved;
+    }
   } catch (error) {
-    return process.cwd();
+    // fall through to userData
   }
+  return app.getPath('userData');
 }
 
 async function rotateOldRuns() {
@@ -164,6 +169,7 @@ async function initRuntimeLogger({ repoRoot } = {}) {
     await logRuntime('info', 'runtime log started', {
       runId: state.runId,
       pid: process.pid,
+      logDir: state.logDir,
     });
   } catch (error) {
     console.warn('runtime log init failed', error);

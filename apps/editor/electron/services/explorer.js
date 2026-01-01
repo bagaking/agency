@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { getRepoRoot } = require('./git');
+const { resolveProjectRoot } = require('./projectRoot');
 const { listCells } = require('./cells');
 
 const execFileAsync = promisify(execFile);
@@ -44,6 +45,7 @@ const statusCache = {
   value: null,
   timestamp: 0,
   promise: null,
+  rootPath: '',
 };
 
 function normalizeRelPath(value) {
@@ -65,15 +67,27 @@ function resolveSafePath(rootPath, relativePath) {
 
 async function resolveExplorerRoot(rootPath) {
   if (!rootPath) {
-    const repoRoot = await getRepoRoot();
+    const repoRoot = await resolveProjectRoot();
+    if (!repoRoot) {
+      return { repoRoot: '', rootPath: '' };
+    }
     return { repoRoot, rootPath: repoRoot };
   }
   try {
     const repoRoot = await getRepoRoot(rootPath);
     return { repoRoot, rootPath };
   } catch (error) {
-    const repoRoot = await getRepoRoot();
+    const repoRoot = await resolveProjectRoot();
+    if (!repoRoot) {
+      return { repoRoot: '', rootPath: '' };
+    }
     return { repoRoot, rootPath: repoRoot };
+  }
+}
+
+function ensureResolvedRoot(resolved) {
+  if (!resolved?.rootPath) {
+    throw new Error('Project root is not configured.');
   }
 }
 
@@ -86,6 +100,9 @@ function sortEntries(a, b) {
 
 async function listDirectory({ rootPath, relativePath = '', showHidden = true }) {
   const resolved = await resolveExplorerRoot(rootPath);
+  if (!resolved.rootPath) {
+    return { path: normalizeRelPath(relativePath), entries: [] };
+  }
   const targetPath = resolveSafePath(resolved.rootPath, relativePath);
   const stats = await fsp.stat(targetPath);
   if (!stats.isDirectory()) {
@@ -363,7 +380,13 @@ function buildFolderSummaries(fileMap) {
   return folderMap;
 }
 
-async function getExplorerStatus() {
+async function getExplorerStatus({ rootPath } = {}) {
+  if (rootPath !== statusCache.rootPath) {
+    statusCache.value = null;
+    statusCache.timestamp = 0;
+    statusCache.promise = null;
+    statusCache.rootPath = rootPath || '';
+  }
   const now = Date.now();
   if (statusCache.value && now - statusCache.timestamp < STATUS_CACHE_TTL_MS) {
     return statusCache.value;
@@ -372,8 +395,18 @@ async function getExplorerStatus() {
     return statusCache.promise;
   }
   statusCache.promise = (async () => {
-    const repoRoot = await getRepoRoot();
-    const cells = await listCells();
+    const repoRoot = await resolveProjectRoot({ rootPath });
+    if (!repoRoot) {
+      return {
+        repoRoot: '',
+        rootName: '',
+        files: {},
+        folders: {},
+        cells: [],
+        statusLabels: STATUS_LABELS,
+      };
+    }
+    const cells = await listCells({ rootPath: repoRoot });
     const fileMap = new Map();
     const statusResults = await Promise.all(
       cells
@@ -433,6 +466,9 @@ async function searchFiles({ rootPath, query, limit = 1000 }) {
     return { matches: [], truncated: false };
   }
   const resolved = await resolveExplorerRoot(rootPath);
+  if (!resolved.rootPath) {
+    return { matches: [], truncated: false };
+  }
   const lowerQuery = query.toLowerCase();
   const tracked = await runGitRaw(['ls-files', '-z'], resolved.rootPath);
   const untracked = await runGitRaw(['ls-files', '--others', '--exclude-standard', '-z'], resolved.rootPath);
@@ -455,6 +491,7 @@ async function createEntry({ rootPath, parentPath, name, type }) {
     throw new Error('Name is required.');
   }
   const resolved = await resolveExplorerRoot(rootPath);
+  ensureResolvedRoot(resolved);
   const relativeParent = normalizeRelPath(parentPath);
   const targetRel = normalizeRelPath(path.join(relativeParent, name));
   const targetPath = resolveSafePath(resolved.rootPath, targetRel);
@@ -472,6 +509,7 @@ async function createEntry({ rootPath, parentPath, name, type }) {
 
 async function renameEntry({ rootPath, sourcePath, targetPath }) {
   const resolved = await resolveExplorerRoot(rootPath);
+  ensureResolvedRoot(resolved);
   const fromPath = resolveSafePath(resolved.rootPath, sourcePath);
   const toPath = resolveSafePath(resolved.rootPath, targetPath);
   if (!fs.existsSync(fromPath)) {
@@ -487,6 +525,7 @@ async function renameEntry({ rootPath, sourcePath, targetPath }) {
 
 async function deleteEntry({ rootPath, targetPath }) {
   const resolved = await resolveExplorerRoot(rootPath);
+  ensureResolvedRoot(resolved);
   const absolute = resolveSafePath(resolved.rootPath, targetPath);
   if (!fs.existsSync(absolute)) {
     return { path: normalizeRelPath(targetPath) };
@@ -497,6 +536,7 @@ async function deleteEntry({ rootPath, targetPath }) {
 
 async function copyEntry({ rootPath, sourcePath, targetPath }) {
   const resolved = await resolveExplorerRoot(rootPath);
+  ensureResolvedRoot(resolved);
   const fromPath = resolveSafePath(resolved.rootPath, sourcePath);
   const toPath = resolveSafePath(resolved.rootPath, targetPath);
   if (!fs.existsSync(fromPath)) {
@@ -512,6 +552,7 @@ async function copyEntry({ rootPath, sourcePath, targetPath }) {
 
 async function revealEntry({ rootPath, targetPath }) {
   const resolved = await resolveExplorerRoot(rootPath);
+  ensureResolvedRoot(resolved);
   const absolute = resolveSafePath(resolved.rootPath, targetPath);
   shell.showItemInFolder(absolute);
   return { path: normalizeRelPath(targetPath) };
@@ -522,6 +563,7 @@ async function readEntry({ rootPath, targetPath }) {
     throw new Error('targetPath is required.');
   }
   const resolved = await resolveExplorerRoot(rootPath);
+  ensureResolvedRoot(resolved);
   const absolute = resolveSafePath(resolved.rootPath, targetPath);
   const stats = await fsp.stat(absolute);
   if (!stats.isFile()) {

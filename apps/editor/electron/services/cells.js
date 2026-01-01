@@ -8,6 +8,7 @@ const {
   resolveBaseBranch,
   createWorktree,
 } = require('./git');
+const { resolveProjectRoot } = require('./projectRoot');
 const { readConfig: readWorktreeLinksConfig, applyAllLinks } = require('./worktreeLinks');
 const { checkGates } = require('./gates');
 
@@ -131,8 +132,11 @@ async function hydrateCell(repoRoot, worktree) {
   };
 }
 
-async function listCells() {
-  const repoRoot = await getRepoRoot();
+async function listCells({ rootPath } = {}) {
+  const repoRoot = await resolveProjectRoot({ rootPath });
+  if (!repoRoot) {
+    return [];
+  }
   const worktrees = await listWorktrees(repoRoot);
   const cells = [];
   for (const worktree of worktrees) {
@@ -145,8 +149,11 @@ async function listCells() {
   return cells;
 }
 
-async function createCell({ name, branch, reusePath }) {
-  const repoRoot = await getRepoRoot();
+async function createCell({ name, branch, reusePath, rootPath }) {
+  const repoRoot = await resolveProjectRoot({ rootPath });
+  if (!repoRoot) {
+    throw new Error('Project root is not configured.');
+  }
   const now = new Date().toISOString();
 
   if (reusePath) {
@@ -237,7 +244,12 @@ async function maybeAutoLinkWorktree(repoRoot, worktreePath) {
 }
 
 async function updateCellState({ id, state, worktreePath }) {
-  const repoRoot = await getRepoRoot();
+  const repoRoot = worktreePath
+    ? await getRepoRoot(worktreePath)
+    : await resolveProjectRoot();
+  if (!repoRoot) {
+    throw new Error('Project root is not configured.');
+  }
   const worktrees = await listWorktrees(repoRoot);
   const target = worktrees.find((worktree) => {
     if (worktreePath) {

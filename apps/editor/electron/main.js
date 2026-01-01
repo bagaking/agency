@@ -1,4 +1,5 @@
 const { app, BrowserWindow, nativeImage } = require('electron');
+const fs = require('fs');
 const path = require('path');
 const { setupCellHandlers } = require('./ipc/handlers/cells');
 const { setupWorktreeHandlers } = require('./ipc/handlers/worktrees');
@@ -12,6 +13,7 @@ const { setupWorktreeLinksHandlers } = require('./ipc/handlers/worktreeLinks');
 const { setupExplorerHandlers } = require('./ipc/handlers/explorer');
 const { setupRuntimeLogHandlers } = require('./ipc/handlers/runtimeLog');
 const { setupWorkbenchHandlers } = require('./ipc/handlers/workbench');
+const { setupProjectHandlers } = require('./ipc/handlers/project');
 const {
   initRuntimeLogger,
   logRuntime,
@@ -24,8 +26,32 @@ let mainWindow;
 
 app.setName('Agency');
 
+function resolveIconPath() {
+  const devIcon = path.join(__dirname, '../renderer/public/icon.png');
+  if (fs.existsSync(devIcon)) {
+    return devIcon;
+  }
+  const packagedIcon = path.join(process.resourcesPath, 'icon.png');
+  if (fs.existsSync(packagedIcon)) {
+    return packagedIcon;
+  }
+  return '';
+}
+
+function resolveIconImage() {
+  const iconPath = resolveIconPath();
+  if (!iconPath) {
+    return null;
+  }
+  const image = nativeImage.createFromPath(iconPath);
+  if (image.isEmpty()) {
+    return null;
+  }
+  return image;
+}
+
 function createWindow() {
-  const iconPath = path.join(__dirname, '../renderer/public/icon.png');
+  const iconImage = resolveIconImage();
   const win = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -33,7 +59,7 @@ function createWindow() {
     minHeight: 700,
     backgroundColor: '#111318',
     autoHideMenuBar: true,
-    icon: iconPath,
+    ...(iconImage ? { icon: iconImage } : {}),
     title: 'Agency',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -53,6 +79,10 @@ function createWindow() {
     win.loadFile(path.join(__dirname, '../dist/renderer/index.html'));
   }
 
+  win.webContents.on('did-finish-load', () => {
+    logRuntime('info', 'renderer loaded', { url: win.webContents.getURL() });
+  });
+
   win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
     logRuntime('error', 'renderer load failed', {
       errorCode,
@@ -63,6 +93,10 @@ function createWindow() {
       return;
     }
     win.loadFile(path.join(__dirname, '../dist/renderer/index.html'));
+  });
+
+  win.webContents.on('render-process-gone', (_event, details) => {
+    logRuntime('error', 'renderer process gone', details || {});
   });
 
   mainWindow = win;
@@ -90,10 +124,19 @@ app.whenReady().then(async () => {
   setupExplorerHandlers();
   setupWorkbenchHandlers();
   setupRuntimeLogHandlers();
+  setupProjectHandlers();
 
   if (process.platform === 'darwin') {
-    const iconPath = path.join(__dirname, '../renderer/public/icon.png');
-    app.dock.setIcon(iconPath);
+    try {
+      const iconImage = resolveIconImage();
+      if (iconImage) {
+        app.dock.setIcon(iconImage);
+      } else {
+        logRuntime('warn', 'dock icon missing');
+      }
+    } catch (error) {
+      logRuntime('warn', 'dock icon set failed', { error: error?.message || String(error) });
+    }
   }
 
   createWindow();

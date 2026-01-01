@@ -25,6 +25,8 @@ import { SessionContextMenu, SessionOverflowMenu } from './SessionMenus.jsx';
 
 export function EditorPane({
   cell,
+  projectReady,
+  projectError,
   terminalMode,
   terminalOpen,
   sessionId,
@@ -55,6 +57,7 @@ export function EditorPane({
   onCommandSent,
   onSessionActivity,
   onSessionAttached,
+  onSelectProject,
 }) {
   const [closedMenu, setClosedMenu] = useState(null);
   const [showGates, setShowGates] = useState(false);
@@ -149,19 +152,74 @@ export function EditorPane({
     return () => clearInterval(interval);
   }, [isVisible]);
 
+  const assetBase = import.meta.env.BASE_URL || '/';
+
   if (!cell) {
     return (
       <div className="flex h-full flex-col items-center justify-center bg-background text-muted-foreground">
         <div className="h-32 w-32 mb-4 opacity-50">
-             <RiveAnimation 
-                src="/assets/animations/empty-state.riv"
-                animations="Timeline 1"
-                className="w-full h-full"
-                fallback={<MonitorPlay size={64} className="w-full h-full p-4 opacity-20" />}
-             />
+          <RiveAnimation
+            src={`${assetBase}assets/animations/empty-state.riv`}
+            animations="Timeline 1"
+            className="w-full h-full"
+            fallback={<MonitorPlay size={64} className="w-full h-full p-4 opacity-20" />}
+          />
         </div>
-        <p>Select an agent to view details</p>
+        <p className="text-sm">
+          {projectReady ? 'Select an agent to view details' : 'Select a project to begin'}
+        </p>
+        {!projectReady ? (
+          <>
+            {projectError ? <p className="mt-2 text-xs text-rose-300">{projectError}</p> : null}
+            <button
+              type="button"
+              onClick={onSelectProject}
+              className="mt-4 inline-flex items-center gap-2 rounded-full border border-primary/40 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-primary transition-colors hover:bg-primary/10"
+            >
+              Select Project
+            </button>
+          </>
+        ) : null}
       </div>
+    );
+  }
+
+  if (cell.isVirtual) {
+    return (
+      <main className="flex h-full flex-1 flex-col bg-background overflow-hidden">
+        <header className="flex h-10 shrink-0 items-center justify-between border-b border-border bg-background px-4">
+          <div className="flex items-center gap-2 text-xs text-foreground">
+            <span className="text-primary font-bold tracking-tight">AGENCY</span>
+            <ChevronRight size={12} className="text-muted-foreground/50" />
+            <span className="font-semibold">{cell.name}</span>
+          </div>
+          <button
+            type="button"
+            onClick={onSelectProject}
+            className="text-[10px] font-semibold uppercase tracking-widest text-primary hover:text-primary/80"
+          >
+            Select Project
+          </button>
+        </header>
+        <div className="flex-1 overflow-hidden">
+          <TerminalArea
+            cell={cell}
+            sessions={sessions}
+            activeSessionId={sessionId}
+            terminalOpen={terminalOpen}
+            terminalMode={terminalMode}
+            pendingCommand={pendingCommand}
+            onCommandSent={onCommandSent}
+            onSessionActivity={onSessionActivity}
+            terminalFontSize={terminalFontSize}
+            onSessionAttached={onSessionAttached}
+            isVisible={isVisible}
+            sessionLoading={sessionLoading}
+            sessionError={sessionError}
+            onOpenTerminal={onOpenTerminal}
+          />
+        </div>
+      </main>
     );
   }
 

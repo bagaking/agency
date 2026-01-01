@@ -1,9 +1,10 @@
 const { ipcMain } = require('electron');
-const { getRepoRoot, listWorktrees } = require('../../services/git');
+const { listWorktrees } = require('../../services/git');
+const { resolveProjectRoot } = require('../../services/projectRoot');
 
 function setupWorktreeHandlers() {
   const isTestMode = process.env.AGENCY_TEST_MODE === '1';
-  ipcMain.handle('worktrees:list', async () => {
+  ipcMain.handle('worktrees:list', async (_event, payload) => {
     if (isTestMode) {
       return [
         {
@@ -12,7 +13,10 @@ function setupWorktreeHandlers() {
         },
       ];
     }
-    const repoRoot = await getRepoRoot();
+    const repoRoot = await resolveProjectRoot({ rootPath: payload?.rootPath });
+    if (!repoRoot) {
+      return [];
+    }
     return listWorktrees(repoRoot);
   });
 }

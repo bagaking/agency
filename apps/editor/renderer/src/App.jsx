@@ -25,6 +25,9 @@ function App() {
   const [cells, setCells] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [projectRoot, setProjectRoot] = useState('');
+  const [projectError, setProjectError] = useState('');
+  const [fallbackTerminalRoot, setFallbackTerminalRoot] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [pendingTransition, setPendingTransition] = useState(null);
   const [transitionError, setTransitionError] = useState('');
@@ -43,22 +46,60 @@ function App() {
   const [initialActiveSessions, setInitialActiveSessions] = useState({});
   const [initialWorkbenchTabs, setInitialWorkbenchTabs] = useState({});
   const [initialWorkbenchActiveTabs, setInitialWorkbenchActiveTabs] = useState({});
+  const projectReady = Boolean(projectRoot);
+  const virtualCell = useMemo(() => {
+    if (projectReady || !fallbackTerminalRoot) {
+      return null;
+    }
+    return {
+      id: 'local-terminal',
+      name: 'Local Terminal',
+      branch: 'local',
+      worktreePath: fallbackTerminalRoot,
+      state: 'draft',
+      isVirtual: true,
+      validation: { warnings: ['Project root not selected.'] },
+    };
+  }, [fallbackTerminalRoot, projectReady]);
+  const displayCells = useMemo(() => {
+    if (projectReady) {
+      return cells;
+    }
+    return virtualCell ? [virtualCell] : [];
+  }, [cells, projectReady, virtualCell]);
   const selectedCell = useMemo(
-    () => cells.find((cell) => cell.id === selectedId),
-    [cells, selectedId]
+    () => displayCells.find((cell) => cell.id === selectedId) || null,
+    [displayCells, selectedId]
   );
+  const scopedCell = useMemo(() => {
+    if (!projectReady || !selectedCell || selectedCell.isVirtual) {
+      return null;
+    }
+    return selectedCell;
+  }, [projectReady, selectedCell]);
   const loadCells = useCallback(
-    async (preferredSelection) => {
+    async (preferredSelection, rootOverride) => {
+      const effectiveRoot = rootOverride || projectRoot;
       setLoading(true);
       try {
+        if (!effectiveRoot) {
+          setCells([]);
+          setSelectedId(null);
+          return;
+        }
         if (window.agency && window.agency.listCells) {
-          const result = await window.agency.listCells();
+          const result = await window.agency.listCells({ rootPath: effectiveRoot });
           setCells(result);
-          if (result.length && !selectedId) {
-            const match = preferredSelection
+          if (result.length) {
+            const preferredMatch = preferredSelection
               ? result.find((cell) => cell.id === preferredSelection)
               : null;
-            setSelectedId(match ? match.id : result[0].id);
+            const existingMatch = selectedId
+              ? result.find((cell) => cell.id === selectedId)
+              : null;
+            setSelectedId((preferredMatch || existingMatch || result[0]).id);
+          } else {
+            setSelectedId(null);
           }
         } else {
           setCells(defaultCells);
@@ -66,16 +107,37 @@ function App() {
         }
       } catch (error) {
         console.error(error);
-        setCells(defaultCells);
-        if (!selectedId) setSelectedId(defaultCells[0].id);
+        if (String(error?.message || '').includes('Project root is not configured')) {
+          setCells([]);
+          setSelectedId(null);
+        } else {
+          setCells(defaultCells);
+          if (!selectedId) setSelectedId(defaultCells[0].id);
+        }
       } finally {
         setLoading(false);
       }
     },
-    [selectedId]
+    [projectRoot, selectedId]
   );
   useEffect(() => {
     const bootstrap = async () => {
+      let context = null;
+      if (window.agency?.getProjectContext) {
+        try {
+          context = await window.agency.getProjectContext();
+        } catch (error) {
+          console.error(error);
+        }
+      }
+      const resolvedProjectRoot = context?.projectRoot || '';
+      setProjectRoot(resolvedProjectRoot);
+      setFallbackTerminalRoot(context?.userDataPath || '');
+      if (context?.storedRoot && !context?.valid) {
+        setProjectError('Stored project path is no longer available. Select a new project.');
+      } else {
+        setProjectError('');
+      }
       if (window.agency?.getUiState) {
         try {
           const state = await window.agency.getUiState();
@@ -83,10 +145,14 @@ function App() {
             setInitialActiveSessions(state.activeSessionByCellId);
           }
           if (state?.workbenchTabsByCellId && typeof state.workbenchTabsByCellId === 'object') {
-            setInitialWorkbenchTabs(state.workbenchTabsByCellId);
+            setInitialWorkbenchTabs(
+              resolvedProjectRoot ? state.workbenchTabsByCellId : {}
+            );
           }
           if (state?.workbenchActiveTabByCellId && typeof state.workbenchActiveTabByCellId === 'object') {
-            setInitialWorkbenchActiveTabs(state.workbenchActiveTabByCellId);
+            setInitialWorkbenchActiveTabs(
+              resolvedProjectRoot ? state.workbenchActiveTabByCellId : {}
+            );
           }
           if (state?.selectedId) {
             setSelectedId(state.selectedId);
@@ -103,16 +169,21 @@ function App() {
               setActiveView(state.activeView);
             }
           }
-          await loadCells(state?.selectedId);
+          if (!resolvedProjectRoot) {
+            setActiveView('explorer');
+            setSelectedId(null);
+            setCells([]);
+          }
+          await loadCells(state?.selectedId, resolvedProjectRoot);
         } catch (error) {
           console.error(error);
-          await loadCells();
+          await loadCells(undefined, resolvedProjectRoot);
         } finally {
           setUiStateLoaded(true);
         }
         return;
       }
-      await loadCells();
+      await loadCells(undefined, resolvedProjectRoot);
       setUiStateLoaded(true);
     };
     bootstrap();
@@ -128,6 +199,16 @@ function App() {
       }
     };
   }, [loadCells]);
+  useEffect(() => {
+    if (!uiStateLoaded) {
+      return;
+    }
+    if (!projectRoot) {
+      setActiveView('explorer');
+      setSelectedId(null);
+    }
+    loadCells(undefined, projectRoot);
+  }, [projectRoot, uiStateLoaded, loadCells]);
   useEffect(() => {
     const loadTmuxStatus = async () => {
       if (!window.agency?.getTmuxStatus) {
@@ -150,7 +231,7 @@ function App() {
     autoLinkOnCreate: worktreeLinksAuto,
     candidates: worktreeLinksCandidates,
     statusesByPath: worktreeLinksStatusesByPath,
-    repoRoot,
+    repoRoot: worktreeLinksRepoRoot,
     configPath: worktreeLinksConfigPath,
     loading: worktreeLinksLoading,
     error: worktreeLinksError,
@@ -165,7 +246,7 @@ function App() {
     applyAll: applyAllWorktreeLinks,
     refreshLinks: refreshWorktreeLinks,
     clearError: clearWorktreeLinksError,
-  } = useWorktreeLinks({ selectedCell, cells });
+  } = useWorktreeLinks({ selectedCell: scopedCell, cells, projectRoot });
   const {
     resolvedQuickActions,
     actionsRows,
@@ -182,7 +263,7 @@ function App() {
     resetQuickAction,
     saveQuickActions,
     clearQuickActionsError,
-  } = useQuickActions({ selectedCell, actionsScope });
+  } = useQuickActions({ selectedCell: scopedCell, actionsScope });
   const {
     gateRows,
     gateScopeDisabled,
@@ -201,11 +282,27 @@ function App() {
     resetGate,
     saveGates,
     clearGatesError,
-  } = useGates({ selectedCell, gateScope, gateStage, repoRoot });
+  } = useGates({ selectedCell: scopedCell, gateScope, gateStage, repoRoot: projectRoot });
   const handleOpenTerminal = useCallback(() => {
     setTerminalMode('shell');
     setTerminalOpen(true);
   }, []);
+  const handleSelectProjectRoot = useCallback(async () => {
+    if (!window.agency?.selectProjectRoot) {
+      return;
+    }
+    setProjectError('');
+    try {
+      const result = await window.agency.selectProjectRoot();
+      if (result?.projectRoot) {
+        setProjectRoot(result.projectRoot);
+        setActiveView('explorer');
+        await loadCells(undefined, result.projectRoot);
+      }
+    } catch (error) {
+      setProjectError(error?.message || 'Failed to select project.');
+    }
+  }, [loadCells]);
   const {
     sessions,
     activeSessionId,
@@ -236,8 +333,8 @@ function App() {
     initialActiveSessions,
   });
   const workbench = useWorkbench({
-    selectedCell,
-    repoRoot,
+    selectedCell: scopedCell,
+    repoRoot: projectRoot,
     initialTabsByCellId: initialWorkbenchTabs,
     initialActiveTabByCellId: initialWorkbenchActiveTabs,
   });
@@ -291,28 +388,28 @@ function App() {
     workbench.activeTabByCellId,
     workbench.tabsByCellId,
   ]);
-  const gateDisplayStage = selectedCell?.state === 'archived' ? 'archived' : 'active';
-  const gateResultsByStage = selectedCell ? gateResultsByCellId[selectedCell.id] || {} : {};
-  const gatesCheckingByStage = selectedCell ? gatesCheckingByCellId[selectedCell.id] || {} : {};
+  const gateDisplayStage = scopedCell?.state === 'archived' ? 'archived' : 'active';
+  const gateResultsByStage = scopedCell ? gateResultsByCellId[scopedCell.id] || {} : {};
+  const gatesCheckingByStage = scopedCell ? gatesCheckingByCellId[scopedCell.id] || {} : {};
   const handleStateChange = useCallback(
     async (nextState) => {
-      if (!selectedCell || !window.agency?.updateCellState) {
+      if (!scopedCell || !window.agency?.updateCellState) {
         return;
       }
-      if (nextState === selectedCell.state) {
+      if (nextState === scopedCell.state) {
         return;
       }
       setTransitionError('');
       let nextCells = cells;
       if (window.agency?.listCells) {
         try {
-          nextCells = await window.agency.listCells();
+          nextCells = await window.agency.listCells({ rootPath: projectRoot });
           setCells(nextCells);
         } catch (error) {
           console.error(error);
         }
       }
-      const freshCell = nextCells.find((cell) => cell.id === selectedCell.id) || selectedCell;
+      const freshCell = nextCells.find((cell) => cell.id === scopedCell.id) || scopedCell;
       let gates = [];
       if (['active', 'archived'].includes(nextState)) {
         gates = await checkGatesForCell({ cell: freshCell, stage: nextState, silent: true });
@@ -323,16 +420,25 @@ function App() {
         gates,
       });
     },
-    [cells, checkGatesForCell, selectedCell]
+    [cells, checkGatesForCell, projectRoot, scopedCell]
   );
   const handleCreate = useCallback(
     async ({ name, branch, reusePath }) => {
       if (!window.agency?.createCell) {
         return;
       }
+      if (!projectReady) {
+        setProjectError('Select a project before creating a Cell.');
+        return;
+      }
       setLoading(true);
       try {
-        const cell = await window.agency.createCell({ name, branch, reusePath });
+        const cell = await window.agency.createCell({
+          name,
+          branch,
+          reusePath,
+          rootPath: projectRoot,
+        });
         setShowCreate(false);
         await loadCells();
         if (cell?.id) {
@@ -345,16 +451,19 @@ function App() {
         setLoading(false);
       }
     },
-    [handleOpenTerminal, loadCells]
+    [handleOpenTerminal, loadCells, projectReady, projectRoot]
   );
   const handleSaveGates = useCallback(async () => {
     await saveGates();
     await loadCells();
   }, [loadCells, saveGates]);
-  const canUseScopedConfig = Boolean(selectedCell?.worktreePath);
+  const canUseScopedConfig = Boolean(scopedCell?.worktreePath);
+  const resolvedRepoRoot = projectRoot || worktreeLinksRepoRoot;
 
   const editorPaneProps = {
     cell: selectedCell,
+    projectReady,
+    projectError,
     terminalMode,
     terminalOpen,
     sessionId: activeSessionId,
@@ -379,6 +488,7 @@ function App() {
     onZoomIn: zoomIn,
     onZoomOut: zoomOut,
     onZoomReset: zoomReset,
+    onSelectProject: handleSelectProjectRoot,
     onRunCommand: runActionCommand,
     pendingCommand,
     onCommandSent: acknowledgeCommandSent,
@@ -386,8 +496,12 @@ function App() {
     onSessionAttached: handleSessionAttached,
     terminalFontSize: activeFontSize,
   };
-  const explorerRootPath = selectedCell?.worktreePath || repoRoot || '';
-  const explorerRootLabel = selectedCell?.name || 'Repository';
+  const explorerRootPath = projectReady
+    ? selectedCell?.worktreePath || projectRoot || ''
+    : '';
+  const explorerRootLabel = projectReady
+    ? selectedCell?.name || 'Repository'
+    : 'Project';
   const explorerMeta = workbenchMetaByCellId[selectedCell?.id || 'repo'] || {};
   const handleSwitchView = useCallback(
     (view) => {
@@ -469,13 +583,22 @@ function App() {
         onSwitchView={handleSwitchView}
         hierarchySection={hierarchySection}
         onSelectHierarchySection={handleSelectHierarchySection}
-        cells={cells}
+        cells={displayCells}
         selectedId={selectedId}
         selectedCell={selectedCell}
         onSelectCell={setSelectedId}
-        onCreateCell={() => setShowCreate(true)}
+        onCreateCell={() => {
+          if (projectReady) {
+            setShowCreate(true);
+          } else {
+            handleSelectProjectRoot();
+          }
+        }}
         onJumpToHierarchy={handleHierarchyJump}
         onOpenExplorerForCell={handleOpenExplorerForCell}
+        projectReady={projectReady}
+        projectError={projectError}
+        onSelectProject={handleSelectProjectRoot}
         actionsScope={actionsScope}
         onSelectActionsScope={handleSelectActionsScope}
         actionsScopeDisabled={actionsScopeDisabled}
@@ -525,7 +648,7 @@ function App() {
         onApplyAllWorktreeLinks={applyAllWorktreeLinks}
         onSaveWorktreeLinks={saveWorktreeLinks}
         onRefreshWorktreeLinks={refreshWorktreeLinks}
-        repoRoot={repoRoot}
+        repoRoot={resolvedRepoRoot}
         canUseProjectScope={canUseScopedConfig}
         canUseAgentScope={canUseScopedConfig}
         editorPaneProps={editorPaneProps}
@@ -537,7 +660,7 @@ function App() {
         explorerSidebarProps={{
           rootPath: explorerRootPath,
           rootLabel: explorerRootLabel,
-          cells,
+          cells: projectReady ? cells : [],
           selectedId,
           onSelectCell: setSelectedId,
           selectedCell,
@@ -554,6 +677,9 @@ function App() {
           workbench,
           activeRootPath: explorerRootPath,
           activeRootLabel: explorerRootLabel,
+          projectReady,
+          projectError,
+          onSelectProject: handleSelectProjectRoot,
           cellId: selectedCell?.id || 'repo',
           onTabMetaChange: handleWorkbenchMetaChange,
         }}

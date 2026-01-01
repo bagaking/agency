@@ -3,6 +3,7 @@ import { RefreshCw } from 'lucide-react';
 import { RiveAnimation } from './RiveAnimation.jsx';
 
 export function StatusBar({ loading, message, onRefresh, tmuxStatus }) {
+  const assetBase = import.meta.env.BASE_URL || '/';
   const tmuxLabel = tmuxStatus?.available ? (tmuxStatus.version || 'tmux') : 'tmux missing';
   const tmuxColor = tmuxStatus?.available ? 'text-emerald-300' : 'text-amber-300';
 
@@ -30,7 +31,7 @@ export function StatusBar({ loading, message, onRefresh, tmuxStatus }) {
         <div className="flex items-center justify-center w-4 h-4">
              {loading ? (
                  <RiveAnimation 
-                    src="/assets/animations/loader.riv" 
+                    src={`${assetBase}assets/animations/loader.riv`} 
                     animations="Timeline 1"
                     className="w-4 h-4"
                     fallback={<RefreshCw size={10} className="animate-spin" />}

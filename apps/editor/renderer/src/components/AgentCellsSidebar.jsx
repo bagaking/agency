@@ -15,6 +15,9 @@ export function AgentCellsSidebar({
   onCreate,
   onJump,
   onOpenExplorer,
+  projectReady,
+  projectError,
+  onSelectProject,
 }) {
   return (
     <aside className="flex w-full flex-col text-sidebar-foreground" data-testid="sidebar">
@@ -22,9 +25,10 @@ export function AgentCellsSidebar({
         <span>Agent Cells</span>
         <button
           onClick={onCreate}
-          className="rounded p-1 hover:bg-muted/50 hover:text-foreground"
-          title="New Cell"
+          className={`rounded p-1 ${projectReady ? 'hover:bg-muted/50 hover:text-foreground' : 'opacity-40 cursor-not-allowed'}`}
+          title={projectReady ? 'New Cell' : 'Select a project to create Cells'}
           data-testid="open-create-cell"
+          disabled={!projectReady}
         >
           <Plus size={16} strokeWidth={1.5} />
         </button>
@@ -33,12 +37,43 @@ export function AgentCellsSidebar({
       <div className="flex-1 overflow-y-auto px-2">
         <div className="mb-2 px-2 text-xs font-medium text-muted-foreground">CONFIGURATION</div>
         <div className="grid grid-cols-2 gap-1">
-          <NavItem icon={SquareTerminal} label="Actions" onClick={() => onJump?.('actions')} />
-          <NavItem icon={ShieldCheck} label="Gates" onClick={() => onJump?.('gates')} />
-          <NavItem icon={Link2} label="Softlinks" onClick={() => onJump?.('softlinks')} />
+          <NavItem
+            icon={SquareTerminal}
+            label="Actions"
+            onClick={() => onJump?.('actions')}
+            disabled={!projectReady}
+          />
+          <NavItem
+            icon={ShieldCheck}
+            label="Gates"
+            onClick={() => onJump?.('gates')}
+            disabled={!projectReady}
+          />
+          <NavItem
+            icon={Link2}
+            label="Softlinks"
+            onClick={() => onJump?.('softlinks')}
+            disabled={!projectReady}
+          />
         </div>
 
         <div className="mb-2 mt-4 px-2 text-xs font-medium text-muted-foreground">AGENTS</div>
+        {!projectReady ? (
+          <div className="mb-3 rounded-lg border border-dashed border-border px-3 py-3 text-[11px] text-muted-foreground">
+            <div className="font-medium text-foreground">No project selected</div>
+            <div className="mt-1">Choose a project directory to load Cells.</div>
+            {projectError ? (
+              <div className="mt-2 text-rose-300">{projectError}</div>
+            ) : null}
+            <button
+              type="button"
+              onClick={onSelectProject}
+              className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary transition-colors hover:bg-primary/10"
+            >
+              Select Project
+            </button>
+          </div>
+        ) : null}
         {cells.length === 0 ? (
           <div className="px-4 py-8 text-center text-xs text-muted-foreground">
             No active cells
@@ -61,23 +96,29 @@ export function AgentCellsSidebar({
   );
 }
 
-function NavItem({ icon: Icon, label, onClick }) {
+function NavItem({ icon: Icon, label, onClick, disabled }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground"
+      disabled={disabled}
+      className={`group flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-[11px] transition-colors ${
+        disabled
+          ? 'cursor-not-allowed text-muted-foreground/50'
+          : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'
+      }`}
     >
       <span className="flex items-center gap-1.5 truncate">
         <Icon size={14} strokeWidth={1.5} className="opacity-70" />
         <span className="truncate">{label}</span>
       </span>
-      <ArrowUpRight size={12} strokeWidth={1.5} className="opacity-50" />
+      <ArrowUpRight size={12} strokeWidth={1.5} className={disabled ? 'opacity-30' : 'opacity-50'} />
     </button>
   );
 }
 
 function CellItem({ cell, selected, onClick, onOpenExplorer }) {
+  const Icon = cell.isVirtual ? SquareTerminal : GitBranch;
   return (
     <button
       type="button"
@@ -89,25 +130,29 @@ function CellItem({ cell, selected, onClick, onOpenExplorer }) {
           : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'
       }`}
     >
-      <GitBranch size={14} strokeWidth={1.5} className={selected ? 'text-primary' : 'opacity-70'} />
+      <Icon size={14} strokeWidth={1.5} className={selected ? 'text-primary' : 'opacity-70'} />
       <span className="truncate">{cell.name}</span>
       <div className="ml-auto flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-        <button
-          type="button"
-          className="rounded p-1 text-muted-foreground/60 hover:text-foreground hover:bg-muted/30"
-          onClick={(event) => {
-            event.stopPropagation();
-            onOpenExplorer?.();
-          }}
-          title="Open in Explorer"
-        >
-          <FolderOpen size={12} strokeWidth={1.5} />
-        </button>
-        <Circle
-          size={8}
-          className={statusColors[cell.state] || statusColors.draft}
-          fill="currentColor"
-        />
+        {!cell.isVirtual ? (
+          <>
+            <button
+              type="button"
+              className="rounded p-1 text-muted-foreground/60 hover:text-foreground hover:bg-muted/30"
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenExplorer?.();
+              }}
+              title="Open in Explorer"
+            >
+              <FolderOpen size={12} strokeWidth={1.5} />
+            </button>
+            <Circle
+              size={8}
+              className={statusColors[cell.state] || statusColors.draft}
+              fill="currentColor"
+            />
+          </>
+        ) : null}
       </div>
     </button>
   );

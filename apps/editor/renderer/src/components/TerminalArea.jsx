@@ -19,6 +19,7 @@ export function TerminalArea({
   sessionError,
   onOpenTerminal,
 }) {
+  const assetBase = import.meta.env.BASE_URL || '/';
   const hasSessions = Boolean(sessions && sessions.length > 0);
   const hasActiveSession = Boolean(activeSessionId && hasSessions);
   const showLoadingOverlay = sessionLoading && !(terminalOpen && hasActiveSession);
@@ -58,7 +59,7 @@ export function TerminalArea({
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
               <div className="h-24 w-24 opacity-60">
                 <RiveAnimation
-                  src="/assets/animations/loading.riv"
+                  src={`${assetBase}assets/animations/loading.riv`}
                   animations="Idle"
                   className="w-full h-full"
                   fallback={<RefreshCw size={32} className="animate-spin text-primary/40" />}
@@ -74,7 +75,7 @@ export function TerminalArea({
         <div className="flex h-full flex-col items-center justify-center text-muted-foreground bg-black/40 backdrop-blur-sm">
           <div className="mb-4 opacity-20 hover:opacity-40 transition-opacity duration-700">
             <RiveAnimation
-              src="/assets/animations/terminal-idle.riv"
+              src={`${assetBase}assets/animations/terminal-idle.riv`}
               animations="Idle"
               className="w-16 h-16"
               fallback={<TerminalSquare size={48} />}

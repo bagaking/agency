@@ -15,6 +15,7 @@ import {
 import { CodeWorkbenchView } from './CodeWorkbenchView.jsx';
 import { MediaWorkbenchView } from './MediaWorkbenchView.jsx';
 import { QuickOpenModal } from './QuickOpenModal.jsx';
+import { ProjectEmptyState } from '../ProjectEmptyState.jsx';
 
 const languageFromPath = (filePath) => {
   const ext = (filePath.split('.').pop() || '').toLowerCase();
@@ -80,7 +81,20 @@ export function WorkbenchPane({
   activeRootLabel,
   onTabMetaChange,
   cellId,
+  projectReady,
+  projectError,
+  onSelectProject,
 }) {
+  if (!projectReady) {
+    return (
+      <ProjectEmptyState
+        title="No project selected"
+        description="Choose a project directory to browse and edit files."
+        error={projectError}
+        onSelect={onSelectProject}
+      />
+    );
+  }
   const {
     tabs,
     activeTab,

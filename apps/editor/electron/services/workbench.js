@@ -5,6 +5,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 
 const { getRepoRoot } = require('./git');
+const { resolveProjectRoot } = require('./projectRoot');
 
 const execFileAsync = promisify(execFile);
 const fsp = fs.promises;
@@ -23,6 +24,9 @@ function normalizeRelPath(value) {
 }
 
 function resolveSafePath(rootPath, relativePath) {
+  if (!rootPath) {
+    throw new Error('Project root is not configured.');
+  }
   const normalized = normalizeRelPath(relativePath);
   const absolute = path.resolve(rootPath, normalized);
   const rel = path.relative(rootPath, absolute);
@@ -38,7 +42,12 @@ async function resolveWorkbenchRoot(rootPath) {
     return ROOT_CACHE.get(cacheKey);
   }
   if (!rootPath) {
-    const repoRoot = await getRepoRoot();
+    const repoRoot = await resolveProjectRoot();
+    if (!repoRoot) {
+      const resolved = { repoRoot: '', rootPath: '' };
+      ROOT_CACHE.set(cacheKey, resolved);
+      return resolved;
+    }
     const resolved = { repoRoot, rootPath: repoRoot };
     ROOT_CACHE.set(cacheKey, resolved);
     return resolved;
@@ -49,7 +58,12 @@ async function resolveWorkbenchRoot(rootPath) {
     ROOT_CACHE.set(cacheKey, resolved);
     return resolved;
   } catch (error) {
-    const repoRoot = await getRepoRoot();
+    const repoRoot = await resolveProjectRoot();
+    if (!repoRoot) {
+      const resolved = { repoRoot: '', rootPath: '' };
+      ROOT_CACHE.set(cacheKey, resolved);
+      return resolved;
+    }
     const resolved = { repoRoot, rootPath: repoRoot };
     ROOT_CACHE.set(cacheKey, resolved);
     return resolved;
@@ -69,11 +83,18 @@ function isBinaryBuffer(buffer) {
   return buffer.includes(0);
 }
 
+function ensureWorkbenchRoot(resolved) {
+  if (!resolved?.rootPath) {
+    throw new Error('Project root is not configured.');
+  }
+}
+
 async function statEntry({ rootPath, targetPath }) {
   if (!targetPath) {
     throw new Error('targetPath is required.');
   }
   const resolved = await resolveWorkbenchRoot(rootPath);
+  ensureWorkbenchRoot(resolved);
   const absolute = resolveSafePath(resolved.rootPath, targetPath);
   const stats = await fsp.stat(absolute);
   return {
@@ -110,6 +131,7 @@ async function readTextFile({ rootPath, targetPath }) {
 
 async function writeTextFile({ rootPath, targetPath, content }) {
   const resolved = await resolveWorkbenchRoot(rootPath);
+  ensureWorkbenchRoot(resolved);
   const absolute = resolveSafePath(resolved.rootPath, targetPath);
   await fsp.mkdir(path.dirname(absolute), { recursive: true });
   await fsp.writeFile(absolute, content ?? '', 'utf-8');
@@ -171,6 +193,7 @@ async function getDiff({ rootPath, targetPath }) {
     throw new Error('targetPath is required.');
   }
   const resolved = await resolveWorkbenchRoot(rootPath);
+  ensureWorkbenchRoot(resolved);
   const relativePath = normalizeRelPath(targetPath);
   const output = await runGit(
     ['diff', '--unified=0', '--no-color', 'HEAD', '--', relativePath],
@@ -237,6 +260,7 @@ async function getBlame({ rootPath, targetPath }) {
     throw new Error('targetPath is required.');
   }
   const resolved = await resolveWorkbenchRoot(rootPath);
+  ensureWorkbenchRoot(resolved);
   const relativePath = normalizeRelPath(targetPath);
   const absolute = resolveSafePath(resolved.rootPath, relativePath);
   const stats = await fsp.stat(absolute);

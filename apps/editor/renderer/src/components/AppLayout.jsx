@@ -22,6 +22,9 @@ export function AppLayout({
   onCreateCell,
   onJumpToHierarchy,
   onOpenExplorerForCell,
+  projectReady,
+  projectError,
+  onSelectProject,
   actionsScope,
   onSelectActionsScope,
   actionsScopeDisabled,
@@ -85,7 +88,12 @@ export function AppLayout({
 }) {
   const activeSidebar =
     activeView === 'explorer' ? (
-      <ProjectExplorerSidebar {...explorerSidebarProps} />
+      <ProjectExplorerSidebar
+        {...explorerSidebarProps}
+        projectReady={projectReady}
+        projectError={projectError}
+        onSelectProject={onSelectProject}
+      />
     ) : activeView === 'agent-cells' ? (
       <AgentCellsSidebar
         cells={cells}
@@ -94,6 +102,9 @@ export function AppLayout({
         onCreate={onCreateCell}
         onJump={onJumpToHierarchy}
         onOpenExplorer={onOpenExplorerForCell}
+        projectReady={projectReady}
+        projectError={projectError}
+        onSelectProject={onSelectProject}
       />
     ) : activeView === 'hierarchy' ? (
       <HierarchySidebar

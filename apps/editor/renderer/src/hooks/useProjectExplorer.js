@@ -62,7 +62,7 @@ const basename = (value) => value.split('/').pop() || value;
 
 const pathBaseName = (value) => value.split('/').filter(Boolean).pop() || value;
 
-export function useProjectExplorer({ rootPath, rootLabel, getVisiblePaths } = {}) {
+export function useProjectExplorer({ rootPath, rootLabel, getVisiblePaths, enabled = true } = {}) {
   const [repoRoot, setRepoRoot] = useState('');
   const [repoName, setRepoName] = useState('');
   const [nodesByPath, setNodesByPath] = useState({ '': { path: '', name: '', type: 'dir' } });
@@ -95,17 +95,30 @@ export function useProjectExplorer({ rootPath, rootLabel, getVisiblePaths } = {}
     if (!window.agency?.getExplorerRoot) {
       return;
     }
+    if (!enabled) {
+      setRepoRoot('');
+      setRepoName('');
+      return;
+    }
     try {
-      const info = await window.agency.getExplorerRoot();
+      const info = await window.agency.getExplorerRoot({
+        rootPath: rootPath || undefined,
+      });
       setRepoRoot(info?.repoRoot || '');
       setRepoName(info?.name || '');
     } catch (err) {
       setError(err?.message || 'Failed to resolve repository root.');
     }
-  }, []);
+  }, [enabled, rootPath]);
 
   const refreshStatus = useCallback(async ({ force = false } = {}) => {
     if (!window.agency?.getExplorerStatus) {
+      return;
+    }
+    if (!enabled) {
+      setStatusByPath({});
+      setFolderStatusByPath({});
+      setStatusLabels({});
       return;
     }
     const now = Date.now();
@@ -123,7 +136,9 @@ export function useProjectExplorer({ rootPath, rootLabel, getVisiblePaths } = {}
     }
     statusInFlightRef.current = (async () => {
       try {
-        const status = await window.agency.getExplorerStatus();
+        const status = await window.agency.getExplorerStatus({
+          rootPath: rootPath || undefined,
+        });
         statusCacheRef.current = status;
         statusCacheAtRef.current = Date.now();
         setStatusByPath(status?.files || {});
@@ -138,7 +153,7 @@ export function useProjectExplorer({ rootPath, rootLabel, getVisiblePaths } = {}
       }
     })();
     return statusInFlightRef.current;
-  }, []);
+  }, [enabled, rootPath]);
 
   const scheduleStatusRefresh = useCallback(() => {
     if (statusRefreshHandle.current) {
@@ -189,12 +204,15 @@ export function useProjectExplorer({ rootPath, rootLabel, getVisiblePaths } = {}
   );
 
   const refreshAll = useCallback(async () => {
+    if (!enabled) {
+      return;
+    }
     if (!rootPath) {
       await refreshRoot();
     }
     await refreshStatus();
     await loadDirectory('');
-  }, [loadDirectory, refreshRoot, refreshStatus, rootPath]);
+  }, [enabled, loadDirectory, refreshRoot, refreshStatus, rootPath]);
 
   useEffect(() => {
     refreshAll();
@@ -225,6 +243,18 @@ export function useProjectExplorer({ rootPath, rootLabel, getVisiblePaths } = {}
   useEffect(() => {
     resetTreeState();
   }, [resetTreeState, showHidden]);
+
+  useEffect(() => {
+    if (enabled) {
+      return;
+    }
+    setRepoRoot('');
+    setRepoName('');
+    setStatusByPath({});
+    setFolderStatusByPath({});
+    setStatusLabels({});
+    resetTreeState({ resetSearch: true });
+  }, [enabled, resetTreeState]);
 
   const expandPath = useCallback(
     async (path) => {
@@ -392,6 +422,11 @@ export function useProjectExplorer({ rootPath, rootLabel, getVisiblePaths } = {}
         setSearchResults([]);
         return;
       }
+      if (!enabled) {
+        setSearchResults([]);
+        setSearchTruncated(false);
+        return;
+      }
       if (!query) {
         setSearchResults([]);
         setSearchTruncated(false);
@@ -408,7 +443,7 @@ export function useProjectExplorer({ rootPath, rootLabel, getVisiblePaths } = {}
         setError(err?.message || 'Failed to search files.');
       }
     },
-    [rootPath]
+    [enabled, rootPath]
   );
 
   useEffect(() => {
@@ -422,6 +457,10 @@ export function useProjectExplorer({ rootPath, rootLabel, getVisiblePaths } = {}
 
   useEffect(() => {
     if (!window.agency?.watchExplorer || !window.agency?.onExplorerChanged) {
+      return undefined;
+    }
+    if (!enabled) {
+      window.agency.watchExplorer({ rootPath: '' }).catch(() => undefined);
       return undefined;
     }
     const watchRoot = rootPath || repoRoot || '';
