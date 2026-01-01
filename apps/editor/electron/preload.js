@@ -102,6 +102,11 @@ contextBridge.exposeInMainWorld('agency', {
   selectProjectRoot: () => ipcRenderer.invoke('project:select'),
   setProjectRoot: (payload) => ipcRenderer.invoke('project:set', payload),
   clearProjectRoot: () => ipcRenderer.invoke('project:clear'),
+  onProjectUpdated: (handler) => {
+    const wrapped = (_event, payload) => handler(payload);
+    ipcRenderer.on('project:updated', wrapped);
+    return () => ipcRenderer.removeListener('project:updated', wrapped);
+  },
   listSessions: (payload) => ipcRenderer.invoke('sessions:list', payload),
   createSession: (payload) => ipcRenderer.invoke('sessions:create', payload),
   closeSession: (payload) => ipcRenderer.invoke('sessions:close', payload),

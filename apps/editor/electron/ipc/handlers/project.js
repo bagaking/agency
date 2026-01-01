@@ -1,4 +1,4 @@
-const { ipcMain } = require('electron');
+const { BrowserWindow, ipcMain } = require('electron');
 const {
   getProjectContext,
   selectProjectRoot,
@@ -7,16 +7,36 @@ const {
 } = require('../../services/projectRoot');
 
 function setupProjectHandlers() {
+  const broadcastProjectUpdate = (payload) => {
+    BrowserWindow.getAllWindows().forEach((win) => {
+      win.webContents.send('project:updated', payload);
+    });
+  };
+
   ipcMain.handle('project:get', async () => getProjectContext());
 
-  ipcMain.handle('project:select', async () => selectProjectRoot());
+  ipcMain.handle('project:select', async () => {
+    const result = await selectProjectRoot();
+    if (result?.projectRoot) {
+      broadcastProjectUpdate(result);
+    }
+    return result;
+  });
 
   ipcMain.handle('project:set', async (_event, payload) => {
     const projectRoot = payload?.projectRoot || '';
-    return setProjectRoot(projectRoot);
+    const result = await setProjectRoot(projectRoot);
+    if (result?.projectRoot) {
+      broadcastProjectUpdate(result);
+    }
+    return result;
   });
 
-  ipcMain.handle('project:clear', async () => clearProjectRoot());
+  ipcMain.handle('project:clear', async () => {
+    const result = await clearProjectRoot();
+    broadcastProjectUpdate(result);
+    return result;
+  });
 }
 
 module.exports = {

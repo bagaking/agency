@@ -73,6 +73,37 @@ test('shows project selection empty state', async () => {
   await electronApp.close();
 });
 
+test('project settings open action populates recent projects', async () => {
+  setupTestRepo();
+  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
+  const electronApp = await electron.launch({
+    args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
+    env: {
+      ...process.env,
+      ELECTRON_RENDERER_URL: 'http://localhost:5173',
+      AGENCY_TEST_MODE: '1',
+      AGENCY_CLI_STUB: '1',
+      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
+    },
+  });
+
+  const window = await electronApp.firstWindow();
+  await window.getByTitle('Settings').click();
+  await expect(window.getByText('Project')).toBeVisible();
+
+  await window.getByText('Open Project').click();
+  await expect(window.getByTestId('recent-projects')).toBeVisible();
+  await expect(window.getByText('test-cell')).toBeVisible();
+
+  await window.evaluate(async () => {
+    await window.agency.clearProjectRoot();
+  });
+  await expect(window.getByTestId('explorer-sidebar')).toBeVisible();
+  await expect(window.getByTestId('recent-projects')).toBeVisible();
+
+  await electronApp.close();
+});
+
 test('keeps the active session stable while switching tabs', async () => {
   setupTestRepo();
   fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });

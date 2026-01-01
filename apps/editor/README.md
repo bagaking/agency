@@ -80,6 +80,7 @@
 
 - If no project directory is configured, the editor opens Explorer with an empty-state prompt.
 - Use **Select Project** to choose a repository; the path is stored locally and restored on relaunch.
+- Recent projects are shown in the sidebar and Project settings when no project is open.
 
 ## Packaging & Install (macOS)
 

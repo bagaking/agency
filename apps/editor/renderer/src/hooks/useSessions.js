@@ -437,6 +437,16 @@ export function useSessions({
 
   const clearSessionError = useCallback(() => setSessionError(''), []);
 
+  const resetSessions = useCallback(() => {
+    setSessionsByCellId({});
+    setActiveSessionByCellId({});
+    activeSessionByCellIdRef.current = {};
+    setSessionFontSizeByKey({});
+    setSessionActivityByKey({});
+    setSessionError('');
+    setPendingCommand(null);
+  }, []);
+
   return {
     sessions,
     activeSessionId,
@@ -464,5 +474,6 @@ export function useSessions({
     acknowledgeCommandSent,
     handleSessionAttached,
     clearSessionError,
+    resetSessions,
   };
 }

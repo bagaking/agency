@@ -32,6 +32,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { useProjectExplorer, explorerPathUtils } from '../../hooks/useProjectExplorer.js';
+import { RecentProjectsList } from '../RecentProjectsList.jsx';
 
 const getFileIcon = (name, isSymbolicLink) => {
   if (isSymbolicLink) return Link2;
@@ -151,6 +152,8 @@ export function ProjectExplorerSidebar({
   projectReady,
   projectError,
   onSelectProject,
+  recentProjects,
+  onOpenRecentProject,
 }) {
   const listRef = useRef(null);
   const visiblePathsRef = useRef([]);
@@ -216,6 +219,12 @@ export function ProjectExplorerSidebar({
           >
             Select Project
           </button>
+          <RecentProjectsList
+            projects={recentProjects}
+            onOpen={onOpenRecentProject}
+            title="Recent Projects"
+            emptyLabel="No recent projects yet"
+          />
         </div>
       </aside>
     );

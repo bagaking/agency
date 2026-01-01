@@ -1,4 +1,4 @@
-const { app, BrowserWindow, nativeImage } = require('electron');
+const { app, BrowserWindow, Menu, nativeImage } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { setupCellHandlers } = require('./ipc/handlers/cells');
@@ -14,6 +14,7 @@ const { setupExplorerHandlers } = require('./ipc/handlers/explorer');
 const { setupRuntimeLogHandlers } = require('./ipc/handlers/runtimeLog');
 const { setupWorkbenchHandlers } = require('./ipc/handlers/workbench');
 const { setupProjectHandlers } = require('./ipc/handlers/project');
+const { selectProjectRoot } = require('./services/projectRoot');
 const {
   initRuntimeLogger,
   logRuntime,
@@ -102,6 +103,80 @@ function createWindow() {
   mainWindow = win;
 }
 
+function broadcastProjectUpdate(payload) {
+  BrowserWindow.getAllWindows().forEach((win) => {
+    win.webContents.send('project:updated', payload);
+  });
+}
+
+async function handleProjectSelection() {
+  try {
+    const result = await selectProjectRoot();
+    if (result?.projectRoot) {
+      broadcastProjectUpdate(result);
+    }
+  } catch (error) {
+    logRuntime('error', 'project selection failed', {
+      error: error?.message || String(error),
+    });
+  }
+}
+
+function buildAppMenu() {
+  const fileMenu = {
+    label: 'File',
+    submenu: [
+      {
+        label: 'Open Project...',
+        accelerator: 'CmdOrCtrl+O',
+        click: handleProjectSelection,
+      },
+      {
+        label: 'Switch Project...',
+        accelerator: 'CmdOrCtrl+Shift+O',
+        click: handleProjectSelection,
+      },
+      { type: 'separator' },
+      {
+        label: 'New Window',
+        accelerator: 'CmdOrCtrl+Shift+N',
+        click: () => {
+          createWindow();
+        },
+      },
+      { type: 'separator' },
+      process.platform === 'darwin' ? { role: 'close' } : { role: 'quit' },
+    ],
+  };
+
+  const template = [
+    ...(process.platform === 'darwin'
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: 'about' },
+              { type: 'separator' },
+              { role: 'services' },
+              { type: 'separator' },
+              { role: 'hide' },
+              { role: 'hideOthers' },
+              { role: 'unhide' },
+              { type: 'separator' },
+              { role: 'quit' },
+            ],
+          },
+        ]
+      : []),
+    fileMenu,
+    { role: 'editMenu' },
+    { role: 'viewMenu' },
+    { role: 'windowMenu' },
+  ];
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 app.whenReady().then(async () => {
   await initRuntimeLogger();
   const runtimeInfo = getRuntimeLogInfo();
@@ -139,6 +214,7 @@ app.whenReady().then(async () => {
     }
   }
 
+  buildAppMenu();
   createWindow();
 
   logRuntime('info', 'main window created');

@@ -1,13 +1,74 @@
 const { app, dialog } = require('electron');
 const fs = require('fs');
+const path = require('path');
 const { getRepoRoot } = require('./git');
 const { readUiState, updateUiState } = require('./uiState');
 
 const ENV_PROJECT_ROOT = 'AGENCY_PROJECT_ROOT';
 const ENV_TEST_PROJECT_ROOT = 'AGENCY_TEST_PROJECT_ROOT';
+const RECENT_PROJECTS_LIMIT = 8;
 
 function normalizeRoot(value) {
   return String(value || '').trim();
+}
+
+function normalizeRecentEntry(entry) {
+  if (!entry || !entry.path) {
+    return null;
+  }
+  const value = normalizeRoot(entry.path);
+  if (!value) {
+    return null;
+  }
+  const name = String(entry.name || path.basename(value) || value).trim();
+  const lastOpenedAt = entry.lastOpenedAt || new Date().toISOString();
+  return {
+    path: value,
+    name,
+    lastOpenedAt,
+  };
+}
+
+async function readRecentProjects() {
+  const state = await readUiState();
+  const raw = Array.isArray(state?.recentProjects) ? state.recentProjects : [];
+  const normalized = raw.map(normalizeRecentEntry).filter(Boolean);
+  const seen = new Set();
+  return normalized.filter((entry) => {
+    if (seen.has(entry.path)) {
+      return false;
+    }
+    seen.add(entry.path);
+    return true;
+  });
+}
+
+async function getRecentProjects() {
+  const entries = await readRecentProjects();
+  return entries.map((entry) => ({
+    ...entry,
+    exists: fs.existsSync(entry.path),
+  }));
+}
+
+async function rememberRecentProject(repoRoot) {
+  const normalized = normalizeRoot(repoRoot);
+  if (!normalized) {
+    return getRecentProjects();
+  }
+  const current = await readRecentProjects();
+  const nextEntry = {
+    path: normalized,
+    name: path.basename(normalized) || normalized,
+    lastOpenedAt: new Date().toISOString(),
+  };
+  const merged = [
+    nextEntry,
+    ...current.filter((entry) => entry.path !== normalized),
+  ];
+  const limited = merged.slice(0, RECENT_PROJECTS_LIMIT);
+  await updateUiState({ recentProjects: limited });
+  return getRecentProjects();
 }
 
 function getEnvProjectRoot() {
@@ -57,19 +118,42 @@ async function setProjectRoot(projectRoot) {
   const normalized = normalizeRoot(projectRoot);
   if (!normalized) {
     await updateUiState({ projectRoot: '' });
-    return '';
+    return {
+      projectRoot: '',
+      recentProjects: await getRecentProjects(),
+    };
   }
   const repoRoot = await getRepoRoot(normalized);
+  const recentProjects = await rememberRecentProject(repoRoot);
   await updateUiState({ projectRoot: repoRoot });
-  return repoRoot;
+  return {
+    projectRoot: repoRoot,
+    repoRoot,
+    recentProjects,
+  };
 }
 
 async function clearProjectRoot() {
   await updateUiState({ projectRoot: '' });
-  return '';
+  return {
+    projectRoot: '',
+    recentProjects: await getRecentProjects(),
+  };
 }
 
 async function selectProjectRoot() {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    if (Object.prototype.hasOwnProperty.call(process.env, ENV_TEST_PROJECT_ROOT)) {
+      const candidate = normalizeRoot(process.env[ENV_TEST_PROJECT_ROOT]);
+      if (!candidate) {
+        return { canceled: true };
+      }
+      const repoRoot = await getRepoRoot(candidate);
+      const recentProjects = await rememberRecentProject(repoRoot);
+      await updateUiState({ projectRoot: repoRoot });
+      return { projectRoot: repoRoot, repoRoot, recentProjects };
+    }
+  }
   const result = await dialog.showOpenDialog({
     properties: ['openDirectory'],
   });
@@ -78,8 +162,9 @@ async function selectProjectRoot() {
   }
   const selected = result.filePaths[0];
   const repoRoot = await getRepoRoot(selected);
+  const recentProjects = await rememberRecentProject(repoRoot);
   await updateUiState({ projectRoot: repoRoot });
-  return { projectRoot: repoRoot, repoRoot };
+  return { projectRoot: repoRoot, repoRoot, recentProjects };
 }
 
 function getAppPaths() {
@@ -97,6 +182,7 @@ async function getProjectContext() {
     projectRoot: resolvedRoot,
     storedRoot,
     valid,
+    recentProjects: await getRecentProjects(),
     ...getAppPaths(),
   };
 }
@@ -108,4 +194,5 @@ module.exports = {
   selectProjectRoot,
   getProjectContext,
   getAppPaths,
+  getRecentProjects,
 };

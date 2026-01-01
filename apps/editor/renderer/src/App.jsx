@@ -27,6 +27,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [projectRoot, setProjectRoot] = useState('');
   const [projectError, setProjectError] = useState('');
+  const [recentProjects, setRecentProjects] = useState([]);
   const [fallbackTerminalRoot, setFallbackTerminalRoot] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [pendingTransition, setPendingTransition] = useState(null);
@@ -132,6 +133,7 @@ function App() {
       }
       const resolvedProjectRoot = context?.projectRoot || '';
       setProjectRoot(resolvedProjectRoot);
+      setRecentProjects(Array.isArray(context?.recentProjects) ? context.recentProjects : []);
       setFallbackTerminalRoot(context?.userDataPath || '');
       if (context?.storedRoot && !context?.valid) {
         setProjectError('Stored project path is no longer available. Select a new project.');
@@ -287,22 +289,6 @@ function App() {
     setTerminalMode('shell');
     setTerminalOpen(true);
   }, []);
-  const handleSelectProjectRoot = useCallback(async () => {
-    if (!window.agency?.selectProjectRoot) {
-      return;
-    }
-    setProjectError('');
-    try {
-      const result = await window.agency.selectProjectRoot();
-      if (result?.projectRoot) {
-        setProjectRoot(result.projectRoot);
-        setActiveView('explorer');
-        await loadCells(undefined, result.projectRoot);
-      }
-    } catch (error) {
-      setProjectError(error?.message || 'Failed to select project.');
-    }
-  }, [loadCells]);
   const {
     sessions,
     activeSessionId,
@@ -326,6 +312,7 @@ function App() {
     runActionCommand,
     acknowledgeCommandSent,
     handleSessionAttached,
+    resetSessions,
   } = useSessions({
     selectedCell,
     tmuxStatus,
@@ -348,6 +335,67 @@ function App() {
       [cellId]: meta || {},
     }));
   }, []);
+  const resetProjectState = useCallback(() => {
+    setSelectedId(null);
+    setCells([]);
+    setInitialActiveSessions({});
+    resetSessions();
+    workbench.resetTabs();
+    setWorkbenchMetaByCellId({});
+    setInitialWorkbenchTabs({});
+    setInitialWorkbenchActiveTabs({});
+  }, [
+    resetSessions,
+    workbench,
+    setInitialWorkbenchTabs,
+    setInitialWorkbenchActiveTabs,
+  ]);
+  const handleSelectProjectRoot = useCallback(async () => {
+    if (!window.agency?.selectProjectRoot) {
+      return;
+    }
+    setProjectError('');
+    try {
+      await window.agency.selectProjectRoot();
+    } catch (error) {
+      setProjectError(error?.message || 'Failed to select project.');
+    }
+  }, []);
+
+  const handleOpenRecentProject = useCallback(
+    async (projectPath) => {
+      if (!projectPath || !window.agency?.setProjectRoot) {
+        return;
+      }
+      setProjectError('');
+      try {
+        await window.agency.setProjectRoot({ projectRoot: projectPath });
+      } catch (error) {
+        setProjectError(error?.message || 'Failed to open project.');
+      }
+    },
+    []
+  );
+  useEffect(() => {
+    if (!window.agency?.onProjectUpdated) {
+      return undefined;
+    }
+    const unsubscribe = window.agency.onProjectUpdated(async (payload) => {
+      if (!payload) {
+        return;
+      }
+      resetProjectState();
+      setProjectRoot(payload.projectRoot || '');
+      setRecentProjects(Array.isArray(payload.recentProjects) ? payload.recentProjects : []);
+      setProjectError('');
+      setActiveView('explorer');
+    });
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [resetProjectState]);
   useEffect(() => {
     if (!selectedCell?.id) {
       return;
@@ -598,7 +646,10 @@ function App() {
         onOpenExplorerForCell={handleOpenExplorerForCell}
         projectReady={projectReady}
         projectError={projectError}
+        projectRoot={projectRoot}
+        recentProjects={recentProjects}
         onSelectProject={handleSelectProjectRoot}
+        onOpenRecentProject={handleOpenRecentProject}
         actionsScope={actionsScope}
         onSelectActionsScope={handleSelectActionsScope}
         actionsScopeDisabled={actionsScopeDisabled}

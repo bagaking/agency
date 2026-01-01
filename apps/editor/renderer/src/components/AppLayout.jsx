@@ -9,6 +9,7 @@ import { QuickActionsView } from './QuickActionsView.jsx';
 import { GatesView } from './GatesView.jsx';
 import { WorktreeLinksView } from './WorktreeLinksView.jsx';
 import { SidebarDock } from './layout/SidebarDock.jsx';
+import { ProjectSettingsView } from './ProjectSettingsView.jsx';
 
 export function AppLayout({
   activeView,
@@ -24,7 +25,10 @@ export function AppLayout({
   onOpenExplorerForCell,
   projectReady,
   projectError,
+  projectRoot,
+  recentProjects,
   onSelectProject,
+  onOpenRecentProject,
   actionsScope,
   onSelectActionsScope,
   actionsScopeDisabled,
@@ -93,6 +97,8 @@ export function AppLayout({
         projectReady={projectReady}
         projectError={projectError}
         onSelectProject={onSelectProject}
+        recentProjects={recentProjects}
+        onOpenRecentProject={onOpenRecentProject}
       />
     ) : activeView === 'agent-cells' ? (
       <AgentCellsSidebar
@@ -105,6 +111,8 @@ export function AppLayout({
         projectReady={projectReady}
         projectError={projectError}
         onSelectProject={onSelectProject}
+        recentProjects={recentProjects}
+        onOpenRecentProject={onOpenRecentProject}
       />
     ) : activeView === 'hierarchy' ? (
       <HierarchySidebar
@@ -226,6 +234,18 @@ export function AppLayout({
               onApplyAll={onApplyAllWorktreeLinks}
               onSave={onSaveWorktreeLinks}
               onRefresh={onRefreshWorktreeLinks}
+            />
+          </div>
+        ) : null}
+
+        {activeView === 'settings' ? (
+          <div className="absolute inset-0">
+            <ProjectSettingsView
+              projectRoot={projectRoot}
+              projectError={projectError}
+              recentProjects={recentProjects}
+              onOpenProject={onSelectProject}
+              onOpenRecent={onOpenRecentProject}
             />
           </div>
         ) : null}

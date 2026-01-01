@@ -1,5 +1,15 @@
 import React from 'react';
-import { Plus, GitBranch, Circle, SquareTerminal, Link2, ShieldCheck, ArrowUpRight, FolderOpen } from 'lucide-react';
+import {
+  Plus,
+  GitBranch,
+  Circle,
+  SquareTerminal,
+  Link2,
+  ShieldCheck,
+  ArrowUpRight,
+  FolderOpen,
+} from 'lucide-react';
+import { RecentProjectsList } from './RecentProjectsList.jsx';
 
 const statusColors = {
   draft: 'text-muted-foreground',
@@ -18,6 +28,8 @@ export function AgentCellsSidebar({
   projectReady,
   projectError,
   onSelectProject,
+  recentProjects,
+  onOpenRecentProject,
 }) {
   return (
     <aside className="flex w-full flex-col text-sidebar-foreground" data-testid="sidebar">
@@ -59,20 +71,28 @@ export function AgentCellsSidebar({
 
         <div className="mb-2 mt-4 px-2 text-xs font-medium text-muted-foreground">AGENTS</div>
         {!projectReady ? (
-          <div className="mb-3 rounded-lg border border-dashed border-border px-3 py-3 text-[11px] text-muted-foreground">
-            <div className="font-medium text-foreground">No project selected</div>
-            <div className="mt-1">Choose a project directory to load Cells.</div>
-            {projectError ? (
-              <div className="mt-2 text-rose-300">{projectError}</div>
-            ) : null}
-            <button
-              type="button"
-              onClick={onSelectProject}
-              className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary transition-colors hover:bg-primary/10"
-            >
-              Select Project
-            </button>
-          </div>
+          <>
+            <div className="mb-3 rounded-lg border border-dashed border-border px-3 py-3 text-[11px] text-muted-foreground">
+              <div className="font-medium text-foreground">No project selected</div>
+              <div className="mt-1">Choose a project directory to load Cells.</div>
+              {projectError ? (
+                <div className="mt-2 text-rose-300">{projectError}</div>
+              ) : null}
+              <button
+                type="button"
+                onClick={onSelectProject}
+                className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary transition-colors hover:bg-primary/10"
+              >
+                Select Project
+              </button>
+            </div>
+            <RecentProjectsList
+              projects={recentProjects}
+              onOpen={onOpenRecentProject}
+              title="Recent Projects"
+              emptyLabel="No recent projects yet"
+            />
+          </>
         ) : null}
         {cells.length === 0 ? (
           <div className="px-4 py-8 text-center text-xs text-muted-foreground">

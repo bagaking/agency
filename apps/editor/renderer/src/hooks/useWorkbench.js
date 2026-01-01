@@ -283,6 +283,11 @@ export function useWorkbench({
     [cellKey]
   );
 
+  const resetTabs = useCallback(() => {
+    setTabsByCellId({});
+    setActiveTabByCellId({});
+  }, []);
+
   return {
     tabs,
     activeTabId,
@@ -297,5 +302,6 @@ export function useWorkbench({
     tabsByCellId,
     activeTabByCellId,
     serializeTabs,
+    resetTabs,
   };
 }
