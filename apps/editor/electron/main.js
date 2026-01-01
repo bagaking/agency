@@ -19,7 +19,7 @@ const {
   getRuntimeLogInfo,
 } = require('./services/runtimeLog');
 
-const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
+const isDev = !app.isPackaged && Boolean(process.env.ELECTRON_RENDERER_URL);
 let mainWindow;
 
 app.setName('Agency');
@@ -42,8 +42,9 @@ function createWindow() {
     },
   });
 
-  if (isDev) {
-    win.loadURL(process.env.ELECTRON_RENDERER_URL);
+  const rendererUrl = process.env.ELECTRON_RENDERER_URL;
+  if (isDev && rendererUrl) {
+    win.loadURL(rendererUrl);
     // Open DevTools only if NOT in test mode to avoid confusing Playwright
     if (!process.env.AGENCY_TEST_MODE) {
       win.webContents.openDevTools({ mode: 'detach' });
@@ -51,6 +52,18 @@ function createWindow() {
   } else {
     win.loadFile(path.join(__dirname, '../dist/renderer/index.html'));
   }
+
+  win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    logRuntime('error', 'renderer load failed', {
+      errorCode,
+      errorDescription,
+      validatedURL,
+    });
+    if (!app.isPackaged && rendererUrl) {
+      return;
+    }
+    win.loadFile(path.join(__dirname, '../dist/renderer/index.html'));
+  });
 
   mainWindow = win;
 }
