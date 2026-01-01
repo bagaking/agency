@@ -12,8 +12,8 @@
     "dev:main": "wait-on tcp:5173 && cross-env ELECTRON_RENDERER_URL=http://localhost:5173 electron electron/main.js",
     "dev": "concurrently \"npm:dev:renderer\" \"npm:dev:main\"",
     "build:renderer": "vite build",
-    "package": "pnpm run build:renderer && electron-builder --mac",
-    "package:dir": "pnpm run build:renderer && electron-builder --mac --dir",
+    "package": "pnpm run build:renderer && cross-env TMPDIR=/tmp electron-builder --mac",
+    "package:dir": "pnpm run build:renderer && cross-env TMPDIR=/tmp electron-builder --mac --dir",
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "postinstall": "node scripts/postinstall.js"

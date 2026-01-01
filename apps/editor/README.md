@@ -86,6 +86,7 @@ pnpm run package
 
 Artifacts are written to `apps/editor/dist/release` (DMG + ZIP). Install by opening the DMG or unzipping the app and dragging `Agency.app` to `/Applications`.
 Unsigned builds may require Gatekeeper bypass (right-click → Open once, or run `xattr -dr com.apple.quarantine /Applications/Agency.app`).
+Packaging uses `TMPDIR=/tmp` to avoid `hdiutil` failures on some macOS setups.
 
 From repo root:
 
