@@ -202,6 +202,7 @@ export function ProjectExplorerSidebar({
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
 
+  const statusFilterSet = useMemo(() => new Set(statusFilters), [statusFilters]);
   const isSearchActive = searchQuery.trim().length > 0;
   const tree = isSearchActive ? searchTree : { nodes: nodesByPath, children: childrenByPath };
   const hasStatusFilters = statusFilterSet.size > 0;
@@ -214,7 +215,6 @@ export function ProjectExplorerSidebar({
   const selectedCellId = selectedCell?.id || null;
 
   const selectionSet = useMemo(() => new Set(selectedPaths), [selectedPaths]);
-  const statusFilterSet = useMemo(() => new Set(statusFilters), [statusFilters]);
   const openFiles = useMemo(() => new Set(Object.keys(workbenchMeta || {})), [workbenchMeta]);
   const dirtyFiles = useMemo(
     () =>
