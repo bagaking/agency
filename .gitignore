@@ -48,6 +48,9 @@ logs
 .trae
 # Codex local state (keep shareable prompts tracked)
 .codex
+!.codex/
+!.codex/skills/
+!.codex/skills/**
 .codex_pub
 # !.codex/prompts/
 # !.codex/prompts/*.md
