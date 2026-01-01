@@ -1,6 +1,8 @@
 {
   "name": "agency-editor",
   "productName": "Agency",
+  "description": "Agency editor desktop app",
+  "author": "Agency",
   "version": "0.2.0",
   "private": true,
   "packageManager": "pnpm@9.15.1",
@@ -19,6 +21,7 @@
   "build": {
     "appId": "com.agency.editor",
     "productName": "Agency",
+    "electronDist": "node_modules/electron/dist",
     "directories": {
       "output": "dist/release",
       "buildResources": "renderer/public"
