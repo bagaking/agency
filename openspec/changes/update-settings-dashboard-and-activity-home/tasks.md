@@ -8,3 +8,6 @@
 - [x] 1.7 Add Explorer copy/cut/paste operations (context menu + shortcuts) with file/folder support.
 - [x] 1.8 Make project selection window-local so new windows open without a project by default.
 - [x] 1.9 Ensure project switching refreshes Agent Cells and Explorer in the active window only.
+- [ ] 1.10 Support system clipboard paste in Explorer (files/screenshots) with conflict-safe renaming.
+- [ ] 1.11 Support terminal paste that materializes files/images into `.agency/tmp` and inserts relative paths.
+- [ ] 1.12 Update documentation for system clipboard paste behavior and terminal paste handling.

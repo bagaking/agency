@@ -8,9 +8,11 @@ The activity bar logo is a natural "home" affordance, but it is currently non-fu
   - Keep configuration editing in Hierarchy to avoid duplicating forms.
   - Keep project selection window-local to prevent cross-window state leaks.
   - Add copy/cut/paste file operations in Explorer without adding new backend services.
+  - Allow importing system clipboard files/screenshots into Explorer and terminal workflows.
 - Non-Goals:
   - Do not relocate or redesign existing configuration forms.
   - Do not add new persistent settings storage in this change.
+  - Do not add drag-and-drop integrations beyond clipboard import.
 
 ## Decisions
 - Decision: Treat the activity bar logo as a home shortcut to Agent Cells.
@@ -21,6 +23,8 @@ The activity bar logo is a natural "home" affordance, but it is currently non-fu
   - Rationale: Window independence avoids confusing state carry-over.
 - Decision: Explorer clipboard uses existing copy/rename services with a lightweight in-memory clipboard.
   - Rationale: Keeps implementation scoped to renderer without new persistence.
+- Decision: System clipboard imports are handled in the main process and materialized into the project or `.agency/tmp` as needed.
+  - Rationale: Keeps file system writes centralized and avoids renderer security/permission issues.
 
 ## Risks / Trade-offs
 - The Settings view may feel lightweight if users expect full configuration. Mitigate by adding clear entry cards and status summaries.

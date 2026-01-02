@@ -39,3 +39,26 @@ Switching projects in one window SHALL NOT change the project context of other w
 #### Scenario: Switch project in one window
 - **WHEN** a user switches the project in one window
 - **THEN** only that window refreshes its Agent Cells and Explorer scopes
+
+### Requirement: Explorer System Clipboard Import
+The Explorer SHALL allow pasting files or screenshots from the system clipboard into the selected folder.
+If a target name conflicts, the editor SHALL append a numeric `-1` suffix until a free name is found.
+
+#### Scenario: Paste a file from system clipboard
+- **WHEN** a user copies a file in another app and pastes in Explorer
+- **THEN** the file is copied into the target folder with conflict-safe naming
+
+#### Scenario: Paste a screenshot from system clipboard
+- **WHEN** a user pastes an image from the system clipboard in Explorer
+- **THEN** the editor creates a `Screenshot-YYYYMMDD-HHMMSS.png` file in the target folder
+
+### Requirement: Terminal Clipboard Materialization
+When pasting into the terminal, the editor SHALL materialize clipboard files or images into the active cell's `.agency/tmp` directory and paste the relative path.
+
+#### Scenario: Paste file into terminal
+- **WHEN** a user pastes a file into the terminal
+- **THEN** the editor saves it under `.agency/tmp` and inserts the relative path into the terminal input
+
+#### Scenario: Paste image into terminal
+- **WHEN** a user pastes an image into the terminal
+- **THEN** the editor saves it under `.agency/tmp` and inserts the relative path into the terminal input

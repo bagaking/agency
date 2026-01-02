@@ -12,6 +12,8 @@
 - Remove redundant Agent Cells activity bar entry to simplify navigation.
 - Add Explorer copy/cut/paste support for files and folders.
 - Make project selection window-local so new windows open without inheriting another window's project.
+- Allow Explorer to paste files or screenshots from the system clipboard with conflict-safe renaming.
+- Allow Terminal paste to materialize clipboard files/images into `.agency/tmp` and insert relative paths.
 
 ## Impact
 - Affected specs: `agency-editor`

@@ -5,10 +5,10 @@ import { Logo } from './Logo.jsx';
 export function ActivityBar({ activeView, onSwitchView }) {
   const items = [
     { id: 'explorer', icon: Folder, label: 'Explorer' },
-    { id: 'hierarchy', icon: ListTree, label: 'Hierarchy' },
   ];
 
   const bottomItems = [
+    { id: 'hierarchy', icon: ListTree, label: 'Hierarchy' },
     { id: 'settings', icon: Settings, label: 'Settings' },
   ];
 
