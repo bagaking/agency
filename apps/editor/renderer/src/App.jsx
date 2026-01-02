@@ -648,8 +648,12 @@ function App() {
         projectError={projectError}
         projectRoot={projectRoot}
         recentProjects={recentProjects}
+        tmuxStatus={tmuxStatus}
         onSelectProject={handleSelectProjectRoot}
         onOpenRecentProject={handleOpenRecentProject}
+        onOpenActions={() => handleHierarchyJump('actions')}
+        onOpenGates={() => handleHierarchyJump('gates')}
+        onOpenSoftlinks={() => handleHierarchyJump('softlinks')}
         actionsScope={actionsScope}
         onSelectActionsScope={handleSelectActionsScope}
         actionsScopeDisabled={actionsScopeDisabled}

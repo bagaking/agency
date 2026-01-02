@@ -16,9 +16,15 @@ export function ActivityBar({ activeView, onSwitchView }) {
   return (
     <aside className="flex w-12 flex-col items-center justify-between bg-activity-bar py-3 border-r border-activity-bar-border">
       <div className="flex flex-col gap-4 items-center">
-        <div className="mb-2">
-            <Logo size={28} className="hover:scale-110 transition-transform cursor-pointer" />
-        </div>
+        <button
+          type="button"
+          onClick={() => onSwitchView('agent-cells')}
+          title="Home"
+          data-testid="activity-home"
+          className="mb-2 flex items-center justify-center"
+        >
+          <Logo size={28} className="hover:scale-110 transition-transform" />
+        </button>
         {items.map((item) => (
           <ActivityItem
             key={item.id}

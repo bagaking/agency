@@ -27,8 +27,12 @@ export function AppLayout({
   projectError,
   projectRoot,
   recentProjects,
+  tmuxStatus,
   onSelectProject,
   onOpenRecentProject,
+  onOpenActions,
+  onOpenGates,
+  onOpenSoftlinks,
   actionsScope,
   onSelectActionsScope,
   actionsScopeDisabled,
@@ -243,9 +247,14 @@ export function AppLayout({
             <ProjectSettingsView
               projectRoot={projectRoot}
               projectError={projectError}
+              projectReady={projectReady}
               recentProjects={recentProjects}
+              tmuxStatus={tmuxStatus}
               onOpenProject={onSelectProject}
               onOpenRecent={onOpenRecentProject}
+              onOpenActions={onOpenActions}
+              onOpenGates={onOpenGates}
+              onOpenSoftlinks={onOpenSoftlinks}
             />
           </div>
         ) : null}

@@ -10,6 +10,7 @@
 ## Navigation
 
 - The activity bar includes Explorer, Agent Cells, and Hierarchy entries.
+- Settings provides a lightweight dashboard with project summary, recent projects, and entry cards for Actions, Gates, and Softlinks.
 - The docked sidebar supports resize/collapse and persists width state across launches.
 - Agent Cells focuses on Cell management and offers jump links to Actions, Gates, and Softlinks.
 - Hierarchy hosts configuration for Actions, Gates, and Softlinks.
