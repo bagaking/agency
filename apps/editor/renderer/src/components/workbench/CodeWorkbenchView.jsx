@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import { AlertTriangle, MessageSquarePlus, Plus } from 'lucide-react';
 
@@ -57,6 +58,14 @@ export function CodeWorkbenchView({
   const [commentAnchor, setCommentAnchor] = useState(null);
   const [commentMenuOpen, setCommentMenuOpen] = useState(false);
   const commentAnchorRef = useRef(null);
+  const commentMenuOpenRef = useRef(false);
+  const overlayHoverRef = useRef(false);
+  const hideTimerRef = useRef(null);
+  const [editorReady, setEditorReady] = useState(false);
+  const [overlayRoot, setOverlayRoot] = useState(null);
+  const onLineCommentRef = useRef(onLineComment);
+  const commentsEnabledRef = useRef(commentsEnabled);
+  const commentActionRef = useRef(null);
 
   const blameMap = useMemo(() => toBlameMap(blameLines), [blameLines]);
   const blameInfo = blameEnabled && hoverLine ? blameMap.get(hoverLine) : null;
@@ -99,6 +108,82 @@ export function CodeWorkbenchView({
   }, [commentLines, monaco]);
 
   useEffect(() => {
+    commentMenuOpenRef.current = commentMenuOpen;
+  }, [commentMenuOpen]);
+
+  useEffect(() => {
+    onLineCommentRef.current = onLineComment;
+  }, [onLineComment]);
+
+  useEffect(() => {
+    commentsEnabledRef.current = commentsEnabled;
+  }, [commentsEnabled]);
+
+  useEffect(() => {
+    if (!monaco || !editorRef.current) {
+      return undefined;
+    }
+    if (commentActionRef.current) {
+      return undefined;
+    }
+    const editor = editorRef.current;
+    const action = editor.addAction({
+      id: 'agency-add-line-comment',
+      label: 'Add Comment on Line',
+      contextMenuGroupId: 'navigation',
+      contextMenuOrder: 1.5,
+      run: () => {
+        if (!commentsEnabledRef.current) {
+          return null;
+        }
+        const position = editor.getPosition();
+        if (!position) {
+          return null;
+        }
+        onLineCommentRef.current?.({
+          line: position.lineNumber,
+          column: position.column,
+        });
+        return null;
+      },
+    });
+    commentActionRef.current = action;
+    return () => {
+      if (commentActionRef.current?.dispose) {
+        commentActionRef.current.dispose();
+      }
+      commentActionRef.current = null;
+    };
+  }, [monaco]);
+
+  useEffect(() => {
+    if (!editorReady || !editorRef.current) {
+      return undefined;
+    }
+    const domNode = editorRef.current.getDomNode();
+    if (!domNode) {
+      return undefined;
+    }
+    const overlay = document.createElement('div');
+    overlay.className = 'comment-overlay-root';
+    Object.assign(overlay.style, {
+      position: 'absolute',
+      top: '0',
+      left: '0',
+      right: '0',
+      bottom: '0',
+      pointerEvents: 'none',
+      zIndex: '20',
+    });
+    domNode.appendChild(overlay);
+    setOverlayRoot(overlay);
+    return () => {
+      overlay.remove();
+      setOverlayRoot(null);
+    };
+  }, [editorReady]);
+
+  useEffect(() => {
     if (!editorRef.current || !monaco) {
       return undefined;
     }
@@ -122,6 +207,19 @@ export function CodeWorkbenchView({
       return { line: lineNumber, top, left };
     };
 
+    const scheduleHideAnchor = () => {
+      if (hideTimerRef.current) {
+        window.clearTimeout(hideTimerRef.current);
+      }
+      hideTimerRef.current = window.setTimeout(() => {
+        if (commentMenuOpenRef.current || overlayHoverRef.current) {
+          return;
+        }
+        commentAnchorRef.current = null;
+        setCommentAnchor(null);
+      }, 120);
+    };
+
     const handleCursor = editor.onDidChangeCursorPosition((event) => {
       onCursorChange?.({
         line: event.position.lineNumber,
@@ -129,7 +227,11 @@ export function CodeWorkbenchView({
       });
     });
     const handleMouse = editor.onMouseMove((event) => {
-      const lineNumber = event.target.position?.lineNumber || null;
+      const lineNumber =
+        event.target.position?.lineNumber ||
+        event.target.range?.startLineNumber ||
+        event.target.range?.endLineNumber ||
+        null;
       setHoverLine(lineNumber);
       if (!commentsEnabled) {
         return;
@@ -137,28 +239,25 @@ export function CodeWorkbenchView({
       const targetType = event.target.type;
       if (
         targetType === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS ||
-        targetType === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN
+        targetType === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN ||
+        targetType === monaco.editor.MouseTargetType.GUTTER_LINE_DECORATIONS ||
+        targetType === monaco.editor.MouseTargetType.GUTTER_VIEW_ZONE
       ) {
         if (lineNumber) {
           const anchor = resolveCommentAnchor(lineNumber);
           if (anchor) {
             commentAnchorRef.current = anchor;
             setCommentAnchor(anchor);
+            setCommentMenuOpen(false);
             return;
           }
         }
       }
-      if (!commentMenuOpen) {
-        commentAnchorRef.current = null;
-        setCommentAnchor(null);
-      }
+      scheduleHideAnchor();
     });
     const handleMouseLeave = editor.onMouseLeave(() => {
       setHoverLine(null);
-      if (!commentMenuOpen) {
-        commentAnchorRef.current = null;
-        setCommentAnchor(null);
-      }
+      scheduleHideAnchor();
     });
     const handleScroll = editor.onDidScrollChange(() => {
       if (!commentAnchorRef.current) {
@@ -175,8 +274,11 @@ export function CodeWorkbenchView({
       handleMouse.dispose();
       handleMouseLeave.dispose();
       handleScroll.dispose();
+      if (hideTimerRef.current) {
+        window.clearTimeout(hideTimerRef.current);
+      }
     };
-  }, [monaco, onCursorChange, commentsEnabled, commentMenuOpen]);
+  }, [monaco, onCursorChange, commentsEnabled]);
 
   useEffect(() => {
     if (!commentsEnabled) {
@@ -203,37 +305,62 @@ export function CodeWorkbenchView({
           ) : null}
         </div>
       ) : null}
-      {commentsEnabled && commentAnchor && (
-        <div
-          className="absolute z-20"
-          style={{ top: commentAnchor.top, left: commentAnchor.left }}
-          onMouseEnter={() => setCommentMenuOpen(true)}
-          onMouseLeave={() => setCommentMenuOpen(false)}
-        >
-          <button
-            type="button"
-            className="flex h-4 w-4 items-center justify-center rounded-full bg-primary/20 text-primary/80 hover:bg-primary/30"
-            title="Line actions"
-          >
-            <Plus size={10} strokeWidth={2.5} />
-          </button>
-          {commentMenuOpen && (
-            <div className="absolute -top-10 left-4 rounded-md border border-border bg-popover px-2 py-1 text-xs text-muted-foreground shadow-lg">
+      {overlayRoot && commentsEnabled && commentAnchor
+        ? createPortal(
+            <div
+              className="absolute"
+              style={{
+                top: commentAnchor.top,
+                left: commentAnchor.left,
+                pointerEvents: 'auto',
+              }}
+              onMouseEnter={() => {
+                overlayHoverRef.current = true;
+                setCommentMenuOpen(true);
+              }}
+              onMouseLeave={() => {
+                overlayHoverRef.current = false;
+                setCommentMenuOpen(false);
+              }}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+            >
               <button
                 type="button"
-                className="flex items-center gap-1 text-[10px] text-foreground hover:text-primary"
-                onClick={() => {
-                  onLineComment?.({ line: commentAnchor.line, column: 1 });
-                  setCommentMenuOpen(false);
+                className="flex h-4 w-4 items-center justify-center rounded-full bg-primary/20 text-primary/80 hover:bg-primary/30"
+                title="Line actions"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
                 }}
               >
-                <MessageSquarePlus size={12} />
-                Comment
+                <Plus size={10} strokeWidth={2.5} />
               </button>
-            </div>
-          )}
-        </div>
-      )}
+              {commentMenuOpen && (
+                <div className="absolute -top-10 left-4 rounded-md border border-border bg-popover px-2 py-1 text-xs text-muted-foreground shadow-lg">
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-[10px] text-foreground hover:text-primary"
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }}
+                    onClick={() => {
+                      onLineComment?.({ line: commentAnchor.line, column: 1 });
+                      setCommentMenuOpen(false);
+                    }}
+                  >
+                    <MessageSquarePlus size={12} />
+                    Comment
+                  </button>
+                </div>
+              )}
+            </div>,
+            overlayRoot
+          )
+        : null}
       <Editor
         height="100%"
         theme="vs-dark"
@@ -241,6 +368,7 @@ export function CodeWorkbenchView({
         language={language}
         onMount={(editor) => {
           editorRef.current = editor;
+          setEditorReady(true);
           editor.updateOptions({
             fontSize: 13,
             minimap: { enabled: false },

@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { useProjectExplorer, explorerPathUtils } from '../../hooks/useProjectExplorer.js';
 import { RecentProjectsList } from '../RecentProjectsList.jsx';
+import { ExplorerContextMenu } from './ExplorerContextMenu.jsx';
 
 const getFileIcon = (name, isSymbolicLink) => {
   if (isSymbolicLink) return Link2;
@@ -203,6 +204,7 @@ function ProjectExplorerSidebarContent({
   const [draftEntry, setDraftEntry] = useState(null);
   const [renameTarget, setRenameTarget] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
+
   const [now, setNow] = useState(Date.now());
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [showIgnored, setShowIgnored] = useState(true);
@@ -313,36 +315,60 @@ function ProjectExplorerSidebarContent({
       }
       return true;
     };
+    const isVisibleNode = (path, node) => {
+      if (!path) {
+        return true;
+      }
+      if (!showHidden && node.name.startsWith('.')) {
+        return false;
+      }
+      if (!showIgnored && isPathIgnored(path)) {
+        return false;
+      }
+      return true;
+    };
+
+    const checkAnyChildMatch = (path) => {
+      const node = tree.nodes[path];
+      if (!node) {
+        return false;
+      }
+      if (!isVisibleNode(path, node)) {
+        return false;
+      }
+      if (shouldIncludeByStatus(path, node)) {
+        return true;
+      }
+      if (node.type === 'dir') {
+        const children = tree.children[path] || [];
+        return children.some((child) => checkAnyChildMatch(child));
+      }
+      return false;
+    };
+
     const walk = (path, depth) => {
       const node = tree.nodes[path];
       if (!node) {
         return false;
       }
-      if (path && !showHidden && node.name.startsWith('.')) {
-        return false;
-      }
-      if (path && !showIgnored && isPathIgnored(path)) {
+      if (!isVisibleNode(path, node)) {
         return false;
       }
 
       const isDir = node.type === 'dir';
       const selfMatches = path ? shouldIncludeByStatus(path, node) : true;
-      
-      // Look ahead to see if any child matches
       let childHasMatch = false;
       if (isDir) {
         const children = tree.children[path] || [];
         for (const child of children) {
-          // Temporarily recurse to check for matches without pushing to items
           if (checkAnyChildMatch(child)) {
             childHasMatch = true;
             break;
           }
         }
       }
-
       const shouldShow = path ? selfMatches || childHasMatch : true;
-      
+
       if (path && shouldShow) {
         items.push({ path, depth, type: node.type, isSymbolicLink: node.isSymbolicLink });
       }
@@ -355,17 +381,6 @@ function ProjectExplorerSidebarContent({
       }
 
       return selfMatches || childHasMatch;
-    };
-
-    const checkAnyChildMatch = (path) => {
-      const node = tree.nodes[path];
-      if (!node) return false;
-      if (shouldIncludeByStatus(path, node)) return true;
-      if (node.type === 'dir') {
-        const children = tree.children[path] || [];
-        return children.some(child => checkAnyChildMatch(child));
-      }
-      return false;
     };
 
     walk('', 0);
@@ -519,6 +534,40 @@ function ProjectExplorerSidebarContent({
     });
   };
 
+  const withSuffixName = (name, index, isDir) => {
+    if (index <= 0) {
+      return name;
+    }
+    if (isDir) {
+      return `${name}-${index}`;
+    }
+    const dotIndex = name.lastIndexOf('.');
+    const ext = dotIndex > 0 ? name.slice(dotIndex) : '';
+    const base = ext ? name.slice(0, -ext.length) : name;
+    return `${base}-${index}${ext}`;
+  };
+
+  const isTargetExistsError = (err) =>
+    Boolean(String(err?.message || '').toLowerCase().includes('already exists'));
+
+  const runWithUniqueTarget = async ({ baseName, targetDir, isDir, operation }) => {
+    const limit = 50;
+    for (let index = 0; index < limit; index += 1) {
+      const candidate = withSuffixName(baseName, index, isDir);
+      const targetPath = [targetDir, candidate].filter(Boolean).join('/');
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await operation(targetPath);
+        return targetPath;
+      } catch (err) {
+        if (!isTargetExistsError(err)) {
+          throw err;
+        }
+      }
+    }
+    throw new Error('Unable to resolve a unique target name.');
+  };
+
   const handlePasteSelection = async () => {
     const baseRoot = rootPath || repoRoot || '';
     const targetDir = resolvePasteDirectory();
@@ -563,17 +612,20 @@ function ProjectExplorerSidebarContent({
         if (!sourcePath) {
           continue;
         }
-        const nextPath = [targetDir, explorerPathUtils.basename(sourcePath)].filter(Boolean).join('/');
-        if (!nextPath || nextPath === sourcePath) {
-          continue;
-        }
-        if (clipboardMode === 'cut') {
-          // eslint-disable-next-line no-await-in-loop
-          await renameEntry({ sourcePath, targetPath: nextPath });
-        } else {
-          // eslint-disable-next-line no-await-in-loop
-          await copyEntry({ sourcePath, targetPath: nextPath });
-        }
+        const baseName = explorerPathUtils.basename(sourcePath);
+        const node = tree.nodes[sourcePath];
+        const isDir = node?.type === 'dir';
+        const operation =
+          clipboardMode === 'cut'
+            ? (targetPath) => renameEntry({ sourcePath, targetPath })
+            : (targetPath) => copyEntry({ sourcePath, targetPath });
+        // eslint-disable-next-line no-await-in-loop
+        await runWithUniqueTarget({
+          baseName,
+          targetDir,
+          isDir,
+          operation,
+        });
       }
       clearError();
       if (clipboardMode === 'cut') {
@@ -697,9 +749,16 @@ function ProjectExplorerSidebarContent({
     if (!nextName) {
       return;
     }
-    const nextPath = [parent, nextName].filter(Boolean).join('/');
     try {
-      await copyEntry({ sourcePath: targetPath, targetPath: nextPath });
+      const node = tree.nodes[targetPath];
+      const isDir = node?.type === 'dir';
+      const resolved = await runWithUniqueTarget({
+        baseName: nextName,
+        targetDir: parent,
+        isDir,
+        operation: (target) => copyEntry({ sourcePath: targetPath, targetPath: target }),
+      });
+      setSelectedPaths([resolved]);
       clearError();
     } catch (err) {
       setErrorMessage(err?.message || 'Failed to copy entry.');
@@ -775,19 +834,19 @@ function ProjectExplorerSidebarContent({
       return null;
     }
     return (
-      <div className="flex items-center gap-1.5 pr-1 opacity-80 group-hover:opacity-100 transition-opacity">
-        {status ? (
+      <div className="flex items-center gap-1.5 pr-1 opacity-40 group-hover:opacity-100 transition-opacity">
+        {status && (
           <span
-            className={`text-[9px] font-black uppercase tracking-tighter ${color} drop-shadow-sm`}
+            className={`text-[9px] font-black uppercase tracking-tighter ${color}`}
             title={statusLabels[status] || status}
           >
             {badge}
           </span>
-        ) : null}
+        )}
         {(added > 0 || deleted > 0) && (
           <div className="flex items-center gap-0.5 text-[8px] font-bold">
-            {added > 0 && <span className="text-emerald-500/60">+{added}</span>}
-            {deleted > 0 && <span className="text-rose-500/60">-{deleted}</span>}
+            {added > 0 && <span className="text-emerald-500/50">+{added}</span>}
+            {deleted > 0 && <span className="text-rose-500/50">-{deleted}</span>}
           </div>
         )}
       </div>
@@ -803,16 +862,16 @@ function ProjectExplorerSidebarContent({
     if (!sorted.length) {
       return null;
     }
-    const visible = sorted.slice(0, 1); // Only show one most important agent badge to keep it light
+    const visible = sorted.slice(0, 1);
     const overflow = sorted.length - visible.length;
     return (
-      <div className="flex items-center gap-1 opacity-40 group-hover:opacity-80 transition-opacity pr-1">
+      <div className="flex items-center gap-1 opacity-[0.15] group-hover:opacity-60 transition-opacity pr-1">
         {visible.map((cell) => (
-          <div key={cell.id} className="flex items-center gap-1 rounded-sm bg-white/5 px-1 py-0.5 text-[8px] font-medium border border-white/5">
-            <span className="truncate max-w-[40px] uppercase tracking-tight">{cell.name}</span>
+          <div key={cell.id} className="px-1 py-0.5 rounded-[2px] bg-white/10 text-[7px] font-black uppercase tracking-tighter">
+            {cell.name}
           </div>
         ))}
-        {overflow > 0 && <span className="text-[8px] text-muted-foreground">+{overflow}</span>}
+        {overflow > 0 && <span className="text-[7px] font-bold">+{overflow}</span>}
       </div>
     );
   };
@@ -959,7 +1018,7 @@ function ProjectExplorerSidebarContent({
                 : isLink
                   ? 'text-sky-400'
                   : ignored
-                    ? 'text-slate-400'
+                    ? 'text-slate-400/40'
                     : 'text-muted-foreground/70'
             }
           />
@@ -969,7 +1028,7 @@ function ProjectExplorerSidebarContent({
             </div>
           )}
           {ignored && (
-            <div className="absolute -top-1 -right-1 bg-background rounded-full p-[0.5px]">
+            <div className="absolute -top-1 -right-1 bg-background rounded-full p-[0.5px] opacity-40 group-hover:opacity-100 transition-opacity">
               <EyeOff size={8} className="text-slate-400" strokeWidth={2} />
             </div>
           )}
@@ -995,27 +1054,32 @@ function ProjectExplorerSidebarContent({
           />
         ) : (
           <div className="flex flex-1 items-center gap-2 min-w-0">
-            <span className={`truncate select-none ${ignored ? 'text-muted-foreground/70' : ''}`}>
+            <span className={`truncate select-none ${ignored ? 'text-muted-foreground/30 line-through decoration-muted-foreground/10' : ''}`}>
               {node.name}
             </span>
             {isOpen ? (
-              <span className="h-1.5 w-1.5 rounded-full bg-sky-400" title="Open" />
+              <span className="h-1 w-1 rounded-full bg-sky-400/60" title="Open" />
             ) : null}
             {isDirty ? (
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" title="Dirty" />
+              <span className="h-1 w-1 rounded-full bg-amber-400/60 shadow-[0_0_5px_rgba(251,191,36,0.3)]" title="Dirty" />
             ) : null}
             {isLink && (
               <span className="shrink-0 px-1 rounded-[2px] bg-sky-500/10 border border-sky-500/20 text-[8px] font-bold uppercase tracking-tighter text-sky-400">
                 Link
               </span>
             )}
+            {ignored && (
+                <span className="shrink-0 text-[8px] font-bold uppercase tracking-widest text-muted-foreground/20 italic">
+                    Ignored
+                </span>
+            )}
             {isUntracked && !ignored && (
-              <span className="shrink-0 text-[8px] font-semibold uppercase tracking-tight text-lime-300">
+              <span className="shrink-0 text-[8px] font-black uppercase tracking-tighter text-lime-400/60">
                 untracked
               </span>
             )}
             {isAdded && !ignored && (
-              <span className="shrink-0 text-[8px] font-semibold uppercase tracking-tight text-emerald-300">
+              <span className="shrink-0 text-[8px] font-black uppercase tracking-tighter text-emerald-400/60">
                 added
               </span>
             )}
@@ -1440,48 +1504,23 @@ function ProjectExplorerSidebarContent({
       </div>
 
       {contextMenu && (
-        <div
-          className="fixed z-[100] w-52 rounded-2xl border border-white/10 bg-[#1a1d23]/90 py-2 text-[11px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-2xl animate-tab-in ring-1 ring-white/5"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-          onClick={closeContextMenu}
-        >
-          <div className="px-3 pb-2 mb-1 border-b border-white/5">
-             <div className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/30">Object Actions</div>
-          </div>
-          
-          <div className="px-1.5 space-y-0.5">
-            <ContextMenuItem icon={FilePlus2} label="New File" onClick={() => startDraft('file')} />
-            <ContextMenuItem icon={FolderPlus} label="New Folder" onClick={() => startDraft('dir')} />
-            
-            <div className="h-px bg-white/5 my-1.5 mx-2" />
-            
-            <ContextMenuItem
-                icon={Pencil}
-                label="Rename"
-                onClick={() => setRenameTarget({ path: selectionTargets[0], value: explorerPathUtils.basename(selectionTargets[0]) })}
-                disabled={selectionTargets.length !== 1}
-            />
-            <ContextMenuItem icon={Copy} label="Duplicate" onClick={() => handleDuplicate(selectionTargets[0])} disabled={selectionTargets.length !== 1} />
-            
-            <div className="h-px bg-white/5 my-1.5 mx-2" />
-
-            <ContextMenuItem icon={Copy} label="Copy" onClick={() => handleCopySelection('copy')} disabled={!selectionTargets.length} />
-            <ContextMenuItem icon={Scissors} label="Cut" onClick={() => handleCopySelection('cut')} disabled={!selectionTargets.length} />
-            <ContextMenuItem icon={ClipboardPaste} label="Paste" onClick={handlePasteSelection} disabled={!canPaste} />
-            <ContextMenuItem icon={FileText} label="Paste as Markdown" onClick={handlePasteMarkdown} />
-            
-            <div className="h-px bg-white/5 my-1.5 mx-2" />
-
-            <ContextMenuItem icon={Eye} label="Reveal in Finder" onClick={() => handleReveal(selectionTargets)} disabled={!selectionTargets.length} />
-            <ContextMenuItem
-                icon={Trash2}
-                label={selectionTargets.length > 1 ? `Delete ${selectionTargets.length} items` : 'Delete Object'}
-                onClick={() => handleDelete(selectionTargets)}
-                disabled={!selectionTargets.length}
-                variant="destructive"
-            />
-          </div>
-        </div>
+        <ExplorerContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={closeContextMenu}
+          selectionTargets={selectionTargets}
+          canPaste={canPaste}
+          onNewFile={() => startDraft('file')}
+          onNewFolder={() => startDraft('dir')}
+          onRename={() => setRenameTarget({ path: selectionTargets[0], value: explorerPathUtils.basename(selectionTargets[0]) })}
+          onDuplicate={() => handleDuplicate(selectionTargets[0])}
+          onCopy={() => handleCopySelection('copy')}
+          onCut={() => handleCopySelection('cut')}
+          onPaste={handlePasteSelection}
+          onPasteMarkdown={handlePasteMarkdown}
+          onReveal={() => handleReveal(selectionTargets)}
+          onDelete={() => handleDelete(selectionTargets)}
+        />
       )}
     </aside>
   );
@@ -1559,24 +1598,4 @@ export function ProjectExplorerSidebar({
       onOpenRecentProject={onOpenRecentProject}
     />
   );
-}
-
-function ContextMenuItem({ icon: Icon, label, onClick, disabled, variant }) {
-    return (
-        <button
-            className={`group flex w-full items-center justify-between px-3 py-1.5 rounded-lg transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed ${
-                variant === 'destructive' 
-                    ? 'text-rose-400 hover:bg-rose-500/10' 
-                    : 'text-muted-foreground/80 hover:bg-primary/10 hover:text-primary'
-            }`}
-            onClick={(e) => { e.stopPropagation(); !disabled && onClick(); }}
-            disabled={disabled}
-        >
-            <div className="flex items-center gap-2.5 min-w-0">
-                <Icon size={13} strokeWidth={2} className={`shrink-0 transition-transform duration-500 ${!disabled && 'group-hover:scale-110'}`} />
-                <span className="truncate font-medium tracking-tight">{label}</span>
-            </div>
-            {!disabled && <ChevronRight size={10} className="opacity-0 group-hover:opacity-40 transition-opacity" />}
-        </button>
-    );
 }

@@ -1,4 +1,5 @@
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const yaml = require('js-yaml');
 
@@ -65,10 +66,16 @@ async function listComments({ worktreePath, filePath } = {}) {
   }
   const data = await readComments(worktreePath);
   const list = Array.isArray(data.comments) ? data.comments : [];
+  const normalized = list.map((comment) => ({
+    threadId: comment.threadId || comment.id,
+    parentId: comment.parentId ?? null,
+    status: comment.status || 'open',
+    ...comment,
+  }));
   if (!filePath) {
-    return list;
+    return normalized;
   }
-  return list.filter((comment) => comment.file === filePath);
+  return normalized.filter((comment) => comment.file === filePath);
 }
 
 async function submitComment({
@@ -89,8 +96,20 @@ async function submitComment({
     throw new Error('Comment message is required.');
   }
   const comments = await readComments(worktreePath);
+  const id = `c_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`;
+  let author = null;
+  try {
+    const userInfo = os.userInfo();
+    author = userInfo?.username ? { type: 'local', label: userInfo.username } : null;
+  } catch (error) {
+    author = null;
+  }
   const entry = {
-    id: `c_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`,
+    id,
+    threadId: id,
+    parentId: null,
+    status: 'open',
+    author,
     file: filePath,
     line: normalizeLine(line),
     column: normalizeLine(column),
@@ -99,7 +118,7 @@ async function submitComment({
     createdAt: new Date().toISOString(),
   };
   comments.comments.push(entry);
-  await writeComments(worktreePath, comments);
+  await writeComments(worktreePath, { version: 2, comments: comments.comments });
   return entry;
 }
 

@@ -18,6 +18,7 @@ import {
   Split,
   FileCode,
   ListTodo,
+  MessageSquarePlus,
 } from 'lucide-react';
 import { CodeWorkbenchView } from './CodeWorkbenchView.jsx';
 import { MediaWorkbenchView } from './MediaWorkbenchView.jsx';
@@ -476,12 +477,20 @@ function WorkbenchPaneContent({ workbench, activeRootPath, activeRootLabel, onTa
             }}
           />
         )}
-        {activeTab && canComment && (commentsLoading || commentsError || comments.length > 0) && (
+        {activeTab && canComment && (
           <div className="absolute right-4 top-4 w-64 rounded-xl border border-white/10 bg-[#141821]/95 shadow-xl backdrop-blur">
             <div className="flex items-center justify-between px-3 py-2 border-b border-white/5">
               <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
                 Comments {comments.length ? `(${comments.length})` : ''}
               </span>
+              <button
+                type="button"
+                className="flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-primary/70 hover:border-primary/40 hover:text-primary"
+                onClick={() => openCommentModal({ line: statusPosition.line, column: statusPosition.column })}
+              >
+                <MessageSquarePlus size={11} />
+                Add
+              </button>
             </div>
             <div className="max-h-56 overflow-y-auto px-3 py-2 space-y-2">
               {commentsLoading && (

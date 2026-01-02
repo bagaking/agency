@@ -196,6 +196,18 @@ function App() {
     bootstrap();
   }, [loadCells]);
   useEffect(() => {
+    const handleRejection = (event) => {
+      const reason = event?.reason;
+      if (reason && reason.type === 'cancelation') {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
+  useEffect(() => {
     if (!window.agency || !window.agency.onCellsUpdated) {
       return undefined;
     }

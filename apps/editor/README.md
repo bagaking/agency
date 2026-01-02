@@ -42,7 +42,7 @@
 - Pasting into the terminal saves clipboard files/images into `.agency/tmp` and inserts their relative paths.
 - Workbench actions allow submitting line comments with optional TODO flags, stored per worktree.
 - Line comments are stored at `.agency/comments-<worktreeName>.yaml` inside each worktree.
-- Line comments are added from the editor gutter (right-click the line number) and previewed in the top-right list.
+- Line comments are added from the editor gutter (hover line number → plus → Comment) and previewed in the top-right list.
 
 ## Quick Actions
 

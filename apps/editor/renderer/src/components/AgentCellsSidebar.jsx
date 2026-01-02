@@ -140,9 +140,16 @@ function NavItem({ icon: Icon, label, onClick, disabled }) {
 function CellItem({ cell, selected, onClick, onOpenExplorer }) {
   const Icon = cell.isVirtual ? SquareTerminal : GitBranch;
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onClick?.();
+        }
+      }}
       data-testid={`cell-item-${cell.id}`}
       className={`group flex w-full items-center gap-2 rounded px-2 py-1 text-sm transition-colors ${
         selected
@@ -174,6 +181,6 @@ function CellItem({ cell, selected, onClick, onOpenExplorer }) {
           </>
         ) : null}
       </div>
-    </button>
+    </div>
   );
 }
