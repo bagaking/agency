@@ -26,6 +26,7 @@ function TerminalPane({
   const lastQueuedRef = useRef(null);
   const lastResizeRef = useRef({ width: 0, height: 0, cols: 0, rows: 0 });
   const lastOutputAtRef = useRef(0);
+  const lastPasteAtRef = useRef(0);
   const deferredResizeRef = useRef(null);
   const resizeLogRef = useRef({});
   const resizeHandlerRef = useRef(null);
@@ -232,6 +233,11 @@ function TerminalPane({
       if (!window.agency?.materializeClipboard || !worktreePath) {
         return false;
       }
+      const now = Date.now();
+      if (now - lastPasteAtRef.current < 120) {
+        return false;
+      }
+      lastPasteAtRef.current = now;
       try {
         const result = await window.agency.materializeClipboard({
           rootPath: worktreePath,

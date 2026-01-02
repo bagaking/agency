@@ -1,4 +1,4 @@
-const { clipboard, nativeImage } = require('electron');
+const { clipboard } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { fileURLToPath } = require('url');

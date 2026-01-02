@@ -49,14 +49,14 @@ function App() {
   const [initialWorkbenchActiveTabs, setInitialWorkbenchActiveTabs] = useState({});
   const projectReady = Boolean(projectRoot);
   const virtualCell = useMemo(() => {
-    if (projectReady || !fallbackTerminalRoot) {
+    if (projectReady) {
       return null;
     }
     return {
       id: 'local-terminal',
       name: 'Local Terminal',
       branch: 'local',
-      worktreePath: fallbackTerminalRoot,
+      worktreePath: fallbackTerminalRoot || '/',
       state: 'draft',
       isVirtual: true,
       validation: { warnings: ['Project root not selected.'] },
@@ -178,6 +178,7 @@ function App() {
           if (!resolvedProjectRoot) {
             setActiveView('agent-cells');
             setSelectedId('local-terminal');
+            setTerminalOpen(true); // 确保终端面板打开
             setCells([]);
           }
           await loadCells(state?.selectedId || (resolvedProjectRoot ? undefined : 'local-terminal'), resolvedProjectRoot);
@@ -212,6 +213,7 @@ function App() {
     if (!projectRoot) {
       setActiveView('agent-cells');
       setSelectedId('local-terminal');
+      setTerminalOpen(true);
     }
     loadCells(undefined, projectRoot);
   }, [projectRoot, uiStateLoaded, loadCells]);
@@ -392,7 +394,7 @@ function App() {
       setProjectRoot(payload.projectRoot || '');
       setRecentProjects(Array.isArray(payload.recentProjects) ? payload.recentProjects : []);
       setProjectError('');
-      setActiveView('explorer');
+      // 移除这里的 setActiveView('explorer')，保留用户当前视图
     });
     return () => {
       if (unsubscribe) {
