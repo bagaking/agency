@@ -3,6 +3,10 @@ import { createPortal } from 'react-dom';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import { AlertTriangle, MessageSquarePlus, Plus } from 'lucide-react';
 
+const COMMENT_ACTION_ID = 'agency-add-line-comment';
+const buildCommentActionLabel = (lineNumber) =>
+  `Add Comment around Line ${Math.max(1, Number(lineNumber) || 1)}`;
+
 const buildDiffDecorations = (monaco, hunks) => {
   if (!monaco || !Array.isArray(hunks)) {
     return [];
@@ -128,8 +132,8 @@ export function CodeWorkbenchView({
     }
     const editor = editorRef.current;
     const action = editor.addAction({
-      id: 'agency-add-line-comment',
-      label: 'Add Comment on Line',
+      id: COMMENT_ACTION_ID,
+      label: buildCommentActionLabel(editor.getPosition()?.lineNumber || 1),
       contextMenuGroupId: 'navigation',
       contextMenuOrder: 1.5,
       run: () => {
@@ -225,6 +229,10 @@ export function CodeWorkbenchView({
         line: event.position.lineNumber,
         column: event.position.column,
       });
+      const action = editor.getAction(COMMENT_ACTION_ID);
+      if (action) {
+        action.label = buildCommentActionLabel(event.position.lineNumber);
+      }
     });
     const handleMouse = editor.onMouseMove((event) => {
       const lineNumber =
