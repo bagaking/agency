@@ -11,6 +11,7 @@ export function useHilItems({ worktreePath, fetchAll = false }) {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const filterKey = fetchAll ? 'all' : `${filters.kind}:${filters.status}`;
 
   const loadItems = useCallback(
     async (nextFilters = filters) => {
@@ -38,12 +39,13 @@ export function useHilItems({ worktreePath, fetchAll = false }) {
         setLoading(false);
       }
     },
-    [fetchAll, filters, worktreePath]
+    [fetchAll, worktreePath]
   );
 
   useEffect(() => {
-    loadItems(filters);
-  }, [filters, loadItems]);
+    const effectiveFilters = fetchAll ? DEFAULT_FILTERS : filters;
+    loadItems(effectiveFilters);
+  }, [fetchAll, filterKey, loadItems]);
 
   useEffect(() => {
     if (!worktreePath) {
