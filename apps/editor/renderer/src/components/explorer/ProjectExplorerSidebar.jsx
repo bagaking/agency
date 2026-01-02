@@ -222,11 +222,13 @@ function ProjectExplorerSidebarContent({
     if (!clipboard?.paths?.length) return;
     try {
       let didMove = false;
+      let hadError = false;
       for (const sourcePath of clipboard.paths) {
         const baseName = explorerPathUtils.basename(sourcePath);
         const targetPath = [targetDir, baseName].filter(Boolean).join('/');
         if (targetDir && targetDir.startsWith(`${sourcePath}/`)) {
           setErrorMessage('Cannot paste a folder into itself.');
+          hadError = true;
           continue;
         }
         if (sourcePath === targetPath) {
@@ -236,7 +238,9 @@ function ProjectExplorerSidebarContent({
         else await copyEntry({ sourcePath, targetPath });
         didMove = true;
       }
-      clearError();
+      if (!hadError) {
+        clearError();
+      }
       if (clipboard.mode === 'cut' && didMove) setClipboard(null);
       if (didMove) {
         await refreshAll();
