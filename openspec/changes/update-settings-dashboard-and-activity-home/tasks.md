@@ -11,3 +11,10 @@
 - [x] 1.10 Support system clipboard paste in Explorer (files/screenshots) with conflict-safe renaming.
 - [x] 1.11 Support terminal paste that materializes files/images into `.agency/tmp` and inserts relative paths.
 - [x] 1.12 Update documentation for system clipboard paste behavior and terminal paste handling.
+- [x] 1.13 Add paste-as-Markdown support that captures clipboard content into `.agency/tmp/clipboard`.
+- [x] 1.14 Add line comment submission with TODO flag stored per worktree.
+- [x] 1.15 Update documentation for Markdown capture and comment submission.
+- [x] 1.16 Add gutter-triggered comment entry and preview list for line comments.
+- [x] 1.17 Normalize Explorer duplicate/paste naming by applying `-1` suffix conflict resolution.
+- [x] 1.18 Add editor context menu action and comment panel trigger for line comments.
+- [x] 1.19 Store line comments with structured metadata (thread/status/author) in worktree YAML.
