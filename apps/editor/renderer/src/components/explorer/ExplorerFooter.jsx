@@ -8,7 +8,7 @@ import {
   FolderClosed,
   FileText,
 } from 'lucide-react';
-import { statusColors } from './explorerUtils.jsx';
+import { statusColors, getFileIcon } from './explorerUtils.jsx';
 
 const formatIdle = (ms) => {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -93,14 +93,14 @@ export function ExplorerFooter({
   }, [selectionTargets, nodesByPath, folderStatusByPath, statusByPath]);
 
   return (
-    <footer className="shrink-0 flex flex-col bg-[#0b0d11] select-none border-t border-white/[0.02] relative">
+    <footer className="shrink-0 flex flex-col bg-sidebar select-none border-t border-border/40 relative">
       
       {/* 1. Selection Manifest (Tree View) */}
       {showManifest && selectionCount > 0 && (
-        <div className="absolute bottom-full left-3 mb-2 w-64 max-h-72 overflow-y-auto rounded-xl border border-white/10 bg-[#1a1d23]/98 backdrop-blur-3xl p-2 shadow-2xl animate-tab-in z-50 ring-1 ring-black/50 scrollbar-hide">
-            <div className="flex items-center justify-between mb-2 border-b border-white/5 pb-1.5 px-2">
+        <div className="absolute bottom-full left-3 mb-2 w-64 max-h-72 overflow-y-auto rounded-xl border border-border/50 bg-popover/98 backdrop-blur-3xl p-2 shadow-2xl animate-tab-in z-50 ring-1 ring-border/10 scrollbar-hide">
+            <div className="flex items-center justify-between mb-2 border-b border-border/10 pb-1.5 px-2">
                 <span className="text-[9px] font-black uppercase tracking-widest text-primary/60">Selection Hierarchy</span>
-                <span className="text-[9px] font-mono text-white/10">{selectionCount} items</span>
+                <span className="text-[9px] font-mono text-muted-foreground/40">{selectionCount} items</span>
             </div>
             
             <div className="space-y-px">
@@ -113,7 +113,7 @@ export function ExplorerFooter({
 
       {/* 2. Compact Interaction Bar */}
       {selectionCount > 0 && (
-        <div className="flex h-8 items-center px-3 gap-3 animate-tab-in bg-white/[0.01] border-b border-white/[0.02]">
+        <div className="flex h-8 items-center px-3 gap-3 animate-tab-in bg-muted/5 border-b border-border/10">
             <div 
                 className="flex items-center gap-1.5 shrink-0 cursor-help group/trigger h-full px-1"
                 onMouseEnter={() => setShowManifest(true)}
@@ -125,24 +125,24 @@ export function ExplorerFooter({
                 <div className="h-1 w-1 rounded-full bg-primary/20 group-hover/trigger:bg-primary transition-colors" />
             </div>
             
-            <div className="h-3 w-[1px] bg-white/5" />
+            <div className="h-3 w-[1px] bg-border/20" />
 
             <input 
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 placeholder="attach instruction..."
-                className="flex-1 bg-transparent border-none text-[11px] text-muted-foreground placeholder:text-white/5 focus:outline-none"
+                className="flex-1 bg-transparent border-none text-[11px] text-muted-foreground placeholder:text-muted-foreground/30 focus:outline-none"
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             />
 
             <div className="flex items-center gap-1">
                 <button 
                     onClick={handleSend}
-                    className={`p-1 transition-all ${comment ? 'text-primary hover:scale-110' : 'text-white/5 pointer-events-none'}`}
+                    className={`p-1 transition-all ${comment ? 'text-primary hover:scale-110' : 'text-muted-foreground/40 pointer-events-none'}`}
                 >
                     <Send size={12} strokeWidth={2} />
                 </button>
-                <button onClick={onClearSelection} className="p-1 text-white/5 hover:text-white/20">
+                <button onClick={onClearSelection} className="p-1 text-muted-foreground/40 hover:text-foreground/80">
                     <X size={12} strokeWidth={2} />
                 </button>
             </div>
@@ -152,7 +152,7 @@ export function ExplorerFooter({
       {/* 3. Pipeline Monitor */}
       <div className="h-7 flex items-center justify-between px-3">
         <div className="flex items-center gap-4 overflow-hidden flex-1">
-            <div className="flex items-center gap-1.5 text-[9px] font-medium text-white/10 uppercase tracking-widest shrink-0">
+            <div className="flex items-center gap-1.5 text-[9px] font-medium text-muted-foreground/40 uppercase tracking-widest shrink-0">
                 <Terminal size={10} strokeWidth={1.5} />
                 Pipes
             </div>
@@ -170,7 +170,7 @@ export function ExplorerFooter({
                             onClick={() => onSelectSession?.(s.id)}
                             className={`flex items-center gap-2 px-2 h-5 rounded transition-all whitespace-nowrap group ${isActive ? 'text-primary' : 'text-muted-foreground/30 hover:text-muted-foreground/60'}`}
                         >
-                            <div className={`h-1 w-1 rounded-full transition-all ${isActive ? 'bg-primary shadow-[0_0_5px_rgba(59,130,246,0.5)]' : 'bg-white/10 group-hover:bg-white/20'}`} />
+                            <div className={`h-1 w-1 rounded-full transition-all ${isActive ? 'bg-primary shadow-[0_0_5px_rgba(59,130,246,0.5)]' : 'bg-foreground/10 group-hover:bg-foreground/20'}`} />
                             <span className="text-[10px] font-medium tracking-tight">{s.name || s.id}</span>
                             {!isActive && (
                                 <span className="text-[8px] opacity-40 font-mono italic">{formatIdle(idleMs)}</span>
@@ -182,10 +182,10 @@ export function ExplorerFooter({
         </div>
 
         <div className="flex items-center gap-2 pl-4">
-            <div className="text-[9px] font-medium text-white/5 tracking-widest uppercase truncate max-w-[80px]">
+            <div className="text-[9px] font-medium text-muted-foreground/30 tracking-widest uppercase truncate max-w-[80px]">
                 {activeCell?.name || 'Ready'}
             </div>
-            {activeCell && <CheckCircle2 size={10} className="text-white/5" />}
+            {activeCell && <CheckCircle2 size={10} className="text-muted-foreground/30" />}
         </div>
       </div>
     </footer>
@@ -199,8 +199,8 @@ function ManifestNode({ node, depth }) {
     // Only highlight if the item is explicitly selected. 
     // Intermediate directories (not selected) should stay gray.
     const colorClass = node.isSelected 
-        ? (node.status ? statusColors[node.status] : 'text-white/80')
-        : 'text-white/20';
+        ? (node.status ? statusColors[node.status] : 'text-foreground/90')
+        : 'text-muted-foreground/40';
     
     return (
         <div className="flex flex-col">

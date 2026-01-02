@@ -77,16 +77,16 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
   }
 
   return (
-    <section className="flex h-full flex-1 flex-col bg-[#09090b] overflow-hidden animate-tab-in select-none">
+    <section className="flex h-full flex-1 flex-col bg-background overflow-hidden select-none">
       {/* 1. Integrated Ghost Header */}
       <header className="shrink-0 flex items-center px-10 h-20 gap-12">
         <div className="flex flex-col shrink-0">
             <h2 className="text-[9px] font-black uppercase tracking-[0.4em] text-primary/40 mb-1">Human-In-Loop</h2>
             <div className="flex items-center gap-3">
-                <span className="text-2xl font-bold text-white tracking-tighter italic">Repository_</span>
-                <div className="flex items-center gap-4 text-[10px] font-bold text-white/10 uppercase tracking-widest ml-2">
-                    <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-white/10" /> {summary.comment}</span>
-                    <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-white/10" /> {summary.memo}</span>
+                <span className="text-2xl font-bold text-foreground tracking-tighter italic">Repository_</span>
+                <div className="flex items-center gap-4 text-[10px] font-bold text-muted-foreground/20 uppercase tracking-widest ml-2">
+                    <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-muted-foreground/30" /> {summary.comment}</span>
+                    <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-muted-foreground/30" /> {summary.memo}</span>
                     <span className="flex items-center gap-1.5 text-primary/40"><div className="w-1 h-1 rounded-full bg-current" /> {summary.draft}</span>
                 </div>
             </div>
@@ -94,23 +94,23 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
 
         {/* Global Search: Ghost Style */}
         <div className="flex-1 relative group max-w-xl">
-            <Search size={14} className="absolute left-0 top-1/2 -translate-y-1/2 text-white/10 group-focus-within:text-primary transition-all" />
+            <Search size={14} className="absolute left-0 top-1/2 -translate-y-1/2 text-muted-foreground/30 group-focus-within:text-primary transition-all" />
             <input 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="FILTER OBJECTS..."
-                className="w-full h-10 bg-transparent border-b border-white/[0.03] pl-8 text-xs text-white placeholder:text-white/5 focus:outline-none focus:border-primary/40 transition-all tracking-[0.1em]"
+                className="w-full h-10 bg-transparent border-b border-border/10 pl-8 text-xs text-foreground placeholder:text-muted-foreground/20 focus:outline-none focus:border-primary/40 transition-all tracking-[0.1em]"
             />
         </div>
 
-        <button onClick={refresh} className="shrink-0 p-3 rounded-full bg-white/[0.02] text-white/20 hover:text-white transition-all hover:bg-white/5 active:scale-90">
+        <button onClick={refresh} className="shrink-0 p-3 rounded-full bg-muted/5 text-muted-foreground/40 hover:text-foreground transition-all hover:bg-muted/10 active:scale-90">
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
         </button>
       </header>
 
       {/* 2. Seamless Toolbar */}
-      <div className="shrink-0 flex items-center px-10 h-10 gap-6 bg-white/[0.01] border-y border-white/[0.02]">
-          <div className="flex items-center gap-2 text-[9px] font-black text-white/10 uppercase tracking-[0.3em]">
+      <div className="shrink-0 flex items-center px-10 h-10 gap-6 bg-muted/5 border-y border-border/10">
+          <div className="flex items-center gap-2 text-[9px] font-black text-muted-foreground/30 uppercase tracking-[0.3em]">
               <Filter size={10} strokeWidth={3} /> Selector
           </div>
           <div className="flex items-center gap-1">
@@ -170,12 +170,12 @@ function FilterChip({ label, value, options, onChange }) {
                 onChange={(e) => onChange(e.target.value)}
             >
                 {options.map((opt) => (
-                    <option key={opt.value} value={opt.value} className="bg-[#1a1d23] text-white">{opt.label}</option>
+                    <option key={opt.value} value={opt.value} className="bg-popover text-foreground">{opt.label}</option>
                 ))}
             </select>
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/5 text-[10px] font-bold text-white/40 group-hover/chip:text-primary group-hover/chip:border-primary/20 transition-all">
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-muted/10 border border-border/10 text-[10px] font-bold text-muted-foreground/50 group-hover/chip:text-primary group-hover/chip:border-primary/20 transition-all">
                 <span className="opacity-40">{label}:</span>
-                <span className="text-white/60 tracking-tight">{activeLabel}</span>
+                <span className="text-muted-foreground/80 tracking-tight">{activeLabel}</span>
                 <ChevronDown size={10} className="opacity-20" />
             </div>
         </div>
@@ -189,32 +189,32 @@ function MemoRow({ item, index, onUpdateStatus, onPromote }) {
     
     return (
         <div className={`group flex items-center h-12 px-4 gap-6 transition-all duration-500 rounded-xl ${
-            isResolved ? 'opacity-20 grayscale' : 'hover:bg-white/[0.03]'
+            isResolved ? 'opacity-40 grayscale' : 'hover:bg-muted/5'
         }`}>
             {/* Index & Status Dot */}
             <div className="w-8 flex items-center gap-3 shrink-0">
-                <span className="text-[9px] font-mono text-white/5 font-black">{String(index + 1).padStart(2, '0')}</span>
-                <div className={`h-1.5 w-1.5 rounded-full transition-all duration-700 ${item.status === 'open' ? 'bg-primary shadow-[0_0_10px_rgba(59,130,246,0.4)]' : 'bg-white/10'}`} />
+                <span className="text-[9px] font-mono text-muted-foreground/30 font-black">{String(index + 1).padStart(2, '0')}</span>
+                <div className={`h-1.5 w-1.5 rounded-full transition-all duration-700 ${item.status === 'open' ? 'bg-primary shadow-[0_0_10px_rgba(59,130,246,0.4)]' : 'bg-muted-foreground/30'}`} />
             </div>
 
             {/* Type Identifier */}
             <div className="w-24 shrink-0 flex items-center gap-2">
-                <Icon size={13} strokeWidth={1.5} className={!isResolved ? 'text-primary/40' : 'text-white/10'} />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-white/20">{item.kind}</span>
+                <Icon size={13} strokeWidth={1.5} className={!isResolved ? 'text-primary/60' : 'text-muted-foreground/30'} />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">{item.kind}</span>
             </div>
 
             {/* Content Summary */}
             <div className="flex-1 min-w-0 flex items-center gap-4">
-                <div className="text-[13px] text-white/70 truncate tracking-tight group-hover:text-white transition-colors duration-300 font-medium">
+                <div className="text-[13px] text-muted-foreground truncate tracking-tight group-hover:text-foreground transition-colors duration-300 font-medium">
                     {bodySummary}
                 </div>
                 
                 {/* Inline Hover Actions: Zen Style */}
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
                     {item.status === 'open' ? (
-                        <RowAction icon={CheckCircle2} title="Resolve" onClick={() => onUpdateStatus(item, 'resolved')} color="hover:text-emerald-400 hover:bg-emerald-500/10" />
+                        <RowAction icon={CheckCircle2} title="Resolve" onClick={() => onUpdateStatus(item, 'resolved')} color="hover:text-emerald-500 hover:bg-emerald-500/10" />
                     ) : (
-                        <RowAction icon={RefreshCw} title="Restore" onClick={() => onUpdateStatus(item, 'open')} color="hover:text-amber-400 hover:bg-amber-500/10" />
+                        <RowAction icon={RefreshCw} title="Restore" onClick={() => onUpdateStatus(item, 'open')} color="hover:text-amber-500 hover:bg-amber-500/10" />
                     )}
                     {item.kind === 'comment' && (
                         <RowAction icon={MessageSquarePlus} title="Promote" onClick={() => onPromote(item)} color="hover:text-primary hover:bg-primary/10" />
@@ -226,13 +226,13 @@ function MemoRow({ item, index, onUpdateStatus, onPromote }) {
             {/* Context & Temporal */}
             <div className="w-64 shrink-0 flex items-center justify-end gap-6">
                 {item.anchor?.file && (
-                    <div className="flex items-center gap-2 text-[10px] font-mono text-white/10 italic truncate max-w-[160px] group-hover:text-white/20 transition-colors">
+                    <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground/30 italic truncate max-w-[160px] group-hover:text-muted-foreground/50 transition-colors">
                         <Target size={10} className="shrink-0" />
                         {item.anchor.file.split('/').pop()}
                         <span className="not-italic opacity-40">:{item.anchor.line}</span>
                     </div>
                 )}
-                <div className="text-[10px] font-mono text-white/5 font-bold tabular-nums">
+                <div className="text-[10px] font-mono text-muted-foreground/20 font-bold tabular-nums">
                     {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                 </div>
             </div>
@@ -240,11 +240,11 @@ function MemoRow({ item, index, onUpdateStatus, onPromote }) {
     );
 }
 
-function RowAction({ icon: Icon, onClick, title, color = "hover:text-white hover:bg-white/5" }) {
+function RowAction({ icon: Icon, onClick, title, color = "hover:text-foreground hover:bg-muted/10" }) {
     return (
         <button 
             onClick={(e) => { e.stopPropagation(); onClick(); }}
-            className={`p-1.5 rounded-lg transition-all text-white/10 ${color}`}
+            className={`p-1.5 rounded-lg transition-all text-muted-foreground/40 ${color}`}
             title={title}
         >
             <Icon size={14} strokeWidth={2} />
