@@ -120,7 +120,7 @@ export function CodeWorkbenchView({
   }, [commentsEnabled]);
 
   useEffect(() => {
-    if (!monaco || !editorRef.current) {
+    if (!monaco || !editorRef.current || !editorReady) {
       return undefined;
     }
     if (commentActionRef.current) {
@@ -154,7 +154,7 @@ export function CodeWorkbenchView({
       }
       commentActionRef.current = null;
     };
-  }, [monaco]);
+  }, [monaco, editorReady]);
 
   useEffect(() => {
     if (!editorReady || !editorRef.current) {
