@@ -7,6 +7,7 @@ import { ExplorerItem } from './ExplorerItem.jsx';
 import { ExplorerHeader } from './ExplorerHeader.jsx';
 import { ExplorerFilterPanel } from './ExplorerFilterPanel.jsx';
 import { ExplorerSessions } from './ExplorerSessions.jsx';
+import { ExplorerFooter } from './ExplorerFooter.jsx';
 import { 
   pickPrimaryStatus, 
 } from './explorerUtils';
@@ -28,11 +29,8 @@ function ProjectExplorerSidebarContent({
   onOpenFile,
   onJumpToAgents,
   workbenchMeta,
-  projectReady,
-  projectError,
-  onSelectProject,
-  recentProjects,
-  onOpenRecentProject,
+  onSelectSession,
+  onRunCommand,
 }) {
   const listRef = useRef(null);
   const visiblePathsRef = useRef([]);
@@ -74,7 +72,7 @@ function ProjectExplorerSidebarContent({
     rootPath: scopeRootPath,
     rootLabel: scopeRootLabel,
     getVisiblePaths: () => visiblePathsRef.current,
-    enabled: projectReady,
+    enabled: true, // Since it's only rendered when ready
   });
 
   const [draftEntry, setDraftEntry] = useState(null);
@@ -379,6 +377,17 @@ function ProjectExplorerSidebarContent({
     if ((event.key === 'Delete' || event.key === 'Backspace') && selectionTargets.length) { event.preventDefault(); handleDelete(selectionTargets); }
   };
 
+  const scopedAgentsCount = useMemo(() => {
+    const agents = new Set();
+    selectedPaths.forEach(path => {
+      const entry = tree.nodes[path]?.type === 'dir' ? folderStatusByPath[path] : statusByPath[path];
+      if (entry?.cells) {
+        Object.keys(entry.cells).forEach(id => agents.add(id));
+      }
+    });
+    return agents.size;
+  }, [selectedPaths, tree.nodes, folderStatusByPath, statusByPath]);
+
   return (
     <aside className="relative flex h-full w-full flex-col bg-sidebar select-none">
       <ExplorerHeader
@@ -386,8 +395,7 @@ function ProjectExplorerSidebarContent({
         onRefresh={refreshAll} isLoading={loadingPaths.size > 0} hasCells={hasCells} cells={cells} selectedId={selectedId} onSelectCell={onSelectCell}
         searchQuery={searchQuery} onSearchChange={setSearchQuery} onClearSearch={() => setSearchQuery('')}
         hasActiveFilters={hasActiveFilters} onToggleFilterMenu={() => setFilterMenuOpen(!filterMenuOpen)}
-        searchTruncated={searchTruncated} selectionCount={selectionCount} onCopyPaths={() => handleCopyPath(selectionTargets)}
-        onDeleteSelection={() => handleDelete(selectionTargets)} onClearSelection={clearSelection}
+        searchTruncated={searchTruncated}
       />
 
       {filterMenuOpen && (
@@ -398,8 +406,6 @@ function ProjectExplorerSidebarContent({
         />
       )}
 
-      <ExplorerSessions selectedCell={selectedCell} sessions={sessions} sessionActivityByKey={sessionActivityByKey} activeSessionId={activeSessionId} now={now} />
-
       {error && (
         <div className="mx-2 mt-2 flex items-start gap-2 rounded border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-[11px] text-rose-300 animate-tab-in">
           <AlertCircle size={14} className="mt-0.5 shrink-0" />
@@ -408,7 +414,7 @@ function ProjectExplorerSidebarContent({
       )}
 
       <div
-        ref={listRef} data-testid="explorer-tree" className="flex-1 overflow-y-auto px-1 py-2 focus:outline-none" tabIndex={0}
+        ref={listRef} data-testid="explorer-tree" className="flex-1 overflow-y-auto px-1 py-2 focus:outline-none scrollbar-hide" tabIndex={0}
         onClick={() => closeContextMenu()} onKeyDown={handleKeyDown}
         onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
       >
@@ -422,6 +428,21 @@ function ProjectExplorerSidebarContent({
           </div>
         )}
       </div>
+
+      <ExplorerFooter
+        selectionCount={selectionCount}
+        selectionTargets={selectionTargets}
+        onCopyPaths={() => handleCopyPath(selectionTargets)}
+        onDeleteSelection={() => handleDelete(selectionTargets)}
+        onClearSelection={clearSelection}
+        activeCell={selectedCell}
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        sessionActivityByKey={sessionActivityByKey}
+        now={now}
+        onSelectSession={onSelectSession}
+        onRunCommand={onRunCommand}
+      />
 
       {contextMenu && (
         <ExplorerContextMenu
@@ -440,6 +461,7 @@ function ProjectExplorerSidebarContent({
 export function ProjectExplorerSidebar({
   rootPath: scopeRootPath, rootLabel: scopeRootLabel, cells, selectedId, onSelectCell, selectedCell,
   sessions, activeSessionId, sessionActivityByKey, onOpenFile, onJumpToAgents, workbenchMeta,
+  onSelectSession, onRunCommand,
   projectReady, projectError, onSelectProject, recentProjects, onOpenRecentProject,
 }) {
   if (!projectReady) {
@@ -461,10 +483,20 @@ export function ProjectExplorerSidebar({
 
   return (
     <ProjectExplorerSidebarContent
-      rootPath={scopeRootPath} rootLabel={scopeRootLabel} cells={cells} selectedId={selectedId} onSelectCell={onSelectCell}
-      selectedCell={selectedCell} sessions={sessions} activeSessionId={activeSessionId} sessionActivityByKey={sessionActivityByKey}
-      onOpenFile={onOpenFile} onJumpToAgents={onJumpToAgents} workbenchMeta={workbenchMeta} projectReady={projectReady}
-      projectError={projectError} onSelectProject={onSelectProject} recentProjects={recentProjects} onOpenRecentProject={onOpenRecentProject}
+      rootPath={scopeRootPath}
+      rootLabel={scopeRootLabel}
+      cells={cells}
+      selectedId={selectedId}
+      onSelectCell={onSelectCell}
+      selectedCell={selectedCell}
+      sessions={sessions}
+      activeSessionId={activeSessionId}
+      sessionActivityByKey={sessionActivityByKey}
+      onOpenFile={onOpenFile}
+      onJumpToAgents={onJumpToAgents}
+      workbenchMeta={workbenchMeta}
+      onSelectSession={onSelectSession}
+      onRunCommand={onRunCommand}
     />
   );
 }

@@ -102,17 +102,6 @@ export function ExplorerHeader({
           <Info size={10} /> Search results truncated
         </div>
       )}
-
-      {selectionCount > 0 && (
-        <div className="flex items-center justify-between rounded border border-border/50 bg-muted/20 px-2 py-1 text-[10px] text-muted-foreground/80 animate-tab-in">
-          <span>{selectionCount} selected</span>
-          <div className="flex items-center gap-1">
-            <SelectionAction onClick={onCopyPaths}>Copy Paths</SelectionAction>
-            <SelectionAction onClick={onDeleteSelection} variant="destructive">Delete</SelectionAction>
-            <SelectionAction onClick={onClearSelection}>Clear</SelectionAction>
-          </div>
-        </div>
-      )}
     </header>
   );
 }

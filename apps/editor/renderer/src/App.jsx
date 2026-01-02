@@ -758,6 +758,8 @@ function App() {
           sessionActivityByKey,
           onJumpToAgents: () => handleSwitchView('agent-cells'),
           workbenchMeta: explorerMeta,
+          onSelectSession: selectSession,
+          onRunCommand: runActionCommand,
           onOpenFile: ({ path, mode }) => {
             workbench.openFile({ path, mode, rootPath: explorerRootPath });
           },
