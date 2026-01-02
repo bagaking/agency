@@ -18,7 +18,6 @@ import {
   Split,
   FileCode,
   ListTodo,
-  MessageSquarePlus,
 } from 'lucide-react';
 import { CodeWorkbenchView } from './CodeWorkbenchView.jsx';
 import { MediaWorkbenchView } from './MediaWorkbenchView.jsx';
@@ -62,6 +61,9 @@ export function WorkbenchPane({
   projectReady,
   projectError,
   onSelectProject,
+  commentLines,
+  onOpenComment,
+  onCursorPositionChange,
 }) {
   if (!projectReady) {
     return (
@@ -80,11 +82,23 @@ export function WorkbenchPane({
       activeRootLabel={activeRootLabel}
       onTabMetaChange={onTabMetaChange}
       cellId={cellId}
+      commentLines={commentLines}
+      onOpenComment={onOpenComment}
+      onCursorPositionChange={onCursorPositionChange}
     />
   );
 }
 
-function WorkbenchPaneContent({ workbench, activeRootPath, activeRootLabel, onTabMetaChange, cellId }) {
+function WorkbenchPaneContent({
+  workbench,
+  activeRootPath,
+  activeRootLabel,
+  onTabMetaChange,
+  cellId,
+  commentLines,
+  onOpenComment,
+  onCursorPositionChange,
+}) {
   const { 
     tabs, 
     activeTab, 
@@ -101,38 +115,10 @@ function WorkbenchPaneContent({ workbench, activeRootPath, activeRootLabel, onTa
   const [quickOpenVisible, setQuickOpenVisible] = useState(false);
   const [statusPosition, setStatusPosition] = useState({ line: 1, column: 1 });
   const [tabMenu, setTabMenu] = useState(null);
-  const [commentOpen, setCommentOpen] = useState(false);
-  const [commentMessage, setCommentMessage] = useState('');
-  const [commentTodo, setCommentTodo] = useState(false);
-  const [commentError, setCommentError] = useState('');
-  const [commentSaving, setCommentSaving] = useState(false);
-  const [commentTarget, setCommentTarget] = useState({ line: 1, column: 1 });
-  const [comments, setComments] = useState([]);
-  const [commentsLoading, setCommentsLoading] = useState(false);
-  const [commentsError, setCommentsError] = useState('');
   const dragSourceRef = useRef(null);
 
   const activeState = activeTab ? tabStateById[activeTab.id] || {} : {};
   const canComment = Boolean(activeTab && activeTab.kind === 'code');
-  const commentLines = useMemo(() => {
-    if (!comments.length) {
-      return [];
-    }
-    const map = new Map();
-    comments.forEach((comment) => {
-      const line = Number(comment.line);
-      if (!Number.isFinite(line) || line <= 0) {
-        return;
-      }
-      const entry = map.get(line) || { line, todo: false, count: 0 };
-      entry.count += 1;
-      if (comment.todo) {
-        entry.todo = true;
-      }
-      map.set(line, entry);
-    });
-    return Array.from(map.values());
-  }, [comments]);
 
   const updateTabState = useCallback((tabId, updates) => {
     setTabStateById((current) => ({
@@ -210,99 +196,13 @@ function WorkbenchPaneContent({ workbench, activeRootPath, activeRootLabel, onTa
     }
   }, [activeState, activeTab, updateTabState]);
 
-  const openCommentModal = useCallback(
-    ({ line, column } = {}) => {
-      const nextLine = Number.isFinite(line) ? line : statusPosition.line;
-      const nextColumn = Number.isFinite(column) ? column : statusPosition.column;
-      setCommentTarget({
-        line: Math.max(1, Math.floor(nextLine || 1)),
-        column: Math.max(1, Math.floor(nextColumn || 1)),
-      });
-      setCommentOpen(true);
-      setCommentMessage('');
-      setCommentTodo(false);
-      setCommentError('');
+  const handleCursorChange = useCallback(
+    (position) => {
+      setStatusPosition(position);
+      onCursorPositionChange?.(position);
     },
-    [statusPosition]
+    [onCursorPositionChange]
   );
-
-  const closeCommentModal = useCallback(() => {
-    setCommentOpen(false);
-    setCommentMessage('');
-    setCommentTodo(false);
-    setCommentError('');
-  }, []);
-
-  const handleSubmitComment = useCallback(async () => {
-    if (!activeTab || !window.agency?.submitComment) {
-      return;
-    }
-    if (!commentMessage.trim()) {
-      setCommentError('Comment cannot be empty.');
-      return;
-    }
-    setCommentSaving(true);
-    setCommentError('');
-    try {
-      await window.agency.submitComment({
-        worktreePath: activeTab.rootPath,
-        filePath: activeTab.path,
-        line: commentTarget.line,
-        column: commentTarget.column,
-        message: commentMessage.trim(),
-        todo: commentTodo,
-      });
-      if (window.agency?.listComments) {
-        const next = await window.agency.listComments({
-          worktreePath: activeTab.rootPath,
-          filePath: activeTab.path,
-        });
-        setComments(Array.isArray(next) ? next : []);
-      }
-      closeCommentModal();
-    } catch (error) {
-      setCommentError(error?.message || 'Failed to submit comment.');
-    } finally {
-      setCommentSaving(false);
-    }
-  }, [activeTab, commentMessage, commentTodo, commentTarget, closeCommentModal]);
-
-  useEffect(() => {
-    if (!activeTab) {
-      closeCommentModal();
-    }
-  }, [activeTab, closeCommentModal]);
-
-  useEffect(() => {
-    let canceled = false;
-    if (!activeTab || !window.agency?.listComments || !canComment) {
-      setComments([]);
-      setCommentsError('');
-      return undefined;
-    }
-    setCommentsLoading(true);
-    setCommentsError('');
-    window.agency
-      .listComments({ worktreePath: activeTab.rootPath, filePath: activeTab.path })
-      .then((list) => {
-        if (!canceled) {
-          setComments(Array.isArray(list) ? list : []);
-        }
-      })
-      .catch((error) => {
-        if (!canceled) {
-          setCommentsError(error?.message || 'Failed to load comments.');
-        }
-      })
-      .finally(() => {
-        if (!canceled) {
-          setCommentsLoading(false);
-        }
-      });
-    return () => {
-      canceled = true;
-    };
-  }, [activeTab, canComment]);
 
   const breadcrumbs = activeTab ? buildBreadcrumbs(activeTab.path) : [];
 
@@ -556,59 +456,6 @@ function WorkbenchPaneContent({ workbench, activeRootPath, activeRootLabel, onTa
 
       {/* Context Modals */}
       <QuickOpenModal open={quickOpenVisible} onClose={() => setQuickOpenVisible(false)} onSelect={(path) => openFile({ path, mode: 'preview', rootPath: activeRootPath })} rootPath={activeRootPath} />
-
-        {commentOpen && activeTab && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60">
-            <div className="w-[420px] rounded-xl border border-white/10 bg-[#151820] p-4 shadow-2xl">
-              <div className="flex items-center justify-between mb-3">
-                <div className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/60">
-                  Line Comment
-                </div>
-              <button
-                type="button"
-                onClick={closeCommentModal}
-                className="rounded-md p-1 text-muted-foreground/40 hover:text-muted-foreground hover:bg-white/5"
-              >
-                <X size={12} />
-              </button>
-            </div>
-            <div className="text-[10px] text-muted-foreground/60 mb-2">
-              {activeTab.path} · Ln {commentTarget.line}
-            </div>
-            <textarea
-              value={commentMessage}
-              onChange={(event) => setCommentMessage(event.target.value)}
-              className="w-full h-24 rounded-md border border-white/10 bg-[#0f1218] p-2 text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40"
-              placeholder="Leave a note for this line..."
-            />
-            <div className="flex items-center justify-between mt-3">
-              <label className="flex items-center gap-2 text-[10px] font-semibold text-muted-foreground/60">
-                <input
-                  type="checkbox"
-                  checked={commentTodo}
-                  onChange={(event) => setCommentTodo(event.target.checked)}
-                  className="h-3 w-3 rounded border-white/20 bg-transparent"
-                />
-                <span className="flex items-center gap-1">
-                  <ListTodo size={11} className="text-primary/60" />
-                  Mark as TODO
-                </span>
-              </label>
-              <button
-                type="button"
-                onClick={handleSubmitComment}
-                disabled={commentSaving}
-                className="rounded-md bg-primary/20 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/30 disabled:opacity-40"
-              >
-                {commentSaving ? 'Saving…' : 'Submit'}
-              </button>
-            </div>
-            {commentError && (
-              <div className="mt-2 text-[10px] text-rose-400">{commentError}</div>
-            )}
-          </div>
-        </div>
-      )}
 
       {tabMenu && (
         <div

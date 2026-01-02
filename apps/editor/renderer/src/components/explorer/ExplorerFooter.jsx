@@ -6,8 +6,9 @@ import {
   Clock,
   CheckCircle2,
   FolderClosed,
-  FileText
+  FileText,
 } from 'lucide-react';
+import { statusColors } from './explorerUtils';
 
 const formatIdle = (ms) => {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -20,6 +21,8 @@ export function ExplorerFooter({
   selectionCount,
   selectionTargets,
   nodesByPath,
+  statusByPath,
+  folderStatusByPath,
   onClearSelection,
   sessions,
   activeSessionId,
@@ -42,75 +45,82 @@ export function ExplorerFooter({
     
     onRunCommand?.({
       command: `echo -e "${escaped}"`, 
-      kind: 'resume', 
+      kind: 'resume',
       label: `Feed` 
     });
     setComment('');
   };
 
-  const selectionManifest = useMemo(() => {
-    if (!selectionTargets?.length || !nodesByPath) return { dirs: [], files: [] };
-    const dirs = [];
-    const files = [];
+  const manifestTree = useMemo(() => {
+    if (!selectionTargets?.length) return [];
+    const root = {};
+    const targetsSet = new Set(selectionTargets);
+
     selectionTargets.forEach(path => {
-        const node = nodesByPath[path];
-        if (node?.type === 'dir') dirs.push(node.name || path);
-        else files.push(node?.name || path);
+      const parts = path.split('/');
+      let current = root;
+      let currentPath = '';
+      
+      parts.forEach((part, index) => {
+        currentPath = currentPath ? `${currentPath}/${part}` : part;
+        const nodeMeta = nodesByPath?.[currentPath];
+        const statusMeta = nodeMeta?.type === 'dir' ? folderStatusByPath?.[currentPath] : statusByPath?.[currentPath];
+
+        if (!current[part]) {
+          current[part] = { 
+            name: part, 
+            children: {},
+            type: nodeMeta?.type || (index === parts.length - 1 ? 'file' : 'dir'),
+            isSelected: targetsSet.has(currentPath),
+            status: statusMeta?.status || null
+          };
+        }
+        current = current[part].children;
+      });
     });
-    return { dirs, files };
-  }, [selectionTargets, nodesByPath]);
+
+    const sortNodes = (obj) => {
+      return Object.values(obj).sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      }).map(node => ({
+        ...node,
+        children: sortNodes(node.children)
+      }));
+    };
+
+    return sortNodes(root);
+  }, [selectionTargets, nodesByPath, folderStatusByPath, statusByPath]);
 
   return (
     <footer className="shrink-0 flex flex-col bg-[#0b0d11] select-none border-t border-white/[0.02] relative">
       
-      {/* 1. Selection Manifest Hover Panel */}
+      {/* 1. Selection Manifest (Tree View) */}
       {showManifest && selectionCount > 0 && (
-        <div className="absolute bottom-full left-3 mb-2 w-64 max-h-60 overflow-y-auto rounded-xl border border-white/10 bg-[#1a1d23]/95 backdrop-blur-xl p-3 shadow-2xl animate-tab-in z-50 ring-1 ring-black/50">
-            <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
-                <span className="text-[9px] font-black uppercase tracking-widest text-primary/60">Selection Manifest</span>
-                <span className="text-[9px] font-mono text-white/20">{selectionCount} total</span>
+        <div className="absolute bottom-full left-3 mb-2 w-64 max-h-72 overflow-y-auto rounded-xl border border-white/10 bg-[#1a1d23]/98 backdrop-blur-3xl p-2 shadow-2xl animate-tab-in z-50 ring-1 ring-black/50 scrollbar-hide">
+            <div className="flex items-center justify-between mb-2 border-b border-white/5 pb-1.5 px-2">
+                <span className="text-[9px] font-black uppercase tracking-widest text-primary/60">Selection Hierarchy</span>
+                <span className="text-[9px] font-mono text-white/10">{selectionCount} items</span>
             </div>
             
-            {selectionManifest.dirs.length > 0 && (
-                <div className="mb-4">
-                    <div className="flex items-center gap-1.5 text-[8px] font-bold text-muted-foreground/40 uppercase mb-1.5 px-1">
-                        <FolderClosed size={8} />
-                        Containers
-                    </div>
-                    <div className="space-y-0.5">
-                        {selectionManifest.dirs.map((d, i) => (
-                            <div key={i} className="text-[10px] text-white/60 truncate px-2 py-0.5 rounded hover:bg-white/5 font-medium">{d}</div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {selectionManifest.files.length > 0 && (
-                <div>
-                    <div className="flex items-center gap-1.5 text-[8px] font-bold text-muted-foreground/40 uppercase mb-1.5 px-1">
-                        <FileText size={8} />
-                        Assets
-                    </div>
-                    <div className="space-y-0.5">
-                        {selectionManifest.files.map((f, i) => (
-                            <div key={i} className="text-[10px] text-white/60 truncate px-2 py-0.5 rounded hover:bg-white/5 font-medium">{f}</div>
-                        ))}
-                    </div>
-                </div>
-            )}
+            <div className="space-y-px">
+                {manifestTree.map((node, i) => (
+                    <ManifestNode key={i} node={node} depth={0} />
+                ))}
+            </div>
         </div>
       )}
 
-      {/* 2. Input Context (Only when selected) */}
+      {/* 2. Compact Interaction Bar */}
       {selectionCount > 0 && (
         <div className="flex h-8 items-center px-3 gap-3 animate-tab-in bg-white/[0.01] border-b border-white/[0.02]">
             <div 
-                className="flex items-center gap-1.5 shrink-0 cursor-help group/trigger"
+                className="flex items-center gap-1.5 shrink-0 cursor-help group/trigger h-full px-1"
                 onMouseEnter={() => setShowManifest(true)}
                 onMouseLeave={() => setShowManifest(false)}
             >
-                <span className="text-[10px] text-primary tracking-tight font-normal">
-                    <span className="opacity-60">{selectionCount}</span> items
+                <span className="text-[10px] text-primary tracking-tight font-medium opacity-80 group-hover/trigger:opacity-100 transition-opacity">
+                    {selectionCount} items
                 </span>
                 <div className="h-1 w-1 rounded-full bg-primary/20 group-hover/trigger:bg-primary transition-colors" />
             </div>
@@ -120,7 +130,7 @@ export function ExplorerFooter({
             <input 
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                placeholder="instruction..."
+                placeholder="attach instruction..."
                 className="flex-1 bg-transparent border-none text-[11px] text-muted-foreground placeholder:text-white/5 focus:outline-none"
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             />
@@ -180,4 +190,35 @@ export function ExplorerFooter({
       </div>
     </footer>
   );
+}
+
+function ManifestNode({ node, depth }) {
+    const Icon = node.type === 'dir' ? FolderClosed : FileText;
+    
+    // Only highlight if the item is explicitly selected. 
+    // Intermediate directories (not selected) should stay gray.
+    const colorClass = node.isSelected 
+        ? (node.status ? statusColors[node.status] : 'text-white/80')
+        : 'text-white/20';
+    
+    return (
+        <div className="flex flex-col">
+            <div 
+                className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] transition-colors ${colorClass}`}
+                style={{ paddingLeft: `${depth * 8 + 8}px` }}
+            >
+                <Icon size={8} className={node.type === 'dir' ? 'opacity-40' : 'opacity-40'} />
+                <span className={`truncate ${node.isSelected ? 'font-semibold' : 'font-normal'}`}>
+                    {node.name}
+                </span>
+            </div>
+            {node.children.length > 0 && (
+                <div className="flex flex-col">
+                    {node.children.map((child, i) => (
+                        <ManifestNode key={i} node={child} depth={depth + 1} />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 }
