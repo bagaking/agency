@@ -38,15 +38,27 @@ export function ExplorerFooter({
 
   const handleSend = () => {
     const current = activeSessions.find(s => s.id === activeSessionId) || activeSessions[0];
-    if (!current || selectionCount === 0) return;
-    const filesString = (selectionTargets || []).join(', ');
-    const finalMsg = `[Context] ${filesString}${comment ? `\n[Note] ${comment}` : ''}`;
-    const escaped = finalMsg.split("\"").join('\\"').split('\n').join('\\n');
-    
+    const trimmedComment = comment.trim();
+    if (!current || selectionCount === 0 || !trimmedComment) return;
+    const buildTreeLines = (nodes, depth = 0) => {
+      const indent = '  '.repeat(depth);
+      return nodes.flatMap((node) => {
+        const line = `${indent}- ${node.name}`;
+        if (!node.children?.length) {
+          return [line];
+        }
+        return [line, ...buildTreeLines(node.children, depth + 1)];
+      });
+    };
+    const treeLines = manifestTree.length
+      ? buildTreeLines(manifestTree)
+      : (selectionTargets || []).map((path) => `- ${path}`);
+    const payload = `<context>\n${treeLines.join('\n')}\n</context>\n<query>\n${trimmedComment}\n</query>`;
+
     onRunCommand?.({
-      command: `echo -e "${escaped}"`, 
+      command: payload,
       kind: 'resume',
-      label: `Feed` 
+      label: 'Feed',
     });
     setComment('');
   };
@@ -138,7 +150,7 @@ export function ExplorerFooter({
             <div className="flex items-center gap-1">
                 <button 
                     onClick={handleSend}
-                    className={`p-1 transition-all ${comment ? 'text-primary hover:scale-110' : 'text-muted-foreground/40 pointer-events-none'}`}
+                    className={`p-1 transition-all ${comment.trim() ? 'text-primary hover:scale-110' : 'text-muted-foreground/40 pointer-events-none'}`}
                 >
                     <Send size={12} strokeWidth={2} />
                 </button>
