@@ -29,6 +29,28 @@ const buildDiffDecorations = (monaco, hunks) => {
   });
 };
 
+const resolveLineNumber = (event, editor) => {
+  const directLine =
+    event?.target?.position?.lineNumber ||
+    event?.target?.range?.startLineNumber ||
+    event?.target?.range?.endLineNumber ||
+    null;
+  if (directLine) {
+    return directLine;
+  }
+  const mouseEvent = event?.event?.browserEvent;
+  if (!mouseEvent || !editor?.getTargetAtClientPoint) {
+    return null;
+  }
+  const target = editor.getTargetAtClientPoint(mouseEvent.clientX, mouseEvent.clientY);
+  return (
+    target?.position?.lineNumber ||
+    target?.range?.startLineNumber ||
+    target?.range?.endLineNumber ||
+    null
+  );
+};
+
 const toBlameMap = (lines) => {
   const map = new Map();
   (lines || []).forEach((line) => {
@@ -73,6 +95,7 @@ export function CodeWorkbenchView({
   const commentActionUpdaterRef = useRef(null);
   const commentActionLabelRef = useRef(null);
   const commentContextRef = useRef({ line: null, column: null });
+  const lastHoverLineRef = useRef(null);
 
   const blameMap = useMemo(() => toBlameMap(blameLines), [blameLines]);
   const blameInfo = blameEnabled && hoverLine ? blameMap.get(hoverLine) : null;
@@ -247,14 +270,14 @@ export function CodeWorkbenchView({
       };
     });
     const handleMouse = editor.onMouseMove((event) => {
-      const lineNumber =
-        event.target.position?.lineNumber ||
-        event.target.range?.startLineNumber ||
-        event.target.range?.endLineNumber ||
-        null;
+      const lineNumber = resolveLineNumber(event, editor);
       setHoverLine(lineNumber);
       if (!commentsEnabled) {
         return;
+      }
+      if (lineNumber && lastHoverLineRef.current !== lineNumber) {
+        lastHoverLineRef.current = lineNumber;
+        commentActionUpdaterRef.current?.(lineNumber);
       }
       const targetType = event.target.type;
       if (
@@ -306,12 +329,7 @@ export function CodeWorkbenchView({
       if (!event?.event?.rightButton && !event?.event?.ctrlKey) {
         return;
       }
-      const lineNumber =
-        event.target?.position?.lineNumber ||
-        event.target?.range?.startLineNumber ||
-        event.target?.range?.endLineNumber ||
-        editor.getPosition()?.lineNumber ||
-        1;
+      const lineNumber = resolveLineNumber(event, editor) || editor.getPosition()?.lineNumber || 1;
       const column =
         event.target?.position?.column ||
         event.target?.range?.startColumn ||
@@ -325,12 +343,7 @@ export function CodeWorkbenchView({
       editor.setPosition({ lineNumber, column });
     });
     const handleContextMenu = editor.onContextMenu((event) => {
-      const lineNumber =
-        event?.target?.position?.lineNumber ||
-        event?.target?.range?.startLineNumber ||
-        event?.target?.range?.endLineNumber ||
-        editor.getPosition()?.lineNumber ||
-        1;
+      const lineNumber = resolveLineNumber(event, editor) || editor.getPosition()?.lineNumber || 1;
       const column =
         event?.target?.position?.column ||
         event?.target?.range?.startColumn ||
