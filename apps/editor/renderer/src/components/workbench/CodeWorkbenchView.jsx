@@ -353,6 +353,9 @@ export function CodeWorkbenchView({
         line: lineNumber,
         column,
       };
+      if (lineNumber && Number.isFinite(lineNumber)) {
+        editor.setPosition({ lineNumber, column });
+      }
       commentActionUpdaterRef.current?.(lineNumber);
     });
     return () => {
