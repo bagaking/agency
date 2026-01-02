@@ -150,15 +150,9 @@ contextBridge.exposeInMainWorld('agency', {
       return statLocalEntry(payload || {});
     }
   },
+  getWorkbenchFileUrl: (payload) => ipcRenderer.invoke('workbench:fileUrl', payload),
+  getFileSnippet: (payload) => ipcRenderer.invoke('workbench:snippet', payload),
   diffWorkbenchEntry: (payload) => ipcRenderer.invoke('workbench:diff', payload),
-  blameWorkbenchEntry: (payload) => ipcRenderer.invoke('workbench:blame', payload),
-  getWorkbenchFileUrl: async (payload) => {
-    try {
-      return await invokeWithTimeout('workbench:fileUrl', payload);
-    } catch (error) {
-      return resolveLocalFileUrl(payload || {});
-    }
-  },
   materializeClipboard: (payload) => ipcRenderer.invoke('clipboard:materialize', payload),
   materializeMarkdown: (payload) => ipcRenderer.invoke('clipboard:materializeMarkdown', payload),
   createExplorerEntry: (payload) => ipcRenderer.invoke('explorer:create', payload),

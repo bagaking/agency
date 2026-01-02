@@ -59,6 +59,13 @@ function App() {
   const [commentError, setCommentError] = useState('');
   const [commentSaving, setCommentSaving] = useState(false);
   const [commentTarget, setCommentTarget] = useState({ line: 1, column: 1 });
+  const [bulkPromoteOpen, setBulkPromoteOpen] = useState(false);
+  const [bulkPromoteDescription, setBulkPromoteDescription] = useState('');
+  const [bulkPromoteLoading, setBulkPromoteLoading] = useState(false);
+  const [bulkPromoteError, setBulkPromoteError] = useState('');
+  const [bulkPromoteItems, setBulkPromoteItems] = useState([]);
+  const [bulkPromoteSelectedIds, setBulkPromoteSelectedIds] = useState([]);
+  const [bulkPromotePreviewById, setBulkPromotePreviewById] = useState({});
   const projectReady = Boolean(projectRoot);
   const virtualCell = useMemo(() => {
     if (projectReady) {
@@ -495,9 +502,10 @@ function App() {
         worktreePath: commentRootPath,
         itemId: comment.id,
       });
+      await loadComments();
       openHilDrawer('comments');
     },
-    [commentRootPath, openHilDrawer]
+    [commentRootPath, loadComments, openHilDrawer]
   );
   useEffect(() => {
     loadComments();
@@ -507,6 +515,169 @@ function App() {
       closeCommentModal();
     }
   }, [commentFilePath, closeCommentModal]);
+  useEffect(() => {
+    if (commentModalOpen || bulkPromoteOpen) {
+      setHilDrawerPanel('comments');
+      setHilDrawerOpen(true);
+    }
+  }, [bulkPromoteOpen, commentModalOpen]);
+  const promoteWorktreePath = selectedCell?.worktreePath || projectRoot || '';
+  const openBulkPromote = useCallback(async () => {
+    if (!promoteWorktreePath || !window.agency?.listHilItems) {
+      return;
+    }
+    setBulkPromoteOpen(true);
+    setBulkPromoteLoading(true);
+    setBulkPromoteError('');
+    setBulkPromoteDescription('');
+    setBulkPromotePreviewById({});
+    try {
+      const list = await window.agency.listHilItems({
+        worktreePath: promoteWorktreePath,
+        kind: 'comment',
+      });
+      const pending = (Array.isArray(list) ? list : [])
+        .filter((item) => item && item.meta?.processed !== true)
+        .sort((a, b) => {
+          const fileA = a.anchor?.file || '';
+          const fileB = b.anchor?.file || '';
+          if (fileA !== fileB) {
+            return fileA.localeCompare(fileB);
+          }
+          const lineA = Number(a.anchor?.line || 0);
+          const lineB = Number(b.anchor?.line || 0);
+          return lineA - lineB;
+        });
+      setBulkPromoteItems(pending);
+      setBulkPromoteSelectedIds(pending.map((item) => item.id));
+    } catch (error) {
+      setBulkPromoteError(error?.message || 'Failed to load pending comments.');
+      setBulkPromoteItems([]);
+      setBulkPromoteSelectedIds([]);
+    } finally {
+      setBulkPromoteLoading(false);
+    }
+  }, [promoteWorktreePath]);
+  const closeBulkPromote = useCallback(() => {
+    setBulkPromoteOpen(false);
+    setBulkPromoteError('');
+    setBulkPromoteItems([]);
+    setBulkPromoteSelectedIds([]);
+    setBulkPromotePreviewById({});
+  }, []);
+  const toggleBulkPromoteItem = useCallback((itemId) => {
+    if (!itemId) {
+      return;
+    }
+    setBulkPromoteSelectedIds((current) => {
+      if (current.includes(itemId)) {
+        return current.filter((id) => id !== itemId);
+      }
+      return [...current, itemId];
+    });
+  }, []);
+  const loadBulkPromotePreview = useCallback(
+    async (item) => {
+      if (!item?.id || !item?.anchor?.file || !promoteWorktreePath) {
+        return;
+      }
+      if (bulkPromotePreviewById[item.id]) {
+        return;
+      }
+      if (!window.agency?.readWorkbenchEntry) {
+        return;
+      }
+      try {
+        const result = await window.agency.readWorkbenchEntry({
+          rootPath: promoteWorktreePath,
+          targetPath: item.anchor.file,
+        });
+        const content = result?.content || '';
+        const lines = content.split('\n');
+        const targetLine = Math.max(1, Number(item.anchor?.line || 1));
+        const start = Math.max(1, targetLine - 2);
+        const end = Math.min(lines.length || 1, targetLine + 2);
+        const snippet = lines.slice(start - 1, end).map((text, index) => ({
+          line: start + index,
+          text,
+        }));
+        setBulkPromotePreviewById((current) => ({
+          ...current,
+          [item.id]: {
+            snippet,
+            file: item.anchor.file,
+            line: targetLine,
+          },
+        }));
+      } catch (error) {
+        setBulkPromotePreviewById((current) => ({
+          ...current,
+          [item.id]: {
+            error: error?.message || 'Unable to load preview.',
+          },
+        }));
+      }
+    },
+    [bulkPromotePreviewById, promoteWorktreePath]
+  );
+  const submitBulkPromote = useCallback(async () => {
+    if (!promoteWorktreePath || !window.agency?.createHilItem || !window.agency?.updateHilItem) {
+      return;
+    }
+    if (!bulkPromoteDescription.trim()) {
+      setBulkPromoteError('Description is required.');
+      return;
+    }
+    const selected = bulkPromoteItems.filter((item) => bulkPromoteSelectedIds.includes(item.id));
+    if (!selected.length) {
+      setBulkPromoteError('Select at least one comment to promote.');
+      return;
+    }
+    setBulkPromoteLoading(true);
+    setBulkPromoteError('');
+    try {
+      const references = selected.map((item) => ({
+        system: 'hil',
+        id: item.id,
+        path: item.anchor?.file || null,
+        line: item.anchor?.line || null,
+      }));
+      await window.agency.createHilItem({
+        worktreePath: promoteWorktreePath,
+        kind: 'draft',
+        body: bulkPromoteDescription.trim(),
+        references,
+        meta: {
+          sourceKind: 'comment',
+          sourceBatch: 'bulk',
+        },
+      });
+      await Promise.all(
+        selected.map((item) =>
+          window.agency.updateHilItem({
+            worktreePath: promoteWorktreePath,
+            itemId: item.id,
+            patch: { meta: { processed: true } },
+          })
+        )
+      );
+      await loadComments();
+      closeBulkPromote();
+      openHilDrawer('comments');
+    } catch (error) {
+      setBulkPromoteError(error?.message || 'Failed to promote comments.');
+    } finally {
+      setBulkPromoteLoading(false);
+    }
+  }, [
+    bulkPromoteDescription,
+    bulkPromoteItems,
+    bulkPromoteSelectedIds,
+    closeBulkPromote,
+    loadComments,
+    openHilDrawer,
+    promoteWorktreePath,
+  ]);
   const resetProjectState = useCallback(() => {
     setSelectedId(null);
     setCells([]);
@@ -762,6 +933,19 @@ function App() {
     onCommentTodoChange: setCommentTodo,
     onCloseComment: closeCommentModal,
     onSubmitComment: submitComment,
+    onOpenBulkPromote: openBulkPromote,
+    bulkPromoteOpen,
+    bulkPromoteDescription,
+    bulkPromoteError,
+    bulkPromoteLoading,
+    bulkPromoteItems,
+    bulkPromoteSelectedIds,
+    bulkPromotePreviewById,
+    onBulkPromoteDescriptionChange: setBulkPromoteDescription,
+    onBulkPromoteToggleItem: toggleBulkPromoteItem,
+    onBulkPromotePreview: loadBulkPromotePreview,
+    onCloseBulkPromote: closeBulkPromote,
+    onSubmitBulkPromote: submitBulkPromote,
   };
   const handleSwitchView = useCallback(
     (view) => {
@@ -929,6 +1113,7 @@ function App() {
         onToggleHilDrawer={setHilDrawerOpen}
         onSelectHilDrawerPanel={setHilDrawerPanel}
         hilCommentsProps={hilCommentsProps}
+        activeRootLabel={explorerRootLabel}
         explorerSidebarProps={{
           rootPath: explorerRootPath,
           rootLabel: explorerRootLabel,

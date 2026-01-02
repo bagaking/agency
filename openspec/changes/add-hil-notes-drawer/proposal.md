@@ -9,6 +9,7 @@ A dedicated HIL store and UI center improves discoverability, supports future ex
 - Introduce a global right-side drawer that hosts HIL panels (initially comments), default-collapsed but auto-opens when comment workflows are invoked.
 - Add a Memo navigation entry to manage HIL artifacts across the worktree.
 - Support promoting a comment into a draft HIL item without directly modifying any spec system.
+- Provide a bulk promote flow for pending comments with a required description and context preview.
 - Migrate legacy comment storage into the HIL index (non-destructive).
 
 ## Impact

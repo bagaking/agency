@@ -97,12 +97,14 @@ export function AppLayout({
   explorerSidebarProps,
   explorerPaneProps,
   memoPaneProps,
+  activeRootLabel,
   hilDrawerOpen,
   hilDrawerPanel,
   onToggleHilDrawer,
   onSelectHilDrawerPanel,
   hilCommentsProps,
 }) {
+  const hilSubtitle = explorerPaneProps?.activeRootLabel || explorerSidebarProps?.rootLabel || '';
   const activeSidebar =
     activeView === 'explorer' ? (
       <ProjectExplorerSidebar
@@ -281,6 +283,8 @@ export function AppLayout({
           activePanel={hilDrawerPanel}
           onToggle={onToggleHilDrawer}
           onSelectPanel={onSelectHilDrawerPanel}
+          title={hilDrawerPanel === 'comments' ? 'Neural Comments' : 'HIL Core'}
+          subtitle={hilSubtitle}
         >
           {hilDrawerPanel === 'comments' ? <HilCommentsPanel {...hilCommentsProps} /> : null}
         </HilDrawer>

@@ -1,11 +1,11 @@
 import React from 'react';
-import { Settings, ListTree, Folder, StickyNote } from 'lucide-react';
+import { Settings, ListTree, Folder, Brain } from 'lucide-react';
 import { Logo } from './Logo.jsx';
 
 export function ActivityBar({ activeView, onSwitchView }) {
   const items = [
     { id: 'explorer', icon: Folder, label: 'Explorer' },
-    { id: 'memo', icon: StickyNote, label: 'Memo' },
+    { id: 'memo', icon: Brain, label: 'Memo' },
   ];
 
   const bottomItems = [
@@ -16,6 +16,7 @@ export function ActivityBar({ activeView, onSwitchView }) {
   return (
     <aside className="flex w-12 flex-col items-center justify-between bg-activity-bar py-3 border-r border-activity-bar-border select-none">
       <div className="flex flex-col gap-4 items-center">
+        {/* ... existing Logo and items ... */}
         <div className="relative group">
             <button
                 type="button"

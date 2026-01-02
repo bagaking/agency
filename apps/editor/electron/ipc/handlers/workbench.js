@@ -6,6 +6,7 @@ const {
   resolveFileUrl,
   getDiff,
   getBlame,
+  getFileSnippet,
 } = require('../../services/workbench');
 
 function setupWorkbenchHandlers() {
@@ -13,6 +14,11 @@ function setupWorkbenchHandlers() {
     const rootPath = payload?.rootPath;
     const targetPath = payload?.targetPath;
     return statEntry({ rootPath, targetPath });
+  });
+
+  ipcMain.handle('workbench:snippet', async (_event, payload) => {
+    const { rootPath, targetPath, line, context } = payload || {};
+    return getFileSnippet({ rootPath, targetPath, line, context });
   });
 
   ipcMain.handle('workbench:read', async (_event, payload) => {

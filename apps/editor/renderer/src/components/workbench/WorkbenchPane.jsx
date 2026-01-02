@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronRight,
   FileText,
@@ -12,11 +12,13 @@ import {
   AlertTriangle,
   Search,
   Command,
-  MoreVertical,
   Columns,
   Maximize2,
   Split,
   FileCode,
+  FileWarning,
+  FileCode2,
+  MessageSquarePlus,
 } from 'lucide-react';
 import { CodeWorkbenchView } from './CodeWorkbenchView.jsx';
 import { MediaWorkbenchView } from './MediaWorkbenchView.jsx';
@@ -54,7 +56,7 @@ const MEDIA_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', '
 
 const detectSecureKind = (filePath) => {
     const ext = (filePath.split('.').pop() || '').toLowerCase();
-    if (ext === 'svg') return 'vector'; // Special dual-mode
+    if (ext === 'svg') return 'vector';
     if (TEXT_EXTS.has(ext)) return 'code';
     if (MEDIA_EXTS.has(ext)) {
         if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico'].includes(ext)) return 'image';
@@ -166,7 +168,6 @@ function WorkbenchPaneContent({
 
     try {
       if (secureKind === 'vector') {
-          // SVG: Load BOTH content and URL
           const [contentResult, urlResult, meta] = await Promise.all([
             window.agency.readWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path }),
             window.agency.getWorkbenchFileUrl({ rootPath: tab.rootPath, targetPath: tab.path }),
@@ -194,7 +195,6 @@ function WorkbenchPaneContent({
         return;
       }
 
-      // If it's code, or we don't know but we aren't loading it as binary yet
       if (secureKind === 'code') {
           const result = await window.agency.readWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path });
           updateTabState(tab.id, {
@@ -209,7 +209,6 @@ function WorkbenchPaneContent({
             kind: 'code'
           });
       } else {
-          // Unknown / Binary safety fallback
           const meta = await window.agency.statWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path });
           updateTabState(tab.id, {
               loading: false,
@@ -302,8 +301,8 @@ function WorkbenchPaneContent({
 
   return (
     <section className="flex h-full flex-1 flex-col bg-[#0b0d11] overflow-hidden select-none">
-      {/* 1. Header: File Tabs & Global Actions */}
-      <div className="flex h-11 shrink-0 items-center bg-[#111318] border-b border-white/[0.03]">
+      {/* 1. Integrated Header: Tabs & Global Context */}
+      <div className="flex h-11 shrink-0 items-center bg-[#111318] border-b border-white/[0.03] pl-1 pr-3">
         <div className="flex-1 flex items-center h-full overflow-x-auto no-scrollbar scroll-smooth">
           {tabs.map((tab) => {
             const state = tabStateById[tab.id] || {};
@@ -317,111 +316,89 @@ function WorkbenchPaneContent({
                   isActive ? 'bg-[#0b0d11] text-foreground' : 'text-muted-foreground/50 hover:bg-white/[0.02] hover:text-muted-foreground'
                 }`}
               >
-                {/* Active Indicator Line (Top) */}
-                {isActive && <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary shadow-[0_0_8px_rgba(59,130,246,0.5)]" />}
-                
-                <FileText size={13} className={isActive ? 'text-primary' : 'opacity-30 group-hover:opacity-60'} />
-                <span className={`text-[11px] font-bold tracking-tight whitespace-nowrap ${tab.isPreview ? 'italic opacity-80' : ''}`}>
+                {isActive && <div className="absolute top-0 left-0 right-0 h-[2px] bg-primary shadow-[0_0_10px_rgba(59,130,246,0.6)]" />}
+                <FileText size={13} className={isActive ? 'text-primary' : 'opacity-20 group-hover:opacity-50'} />
+                <span className={`text-[11px] font-bold tracking-tight whitespace-nowrap ${tab.isPreview ? 'italic opacity-70' : ''}`}>
                     {tab.title}
                 </span>
-                
                 {state.isDirty ? (
-                    <div className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.4)] ml-1" />
+                    <div className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)] ml-1" />
                 ) : (
                     <button
                         onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }}
                         className={`p-1 rounded-md hover:bg-white/10 transition-all ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                     >
-                        <X size={12} strokeWidth={2.5} />
+                        <X size={10} strokeWidth={2.5} />
                     </button>
                 )}
               </div>
             );
           })}
-          
-          {tabs.length === 0 && (
-            <div className="px-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/10 italic">
-                <Columns size={12} />
-                Editor Workspace Empty
-            </div>
-          )}
         </div>
 
-        {/* Global Toolbar */}
-        <div className="flex items-center gap-1 px-3 border-l border-white/[0.03]">
-          <button onClick={() => setQuickOpenVisible(true)} className="p-2 text-muted-foreground/40 hover:text-primary transition-all hover:bg-white/5 rounded-lg" title="Quick Open (Cmd+P)">
-            <Search size={16} strokeWidth={2} />
-          </button>
-          <button className="p-2 text-muted-foreground/20 hover:text-muted-foreground transition-all rounded-lg" title="Split Editor">
-            <Split size={16} strokeWidth={2} />
-          </button>
+        <div className="flex items-center gap-1.5">
+          <div className="flex items-center bg-white/[0.03] p-0.5 rounded-lg border border-white/[0.02]">
+            <HeaderButton onClick={() => setQuickOpenVisible(true)} icon={Search} label="Search" shortcut="⌘P" primary />
+            <HeaderButton icon={Split} label="Split" />
+          </div>
         </div>
       </div>
 
-      {/* 2. Sub-Header: Breadcrumbs & Editor Actions */}
+      {/* 2. Toolbox Header: Breadcrumbs & Domain Actions */}
       <div className="flex h-9 shrink-0 items-center justify-between bg-[#0b0d11] border-b border-white/[0.02] px-4">
         <div className="flex items-center gap-2 overflow-hidden py-1">
-          <div className="flex items-center gap-1.5 text-[10px] font-black text-muted-foreground/20 uppercase tracking-[0.1em]">
-            <Logo size={14} className="opacity-30 grayscale shrink-0" />
-            <span className="hidden sm:inline">{activeRootLabel}</span>
+          <div className="flex items-center gap-1.5 text-[9px] font-black text-white/10 uppercase tracking-widest shrink-0">
+            <Logo size={12} className="opacity-20 grayscale" />
+            <span className="hidden lg:inline">{activeRootLabel}</span>
           </div>
-          <ChevronRight size={10} className="text-muted-foreground/10 shrink-0" />
+          <ChevronRight size={10} className="text-white/5 shrink-0" />
           <div className="flex items-center gap-1 overflow-hidden">
             {breadcrumbs.map((crumb, i) => (
               <React.Fragment key={i}>
-                <span className={`text-[10px] font-medium transition-colors whitespace-nowrap ${i === breadcrumbs.length - 1 ? 'text-muted-foreground/90 font-bold' : 'text-muted-foreground/30 hover:text-muted-foreground/60 cursor-default'}`}>
+                <span className={`text-[10px] font-medium transition-colors whitespace-nowrap ${i === breadcrumbs.length - 1 ? 'text-white/80' : 'text-white/20 hover:text-white/40 cursor-default'}`}>
                   {crumb}
                 </span>
-                {i < breadcrumbs.length - 1 && <ChevronRight size={8} className="text-muted-foreground/5 shrink-0" />}
+                {i < breadcrumbs.length - 1 && <ChevronRight size={8} className="text-white/[0.02] shrink-0" />}
               </React.Fragment>
             ))}
           </div>
         </div>
 
         {activeTab && (
-          <div className="flex items-center gap-1.5 pl-4">
-            <div className="flex items-center bg-white/[0.03] rounded-md p-0.5 border border-white/[0.02]">
-                <button 
-                    onClick={toggleDiff} 
-                    className={`p-1.5 rounded transition-all ${activeState.diffEnabled ? 'bg-primary/20 text-primary shadow-sm' : 'text-muted-foreground/30 hover:text-muted-foreground/60'}`}
-                    title="Git Diff"
-                >
-                    <GitCompare size={13} strokeWidth={2} />
-                </button>
-                <button 
-                    onClick={toggleBlame} 
-                    className={`p-1.5 rounded transition-all ${activeState.blameEnabled ? 'bg-primary/20 text-primary shadow-sm' : 'text-muted-foreground/30 hover:text-muted-foreground/60'}`}
-                    title="Git Blame"
-                >
-                    <GitCommit size={13} strokeWidth={2} />
-                </button>
+          <div className="flex items-center gap-3">
+            {/* Context Toolset */}
+            <div className="flex items-center gap-1 bg-white/[0.02] rounded-md p-0.5">
+                <ToolButton active={activeState.diffEnabled} onClick={toggleDiff} icon={GitCompare} title="Version Diff" />
+                <ToolButton active={activeState.blameEnabled} onClick={toggleBlame} icon={GitCommit} title="Git Blame" />
+                <div className="w-px h-3 bg-white/5 mx-0.5" />
+                <ToolButton onClick={() => onOpenComment?.({ line: statusPosition.line, column: statusPosition.column })} icon={MessageSquarePlus} title="Add HIL Comment" />
             </div>
 
-            <div className="w-px h-4 bg-white/5 mx-1" />
+            <div className="h-4 w-px bg-white/5" />
 
+            {/* Lifecycle Actions */}
             <div className="flex items-center gap-1">
-                <button onClick={() => loadTab(activeTab)} className="p-1.5 text-muted-foreground/30 hover:text-foreground transition-all rounded-md hover:bg-white/5" title="Reload File">
-                    <RefreshCw size={13} className={activeState.loading ? 'animate-spin' : ''} />
-                </button>
+                <ToolButton loading={activeState.loading} onClick={handleReload} icon={RefreshCw} title="Sync from Disk" />
+                
                 <button
                     onClick={handleSave}
                     disabled={!activeState.isDirty}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-all border ${
+                    className={`flex items-center gap-2 px-3 py-1 rounded-md text-[9px] font-black uppercase tracking-[0.1em] transition-all border ${
                         activeState.isDirty 
-                            ? 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 shadow-[0_0_10px_rgba(59,130,246,0.15)]' 
-                            : 'border-transparent text-muted-foreground/20 pointer-events-none'
+                            ? 'bg-primary text-white border-primary shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:scale-105' 
+                            : 'border-white/5 text-white/5 pointer-events-none'
                     }`}
                 >
-                    <Save size={12} strokeWidth={2.5} />
-                    {activeState.saving ? 'Saving...' : 'Save'}
+                    <Save size={11} strokeWidth={3} />
+                    {activeState.saving ? 'Saving' : 'Commit'}
                 </button>
-                <button 
+
+                <ToolButton 
+                    active={!activeTab.isPreview} 
                     onClick={() => pinTab(activeTab.id)} 
-                    className={`p-1.5 rounded-md transition-all ${activeTab.isPreview ? 'text-muted-foreground/30 hover:text-foreground hover:bg-white/5' : 'text-primary bg-primary/5'}`}
-                    title={activeTab.isPreview ? "Pin Tab" : "Pinned"}
-                >
-                    {activeTab.isPreview ? <Pin size={13} /> : <PinOff size={13} />}
-                </button>
+                    icon={activeTab.isPreview ? Pin : PinOff} 
+                    title={activeTab.isPreview ? "Keep Open" : "Object Pinned"} 
+                />
             </div>
           </div>
         )}
@@ -430,53 +407,41 @@ function WorkbenchPaneContent({
       {/* 3. Main Viewport */}
       <div className="flex-1 overflow-hidden relative">
         {!activeTab ? (
-          <div className="flex h-full flex-col items-center justify-center text-muted-foreground/20 bg-[#0b0d11]">
-            <div className="relative mb-6">
-                <div className="absolute inset-0 bg-primary/5 blur-3xl rounded-full" />
-                <Logo size={96} className="relative opacity-[0.03] grayscale animate-pulse-slow" />
-            </div>
-            <p className="text-[11px] font-black uppercase tracking-[0.5em] opacity-30">Infrastructure Ready</p>
-            <div className="mt-8 grid grid-cols-2 gap-x-12 gap-y-4 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-                <div className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-primary/40" /> Cmd + P : Quick Open</div>
-                <div className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-primary/40" /> Cmd + S : Save File</div>
-                <div className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-primary/40" /> Double Click : Pin Tab</div>
-                <div className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-primary/40" /> Right Click : Context</div>
+          <div className="flex h-full flex-col items-center justify-center text-white/[0.02] bg-[#0b0d11]">
+            <Logo size={120} className="opacity-10 grayscale animate-pulse-slow mb-8" />
+            <div className="grid grid-cols-2 gap-x-16 gap-y-4 text-[9px] font-bold uppercase tracking-[0.3em]">
+                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> CMD + P <span className="opacity-40">Open Path</span></div>
+                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> CMD + S <span className="opacity-40">Save Object</span></div>
+                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> Double Click <span className="opacity-40">Pin Tab</span></div>
+                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> Right Click <span className="opacity-40">Command Menu</span></div>
             </div>
           </div>
         ) : activeState.loading ? (
           <div className="flex h-full flex-col items-center justify-center bg-[#0b0d11]">
-            <RefreshCw size={24} className="animate-spin text-primary/40 mb-4" />
-            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/30">Loading Object</span>
+            <RefreshCw size={24} className="animate-spin text-primary mb-4 opacity-40" />
+            <span className="text-[9px] font-black uppercase tracking-[0.4em] text-primary/20">Syncing Object Data</span>
           </div>
         ) : activeState.error ? (
           <div className="flex h-full flex-col items-center justify-center text-rose-400 bg-rose-500/[0.02]">
-            <AlertTriangle size={32} strokeWidth={1} className="mb-4 opacity-50" />
-            <span className="text-xs italic font-medium">{activeState.error}</span>
-            <button onClick={() => loadTab(activeTab)} className="mt-6 px-4 py-1.5 rounded-full border border-rose-500/20 text-[10px] font-bold uppercase tracking-widest hover:bg-rose-500/10 transition-all">Retry Access</button>
+            <AlertTriangle size={32} strokeWidth={1} className="mb-4 opacity-30" />
+            <span className="text-xs font-mono mb-6">{activeState.error}</span>
+            <button onClick={() => loadTab(activeTab)} className="px-6 py-2 rounded-full bg-rose-500/10 border border-rose-500/20 text-[10px] font-black uppercase tracking-widest hover:bg-rose-500/20 transition-all">Emergency Retry</button>
           </div>
         ) : activeState.kind === 'unknown' ? (
           <div className="flex h-full flex-col items-center justify-center text-muted-foreground/40 bg-black/20">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.03] text-amber-500/40 mb-6 ring-1 ring-white/5 shadow-2xl">
                 <FileWarning size={32} strokeWidth={1.5} />
             </div>
-            <div className="text-[11px] font-black uppercase tracking-[0.3em] mb-2 text-white/60">Secure Suspended</div>
-            <p className="text-[10px] max-w-xs text-center leading-relaxed mb-8 opacity-60">
-                This object type is not recognized. Editing has been automatically disabled to prevent data corruption.
+            <div className="text-[11px] font-black uppercase tracking-[0.3em] mb-2 text-white/60 text-center px-10">Unrecognized Object Structure</div>
+            <p className="text-[10px] max-w-xs text-center leading-relaxed mb-8 opacity-40 px-10">
+                Security protocol has suspended active editing for this structure to prevent data integrity loss.
             </p>
             <div className="flex items-center gap-4">
-                <button 
-                    onClick={() => loadTab(activeTab)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/5 text-[9px] font-bold uppercase tracking-widest hover:bg-white/5 transition-all"
-                >
-                    <RefreshCw size={10} />
-                    Inspect Again
+                <button onClick={() => loadTab(activeTab)} className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 text-[9px] font-bold uppercase tracking-widest hover:bg-white/5 transition-all text-white/40">
+                    <RefreshCw size={10} /> Re-Inspect
                 </button>
-                <button 
-                    onClick={handleUnlock}
-                    className="flex items-center gap-2 px-5 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[9px] font-black uppercase tracking-widest hover:bg-amber-500/20 transition-all"
-                >
-                    <FileCode2 size={10} />
-                    Unlock Editor
+                <button onClick={handleUnlock} className="flex items-center gap-2 px-6 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[9px] font-black uppercase tracking-widest hover:bg-amber-500/20 transition-all shadow-lg shadow-amber-500/10">
+                    <FileCode2 size={12} /> Bypass & Edit
                 </button>
             </div>
           </div>
@@ -493,7 +458,7 @@ function WorkbenchPaneContent({
           <CodeWorkbenchView
             value={activeState.content || ''}
             language={activeState.language || 'plaintext'}
-            diffHunks={activeState.diffHunks || []}
+            diffHunks={activeState.diffEnabled ? activeState.diffHunks || [] : []}
             blameEnabled={activeState.blameEnabled}
             blameLines={activeState.blameLines || []}
             commentLines={resolvedCommentLines}
@@ -501,52 +466,30 @@ function WorkbenchPaneContent({
             readOnly={activeState.truncated}
             onChange={(val) => updateTabState(activeTab.id, { content: val, isDirty: true })}
             onCursorChange={handleCursorChange}
-            onLineComment={({ line, column }) => {
-              onOpenComment?.({ line, column });
-            }}
+            onLineComment={({ line, column }) => onOpenComment?.({ line, column })}
           />
         ) : (
-          <MediaWorkbenchView
-            kind={activeState.kind}
-            fileUrl={activeState.fileUrl}
-            size={activeState.size}
-            onReload={handleReload}
-          />
+          <MediaWorkbenchView kind={activeState.kind} fileUrl={activeState.fileUrl} size={activeState.size} onReload={handleReload} />
         )}
       </div>
 
-      {/* 4. Functional Footer */}
-      {activeTab && (
-        <div className="flex h-7 shrink-0 items-center justify-between px-4 bg-[#111318] border-t border-white/[0.03] text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-          <div className="flex items-center gap-6">
+      <div className="flex h-7 shrink-0 items-center justify-between px-4 bg-[#111318] border-t border-white/[0.03] text-[9px] font-black uppercase tracking-widest text-white/10">
+        <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
-                <span className="text-muted-foreground/20">Position</span>
-                <span className="text-muted-foreground/60 tracking-tighter">Ln {statusPosition.line}, Col {statusPosition.column}</span>
+                <div className="w-1 h-1 rounded-full bg-primary/20" />
+                <span className="opacity-40">Ln {statusPosition.line}, Col {statusPosition.column}</span>
             </div>
-            {activeState.truncated && (
-                <div className="flex items-center gap-1.5 text-amber-500/60">
-                    <AlertTriangle size={10} />
-                    <span>Overflow Truncated</span>
-                </div>
-            )}
-            {activeState.binary && <span className="text-rose-400/60 ring-1 ring-rose-500/20 px-1.5 py-0.5 rounded-sm bg-rose-500/5">Binary Object</span>}
-          </div>
-          
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-                <FileCode size={10} className="text-primary/40" />
-                <span className="text-primary/60">{activeState.language}</span>
-            </div>
-            <div className="h-3 w-px bg-white/5" />
-            <div className="flex items-center gap-2">
-                <Maximize2 size={10} className="opacity-20" />
-                <span>{formatBytes(activeState.size)}</span>
-            </div>
-          </div>
+            {activeState.truncated && <div className="flex items-center gap-1.5 text-amber-500/40 italic"><AlertTriangle size={10} /> Buffer Overflow</div>}
+            {activeState.binary && <span className="text-rose-400/40 font-black">Binary Object</span>}
         </div>
-      )}
+        
+        <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2"><FileCode size={10} className="text-primary/20" /><span className="text-primary/40">{activeState.language}</span></div>
+            <div className="h-3 w-px bg-white/[0.03]" />
+            <div className="flex items-center gap-2"><Maximize2 size={10} className="opacity-10" /><span>{formatBytes(activeState.size)}</span></div>
+        </div>
+      </div>
 
-      {/* Context Modals */}
       <QuickOpenModal open={quickOpenVisible} onClose={() => setQuickOpenVisible(false)} onSelect={(path) => openFile({ path, mode: 'preview', rootPath: activeRootPath })} rootPath={activeRootPath} />
 
       {tabMenu && (
@@ -566,15 +509,40 @@ function WorkbenchPaneContent({
   );
 }
 
-function TabMenuItem({ label, icon: Icon, onClick, variant }) {
+function HeaderButton({ onClick, icon: Icon, label, shortcut, primary }) {
+    return (
+        <button 
+            onClick={onClick} 
+            className={`flex items-center gap-2 px-2.5 py-1 rounded-md transition-all group ${primary ? 'hover:bg-primary/10' : 'hover:bg-white/5'}`}
+            title={label}
+        >
+            <Icon size={14} strokeWidth={primary ? 2.5 : 1.5} className={primary ? 'text-primary' : 'text-white/20 group-hover:text-white/60'} />
+            {shortcut && <span className="text-[9px] font-black text-white/10 group-hover:text-white/30 tracking-tighter">{shortcut}</span>}
+        </button>
+    )
+}
+
+function ToolButton({ active, loading, onClick, icon: Icon, title }) {
+    return (
+        <button 
+            onClick={onClick} 
+            className={`p-1.5 rounded-md transition-all ${active ? 'bg-primary/10 text-primary' : 'text-white/20 hover:text-white/60 hover:bg-white/5'}`}
+            title={title}
+        >
+            <Icon size={13} strokeWidth={active ? 2.5 : 1.5} className={loading ? 'animate-spin' : ''} />
+        </button>
+    )
+}
+
+function TabMenuItem({ label, icon: Icon, onClick }) {
     return (
         <button
             type="button"
-            className="flex w-full items-center justify-between px-3 py-2 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors group"
+            className="flex w-full items-center justify-between px-3 py-2 text-white/40 hover:bg-primary/10 hover:text-primary transition-colors group"
             onClick={onClick}
         >
-            <span className="font-medium tracking-tight">{label}</span>
-            {Icon && <Icon size={12} className="opacity-30 group-hover:opacity-100" />}
+            <span className="font-semibold tracking-tight">{label}</span>
+            {Icon && <Icon size={12} className="opacity-20 group-hover:opacity-100" />}
         </button>
     );
 }

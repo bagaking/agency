@@ -3,10 +3,12 @@
 ### Requirement: Worktree-Scoped HIL Index
 The editor SHALL store human-in-loop artifacts in a worktree-scoped HIL index under `.agency/hil/index-<worktree>.yaml`.
 The HIL index SHALL be YAML and mergeable, and SHALL contain items of kind `comment`, `memo`, or `draft`.
+Each HIL item SHALL include `meta.processed`, defaulting to `false` unless explicitly set.
 
 #### Scenario: Store a comment in HIL index
 - **WHEN** a user submits a line comment
 - **THEN** the editor appends a `comment` item to the HIL index for the active worktree
+- **AND** the new item has `meta.processed: false`
 
 ### Requirement: Global HIL Drawer
 The editor SHALL provide a global right-side drawer for HIL panels.
@@ -32,6 +34,20 @@ Promotion SHALL NOT directly edit spec files or external spec systems.
 #### Scenario: Promote comment
 - **WHEN** a user promotes a comment to a draft
 - **THEN** a new `draft` item is created in the HIL index
+- **AND** repeating the promote action returns the existing draft instead of creating a duplicate
+- **AND** the source comment is marked `meta.processed: true`
+
+### Requirement: Bulk Promote Pending Comments
+The editor SHALL allow users to promote all pending comments for the current worktree into a single draft.
+Bulk promote SHALL require a description and SHALL list all comments that are not yet processed.
+The bulk promote UI SHALL provide hoverable context previews for each comment.
+
+#### Scenario: Promote pending comments with description
+- **WHEN** a user opens bulk promote from the HIL drawer
+- **THEN** the editor shows all unprocessed comments with file and line context
+- **AND** requires a description before promoting
+- **AND** creates a draft with references to the selected comments
+- **AND** marks the selected comments as processed
 
 ### Requirement: Legacy Comment Migration
 If legacy comment storage exists, the editor SHALL import those comments into the HIL index non-destructively.

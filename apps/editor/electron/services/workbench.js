@@ -276,6 +276,28 @@ async function getBlame({ rootPath, targetPath }) {
   return { truncated: false, lines };
 }
 
+async function getFileSnippet({ rootPath, targetPath, line, context = 3 }) {
+  const entry = await statEntry({ rootPath, targetPath });
+  const raw = await fsp.readFile(entry.absolutePath, 'utf-8');
+  const allLines = raw.split('\n');
+  const targetLine = Math.max(1, Math.min(allLines.length, line));
+  
+  const start = Math.max(0, targetLine - 1 - context);
+  const end = Math.min(allLines.length, targetLine + context);
+  
+  const snippet = allLines.slice(start, end).map((content, index) => ({
+    line: start + index + 1,
+    content,
+    isTarget: start + index + 1 === targetLine
+  }));
+
+  return {
+    path: entry.path,
+    line: targetLine,
+    snippet
+  };
+}
+
 module.exports = {
   statEntry,
   readTextFile,
@@ -283,4 +305,5 @@ module.exports = {
   resolveFileUrl,
   getDiff,
   getBlame,
+  getFileSnippet,
 };

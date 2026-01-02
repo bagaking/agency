@@ -36,8 +36,10 @@ function toCommentView(item) {
     message: body,
     body,
     todo: Boolean(item?.meta?.todo || item?.todo),
+    processed: Boolean(item?.meta?.processed),
     createdAt: item.createdAt,
     author: item.author || null,
+    anchor: item.anchor || null,
   };
 }
 

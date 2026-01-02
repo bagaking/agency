@@ -38,6 +38,10 @@ function normalizeHilItem(raw) {
   if (!raw || typeof raw !== 'object') {
     return null;
   }
+  const meta = raw.meta && typeof raw.meta === 'object' ? { ...raw.meta } : {};
+  if (typeof meta.processed !== 'boolean') {
+    meta.processed = false;
+  }
   const kind = raw.kind || 'comment';
   const status = raw.status || 'open';
   return {
@@ -50,7 +54,31 @@ function normalizeHilItem(raw) {
     body: typeof raw.body === 'string' ? raw.body : typeof raw.message === 'string' ? raw.message : '',
     anchor: raw.anchor || null,
     references: Array.isArray(raw.references) ? raw.references : [],
-    meta: raw.meta && typeof raw.meta === 'object' ? raw.meta : {},
+    meta,
+  };
+}
+
+function ensureProcessedFlag(index) {
+  const items = Array.isArray(index.items) ? index.items : [];
+  let changed = false;
+  const nextItems = items
+    .map((item) => {
+      const normalized = normalizeHilItem(item);
+      if (!normalized) {
+        return null;
+      }
+      if (typeof item?.meta?.processed !== 'boolean') {
+        changed = true;
+      }
+      return normalized;
+    })
+    .filter(Boolean);
+  return {
+    index: {
+      version: index.version || 1,
+      items: nextItems,
+    },
+    changed,
   };
 }
 
@@ -163,6 +191,7 @@ async function migrateLegacyComments(worktreePath, index) {
         todo: Boolean(comment?.todo),
         legacySignature: signature,
         legacySource: 'comments',
+        processed: false,
       },
     };
     items.push(item);
@@ -195,10 +224,11 @@ function resolveAuthor() {
 async function ensureHilIndex(worktreePath) {
   const index = await readHilIndex(worktreePath);
   const { index: migrated, changed } = await migrateLegacyComments(worktreePath, index);
-  if (changed) {
-    await writeHilIndex(worktreePath, migrated);
+  const { index: processedIndex, changed: processedChanged } = ensureProcessedFlag(migrated);
+  if (changed || processedChanged) {
+    await writeHilIndex(worktreePath, processedIndex);
   }
-  return migrated;
+  return processedIndex;
 }
 
 async function listHilItems({ worktreePath, kind, status, filePath } = {}) {
@@ -247,8 +277,11 @@ async function createHilItem({
     body: String(body).trim(),
     anchor: anchor || null,
     references: Array.isArray(references) ? references : [],
-    meta: meta && typeof meta === 'object' ? meta : {},
+    meta: meta && typeof meta === 'object' ? { ...meta } : {},
   };
+  if (typeof item.meta.processed !== 'boolean') {
+    item.meta.processed = false;
+  }
   const items = Array.isArray(index.items) ? [...index.items, item] : [item];
   await writeHilIndex(worktreePath, { version: index.version || 1, items });
   return item;
@@ -271,10 +304,16 @@ async function updateHilItem({ worktreePath, itemId, patch } = {}) {
   const next = {
     ...current,
     ...patch,
-    meta: {
-      ...(current.meta || {}),
-      ...(patch?.meta || {}),
-    },
+    meta: (() => {
+      const merged = {
+        ...(current.meta || {}),
+        ...(patch?.meta || {}),
+      };
+      if (typeof merged.processed !== 'boolean') {
+        merged.processed = false;
+      }
+      return merged;
+    })(),
     updatedAt: new Date().toISOString(),
   };
   items[indexById] = next;
@@ -290,11 +329,33 @@ async function promoteHilItem({ worktreePath, itemId } = {}) {
     throw new Error('itemId is required.');
   }
   const index = await ensureHilIndex(worktreePath);
-  const source = Array.isArray(index.items)
-    ? index.items.map(normalizeHilItem).find((item) => item.id === itemId)
-    : null;
+  const normalizedItems = Array.isArray(index.items)
+    ? index.items.map(normalizeHilItem).filter(Boolean)
+    : [];
+  const sourceIndex = normalizedItems.findIndex((item) => item.id === itemId);
+  const source = sourceIndex >= 0 ? normalizedItems[sourceIndex] : null;
   if (!source) {
     throw new Error('HIL item not found.');
+  }
+  const existingDraft = normalizedItems.find(
+    (item) =>
+      item.kind === 'draft' &&
+      Array.isArray(item.references) &&
+      item.references.some((ref) => ref && ref.system === 'hil' && ref.id === source.id)
+  );
+  if (existingDraft) {
+    if (sourceIndex >= 0 && source.meta?.processed !== true) {
+      normalizedItems[sourceIndex] = {
+        ...source,
+        meta: {
+          ...(source.meta || {}),
+          processed: true,
+        },
+        updatedAt: new Date().toISOString(),
+      };
+      await writeHilIndex(worktreePath, { version: index.version || 1, items: normalizedItems });
+    }
+    return existingDraft;
   }
   const now = new Date().toISOString();
   const draft = {
@@ -316,9 +377,20 @@ async function promoteHilItem({ worktreePath, itemId } = {}) {
     meta: {
       sourceKind: source.kind,
       sourceStatus: source.status,
+      processed: false,
     },
   };
-  const items = Array.isArray(index.items) ? [...index.items, draft] : [draft];
+  if (sourceIndex >= 0) {
+    normalizedItems[sourceIndex] = {
+      ...source,
+      meta: {
+        ...(source.meta || {}),
+        processed: true,
+      },
+      updatedAt: now,
+    };
+  }
+  const items = [...normalizedItems, draft];
   await writeHilIndex(worktreePath, { version: index.version || 1, items });
   return draft;
 }

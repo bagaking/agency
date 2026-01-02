@@ -1,40 +1,68 @@
 import React from 'react';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const panels = [
   { id: 'comments', label: 'Comments' },
   { id: 'drafts', label: 'Drafts', disabled: true },
 ];
 
-export function HilDrawer({ open, activePanel, onToggle, onSelectPanel, children }) {
+export function HilDrawer({
+  open,
+  isOpen,
+  activePanel,
+  onToggle,
+  onClose,
+  onSelectPanel,
+  children,
+  title,
+  subtitle,
+}) {
+  const drawerOpen = typeof open === 'boolean' ? open : Boolean(isOpen);
+  const handleToggle = () => {
+    if (typeof onToggle === 'function') {
+      onToggle(!drawerOpen);
+      return;
+    }
+    if (drawerOpen && typeof onClose === 'function') {
+      onClose();
+    }
+  };
+
   return (
     <aside
-      className={`relative flex h-full flex-col border-l border-white/[0.04] bg-[#0f131a] transition-all duration-300 ${
-        open ? 'w-80' : 'w-8'
+      className={`relative flex h-full flex-shrink-0 flex-col border-l border-white/[0.03] bg-[#111318]/90 backdrop-blur-2xl transition-all duration-300 ${
+        drawerOpen ? 'w-[360px]' : 'w-8'
       }`}
     >
-      <button
-        type="button"
-        onClick={() => onToggle(!open)}
-        className="absolute -left-3 top-6 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-[#0f131a] text-muted-foreground/60 shadow hover:text-foreground"
-        title={open ? 'Collapse HIL drawer' : 'Expand HIL drawer'}
-      >
-        {open ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-      </button>
-
-      <div className={`flex h-full flex-col ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'} transition-opacity duration-200`}>
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
-          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50">
-            HIL
-          </div>
+      <header className="shrink-0 h-11 flex items-center gap-2 px-2 border-b border-white/[0.02] bg-white/[0.01]">
+        <button
+          type="button"
+          onClick={handleToggle}
+          className="flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-[#111318]/90 text-muted-foreground/60 shadow hover:text-foreground"
+          title={drawerOpen ? 'Collapse HIL drawer' : 'Expand HIL drawer'}
+        >
+          {drawerOpen ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
+        <div className={`flex min-w-0 flex-col ${drawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} transition-opacity duration-200`}>
+          <h2 className="text-[11px] font-black uppercase tracking-widest text-white/80 truncate">
+            {title || 'HIL'}
+          </h2>
+          {subtitle ? (
+            <span className="text-[9px] font-bold text-muted-foreground/30 truncate uppercase tracking-tighter">
+              {subtitle}
+            </span>
+          ) : null}
         </div>
+      </header>
+
+      <div className={`flex h-full flex-col ${drawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} transition-opacity duration-200`}>
         <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5">
           {panels.map((panel) => (
             <button
               key={panel.id}
               type="button"
               disabled={panel.disabled}
-              onClick={() => onSelectPanel(panel.id)}
+              onClick={() => onSelectPanel?.(panel.id)}
               className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest transition ${
                 panel.disabled
                   ? 'text-muted-foreground/30 cursor-not-allowed'
@@ -47,6 +75,7 @@ export function HilDrawer({ open, activePanel, onToggle, onSelectPanel, children
             </button>
           ))}
         </div>
+
         <div className="flex-1 overflow-y-auto px-4 py-3">{children}</div>
       </div>
     </aside>

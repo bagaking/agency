@@ -8,3 +8,5 @@
 - [x] 1.7 Persist drawer open/closed state in UI state storage.
 - [x] 1.8 Update documentation for HIL storage layout and workflows.
 - [x] 1.9 Add regression checks for HIL migration and drawer behavior.
+- [x] 1.10 Add bulk promote flow for pending comments with required description and context preview.
+- [x] 1.11 Ensure HIL drawer remains globally mounted and stays in sync with active file comments.
