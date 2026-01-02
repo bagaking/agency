@@ -10,6 +10,9 @@ import { GatesView } from './GatesView.jsx';
 import { WorktreeLinksView } from './WorktreeLinksView.jsx';
 import { SidebarDock } from './layout/SidebarDock.jsx';
 import { ProjectSettingsView } from './ProjectSettingsView.jsx';
+import { HilDrawer } from './hil/HilDrawer.jsx';
+import { HilCommentsPanel } from './hil/HilCommentsPanel.jsx';
+import { HilMemoView } from './hil/HilMemoView.jsx';
 
 export function AppLayout({
   activeView,
@@ -93,6 +96,12 @@ export function AppLayout({
   onToggleSidebar,
   explorerSidebarProps,
   explorerPaneProps,
+  memoPaneProps,
+  hilDrawerOpen,
+  hilDrawerPanel,
+  onToggleHilDrawer,
+  onSelectHilDrawerPanel,
+  hilCommentsProps,
 }) {
   const activeSidebar =
     activeView === 'explorer' ? (
@@ -148,116 +157,133 @@ export function AppLayout({
         </SidebarDock>
       ) : null}
 
-      <div className="relative flex-1 overflow-hidden">
-        <div
-          className={`absolute inset-0 ${
-            activeView === 'agent-cells'
-              ? 'opacity-100 visible'
-              : 'opacity-0 invisible pointer-events-none'
-          }`}
-        >
-          <EditorPane {...editorPaneProps} />
+      <div className="relative flex-1 overflow-hidden flex">
+        <div className="relative flex-1 overflow-hidden">
+          <div
+            className={`absolute inset-0 ${
+              activeView === 'agent-cells'
+                ? 'opacity-100 visible'
+                : 'opacity-0 invisible pointer-events-none'
+            }`}
+          >
+            <EditorPane {...editorPaneProps} />
+          </div>
+
+          <div
+            className={`absolute inset-0 ${
+              activeView === 'explorer'
+                ? 'opacity-100 visible'
+                : 'opacity-0 invisible pointer-events-none'
+            }`}
+          >
+            <WorkbenchPane {...explorerPaneProps} />
+          </div>
+
+          {activeView === 'memo' ? (
+            <div className="absolute inset-0">
+              <HilMemoView {...memoPaneProps} />
+            </div>
+          ) : null}
+
+          {activeView === 'hierarchy' && hierarchySection === 'actions' ? (
+            <div className="absolute inset-0">
+              <QuickActionsView
+                actions={actionsRows}
+                scope={actionsScope}
+                scopeDisabled={actionsScopeDisabled}
+                scopePaths={{
+                  project: projectActionsPath,
+                  agent: agentActionsPath,
+                }}
+                error={quickActionsError}
+                saving={quickActionsSaving}
+                onAddAction={onAddAction}
+                onRemoveAction={onRemoveAction}
+                onOverrideAction={onOverrideAction}
+                onResetAction={onResetAction}
+                onUpdateAction={onUpdateAction}
+                onSaveActions={onSaveActions}
+              />
+            </div>
+          ) : null}
+
+          {activeView === 'hierarchy' && hierarchySection === 'gates' ? (
+            <div className="absolute inset-0">
+              <GatesView
+                gates={gateRows}
+                scope={gateScope}
+                stage={gateStage}
+                scopeDisabled={gateScopeDisabled}
+                scopePaths={{
+                  project: projectGatesPath,
+                  agent: agentGatesPath,
+                }}
+                error={gatesError}
+                saving={gatesSaving}
+                onSelectStage={onSelectGateStage}
+                onAddGate={onAddGate}
+                onRemoveGate={onRemoveGate}
+                onOverrideGate={onOverrideGate}
+                onResetGate={onResetGate}
+                onUpdateGate={onUpdateGate}
+                onSaveGates={onSaveGates}
+              />
+            </div>
+          ) : null}
+
+          {activeView === 'hierarchy' && hierarchySection === 'softlinks' ? (
+            <div className="absolute inset-0">
+              <WorktreeLinksView
+                links={worktreeLinks}
+                autoLinkOnCreate={worktreeLinksAuto}
+                candidates={worktreeLinksCandidates}
+                statusesByPath={worktreeLinksStatusesByPath}
+                configPath={worktreeLinksConfigPath}
+                selectedCell={selectedCell}
+                cells={cells}
+                repoRoot={repoRoot}
+                loading={worktreeLinksLoading}
+                error={worktreeLinksError}
+                dirty={worktreeLinksDirty}
+                onToggleAuto={onToggleWorktreeLinksAuto}
+                onAddLink={onAddWorktreeLink}
+                onAddFromCandidate={onAddWorktreeLinkFromCandidate}
+                onUpdateLink={onUpdateWorktreeLink}
+                onRemoveLink={onRemoveWorktreeLink}
+                onApplyLink={onApplyWorktreeLink}
+                onApplyAll={onApplyAllWorktreeLinks}
+                onSave={onSaveWorktreeLinks}
+                onRefresh={onRefreshWorktreeLinks}
+              />
+            </div>
+          ) : null}
+
+          {activeView === 'settings' ? (
+            <div className="absolute inset-0">
+              <ProjectSettingsView
+                projectRoot={projectRoot}
+                projectError={projectError}
+                projectReady={projectReady}
+                recentProjects={recentProjects}
+                tmuxStatus={tmuxStatus}
+                onOpenProject={onSelectProject}
+                onOpenRecent={onOpenRecentProject}
+                onOpenActions={onOpenActions}
+                onOpenGates={onOpenGates}
+                onOpenSoftlinks={onOpenSoftlinks}
+              />
+            </div>
+          ) : null}
         </div>
 
-        <div
-          className={`absolute inset-0 ${
-            activeView === 'explorer'
-              ? 'opacity-100 visible'
-              : 'opacity-0 invisible pointer-events-none'
-          }`}
+        <HilDrawer
+          open={hilDrawerOpen}
+          activePanel={hilDrawerPanel}
+          onToggle={onToggleHilDrawer}
+          onSelectPanel={onSelectHilDrawerPanel}
         >
-          <WorkbenchPane {...explorerPaneProps} />
-        </div>
-
-        {activeView === 'hierarchy' && hierarchySection === 'actions' ? (
-          <div className="absolute inset-0">
-            <QuickActionsView
-              actions={actionsRows}
-              scope={actionsScope}
-              scopeDisabled={actionsScopeDisabled}
-              scopePaths={{
-                project: projectActionsPath,
-                agent: agentActionsPath,
-              }}
-              error={quickActionsError}
-              saving={quickActionsSaving}
-              onAddAction={onAddAction}
-              onRemoveAction={onRemoveAction}
-              onOverrideAction={onOverrideAction}
-              onResetAction={onResetAction}
-              onUpdateAction={onUpdateAction}
-              onSaveActions={onSaveActions}
-            />
-          </div>
-        ) : null}
-
-        {activeView === 'hierarchy' && hierarchySection === 'gates' ? (
-          <div className="absolute inset-0">
-            <GatesView
-              gates={gateRows}
-              scope={gateScope}
-              stage={gateStage}
-              scopeDisabled={gateScopeDisabled}
-              scopePaths={{
-                project: projectGatesPath,
-                agent: agentGatesPath,
-              }}
-              error={gatesError}
-              saving={gatesSaving}
-              onSelectStage={onSelectGateStage}
-              onAddGate={onAddGate}
-              onRemoveGate={onRemoveGate}
-              onOverrideGate={onOverrideGate}
-              onResetGate={onResetGate}
-              onUpdateGate={onUpdateGate}
-              onSaveGates={onSaveGates}
-            />
-          </div>
-        ) : null}
-
-        {activeView === 'hierarchy' && hierarchySection === 'softlinks' ? (
-          <div className="absolute inset-0">
-            <WorktreeLinksView
-              links={worktreeLinks}
-              autoLinkOnCreate={worktreeLinksAuto}
-              candidates={worktreeLinksCandidates}
-              statusesByPath={worktreeLinksStatusesByPath}
-              configPath={worktreeLinksConfigPath}
-              selectedCell={selectedCell}
-              cells={cells}
-              repoRoot={repoRoot}
-              loading={worktreeLinksLoading}
-              error={worktreeLinksError}
-              dirty={worktreeLinksDirty}
-              onToggleAuto={onToggleWorktreeLinksAuto}
-              onAddLink={onAddWorktreeLink}
-              onAddFromCandidate={onAddWorktreeLinkFromCandidate}
-              onUpdateLink={onUpdateWorktreeLink}
-              onRemoveLink={onRemoveWorktreeLink}
-              onApplyLink={onApplyWorktreeLink}
-              onApplyAll={onApplyAllWorktreeLinks}
-              onSave={onSaveWorktreeLinks}
-              onRefresh={onRefreshWorktreeLinks}
-            />
-          </div>
-        ) : null}
-
-        {activeView === 'settings' ? (
-          <div className="absolute inset-0">
-            <ProjectSettingsView
-              projectRoot={projectRoot}
-              projectError={projectError}
-              projectReady={projectReady}
-              recentProjects={recentProjects}
-              tmuxStatus={tmuxStatus}
-              onOpenProject={onSelectProject}
-              onOpenRecent={onOpenRecentProject}
-              onOpenActions={onOpenActions}
-              onOpenGates={onOpenGates}
-              onOpenSoftlinks={onOpenSoftlinks}
-            />
-          </div>
-        ) : null}
+          {hilDrawerPanel === 'comments' ? <HilCommentsPanel {...hilCommentsProps} /> : null}
+        </HilDrawer>
       </div>
     </div>
   );

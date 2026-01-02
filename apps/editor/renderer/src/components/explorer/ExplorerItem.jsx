@@ -10,7 +10,7 @@ import {
   FolderPlus,
   FilePlus2
 } from 'lucide-react';
-import { getFileIcon, statusColors, statusBadges } from './explorerUtils';
+import { getFileIcon, getFolderIcon, statusColors, statusBadges } from './explorerUtils.jsx';
 
 export function ExplorerItem({
   item,
@@ -44,7 +44,7 @@ export function ExplorerItem({
   const isUntracked = status === 'untracked';
   const isAdded = status === 'added';
 
-  const FileIcon = isDir ? (isExpanded ? FolderOpen : FolderClosed) : getFileIcon(node.name, isLink);
+  const FileIcon = isDir ? getFolderIcon(node.name, isExpanded) : getFileIcon(node.name, isLink);
 
   const paddingLeft = `${depth * 12 + 8}px`;
 

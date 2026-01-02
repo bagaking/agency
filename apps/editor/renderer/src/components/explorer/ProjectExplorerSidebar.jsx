@@ -10,7 +10,7 @@ import { ExplorerSessions } from './ExplorerSessions.jsx';
 import { ExplorerFooter } from './ExplorerFooter.jsx';
 import { 
   pickPrimaryStatus, 
-} from './explorerUtils';
+} from './explorerUtils.jsx';
 
 const ROW_HEIGHT = 24;
 const OVERSCAN = 6;

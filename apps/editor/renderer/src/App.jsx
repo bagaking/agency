@@ -37,6 +37,9 @@ function App() {
   const [activeView, setActiveView] = useState('agent-cells');
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [hilDrawerOpen, setHilDrawerOpen] = useState(false);
+  const [hilDrawerPanel, setHilDrawerPanel] = useState('comments');
+  const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
   const [hierarchySection, setHierarchySection] = useState('actions');
   const [actionsScope, setActionsScope] = useState('global');
   const [gateScope, setGateScope] = useState('global');
@@ -47,6 +50,15 @@ function App() {
   const [initialActiveSessions, setInitialActiveSessions] = useState({});
   const [initialWorkbenchTabs, setInitialWorkbenchTabs] = useState({});
   const [initialWorkbenchActiveTabs, setInitialWorkbenchActiveTabs] = useState({});
+  const [comments, setComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsError, setCommentsError] = useState('');
+  const [commentModalOpen, setCommentModalOpen] = useState(false);
+  const [commentMessage, setCommentMessage] = useState('');
+  const [commentTodo, setCommentTodo] = useState(false);
+  const [commentError, setCommentError] = useState('');
+  const [commentSaving, setCommentSaving] = useState(false);
+  const [commentTarget, setCommentTarget] = useState({ line: 1, column: 1 });
   const projectReady = Boolean(projectRoot);
   const virtualCell = useMemo(() => {
     if (projectReady) {
@@ -170,10 +182,16 @@ function App() {
             setSidebarCollapsed(state.sidebarCollapsed);
           }
           if (typeof state?.activeView === 'string') {
-            const allowedViews = new Set(['agent-cells', 'explorer', 'hierarchy', 'settings']);
+            const allowedViews = new Set(['agent-cells', 'explorer', 'hierarchy', 'settings', 'memo']);
             if (allowedViews.has(state.activeView)) {
               setActiveView(state.activeView);
             }
+          }
+          if (typeof state?.hilDrawerOpen === 'boolean') {
+            setHilDrawerOpen(state.hilDrawerOpen);
+          }
+          if (typeof state?.hilDrawerPanel === 'string') {
+            setHilDrawerPanel(state.hilDrawerPanel);
           }
           if (!resolvedProjectRoot) {
             setActiveView('agent-cells');
@@ -343,6 +361,10 @@ function App() {
     initialTabsByCellId: initialWorkbenchTabs,
     initialActiveTabByCellId: initialWorkbenchActiveTabs,
   });
+  const activeTab = workbench.activeTab;
+  const canComment = Boolean(activeTab && activeTab.kind === 'code');
+  const commentRootPath = activeTab?.rootPath || '';
+  const commentFilePath = activeTab?.path || '';
   const [workbenchMetaByCellId, setWorkbenchMetaByCellId] = useState({});
   const handleWorkbenchMetaChange = useCallback((cellId, meta) => {
     if (!cellId) {
@@ -353,6 +375,138 @@ function App() {
       [cellId]: meta || {},
     }));
   }, []);
+  const openHilDrawer = useCallback((panel = 'comments') => {
+    setHilDrawerPanel(panel);
+    setHilDrawerOpen(true);
+  }, []);
+  const loadComments = useCallback(async () => {
+    if (!commentRootPath || !commentFilePath || !canComment || !window.agency?.listComments) {
+      setComments([]);
+      setCommentsError('');
+      setCommentsLoading(false);
+      return;
+    }
+    setCommentsLoading(true);
+    setCommentsError('');
+    try {
+      const list = await window.agency.listComments({
+        worktreePath: commentRootPath,
+        filePath: commentFilePath,
+      });
+      setComments(Array.isArray(list) ? list : []);
+    } catch (error) {
+      setCommentsError(error?.message || 'Failed to load comments.');
+    } finally {
+      setCommentsLoading(false);
+    }
+  }, [canComment, commentFilePath, commentRootPath]);
+  const commentLines = useMemo(() => {
+    if (!comments.length) {
+      return [];
+    }
+    const map = new Map();
+    comments.forEach((comment) => {
+      const line = Number(comment.line || comment.anchor?.line);
+      if (!Number.isFinite(line) || line <= 0) {
+        return;
+      }
+      const entry = map.get(line) || { line, todo: false, count: 0 };
+      entry.count += 1;
+      if (comment.todo || comment.meta?.todo) {
+        entry.todo = true;
+      }
+      map.set(line, entry);
+    });
+    return Array.from(map.values());
+  }, [comments]);
+  const openCommentModal = useCallback(
+    ({ line, column } = {}) => {
+      if (!commentRootPath || !commentFilePath) {
+        return;
+      }
+      const nextLine = Number.isFinite(line) ? line : cursorPosition.line;
+      const nextColumn = Number.isFinite(column) ? column : cursorPosition.column;
+      setCommentTarget({
+        line: Math.max(1, Math.floor(nextLine || 1)),
+        column: Math.max(1, Math.floor(nextColumn || 1)),
+      });
+      setCommentModalOpen(true);
+      setCommentMessage('');
+      setCommentTodo(false);
+      setCommentError('');
+      openHilDrawer('comments');
+    },
+    [commentFilePath, commentRootPath, cursorPosition, openHilDrawer]
+  );
+  const closeCommentModal = useCallback(() => {
+    setCommentModalOpen(false);
+    setCommentMessage('');
+    setCommentTodo(false);
+    setCommentError('');
+  }, []);
+  const submitComment = useCallback(async () => {
+    if (!commentRootPath || !commentFilePath || !window.agency?.submitComment) {
+      return;
+    }
+    if (!commentMessage.trim()) {
+      setCommentError('Comment cannot be empty.');
+      return;
+    }
+    setCommentSaving(true);
+    setCommentError('');
+    try {
+      await window.agency.submitComment({
+        worktreePath: commentRootPath,
+        filePath: commentFilePath,
+        line: commentTarget.line,
+        column: commentTarget.column,
+        message: commentMessage.trim(),
+        todo: commentTodo,
+      });
+      await loadComments();
+      closeCommentModal();
+      openHilDrawer('comments');
+    } catch (error) {
+      setCommentError(error?.message || 'Failed to submit comment.');
+    } finally {
+      setCommentSaving(false);
+    }
+  }, [commentFilePath, commentMessage, commentRootPath, commentTodo, commentTarget, closeCommentModal, loadComments, openHilDrawer]);
+  const updateCommentStatus = useCallback(
+    async (comment, status) => {
+      if (!window.agency?.updateHilItem || !comment?.id || !commentRootPath) {
+        return;
+      }
+      await window.agency.updateHilItem({
+        worktreePath: commentRootPath,
+        itemId: comment.id,
+        patch: { status },
+      });
+      await loadComments();
+    },
+    [commentRootPath, loadComments]
+  );
+  const promoteComment = useCallback(
+    async (comment) => {
+      if (!window.agency?.promoteHilItem || !comment?.id || !commentRootPath) {
+        return;
+      }
+      await window.agency.promoteHilItem({
+        worktreePath: commentRootPath,
+        itemId: comment.id,
+      });
+      openHilDrawer('comments');
+    },
+    [commentRootPath, openHilDrawer]
+  );
+  useEffect(() => {
+    loadComments();
+  }, [loadComments]);
+  useEffect(() => {
+    if (!commentFilePath) {
+      closeCommentModal();
+    }
+  }, [commentFilePath, closeCommentModal]);
   const resetProjectState = useCallback(() => {
     setSelectedId(null);
     setCells([]);
@@ -456,6 +610,8 @@ function App() {
           sidebarWidth,
           sidebarCollapsed,
           activeView,
+          hilDrawerOpen,
+          hilDrawerPanel,
           workbenchTabsByCellId: workbench.serializeTabs(workbench.tabsByCellId),
           workbenchActiveTabByCellId: workbench.activeTabByCellId,
         })
@@ -464,6 +620,8 @@ function App() {
     return () => clearTimeout(handle);
   }, [
     activeView,
+    hilDrawerOpen,
+    hilDrawerPanel,
     sidebarCollapsed,
     sidebarWidth,
     uiStateLoaded,
@@ -585,6 +743,26 @@ function App() {
     ? selectedCell?.name || 'Repository'
     : 'Project';
   const explorerMeta = workbenchMetaByCellId[selectedCell?.id || 'repo'] || {};
+  const hilCommentsProps = {
+    activeFile: activeTab?.path || '',
+    cursorPosition,
+    comments,
+    loading: commentsLoading,
+    error: commentsError,
+    onOpenComment: openCommentModal,
+    onPromoteComment: promoteComment,
+    onUpdateStatus: updateCommentStatus,
+    commentModalOpen,
+    commentTarget,
+    commentMessage,
+    commentTodo,
+    commentError,
+    commentSaving,
+    onCommentMessageChange: setCommentMessage,
+    onCommentTodoChange: setCommentTodo,
+    onCloseComment: closeCommentModal,
+    onSubmitComment: submitComment,
+  };
   const handleSwitchView = useCallback(
     (view) => {
       setActiveView(view);
@@ -746,6 +924,11 @@ function App() {
         onResizeSidebar={setSidebarWidth}
         onResizeSidebarEnd={handleSidebarResizeEnd}
         onToggleSidebar={() => setSidebarCollapsed((value) => !value)}
+        hilDrawerOpen={hilDrawerOpen}
+        hilDrawerPanel={hilDrawerPanel}
+        onToggleHilDrawer={setHilDrawerOpen}
+        onSelectHilDrawerPanel={setHilDrawerPanel}
+        hilCommentsProps={hilCommentsProps}
         explorerSidebarProps={{
           rootPath: explorerRootPath,
           rootLabel: explorerRootLabel,
@@ -773,6 +956,15 @@ function App() {
           onSelectProject: handleSelectProjectRoot,
           cellId: selectedCell?.id || 'repo',
           onTabMetaChange: handleWorkbenchMetaChange,
+          commentLines,
+          onOpenComment: openCommentModal,
+          onCursorPositionChange: setCursorPosition,
+        }}
+        memoPaneProps={{
+          worktreePath: selectedCell?.worktreePath || projectRoot || '',
+          projectReady,
+          projectError,
+          onSelectProject: handleSelectProjectRoot,
         }}
       />
 

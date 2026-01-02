@@ -58,7 +58,7 @@ function buildLegacySignature(comment) {
   const file = comment?.file || '';
   const line = normalizeLine(comment?.line);
   const column = normalizeLine(comment?.column || 1);
-  const body = String(comment?.message || '').trim();
+  const body = String(comment?.message ?? comment?.body ?? '').trim();
   return `${file}|${line}|${column}|${body}`;
 }
 
@@ -148,7 +148,7 @@ async function migrateLegacyComments(worktreePath, index) {
       author: comment?.author || null,
       createdAt: comment?.createdAt || new Date().toISOString(),
       updatedAt: comment?.updatedAt || null,
-      body: String(comment?.message || '').trim(),
+      body,
       anchor: comment?.file
         ? {
             file: comment.file,

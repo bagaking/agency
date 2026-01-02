@@ -1,10 +1,11 @@
 import React from 'react';
-import { Settings, ListTree, Folder } from 'lucide-react';
+import { Settings, ListTree, Folder, StickyNote } from 'lucide-react';
 import { Logo } from './Logo.jsx';
 
 export function ActivityBar({ activeView, onSwitchView }) {
   const items = [
     { id: 'explorer', icon: Folder, label: 'Explorer' },
+    { id: 'memo', icon: StickyNote, label: 'Memo' },
   ];
 
   const bottomItems = [

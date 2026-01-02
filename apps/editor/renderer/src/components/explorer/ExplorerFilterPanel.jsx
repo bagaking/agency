@@ -1,5 +1,5 @@
 import React from 'react';
-import { STATUS_FILTERS, statusBadgeStyles, statusColors, statusBadges, statusLabels } from './explorerUtils';
+import { STATUS_FILTERS, statusBadgeStyles, statusColors, statusBadges, statusLabels } from './explorerUtils.jsx';
 
 export function ExplorerFilterPanel({
   showHidden,

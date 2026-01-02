@@ -8,7 +8,7 @@ import {
   FolderClosed,
   FileText,
 } from 'lucide-react';
-import { statusColors } from './explorerUtils';
+import { statusColors } from './explorerUtils.jsx';
 
 const formatIdle = (ms) => {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));

@@ -44,6 +44,7 @@ export function HilCommentsPanel({
   const lineLabel = cursorPosition?.line || 1;
   const columnLabel = cursorPosition?.column || 1;
 
+  const canAdd = Boolean(activeFile);
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between">
@@ -56,7 +57,12 @@ export function HilCommentsPanel({
         <button
           type="button"
           onClick={() => onOpenComment({ line: lineLabel, column: columnLabel })}
-          className="flex items-center gap-1 rounded-full border border-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-primary/70 hover:border-primary/40 hover:text-primary"
+          disabled={!canAdd}
+          className={`flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${
+            canAdd
+              ? 'border-white/10 text-primary/70 hover:border-primary/40 hover:text-primary'
+              : 'border-white/5 text-muted-foreground/30 cursor-not-allowed'
+          }`}
         >
           <MessageSquarePlus size={12} />
           Add

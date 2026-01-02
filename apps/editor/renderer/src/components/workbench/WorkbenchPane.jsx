@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ChevronRight,
   FileText,
@@ -17,7 +17,6 @@ import {
   Maximize2,
   Split,
   FileCode,
-  ListTodo,
 } from 'lucide-react';
 import { CodeWorkbenchView } from './CodeWorkbenchView.jsx';
 import { MediaWorkbenchView } from './MediaWorkbenchView.jsx';
@@ -118,6 +117,7 @@ function WorkbenchPaneContent({
   const dragSourceRef = useRef(null);
 
   const activeState = activeTab ? tabStateById[activeTab.id] || {} : {};
+  const resolvedCommentLines = Array.isArray(commentLines) ? commentLines : [];
   const canComment = Boolean(activeTab && activeTab.kind === 'code');
 
   const updateTabState = useCallback((tabId, updates) => {
@@ -367,59 +367,15 @@ function WorkbenchPaneContent({
             diffHunks={activeState.diffEnabled ? activeState.diffHunks || [] : []}
             blameEnabled={activeState.blameEnabled}
             blameLines={activeState.blameLines || []}
-            commentLines={commentLines}
+            commentLines={resolvedCommentLines}
             commentsEnabled={canComment}
             readOnly={activeState.truncated}
             onChange={(val) => updateTabState(activeTab.id, { content: val, isDirty: true })}
-            onCursorChange={setStatusPosition}
+            onCursorChange={handleCursorChange}
             onLineComment={({ line, column }) => {
-              openCommentModal({ line, column });
+              onOpenComment?.({ line, column });
             }}
           />
-        )}
-        {activeTab && canComment && (
-          <div className="absolute right-4 top-4 w-64 rounded-xl border border-white/10 bg-[#141821]/95 shadow-xl backdrop-blur">
-            <div className="flex items-center justify-between px-3 py-2 border-b border-white/5">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
-                Comments {comments.length ? `(${comments.length})` : ''}
-              </span>
-              <button
-                type="button"
-                className="flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-primary/70 hover:border-primary/40 hover:text-primary"
-                onClick={() => openCommentModal({ line: statusPosition.line, column: statusPosition.column })}
-              >
-                <MessageSquarePlus size={11} />
-                Add
-              </button>
-            </div>
-            <div className="max-h-56 overflow-y-auto px-3 py-2 space-y-2">
-              {commentsLoading && (
-                <div className="text-[10px] text-muted-foreground/40">Loading comments…</div>
-              )}
-              {commentsError && (
-                <div className="text-[10px] text-rose-400">{commentsError}</div>
-              )}
-              {!commentsLoading && !commentsError && comments.length === 0 && (
-                <div className="text-[10px] text-muted-foreground/40">No comments yet.</div>
-              )}
-              {comments.map((comment) => (
-                <div key={comment.id} className="rounded-lg border border-white/5 bg-white/[0.02] px-2 py-1.5">
-                  <div className="flex items-center justify-between text-[10px] text-muted-foreground/50">
-                    <span>Ln {comment.line}</span>
-                    {comment.todo && (
-                      <span className="flex items-center gap-1 text-amber-300/80">
-                        <ListTodo size={10} />
-                        TODO
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground/80">
-                    {comment.message}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         )}
       </div>
 
