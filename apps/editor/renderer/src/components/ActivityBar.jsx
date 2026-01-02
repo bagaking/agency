@@ -23,7 +23,7 @@ export function ActivityBar({ activeView, onSwitchView }) {
                 onClick={() => onSwitchView('agent-cells')}
                 title="Agency Console"
                 data-testid="activity-home"
-                className={`mb-2 flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-300 ${
+                className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-300 ${
                     activeView === 'agent-cells' ? 'bg-primary/10 shadow-[inset_0_0_15px_rgba(59,130,246,0.1)]' : 'hover:bg-white/5'
                 }`}
             >
