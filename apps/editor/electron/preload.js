@@ -159,6 +159,7 @@ contextBridge.exposeInMainWorld('agency', {
       return resolveLocalFileUrl(payload || {});
     }
   },
+  materializeClipboard: (payload) => ipcRenderer.invoke('clipboard:materialize', payload),
   createExplorerEntry: (payload) => ipcRenderer.invoke('explorer:create', payload),
   renameExplorerEntry: (payload) => ipcRenderer.invoke('explorer:rename', payload),
   deleteExplorerEntry: (payload) => ipcRenderer.invoke('explorer:delete', payload),

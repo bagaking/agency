@@ -469,6 +469,7 @@ function ProjectExplorerSidebarContent({
   const clipboardPaths = clipboard?.paths || [];
   const clipboardMode = clipboard?.mode || 'copy';
   const hasClipboard = clipboardPaths.length > 0;
+  const canPaste = hasClipboard || Boolean(window.agency?.materializeClipboard);
 
   const resolvePasteDirectory = () => {
     if (!activeTarget) {
@@ -492,10 +493,35 @@ function ProjectExplorerSidebarContent({
   };
 
   const handlePasteSelection = async () => {
+    const baseRoot = rootPath || repoRoot || '';
+    const targetDir = resolvePasteDirectory();
+    if (window.agency?.materializeClipboard && baseRoot) {
+      try {
+        const result = await window.agency.materializeClipboard({
+          rootPath: baseRoot,
+          targetDir,
+          includeText: false,
+          relativeTo: baseRoot,
+        });
+        if (result?.type === 'files' || result?.type === 'image') {
+          if (targetDir) {
+            expandPath(targetDir);
+          }
+          await refreshAll();
+          if (result?.paths?.length) {
+            setSelectedPaths(result.paths);
+          }
+          clearError();
+          return;
+        }
+      } catch (err) {
+        setErrorMessage(err?.message || 'Failed to paste from clipboard.');
+        return;
+      }
+    }
     if (!hasClipboard) {
       return;
     }
-    const targetDir = resolvePasteDirectory();
     for (const sourcePath of clipboardPaths) {
       if (!sourcePath) {
         continue;
@@ -1404,7 +1430,7 @@ function ProjectExplorerSidebarContent({
             icon={ClipboardPaste}
             label="Paste"
             onClick={handlePasteSelection}
-            disabled={!hasClipboard}
+            disabled={!canPaste}
           />
           <ContextMenuItem
             icon={Copy}

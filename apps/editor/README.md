@@ -18,6 +18,7 @@
 - Explorer scopes to the active Agent Cell worktree (or repo root) and opens files in the workbench.
 - Explorer supports filters (hidden/ignored/status), keyboard navigation, open/dirty indicators, and watch-based auto refresh.
 - Explorer supports copy/cut/paste via context menu and keyboard shortcuts.
+- Explorer can paste files or screenshots from the system clipboard, applying `-1` style conflict suffixes.
 - The workbench supports multi-tab previews, quick open, diff/blame toggles, and media previews.
 
 ## Cell Lifecycle Files
@@ -37,6 +38,7 @@
 - On relaunch, the editor restores the last selected Cell and active session.
 - The terminal toolbar includes zoom controls and an idle timer.
 - Explorer surfaces session activity and idle duration for the selected Cell.
+- Pasting into the terminal saves clipboard files/images into `.agency/tmp` and inserts their relative paths.
 
 ## Quick Actions
 

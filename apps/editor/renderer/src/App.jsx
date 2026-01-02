@@ -85,7 +85,9 @@ function App() {
       try {
         if (!effectiveRoot) {
           setCells([]);
-          setSelectedId(null);
+          if (!selectedId) {
+            setSelectedId('local-terminal');
+          }
           return;
         }
         if (window.agency && window.agency.listCells) {
@@ -158,6 +160,8 @@ function App() {
           }
           if (state?.selectedId) {
             setSelectedId(state.selectedId);
+          } else if (!resolvedProjectRoot) {
+            setSelectedId('local-terminal');
           }
           if (typeof state?.sidebarWidth === 'number') {
             setSidebarWidth(state.sidebarWidth);
@@ -172,11 +176,11 @@ function App() {
             }
           }
           if (!resolvedProjectRoot) {
-            setActiveView('explorer');
-            setSelectedId(null);
+            setActiveView('agent-cells');
+            setSelectedId('local-terminal');
             setCells([]);
           }
-          await loadCells(state?.selectedId, resolvedProjectRoot);
+          await loadCells(state?.selectedId || (resolvedProjectRoot ? undefined : 'local-terminal'), resolvedProjectRoot);
         } catch (error) {
           console.error(error);
           await loadCells(undefined, resolvedProjectRoot);
@@ -206,8 +210,8 @@ function App() {
       return;
     }
     if (!projectRoot) {
-      setActiveView('explorer');
-      setSelectedId(null);
+      setActiveView('agent-cells');
+      setSelectedId('local-terminal');
     }
     loadCells(undefined, projectRoot);
   }, [projectRoot, uiStateLoaded, loadCells]);

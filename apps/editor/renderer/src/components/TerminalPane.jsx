@@ -36,6 +36,7 @@ function TerminalPane({
   const [sessionReady, setSessionReady] = useState(false);
   const cellId = cell?.id;
   const worktreePath = cell?.worktreePath;
+  const safePathPattern = /^[A-Za-z0-9_\-./]+$/;
 
   const sendCommand = (command) => {
     if (!command || !cellId) {
@@ -52,6 +53,16 @@ function TerminalPane({
     if (onActivity) {
       onActivity({ cellId, sessionId });
     }
+  };
+
+  const formatShellPath = (value) => {
+    if (!value) {
+      return '';
+    }
+    if (safePathPattern.test(value)) {
+      return value;
+    }
+    return `'${String(value).replace(/'/g, `'\\''`)}'`;
   };
 
   useEffect(() => {
@@ -217,10 +228,65 @@ function TerminalPane({
     };
     containerRef.current.addEventListener('mousedown', handleFocus);
 
+    const handleTerminalPaste = async () => {
+      if (!window.agency?.materializeClipboard || !worktreePath) {
+        return false;
+      }
+      try {
+        const result = await window.agency.materializeClipboard({
+          rootPath: worktreePath,
+          targetDir: '.agency/tmp',
+          includeText: true,
+          relativeTo: worktreePath,
+        });
+        if (result?.type === 'files' || result?.type === 'image') {
+          const paths = (result.paths || []).filter(Boolean).map(formatShellPath);
+          if (paths.length) {
+            window.agency?.writeTerminal({ cellId, sessionId, data: paths.join(' ') });
+            if (onActivity) {
+              onActivity({ cellId, sessionId });
+            }
+          }
+          return true;
+        }
+        if (result?.type === 'text' && result.text) {
+          const normalized = String(result.text)
+            .replace(/\r\n/g, '\n')
+            .replace(/\n/g, '\r');
+          window.agency?.writeTerminal({ cellId, sessionId, data: normalized });
+          if (onActivity) {
+            onActivity({ cellId, sessionId });
+          }
+          return true;
+        }
+      } catch (error) {
+        window.agency?.logRuntime?.({
+          level: 'error',
+          message: 'terminal paste failed',
+          meta: {
+            cellId,
+            sessionId,
+            error: error?.message || String(error),
+          },
+        });
+      }
+      return false;
+    };
+
     const handleCustomKeyEvent = (event) => {
       if (event.key === 'Enter' && event.metaKey) {
         if (event.type === 'keydown') {
           window.agency?.writeTerminal({ cellId, sessionId, data: '\r' });
+        }
+        event.preventDefault();
+        return false;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'v') {
+        if (!window.agency?.materializeClipboard || !worktreePath) {
+          return true;
+        }
+        if (event.type === 'keydown') {
+          handleTerminalPaste();
         }
         event.preventDefault();
         return false;
@@ -232,6 +298,11 @@ function TerminalPane({
     const wheelTargets = [
       entry.terminal.element,
       entry.terminal.element?.querySelector('.xterm-viewport'),
+      containerRef.current,
+    ].filter(Boolean);
+    const pasteTargets = [
+      entry.terminal.element,
+      entry.terminal.element?.querySelector('textarea'),
       containerRef.current,
     ].filter(Boolean);
     const handleWheel = (event) => {
@@ -260,6 +331,16 @@ function TerminalPane({
     };
     wheelTargets.forEach((target) => {
       target.addEventListener('wheel', handleWheel, { passive: false, capture: true });
+    });
+    const handlePasteEvent = (event) => {
+      if (!window.agency?.materializeClipboard || !worktreePath) {
+        return;
+      }
+      event.preventDefault();
+      handleTerminalPaste();
+    };
+    pasteTargets.forEach((target) => {
+      target.addEventListener('paste', handlePasteEvent);
     });
 
     const unsubscribe = window.agency?.onTerminalData((payload) => {
@@ -306,6 +387,9 @@ function TerminalPane({
       }
       wheelTargets.forEach((target) => {
         target.removeEventListener('wheel', handleWheel, { capture: true });
+      });
+      pasteTargets.forEach((target) => {
+        target.removeEventListener('paste', handlePasteEvent);
       });
       if (unsubscribe) {
         unsubscribe();

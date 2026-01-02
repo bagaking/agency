@@ -14,6 +14,7 @@ const { setupExplorerHandlers } = require('./ipc/handlers/explorer');
 const { setupRuntimeLogHandlers } = require('./ipc/handlers/runtimeLog');
 const { setupWorkbenchHandlers } = require('./ipc/handlers/workbench');
 const { setupProjectHandlers } = require('./ipc/handlers/project');
+const { setupClipboardHandlers } = require('./ipc/handlers/clipboard');
 const {
   selectProjectRoot,
   setWindowProjectRoot,
@@ -215,6 +216,7 @@ app.whenReady().then(async () => {
   setupWorkbenchHandlers();
   setupRuntimeLogHandlers();
   setupProjectHandlers();
+  setupClipboardHandlers();
 
   if (process.platform === 'darwin') {
     try {
