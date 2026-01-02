@@ -432,6 +432,7 @@ function ProjectExplorerSidebarContent({
       <ExplorerFooter
         selectionCount={selectionCount}
         selectionTargets={selectionTargets}
+        nodesByPath={nodesByPath}
         onCopyPaths={() => handleCopyPath(selectionTargets)}
         onDeleteSelection={() => handleDelete(selectionTargets)}
         onClearSelection={clearSelection}
