@@ -1,5 +1,6 @@
 const path = require('path');
 const { listHilItems, createHilItem } = require('./hil');
+const { getFileSnippet } = require('./workbench');
 
 const AGENCY_DIR = '.agency';
 const COMMENTS_PREFIX = 'comments-';
@@ -77,12 +78,33 @@ async function submitComment({
     line: normalizeLine(line),
     column: normalizeLine(column),
   };
+  let context = null;
+  try {
+    const snippet = await getFileSnippet({
+      rootPath: worktreePath,
+      targetPath: filePath,
+      line: anchor.line,
+      context: 3,
+    });
+    if (snippet?.snippet?.length) {
+      context = {
+        capturedAt: new Date().toISOString(),
+        line: snippet.line,
+        snippet: snippet.snippet,
+      };
+    }
+  } catch (error) {
+    context = null;
+  }
   const item = await createHilItem({
     worktreePath,
     kind: 'comment',
     body: String(message).trim(),
     anchor,
-    meta: { todo: Boolean(todo) },
+    meta: {
+      todo: Boolean(todo),
+      context,
+    },
   });
   return toCommentView(item);
 }

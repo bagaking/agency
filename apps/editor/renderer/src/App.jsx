@@ -59,6 +59,9 @@ function App() {
   const [commentError, setCommentError] = useState('');
   const [commentSaving, setCommentSaving] = useState(false);
   const [commentTarget, setCommentTarget] = useState({ line: 1, column: 1 });
+  const [commentSnippet, setCommentSnippet] = useState(null);
+  const [commentSnippetLoading, setCommentSnippetLoading] = useState(false);
+  const [commentSnippetError, setCommentSnippetError] = useState('');
   const [bulkPromoteOpen, setBulkPromoteOpen] = useState(false);
   const [bulkPromoteDescription, setBulkPromoteDescription] = useState('');
   const [bulkPromoteLoading, setBulkPromoteLoading] = useState(false);
@@ -450,6 +453,9 @@ function App() {
     setCommentMessage('');
     setCommentTodo(false);
     setCommentError('');
+    setCommentSnippet(null);
+    setCommentSnippetLoading(false);
+    setCommentSnippetError('');
   }, []);
   const submitComment = useCallback(async () => {
     if (!commentRootPath || !commentFilePath || !window.agency?.submitComment) {
@@ -515,6 +521,46 @@ function App() {
       closeCommentModal();
     }
   }, [commentFilePath, closeCommentModal]);
+  useEffect(() => {
+    if (!commentModalOpen || !commentRootPath || !commentFilePath || !window.agency?.getFileSnippet) {
+      setCommentSnippet(null);
+      setCommentSnippetLoading(false);
+      setCommentSnippetError('');
+      return undefined;
+    }
+    let canceled = false;
+    setCommentSnippetLoading(true);
+    setCommentSnippetError('');
+    window.agency
+      .getFileSnippet({
+        rootPath: commentRootPath,
+        targetPath: commentFilePath,
+        line: commentTarget.line,
+        context: 3,
+      })
+      .then((result) => {
+        if (canceled) {
+          return;
+        }
+        setCommentSnippet(result || null);
+      })
+      .catch((error) => {
+        if (canceled) {
+          return;
+        }
+        setCommentSnippet(null);
+        setCommentSnippetError(error?.message || 'Failed to load line context.');
+      })
+      .finally(() => {
+        if (canceled) {
+          return;
+        }
+        setCommentSnippetLoading(false);
+      });
+    return () => {
+      canceled = true;
+    };
+  }, [commentFilePath, commentModalOpen, commentRootPath, commentTarget.line]);
   useEffect(() => {
     if (commentModalOpen || bulkPromoteOpen) {
       setHilDrawerPanel('comments');
@@ -929,6 +975,9 @@ function App() {
     commentTodo,
     commentError,
     commentSaving,
+    commentSnippet,
+    commentSnippetLoading,
+    commentSnippetError,
     onCommentMessageChange: setCommentMessage,
     onCommentTodoChange: setCommentTodo,
     onCloseComment: closeCommentModal,

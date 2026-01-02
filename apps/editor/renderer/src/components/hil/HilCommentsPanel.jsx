@@ -35,6 +35,9 @@ export function HilCommentsPanel({
   commentTodo,
   commentError,
   commentSaving,
+  commentSnippet,
+  commentSnippetLoading,
+  commentSnippetError,
   onCommentMessageChange,
   onCommentTodoChange,
   onCloseComment,
@@ -67,6 +70,9 @@ export function HilCommentsPanel({
   const resolvedLine = Number.isFinite(commentTarget?.line)
     ? Math.max(1, Math.floor(commentTarget.line))
     : Math.max(1, Math.floor(cursorPosition?.line || 1));
+  const snippetLines = commentSnippet?.snippet || null;
+  const targetSnippet = snippetLines?.find((line) => line.isTarget);
+  const targetLineContent = targetSnippet?.content || '';
 
   useEffect(() => {
     if (commentModalOpen && messageRef.current) {
@@ -127,9 +133,32 @@ export function HilCommentsPanel({
               <X size={12} />
             </button>
           </div>
-          {activeFile ? (
-            <div className="mt-1 text-[9px] text-muted-foreground/40 uppercase tracking-[0.2em]">
-              {activeFile}
+          <div className="mt-1 text-[9px] text-muted-foreground/40 uppercase tracking-[0.2em]">
+            {activeFile ? `${activeFile} · Ln ${resolvedLine}` : `Ln ${resolvedLine}`}
+          </div>
+          {commentSnippetLoading ? (
+            <div className="mt-2 text-[10px] text-muted-foreground/40">
+              Loading line context...
+            </div>
+          ) : commentSnippetError ? (
+            <div className="mt-2 text-[10px] text-rose-400">{commentSnippetError}</div>
+          ) : targetLineContent ? (
+            <div className="mt-2 rounded-lg border border-white/5 bg-black/40 px-3 py-2 text-[10px] text-white/70">
+              <span className="text-white/30">Line {resolvedLine}:</span>{' '}
+              <span className="font-mono">{targetLineContent}</span>
+            </div>
+          ) : null}
+          {snippetLines?.length ? (
+            <div className="mt-2 rounded-lg border border-white/5 bg-black/30 px-3 py-2 font-mono text-[9px] text-white/40">
+              {snippetLines.map((line) => (
+                <div
+                  key={`${line.line}-${line.isTarget ? 't' : 'n'}`}
+                  className={`flex gap-2 ${line.isTarget ? 'text-primary' : ''}`}
+                >
+                  <span className="w-6 text-right text-white/20">{line.line}</span>
+                  <span className="truncate">{line.content || ' '}</span>
+                </div>
+              ))}
             </div>
           ) : null}
           <textarea
