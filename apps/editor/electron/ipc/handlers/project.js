@@ -15,8 +15,9 @@ function setupProjectHandlers() {
 
   ipcMain.handle('project:get', async () => getProjectContext());
 
-  ipcMain.handle('project:select', async () => {
-    const result = await selectProjectRoot();
+  ipcMain.handle('project:select', async (event) => {
+    const ownerWindow = BrowserWindow.fromWebContents(event.sender);
+    const result = await selectProjectRoot({ ownerWindow });
     if (result?.projectRoot) {
       broadcastProjectUpdate(result);
     }

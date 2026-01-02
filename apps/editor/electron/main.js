@@ -66,6 +66,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false,
     },
   });
 
@@ -111,7 +112,8 @@ function broadcastProjectUpdate(payload) {
 
 async function handleProjectSelection() {
   try {
-    const result = await selectProjectRoot();
+    const ownerWindow = BrowserWindow.getFocusedWindow() || mainWindow;
+    const result = await selectProjectRoot({ ownerWindow });
     if (result?.projectRoot) {
       broadcastProjectUpdate(result);
     }

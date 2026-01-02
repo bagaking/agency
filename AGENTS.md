@@ -18,3 +18,12 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 <!-- OPENSPEC:END -->
 
 Use pnpm for workspace Node dependencies and keep `pnpm-lock.yaml` committed.
+
+## Development Norms
+
+### Electron IPC/Preload Health
+
+- Treat `preload` + IPC injection as a required runtime dependency.
+- Always verify `window.agency` is available before invoking IPC from the renderer.
+- If IPC/preload is missing or fails, surface a minimal status bar indicator (e.g. red state + short label) and log the failure for debugging. Avoid hard-blocking user flows unless required.
+- When adding new renderer actions, ensure a safe fallback path or a clear error message in logs.

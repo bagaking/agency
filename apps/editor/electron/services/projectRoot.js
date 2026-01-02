@@ -141,7 +141,7 @@ async function clearProjectRoot() {
   };
 }
 
-async function selectProjectRoot() {
+async function selectProjectRoot({ ownerWindow } = {}) {
   if (process.env.AGENCY_TEST_MODE === '1') {
     if (Object.prototype.hasOwnProperty.call(process.env, ENV_TEST_PROJECT_ROOT)) {
       const candidate = normalizeRoot(process.env[ENV_TEST_PROJECT_ROOT]);
@@ -154,9 +154,12 @@ async function selectProjectRoot() {
       return { projectRoot: repoRoot, repoRoot, recentProjects };
     }
   }
-  const result = await dialog.showOpenDialog({
+  const options = {
     properties: ['openDirectory'],
-  });
+  };
+  const result = ownerWindow
+    ? await dialog.showOpenDialog(ownerWindow, options)
+    : await dialog.showOpenDialog(options);
   if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
     return { canceled: true };
   }
