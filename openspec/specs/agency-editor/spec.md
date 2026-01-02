@@ -413,6 +413,10 @@ The explorer SHALL allow revealing the selected path in the system file manager.
 - **WHEN** a user drags a file onto another folder
 - **THEN** the editor moves the file and updates the explorer view
 
+#### Scenario: Drop into same folder
+- **WHEN** a user drags an item onto its current parent folder
+- **THEN** the editor performs no move and does not raise an error
+
 ### Requirement: Explorer Tree Loading and Refresh
 The explorer SHALL lazily load directory children to keep large repositories responsive.
 The explorer SHALL provide a manual refresh control for the tree.
@@ -643,4 +647,3 @@ New Window SHALL open a new editor window.
 #### Scenario: Switch project from menu
 - **WHEN** a user selects Switch Project from the application menu
 - **THEN** the editor prompts for a new repository and updates the active project context
-

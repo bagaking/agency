@@ -221,15 +221,22 @@ function ProjectExplorerSidebarContent({
     }
     if (!clipboard?.paths?.length) return;
     try {
+      let didMove = false;
       for (const sourcePath of clipboard.paths) {
         const baseName = explorerPathUtils.basename(sourcePath);
         const targetPath = [targetDir, baseName].filter(Boolean).join('/');
+        if (sourcePath === targetPath) {
+          continue;
+        }
         if (clipboard.mode === 'cut') await renameEntry({ sourcePath, targetPath });
         else await copyEntry({ sourcePath, targetPath });
+        didMove = true;
       }
       clearError();
       if (clipboard.mode === 'cut') setClipboard(null);
-      await refreshAll();
+      if (didMove) {
+        await refreshAll();
+      }
     } catch (err) { setErrorMessage('Paste failed.'); }
   };
 
@@ -300,11 +307,22 @@ function ProjectExplorerSidebarContent({
 
   const handleMove = async (paths, targetDir) => {
     try {
+      let didMove = false;
       for (const sourcePath of paths) {
+        if (sourcePath === targetDir || targetDir.startsWith(`${sourcePath}/`)) {
+          setErrorMessage('Cannot move a folder into itself.');
+          continue;
+        }
         const nextPath = [targetDir, explorerPathUtils.basename(sourcePath)].filter(Boolean).join('/');
+        if (sourcePath === nextPath) {
+          continue;
+        }
         await renameEntry({ sourcePath, targetPath: nextPath });
+        didMove = true;
       }
-      await refreshAll();
+      if (didMove) {
+        await refreshAll();
+      }
     } catch (err) { setErrorMessage('Move failed.'); }
   };
 
