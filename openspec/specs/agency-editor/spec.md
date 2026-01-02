@@ -417,6 +417,10 @@ The explorer SHALL allow revealing the selected path in the system file manager.
 - **WHEN** a user drags an item onto its current parent folder
 - **THEN** the editor performs no move and does not raise an error
 
+#### Scenario: Prevent self-nesting moves
+- **WHEN** a user moves or pastes a folder into its own descendant
+- **THEN** the editor blocks the action and surfaces a clear error
+
 ### Requirement: Explorer Tree Loading and Refresh
 The explorer SHALL lazily load directory children to keep large repositories responsive.
 The explorer SHALL provide a manual refresh control for the tree.
