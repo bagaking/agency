@@ -4,8 +4,7 @@ import {
   Send,
   Terminal,
   Clock,
-  FileDigit,
-  MessageSquare
+  CheckCircle2,
 } from 'lucide-react';
 
 const formatIdle = (ms) => {
@@ -33,75 +32,61 @@ export function ExplorerFooter({
   const handleSend = () => {
     const current = activeSessions.find(s => s.id === activeSessionId) || activeSessions[0];
     if (!current || selectionCount === 0) return;
-    
-    // Construct instruction message
     const filesString = (selectionTargets || []).join(', ');
-    const finalMsg = `[Action] Process selected files:\nFiles: ${filesString}${comment ? `\nNote: ${comment}` : ''}`;
+    const finalMsg = `[Context] ${filesString}${comment ? `\n[Note] ${comment}` : ''}`;
+    const escaped = finalMsg.split("\"").join('\\"').split('\n').join('\\n');
     
-    // Manual escaping to avoid truncated regex issues in tool calls
-    const escaped = finalMsg
-      .split("'").join("\'\'")
-      .split('\n').join('\\n');
-    
-    onRunCommand?.({
+    onRunCommand?.({ 
       command: `echo -e "${escaped}"`, 
       kind: 'resume', 
-      label: `Feed Agent` 
+      label: `Feed` 
     });
-    
     setComment('');
   };
 
   return (
-    <footer className="shrink-0 flex flex-col bg-[#0c0d10] border-t border-white/5 select-none overflow-hidden shadow-2xl">
+    <footer className="shrink-0 flex flex-col bg-[#0b0d11] select-none border-t border-white/[0.02]">
       
-      {/* 1. Action Layer: Only visible when files are selected */}
-      <div className={`transition-all duration-300 ease-in-out ${selectionCount > 0 ? 'h-12 opacity-100' : 'h-0 opacity-0'}`}>
-        <div className="flex items-center h-full px-4 gap-4 bg-primary/5">
-            <div className="flex items-center gap-2 shrink-0">
-                <FileDigit size={14} className="text-primary" />
-                <span className="text-xs font-bold text-foreground">{selectionCount} items</span>
+      {/* 1. Input Context (Only when selected) */}
+      {selectionCount > 0 && (
+        <div className="flex h-8 items-center px-3 gap-3 animate-tab-in bg-white/[0.01] border-b border-white/[0.02]">
+            <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[10px] font-medium text-primary tracking-tight">{selectionCount} items</span>
             </div>
+            
+            <div className="h-3 w-[1px] bg-white/5" />
 
-            <div className="flex-1 relative flex items-center">
-                <MessageSquare size={12} className="absolute left-3 text-white/20" />
-                <input 
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    placeholder="Ask agent to handle these files..."
-                    className="w-full h-8 bg-black/40 border border-white/10 rounded-lg pl-9 pr-4 text-xs text-white placeholder:text-white/10 focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all"
-                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                />
-            </div>
+            <input 
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="instruction..."
+                className="flex-1 bg-transparent border-none text-[11px] text-muted-foreground placeholder:text-white/5 focus:outline-none"
+                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            />
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1">
                 <button 
                     onClick={handleSend}
-                    className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-primary text-white text-[11px] font-bold hover:bg-primary/90 active:scale-95 transition-all shadow-lg shadow-primary/20"
+                    className={`p-1 transition-all ${comment ? 'text-primary hover:scale-110' : 'text-white/5 pointer-events-none'}`}
                 >
-                    <Send size={12} />
-                    Feed
+                    <Send size={12} strokeWidth={2} />
                 </button>
-                <button 
-                    onClick={onClearSelection}
-                    className="p-1.5 text-white/20 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition-colors"
-                    title="Clear Selection"
-                >
-                    <X size={14} />
+                <button onClick={onClearSelection} className="p-1 text-white/5 hover:text-white/20">
+                    <X size={12} strokeWidth={2} />
                 </button>
             </div>
         </div>
-      </div>
+      )}
 
-      {/* 2. Status & Pipeline Layer: Always visible */}
-      <div className="h-9 flex items-center justify-between px-4 bg-black/20 border-t border-white/[0.02]">
-        <div className="flex items-center gap-4 overflow-hidden h-full">
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/30 shrink-0">
-                <Terminal size={12} />
+      {/* 2. Pipeline Monitor */}
+      <div className="h-7 flex items-center justify-between px-3">
+        <div className="flex items-center gap-4 overflow-hidden flex-1">
+            <div className="flex items-center gap-1.5 text-[9px] font-medium text-white/10 uppercase tracking-widest shrink-0">
+                <Terminal size={10} strokeWidth={1.5} />
                 Pipes
             </div>
             
-            <div className="flex items-center gap-1.5 h-full overflow-x-auto no-scrollbar scroll-smooth">
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
                 {activeSessions.map(s => {
                     const isActive = s.id === activeSessionId;
                     const key = `${activeCell?.id}:${s.id}`;
@@ -112,39 +97,24 @@ export function ExplorerFooter({
                         <button
                             key={s.id}
                             onClick={() => onSelectSession?.(s.id)}
-                            className={`flex items-center gap-2.5 px-3 h-7 rounded-md transition-all whitespace-nowrap ${isActive ? 'bg-white/5 text-primary ring-1 ring-white/10' : 'text-muted-foreground/60 hover:bg-white/[0.02] hover:text-muted-foreground'}`}
+                            className={`flex items-center gap-2 px-2 h-5 rounded transition-all whitespace-nowrap group ${isActive ? 'text-primary' : 'text-muted-foreground/30 hover:text-muted-foreground/60'}`}
                         >
-                            <div className="relative">
-                                <div className={`h-1.5 w-1.5 rounded-full ${isActive ? 'bg-primary' : 'bg-white/10'}`} />
-                                {isActive && <div className="absolute inset-0 bg-primary rounded-full animate-ping opacity-40" />} 
-                            </div>
-                            <span className="text-[11px] font-semibold tracking-tight">{s.name || s.id}</span>
+                            <div className={`h-1 w-1 rounded-full transition-all ${isActive ? 'bg-primary shadow-[0_0_5px_rgba(59,130,246,0.5)]' : 'bg-white/10 group-hover:bg-white/20'}`} />
+                            <span className="text-[10px] font-medium tracking-tight">{s.name || s.id}</span>
                             {!isActive && (
-                                <div className="flex items-center gap-1 opacity-40 text-[10px]">
-                                    <Clock size={10} />
-                                    {formatIdle(idleMs)}
-                                </div>
+                                <span className="text-[8px] opacity-40 font-mono italic">{formatIdle(idleMs)}</span>
                             )}
                         </button>
                     );
                 })}
-                {activeSessions.length === 0 && (
-                    <span className="text-[10px] text-white/10 italic">Waiting for connection...</span>
-                )}
             </div>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0 ml-4 border-l border-white/5 pl-4 h-full">
-            {activeCell ? (
-                <div className="flex items-center gap-2">
-                    <div className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest truncate max-w-[120px]">
-                        {activeCell.name}
-                    </span>
-                </div>
-            ) : (
-                <span className="text-[10px] font-bold text-white/5 uppercase tracking-[0.2em]">Idle Mode</span>
-            )}
+        <div className="flex items-center gap-2 pl-4">
+            <div className="text-[9px] font-medium text-white/5 tracking-widest uppercase truncate max-w-[80px]">
+                {activeCell?.name || 'Ready'}
+            </div>
+            {activeCell && <CheckCircle2 size={10} className="text-white/5" />}
         </div>
       </div>
     </footer>

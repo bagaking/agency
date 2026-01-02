@@ -14,6 +14,8 @@
 - Make project selection window-local so new windows open without inheriting another window's project.
 - Allow Explorer to paste files or screenshots from the system clipboard with conflict-safe renaming.
 - Allow Terminal paste to materialize clipboard files/images into `.agency/tmp` and insert relative paths.
+- Add paste-as-Markdown support that captures clipboard content into temporary markdown files.
+- Allow submitting line comments with optional TODO intent that are stored per worktree.
 
 ## Impact
 - Affected specs: `agency-editor`
