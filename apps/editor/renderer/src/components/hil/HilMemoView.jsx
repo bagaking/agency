@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import { 
   RefreshCw, 
   CheckCircle2, 
@@ -12,13 +12,12 @@ import {
   Terminal,
   StickyNote,
   Layers,
-  FileCode,
+  FileText,
   Activity,
   ChevronDown
 } from 'lucide-react';
 import { ProjectEmptyState } from '../ProjectEmptyState.jsx';
 import { useHilItems } from '../../hooks/useHilItems.js';
-import { statusColors, statusBadges } from '../explorer/explorerUtils.jsx';
 
 const kindIcons = {
     comment: Terminal,
@@ -29,21 +28,70 @@ const kindIcons = {
 const resolveBody = (item) =>
   typeof item?.body === 'string' ? item.body : typeof item?.message === 'string' ? item.message : '';
 
+const summarizeBody = (item) => {
+  const raw = resolveBody(item).trim();
+  if (!raw) {
+    return 'Untitled Draft';
+  }
+  const firstLine = raw.split('\n')[0];
+  if (firstLine.length > 46) {
+    return `${firstLine.slice(0, 46)}…`;
+  }
+  return firstLine;
+};
+
 export function HilMemoView({ worktreePath, projectReady, projectError, onSelectProject }) {
-  const { items, filters, setFilters, loading, error, refresh } = useHilItems({ worktreePath });
+  const { items, filters, setFilters, loading, error, refresh } = useHilItems({
+    worktreePath,
+    fetchAll: true,
+  });
   const [searchQuery, setSearchQuery] = useState('');
+  const [dockSelection, setDockSelection] = useState({ type: 'inbox', draftId: null });
+
+  const draftItems = useMemo(
+    () => items.filter((item) => item.kind === 'draft'),
+    [items]
+  );
+  const inboxItems = useMemo(
+    () => items.filter((item) => item.kind === 'comment' && item.meta?.processed !== true),
+    [items]
+  );
+  const selectedDraft = useMemo(
+    () => draftItems.find((item) => item.id === dockSelection.draftId) || null,
+    [dockSelection.draftId, draftItems]
+  );
+  const pendingInboxCount = inboxItems.length;
+  const draftCount = draftItems.length;
+
+  useEffect(() => {
+    if (dockSelection.type === 'draft' && !selectedDraft) {
+      setDockSelection({ type: 'inbox', draftId: null });
+    }
+  }, [dockSelection.type, selectedDraft]);
 
   const filteredItems = useMemo(() => {
     let result = items;
+    if (filters.kind !== 'all') {
+      result = result.filter((item) => item.kind === filters.kind);
+    }
+    if (filters.status !== 'all') {
+      result = result.filter((item) => item.status === filters.status);
+    }
     if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        result = result.filter(it => 
-            (it.body || it.message || '').toLowerCase().includes(q) || 
-            (it.anchor?.file || '').toLowerCase().includes(q)
-        );
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (item) =>
+          (item.body || item.message || '').toLowerCase().includes(q) ||
+          (item.anchor?.file || '').toLowerCase().includes(q)
+      );
     }
     return result;
-  }, [items, searchQuery]);
+  }, [items, searchQuery, filters.kind, filters.status]);
+
+  const visibleInboxItems = useMemo(
+    () => filteredItems.filter((item) => item.kind === 'comment' && item.meta?.processed !== true),
+    [filteredItems]
+  );
 
   const summary = useMemo(() => {
     const counts = { comment: 0, memo: 0, draft: 0 };
@@ -129,32 +177,100 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
           </div>
       </div>
 
-      {/* 3. Pure Stream List */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
-        {error && (
-            <div className="mx-4 mb-6 p-4 bg-rose-500/5 rounded-2xl border border-rose-500/10 text-rose-400 text-[11px] font-medium animate-slide-down">
-                <Activity size={14} className="inline mr-2" /> {error}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Dock */}
+        <aside className="w-64 shrink-0 border-r border-border/20 bg-muted/5">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border/10">
+            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
+              Input Box
             </div>
-        )}
-        
-        <div className="flex flex-col gap-0.5">
-            {filteredItems.map((item, index) => (
-                <MemoRow 
-                    key={item.id} 
-                    index={index}
-                    item={item} 
-                    onUpdateStatus={updateStatus} 
-                    onPromote={promoteItem} 
-                />
-            ))}
-        </div>
-
-        {!loading && filteredItems.length === 0 && (
-          <div className="py-32 flex flex-col items-center justify-center opacity-5">
-              <Hash size={64} strokeWidth={1} />
-              <p className="text-[11px] font-black uppercase tracking-[0.5em] mt-6">Zero Objects Found</p>
+            <span className="text-[10px] font-mono text-muted-foreground/40">{pendingInboxCount}</span>
           </div>
-        )}
+          <button
+            type="button"
+            onClick={() => setDockSelection({ type: 'inbox', draftId: null })}
+            className={`flex w-full items-center gap-2 px-4 py-2 text-left text-[11px] font-semibold transition ${
+              dockSelection.type === 'inbox'
+                ? 'bg-primary/10 text-primary'
+                : 'text-muted-foreground/60 hover:text-foreground'
+            }`}
+          >
+            <MessageSquarePlus size={14} />
+            Comment Inbox
+          </button>
+
+          <div className="mt-4 flex items-center justify-between px-4 py-2 border-t border-border/10">
+            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
+              Drafts
+            </div>
+            <span className="text-[10px] font-mono text-muted-foreground/40">{draftCount}</span>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {draftItems.length ? (
+              draftItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setDockSelection({ type: 'draft', draftId: item.id })}
+                  className={`flex w-full flex-col gap-1 px-4 py-2 text-left text-[11px] transition ${
+                    dockSelection.type === 'draft' && dockSelection.draftId === item.id
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground/60 hover:text-foreground'
+                  }`}
+                >
+                  <span className="truncate font-semibold">{summarizeBody(item)}</span>
+                  <span className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground/40">
+                    {item.status}
+                  </span>
+                </button>
+              ))
+            ) : (
+              <div className="px-4 py-6 text-[10px] text-muted-foreground/40">
+                No drafts yet.
+              </div>
+            )}
+          </div>
+        </aside>
+
+        {/* Main Pane */}
+        <div className="flex-1 overflow-hidden">
+          {dockSelection.type === 'draft' && selectedDraft ? (
+            <DraftDetail
+              draft={selectedDraft}
+              onUpdateStatus={updateStatus}
+            />
+          ) : (
+            <div className="flex h-full flex-col">
+              {error && (
+                <div className="mx-6 mt-4 p-4 bg-rose-500/5 rounded-2xl border border-rose-500/10 text-rose-400 text-[11px] font-medium animate-slide-down">
+                  <Activity size={14} className="inline mr-2" /> {error}
+                </div>
+              )}
+              <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
+                <div className="flex flex-col gap-0.5">
+                  {visibleInboxItems.map((item, index) => (
+                    <MemoRow
+                      key={item.id}
+                      index={index}
+                      item={item}
+                      onUpdateStatus={updateStatus}
+                      onPromote={promoteItem}
+                    />
+                  ))}
+                </div>
+
+                {!loading && visibleInboxItems.length === 0 && (
+                  <div className="py-32 flex flex-col items-center justify-center opacity-5">
+                    <Hash size={64} strokeWidth={1} />
+                    <p className="text-[11px] font-black uppercase tracking-[0.5em] mt-6">
+                      Inbox Empty
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );
@@ -235,6 +351,97 @@ function MemoRow({ item, index, onUpdateStatus, onPromote }) {
                 <div className="text-[10px] font-mono text-muted-foreground/20 font-bold tabular-nums">
                     {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                 </div>
+            </div>
+        </div>
+    );
+}
+
+function DraftDetail({ draft, onUpdateStatus }) {
+    const isResolved = draft.status === 'resolved' || draft.status === 'archived';
+    const createdAt = draft.createdAt ? new Date(draft.createdAt) : null;
+    const references = Array.isArray(draft.references) ? draft.references : [];
+
+    return (
+        <div className="flex h-full flex-col">
+            <header className="flex items-center justify-between px-6 py-4 border-b border-border/10">
+                <div>
+                    <div className="text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
+                        Draft Detail
+                    </div>
+                    <div className="text-lg font-semibold text-foreground tracking-tight">
+                        {summarizeBody(draft)}
+                    </div>
+                    <div className="mt-1 flex items-center gap-3 text-[10px] text-muted-foreground/40 uppercase tracking-[0.2em]">
+                        <span className="inline-flex items-center gap-1">
+                            <Layers size={12} />
+                            {draft.status}
+                        </span>
+                        {createdAt && (
+                            <span className="inline-flex items-center gap-1">
+                                <Clock size={12} />
+                                {createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                            </span>
+                        )}
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    {draft.status === 'open' ? (
+                        <RowAction
+                            icon={CheckCircle2}
+                            title="Resolve"
+                            onClick={() => onUpdateStatus(draft, 'resolved')}
+                            color="hover:text-emerald-500 hover:bg-emerald-500/10"
+                        />
+                    ) : (
+                        <RowAction
+                            icon={RefreshCw}
+                            title="Reopen"
+                            onClick={() => onUpdateStatus(draft, 'open')}
+                            color="hover:text-amber-500 hover:bg-amber-500/10"
+                        />
+                    )}
+                    <RowAction
+                        icon={Archive}
+                        title="Archive"
+                        onClick={() => onUpdateStatus(draft, 'archived')}
+                    />
+                </div>
+            </header>
+            <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
+                <div className="rounded-2xl border border-border/10 bg-muted/5 p-4">
+                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
+                        Draft Body
+                    </div>
+                    <div className="mt-3 text-[13px] leading-relaxed text-foreground/80 whitespace-pre-wrap">
+                        {resolveBody(draft) || 'No content.'}
+                    </div>
+                </div>
+
+                {references.length > 0 && (
+                    <div className="mt-6">
+                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
+                            References
+                        </div>
+                        <div className="mt-2 flex flex-col gap-2">
+                            {references.map((ref, index) => (
+                                <div
+                                    key={`${ref.id || ref.path || index}`}
+                                    className="rounded-xl border border-border/10 bg-muted/5 px-3 py-2 text-[11px] text-muted-foreground/70"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Target size={12} className="text-primary/60" />
+                                        <span className="font-mono truncate">
+                                            {ref.path || ref.id || 'Unknown reference'}
+                                        </span>
+                                        {ref.line ? (
+                                            <span className="text-[10px] text-muted-foreground/40">:{ref.line}</span>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
