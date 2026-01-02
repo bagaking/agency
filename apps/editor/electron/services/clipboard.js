@@ -111,6 +111,15 @@ function readClipboardText() {
   return clipboard.readText();
 }
 
+function readClipboardHtml() {
+  const raw = clipboard.readHTML();
+  if (!raw) {
+    return '';
+  }
+  const cleaned = raw.replace(/<meta[^>]*>/gi, '').trim();
+  return cleaned;
+}
+
 async function ensureDirectory(targetDir) {
   await fsp.mkdir(targetDir, { recursive: true });
 }
@@ -187,7 +196,112 @@ async function materializeClipboard({
   return { type: 'empty' };
 }
 
+function renderSection(title, body, useHeading) {
+  if (!body) {
+    return '';
+  }
+  if (!useHeading) {
+    return body;
+  }
+  return `## ${title}\n\n${body}`;
+}
+
+function isImagePath(value) {
+  const ext = path.extname(value || '').toLowerCase();
+  return ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'].includes(ext);
+}
+
+async function materializeMarkdown({
+  rootPath,
+  targetDir = '',
+  relativeTo,
+} = {}) {
+  if (!rootPath) {
+    throw new Error('rootPath is required.');
+  }
+  const resolvedTarget = resolveSafePath(rootPath, targetDir);
+  await ensureDirectory(resolvedTarget);
+  const name = `Clipboard-${formatTimestamp()}.md`;
+  const { candidatePath } = resolveUniqueName(resolvedTarget, name, false);
+  const sections = [];
+  const copiedFiles = [];
+  const fileSources = readClipboardFiles().filter((entry) => fs.existsSync(entry));
+  for (const filePath of fileSources) {
+    const stats = await fsp.stat(filePath);
+    const isDir = stats.isDirectory();
+    const baseName = path.basename(filePath);
+    const { candidatePath: fileTargetPath } = resolveUniqueName(resolvedTarget, baseName, isDir);
+    await ensureDirectory(path.dirname(fileTargetPath));
+    await fsp.cp(filePath, fileTargetPath, { recursive: true });
+    copiedFiles.push(fileTargetPath);
+  }
+
+  if (copiedFiles.length) {
+    const entries = copiedFiles.map((entry) => normalizeRelPath(path.relative(relativeTo || rootPath, entry)));
+    const lines = entries.map((entry) => {
+      if (isImagePath(entry)) {
+        return `- ![](${entry})`;
+      }
+      return `- ${entry}`;
+    });
+    sections.push({ title: 'Clipboard Files', body: lines.join('\n') });
+  }
+
+  const imageBuffer = readClipboardImage();
+  if (imageBuffer) {
+    const imageName = buildScreenshotName();
+    const { candidatePath: imagePath } = resolveUniqueName(resolvedTarget, imageName, false);
+    await fsp.writeFile(imagePath, imageBuffer);
+    const relativePath = normalizeRelPath(path.relative(relativeTo || rootPath, imagePath));
+    sections.push({
+      title: 'Clipboard Image',
+      body: `![](${relativePath})`,
+    });
+  }
+
+  const html = readClipboardHtml();
+  if (html) {
+    sections.push({
+      title: 'Clipboard HTML',
+      body: [
+        '_Raw HTML captured from clipboard:_',
+        '',
+        '```html',
+        html,
+        '```',
+      ].join('\n'),
+    });
+  }
+
+  const text = readClipboardText();
+  if (text) {
+    sections.push({
+      title: 'Clipboard Text',
+      body: text,
+    });
+  }
+
+  if (!sections.length) {
+    sections.push({
+      title: 'Clipboard',
+      body: '_No clipboard content detected._',
+    });
+  }
+
+  const useHeading = sections.length > 1;
+  const content = sections
+    .map((section) => renderSection(section.title, section.body, useHeading))
+    .filter(Boolean)
+    .join('\n\n');
+  await fsp.writeFile(candidatePath, `${content}\n`, 'utf-8');
+  return {
+    type: 'markdown',
+    path: normalizeRelPath(path.relative(relativeTo || rootPath, candidatePath)),
+  };
+}
+
 module.exports = {
   materializeClipboard,
   buildScreenshotName,
+  materializeMarkdown,
 };

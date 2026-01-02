@@ -19,6 +19,7 @@
 - Explorer supports filters (hidden/ignored/status), keyboard navigation, open/dirty indicators, and watch-based auto refresh.
 - Explorer supports copy/cut/paste via context menu and keyboard shortcuts.
 - Explorer can paste files or screenshots from the system clipboard, applying `-1` style conflict suffixes.
+- Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
 - The workbench supports multi-tab previews, quick open, diff/blame toggles, and media previews.
 
 ## Cell Lifecycle Files
@@ -39,6 +40,9 @@
 - The terminal toolbar includes zoom controls and an idle timer.
 - Explorer surfaces session activity and idle duration for the selected Cell.
 - Pasting into the terminal saves clipboard files/images into `.agency/tmp` and inserts their relative paths.
+- Workbench actions allow submitting line comments with optional TODO flags, stored per worktree.
+- Line comments are stored at `.agency/comments-<worktreeName>.yaml` inside each worktree.
+- Line comments are added from the editor gutter (right-click the line number) and previewed in the top-right list.
 
 ## Quick Actions
 

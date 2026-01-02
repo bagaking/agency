@@ -132,3 +132,15 @@ select:focus-visible {
 .diff-line-deleted-gutter {
   border-left: 2px solid rgba(248, 113, 113, 0.9);
 }
+
+.comment-line-glyph {
+  background: radial-gradient(circle, rgba(96, 165, 250, 0.95) 0 3px, transparent 4px);
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.comment-line-glyph-todo {
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.95) 0 3px, transparent 4px);
+  background-repeat: no-repeat;
+  background-position: center;
+}
