@@ -9,6 +9,28 @@ import { useGates } from './hooks/useGates.js';
 import { useWorktreeLinks } from './hooks/useWorktreeLinks.js';
 import { useSessions } from './hooks/useSessions.js';
 import { useWorkbench } from './hooks/useWorkbench.js';
+import {
+  createCell as agencyCreateCell,
+  createHilItem as agencyCreateHilItem,
+  getFileSnippet as agencyGetFileSnippet,
+  getProjectContext,
+  getTmuxStatus as agencyGetTmuxStatus,
+  getUiState,
+  listCells as agencyListCells,
+  listComments as agencyListComments,
+  listHilItems as agencyListHilItems,
+  onCellsUpdated as subscribeCellsUpdated,
+  onProjectUpdated as subscribeProjectUpdated,
+  onRecentProjectsUpdated as subscribeRecentProjectsUpdated,
+  promoteHilItem as agencyPromoteHilItem,
+  readWorkbenchEntry as agencyReadWorkbenchEntry,
+  selectProjectRoot as agencySelectProjectRoot,
+  setProjectRoot as agencySetProjectRoot,
+  setUiState as agencySetUiState,
+  submitComment as agencySubmitComment,
+  updateCellState as agencyUpdateCellState,
+  updateHilItem as agencyUpdateHilItem,
+} from './services/agencyBridge.js';
 const defaultCells = [
   {
     id: 'sample-cell',
@@ -112,8 +134,8 @@ function App() {
           }
           return;
         }
-        if (window.agency && window.agency.listCells) {
-          const result = await window.agency.listCells({ rootPath: effectiveRoot });
+        const result = await agencyListCells({ rootPath: effectiveRoot });
+        if (Array.isArray(result)) {
           setCells(result);
           if (result.length) {
             const preferredMatch = preferredSelection
@@ -148,12 +170,10 @@ function App() {
   useEffect(() => {
     const bootstrap = async () => {
       let context = null;
-      if (window.agency?.getProjectContext) {
-        try {
-          context = await window.agency.getProjectContext();
-        } catch (error) {
-          console.error(error);
-        }
+      try {
+        context = await getProjectContext();
+      } catch (error) {
+        console.error(error);
       }
       const resolvedProjectRoot = context?.projectRoot || '';
       setProjectRoot(resolvedProjectRoot);
@@ -164,9 +184,9 @@ function App() {
       } else {
         setProjectError('');
       }
-      if (window.agency?.getUiState) {
-        try {
-          const state = await window.agency.getUiState();
+      try {
+        const state = await getUiState();
+        if (state) {
           if (state?.activeSessionByCellId && typeof state.activeSessionByCellId === 'object') {
             setInitialActiveSessions(state.activeSessionByCellId);
           }
@@ -206,17 +226,18 @@ function App() {
           if (!resolvedProjectRoot) {
             setActiveView('agent-cells');
             setSelectedId('local-terminal');
-            setTerminalOpen(true); // 确保终端面板打开
+            setTerminalOpen(true);
             setCells([]);
           }
-          await loadCells(state?.selectedId || (resolvedProjectRoot ? undefined : 'local-terminal'), resolvedProjectRoot);
-        } catch (error) {
-          console.error(error);
-          await loadCells(undefined, resolvedProjectRoot);
-        } finally {
+          await loadCells(
+            state?.selectedId || (resolvedProjectRoot ? undefined : 'local-terminal'),
+            resolvedProjectRoot
+          );
           setUiStateLoaded(true);
+          return;
         }
-        return;
+      } catch (error) {
+        console.error(error);
       }
       await loadCells(undefined, resolvedProjectRoot);
       setUiStateLoaded(true);
@@ -236,10 +257,10 @@ function App() {
     };
   }, []);
   useEffect(() => {
-    if (!window.agency || !window.agency.onCellsUpdated) {
+    const unsubscribe = subscribeCellsUpdated(() => loadCells());
+    if (!unsubscribe) {
       return undefined;
     }
-    const unsubscribe = window.agency.onCellsUpdated(() => loadCells());
     return () => {
       if (unsubscribe) {
         unsubscribe();
@@ -259,11 +280,11 @@ function App() {
   }, [projectRoot, uiStateLoaded, loadCells]);
   useEffect(() => {
     const loadTmuxStatus = async () => {
-      if (!window.agency?.getTmuxStatus) {
-        return;
-      }
       try {
-        const status = await window.agency.getTmuxStatus();
+        const status = await agencyGetTmuxStatus();
+        if (!status) {
+          return;
+        }
         setTmuxStatus(status || { available: false, error: 'Unable to detect tmux.' });
       } catch (error) {
         setTmuxStatus({
@@ -390,7 +411,7 @@ function App() {
     setHilDrawerOpen(true);
   }, []);
   const loadComments = useCallback(async () => {
-    if (!commentRootPath || !commentFilePath || !canComment || !window.agency?.listComments) {
+    if (!commentRootPath || !commentFilePath || !canComment) {
       setComments([]);
       setCommentsError('');
       setCommentsLoading(false);
@@ -399,10 +420,14 @@ function App() {
     setCommentsLoading(true);
     setCommentsError('');
     try {
-      const list = await window.agency.listComments({
+      const list = await agencyListComments({
         worktreePath: commentRootPath,
         filePath: commentFilePath,
       });
+      if (!list) {
+        setComments([]);
+        return;
+      }
       setComments(Array.isArray(list) ? list : []);
     } catch (error) {
       setCommentsError(error?.message || 'Failed to load comments.');
@@ -458,7 +483,7 @@ function App() {
     setCommentSnippetError('');
   }, []);
   const submitComment = useCallback(async () => {
-    if (!commentRootPath || !commentFilePath || !window.agency?.submitComment) {
+    if (!commentRootPath || !commentFilePath) {
       return;
     }
     if (!commentMessage.trim()) {
@@ -468,7 +493,7 @@ function App() {
     setCommentSaving(true);
     setCommentError('');
     try {
-      await window.agency.submitComment({
+      const result = await agencySubmitComment({
         worktreePath: commentRootPath,
         filePath: commentFilePath,
         line: commentTarget.line,
@@ -476,6 +501,9 @@ function App() {
         message: commentMessage.trim(),
         todo: commentTodo,
       });
+      if (!result) {
+        return;
+      }
       await loadComments();
       closeCommentModal();
       openHilDrawer('comments');
@@ -487,27 +515,33 @@ function App() {
   }, [commentFilePath, commentMessage, commentRootPath, commentTodo, commentTarget, closeCommentModal, loadComments, openHilDrawer]);
   const updateCommentStatus = useCallback(
     async (comment, status) => {
-      if (!window.agency?.updateHilItem || !comment?.id || !commentRootPath) {
+      if (!comment?.id || !commentRootPath) {
         return;
       }
-      await window.agency.updateHilItem({
+      const result = await agencyUpdateHilItem({
         worktreePath: commentRootPath,
         itemId: comment.id,
         patch: { status },
       });
+      if (!result) {
+        return;
+      }
       await loadComments();
     },
     [commentRootPath, loadComments]
   );
   const promoteComment = useCallback(
     async (comment) => {
-      if (!window.agency?.promoteHilItem || !comment?.id || !commentRootPath) {
+      if (!comment?.id || !commentRootPath) {
         return;
       }
-      await window.agency.promoteHilItem({
+      const result = await agencyPromoteHilItem({
         worktreePath: commentRootPath,
         itemId: comment.id,
       });
+      if (!result) {
+        return;
+      }
       await loadComments();
       openHilDrawer('comments');
     },
@@ -522,7 +556,7 @@ function App() {
     }
   }, [commentFilePath, closeCommentModal]);
   useEffect(() => {
-    if (!commentModalOpen || !commentRootPath || !commentFilePath || !window.agency?.getFileSnippet) {
+    if (!commentModalOpen || !commentRootPath || !commentFilePath) {
       setCommentSnippet(null);
       setCommentSnippetLoading(false);
       setCommentSnippetError('');
@@ -531,15 +565,18 @@ function App() {
     let canceled = false;
     setCommentSnippetLoading(true);
     setCommentSnippetError('');
-    window.agency
-      .getFileSnippet({
-        rootPath: commentRootPath,
-        targetPath: commentFilePath,
-        line: commentTarget.line,
-        context: 3,
-      })
+    agencyGetFileSnippet({
+      rootPath: commentRootPath,
+      targetPath: commentFilePath,
+      line: commentTarget.line,
+      context: 3,
+    })
       .then((result) => {
         if (canceled) {
+          return;
+        }
+        if (!result) {
+          setCommentSnippet(null);
           return;
         }
         setCommentSnippet(result || null);
@@ -569,7 +606,7 @@ function App() {
   }, [bulkPromoteOpen, commentModalOpen]);
   const promoteWorktreePath = selectedCell?.worktreePath || projectRoot || '';
   const openBulkPromote = useCallback(async () => {
-    if (!promoteWorktreePath || !window.agency?.listHilItems) {
+    if (!promoteWorktreePath) {
       return;
     }
     setBulkPromoteOpen(true);
@@ -578,10 +615,15 @@ function App() {
     setBulkPromoteDescription('');
     setBulkPromotePreviewById({});
     try {
-      const list = await window.agency.listHilItems({
+      const list = await agencyListHilItems({
         worktreePath: promoteWorktreePath,
         kind: 'comment',
       });
+      if (!list) {
+        setBulkPromoteItems([]);
+        setBulkPromoteSelectedIds([]);
+        return;
+      }
       const pending = (Array.isArray(list) ? list : [])
         .filter((item) => item && item.meta?.processed !== true)
         .sort((a, b) => {
@@ -630,14 +672,20 @@ function App() {
       if (bulkPromotePreviewById[item.id]) {
         return;
       }
-      if (!window.agency?.readWorkbenchEntry) {
-        return;
-      }
       try {
-        const result = await window.agency.readWorkbenchEntry({
+        const result = await agencyReadWorkbenchEntry({
           rootPath: promoteWorktreePath,
           targetPath: item.anchor.file,
         });
+        if (!result) {
+          setBulkPromotePreviewById((current) => ({
+            ...current,
+            [item.id]: {
+              error: 'Unable to load preview.',
+            },
+          }));
+          return;
+        }
         const content = result?.content || '';
         const lines = content.split('\n');
         const targetLine = Math.max(1, Number(item.anchor?.line || 1));
@@ -667,7 +715,7 @@ function App() {
     [bulkPromotePreviewById, promoteWorktreePath]
   );
   const submitBulkPromote = useCallback(async () => {
-    if (!promoteWorktreePath || !window.agency?.createHilItem || !window.agency?.updateHilItem) {
+    if (!promoteWorktreePath) {
       return;
     }
     if (!bulkPromoteDescription.trim()) {
@@ -688,7 +736,7 @@ function App() {
         path: item.anchor?.file || null,
         line: item.anchor?.line || null,
       }));
-      await window.agency.createHilItem({
+      const draft = await agencyCreateHilItem({
         worktreePath: promoteWorktreePath,
         kind: 'draft',
         body: bulkPromoteDescription.trim(),
@@ -698,9 +746,13 @@ function App() {
           sourceBatch: 'bulk',
         },
       });
+      if (!draft) {
+        setBulkPromoteError('Unable to create draft.');
+        return;
+      }
       await Promise.all(
         selected.map((item) =>
-          window.agency.updateHilItem({
+          agencyUpdateHilItem({
             worktreePath: promoteWorktreePath,
             itemId: item.id,
             patch: { meta: { processed: true } },
@@ -740,12 +792,12 @@ function App() {
     setInitialWorkbenchActiveTabs,
   ]);
   const handleSelectProjectRoot = useCallback(async () => {
-    if (!window.agency?.selectProjectRoot) {
-      return;
-    }
     setProjectError('');
     try {
-      await window.agency.selectProjectRoot();
+      const result = await agencySelectProjectRoot();
+      if (!result) {
+        return;
+      }
     } catch (error) {
       setProjectError(error?.message || 'Failed to select project.');
     }
@@ -753,12 +805,15 @@ function App() {
 
   const handleOpenRecentProject = useCallback(
     async (projectPath) => {
-      if (!projectPath || !window.agency?.setProjectRoot) {
+      if (!projectPath) {
         return;
       }
       setProjectError('');
       try {
-        await window.agency.setProjectRoot({ projectRoot: projectPath });
+        const result = await agencySetProjectRoot({ projectRoot: projectPath });
+        if (!result) {
+          return;
+        }
       } catch (error) {
         setProjectError(error?.message || 'Failed to open project.');
       }
@@ -766,10 +821,7 @@ function App() {
     []
   );
   useEffect(() => {
-    if (!window.agency?.onProjectUpdated) {
-      return undefined;
-    }
-    const unsubscribe = window.agency.onProjectUpdated(async (payload) => {
+    const unsubscribe = subscribeProjectUpdated(async (payload) => {
       if (!payload) {
         return;
       }
@@ -786,10 +838,7 @@ function App() {
     };
   }, [resetProjectState]);
   useEffect(() => {
-    if (!window.agency?.onRecentProjectsUpdated) {
-      return undefined;
-    }
-    const unsubscribe = window.agency.onRecentProjectsUpdated((payload) => {
+    const unsubscribe = subscribeRecentProjectsUpdated((payload) => {
       if (!payload) {
         return;
       }
@@ -805,25 +854,22 @@ function App() {
     if (!selectedCell?.id) {
       return;
     }
-    if (uiStateLoaded && window.agency?.setUiState) {
-      window.agency
-        .setUiState({
+    if (uiStateLoaded) {
+      agencySetUiState({
           selectedId: selectedCell.id,
           activeSessionByCellId,
-        })
-        .catch(() => undefined);
+        }).catch(() => undefined);
     }
     setTerminalMode('shell');
     setTerminalOpen(true);
   }, [selectedCell?.id, activeSessionByCellId, uiStateLoaded]);
 
   useEffect(() => {
-    if (!uiStateLoaded || !window.agency?.setUiState) {
+    if (!uiStateLoaded) {
       return;
     }
     const handle = setTimeout(() => {
-      window.agency
-        .setUiState({
+      agencySetUiState({
           sidebarWidth,
           sidebarCollapsed,
           activeView,
@@ -831,8 +877,7 @@ function App() {
           hilDrawerPanel,
           workbenchTabsByCellId: workbench.serializeTabs(workbench.tabsByCellId),
           workbenchActiveTabByCellId: workbench.activeTabByCellId,
-        })
-        .catch(() => undefined);
+        }).catch(() => undefined);
     }, 200);
     return () => clearTimeout(handle);
   }, [
@@ -850,7 +895,7 @@ function App() {
   const gatesCheckingByStage = scopedCell ? gatesCheckingByCellId[scopedCell.id] || {} : {};
   const handleStateChange = useCallback(
     async (nextState) => {
-      if (!scopedCell || !window.agency?.updateCellState) {
+      if (!scopedCell) {
         return;
       }
       if (nextState === scopedCell.state) {
@@ -858,13 +903,14 @@ function App() {
       }
       setTransitionError('');
       let nextCells = cells;
-      if (window.agency?.listCells) {
-        try {
-          nextCells = await window.agency.listCells({ rootPath: projectRoot });
+      try {
+        const result = await agencyListCells({ rootPath: projectRoot });
+        if (Array.isArray(result)) {
+          nextCells = result;
           setCells(nextCells);
-        } catch (error) {
-          console.error(error);
         }
+      } catch (error) {
+        console.error(error);
       }
       const freshCell = nextCells.find((cell) => cell.id === scopedCell.id) || scopedCell;
       let gates = [];
@@ -881,21 +927,21 @@ function App() {
   );
   const handleCreate = useCallback(
     async ({ name, branch, reusePath }) => {
-      if (!window.agency?.createCell) {
-        return;
-      }
       if (!projectReady) {
         setProjectError('Select a project before creating a Cell.');
         return;
       }
       setLoading(true);
       try {
-        const cell = await window.agency.createCell({
+        const cell = await agencyCreateCell({
           name,
           branch,
           reusePath,
           rootPath: projectRoot,
         });
+        if (!cell) {
+          return;
+        }
         setShowCreate(false);
         await loadCells();
         if (cell?.id) {
@@ -1017,14 +1063,10 @@ function App() {
   const handleSidebarResizeEnd = useCallback(
     (nextWidth) => {
       setSidebarWidth(nextWidth);
-      if (window.agency?.setUiState) {
-        window.agency
-          .setUiState({
+      agencySetUiState({
             sidebarWidth: nextWidth,
             sidebarCollapsed,
-          })
-          .catch(() => undefined);
-      }
+          }).catch(() => undefined);
     },
     [sidebarCollapsed]
   );
@@ -1221,11 +1263,15 @@ function App() {
             }
             setTransitionLoading(true);
             try {
-              await window.agency.updateCellState({
+              const result = await agencyUpdateCellState({
                 id: pendingTransition.cell.id,
                 state: pendingTransition.nextState,
                 worktreePath: pendingTransition.cell.worktreePath,
               });
+              if (!result) {
+                setTransitionError('Lifecycle transition failed.');
+                return;
+              }
               await loadCells();
               setPendingTransition(null);
             } catch (error) {

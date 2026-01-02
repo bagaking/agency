@@ -27,3 +27,8 @@ Use pnpm for workspace Node dependencies and keep `pnpm-lock.yaml` committed.
 - Always verify `window.agency` is available before invoking IPC from the renderer.
 - If IPC/preload is missing or fails, surface a minimal status bar indicator (e.g. red state + short label) and log the failure for debugging. Avoid hard-blocking user flows unless required.
 - When adding new renderer actions, ensure a safe fallback path or a clear error message in logs.
+
+### Renderer IPC Access
+
+- Centralize renderer↔main IPC calls in `apps/editor/renderer/src/services/agencyBridge.js`.
+- Avoid direct `window.agency` usage in React components; route through the bridge for consistency and easier testing.
