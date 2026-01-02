@@ -10,7 +10,8 @@ import {
   FileText, 
   Eye, 
   Trash2, 
-  ChevronRight 
+  ChevronRight,
+  MessageSquarePlus 
 } from 'lucide-react';
 
 export function ExplorerContextMenu({
@@ -29,6 +30,7 @@ export function ExplorerContextMenu({
   onPasteMarkdown,
   onReveal,
   onDelete,
+  onAddComment,
 }) {
   const menuRef = useRef(null);
 
@@ -131,6 +133,12 @@ export function ExplorerContextMenu({
           label="Reveal" 
           onClick={onReveal} 
           disabled={!selectionTargets.length} 
+        />
+        <ContextMenuItem
+            icon={MessageSquarePlus}
+            label="Add Comment"
+            onClick={onAddComment}
+            disabled={selectionTargets.length !== 1}
         />
         <ContextMenuItem
           icon={Trash2}

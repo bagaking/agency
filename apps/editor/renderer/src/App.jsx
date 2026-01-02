@@ -1006,6 +1006,13 @@ function App() {
     ? selectedCell?.name || 'Repository'
     : 'Project';
   const explorerMeta = workbenchMetaByCellId[selectedCell?.id || 'repo'] || {};
+  const handleAddCommentFromExplorer = useCallback((path) => {
+    if (!path) return;
+    workbench.openFile({ path, mode: 'pinned', rootPath: explorerRootPath });
+    setTimeout(() => {
+      openCommentModal({ line: 1 });
+    }, 100);
+  }, [workbench, explorerRootPath, openCommentModal]);
   const hilCommentsProps = {
     activeFile: activeTab?.path || '',
     cursorPosition,
@@ -1221,6 +1228,7 @@ function App() {
           onOpenFile: ({ path, mode }) => {
             workbench.openFile({ path, mode, rootPath: explorerRootPath });
           },
+          onAddComment: handleAddCommentFromExplorer,
         }}
         explorerPaneProps={{
           workbench,

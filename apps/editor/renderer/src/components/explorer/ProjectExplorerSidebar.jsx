@@ -31,6 +31,7 @@ function ProjectExplorerSidebarContent({
   workbenchMeta,
   onSelectSession,
   onRunCommand,
+  onAddComment,
 }) {
   const listRef = useRef(null);
   const visiblePathsRef = useRef([]);
@@ -455,6 +456,7 @@ function ProjectExplorerSidebarContent({
           onDuplicate={() => handleDuplicate(selectionTargets[0])} onCopy={() => handleCopySelection('copy')}
           onCut={() => handleCopySelection('cut')} onPaste={handlePasteSelection} onPasteMarkdown={handlePasteMarkdown}
           onReveal={() => handleReveal(selectionTargets)} onDelete={() => handleDelete(selectionTargets)}
+          onAddComment={() => onAddComment?.(selectionTargets[0])}
         />
       )}
     </aside>
@@ -464,7 +466,7 @@ function ProjectExplorerSidebarContent({
 export function ProjectExplorerSidebar({
   rootPath: scopeRootPath, rootLabel: scopeRootLabel, cells, selectedId, onSelectCell, selectedCell,
   sessions, activeSessionId, sessionActivityByKey, onOpenFile, onJumpToAgents, workbenchMeta,
-  onSelectSession, onRunCommand,
+  onSelectSession, onRunCommand, onAddComment,
   projectReady, projectError, onSelectProject, recentProjects, onOpenRecentProject,
 }) {
   if (!projectReady) {
@@ -500,6 +502,7 @@ export function ProjectExplorerSidebar({
       workbenchMeta={workbenchMeta}
       onSelectSession={onSelectSession}
       onRunCommand={onRunCommand}
+      onAddComment={onAddComment}
     />
   );
 }
