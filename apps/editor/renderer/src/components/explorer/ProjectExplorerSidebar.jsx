@@ -1,143 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ChevronRight,
-  ChevronDown,
-  FolderClosed,
-  FolderOpen,
-  FileText,
-  FileCode,
-  FileJson,
-  FileImage,
-  FileAudio,
-  FileVideo,
-  FileArchive,
-  FileCog,
-  FileSearch2,
-  FileType2,
-  RefreshCw,
-  FilePlus2,
-  FolderPlus,
-  Search,
-  X,
-  Copy,
-  Scissors,
-  ClipboardPaste,
-  Pencil,
-  Trash2,
-  ArrowRightLeft,
-  Eye,
-  EyeOff,
-  Filter,
-  Link2,
-  AlertCircle,
-  Info,
-  Layers,
-} from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { useProjectExplorer, explorerPathUtils } from '../../hooks/useProjectExplorer.js';
 import { RecentProjectsList } from '../RecentProjectsList.jsx';
 import { ExplorerContextMenu } from './ExplorerContextMenu.jsx';
-
-const getFileIcon = (name, isSymbolicLink) => {
-  if (isSymbolicLink) return Link2;
-  const ext = name.split('.').pop().toLowerCase();
-
-  if (['js', 'jsx', 'ts', 'tsx', 'py', 'go', 'rs', 'c', 'cpp', 'java', 'rb', 'php', 'swift', 'sh', 'bash'].includes(ext)) return FileCode;
-  if (['json', 'yaml', 'yml', 'toml', 'xml', 'html', 'css', 'scss', 'less'].includes(ext)) return FileJson;
-  if (['md', 'txt', 'rtf', 'log'].includes(ext)) return FileText;
-  if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp'].includes(ext)) return FileImage;
-  if (['mp3', 'wav', 'ogg', 'flac', 'm4a'].includes(ext)) return FileAudio;
-  if (['mp4', 'mkv', 'avi', 'mov', 'webm'].includes(ext)) return FileVideo;
-  if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2'].includes(ext)) return FileArchive;
-  if (['env', 'config', 'ini', 'properties', 'yaml', 'yml'].includes(ext)) return FileCog;
-  if (['sql', 'db', 'sqlite'].includes(ext)) return FileSearch2;
-  if (['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext)) return FileType2;
-
-  return FileText;
-};
-
-const statusColors = {
-  added: 'text-emerald-400',
-  modified: 'text-amber-300',
-  deleted: 'text-rose-400',
-  renamed: 'text-sky-400',
-  copied: 'text-sky-400',
-  untracked: 'text-lime-300',
-  ignored: 'text-slate-400',
-  conflict: 'text-rose-500',
-};
-
-const statusBadges = {
-  added: 'A',
-  modified: 'M',
-  deleted: 'D',
-  renamed: 'R',
-  copied: 'C',
-  untracked: '?',
-  ignored: 'I',
-  conflict: '!',
-};
-
-const STATUS_PRIORITY = [
-  'conflict',
-  'deleted',
-  'added',
-  'modified',
-  'renamed',
-  'copied',
-  'untracked',
-  'ignored',
-];
-
-const statusBadgeStyles = {
-  added: 'border-emerald-500/40 bg-emerald-500/10',
-  modified: 'border-amber-400/40 bg-amber-400/10',
-  deleted: 'border-rose-400/40 bg-rose-400/10',
-  renamed: 'border-sky-400/40 bg-sky-400/10',
-  copied: 'border-sky-400/40 bg-sky-400/10',
-  untracked: 'border-lime-500/40 bg-lime-500/10',
-  ignored: 'border-slate-400/40 bg-slate-400/10',
-  conflict: 'border-rose-500/50 bg-rose-500/15',
-};
+import { ExplorerItem } from './ExplorerItem.jsx';
+import { ExplorerHeader } from './ExplorerHeader.jsx';
+import { ExplorerFilterPanel } from './ExplorerFilterPanel.jsx';
+import { ExplorerSessions } from './ExplorerSessions.jsx';
+import { 
+  pickPrimaryStatus, 
+} from './explorerUtils';
 
 const ROW_HEIGHT = 24;
 const OVERSCAN = 6;
 const VIRTUALIZE_THRESHOLD = 200;
-const STATUS_FILTERS = [...STATUS_PRIORITY];
-
-const sortCells = (cells) => {
-  return Object.values(cells || {}).sort((a, b) => {
-    const aTotal = (a.added || 0) + (a.deleted || 0);
-    const bTotal = (b.added || 0) + (b.deleted || 0);
-    if (aTotal !== bTotal) {
-      return bTotal - aTotal;
-    }
-    return (a.name || '').localeCompare(b.name || '');
-  });
-};
-
-const formatIdle = (ms) => {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  if (minutes <= 0) {
-    return `${seconds}s`;
-  }
-  const hours = Math.floor(minutes / 60);
-  const remMinutes = minutes % 60;
-  if (hours <= 0) {
-    return `${remMinutes}m`;
-  }
-  return `${hours}h ${remMinutes}m`;
-};
-
-const pickPrimaryStatus = (statusCounts = {}) => {
-  for (const status of STATUS_PRIORITY) {
-    if (statusCounts[status]) {
-      return status;
-    }
-  }
-  return null;
-};
 
 function ProjectExplorerSidebarContent({
   rootPath: scopeRootPath,
@@ -204,7 +80,6 @@ function ProjectExplorerSidebarContent({
   const [draftEntry, setDraftEntry] = useState(null);
   const [renameTarget, setRenameTarget] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
-
   const [now, setNow] = useState(Date.now());
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [showIgnored, setShowIgnored] = useState(true);
@@ -228,1250 +103,302 @@ function ProjectExplorerSidebarContent({
 
   const selectionSet = useMemo(() => new Set(selectedPaths), [selectedPaths]);
   const openFiles = useMemo(() => new Set(Object.keys(workbenchMeta || {})), [workbenchMeta]);
-  const dirtyFiles = useMemo(
-    () =>
-      new Set(
-        Object.entries(workbenchMeta || {})
-          .filter(([, meta]) => meta?.dirty)
-          .map(([path]) => path)
-      ),
+  const dirtyFiles = useMemo(() => 
+    new Set(Object.entries(workbenchMeta || {}).filter(([, m]) => m?.dirty).map(([p]) => p)), 
     [workbenchMeta]
   );
-  const getScopedEntry = useCallback(
-    (entry, type) => {
-      if (!entry || !selectedCellId || !entry.cells?.[selectedCellId]) {
-        return entry;
-      }
-      const cellInfo = entry.cells[selectedCellId];
-      if (!cellInfo) {
-        return entry;
-      }
-      if (type === 'dir') {
-        const status = pickPrimaryStatus(cellInfo.statusCounts || {});
-        return {
-          ...entry,
-          status,
-          added: cellInfo.added || 0,
-          deleted: cellInfo.deleted || 0,
-        };
-      }
-      return {
-        ...entry,
-        status: cellInfo.status || entry.status,
-        added: cellInfo.added || 0,
-        deleted: cellInfo.deleted || 0,
-      };
-    },
-    [selectedCellId]
-  );
+
+  const getScopedEntry = useCallback((entry, type) => {
+    if (!entry || !selectedCellId || !entry.cells?.[selectedCellId]) return entry;
+    const cellInfo = entry.cells[selectedCellId];
+    if (!cellInfo) return entry;
+    if (type === 'dir') {
+      const status = pickPrimaryStatus(cellInfo.statusCounts || {});
+      return { ...entry, status, added: cellInfo.added || 0, deleted: cellInfo.deleted || 0 };
+    }
+    return { ...entry, status: cellInfo.status || entry.status, added: cellInfo.added || 0, deleted: cellInfo.deleted || 0 };
+  }, [selectedCellId]);
 
   const ignoredPaths = useMemo(() => {
     const paths = new Set();
-    Object.entries(statusByPath || {}).forEach(([path, entry]) => {
-      if (entry?.status === 'ignored' && path) {
-        paths.add(path);
-      }
-    });
+    Object.entries(statusByPath || {}).forEach(([p, e]) => { if (e?.status === 'ignored') paths.add(p); });
     return paths;
   }, [statusByPath]);
 
-  const hasIgnoredAncestor = (targetPath) => {
-    if (!targetPath) {
-      return false;
-    }
+  const isPathIgnored = useCallback((targetPath) => {
+    if (!targetPath) return false;
+    if (ignoredPaths.has(targetPath)) return true;
     const parts = targetPath.split('/').filter(Boolean);
-    if (parts.length <= 1) {
-      return false;
-    }
-    for (let index = parts.length - 1; index > 0; index -= 1) {
-      const ancestor = parts.slice(0, index).join('/');
-      if (ignoredPaths.has(ancestor)) {
-        return true;
-      }
+    for (let i = parts.length - 1; i > 0; i--) {
+      if (ignoredPaths.has(parts.slice(0, i).join('/'))) return true;
     }
     return false;
-  };
-
-  const isPathIgnored = (targetPath) =>
-    Boolean(targetPath) && (ignoredPaths.has(targetPath) || hasIgnoredAncestor(targetPath));
+  }, [ignoredPaths]);
 
   const buildVisibleList = useCallback(() => {
     const items = [];
-    const shouldIncludeByStatus = (path, node) => {
-      if (!hasChangeFilter) {
-        return true;
-      }
+    const shouldInclude = (path, node) => {
+      if (!hasChangeFilter) return true;
       const entry = node.type === 'dir' ? folderStatusByPath[path] : statusByPath[path];
-      const scopedEntry = getScopedEntry(entry, node.type === 'dir' ? 'dir' : 'file');
-      let status = scopedEntry?.status || null;
-      if (node.type === 'dir' && !statusByPath[path] && status === 'ignored') {
-        status = null;
-      }
-      if (!status) {
-        return false;
-      }
-      if (hasStatusFilters && !statusFilterSet.has(status)) {
-        return false;
-      }
-      return true;
+      const scoped = getScopedEntry(entry, node.type === 'dir' ? 'dir' : 'file');
+      let status = scoped?.status || null;
+      if (node.type === 'dir' && !statusByPath[path] && status === 'ignored') status = null;
+      return status && (!hasStatusFilters || statusFilterSet.has(status));
     };
-    const isVisibleNode = (path, node) => {
-      if (!path) {
-        return true;
-      }
-      if (!showHidden && node.name.startsWith('.')) {
-        return false;
-      }
-      if (!showIgnored && isPathIgnored(path)) {
-        return false;
-      }
-      return true;
+    const isVisible = (path, node) => {
+      if (!path) return true;
+      if (!showHidden && node.name.startsWith('.')) return false;
+      return showIgnored || !isPathIgnored(path);
     };
-
-    const checkAnyChildMatch = (path) => {
+    const checkMatch = (path) => {
       const node = tree.nodes[path];
-      if (!node) {
-        return false;
-      }
-      if (!isVisibleNode(path, node)) {
-        return false;
-      }
-      if (shouldIncludeByStatus(path, node)) {
-        return true;
-      }
-      if (node.type === 'dir') {
-        const children = tree.children[path] || [];
-        return children.some((child) => checkAnyChildMatch(child));
-      }
-      return false;
+      if (!node || !isVisible(path, node)) return false;
+      if (shouldInclude(path, node)) return true;
+      return node.type === 'dir' && (tree.children[path] || []).some(c => checkMatch(c));
     };
-
     const walk = (path, depth) => {
       const node = tree.nodes[path];
-      if (!node) {
-        return false;
-      }
-      if (!isVisibleNode(path, node)) {
-        return false;
-      }
-
+      if (!node || !isVisible(path, node)) return;
       const isDir = node.type === 'dir';
-      const selfMatches = path ? shouldIncludeByStatus(path, node) : true;
+      const selfMatches = path ? shouldInclude(path, node) : true;
       let childHasMatch = false;
-      if (isDir) {
-        const children = tree.children[path] || [];
-        for (const child of children) {
-          if (checkAnyChildMatch(child)) {
-            childHasMatch = true;
-            break;
-          }
-        }
-      }
+      if (isDir) childHasMatch = (tree.children[path] || []).some(c => checkMatch(c));
       const shouldShow = path ? selfMatches || childHasMatch : true;
-
-      if (path && shouldShow) {
-        items.push({ path, depth, type: node.type, isSymbolicLink: node.isSymbolicLink });
-      }
-
+      if (path && shouldShow) items.push({ path, depth, type: node.type, isSymbolicLink: node.isSymbolicLink });
       if (isDir && shouldShow && (isSearchActive || expandedPaths.has(path))) {
-        const children = tree.children[path] || [];
-        for (const child of children) {
-          walk(child, depth + 1);
-        }
+        (tree.children[path] || []).forEach(c => walk(c, depth + 1));
       }
-
-      return selfMatches || childHasMatch;
     };
-
     walk('', 0);
     if (draftEntry?.parentPath) {
-      const parentIndex = items.findIndex((item) => item.path === draftEntry.parentPath);
-      if (parentIndex >= 0) {
-        const parentDepth = items[parentIndex].depth;
-        items.splice(parentIndex + 1, 0, {
-          path: `__draft__${draftEntry.parentPath}`,
-          depth: parentDepth + 1,
-          type: draftEntry.type,
-          draft: true,
-          parentPath: draftEntry.parentPath,
-        });
-      }
+      const idx = items.findIndex(it => it.path === draftEntry.parentPath);
+      if (idx >= 0) items.splice(idx + 1, 0, { path: `__d__${draftEntry.parentPath}`, depth: items[idx].depth + 1, type: draftEntry.type, draft: true });
     }
     return items;
-  }, [
-    draftEntry,
-    expandedPaths,
-    folderStatusByPath,
-    getScopedEntry,
-    hasChangeFilter,
-    hasStatusFilters,
-    isSearchActive,
-    showIgnored,
-    statusByPath,
-    statusFilterSet,
-    tree.children,
-    tree.nodes,
-  ]);
+  }, [draftEntry, expandedPaths, folderStatusByPath, getScopedEntry, hasChangeFilter, hasStatusFilters, isSearchActive, showHidden, showIgnored, isPathIgnored, statusByPath, statusFilterSet, tree.children, tree.nodes]);
 
   const visibleItems = useMemo(() => buildVisibleList(), [buildVisibleList]);
-  const visiblePaths = useMemo(
-    () => visibleItems.map((item) => item.path).filter((path) => !path.startsWith('__draft__')),
-    [visibleItems]
-  );
+  const visiblePaths = useMemo(() => visibleItems.filter(it => !it.draft).map(it => it.path), [visibleItems]);
   const rowIndexByPath = useMemo(() => {
     const map = new Map();
-    visibleItems.forEach((item, index) => {
-      if (!item.draft) {
-        map.set(item.path, index);
-      }
-    });
+    visibleItems.forEach((it, i) => { if (!it.draft) map.set(it.path, i); });
     return map;
   }, [visibleItems]);
 
-  useEffect(() => {
-    visiblePathsRef.current = visiblePaths;
-  }, [visiblePaths]);
+  useEffect(() => { visiblePathsRef.current = visiblePaths; }, [visiblePaths]);
+  useEffect(() => { const i = setInterval(() => setNow(Date.now()), 5000); return () => clearInterval(i); }, []);
 
-  useEffect(() => {
-    if (focusedPath && visiblePaths.includes(focusedPath)) {
-      return;
-    }
-    if (selectedPaths.length && visiblePaths.includes(selectedPaths[0])) {
-      setFocusedPath(selectedPaths[0]);
-      return;
-    }
-    setFocusedPath(visiblePaths[0] || '');
-  }, [focusedPath, selectedPaths, visiblePaths]);
-
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (!filterMenuOpen) {
-      return undefined;
-    }
-    const handleClick = (event) => {
-      const target = event.target;
-      if (target.closest('[data-explorer-filter-menu]')) {
-        return;
-      }
-      if (target.closest('[data-explorer-filter-toggle]')) {
-        return;
-      }
-      setFilterMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [filterMenuOpen]);
-
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el) {
-      return undefined;
-    }
-    const handleScroll = () => {
-      setScrollTop(el.scrollTop);
-    };
-    el.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-    if (typeof ResizeObserver !== 'undefined') {
-      const observer = new ResizeObserver(() => {
-        setViewportHeight(el.clientHeight);
-      });
-      observer.observe(el);
-      return () => {
-        el.removeEventListener('scroll', handleScroll);
-        observer.disconnect();
-      };
-    }
-    const handleResize = () => setViewportHeight(el.clientHeight);
-    window.addEventListener('resize', handleResize);
-    handleResize();
-    return () => {
-      el.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
+  // Handlers
   const closeContextMenu = () => setContextMenu(null);
-
   const activeTarget = contextMenu?.path || selectedPaths[0] || '';
   const activeNode = tree.nodes[activeTarget];
-  const activeDir =
-    activeNode?.type === 'dir' ? activeTarget : explorerPathUtils.dirname(activeTarget);
-
-  const selectionTargets = selectedPaths.length
-    ? selectedPaths
-    : activeTarget
-      ? [activeTarget]
-      : [];
+  const activeDir = activeNode?.type === 'dir' ? activeTarget : explorerPathUtils.dirname(activeTarget);
+  const selectionTargets = selectedPaths.length ? selectedPaths : activeTarget ? [activeTarget] : [];
   const selectionCount = selectionTargets.length;
-  const clipboardPaths = clipboard?.paths || [];
-  const clipboardMode = clipboard?.mode || 'copy';
-  const hasClipboard = clipboardPaths.length > 0;
-  const canPaste = hasClipboard || Boolean(window.agency?.materializeClipboard);
+  const canPaste = (clipboard?.paths?.length > 0) || Boolean(window.agency?.materializeClipboard);
 
   const resolvePasteDirectory = () => {
-    if (!activeTarget) {
-      return '';
-    }
+    if (!activeTarget) return '';
     const node = tree.nodes[activeTarget];
-    if (node?.type === 'dir') {
-      return activeTarget;
-    }
-    return explorerPathUtils.dirname(activeTarget);
+    return node?.type === 'dir' ? activeTarget : explorerPathUtils.dirname(activeTarget);
   };
 
-  const handleCopySelection = (mode) => {
-    if (!selectionTargets.length) {
-      return;
-    }
-    setClipboard({
-      mode,
-      paths: Array.from(new Set(selectionTargets)),
-    });
-  };
-
-  const withSuffixName = (name, index, isDir) => {
-    if (index <= 0) {
-      return name;
-    }
-    if (isDir) {
-      return `${name}-${index}`;
-    }
-    const dotIndex = name.lastIndexOf('.');
-    const ext = dotIndex > 0 ? name.slice(dotIndex) : '';
-    const base = ext ? name.slice(0, -ext.length) : name;
-    return `${base}-${index}${ext}`;
-  };
-
-  const isTargetExistsError = (err) =>
-    Boolean(String(err?.message || '').toLowerCase().includes('already exists'));
-
-  const runWithUniqueTarget = async ({ baseName, targetDir, isDir, operation }) => {
-    const limit = 50;
-    for (let index = 0; index < limit; index += 1) {
-      const candidate = withSuffixName(baseName, index, isDir);
-      const targetPath = [targetDir, candidate].filter(Boolean).join('/');
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        await operation(targetPath);
-        return targetPath;
-      } catch (err) {
-        if (!isTargetExistsError(err)) {
-          throw err;
-        }
-      }
-    }
-    throw new Error('Unable to resolve a unique target name.');
-  };
-
+  const handleCopySelection = (mode) => { if (selectionTargets.length) setClipboard({ mode, paths: Array.from(new Set(selectionTargets)) }); };
+  
   const handlePasteSelection = async () => {
     const baseRoot = rootPath || repoRoot || '';
     const targetDir = resolvePasteDirectory();
     if (window.agency?.materializeClipboard && baseRoot) {
       try {
-        const result = await window.agency.materializeClipboard({
-          rootPath: baseRoot,
-          targetDir,
-          includeText: false,
-          relativeTo: baseRoot,
-        });
+        const result = await window.agency.materializeClipboard({ rootPath: baseRoot, targetDir, includeText: false, relativeTo: baseRoot });
         if (result?.type === 'files' || result?.type === 'image') {
-          if (targetDir) {
-            expandPath(targetDir);
-          }
+          if (targetDir) expandPath(targetDir);
           await refreshAll();
-          if (result?.paths?.length) {
-            setSelectedPaths(result.paths);
-          }
+          if (result?.paths?.length) setSelectedPaths(result.paths);
           clearError();
           return;
         }
-      } catch (err) {
-        setErrorMessage(err?.message || 'Failed to paste from clipboard.');
-        return;
-      }
+      } catch (err) { setErrorMessage(err?.message || 'Failed to paste.'); return; }
     }
-    if (!hasClipboard) {
-      return;
-    }
-    for (const sourcePath of clipboardPaths) {
-      if (!sourcePath) {
-        continue;
-      }
-      if (targetDir && (sourcePath === targetDir || targetDir.startsWith(`${sourcePath}/`))) {
-        setErrorMessage('Cannot paste into the selected entry.');
-        return;
-      }
-    }
+    if (!clipboard?.paths?.length) return;
     try {
-      for (const sourcePath of clipboardPaths) {
-        if (!sourcePath) {
-          continue;
-        }
+      for (const sourcePath of clipboard.paths) {
         const baseName = explorerPathUtils.basename(sourcePath);
-        const node = tree.nodes[sourcePath];
-        const isDir = node?.type === 'dir';
-        const operation =
-          clipboardMode === 'cut'
-            ? (targetPath) => renameEntry({ sourcePath, targetPath })
-            : (targetPath) => copyEntry({ sourcePath, targetPath });
-        // eslint-disable-next-line no-await-in-loop
-        await runWithUniqueTarget({
-          baseName,
-          targetDir,
-          isDir,
-          operation,
-        });
+        const targetPath = [targetDir, baseName].filter(Boolean).join('/');
+        if (clipboard.mode === 'cut') await renameEntry({ sourcePath, targetPath });
+        else await copyEntry({ sourcePath, targetPath });
       }
       clearError();
-      if (clipboardMode === 'cut') {
-        setClipboard(null);
-      }
-    } catch (err) {
-      setErrorMessage(err?.message || 'Failed to paste entries.');
-    }
+      if (clipboard.mode === 'cut') setClipboard(null);
+      await refreshAll();
+    } catch (err) { setErrorMessage('Paste failed.'); }
   };
 
   const handlePasteMarkdown = async () => {
     const baseRoot = rootPath || repoRoot || '';
-    if (!baseRoot || !window.agency?.materializeMarkdown) {
-      setErrorMessage('Markdown capture is unavailable.');
-      return;
-    }
+    if (!baseRoot || !window.agency?.materializeMarkdown) return;
     try {
-      const result = await window.agency.materializeMarkdown({
-        rootPath: baseRoot,
-        targetDir: '.agency/tmp/clipboard',
-        relativeTo: baseRoot,
-      });
-      if (result?.path) {
-        await refreshAll();
-        setSelectedPaths([result.path]);
-        onOpenFile?.({ path: result.path, mode: 'pinned' });
-      }
+      const result = await window.agency.materializeMarkdown({ rootPath: baseRoot, targetDir: '.agency/tmp/clipboard', relativeTo: baseRoot });
+      if (result?.path) { await refreshAll(); setSelectedPaths([result.path]); onOpenFile?.({ path: result.path, mode: 'pinned' }); }
       clearError();
-    } catch (err) {
-      setErrorMessage(err?.message || 'Failed to capture Markdown.');
-    }
+    } catch (err) { setErrorMessage('Markdown capture failed.'); }
   };
 
-  const startDraft = (type) => {
-    if (activeDir) {
-      expandPath(activeDir);
-    }
-    setDraftEntry({
-      type,
-      parentPath: activeDir || '',
-      value: '',
-    });
-  };
-
+  const startDraft = (type) => { if (activeDir) expandPath(activeDir); setDraftEntry({ type, parentPath: activeDir || '', value: '' }); };
   const handleDraftSubmit = async () => {
-    if (!draftEntry?.value) {
-      setDraftEntry(null);
-      return;
-    }
-    try {
-      await createEntry({
-        type: draftEntry.type,
-        parentPath: draftEntry.parentPath,
-        name: draftEntry.value,
-      });
-      clearError();
-    } catch (err) {
-      setErrorMessage(err?.message || 'Failed to create entry.');
-    }
+    if (!draftEntry?.value) { setDraftEntry(null); return; }
+    try { await createEntry({ type: draftEntry.type, parentPath: draftEntry.parentPath, name: draftEntry.value }); clearError(); } 
+    catch (err) { setErrorMessage(err?.message || 'Failed to create.'); }
     setDraftEntry(null);
   };
 
   const handleRenameSubmit = async () => {
-    if (!renameTarget?.path || !renameTarget?.value) {
-      setRenameTarget(null);
-      return;
-    }
+    if (!renameTarget?.path || !renameTarget?.value) { setRenameTarget(null); return; }
     const parent = explorerPathUtils.dirname(renameTarget.path);
     const nextPath = [parent, renameTarget.value].filter(Boolean).join('/');
-    try {
-      await renameEntry({ sourcePath: renameTarget.path, targetPath: nextPath });
-      clearError();
-    } catch (err) {
-      setErrorMessage(err?.message || 'Failed to rename entry.');
-    }
+    try { await renameEntry({ sourcePath: renameTarget.path, targetPath: nextPath }); clearError(); } 
+    catch (err) { setErrorMessage('Rename failed.'); }
     setRenameTarget(null);
   };
 
   const handleCopyPath = async (targets) => {
     const list = (Array.isArray(targets) ? targets : [targets]).filter(Boolean);
-    if (!list.length) {
-      return;
-    }
+    if (!list.length) return;
     try {
       const base = rootPath || repoRoot || '';
-      const payload = list
-        .map((item) => (base ? `${base}/${item}` : item))
-        .join('\n');
+      const payload = list.map(it => (base ? `${base}/${it}` : it)).join('\n');
       await navigator.clipboard.writeText(payload);
-    } catch (err) {
-      // ignore clipboard errors silently
-    }
+    } catch (err) {}
   };
 
   const handleDelete = async (targets) => {
     const list = (Array.isArray(targets) ? targets : [targets]).filter(Boolean);
-    if (!list.length) {
-      return;
-    }
-    const label = list.length === 1 ? list[0] : `${list.length} items`;
-    const confirmed = window.confirm(`Delete ${label}? This cannot be undone.`);
-    if (!confirmed) {
-      return;
-    }
+    if (!list.length || !window.confirm(`Delete ${list.length} items?`)) return;
     try {
-      for (const targetPath of list) {
-        // eslint-disable-next-line no-await-in-loop
-        await deleteEntry({ targetPath });
-      }
-      setSelectedPaths((current) => current.filter((item) => !list.includes(item)));
+      for (const t of list) await deleteEntry({ targetPath: t });
+      setSelectedPaths(curr => curr.filter(it => !list.includes(it)));
       clearError();
-    } catch (err) {
-      setErrorMessage(err?.message || 'Failed to delete entry.');
-    }
+    } catch (err) { setErrorMessage('Delete failed.'); }
   };
 
   const handleDuplicate = async (targetPath) => {
     const name = explorerPathUtils.basename(targetPath);
     const parent = explorerPathUtils.dirname(targetPath);
     const nextName = window.prompt('Duplicate as:', `${name}-copy`);
-    if (!nextName) {
-      return;
-    }
+    if (!nextName) return;
     try {
-      const node = tree.nodes[targetPath];
-      const isDir = node?.type === 'dir';
-      const resolved = await runWithUniqueTarget({
-        baseName: nextName,
-        targetDir: parent,
-        isDir,
-        operation: (target) => copyEntry({ sourcePath: targetPath, targetPath: target }),
-      });
-      setSelectedPaths([resolved]);
-      clearError();
-    } catch (err) {
-      setErrorMessage(err?.message || 'Failed to copy entry.');
-    }
+      const nextPath = [parent, nextName].filter(Boolean).join('/');
+      await copyEntry({ sourcePath: targetPath, targetPath: nextPath });
+      await refreshAll();
+    } catch (err) { setErrorMessage('Duplicate failed.'); }
   };
 
   const handleReveal = async (targets) => {
     const list = (Array.isArray(targets) ? targets : [targets]).filter(Boolean);
-    if (!list.length) {
-      return;
-    }
-    try {
-      for (const targetPath of list) {
-        // eslint-disable-next-line no-await-in-loop
-        await revealEntry({ targetPath });
-      }
-      clearError();
-    } catch (err) {
-      setErrorMessage(err?.message || 'Failed to reveal entry.');
-    }
+    try { for (const t of list) await revealEntry({ targetPath: t }); } 
+    catch (err) {}
   };
 
   const handleMove = async (paths, targetDir) => {
-    for (const sourcePath of paths) {
-      if (!sourcePath) {
-        continue;
-      }
-      if (targetDir && (sourcePath === targetDir || sourcePath.startsWith(`${targetDir}/`))) {
-        continue;
-      }
-      const nextPath = [targetDir, explorerPathUtils.basename(sourcePath)].filter(Boolean).join('/');
-      // eslint-disable-next-line no-await-in-loop
-      try {
+    try {
+      for (const sourcePath of paths) {
+        const nextPath = [targetDir, explorerPathUtils.basename(sourcePath)].filter(Boolean).join('/');
         await renameEntry({ sourcePath, targetPath: nextPath });
-        clearError();
-      } catch (err) {
-        setErrorMessage(err?.message || 'Failed to move entry.');
-        break;
       }
-    }
+      await refreshAll();
+    } catch (err) { setErrorMessage('Move failed.'); }
   };
 
-  const toggleStatusFilter = (status) => {
-    setStatusFilters((current) =>
-      current.includes(status) ? current.filter((item) => item !== status) : [...current, status]
-    );
-  };
+  const toggleStatusFilter = (s) => setStatusFilters(curr => curr.includes(s) ? curr.filter(it => it !== s) : [...curr, s]);
+  const buildDragPayload = (p) => selectionSet.has(p) ? Array.from(selectionSet) : [p];
 
-  const buildDragPayload = (path) => {
-    if (selectionSet.has(path)) {
-      return Array.from(selectionSet);
-    }
-    return [path];
-  };
-
-  const renderStatus = (path, type) => {
-    const directEntry = statusByPath[path];
-    const aggregateEntry = type === 'dir' ? folderStatusByPath[path] : null;
-    const rawEntry = directEntry || aggregateEntry;
-    const entry = getScopedEntry(rawEntry, type);
-    if (!entry) {
-      return null;
-    }
-    let status = entry.status;
-    if (type === 'dir' && !directEntry && status === 'ignored') {
-      status = null;
-    }
-    const badge = statusBadges[status] || '?';
-    const color = statusColors[status] || 'text-muted-foreground';
-    const added = entry.added || 0;
-    const deleted = entry.deleted || 0;
-    if (!status && !added && !deleted) {
-      return null;
-    }
-    return (
-      <div className="flex items-center gap-1.5 pr-1 opacity-40 group-hover:opacity-100 transition-opacity">
-        {status && (
-          <span
-            className={`text-[9px] font-black uppercase tracking-tighter ${color}`}
-            title={statusLabels[status] || status}
-          >
-            {badge}
-          </span>
-        )}
-        {(added > 0 || deleted > 0) && (
-          <div className="flex items-center gap-0.5 text-[8px] font-bold">
-            {added > 0 && <span className="text-emerald-500/50">+{added}</span>}
-            {deleted > 0 && <span className="text-rose-500/50">-{deleted}</span>}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderCellBadges = (path, type) => {
-    const entry = type === 'dir' ? folderStatusByPath[path] : statusByPath[path];
-    if (!entry || !entry.cells) {
-      return null;
-    }
-    const sorted = sortCells(entry.cells);
-    if (!sorted.length) {
-      return null;
-    }
-    const visible = sorted.slice(0, 1);
-    const overflow = sorted.length - visible.length;
-    return (
-      <div className="flex items-center gap-1 opacity-[0.15] group-hover:opacity-60 transition-opacity pr-1">
-        {visible.map((cell) => (
-          <div key={cell.id} className="px-1 py-0.5 rounded-[2px] bg-white/10 text-[7px] font-black uppercase tracking-tighter">
-            {cell.name}
-          </div>
-        ))}
-        {overflow > 0 && <span className="text-[7px] font-bold">+{overflow}</span>}
-      </div>
-    );
-  };
-
-  const renderDraftRow = (item) => (
-    <div
-      key={item.path}
-      className="flex items-center gap-2 px-2 py-1 text-xs"
-      style={{ paddingLeft: `${item.depth * 12 + 24}px` }}
-    >
-      <span className="text-xs text-muted-foreground">
-        {draftEntry?.type === 'dir' ? <FolderPlus size={12} strokeWidth={1.5} /> : <FilePlus2 size={12} strokeWidth={1.5} />}
-      </span>
-      <input
-        autoFocus
-        value={draftEntry?.value || ''}
-        onChange={(event) =>
-          setDraftEntry((current) => ({ ...current, value: event.target.value }))
-        }
-        onBlur={handleDraftSubmit}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            handleDraftSubmit();
-          }
-          if (event.key === 'Escape') {
-            setDraftEntry(null);
-          }
-        }}
-        className="flex-1 rounded border border-border bg-transparent px-1 text-xs text-foreground focus:outline-none"
-        placeholder={draftEntry?.type === 'dir' ? 'New folder' : 'New file'}
-      />
-    </div>
-  );
-
-  const renderRow = (item) => {
+  const renderNodeRow = (item) => {
     if (item.draft) {
-      return renderDraftRow(item);
+      return <ExplorerItem key={item.path} item={{ ...item, onBlur: handleDraftSubmit, onKeyDown: (e) => { if (e.key === 'Enter') handleDraftSubmit(); if (e.key === 'Escape') setDraftEntry(null); }, onChange: (e) => setDraftEntry(prev => ({ ...prev, value: e.target.value })), value: draftEntry?.value || '' }} />;
     }
     const node = tree.nodes[item.path];
-    if (!node) {
-      return null;
-    }
+    if (!node) return null;
     const isDir = node.type === 'dir';
-    const isExpanded = isSearchActive ? true : expandedPaths.has(item.path);
-    const isSelected = selectionSet.has(item.path);
-    const isFocused = focusedPath === item.path;
-    const isLoading = loadingPaths.has(item.path);
-    const isLink = node.isSymbolicLink;
-
-    const directEntry = statusByPath[item.path];
-    const aggregateEntry = isDir ? folderStatusByPath[item.path] : null;
-    const scopedEntry = getScopedEntry(directEntry || aggregateEntry, isDir ? 'dir' : 'file');
-    let status = scopedEntry?.status || null;
-    if (isDir && !directEntry && status === 'ignored') {
-      status = null;
-    }
-    const ignored = isPathIgnored(item.path);
-    const isUntracked = status === 'untracked';
-    const isAdded = status === 'added';
-    const isOpen = !isDir && openFiles.has(item.path);
-    const isDirty = !isDir && dirtyFiles.has(item.path);
-
-    const FileIcon = isDir ? (isExpanded ? FolderOpen : FolderClosed) : getFileIcon(node.name, isLink);
+    const entry = getScopedEntry(isDir ? folderStatusByPath[item.path] : statusByPath[item.path], isDir ? 'dir' : 'file');
+    const sorted = Object.values(entry?.cells || {}).sort((a, b) => (b.added + b.deleted) - (a.added + a.deleted));
+    const cellBadges = sorted.length > 0 && (
+        <div className="flex items-center gap-1 opacity-[0.15] group-hover:opacity-60 transition-opacity pr-1">
+            <div key={sorted[0].id} className="px-1 py-0.5 rounded-[2px] bg-white/10 text-[7px] font-black uppercase tracking-tighter">{sorted[0].name}</div>
+            {sorted.length > 1 && <span className="text-[7px] font-bold">+{sorted.length - 1}</span>}
+        </div>
+    );
 
     return (
-      <div
-        key={item.path}
-        data-explorer-path={item.path}
-        className={`group flex items-center gap-2 rounded px-2 py-1 text-xs transition-colors relative ${
-          isSelected ? 'bg-primary/20 text-foreground' : 'text-muted-foreground hover:text-foreground'
-        } ${ignored ? 'opacity-70' : ''} ${isFocused ? 'ring-1 ring-primary/30' : ''}`}
-        style={{ paddingLeft: `${item.depth * 12 + 8}px` }}
-        onClick={(event) => {
-          handleSelectPath(item.path, event);
-          setFocusedPath(item.path);
-          listRef.current?.focus();
-          if (!isDir && !event.metaKey && !event.ctrlKey && !event.shiftKey) {
-            onOpenFile?.({ path: item.path, mode: 'preview' });
-          }
-        }}
-        onDoubleClick={(event) => {
-          if (!isDir) {
-            event.stopPropagation();
-            onOpenFile?.({ path: item.path, mode: 'pinned' });
-          }
-        }}
-        onContextMenu={(event) => {
-          event.preventDefault();
-          handleSelectPath(item.path, event);
-          setFocusedPath(item.path);
-          setContextMenu({
-            x: event.clientX,
-            y: event.clientY,
-            path: item.path,
-          });
-        }}
-        draggable
-        onDragStart={(event) => {
-          const payload = buildDragPayload(item.path);
-          event.dataTransfer.setData('application/agency-paths', JSON.stringify(payload));
-          event.dataTransfer.effectAllowed = 'move';
-        }}
-        onDragOver={(event) => {
-          if (isDir) {
-            event.preventDefault();
-            event.dataTransfer.dropEffect = 'move';
-          }
-        }}
-        onDrop={async (event) => {
-          if (!isDir) {
-            return;
-          }
-          event.preventDefault();
-          const payload = event.dataTransfer.getData('application/agency-paths');
-          if (!payload) {
-            return;
-          }
-          const paths = JSON.parse(payload);
-          await handleMove(paths, item.path);
-        }}
-      >
-        {isDir ? (
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              togglePath(item.path);
-            }}
-            className="text-muted-foreground/60 hover:text-muted-foreground shrink-0"
-          >
-            {isExpanded ? <ChevronDown size={14} strokeWidth={1.5} /> : <ChevronRight size={14} strokeWidth={1.5} />}
-          </button>
-        ) : (
-          <span className="w-4 shrink-0" />
-        )}
-
-        <div className="relative shrink-0">
-          <FileIcon
-            size={14}
-            strokeWidth={1.5}
-            className={
-              isDir
-                ? 'text-primary/70'
-                : isLink
-                  ? 'text-sky-400'
-                  : ignored
-                    ? 'text-slate-400/40'
-                    : 'text-muted-foreground/70'
-            }
-          />
-          {isLink && (
-            <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-[0.5px] ring-1 ring-sky-500/50">
-              <Link2 size={8} className="text-sky-400" strokeWidth={3} />
-            </div>
-          )}
-          {ignored && (
-            <div className="absolute -top-1 -right-1 bg-background rounded-full p-[0.5px] opacity-40 group-hover:opacity-100 transition-opacity">
-              <EyeOff size={8} className="text-slate-400" strokeWidth={2} />
-            </div>
-          )}
-        </div>
-
-        {renameTarget?.path === item.path ? (
-          <input
-            autoFocus
-            value={renameTarget.value}
-            onChange={(event) =>
-              setRenameTarget((current) => ({ ...current, value: event.target.value }))
-            }
-            onBlur={handleRenameSubmit}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                handleRenameSubmit();
-              }
-              if (event.key === 'Escape') {
-                setRenameTarget(null);
-              }
-            }}
-            className="flex-1 rounded border border-border bg-transparent px-1 text-xs text-foreground focus:outline-none"
-          />
-        ) : (
-          <div className="flex flex-1 items-center gap-2 min-w-0">
-            <span className={`truncate select-none ${ignored ? 'text-muted-foreground/30 line-through decoration-muted-foreground/10' : ''}`}>
-              {node.name}
-            </span>
-            {isOpen ? (
-              <span className="h-1 w-1 rounded-full bg-sky-400/60" title="Open" />
-            ) : null}
-            {isDirty ? (
-              <span className="h-1 w-1 rounded-full bg-amber-400/60 shadow-[0_0_5px_rgba(251,191,36,0.3)]" title="Dirty" />
-            ) : null}
-            {isLink && (
-              <span className="shrink-0 px-1 rounded-[2px] bg-sky-500/10 border border-sky-500/20 text-[8px] font-bold uppercase tracking-tighter text-sky-400">
-                Link
-              </span>
-            )}
-            {ignored && (
-                <span className="shrink-0 text-[8px] font-bold uppercase tracking-widest text-muted-foreground/20 italic">
-                    Ignored
-                </span>
-            )}
-            {isUntracked && !ignored && (
-              <span className="shrink-0 text-[8px] font-black uppercase tracking-tighter text-lime-400/60">
-                untracked
-              </span>
-            )}
-            {isAdded && !ignored && (
-              <span className="shrink-0 text-[8px] font-black uppercase tracking-tighter text-emerald-400/60">
-                added
-              </span>
-            )}
-          </div>
-        )}
-        {renderStatus(item.path, node.type)}
-        {renderCellBadges(item.path, node.type)}
-        {isLoading && <RefreshCw size={12} className="animate-spin text-muted-foreground/50" />}
-      </div>
+      <ExplorerItem
+        key={item.path} item={item} node={node} isSelected={selectionSet.has(item.path)} isFocused={focusedPath === item.path} isLoading={loadingPaths.has(item.path)}
+        isExpanded={expandedPaths.has(item.path) || isSearchActive} isSearchActive={isSearchActive} isOpen={!isDir && openFiles.has(item.path)}
+        isDirty={!isDir && dirtyFiles.has(item.path)} isIgnored={isPathIgnored(item.path)} status={entry?.status} added={entry?.added} deleted={entry?.deleted}
+        cellBadges={cellBadges} depth={item.depth} onToggle={() => togglePath(item.path)}
+        onClick={(e) => { handleSelectPath(item.path, e); setFocusedPath(item.path); listRef.current?.focus(); if (!isDir && !e.metaKey && !e.ctrlKey && !e.shiftKey) onOpenFile?.({ path: item.path, mode: 'preview' }); }}
+        onDoubleClick={(e) => { if (!isDir) { e.stopPropagation(); onOpenFile?.({ path: item.path, mode: 'pinned' }); } }}
+        onContextMenu={(e) => { e.preventDefault(); handleSelectPath(item.path, e); setFocusedPath(item.path); setContextMenu({ x: e.clientX, y: e.clientY, path: item.path }); }}
+        onDragStart={(e) => { const p = buildDragPayload(item.path); e.dataTransfer.setData('application/agency-paths', JSON.stringify(p)); e.dataTransfer.effectAllowed = 'move'; }}
+        onDragOver={(e) => { if (isDir) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
+        onDrop={async (e) => { if (!isDir) return; e.preventDefault(); const p = e.dataTransfer.getData('application/agency-paths'); if (p) await handleMove(JSON.parse(p), item.path); }}
+        renameTarget={renameTarget?.path === item.path ? renameTarget : null} handleRenameSubmit={handleRenameSubmit} setRenameTarget={setRenameTarget}
+      />
     );
   };
 
   const shouldVirtualize = visibleItems.length > VIRTUALIZE_THRESHOLD;
   const totalHeight = visibleItems.length * ROW_HEIGHT;
-  const startIndex = shouldVirtualize
-    ? Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN)
-    : 0;
-  const endIndex = shouldVirtualize
-    ? Math.min(visibleItems.length, Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + OVERSCAN)
-    : visibleItems.length;
+  const startIndex = shouldVirtualize ? Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN) : 0;
+  const endIndex = shouldVirtualize ? Math.min(visibleItems.length, Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + OVERSCAN) : visibleItems.length;
   const visibleSlice = visibleItems.slice(startIndex, endIndex);
   const offsetY = startIndex * ROW_HEIGHT;
 
   const handleKeyDown = (event) => {
-    if (event.target?.tagName === 'INPUT' || event.target?.isContentEditable) {
-      return;
-    }
-    if (!visiblePathsRef.current.length) {
-      return;
-    }
+    if (event.target?.tagName === 'INPUT' || event.target?.isContentEditable || !visiblePathsRef.current.length) return;
     if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey) {
       const key = event.key.toLowerCase();
-      if (key === 'c') {
-        event.preventDefault();
-        handleCopySelection('copy');
-        return;
-      }
-      if (key === 'x') {
-        event.preventDefault();
-        handleCopySelection('cut');
-        return;
-      }
-      if (key === 'v') {
-        event.preventDefault();
-        handlePasteSelection();
-        return;
-      }
+      if (key === 'c') { event.preventDefault(); handleCopySelection('copy'); return; }
+      if (key === 'x') { event.preventDefault(); handleCopySelection('cut'); return; }
+      if (key === 'v') { event.preventDefault(); handlePasteSelection(); return; }
     }
-    const scrollToPath = (path) => {
+    const scrollToPath = (p) => {
       const el = listRef.current;
-      if (!el || !path) {
-        return;
-      }
-      const index = rowIndexByPath.get(path);
-      if (index == null) {
-        return;
-      }
-      const top = index * ROW_HEIGHT;
-      const bottom = top + ROW_HEIGHT;
-      if (top < el.scrollTop) {
-        el.scrollTop = top;
-      } else if (bottom > el.scrollTop + el.clientHeight) {
-        el.scrollTop = bottom - el.clientHeight;
-      }
+      const idx = rowIndexByPath.get(p);
+      if (!el || idx == null) return;
+      const top = idx * ROW_HEIGHT;
+      if (top < el.scrollTop) el.scrollTop = top;
+      else if (top + ROW_HEIGHT > el.scrollTop + el.clientHeight) el.scrollTop = top + ROW_HEIGHT - el.clientHeight;
     };
-    const currentIndex = visiblePathsRef.current.indexOf(focusedPath);
-    const fallbackIndex = currentIndex >= 0 ? currentIndex : 0;
-    const nextIndex = (delta) =>
-      Math.min(visiblePathsRef.current.length - 1, Math.max(0, fallbackIndex + delta));
-
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      const next = visiblePathsRef.current[nextIndex(1)];
-      if (next) {
-        handleSelectPath(next, { shiftKey: event.shiftKey });
-        setFocusedPath(next);
-        scrollToPath(next);
-      }
-      return;
-    }
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      const next = visiblePathsRef.current[nextIndex(-1)];
-      if (next) {
-        handleSelectPath(next, { shiftKey: event.shiftKey });
-        setFocusedPath(next);
-        scrollToPath(next);
-      }
-      return;
-    }
-    if (event.key === 'ArrowRight') {
-      event.preventDefault();
-      const node = tree.nodes[focusedPath];
-      if (node?.type === 'dir') {
-        if (!expandedPaths.has(focusedPath)) {
-          togglePath(focusedPath);
-        } else {
-          const firstChild = (tree.children[focusedPath] || [])[0];
-          if (firstChild) {
-            handleSelectPath(firstChild, { shiftKey: event.shiftKey });
-            setFocusedPath(firstChild);
-            scrollToPath(firstChild);
-          }
-        }
-      }
-      return;
-    }
-    if (event.key === 'ArrowLeft') {
-      event.preventDefault();
-      const node = tree.nodes[focusedPath];
-      if (node?.type === 'dir' && expandedPaths.has(focusedPath)) {
-        togglePath(focusedPath);
-        return;
-      }
-      const parent = explorerPathUtils.dirname(focusedPath);
-      if (parent !== focusedPath && parent !== undefined) {
-        handleSelectPath(parent, { shiftKey: event.shiftKey });
-        setFocusedPath(parent);
-        scrollToPath(parent);
-      }
-      return;
-    }
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      const node = tree.nodes[focusedPath];
-      if (node?.type === 'dir') {
-        togglePath(focusedPath);
-      } else if (focusedPath) {
-        onOpenFile?.({ path: focusedPath, mode: 'pinned' });
-      }
-      return;
-    }
-    if (event.key === 'F2') {
-      if (focusedPath) {
-        event.preventDefault();
-        setRenameTarget({ path: focusedPath, value: explorerPathUtils.basename(focusedPath) });
-      }
-      return;
-    }
-    if (event.key === 'Delete' || event.key === 'Backspace') {
-      if (selectionTargets.length) {
-        event.preventDefault();
-        handleDelete(selectionTargets);
-      }
-    }
+    const curIdx = visiblePathsRef.current.indexOf(focusedPath);
+    const next = (d) => visiblePathsRef.current[Math.min(visiblePathsRef.current.length - 1, Math.max(0, (curIdx >= 0 ? curIdx : 0) + d))];
+    if (event.key === 'ArrowDown') { event.preventDefault(); const n = next(1); if (n) { handleSelectPath(n, { shiftKey: event.shiftKey }); setFocusedPath(n); scrollToPath(n); } }
+    if (event.key === 'ArrowUp') { event.preventDefault(); const n = next(-1); if (n) { handleSelectPath(n, { shiftKey: event.shiftKey }); setFocusedPath(n); scrollToPath(n); } }
+    if (event.key === 'ArrowRight') { event.preventDefault(); if (tree.nodes[focusedPath]?.type === 'dir') { if (!expandedPaths.has(focusedPath)) togglePath(focusedPath); else { const first = (tree.children[focusedPath] || [])[0]; if (first) { handleSelectPath(first, { shiftKey: event.shiftKey }); setFocusedPath(first); scrollToPath(first); } } } } 
+    if (event.key === 'ArrowLeft') { event.preventDefault(); if (tree.nodes[focusedPath]?.type === 'dir' && expandedPaths.has(focusedPath)) togglePath(focusedPath); else { const p = explorerPathUtils.dirname(focusedPath); if (p !== focusedPath && p !== undefined) { handleSelectPath(p, { shiftKey: event.shiftKey }); setFocusedPath(p); scrollToPath(p); } } }
+    if (event.key === 'Enter') { event.preventDefault(); if (tree.nodes[focusedPath]?.type === 'dir') togglePath(focusedPath); else if (focusedPath) onOpenFile?.({ path: focusedPath, mode: 'pinned' }); }
+    if (event.key === 'F2' && focusedPath) { event.preventDefault(); setRenameTarget({ path: focusedPath, value: explorerPathUtils.basename(focusedPath) }); }
+    if ((event.key === 'Delete' || event.key === 'Backspace') && selectionTargets.length) { event.preventDefault(); handleDelete(selectionTargets); }
   };
 
   return (
     <aside className="relative flex h-full w-full flex-col bg-sidebar select-none">
-      <header
-        data-testid="explorer-header"
-        className="shrink-0 space-y-3 px-4 py-3 border-b border-border/50"
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col min-w-0">
-            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">Explorer</h2>
-            <div className="flex items-center gap-1.5 mt-0.5">
-               <span className="text-xs font-semibold text-foreground truncate">{activeRootLabel}</span>
-               <div className="h-1 w-1 rounded-full bg-primary/40" />
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-                type="button"
-                className="p-1 text-muted-foreground/60 hover:text-foreground transition-colors rounded hover:bg-muted/30"
-                onClick={() => onJumpToAgents?.()}
-                title="Go to Agent Cells"
-            >
-                <Layers size={14} strokeWidth={1.5} />
-            </button>
-            <button
-                type="button"
-                className="p-1 text-muted-foreground/60 hover:text-foreground transition-colors rounded hover:bg-muted/30"
-                onClick={() => startDraft('file')}
-                title="New File"
-            >
-                <FilePlus2 size={14} strokeWidth={1.5} />
-            </button>
-            <button
-                type="button"
-                className="p-1 text-muted-foreground/60 hover:text-foreground transition-colors rounded hover:bg-muted/30"
-                onClick={() => startDraft('dir')}
-                title="New Folder"
-            >
-                <FolderPlus size={14} strokeWidth={1.5} />
-            </button>
-            <button
-                type="button"
-                className="p-1 text-muted-foreground/60 hover:text-foreground transition-colors rounded hover:bg-muted/30"
-                onClick={() => refreshAll()}
-                title="Refresh"
-            >
-                <RefreshCw size={14} strokeWidth={1.5} className={Object.keys(loadingPaths).length > 0 ? "animate-spin" : ""} />
-            </button>
-          </div>
-        </div>
-
-        {hasCells && (
-          <div className="group relative">
-            <select
-              className="w-full appearance-none rounded border border-border/40 bg-muted/20 px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-all focus:border-primary/50 focus:outline-none hover:border-border/80 cursor-pointer"
-              value={selectedId || ''}
-              onChange={(event) => onSelectCell?.(event.target.value)}
-            >
-              {cells.map((cell) => (
-                <option key={cell.id} value={cell.id}>
-                  Agent: {cell.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={10} className="absolute right-2 top-2.5 text-muted-foreground/40 pointer-events-none group-hover:text-muted-foreground transition-colors" />
-          </div>
-        )}
-
-        <div className="flex items-center gap-1.5">
-          <div className="relative flex-1 group">
-            <Search size={12} strokeWidth={2} className="absolute left-2.5 top-2 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
-            <input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search files..."
-              className="w-full rounded-full border border-border/40 bg-muted/10 px-8 py-1.5 text-[11px] text-foreground transition-all placeholder:text-muted-foreground/30 focus:bg-background focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                className="absolute right-2.5 top-1.5 text-muted-foreground/40 hover:text-foreground"
-                onClick={() => setSearchQuery('')}
-              >
-                <X size={12} strokeWidth={1.5} />
-              </button>
-            )}
-          </div>
-          <button
-            type="button"
-            data-testid="explorer-filter-toggle"
-            data-explorer-filter-toggle
-            className={`flex h-7 w-7 items-center justify-center rounded-full border transition-all ${
-              hasActiveFilters
-                ? 'border-primary/40 bg-primary/10 text-primary active-tab-glow'
-                : 'border-border/40 text-muted-foreground/50 hover:border-border hover:text-foreground'
-            }`}
-            onClick={() => setFilterMenuOpen((value) => !value)}
-            title="Explorer filters"
-          >
-            <Filter size={12} strokeWidth={1.5} />
-          </button>
-        </div>
-
-        {searchTruncated && (
-          <div className="flex items-center gap-1.5 px-1 text-[10px] text-amber-400/70 italic">
-            <Info size={10} />
-            Search results truncated
-          </div>
-        )}
-
-        {selectionCount > 0 ? (
-          <div className="flex items-center justify-between rounded border border-border/50 bg-muted/20 px-2 py-1 text-[10px] text-muted-foreground/80">
-            <span>{selectionCount} selected</span>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                className="rounded border border-border/60 px-2 py-0.5 text-[10px] hover:text-foreground"
-                onClick={() => handleCopyPath(selectionTargets)}
-              >
-                Copy Paths
-              </button>
-              <button
-                type="button"
-                className="rounded border border-rose-500/40 px-2 py-0.5 text-[10px] text-rose-300 hover:text-rose-200"
-                onClick={() => handleDelete(selectionTargets)}
-              >
-                Delete
-              </button>
-              <button
-                type="button"
-                className="rounded border border-border/60 px-2 py-0.5 text-[10px] hover:text-foreground"
-                onClick={clearSelection}
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-        ) : null}
-      </header>
+      <ExplorerHeader
+        activeRootLabel={activeRootLabel} onJumpToAgents={onJumpToAgents} onNewFile={() => startDraft('file')} onNewFolder={() => startDraft('dir')}
+        onRefresh={refreshAll} isLoading={loadingPaths.size > 0} hasCells={hasCells} cells={cells} selectedId={selectedId} onSelectCell={onSelectCell}
+        searchQuery={searchQuery} onSearchChange={setSearchQuery} onClearSearch={() => setSearchQuery('')}
+        hasActiveFilters={hasActiveFilters} onToggleFilterMenu={() => setFilterMenuOpen(!filterMenuOpen)}
+        searchTruncated={searchTruncated} selectionCount={selectionCount} onCopyPaths={() => handleCopyPath(selectionTargets)}
+        onDeleteSelection={() => handleDelete(selectionTargets)} onClearSelection={clearSelection}
+      />
 
       {filterMenuOpen && (
-        <div
-          data-explorer-filter-menu
-          className="absolute right-4 top-[128px] z-50 w-56 rounded-lg border border-border/60 bg-popover/95 p-3 text-[11px] text-muted-foreground shadow-2xl backdrop-blur-md"
-        >
-          <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-            Visibility
-          </div>
-          <div className="space-y-1">
-            <button
-              type="button"
-              className="flex w-full items-center justify-between rounded px-2 py-1 hover:bg-muted/40 hover:text-foreground"
-              onClick={() => setShowHidden((value) => !value)}
-            >
-              <span>Show hidden</span>
-              <span className={`h-3 w-3 rounded border ${showHidden ? 'bg-primary/50 border-primary/60' : 'border-border'}`} />
-            </button>
-            <button
-              type="button"
-              className="flex w-full items-center justify-between rounded px-2 py-1 hover:bg-muted/40 hover:text-foreground"
-              onClick={() => setShowIgnored((value) => !value)}
-            >
-              <span>Show ignored</span>
-              <span className={`h-3 w-3 rounded border ${showIgnored ? 'bg-primary/50 border-primary/60' : 'border-border'}`} />
-            </button>
-            <button
-              type="button"
-              className="flex w-full items-center justify-between rounded px-2 py-1 hover:bg-muted/40 hover:text-foreground"
-              onClick={() => setShowChangesOnly((value) => !value)}
-            >
-              <span>Changes only</span>
-              <span className={`h-3 w-3 rounded border ${showChangesOnly ? 'bg-primary/50 border-primary/60' : 'border-border'}`} />
-            </button>
-          </div>
-          <div className="mt-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-            Status Filters
-          </div>
-          <div className="mt-2 grid grid-cols-2 gap-1">
-            {STATUS_FILTERS.map((status) => {
-              const active = statusFilterSet.has(status);
-              return (
-                <button
-                  key={status}
-                  type="button"
-                  className={`flex items-center gap-2 rounded px-2 py-1 text-left hover:bg-muted/40 hover:text-foreground ${
-                    active ? 'bg-muted/40 text-foreground' : ''
-                  }`}
-                  onClick={() => toggleStatusFilter(status)}
-                >
-                  <span
-                    className={`rounded border px-1 text-[9px] font-semibold ${statusBadgeStyles[status]} ${statusColors[status]}`}
-                  >
-                    {statusBadges[status]}
-                  </span>
-                  <span className="truncate">{statusLabels[status] || status}</span>
-                </button>
-              );
-            })}
-          </div>
-          {statusFilters.length > 0 ? (
-            <button
-              type="button"
-              className="mt-3 w-full rounded border border-border/60 px-2 py-1 text-[10px] hover:text-foreground"
-              onClick={() => setStatusFilters([])}
-            >
-              Clear status filters
-            </button>
-          ) : null}
-        </div>
+        <ExplorerFilterPanel
+          showHidden={showHidden} setShowHidden={setShowHidden} showIgnored={showIgnored} setShowIgnored={setShowIgnored}
+          showChangesOnly={showChangesOnly} setShowChangesOnly={setShowChangesOnly} statusFilterSet={statusFilterSet}
+          toggleStatusFilter={toggleStatusFilter} clearStatusFilters={() => setStatusFilters([])} statusFiltersCount={statusFilters.length}
+        />
       )}
 
-      {selectedCell ? (
-        <div className="border-b border-border/50 px-4 py-2 text-[10px] text-muted-foreground/70">
-          <div className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground/60">
-            Sessions
-          </div>
-          <div className="space-y-1">
-            {(sessions || []).filter((session) => session.status !== 'closed').map((session) => {
-              const key = `${selectedCell.id}:${session.id}`;
-              const lastActivity = sessionActivityByKey?.[key];
-              const fallbackTime = session.updatedAt ? new Date(session.updatedAt).getTime() : now;
-              const idleMs = now - (lastActivity || fallbackTime);
-              const isActive = session.id === activeSessionId;
-              const statusLabel =
-                session.status === 'detached'
-                  ? 'Detached'
-                  : session.status === 'stale'
-                    ? 'Stale'
-                    : isActive
-                      ? 'Active'
-                      : `Idle ${formatIdle(idleMs)}`;
-              return (
-                <div key={session.id} className="flex items-center justify-between gap-2">
-                  <span className="truncate">{session.name || session.id}</span>
-                  <span className={isActive ? 'text-emerald-400' : 'text-muted-foreground/50'}>
-                    {statusLabel}
-                  </span>
-                </div>
-              );
-            })}
-            {sessions && sessions.filter((session) => session.status !== 'closed').length === 0 ? (
-              <div className="text-[10px] text-muted-foreground/50">No active sessions</div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+      <ExplorerSessions selectedCell={selectedCell} sessions={sessions} sessionActivityByKey={sessionActivityByKey} activeSessionId={activeSessionId} now={now} />
 
       {error && (
         <div className="mx-2 mt-2 flex items-start gap-2 rounded border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-[11px] text-rose-300 animate-tab-in">
@@ -1481,45 +408,29 @@ function ProjectExplorerSidebarContent({
       )}
 
       <div
-        ref={listRef}
-        data-testid="explorer-tree"
-        className="flex-1 overflow-y-auto px-1 py-2 focus:outline-none"
-        tabIndex={0}
-        onClick={() => closeContextMenu()}
-        onKeyDown={handleKeyDown}
+        ref={listRef} data-testid="explorer-tree" className="flex-1 overflow-y-auto px-1 py-2 focus:outline-none" tabIndex={0}
+        onClick={() => closeContextMenu()} onKeyDown={handleKeyDown}
+        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
       >
         {visibleItems.length === 0 ? (
           <div className="px-3 py-2 text-xs text-muted-foreground/60">No files to display.</div>
-        ) : shouldVirtualize ? (
+        ) : (
           <div style={{ height: totalHeight, position: 'relative' }}>
             <div style={{ transform: `translateY(${offsetY}px)` }}>
-              {visibleSlice.map((item) => renderRow(item))}
+              {visibleSlice.map((it) => renderNodeRow(it))}
             </div>
-          </div>
-        ) : (
-          <div>
-            {visibleSlice.map((item) => renderRow(item))}
           </div>
         )}
       </div>
 
       {contextMenu && (
         <ExplorerContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onClose={closeContextMenu}
-          selectionTargets={selectionTargets}
-          canPaste={canPaste}
-          onNewFile={() => startDraft('file')}
-          onNewFolder={() => startDraft('dir')}
+          x={contextMenu.x} y={contextMenu.y} onClose={closeContextMenu} selectionTargets={selectionTargets} canPaste={canPaste}
+          onNewFile={() => startDraft('file')} onNewFolder={() => startDraft('dir')}
           onRename={() => setRenameTarget({ path: selectionTargets[0], value: explorerPathUtils.basename(selectionTargets[0]) })}
-          onDuplicate={() => handleDuplicate(selectionTargets[0])}
-          onCopy={() => handleCopySelection('copy')}
-          onCut={() => handleCopySelection('cut')}
-          onPaste={handlePasteSelection}
-          onPasteMarkdown={handlePasteMarkdown}
-          onReveal={() => handleReveal(selectionTargets)}
-          onDelete={() => handleDelete(selectionTargets)}
+          onDuplicate={() => handleDuplicate(selectionTargets[0])} onCopy={() => handleCopySelection('copy')}
+          onCut={() => handleCopySelection('cut')} onPaste={handlePasteSelection} onPasteMarkdown={handlePasteMarkdown}
+          onReveal={() => handleReveal(selectionTargets)} onDelete={() => handleDelete(selectionTargets)}
         />
       )}
     </aside>
@@ -1527,23 +438,9 @@ function ProjectExplorerSidebarContent({
 }
 
 export function ProjectExplorerSidebar({
-  rootPath: scopeRootPath,
-  rootLabel: scopeRootLabel,
-  cells,
-  selectedId,
-  onSelectCell,
-  selectedCell,
-  sessions,
-  activeSessionId,
-  sessionActivityByKey,
-  onOpenFile,
-  onJumpToAgents,
-  workbenchMeta,
-  projectReady,
-  projectError,
-  onSelectProject,
-  recentProjects,
-  onOpenRecentProject,
+  rootPath: scopeRootPath, rootLabel: scopeRootLabel, cells, selectedId, onSelectCell, selectedCell,
+  sessions, activeSessionId, sessionActivityByKey, onOpenFile, onJumpToAgents, workbenchMeta,
+  projectReady, projectError, onSelectProject, recentProjects, onOpenRecentProject,
 }) {
   if (!projectReady) {
     return (
@@ -1552,26 +449,11 @@ export function ProjectExplorerSidebar({
           <span>Explorer</span>
         </div>
         <div className="flex-1 px-4 py-6 text-xs text-muted-foreground">
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground/70">
-            No project selected
-          </div>
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground/70">No project selected</div>
           <div className="mt-2 text-sm text-foreground">Choose a project to browse files.</div>
-          {projectError ? (
-            <div className="mt-2 text-rose-300">{projectError}</div>
-          ) : null}
-          <button
-            type="button"
-            onClick={onSelectProject}
-            className="mt-4 inline-flex items-center gap-2 rounded-full border border-primary/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary transition-colors hover:bg-primary/10"
-          >
-            Select Project
-          </button>
-          <RecentProjectsList
-            projects={recentProjects}
-            onOpen={onOpenRecentProject}
-            title="Recent Projects"
-            emptyLabel="No recent projects yet"
-          />
+          {projectError && <div className="mt-2 text-rose-300">{projectError}</div>}
+          <button type="button" onClick={onSelectProject} className="mt-4 inline-flex items-center gap-2 rounded-full border border-primary/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary transition-colors hover:bg-primary/10">Select Project</button>
+          <RecentProjectsList projects={recentProjects} onOpen={onOpenRecentProject} title="Recent Projects" emptyLabel="No recent projects yet" />
         </div>
       </aside>
     );
@@ -1579,23 +461,10 @@ export function ProjectExplorerSidebar({
 
   return (
     <ProjectExplorerSidebarContent
-      rootPath={scopeRootPath}
-      rootLabel={scopeRootLabel}
-      cells={cells}
-      selectedId={selectedId}
-      onSelectCell={onSelectCell}
-      selectedCell={selectedCell}
-      sessions={sessions}
-      activeSessionId={activeSessionId}
-      sessionActivityByKey={sessionActivityByKey}
-      onOpenFile={onOpenFile}
-      onJumpToAgents={onJumpToAgents}
-      workbenchMeta={workbenchMeta}
-      projectReady={projectReady}
-      projectError={projectError}
-      onSelectProject={onSelectProject}
-      recentProjects={recentProjects}
-      onOpenRecentProject={onOpenRecentProject}
+      rootPath={scopeRootPath} rootLabel={scopeRootLabel} cells={cells} selectedId={selectedId} onSelectCell={onSelectCell}
+      selectedCell={selectedCell} sessions={sessions} activeSessionId={activeSessionId} sessionActivityByKey={sessionActivityByKey}
+      onOpenFile={onOpenFile} onJumpToAgents={onJumpToAgents} workbenchMeta={workbenchMeta} projectReady={projectReady}
+      projectError={projectError} onSelectProject={onSelectProject} recentProjects={recentProjects} onOpenRecentProject={onOpenRecentProject}
     />
   );
 }
