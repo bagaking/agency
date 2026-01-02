@@ -1113,7 +1113,6 @@ function App() {
         onToggleHilDrawer={setHilDrawerOpen}
         onSelectHilDrawerPanel={setHilDrawerPanel}
         hilCommentsProps={hilCommentsProps}
-        activeRootLabel={explorerRootLabel}
         explorerSidebarProps={{
           rootPath: explorerRootPath,
           rootLabel: explorerRootLabel,

@@ -97,7 +97,6 @@ export function AppLayout({
   explorerSidebarProps,
   explorerPaneProps,
   memoPaneProps,
-  activeRootLabel,
   hilDrawerOpen,
   hilDrawerPanel,
   onToggleHilDrawer,

@@ -8,33 +8,31 @@ const panels = [
 
 export function HilDrawer({
   open,
-  isOpen,
   activePanel,
   onToggle,
-  onClose,
   onSelectPanel,
   children,
   title,
   subtitle,
 }) {
-  const drawerOpen = typeof open === 'boolean' ? open : Boolean(isOpen);
+  const drawerOpen = Boolean(open);
   const handleToggle = () => {
     if (typeof onToggle === 'function') {
       onToggle(!drawerOpen);
-      return;
-    }
-    if (drawerOpen && typeof onClose === 'function') {
-      onClose();
     }
   };
 
   return (
     <aside
       className={`relative flex h-full flex-shrink-0 flex-col border-l border-white/[0.03] bg-[#111318]/90 backdrop-blur-2xl transition-all duration-300 ${
-        drawerOpen ? 'w-[360px]' : 'w-8'
+        drawerOpen ? 'w-[360px]' : 'w-6'
       }`}
     >
-      <header className="shrink-0 h-11 flex items-center gap-2 px-2 border-b border-white/[0.02] bg-white/[0.01]">
+      <header
+        className={`shrink-0 h-11 flex items-center gap-2 border-b border-white/[0.02] bg-white/[0.01] ${
+          drawerOpen ? 'px-2' : 'px-0 justify-center'
+        }`}
+      >
         <button
           type="button"
           onClick={handleToggle}

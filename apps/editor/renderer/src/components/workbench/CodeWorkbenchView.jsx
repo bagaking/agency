@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import { AlertTriangle, MessageSquarePlus, Plus } from 'lucide-react';
@@ -70,7 +70,7 @@ export function CodeWorkbenchView({
   const onLineCommentRef = useRef(onLineComment);
   const commentsEnabledRef = useRef(commentsEnabled);
   const commentActionRef = useRef(null);
-  const commentActionLineRef = useRef(null);
+  const commentActionUpdaterRef = useRef(null);
   const commentContextRef = useRef({ line: null, column: null });
 
   const blameMap = useMemo(() => toBlameMap(blameLines), [blameLines]);
@@ -125,22 +125,26 @@ export function CodeWorkbenchView({
     commentsEnabledRef.current = commentsEnabled;
   }, [commentsEnabled]);
 
-  const registerCommentAction = useCallback((lineNumber) => {
+  useEffect(() => {
     if (!monaco || !editorRef.current || !editorReady) {
-      return;
+      return undefined;
     }
-    const nextLine = Math.max(1, Number(lineNumber) || 1);
-    if (commentActionRef.current && commentActionLineRef.current === nextLine) {
-      return;
-    }
-    if (commentActionRef.current?.dispose) {
-      commentActionRef.current.dispose();
+    if (commentActionRef.current) {
+      return undefined;
     }
     const editor = editorRef.current;
-    const action = editor.addAction({
+    const updateLabel = (lineNumber) => {
+      const nextLine = Math.max(1, Number(lineNumber) || 1);
+      const action = editor.getAction(COMMENT_ACTION_ID);
+      if (action) {
+        action.label = buildCommentActionLabel(nextLine);
+      }
+    };
+    commentActionUpdaterRef.current = updateLabel;
+    const actionDisposable = editor.addAction({
       id: COMMENT_ACTION_ID,
-      label: buildCommentActionLabel(nextLine),
-      iconClass: 'agency-comment-action',
+      label: buildCommentActionLabel(editor.getPosition()?.lineNumber || 1),
+      iconClass: 'codicon codicon-comment',
       contextMenuGroupId: 'navigation',
       contextMenuOrder: 1.5,
       run: () => {
@@ -163,24 +167,16 @@ export function CodeWorkbenchView({
         return null;
       },
     });
-    commentActionRef.current = action;
-    commentActionLineRef.current = nextLine;
-  }, [editorReady, monaco]);
-
-  useEffect(() => {
-    if (!monaco || !editorRef.current || !editorReady) {
-      return undefined;
-    }
-    registerCommentAction(editorRef.current.getPosition()?.lineNumber || 1);
+    commentActionRef.current = actionDisposable;
     return () => {
       if (commentActionRef.current?.dispose) {
         commentActionRef.current.dispose();
       }
       commentActionRef.current = null;
-      commentActionLineRef.current = null;
+      commentActionUpdaterRef.current = null;
       commentContextRef.current = { line: null, column: null };
     };
-  }, [editorReady, monaco, registerCommentAction]);
+  }, [editorReady, monaco]);
 
   useEffect(() => {
     if (!editorReady) {
@@ -246,7 +242,7 @@ export function CodeWorkbenchView({
         line: event.position.lineNumber,
         column: event.position.column,
       };
-      registerCommentAction(event.position.lineNumber);
+      commentActionUpdaterRef.current?.(event.position.lineNumber);
     });
     const handleMouse = editor.onMouseMove((event) => {
       const lineNumber =
@@ -301,6 +297,31 @@ export function CodeWorkbenchView({
         setCommentAnchor(anchor);
       }
     });
+    const handleMouseDown = editor.onMouseDown((event) => {
+      if (!commentsEnabledRef.current) {
+        return;
+      }
+      if (!event?.event?.rightButton && !event?.event?.ctrlKey) {
+        return;
+      }
+      const lineNumber =
+        event.target?.position?.lineNumber ||
+        event.target?.range?.startLineNumber ||
+        event.target?.range?.endLineNumber ||
+        editor.getPosition()?.lineNumber ||
+        1;
+      const column =
+        event.target?.position?.column ||
+        event.target?.range?.startColumn ||
+        editor.getPosition()?.column ||
+        1;
+      commentContextRef.current = {
+        line: lineNumber,
+        column,
+      };
+      commentActionUpdaterRef.current?.(lineNumber);
+      editor.setPosition({ lineNumber, column });
+    });
     const handleContextMenu = editor.onContextMenu((event) => {
       const lineNumber =
         event?.target?.position?.lineNumber ||
@@ -317,12 +338,13 @@ export function CodeWorkbenchView({
         line: lineNumber,
         column,
       };
-      registerCommentAction(lineNumber);
+      commentActionUpdaterRef.current?.(lineNumber);
     });
     return () => {
       handleCursor.dispose();
       handleMouse.dispose();
       handleMouseLeave.dispose();
+      handleMouseDown.dispose();
       handleScroll.dispose();
       handleLayout.dispose();
       handleContextMenu.dispose();
@@ -330,7 +352,7 @@ export function CodeWorkbenchView({
         window.clearTimeout(hideTimerRef.current);
       }
     };
-  }, [commentsEnabled, monaco, onCursorChange, registerCommentAction]);
+  }, [commentsEnabled, monaco, onCursorChange]);
 
   useEffect(() => {
     if (!commentsEnabled) {
