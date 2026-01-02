@@ -34,13 +34,13 @@ export function ExplorerHeader({
   onClearSelection,
 }) {
   return (
-    <header data-testid="explorer-header" className="shrink-0 space-y-3 px-4 py-3 border-b border-border/50">
+    <header data-testid="explorer-header" className="shrink-0 space-y-3 px-4 py-3 border-b border-border/50 bg-sidebar">
       <div className="flex items-center justify-between">
         <div className="flex flex-col min-w-0">
           <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">Explorer</h2>
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className="text-xs font-semibold text-foreground truncate">{activeRootLabel}</span>
-            <div className="h-1 w-1 rounded-full bg-primary/40" />
+            <div className="h-1 w-1 rounded-full bg-primary/80" />
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -59,12 +59,12 @@ export function ExplorerHeader({
       {hasCells && (
         <div className="group relative">
           <select
-            className="w-full appearance-none rounded border border-border/40 bg-muted/20 px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-all focus:border-primary/50 focus:outline-none hover:border-border/80 cursor-pointer"
+            className="w-full appearance-none rounded border border-border/40 bg-muted/10 px-2 py-1.5 text-[11px] font-medium text-foreground transition-all focus:border-primary/50 focus:outline-none hover:border-border/80 cursor-pointer"
             value={selectedId || ''}
             onChange={(e) => onSelectCell?.(e.target.value)}
           >
             {cells.map((cell) => (
-              <option key={cell.id} value={cell.id}>Agent: {cell.name}</option>
+              <option key={cell.id} value={cell.id} className="bg-popover text-foreground">Agent: {cell.name}</option>
             ))}
           </select>
           <ChevronDown size={10} className="absolute right-2 top-2.5 text-muted-foreground/40 pointer-events-none group-hover:text-muted-foreground transition-colors" />
