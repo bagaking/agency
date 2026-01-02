@@ -71,6 +71,7 @@ export function CodeWorkbenchView({
   const commentsEnabledRef = useRef(commentsEnabled);
   const commentActionRef = useRef(null);
   const commentActionUpdaterRef = useRef(null);
+  const commentActionLabelRef = useRef(null);
   const commentContextRef = useRef({ line: null, column: null });
 
   const blameMap = useMemo(() => toBlameMap(blameLines), [blameLines]);
@@ -129,50 +130,52 @@ export function CodeWorkbenchView({
     if (!monaco || !editorRef.current || !editorReady) {
       return undefined;
     }
-    if (commentActionRef.current) {
-      return undefined;
-    }
     const editor = editorRef.current;
-    const updateLabel = (lineNumber) => {
+    const ensureAction = (lineNumber) => {
       const nextLine = Math.max(1, Number(lineNumber) || 1);
-      const action = editor.getAction(COMMENT_ACTION_ID);
-      if (action) {
-        action.label = buildCommentActionLabel(nextLine);
+      const nextLabel = buildCommentActionLabel(nextLine);
+      if (commentActionRef.current && commentActionLabelRef.current === nextLabel) {
+        return;
       }
+      if (commentActionRef.current?.dispose) {
+        commentActionRef.current.dispose();
+      }
+      commentActionLabelRef.current = nextLabel;
+      commentActionRef.current = editor.addAction({
+        id: COMMENT_ACTION_ID,
+        label: nextLabel,
+        iconClass: 'codicon codicon-comment',
+        contextMenuGroupId: 'navigation',
+        contextMenuOrder: 1.5,
+        run: () => {
+          if (!commentsEnabledRef.current) {
+            return null;
+          }
+          const position = editor.getPosition();
+          const fallbackLine = position?.lineNumber;
+          const fallbackColumn = position?.column;
+          const contextLine = commentContextRef.current.line || fallbackLine;
+          const contextColumn = commentContextRef.current.column || fallbackColumn;
+          if (!contextLine) {
+            return null;
+          }
+          commentContextRef.current = { line: null, column: null };
+          onLineCommentRef.current?.({
+            line: contextLine,
+            column: contextColumn || 1,
+          });
+          return null;
+        },
+      });
     };
-    commentActionUpdaterRef.current = updateLabel;
-    const actionDisposable = editor.addAction({
-      id: COMMENT_ACTION_ID,
-      label: buildCommentActionLabel(editor.getPosition()?.lineNumber || 1),
-      iconClass: 'codicon codicon-comment',
-      contextMenuGroupId: 'navigation',
-      contextMenuOrder: 1.5,
-      run: () => {
-        if (!commentsEnabledRef.current) {
-          return null;
-        }
-        const position = editor.getPosition();
-        const fallbackLine = position?.lineNumber;
-        const fallbackColumn = position?.column;
-        const contextLine = commentContextRef.current.line || fallbackLine;
-        const contextColumn = commentContextRef.current.column || fallbackColumn;
-        if (!contextLine) {
-          return null;
-        }
-        commentContextRef.current = { line: null, column: null };
-        onLineCommentRef.current?.({
-          line: contextLine,
-          column: contextColumn || 1,
-        });
-        return null;
-      },
-    });
-    commentActionRef.current = actionDisposable;
+    commentActionUpdaterRef.current = ensureAction;
+    ensureAction(editor.getPosition()?.lineNumber || 1);
     return () => {
       if (commentActionRef.current?.dispose) {
         commentActionRef.current.dispose();
       }
       commentActionRef.current = null;
+      commentActionLabelRef.current = null;
       commentActionUpdaterRef.current = null;
       commentContextRef.current = { line: null, column: null };
     };
@@ -242,7 +245,6 @@ export function CodeWorkbenchView({
         line: event.position.lineNumber,
         column: event.position.column,
       };
-      commentActionUpdaterRef.current?.(event.position.lineNumber);
     });
     const handleMouse = editor.onMouseMove((event) => {
       const lineNumber =
