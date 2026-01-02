@@ -160,7 +160,6 @@ export function EditorPane({
         <div className="h-32 w-32 mb-4 opacity-50">
           <RiveAnimation
             src={`${assetBase}assets/animations/empty-state.riv`}
-            animations="Timeline 1"
             className="w-full h-full"
             fallback={<MonitorPlay size={64} className="w-full h-full p-4 opacity-20" />}
           />

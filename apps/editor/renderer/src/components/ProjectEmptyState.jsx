@@ -10,7 +10,6 @@ export function ProjectEmptyState({ title, description, error, onSelect }) {
       <div className="h-28 w-28 mb-4 opacity-50">
         <RiveAnimation
           src={`${assetBase}assets/animations/empty-state.riv`}
-          animations="Timeline 1"
           className="w-full h-full"
           fallback={<FolderOpen size={48} className="w-full h-full p-3 opacity-20" />}
         />

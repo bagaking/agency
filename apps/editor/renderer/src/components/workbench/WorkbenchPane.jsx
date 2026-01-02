@@ -95,6 +95,24 @@ export function WorkbenchPane({
       />
     );
   }
+  return (
+    <WorkbenchPaneContent
+      workbench={workbench}
+      activeRootPath={activeRootPath}
+      activeRootLabel={activeRootLabel}
+      onTabMetaChange={onTabMetaChange}
+      cellId={cellId}
+    />
+  );
+}
+
+function WorkbenchPaneContent({
+  workbench,
+  activeRootPath,
+  activeRootLabel,
+  onTabMetaChange,
+  cellId,
+}) {
   const {
     tabs,
     activeTab,

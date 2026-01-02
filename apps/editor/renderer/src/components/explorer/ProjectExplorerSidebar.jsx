@@ -136,7 +136,7 @@ const pickPrimaryStatus = (statusCounts = {}) => {
   return null;
 };
 
-export function ProjectExplorerSidebar({
+function ProjectExplorerSidebarContent({
   rootPath: scopeRootPath,
   rootLabel: scopeRootLabel,
   cells,
@@ -197,38 +197,6 @@ export function ProjectExplorerSidebar({
     getVisiblePaths: () => visiblePathsRef.current,
     enabled: projectReady,
   });
-
-  if (!projectReady) {
-    return (
-      <aside className="flex w-full flex-col text-sidebar-foreground" data-testid="explorer-sidebar">
-        <div className="flex items-center justify-between px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          <span>Explorer</span>
-        </div>
-        <div className="flex-1 px-4 py-6 text-xs text-muted-foreground">
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground/70">
-            No project selected
-          </div>
-          <div className="mt-2 text-sm text-foreground">Choose a project to browse files.</div>
-          {projectError ? (
-            <div className="mt-2 text-rose-300">{projectError}</div>
-          ) : null}
-          <button
-            type="button"
-            onClick={onSelectProject}
-            className="mt-4 inline-flex items-center gap-2 rounded-full border border-primary/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary transition-colors hover:bg-primary/10"
-          >
-            Select Project
-          </button>
-          <RecentProjectsList
-            projects={recentProjects}
-            onOpen={onOpenRecentProject}
-            title="Recent Projects"
-            emptyLabel="No recent projects yet"
-          />
-        </div>
-      </aside>
-    );
-  }
 
   const [draftEntry, setDraftEntry] = useState(null);
   const [renameTarget, setRenameTarget] = useState(null);
@@ -1365,6 +1333,80 @@ export function ProjectExplorerSidebar({
         </div>
       )}
     </aside>
+  );
+}
+
+export function ProjectExplorerSidebar({
+  rootPath: scopeRootPath,
+  rootLabel: scopeRootLabel,
+  cells,
+  selectedId,
+  onSelectCell,
+  selectedCell,
+  sessions,
+  activeSessionId,
+  sessionActivityByKey,
+  onOpenFile,
+  onJumpToAgents,
+  workbenchMeta,
+  projectReady,
+  projectError,
+  onSelectProject,
+  recentProjects,
+  onOpenRecentProject,
+}) {
+  if (!projectReady) {
+    return (
+      <aside className="flex w-full flex-col text-sidebar-foreground" data-testid="explorer-sidebar">
+        <div className="flex items-center justify-between px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <span>Explorer</span>
+        </div>
+        <div className="flex-1 px-4 py-6 text-xs text-muted-foreground">
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground/70">
+            No project selected
+          </div>
+          <div className="mt-2 text-sm text-foreground">Choose a project to browse files.</div>
+          {projectError ? (
+            <div className="mt-2 text-rose-300">{projectError}</div>
+          ) : null}
+          <button
+            type="button"
+            onClick={onSelectProject}
+            className="mt-4 inline-flex items-center gap-2 rounded-full border border-primary/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary transition-colors hover:bg-primary/10"
+          >
+            Select Project
+          </button>
+          <RecentProjectsList
+            projects={recentProjects}
+            onOpen={onOpenRecentProject}
+            title="Recent Projects"
+            emptyLabel="No recent projects yet"
+          />
+        </div>
+      </aside>
+    );
+  }
+
+  return (
+    <ProjectExplorerSidebarContent
+      rootPath={scopeRootPath}
+      rootLabel={scopeRootLabel}
+      cells={cells}
+      selectedId={selectedId}
+      onSelectCell={onSelectCell}
+      selectedCell={selectedCell}
+      sessions={sessions}
+      activeSessionId={activeSessionId}
+      sessionActivityByKey={sessionActivityByKey}
+      onOpenFile={onOpenFile}
+      onJumpToAgents={onJumpToAgents}
+      workbenchMeta={workbenchMeta}
+      projectReady={projectReady}
+      projectError={projectError}
+      onSelectProject={onSelectProject}
+      recentProjects={recentProjects}
+      onOpenRecentProject={onOpenRecentProject}
+    />
   );
 }
 

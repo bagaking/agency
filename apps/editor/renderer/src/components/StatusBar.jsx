@@ -32,7 +32,6 @@ export function StatusBar({ loading, message, onRefresh, tmuxStatus }) {
              {loading ? (
                  <RiveAnimation 
                     src={`${assetBase}assets/animations/loader.riv`} 
-                    animations="Timeline 1"
                     className="w-4 h-4"
                     fallback={<RefreshCw size={10} className="animate-spin" />}
                  />

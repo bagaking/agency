@@ -60,7 +60,6 @@ export function TerminalArea({
               <div className="h-24 w-24 opacity-60">
                 <RiveAnimation
                   src={`${assetBase}assets/animations/loading.riv`}
-                  animations="Idle"
                   className="w-full h-full"
                   fallback={<RefreshCw size={32} className="animate-spin text-primary/40" />}
                 />
@@ -76,7 +75,6 @@ export function TerminalArea({
           <div className="mb-4 opacity-20 hover:opacity-40 transition-opacity duration-700">
             <RiveAnimation
               src={`${assetBase}assets/animations/terminal-idle.riv`}
-              animations="Idle"
               className="w-16 h-16"
               fallback={<TerminalSquare size={48} />}
             />
