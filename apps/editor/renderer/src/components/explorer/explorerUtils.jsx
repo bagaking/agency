@@ -63,54 +63,73 @@ export const getFolderIcon = (name, isExpanded) => {
  * 极其细化的文件图标映射
  */
 export const getFileIcon = (name, isSymbolicLink) => {
-  if (isSymbolicLink) return Link2;
+  if (isSymbolicLink) return { icon: Link2, color: 'text-sky-400' };
   
   const n = name.toLowerCase();
   const ext = n.split('.').pop();
 
   // 1. 特殊文件名优先 (Exact Match)
-  if (n === 'agents.md' || n === 'agent.md' || n === 'agents.yaml' || n === 'agents.yml') return Bot;
-  if (n === 'package.json' || n === 'pnpm-lock.yaml' || n === 'yarn.lock' || n === 'package-lock.json') return Package;
-  if (n === 'readme.md') return ScrollText;
-  if (n === 'license' || n === 'license.md' || n === 'license.txt') return FileWarning;
-  if (n === '.gitignore' || n === '.npmignore' || n === '.dockerignore') return FileSymlink;
-  if (n === '.env' || n.startsWith('.env.')) return FileLock;
-  if (n === 'dockerfile' || n.includes('docker-compose')) return Layers;
-  if (n === 'makefile' || n === 'cmakeLists.txt') return Workflow;
+  if (n === 'agents.md' || n === 'agent.md' || n === 'agents.yaml' || n === 'agents.yml') return { icon: Bot, color: 'text-primary' };
+  
+  // Go Stack
+  if (n === 'go.mod' || n === 'go.sum' || n === 'go.work') return { icon: Package, color: 'text-cyan-500' };
+  
+  // Rust Stack
+  if (n === 'cargo.toml' || n === 'cargo.lock') return { icon: Package, color: 'text-orange-600' };
+  
+  // JS/TS Stack
+  if (n === 'package.json' || n === 'pnpm-lock.yaml' || n === 'yarn.lock' || n === 'package-lock.json') return { icon: Package, color: 'text-rose-400' };
+  if (n.includes('vite.config') || n.includes('tailwind.config') || n.includes('postcss.config')) return { icon: FileCog, color: 'text-pink-400' };
+  
+  // Python Stack
+  if (n === 'requirements.txt' || n === 'pipfile' || n === 'poetry.lock' || n === 'pyproject.toml') return { icon: FileCog, color: 'text-sky-500' };
+
+  // Git & Worktree
+  if (n === '.gitignore' || n === '.npmignore' || n === '.dockerignore' || n === '.gitattributes') return { icon: FileSymlink, color: 'text-muted-foreground/50' };
+  if (n === '.worktree') return { icon: Link2, color: 'text-sky-400' };
+  
+  // Infrastructure
+  if (n === 'readme.md') return { icon: ScrollText, color: 'text-primary' };
+  if (n === 'license' || n === 'license.md' || n === 'license.txt') return { icon: FileWarning, color: 'text-amber-400' };
+  if (n === '.env' || n.startsWith('.env.')) return { icon: FileLock, color: 'text-amber-200' };
+  if (n === 'dockerfile' || n.includes('docker-compose')) return { icon: Layers, color: 'text-sky-500' };
+  if (n === 'makefile' || n === 'cmakeLists.txt') return { icon: Workflow, color: 'text-orange-400' };
+  if (n === '.editorconfig' || n === '.prettierrc' || n === '.eslintrc.js') return { icon: FileCog, color: 'text-slate-400' };
 
   // 2. 按后缀分类 (Extension Match)
   
   // 代码类
-  if (['js', 'jsx', 'ts', 'tsx', 'mjs', 'cjs'].includes(ext)) return FileCode;
-  if (['py', 'pyc', 'pyd', 'pyo'].includes(ext)) return FileCode;
-  if (['go'].includes(ext)) return FileCode;
-  if (['rs', 'rlib'].includes(ext)) return FileCode;
-  if (['c', 'cpp', 'h', 'hpp', 'cc', 'hh'].includes(ext)) return FileCode;
-  if (['rb', 'rake'].includes(ext)) return FileCode;
-  if (['java', 'jar', 'class'].includes(ext)) return FileCode;
-  if (['sh', 'bash', 'zsh', 'bat', 'cmd', 'ps1'].includes(ext)) return Terminal;
+  if (['js', 'jsx', 'mjs', 'cjs'].includes(ext)) return { icon: FileCode, color: 'text-amber-400' };
+  if (['ts', 'tsx'].includes(ext)) return { icon: FileCode, color: 'text-blue-400' };
+  if (['py', 'pyc', 'pyd', 'pyo'].includes(ext)) return { icon: FileCode, color: 'text-sky-400' };
+  if (['go'].includes(ext)) return { icon: FileCode, color: 'text-cyan-400' };
+  if (['rs', 'rlib'].includes(ext)) return { icon: FileCode, color: 'text-orange-500' };
+  if (['c', 'cpp', 'h', 'hpp', 'cc', 'hh'].includes(ext)) return { icon: FileCode, color: 'text-purple-400' };
+  if (['rb', 'rake'].includes(ext)) return { icon: FileCode, color: 'text-rose-500' };
+  if (['java', 'jar', 'class'].includes(ext)) return { icon: FileCode, color: 'text-orange-400' };
+  if (['sh', 'bash', 'zsh', 'bat', 'cmd', 'ps1'].includes(ext)) return { icon: Terminal, color: 'text-emerald-400' };
   
   // 数据与配置
-  if (['json', 'json5'].includes(ext)) return FileJson;
-  if (['yaml', 'yml', 'toml', 'xml', 'ini', 'properties', 'conf'].includes(ext)) return FileCog;
-  if (['sql', 'db', 'sqlite', 'sqlite3', 'mysql'].includes(ext)) return Database;
+  if (['json', 'json5'].includes(ext)) return { icon: FileJson, color: 'text-amber-200' };
+  if (['yaml', 'yml', 'toml', 'xml', 'ini', 'properties', 'conf'].includes(ext)) return { icon: FileCog, color: 'text-slate-300' };
+  if (['sql', 'db', 'sqlite', 'sqlite3', 'mysql'].includes(ext)) return { icon: Database, color: 'text-indigo-400' };
   
   // 文档
-  if (['md', 'markdown', 'txt', 'rtf', 'log'].includes(ext)) return FileText;
-  if (['pdf'].includes(ext)) return FileType2;
-  if (['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext)) return FileType2;
+  if (['md', 'markdown', 'txt', 'rtf', 'log'].includes(ext)) return { icon: FileText, color: 'text-muted-foreground/80' };
+  if (['pdf'].includes(ext)) return { icon: FileType2, color: 'text-rose-500' };
+  if (['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext)) return { icon: FileType2, color: 'text-blue-500' };
   
   // 多媒体
-  if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp', 'tiff', 'avif'].includes(ext)) return FileImage;
-  if (['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac'].includes(ext)) return FileAudio;
-  if (['mp4', 'mkv', 'avi', 'mov', 'webm', 'wmv', 'flv'].includes(ext)) return FileVideo;
+  if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp', 'tiff', 'avif'].includes(ext)) return { icon: FileImage, color: 'text-purple-400' };
+  if (['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac'].includes(ext)) return { icon: FileAudio, color: 'text-cyan-400' };
+  if (['mp4', 'mkv', 'avi', 'mov', 'webm', 'wmv', 'flv'].includes(ext)) return { icon: FileVideo, color: 'text-indigo-400' };
   
   // 二进制与压缩包
-  if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'iso', 'dmg'].includes(ext)) return FileArchive;
-  if (['exe', 'app', 'bin', 'so', 'o', 'a', 'dll'].includes(ext)) return Binary;
+  if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'iso', 'dmg'].includes(ext)) return { icon: FileArchive, color: 'text-slate-400' };
+  if (['exe', 'app', 'bin', 'so', 'o', 'a', 'dll'].includes(ext)) return { icon: Binary, color: 'text-emerald-500' };
 
   // 默认返回
-  return FileText;
+  return { icon: FileText, color: 'text-muted-foreground/40' };
 };
 
 // 辅助图标 (用于在 getFileIcon 中引用)

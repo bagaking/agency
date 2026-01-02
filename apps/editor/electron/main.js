@@ -1,6 +1,7 @@
-const { app, BrowserWindow, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, Menu, nativeImage, protocol, net } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const { setupCellHandlers } = require('./ipc/handlers/cells');
 const { setupWorktreeHandlers } = require('./ipc/handlers/worktrees');
 const { setupTerminalHandlers } = require('./ipc/handlers/terminal');
@@ -122,6 +123,24 @@ function broadcastRecentProjects(recentProjects) {
   });
 }
 
+function setupAssetProtocol() {
+  protocol.handle('agency-asset', async (request) => {
+    const url = new URL(request.url);
+    const filePath = decodeURIComponent(url.pathname);
+    // On Windows, the pathname starts with a slash like /C:/path, we need to remove it
+    const normalizedPath = process.platform === 'win32' && filePath.startsWith('/') 
+        ? filePath.slice(1) 
+        : filePath;
+    
+    try {
+      return await net.fetch(pathToFileURL(normalizedPath).toString());
+    } catch (e) {
+      logRuntime('error', 'asset protocol fetch failed', { path: normalizedPath, error: e.message });
+      return new Response('Not Found', { status: 404 });
+    }
+  });
+}
+
 async function handleProjectSelection() {
   try {
     const ownerWindow = BrowserWindow.getFocusedWindow() || mainWindow;
@@ -221,6 +240,7 @@ app.whenReady().then(async () => {
   setupClipboardHandlers();
   setupCommentsHandlers();
   setupHilHandlers();
+  setupAssetProtocol();
 
   if (process.platform === 'darwin') {
     try {

@@ -145,9 +145,10 @@ async function writeTextFile({ rootPath, targetPath, content }) {
 
 async function resolveFileUrl({ rootPath, targetPath }) {
   const entry = await statEntry({ rootPath, targetPath });
+  // Using custom protocol to bypass webSecurity restrictions
   return {
     path: entry.path,
-    url: pathToFileURL(entry.absolutePath).toString(),
+    url: `agency-asset://${entry.absolutePath}`,
   };
 }
 

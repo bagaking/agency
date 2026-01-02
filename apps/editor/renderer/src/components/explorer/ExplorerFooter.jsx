@@ -193,7 +193,8 @@ export function ExplorerFooter({
 }
 
 function ManifestNode({ node, depth }) {
-    const Icon = node.type === 'dir' ? FolderClosed : FileText;
+    const iconInfo = node.type === 'dir' ? { icon: FolderClosed, color: 'text-primary/40' } : getFileIcon(node.name, false);
+    const Icon = iconInfo.icon;
     
     // Only highlight if the item is explicitly selected. 
     // Intermediate directories (not selected) should stay gray.
@@ -207,7 +208,7 @@ function ManifestNode({ node, depth }) {
                 className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] transition-colors ${colorClass}`}
                 style={{ paddingLeft: `${depth * 8 + 8}px` }}
             >
-                <Icon size={8} className={node.type === 'dir' ? 'opacity-40' : 'opacity-40'} />
+                <Icon size={8} className={node.isSelected ? iconInfo.color : 'opacity-40'} />
                 <span className={`truncate ${node.isSelected ? 'font-semibold' : 'font-normal'}`}>
                     {node.name}
                 </span>

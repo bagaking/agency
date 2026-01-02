@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { CodeWorkbenchView } from './CodeWorkbenchView.jsx';
 import { MediaWorkbenchView } from './MediaWorkbenchView.jsx';
+import { VectorWorkbenchView } from './VectorWorkbenchView.jsx';
 import { QuickOpenModal } from './QuickOpenModal.jsx';
 import { ProjectEmptyState } from '../ProjectEmptyState.jsx';
 import { Logo } from '../Logo.jsx';
@@ -38,8 +39,30 @@ const languageFromPath = (filePath) => {
     case 'go': return 'go';
     case 'rs': return 'rust';
     case 'sh': case 'bash': return 'shell';
+    case 'sql': return 'sql';
     default: return 'plaintext';
   }
+};
+
+const TEXT_EXTS = new Set([
+    'js', 'jsx', 'ts', 'tsx', 'mjs', 'cjs', 'json', 'yaml', 'yml', 'toml', 'md', 'markdown',
+    'css', 'scss', 'less', 'html', 'htm', 'py', 'go', 'rs', 'c', 'cpp', 'h', 'hpp', 'java',
+    'rb', 'php', 'sh', 'bash', 'zsh', 'sql', 'txt', 'log', 'env', 'gitignore', 'makefile'
+]);
+
+const MEDIA_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'mp4', 'mov', 'webm', 'mp3', 'wav', 'pdf']);
+
+const detectSecureKind = (filePath) => {
+    const ext = (filePath.split('.').pop() || '').toLowerCase();
+    if (ext === 'svg') return 'vector'; // Special dual-mode
+    if (TEXT_EXTS.has(ext)) return 'code';
+    if (MEDIA_EXTS.has(ext)) {
+        if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico'].includes(ext)) return 'image';
+        if (['mp4', 'mov', 'webm'].includes(ext)) return 'video';
+        if (['mp3', 'wav'].includes(ext)) return 'audio';
+        if (ext === 'pdf') return 'pdf';
+    }
+    return 'unknown';
 };
 
 const formatBytes = (value) => {
@@ -129,27 +152,72 @@ function WorkbenchPaneContent({
 
   const loadTab = useCallback(async (tab) => {
     if (!tab || !window.agency) return;
-    updateTabState(tab.id, { loading: true, error: '', needsReload: false, diffEnabled: false, blameEnabled: false });
+    const secureKind = detectSecureKind(tab.path);
+    
+    updateTabState(tab.id, { 
+        loading: true, 
+        error: '', 
+        needsReload: false, 
+        diffEnabled: false, 
+        blameEnabled: false,
+        secureKind,
+        unlocked: false
+    });
+
     try {
-      if (['image', 'video', 'audio', 'pdf'].includes(tab.kind)) {
+      if (secureKind === 'vector') {
+          // SVG: Load BOTH content and URL
+          const [contentResult, urlResult, meta] = await Promise.all([
+            window.agency.readWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path }),
+            window.agency.getWorkbenchFileUrl({ rootPath: tab.rootPath, targetPath: tab.path }),
+            window.agency.statWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path }),
+          ]);
+          updateTabState(tab.id, {
+            loading: false,
+            content: contentResult?.content || '',
+            fileUrl: urlResult?.url || '',
+            size: meta?.size || 0,
+            mtimeMs: meta?.mtimeMs || 0,
+            language: 'xml',
+            isDirty: false,
+            kind: 'vector'
+          });
+          return;
+      }
+
+      if (['image', 'video', 'audio', 'pdf'].includes(secureKind)) {
         const [meta, urlResult] = await Promise.all([
           window.agency.statWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path }),
           window.agency.getWorkbenchFileUrl({ rootPath: tab.rootPath, targetPath: tab.path }),
         ]);
-        updateTabState(tab.id, { loading: false, fileUrl: urlResult?.url || '', size: meta?.size || 0, mtimeMs: meta?.mtimeMs || 0 });
+        updateTabState(tab.id, { loading: false, fileUrl: urlResult?.url || '', size: meta?.size || 0, mtimeMs: meta?.mtimeMs || 0, kind: secureKind });
         return;
       }
-      const result = await window.agency.readWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path });
-      updateTabState(tab.id, {
-        loading: false,
-        content: result?.content || '',
-        size: result?.size || 0,
-        mtimeMs: result?.mtimeMs || 0,
-        binary: Boolean(result?.binary),
-        truncated: Boolean(result?.truncated),
-        language: languageFromPath(tab.path),
-        isDirty: false,
-      });
+
+      // If it's code, or we don't know but we aren't loading it as binary yet
+      if (secureKind === 'code') {
+          const result = await window.agency.readWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path });
+          updateTabState(tab.id, {
+            loading: false,
+            content: result?.content || '',
+            size: result?.size || 0,
+            mtimeMs: result?.mtimeMs || 0,
+            binary: Boolean(result?.binary),
+            truncated: Boolean(result?.truncated),
+            language: languageFromPath(tab.path),
+            isDirty: false,
+            kind: 'code'
+          });
+      } else {
+          // Unknown / Binary safety fallback
+          const meta = await window.agency.statWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path });
+          updateTabState(tab.id, {
+              loading: false,
+              size: meta?.size || 0,
+              mtimeMs: meta?.mtimeMs || 0,
+              kind: 'unknown'
+          });
+      }
     } catch (error) {
       updateTabState(tab.id, { loading: false, error: error?.message || 'Load failed' });
     }
@@ -171,6 +239,10 @@ function WorkbenchPaneContent({
       updateTabState(activeTab.id, { saving: false, error: 'Save failed' });
     }
   }, [activeState, activeTab, updateTabState]);
+
+  const handleReload = useCallback(() => {
+    if (activeTab) loadTab(activeTab);
+  }, [activeTab, loadTab]);
 
   const toggleDiff = useCallback(async () => {
     if (!activeTab || !window.agency?.diffWorkbenchEntry) return;
@@ -203,6 +275,28 @@ function WorkbenchPaneContent({
     },
     [onCursorPositionChange]
   );
+
+  const handleUnlock = async () => {
+      if (!activeTab) return;
+      updateTabState(activeTab.id, { loading: true });
+      try {
+          const result = await window.agency.readWorkbenchEntry({ rootPath: activeTab.rootPath, targetPath: activeTab.path });
+          updateTabState(activeTab.id, {
+            loading: false,
+            content: result?.content || '',
+            size: result?.size || 0,
+            mtimeMs: result?.mtimeMs || 0,
+            binary: Boolean(result?.binary),
+            truncated: Boolean(result?.truncated),
+            language: languageFromPath(activeTab.path),
+            isDirty: false,
+            kind: 'code',
+            unlocked: true
+          });
+      } catch (e) {
+          updateTabState(activeTab.id, { loading: false, error: 'Forced load failed.' });
+      }
+  };
 
   const breadcrumbs = activeTab ? buildBreadcrumbs(activeTab.path) : [];
 
@@ -360,11 +454,46 @@ function WorkbenchPaneContent({
             <span className="text-xs italic font-medium">{activeState.error}</span>
             <button onClick={() => loadTab(activeTab)} className="mt-6 px-4 py-1.5 rounded-full border border-rose-500/20 text-[10px] font-bold uppercase tracking-widest hover:bg-rose-500/10 transition-all">Retry Access</button>
           </div>
-        ) : (
+        ) : activeState.kind === 'unknown' ? (
+          <div className="flex h-full flex-col items-center justify-center text-muted-foreground/40 bg-black/20">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.03] text-amber-500/40 mb-6 ring-1 ring-white/5 shadow-2xl">
+                <FileWarning size={32} strokeWidth={1.5} />
+            </div>
+            <div className="text-[11px] font-black uppercase tracking-[0.3em] mb-2 text-white/60">Secure Suspended</div>
+            <p className="text-[10px] max-w-xs text-center leading-relaxed mb-8 opacity-60">
+                This object type is not recognized. Editing has been automatically disabled to prevent data corruption.
+            </p>
+            <div className="flex items-center gap-4">
+                <button 
+                    onClick={() => loadTab(activeTab)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/5 text-[9px] font-bold uppercase tracking-widest hover:bg-white/5 transition-all"
+                >
+                    <RefreshCw size={10} />
+                    Inspect Again
+                </button>
+                <button 
+                    onClick={handleUnlock}
+                    className="flex items-center gap-2 px-5 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[9px] font-black uppercase tracking-widest hover:bg-amber-500/20 transition-all"
+                >
+                    <FileCode2 size={10} />
+                    Unlock Editor
+                </button>
+            </div>
+          </div>
+        ) : activeState.kind === 'vector' ? (
+          <VectorWorkbenchView
+            content={activeState.content || ''}
+            fileUrl={activeState.fileUrl}
+            language={activeState.language || 'xml'}
+            readOnly={activeState.truncated}
+            onChange={(val) => updateTabState(activeTab.id, { content: val, isDirty: true })}
+            onCursorChange={setStatusPosition}
+          />
+        ) : activeState.kind === 'code' ? (
           <CodeWorkbenchView
             value={activeState.content || ''}
             language={activeState.language || 'plaintext'}
-            diffHunks={activeState.diffEnabled ? activeState.diffHunks || [] : []}
+            diffHunks={activeState.diffHunks || []}
             blameEnabled={activeState.blameEnabled}
             blameLines={activeState.blameLines || []}
             commentLines={resolvedCommentLines}
@@ -375,6 +504,13 @@ function WorkbenchPaneContent({
             onLineComment={({ line, column }) => {
               onOpenComment?.({ line, column });
             }}
+          />
+        ) : (
+          <MediaWorkbenchView
+            kind={activeState.kind}
+            fileUrl={activeState.fileUrl}
+            size={activeState.size}
+            onReload={handleReload}
           />
         )}
       </div>

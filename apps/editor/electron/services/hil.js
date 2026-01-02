@@ -139,6 +139,7 @@ async function migrateLegacyComments(worktreePath, index) {
       return;
     }
     const id = comment?.id || `legacy_${hashString(signature)}`;
+    const body = String(comment?.message ?? comment?.body ?? '').trim();
     const line = normalizeLine(comment?.line);
     const column = normalizeLine(comment?.column || 1);
     const item = {

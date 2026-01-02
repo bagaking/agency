@@ -44,7 +44,9 @@ export function ExplorerItem({
   const isUntracked = status === 'untracked';
   const isAdded = status === 'added';
 
-  const FileIcon = isDir ? getFolderIcon(node.name, isExpanded) : getFileIcon(node.name, isLink);
+  const iconInfo = isDir ? null : getFileIcon(node.name, isLink);
+  const FileIcon = isDir ? getFolderIcon(node.name, isExpanded) : iconInfo.icon;
+  const iconColor = isDir ? 'text-primary/70' : iconInfo.color;
 
   const paddingLeft = `${depth * 12 + 8}px`;
 
@@ -98,19 +100,14 @@ export function ExplorerItem({
         <span className="w-4 shrink-0" />
       )}
 
-      {/* Icon with status overlays */}
       <div className="relative shrink-0">
         <FileIcon
           size={14}
           strokeWidth={1.5}
           className={
-            isDir
-              ? 'text-primary/70'
-              : isLink
-                ? 'text-sky-400'
-                : isIgnored
-                  ? 'text-slate-400/40'
-                  : 'text-muted-foreground/70'
+            isIgnored
+              ? 'text-slate-400/40'
+              : iconColor
           }
         />
         {isLink && (
