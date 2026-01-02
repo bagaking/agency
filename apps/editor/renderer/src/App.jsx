@@ -397,6 +397,22 @@ function App() {
     };
   }, [resetProjectState]);
   useEffect(() => {
+    if (!window.agency?.onRecentProjectsUpdated) {
+      return undefined;
+    }
+    const unsubscribe = window.agency.onRecentProjectsUpdated((payload) => {
+      if (!payload) {
+        return;
+      }
+      setRecentProjects(Array.isArray(payload.recentProjects) ? payload.recentProjects : []);
+    });
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, []);
+  useEffect(() => {
     if (!selectedCell?.id) {
       return;
     }

@@ -9,7 +9,7 @@
 
 ## Navigation
 
-- The activity bar includes Explorer, Agent Cells, and Hierarchy entries.
+- The activity bar includes Explorer and Hierarchy entries; the home logo returns to Agent Cells.
 - Settings provides a lightweight dashboard with project summary, recent projects, and entry cards for Actions, Gates, and Softlinks.
 - The docked sidebar supports resize/collapse and persists width state across launches.
 - Agent Cells focuses on Cell management and offers jump links to Actions, Gates, and Softlinks.
@@ -17,6 +17,7 @@
 - Explorer provides a project file tree with git status (including added, untracked, ignored) and per-Cell change attribution.
 - Explorer scopes to the active Agent Cell worktree (or repo root) and opens files in the workbench.
 - Explorer supports filters (hidden/ignored/status), keyboard navigation, open/dirty indicators, and watch-based auto refresh.
+- Explorer supports copy/cut/paste via context menu and keyboard shortcuts.
 - The workbench supports multi-tab previews, quick open, diff/blame toggles, and media previews.
 
 ## Cell Lifecycle Files
@@ -82,6 +83,7 @@
 - If no project directory is configured, the editor opens Explorer with an empty-state prompt.
 - Use **Select Project** to choose a repository; the path is stored locally and restored on relaunch.
 - Recent projects are shown in the sidebar and Project settings when no project is open.
+- New windows start without a project context; use recent projects to switch.
 
 ## Packaging & Install (macOS)
 

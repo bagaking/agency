@@ -20,6 +20,8 @@ import {
   Search,
   X,
   Copy,
+  Scissors,
+  ClipboardPaste,
   Pencil,
   Trash2,
   ArrowRightLeft,
@@ -208,6 +210,7 @@ function ProjectExplorerSidebarContent({
   const [focusedPath, setFocusedPath] = useState('');
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
+  const [clipboard, setClipboard] = useState(null);
 
   const statusFilterSet = useMemo(() => new Set(statusFilters), [statusFilters]);
   const isSearchActive = searchQuery.trim().length > 0;
@@ -456,6 +459,77 @@ function ProjectExplorerSidebarContent({
   const activeNode = tree.nodes[activeTarget];
   const activeDir =
     activeNode?.type === 'dir' ? activeTarget : explorerPathUtils.dirname(activeTarget);
+
+  const selectionTargets = selectedPaths.length
+    ? selectedPaths
+    : activeTarget
+      ? [activeTarget]
+      : [];
+  const selectionCount = selectionTargets.length;
+  const clipboardPaths = clipboard?.paths || [];
+  const clipboardMode = clipboard?.mode || 'copy';
+  const hasClipboard = clipboardPaths.length > 0;
+
+  const resolvePasteDirectory = () => {
+    if (!activeTarget) {
+      return '';
+    }
+    const node = tree.nodes[activeTarget];
+    if (node?.type === 'dir') {
+      return activeTarget;
+    }
+    return explorerPathUtils.dirname(activeTarget);
+  };
+
+  const handleCopySelection = (mode) => {
+    if (!selectionTargets.length) {
+      return;
+    }
+    setClipboard({
+      mode,
+      paths: Array.from(new Set(selectionTargets)),
+    });
+  };
+
+  const handlePasteSelection = async () => {
+    if (!hasClipboard) {
+      return;
+    }
+    const targetDir = resolvePasteDirectory();
+    for (const sourcePath of clipboardPaths) {
+      if (!sourcePath) {
+        continue;
+      }
+      if (targetDir && (sourcePath === targetDir || targetDir.startsWith(`${sourcePath}/`))) {
+        setErrorMessage('Cannot paste into the selected entry.');
+        return;
+      }
+    }
+    try {
+      for (const sourcePath of clipboardPaths) {
+        if (!sourcePath) {
+          continue;
+        }
+        const nextPath = [targetDir, explorerPathUtils.basename(sourcePath)].filter(Boolean).join('/');
+        if (!nextPath || nextPath === sourcePath) {
+          continue;
+        }
+        if (clipboardMode === 'cut') {
+          // eslint-disable-next-line no-await-in-loop
+          await renameEntry({ sourcePath, targetPath: nextPath });
+        } else {
+          // eslint-disable-next-line no-await-in-loop
+          await copyEntry({ sourcePath, targetPath: nextPath });
+        }
+      }
+      clearError();
+      if (clipboardMode === 'cut') {
+        setClipboard(null);
+      }
+    } catch (err) {
+      setErrorMessage(err?.message || 'Failed to paste entries.');
+    }
+  };
 
   const startDraft = (type) => {
     if (activeDir) {
@@ -883,12 +957,6 @@ function ProjectExplorerSidebarContent({
     );
   };
 
-  const selectionTargets = selectedPaths.length
-    ? selectedPaths
-    : activeTarget
-      ? [activeTarget]
-      : [];
-  const selectionCount = selectionTargets.length;
   const shouldVirtualize = visibleItems.length > VIRTUALIZE_THRESHOLD;
   const totalHeight = visibleItems.length * ROW_HEIGHT;
   const startIndex = shouldVirtualize
@@ -901,11 +969,29 @@ function ProjectExplorerSidebarContent({
   const offsetY = startIndex * ROW_HEIGHT;
 
   const handleKeyDown = (event) => {
-    if (event.target?.tagName === 'INPUT') {
+    if (event.target?.tagName === 'INPUT' || event.target?.isContentEditable) {
       return;
     }
     if (!visiblePathsRef.current.length) {
       return;
+    }
+    if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey) {
+      const key = event.key.toLowerCase();
+      if (key === 'c') {
+        event.preventDefault();
+        handleCopySelection('copy');
+        return;
+      }
+      if (key === 'x') {
+        event.preventDefault();
+        handleCopySelection('cut');
+        return;
+      }
+      if (key === 'v') {
+        event.preventDefault();
+        handlePasteSelection();
+        return;
+      }
     }
     const scrollToPath = (path) => {
       const el = listRef.current;
@@ -1301,6 +1387,24 @@ function ProjectExplorerSidebarContent({
               })
             }
             disabled={selectionTargets.length !== 1}
+          />
+          <ContextMenuItem
+            icon={Copy}
+            label="Copy"
+            onClick={() => handleCopySelection('copy')}
+            disabled={!selectionTargets.length}
+          />
+          <ContextMenuItem
+            icon={Scissors}
+            label="Cut"
+            onClick={() => handleCopySelection('cut')}
+            disabled={!selectionTargets.length}
+          />
+          <ContextMenuItem
+            icon={ClipboardPaste}
+            label="Paste"
+            onClick={handlePasteSelection}
+            disabled={!hasClipboard}
           />
           <ContextMenuItem
             icon={Copy}

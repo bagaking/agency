@@ -107,6 +107,11 @@ contextBridge.exposeInMainWorld('agency', {
     ipcRenderer.on('project:updated', wrapped);
     return () => ipcRenderer.removeListener('project:updated', wrapped);
   },
+  onRecentProjectsUpdated: (handler) => {
+    const wrapped = (_event, payload) => handler(payload);
+    ipcRenderer.on('project:recents', wrapped);
+    return () => ipcRenderer.removeListener('project:recents', wrapped);
+  },
   listSessions: (payload) => ipcRenderer.invoke('sessions:list', payload),
   createSession: (payload) => ipcRenderer.invoke('sessions:create', payload),
   closeSession: (payload) => ipcRenderer.invoke('sessions:close', payload),

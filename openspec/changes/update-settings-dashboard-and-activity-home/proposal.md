@@ -9,7 +9,10 @@
 - Make the activity bar logo act as a home shortcut to the Agent Cells view.
 - Evolve the Settings view into a dashboard with project summary, recent projects, and entry cards that link to Actions, Gates, and Softlinks.
 - Keep detailed editing in Hierarchy; Settings remains an index/overview.
+- Remove redundant Agent Cells activity bar entry to simplify navigation.
+- Add Explorer copy/cut/paste support for files and folders.
+- Make project selection window-local so new windows open without inheriting another window's project.
 
 ## Impact
 - Affected specs: `agency-editor`
-- Affected code: renderer activity bar, settings view, app layout wiring, and UI tests.
+- Affected code: renderer activity bar, settings view, explorer interactions, project selection IPC, and UI tests.

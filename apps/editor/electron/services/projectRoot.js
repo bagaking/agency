@@ -7,6 +7,7 @@ const { readUiState, updateUiState } = require('./uiState');
 const ENV_PROJECT_ROOT = 'AGENCY_PROJECT_ROOT';
 const ENV_TEST_PROJECT_ROOT = 'AGENCY_TEST_PROJECT_ROOT';
 const RECENT_PROJECTS_LIMIT = 8;
+const windowProjectRoots = new Map();
 
 function normalizeRoot(value) {
   return String(value || '').trim();
@@ -95,6 +96,32 @@ async function getStoredProjectRoot() {
   return normalizeRoot(state?.projectRoot);
 }
 
+function getWindowProjectRoot(windowId) {
+  if (!windowId) {
+    return '';
+  }
+  return normalizeRoot(windowProjectRoots.get(windowId) || '');
+}
+
+function setWindowProjectRoot(windowId, projectRoot) {
+  if (!windowId) {
+    return;
+  }
+  const normalized = normalizeRoot(projectRoot);
+  if (!normalized) {
+    windowProjectRoots.delete(windowId);
+    return;
+  }
+  windowProjectRoots.set(windowId, normalized);
+}
+
+function clearWindowProjectRoot(windowId) {
+  if (!windowId) {
+    return;
+  }
+  windowProjectRoots.delete(windowId);
+}
+
 async function resolveProjectRoot({ rootPath } = {}) {
   const envRoot = getEnvProjectRoot();
   if (envRoot.explicit && !envRoot.value) {
@@ -177,13 +204,23 @@ function getAppPaths() {
   };
 }
 
-async function getProjectContext() {
-  const storedRoot = await getStoredProjectRoot();
-  const resolvedRoot = storedRoot ? await resolveProjectRoot({ rootPath: storedRoot }) : '';
+async function getProjectContext({ windowId, allowStoredRoot = true } = {}) {
+  const windowRoot = getWindowProjectRoot(windowId);
+  let resolvedRoot = windowRoot ? await resolveProjectRoot({ rootPath: windowRoot }) : '';
+  if (!resolvedRoot && windowRoot) {
+    clearWindowProjectRoot(windowId);
+  }
+  const storedRoot = allowStoredRoot ? await getStoredProjectRoot() : '';
+  if (!resolvedRoot && storedRoot) {
+    resolvedRoot = await resolveProjectRoot({ rootPath: storedRoot });
+    if (windowId && resolvedRoot) {
+      setWindowProjectRoot(windowId, resolvedRoot);
+    }
+  }
   const valid = Boolean(resolvedRoot);
   return {
     projectRoot: resolvedRoot,
-    storedRoot,
+    storedRoot: allowStoredRoot ? storedRoot : '',
     valid,
     recentProjects: await getRecentProjects(),
     ...getAppPaths(),
@@ -198,4 +235,7 @@ module.exports = {
   getProjectContext,
   getAppPaths,
   getRecentProjects,
+  getWindowProjectRoot,
+  setWindowProjectRoot,
+  clearWindowProjectRoot,
 };

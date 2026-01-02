@@ -14,7 +14,11 @@ const { setupExplorerHandlers } = require('./ipc/handlers/explorer');
 const { setupRuntimeLogHandlers } = require('./ipc/handlers/runtimeLog');
 const { setupWorkbenchHandlers } = require('./ipc/handlers/workbench');
 const { setupProjectHandlers } = require('./ipc/handlers/project');
-const { selectProjectRoot } = require('./services/projectRoot');
+const {
+  selectProjectRoot,
+  setWindowProjectRoot,
+  clearWindowProjectRoot,
+} = require('./services/projectRoot');
 const {
   initRuntimeLogger,
   logRuntime,
@@ -51,7 +55,7 @@ function resolveIconImage() {
   return image;
 }
 
-function createWindow() {
+function createWindow({ startEmpty = false } = {}) {
   const iconImage = resolveIconImage();
   const win = new BrowserWindow({
     width: 1280,
@@ -68,6 +72,11 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: false,
     },
+  });
+
+  win.__agencyAllowStoredProjectRoot = !startEmpty;
+  win.on('closed', () => {
+    clearWindowProjectRoot(win.id);
   });
 
   const rendererUrl = process.env.ELECTRON_RENDERER_URL;
@@ -104,9 +113,9 @@ function createWindow() {
   mainWindow = win;
 }
 
-function broadcastProjectUpdate(payload) {
+function broadcastRecentProjects(recentProjects) {
   BrowserWindow.getAllWindows().forEach((win) => {
-    win.webContents.send('project:updated', payload);
+    win.webContents.send('project:recents', { recentProjects });
   });
 }
 
@@ -114,8 +123,12 @@ async function handleProjectSelection() {
   try {
     const ownerWindow = BrowserWindow.getFocusedWindow() || mainWindow;
     const result = await selectProjectRoot({ ownerWindow });
-    if (result?.projectRoot) {
-      broadcastProjectUpdate(result);
+    if (result?.projectRoot && ownerWindow) {
+      setWindowProjectRoot(ownerWindow.id, result.projectRoot);
+      ownerWindow.webContents.send('project:updated', result);
+    }
+    if (result?.recentProjects) {
+      broadcastRecentProjects(result.recentProjects);
     }
   } catch (error) {
     logRuntime('error', 'project selection failed', {
@@ -143,7 +156,7 @@ function buildAppMenu() {
         label: 'New Window',
         accelerator: 'CmdOrCtrl+Shift+N',
         click: () => {
-          createWindow();
+          createWindow({ startEmpty: true });
         },
       },
       { type: 'separator' },

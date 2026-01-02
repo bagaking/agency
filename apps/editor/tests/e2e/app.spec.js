@@ -246,3 +246,34 @@ test('explorer drag and drop moves files', async () => {
 
   await electronApp.close();
 });
+
+test('explorer copy and paste duplicates entries', async () => {
+  setupTestRepo();
+  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
+  const electronApp = await electron.launch({
+    args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
+    env: {
+      ...process.env,
+      ELECTRON_RENDERER_URL: 'http://localhost:5173',
+      AGENCY_TEST_MODE: '1',
+      AGENCY_CLI_STUB: '1',
+      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
+    },
+  });
+
+  const window = await electronApp.firstWindow();
+  await window.getByTitle('Explorer').click();
+  await expect(window.getByTestId('explorer-header')).toBeVisible();
+
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const tree = window.getByTestId('explorer-tree');
+  await tree.click();
+  await window.locator('[data-explorer-path="new.txt"]').click();
+  await window.keyboard.press(`${modifier}+C`);
+
+  await window.locator('[data-explorer-path="src"]').click();
+  await window.keyboard.press(`${modifier}+V`);
+  await expect(window.locator('[data-explorer-path="src/new.txt"]')).toBeVisible();
+
+  await electronApp.close();
+});

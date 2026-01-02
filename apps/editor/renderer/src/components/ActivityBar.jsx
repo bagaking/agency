@@ -1,11 +1,10 @@
 import React from 'react';
-import { Layers, Settings, ListTree, Folder } from 'lucide-react';
+import { Settings, ListTree, Folder } from 'lucide-react';
 import { Logo } from './Logo.jsx';
 
 export function ActivityBar({ activeView, onSwitchView }) {
   const items = [
     { id: 'explorer', icon: Folder, label: 'Explorer' },
-    { id: 'agent-cells', icon: Layers, label: 'Agent Cells' },
     { id: 'hierarchy', icon: ListTree, label: 'Hierarchy' },
   ];
 

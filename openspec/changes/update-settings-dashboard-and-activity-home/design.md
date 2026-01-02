@@ -6,6 +6,8 @@ The activity bar logo is a natural "home" affordance, but it is currently non-fu
   - Provide a consistent home shortcut to Agent Cells.
   - Make Settings a lightweight dashboard that summarizes project context and links to configuration areas.
   - Keep configuration editing in Hierarchy to avoid duplicating forms.
+  - Keep project selection window-local to prevent cross-window state leaks.
+  - Add copy/cut/paste file operations in Explorer without adding new backend services.
 - Non-Goals:
   - Do not relocate or redesign existing configuration forms.
   - Do not add new persistent settings storage in this change.
@@ -15,9 +17,14 @@ The activity bar logo is a natural "home" affordance, but it is currently non-fu
   - Rationale: Matches common IDE patterns and reduces navigation friction.
 - Decision: Settings remains an overview/index page.
   - Rationale: Centralizes entry points without duplicating configuration logic.
+- Decision: Project root is tracked per window; new windows default to no project.
+  - Rationale: Window independence avoids confusing state carry-over.
+- Decision: Explorer clipboard uses existing copy/rename services with a lightweight in-memory clipboard.
+  - Rationale: Keeps implementation scoped to renderer without new persistence.
 
 ## Risks / Trade-offs
 - The Settings view may feel lightweight if users expect full configuration. Mitigate by adding clear entry cards and status summaries.
+- Window-local project context means recent projects should be refreshed explicitly.
 
 ## Migration Plan
 - No data migration required.
