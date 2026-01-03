@@ -270,16 +270,16 @@ function CommentItem({ comment, onUpdateStatus, onPromote, worktreePath }) {
     const Icon = kindIcons[comment.kind] || Terminal;
     
     return (
-        <div className={`group relative flex flex-col rounded-xl transition-all duration-300 ${isResolved ? 'opacity-40 grayscale' : 'hover:bg-muted/5'}`}>
+        <div className={`group relative flex flex-col rounded-lg transition-all duration-300 ${isResolved ? 'opacity-40 grayscale' : 'hover:bg-muted/5'}`}>
             {/* Type Indicator with Tooltip */}
             <div className="absolute -left-2 -top-1.5 z-10">
                 <div 
                     title={`Type: ${kindLabel}`}
-                    className={`flex h-4 w-4 items-center justify-center rounded border shadow-sm transition-all ${
+                    className={`flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border shadow-sm transition-all ${
                         isResolved ? 'bg-muted border-border text-muted-foreground' : 'bg-popover border-border/40 text-primary'
                     }`}
                 >
-                    <Icon size={9} strokeWidth={2.5} />
+                    <Icon size={8} strokeWidth={2.5} />
                 </div>
             </div>
 
@@ -293,14 +293,14 @@ function CommentItem({ comment, onUpdateStatus, onPromote, worktreePath }) {
                 />
             )}
 
-            <div className="px-2.5 pb-2.5">
-                <header className="flex items-center justify-between mb-1">
+            <div className="px-2 pb-2">
+                <header className="flex items-center justify-between mb-0.5">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] font-bold text-foreground/80 tracking-tight uppercase">
+                      <span className="text-[10px] font-bold text-foreground/80 tracking-tight uppercase">
                           {comment.author?.label || 'Agent'}
                       </span>
                       {isProcessed ? (
-                        <span className="rounded-full border border-emerald-500/30 px-1.5 py-0 text-[8px] font-bold uppercase tracking-widest text-emerald-400/70">
+                        <span className="rounded border border-emerald-500/30 px-1 py-px text-[7px] font-bold uppercase tracking-widest text-emerald-400/70 leading-none">
                           Done
                         </span>
                       ) : null}
@@ -310,24 +310,24 @@ function CommentItem({ comment, onUpdateStatus, onPromote, worktreePath }) {
                     </span>
                 </header>
 
-                <div className="text-[11px] leading-snug text-muted-foreground break-words mb-2 selection:bg-primary/30">
+                <div className="text-[11px] leading-snug text-muted-foreground break-words mb-1.5 selection:bg-primary/30">
                     {comment.body || comment.message}
                 </div>
 
-                <footer className="flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0 h-4">
+                <footer className="flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0 h-3.5">
                     <button 
                         onClick={() => onPromote?.(comment)}
                         disabled={isProcessed}
                         className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 hover:text-primary transition-all disabled:opacity-40"
                     >
-                        <Target size={10} />
+                        <Target size={9} />
                         Promote
                     </button>
                     <button 
                         onClick={() => onUpdateStatus?.(comment, isResolved ? 'open' : 'resolved')}
                         className="flex items-center gap-1 text-[9px] font-bold text-emerald-500/60 hover:text-emerald-400 transition-all"
                     >
-                        <CheckCircle2 size={10} />
+                        <CheckCircle2 size={9} />
                         {isResolved ? 'Reopen' : 'Resolve'}
                     </button>
                 </footer>
@@ -359,15 +359,15 @@ function ContextAnchor({ anchor, commentBody, worktreePath, isResolved }) {
 
     return (
         <div 
-            className="flex items-center gap-1.5 mb-1.5 px-0.5 cursor-help"
+            className="flex items-center gap-1.5 mb-1 px-0.5 cursor-help"
             onMouseEnter={(e) => { setMousePos({ x: e.clientX, y: e.clientY }); setShowTooltip(true); }}
             onMouseLeave={() => setShowTooltip(false)}
         >
             <div className={`h-1 w-1 rounded-full ${isResolved ? 'bg-muted-foreground/20' : 'bg-primary shadow-[0_0_6px_rgba(59,130,246,0.6)]'}`} />
-            <span className={`text-[10px] font-black uppercase tracking-tighter ${isResolved ? 'text-muted-foreground/40' : 'text-primary'}`}>
+            <span className={`text-[9px] font-black uppercase tracking-tighter ${isResolved ? 'text-muted-foreground/40' : 'text-primary'}`}>
                 Ln {anchor.line}
             </span>
-            <span className="text-[10px] text-muted-foreground/30 font-mono italic truncate max-w-[180px]">
+            <span className="text-[9px] text-muted-foreground/30 font-mono italic truncate max-w-[180px]">
                 {anchor.file.split('/').pop()}
             </span>
             <div className={`h-px flex-1 bg-gradient-to-r ${isResolved ? 'from-muted-foreground/10' : 'from-primary/10'} to-transparent`} />
