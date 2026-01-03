@@ -149,11 +149,6 @@ export function HilCommentsPanel({
                 <div className="mx-0.5 mt-0.5 text-[10px] text-rose-400 bg-rose-500/5 px-2 py-1 rounded border border-rose-500/10">
                     {commentSnippetError}
                 </div>
-            ) : targetLineContent ? (
-                <div className="rounded-md border border-border/10 bg-muted/5 px-2.5 py-1.5 text-xs text-foreground/90 font-mono">
-                    <span className="opacity-30 mr-3 select-none text-[10px]">{resolvedLine}</span>
-                    <span>{targetLineContent}</span>
-                </div>
             ) : null}
 
             {snippetLines?.length ? (
@@ -163,7 +158,7 @@ export function HilCommentsPanel({
                     key={`${line.line}-${line.isTarget ? 't' : 'n'}`}
                     className={`flex gap-3 h-4 items-center ${line.isTarget ? 'bg-primary/5 text-primary -mx-2.5 px-2.5 font-medium' : ''}`}
                     >
-                    <span className="w-5 text-right opacity-30 tabular-nums select-none">{line.line}</span>
+                    <span className="w-7 text-right opacity-30 tabular-nums select-none shrink-0">{line.line}</span>
                     <span className="truncate">{line.content || ' '}</span>
                     </div>
                 ))}
@@ -431,7 +426,7 @@ function ContextTooltip({ x, y, snippet, loading, commentBody, fileName }) {
                         <div className="py-1.5 flex flex-col">
                             {snippet.map((l, i) => (
                                 <div key={i} className={`flex items-center gap-3 px-3 h-5 text-[10px] ${l.isTarget ? 'bg-primary/10 border-y border-primary/5' : ''}`}>
-                                    <span className={`w-6 text-right font-mono text-[9px] shrink-0 ${l.isTarget ? 'text-primary font-bold' : 'text-muted-foreground/30'}`}>{l.line}</span>
+                                    <span className={`w-8 text-right font-mono text-[9px] shrink-0 tabular-nums ${l.isTarget ? 'text-primary font-bold' : 'text-muted-foreground/30'}`}>{l.line}</span>
                                     <pre className={`truncate font-mono ${l.isTarget ? 'text-foreground font-semibold' : 'text-muted-foreground/40'}`}>{l.content || ' '}</pre>
                                 </div>
                             ))}
@@ -533,7 +528,7 @@ function BulkPromotePanel({
                         <div className="mt-1.5 rounded border border-border/10 bg-background/60 px-2 py-1.5 font-mono text-[10px] text-muted-foreground/60 overflow-hidden">
                           {preview.snippet?.map((line) => (
                             <div key={`${item.id}-${line.line}`} className="flex gap-3">
-                              <span className="w-5 text-right opacity-30 select-none">{line.line}</span>
+                              <span className="w-7 text-right opacity-30 select-none tabular-nums shrink-0">{line.line}</span>
                               <span className="truncate">{line.text || ' '}</span>
                             </div>
                           ))}
