@@ -157,24 +157,19 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
               />
             </div>
 
-            <div className="mt-2 flex items-center gap-2">
-              <div className="flex items-center gap-1 text-[9px] font-black text-muted-foreground/30 uppercase tracking-[0.3em]">
-                <Filter size={9} strokeWidth={3} /> Selector
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <FilterChip 
-                  label="Type" 
-                  value={filters.kind} 
-                  options={kindOptions} 
-                  onChange={(v) => setFilters(curr => ({ ...curr, kind: v }))} 
-                />
-                <FilterChip 
-                  label="Status" 
-                  value={filters.status} 
-                  options={statusOptions} 
-                  onChange={(v) => setFilters(curr => ({ ...curr, status: v }))} 
-                />
-              </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <FilterChip 
+                label="Type" 
+                value={filters.kind} 
+                options={kindOptions} 
+                onChange={(v) => setFilters(curr => ({ ...curr, kind: v }))} 
+              />
+              <FilterChip 
+                label="Status" 
+                value={filters.status} 
+                options={statusOptions} 
+                onChange={(v) => setFilters(curr => ({ ...curr, status: v }))} 
+              />
             </div>
           </div>
 
