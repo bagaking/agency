@@ -7,6 +7,7 @@ import {
   StickyNote, 
   Layers, 
   Quote,
+  Camera,
   FileCode,
   MessageSquarePlus,
   RefreshCw,
@@ -17,6 +18,34 @@ const kindIcons = {
     comment: Terminal,
     memo: StickyNote,
     draft: Layers
+};
+
+const memoTypeMeta = {
+  flash: { label: 'Flash', icon: StickyNote },
+  excerpt: { label: 'Excerpt', icon: Quote },
+  screenshot: { label: 'Screenshot', icon: Camera },
+};
+
+const toTitle = (value) =>
+  value ? value.slice(0, 1).toUpperCase() + value.slice(1) : '';
+
+const resolvePromoteType = (item) => {
+  if (item.kind === 'comment') {
+    return { id: 'comment', label: 'Comments', icon: Terminal };
+  }
+  if (item.kind === 'memo') {
+    const noteType = item.meta?.noteType;
+    const meta = memoTypeMeta[noteType] || { label: noteType ? toTitle(noteType) : 'Memo', icon: StickyNote };
+    return { id: `memo:${noteType || 'memo'}`, label: meta.label, icon: meta.icon };
+  }
+  return { id: item.kind || 'unknown', label: toTitle(item.kind || 'Item'), icon: FileCode };
+};
+
+const resolvePromoteSource = (item) => {
+  if (item.anchor?.file) {
+    return { id: item.anchor.file, label: item.anchor.file };
+  }
+  return { id: 'unlinked', label: 'Unlinked' };
 };
 
 export function HilCommentsPanel({
@@ -57,6 +86,7 @@ export function HilCommentsPanel({
   onClosePromote,
   onPromoteDescriptionChange,
   onTogglePromoteItem,
+  onTogglePromoteGroup,
   onPromotePreview,
   onSelectPromoteSession,
   onCreatePromoteSession,
@@ -227,6 +257,7 @@ export function HilCommentsPanel({
           selectedCellId={selectedCellId}
           onChangeDescription={onPromoteDescriptionChange}
           onToggleItem={onTogglePromoteItem}
+          onToggleGroup={onTogglePromoteGroup}
           onPreviewItem={onPromotePreview}
           onSelectSession={onSelectPromoteSession}
           onCreateSession={onCreatePromoteSession}
@@ -474,6 +505,7 @@ function PromoteModal({
   selectedCellId,
   onChangeDescription,
   onToggleItem,
+  onToggleGroup,
   onPreviewItem,
   onSelectSession,
   onCreateSession,
@@ -495,6 +527,8 @@ function PromoteModal({
   const lastActivityLabel = lastActivity
     ? new Date(lastActivity).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
     : 'idle';
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const promoteTree = useMemo(() => buildPromoteTree(items), [items]);
 
   return createPortal(
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -585,73 +619,106 @@ function PromoteModal({
           </div>
         </div>
 
-        <div className="mt-4 max-h-64 overflow-y-auto custom-scrollbar pr-1 space-y-2">
+        <div className="mt-4 max-h-64 overflow-y-auto custom-scrollbar pr-1 space-y-3">
           {items.length === 0 ? (
             <div className="text-[11px] text-muted-foreground/40 py-6 text-center italic">
               No pending items.
             </div>
           ) : (
-            items.map((item) => {
-              const checked = selectedIds.includes(item.id);
-              const preview = previewById[item.id];
-              const noteType = item.kind === 'memo' ? item.meta?.noteType : null;
-              const Icon = kindIcons[item.kind] || FileCode;
+            promoteTree.map((typeGroup) => {
+              const typeIds = typeGroup.items.map((item) => item.id);
+              const typeState = resolveSelectionState(typeIds, selectedSet);
+              const TypeIcon = typeGroup.icon;
               return (
-                <div
-                  key={item.id}
-                  className="rounded-lg border border-border/10 bg-muted/5 px-3 py-2 transition-all hover:bg-muted/10 group/item select-none"
-                  onMouseEnter={() => onPreviewItem?.(item)}
-                >
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => onToggleItem?.(item.id)}
+                <div key={typeGroup.id} className="rounded-xl border border-border/10 bg-muted/5 px-3 py-2">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold text-foreground/80">
+                    <TreeCheckbox
+                      state={typeState}
                       disabled={isWaiting}
-                      className="mt-0.5 h-3.5 w-3.5 rounded border-border/60 bg-transparent text-primary focus:ring-offset-0 focus:ring-1 focus:ring-primary/20 transition-all disabled:opacity-60"
+                      onChange={() => onToggleGroup?.(typeIds)}
                     />
-                    <div className="flex flex-1 flex-col gap-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-2 font-semibold text-foreground/80 truncate mr-2 text-[11px]">
-                          <Icon size={12} className="text-primary/60" />
-                          {item.anchor?.file || (item.kind === 'memo' ? 'Memo' : 'Unknown file')}
-                          {noteType ? (
-                            <span className="rounded-full border border-border/20 px-2 py-0 text-[8px] font-bold uppercase tracking-widest text-muted-foreground/60">
-                              {noteType}
+                    <TypeIcon size={13} className="text-primary/60" />
+                    <span className="uppercase tracking-[0.2em] text-[9px] text-muted-foreground/50">
+                      {typeGroup.label}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/40">({typeIds.length})</span>
+                  </div>
+                  <div className="mt-2 space-y-2 pl-5">
+                    {typeGroup.sources.map((sourceGroup) => {
+                      const sourceIds = sourceGroup.items.map((item) => item.id);
+                      const sourceState = resolveSelectionState(sourceIds, selectedSet);
+                      return (
+                        <div key={sourceGroup.id} className="rounded-lg border border-border/10 bg-background/60 px-2.5 py-2">
+                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
+                            <TreeCheckbox
+                              state={sourceState}
+                              disabled={isWaiting}
+                              onChange={() => onToggleGroup?.(sourceIds)}
+                            />
+                            <span className="font-mono truncate">{sourceGroup.label}</span>
+                            <span className="ml-auto text-[9px] text-muted-foreground/40">
+                              {sourceIds.length}
                             </span>
-                          ) : null}
-                        </span>
-                        {item.anchor?.line ? (
-                          <span className="text-[10px] text-muted-foreground/40 tabular-nums shrink-0 font-medium">
-                            Ln {item.anchor?.line || 1}
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground/80 line-clamp-2 leading-relaxed">
-                        {item.body || item.message}
-                      </div>
-                      {preview ? (
-                        preview.error ? (
-                          <div className="mt-1 text-[10px] text-rose-400 opacity-80">{preview.error}</div>
-                        ) : (
-                          <div className="mt-1 rounded border border-border/10 bg-background/60 px-2 py-1.5 font-mono text-[10px] text-muted-foreground/60 overflow-hidden">
-                            {preview.snippet?.map((line) => (
-                              <div key={`${item.id}-${line.line}`} className="flex gap-3">
-                                <span className="w-7 text-right opacity-30 select-none tabular-nums shrink-0">
-                                  {line.line}
-                                </span>
-                                <span className="truncate">{line.text || ' '}</span>
-                              </div>
-                            ))}
                           </div>
-                        )
-                      ) : (
-                        <div className="mt-1 text-[10px] text-muted-foreground/30 italic group-hover/item:text-muted-foreground/50 transition-colors">
-                          Hover to preview context.
+                          <div className="mt-2 space-y-2">
+                            {sourceGroup.items.map((item) => {
+                              const checked = selectedSet.has(item.id);
+                              const preview = previewById[item.id];
+                              return (
+                                <div
+                                  key={item.id}
+                                  className="rounded-md border border-border/10 bg-muted/5 px-3 py-2 transition-all hover:bg-muted/10 group/item select-none"
+                                  onMouseEnter={() => onPreviewItem?.(item)}
+                                >
+                                  <label className="flex items-start gap-3 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => onToggleItem?.(item.id)}
+                                      disabled={isWaiting}
+                                      className="mt-0.5 h-3.5 w-3.5 rounded border-border/60 bg-transparent text-primary focus:ring-offset-0 focus:ring-1 focus:ring-primary/20 transition-all disabled:opacity-60"
+                                    />
+                                    <div className="flex flex-1 flex-col gap-1 min-w-0">
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-semibold text-foreground/80 truncate mr-2 text-[11px]">
+                                          {item.body || item.message}
+                                        </span>
+                                        {item.anchor?.line ? (
+                                          <span className="text-[10px] text-muted-foreground/40 tabular-nums shrink-0 font-medium">
+                                            Ln {item.anchor?.line || 1}
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                      {preview ? (
+                                        preview.error ? (
+                                          <div className="mt-1 text-[10px] text-rose-400 opacity-80">{preview.error}</div>
+                                        ) : (
+                                          <div className="mt-1 rounded border border-border/10 bg-background/60 px-2 py-1.5 font-mono text-[10px] text-muted-foreground/60 overflow-hidden">
+                                            {preview.snippet?.map((line) => (
+                                              <div key={`${item.id}-${line.line}`} className="flex gap-3">
+                                                <span className="w-7 text-right opacity-30 select-none tabular-nums shrink-0">
+                                                  {line.line}
+                                                </span>
+                                                <span className="truncate">{line.text || ' '}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )
+                                      ) : (
+                                        <div className="mt-1 text-[10px] text-muted-foreground/30 italic group-hover/item:text-muted-foreground/50 transition-colors">
+                                          Hover to preview context.
+                                        </div>
+                                      )}
+                                    </div>
+                                  </label>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </label>
+                      );
+                    })}
+                  </div>
                 </div>
               );
             })
@@ -719,5 +786,67 @@ function PromoteGateBadge({ status }) {
     <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.2em] ${styles}`}>
       {label}
     </span>
+  );
+}
+
+function buildPromoteTree(items = []) {
+  const typeMap = new Map();
+  items.forEach((item) => {
+    if (!item?.id) {
+      return;
+    }
+    const typeMeta = resolvePromoteType(item);
+    if (!typeMap.has(typeMeta.id)) {
+      typeMap.set(typeMeta.id, { ...typeMeta, sources: new Map(), items: [] });
+    }
+    const typeGroup = typeMap.get(typeMeta.id);
+    typeGroup.items.push(item);
+    const sourceMeta = resolvePromoteSource(item);
+    if (!typeGroup.sources.has(sourceMeta.id)) {
+      typeGroup.sources.set(sourceMeta.id, { ...sourceMeta, items: [] });
+    }
+    typeGroup.sources.get(sourceMeta.id).items.push(item);
+  });
+  return Array.from(typeMap.values()).map((typeGroup) => ({
+    ...typeGroup,
+    sources: Array.from(typeGroup.sources.values()),
+  }));
+}
+
+function resolveSelectionState(ids, selectedSet) {
+  if (!ids.length) {
+    return 'none';
+  }
+  let selectedCount = 0;
+  ids.forEach((id) => {
+    if (selectedSet.has(id)) {
+      selectedCount += 1;
+    }
+  });
+  if (selectedCount === 0) {
+    return 'none';
+  }
+  if (selectedCount === ids.length) {
+    return 'all';
+  }
+  return 'partial';
+}
+
+function TreeCheckbox({ state, disabled, onChange }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.indeterminate = state === 'partial';
+    }
+  }, [state]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      disabled={disabled}
+      checked={state === 'all'}
+      onChange={onChange}
+      className="h-3.5 w-3.5 rounded border-border/60 bg-transparent text-primary focus:ring-offset-0 focus:ring-1 focus:ring-primary/20 transition-all disabled:opacity-60"
+    />
   );
 }

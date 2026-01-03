@@ -24,6 +24,30 @@ function getHilIndexPath(worktreePath) {
   return path.join(worktreePath, AGENCY_DIR, HIL_DIR, `${HIL_PREFIX}${worktreeName}${HIL_EXT}`);
 }
 
+function getHilTreeRoot(worktreePath) {
+  const worktreeName = getWorktreeName(worktreePath);
+  return path.join(worktreePath, AGENCY_DIR, HIL_DIR, worktreeName);
+}
+
+function getHilItemDir(kind) {
+  if (kind === 'draft') {
+    return 'drafts';
+  }
+  if (kind === 'comment') {
+    return path.join('items', 'comments');
+  }
+  if (kind === 'memo') {
+    return path.join('items', 'memos');
+  }
+  return path.join('items', kind || 'items');
+}
+
+function getHilItemPath(worktreePath, item) {
+  const base = getHilTreeRoot(worktreePath);
+  const folder = getHilItemDir(item?.kind);
+  return path.join(base, folder, `${item.id}${HIL_EXT}`);
+}
+
 function getLegacyCommentsPath(worktreePath) {
   const worktreeName = getWorktreeName(worktreePath);
   return path.join(worktreePath, AGENCY_DIR, `${LEGACY_COMMENTS_PREFIX}${worktreeName}${LEGACY_COMMENTS_EXT}`);
@@ -134,6 +158,16 @@ async function writeHilIndex(worktreePath, payload) {
   const tempPath = `${hilPath}.tmp-${tempSuffix}`;
   await fsp.writeFile(tempPath, content, 'utf-8');
   await fsp.rename(tempPath, hilPath);
+}
+
+async function writeHilItemArtifact(worktreePath, item) {
+  if (!worktreePath || !item?.id) {
+    return;
+  }
+  const filePath = getHilItemPath(worktreePath, item);
+  await fsp.mkdir(path.dirname(filePath), { recursive: true });
+  const content = yaml.dump(item, { lineWidth: 120 });
+  await fsp.writeFile(filePath, content, 'utf-8');
 }
 
 async function readLegacyComments(worktreePath) {
@@ -318,6 +352,7 @@ async function createHilItem({
   }
   const items = Array.isArray(index.items) ? [...index.items, item] : [item];
   await writeHilIndex(worktreePath, { version: index.version || 1, items });
+  await writeHilItemArtifact(worktreePath, item);
   return item;
 }
 
@@ -352,6 +387,7 @@ async function updateHilItem({ worktreePath, itemId, patch } = {}) {
   };
   items[indexById] = next;
   await writeHilIndex(worktreePath, { version: index.version || 1, items });
+  await writeHilItemArtifact(worktreePath, next);
   return next;
 }
 
@@ -388,6 +424,7 @@ async function promoteHilItem({ worktreePath, itemId } = {}) {
         updatedAt: new Date().toISOString(),
       };
       await writeHilIndex(worktreePath, { version: index.version || 1, items: normalizedItems });
+      await writeHilItemArtifact(worktreePath, normalizedItems[sourceIndex]);
     }
     return existingDraft;
   }
@@ -426,6 +463,10 @@ async function promoteHilItem({ worktreePath, itemId } = {}) {
   }
   const items = [...normalizedItems, draft];
   await writeHilIndex(worktreePath, { version: index.version || 1, items });
+  await writeHilItemArtifact(worktreePath, draft);
+  if (sourceIndex >= 0) {
+    await writeHilItemArtifact(worktreePath, normalizedItems[sourceIndex]);
+  }
   return draft;
 }
 

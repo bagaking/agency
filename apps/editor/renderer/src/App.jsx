@@ -702,6 +702,22 @@ function App() {
       return [...current, itemId];
     });
   }, []);
+  const togglePromoteGroup = useCallback((itemIds) => {
+    const ids = Array.isArray(itemIds) ? itemIds.filter(Boolean) : [];
+    if (!ids.length) {
+      return;
+    }
+    setPromoteSelectedIds((current) => {
+      const selected = new Set(current);
+      const allSelected = ids.every((id) => selected.has(id));
+      if (allSelected) {
+        ids.forEach((id) => selected.delete(id));
+      } else {
+        ids.forEach((id) => selected.add(id));
+      }
+      return Array.from(selected);
+    });
+  }, []);
   const loadPromotePreview = useCallback(
     async (item) => {
       if (!item?.id || !item?.anchor?.file || !promoteWorktreePath) {
@@ -1188,6 +1204,7 @@ function App() {
     onClosePromote: closePromoteModal,
     onPromoteDescriptionChange: setPromoteDescription,
     onTogglePromoteItem: togglePromoteItem,
+    onTogglePromoteGroup: togglePromoteGroup,
     onPromotePreview: loadPromotePreview,
     onSelectPromoteSession: setPromoteSessionId,
     onCreatePromoteSession: createPromoteSession,

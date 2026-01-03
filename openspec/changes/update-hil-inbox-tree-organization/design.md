@@ -23,8 +23,7 @@
   - `.agency/hil/<worktree>/items/comments/`
   - `.agency/hil/<worktree>/items/memos/`
   - `.agency/hil/<worktree>/drafts/`
-  - `.agency/hil/<worktree>/assets/`
-- Screenshot assets continue to live under the worktree assets directory, referenced by path in the index.
+- Screenshot assets continue to live under `.agency/hil/assets/<worktree>/`, referenced by path in the index.
 
 ## Compatibility
 - Do not require migration for existing items; older entries remain in the index.

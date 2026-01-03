@@ -693,6 +693,16 @@ The Memo view SHALL list HIL items for the active worktree and allow filtering b
 - **WHEN** a user selects Memo in the activity bar
 - **THEN** the editor shows the HIL list for the current worktree
 
+### Requirement: HIL Inbox Type Sections
+The Memo Inbox SHALL present sections for Comments, Flash, Excerpt, and Screenshot.
+Each section SHALL list items for that type.
+Sections that accept user input SHALL provide inline input controls at the top of the section.
+
+#### Scenario: Open Inbox sections
+- **WHEN** a user opens the Memo view Inbox
+- **THEN** the editor shows separate sections for Comments, Flash, Excerpt, and Screenshot
+- **AND** each section lists its items
+
 ### Requirement: Memo Capture Modes
 The Memo view SHALL provide capture actions for Flash note, Excerpt, and Screenshot.
 Captured items SHALL be stored as HIL `memo` entries with `meta.noteType` set to the capture type.
@@ -735,17 +745,35 @@ Promotion SHALL NOT directly edit spec files or external spec systems.
 - **AND** repeating the promote action returns the existing draft instead of creating a duplicate
 - **AND** the source comment is marked `meta.processed: true`
 
-### Requirement: Bulk Promote Pending Comments
-The editor SHALL allow users to promote all pending comments for the current worktree into a single draft.
-Bulk promote SHALL require a description and SHALL list all comments that are not yet processed.
-The bulk promote UI SHALL provide hoverable context previews for each comment.
+### Requirement: Bulk Promote Pending Items
+The editor SHALL allow users to promote all pending items for the current worktree into a single draft.
+Bulk promote SHALL require a description and SHALL list all items that are not yet processed.
+The bulk promote UI SHALL provide hoverable context previews for each item.
 
-#### Scenario: Promote pending comments with description
+#### Scenario: Promote pending items with description
 - **WHEN** a user opens bulk promote from the HIL drawer
-- **THEN** the editor shows all unprocessed comments with file and line context
+- **THEN** the editor shows all unprocessed items with file and line context
 - **AND** requires a description before promoting
-- **AND** creates a draft with references to the selected comments
-- **AND** marks the selected comments as processed
+- **AND** creates a draft with references to the selected items
+- **AND** marks the selected items as processed
+
+### Requirement: Promote Tree Organization
+The Promote modal SHALL group selectable items in a tree by Type and Source.
+The tree SHALL support selecting a whole node or individual items.
+
+#### Scenario: Select items by group
+- **WHEN** a user expands a type/source node
+- **THEN** the items under that node are listed
+- **AND** selecting the node selects all items within it
+
+### Requirement: HIL Storage Tree Layout
+The editor SHALL store HIL items under a tree-aligned directory layout while keeping the index as the source of truth.
+
+#### Scenario: Write HIL item files
+- **WHEN** a HIL item is created
+- **THEN** the editor writes comments and memos under `.agency/hil/<worktree>/items/<kind>/`
+- **AND** writes drafts under `.agency/hil/<worktree>/drafts/`
+- **AND** updates `.agency/hil/index-<worktree>.yaml`
 
 ### Requirement: Legacy Comment Migration
 If legacy comment storage exists, the editor SHALL import those comments into the HIL index non-destructively.

@@ -30,7 +30,7 @@ The Screenshot section SHALL capture clipboard images and create a `memo` item w
 
 #### Scenario: Capture screenshot memo
 - **WHEN** a user captures a screenshot in the Screenshot section
-- **THEN** the editor stores the image asset under `.agency/hil/<worktree>/assets/`
+- **THEN** the editor stores the image asset under `.agency/hil/assets/<worktree>/`
 - **AND** creates a `memo` item with `meta.noteType: screenshot` and an asset reference
 
 ### Requirement: Promote Tree Organization
@@ -47,5 +47,6 @@ The editor SHALL store HIL items under a tree-aligned directory layout while kee
 
 #### Scenario: Write HIL item files
 - **WHEN** a HIL item is created
-- **THEN** the editor writes the item under `.agency/hil/<worktree>/items/<kind>/`
+- **THEN** the editor writes comments and memos under `.agency/hil/<worktree>/items/<kind>/`
+- **AND** writes drafts under `.agency/hil/<worktree>/drafts/`
 - **AND** updates `.agency/hil/index-<worktree>.yaml`

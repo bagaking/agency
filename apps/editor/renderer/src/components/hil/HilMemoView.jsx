@@ -6,7 +6,6 @@ import {
   Hash, 
   Target, 
   Search,
-  Filter,
   Clock,
   Terminal,
   StickyNote,
@@ -78,8 +77,11 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
     fetchAll: true,
   });
   const [searchQuery, setSearchQuery] = useState('');
-  const [dockSelection, setDockSelection] = useState({ type: 'inbox', draftId: null });
-  const [captureMode, setCaptureMode] = useState('flash');
+  const [dockSelection, setDockSelection] = useState({
+    type: 'inbox',
+    inboxType: 'comments',
+    draftId: null,
+  });
   const [flashText, setFlashText] = useState('');
   const [excerptNote, setExcerptNote] = useState('');
   const [screenshotNote, setScreenshotNote] = useState('');
@@ -108,7 +110,7 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
 
   useEffect(() => {
     if (dockSelection.type === 'draft' && !selectedDraft) {
-      setDockSelection({ type: 'inbox', draftId: null });
+      setDockSelection({ type: 'inbox', inboxType: 'comments', draftId: null });
     }
   }, [dockSelection.type, selectedDraft]);
 
@@ -131,14 +133,45 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
     return result;
   }, [items, searchQuery, filters.kind, filters.status]);
 
-  const visibleInboxItems = useMemo(
-    () =>
-      filteredItems.filter(
-        (item) =>
-          (item.kind === 'comment' || item.kind === 'memo') && item.meta?.processed !== true
-      ),
-    [filteredItems]
+  const inboxSections = useMemo(
+    () => [
+      { id: 'comments', label: 'Comments', kind: 'comment', noteType: null, icon: Terminal },
+      { id: 'flash', label: 'Flash', kind: 'memo', noteType: 'flash', icon: StickyNote },
+      { id: 'excerpt', label: 'Excerpt', kind: 'memo', noteType: 'excerpt', icon: Quote },
+      { id: 'screenshot', label: 'Screenshot', kind: 'memo', noteType: 'screenshot', icon: Camera },
+    ],
+    []
   );
+  const activeInboxSection =
+    inboxSections.find((section) => section.id === dockSelection.inboxType) || inboxSections[0];
+  const inboxCounts = useMemo(() => {
+    const counts = {};
+    inboxSections.forEach((section) => {
+      counts[section.id] = inboxItems.filter((item) => {
+        if (item.kind !== section.kind) return false;
+        if (section.noteType && item.meta?.noteType !== section.noteType) return false;
+        return true;
+      }).length;
+    });
+    return counts;
+  }, [inboxItems, inboxSections]);
+  const visibleInboxItems = useMemo(() => {
+    if (!activeInboxSection) {
+      return [];
+    }
+    return filteredItems.filter((item) => {
+      if (item.meta?.processed === true) {
+        return false;
+      }
+      if (item.kind !== activeInboxSection.kind) {
+        return false;
+      }
+      if (activeInboxSection.noteType && item.meta?.noteType !== activeInboxSection.noteType) {
+        return false;
+      }
+      return true;
+    });
+  }, [activeInboxSection, filteredItems]);
 
   const summary = useMemo(() => {
     const counts = { comment: 0, memo: 0, draft: 0 };
@@ -164,7 +197,7 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
 
   useEffect(() => {
     setCaptureError('');
-  }, [captureMode]);
+  }, [activeInboxSection?.id]);
 
   const resetCaptureState = useCallback(() => {
     setFlashText('');
@@ -381,22 +414,36 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
 
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/10">
             <div className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
-              Input Box
+              Inbox
             </div>
             <span className="text-[10px] font-mono text-muted-foreground/40">{pendingInboxCount}</span>
           </div>
-          <button
-            type="button"
-            onClick={() => setDockSelection({ type: 'inbox', draftId: null })}
-            className={`flex w-full items-center gap-2 px-4 py-2 text-left text-[11px] font-semibold transition ${
-              dockSelection.type === 'inbox'
-                ? 'bg-primary/10 text-primary'
-                : 'text-muted-foreground/60 hover:text-foreground'
-            }`}
-          >
-            <Inbox size={14} />
-            Inbox
-          </button>
+          <div className="flex flex-col">
+            {inboxSections.map((section) => {
+              const Icon = section.icon;
+              const active = dockSelection.type === 'inbox' && dockSelection.inboxType === section.id;
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => setDockSelection({ type: 'inbox', inboxType: section.id, draftId: null })}
+                  className={`flex w-full items-center justify-between px-4 py-2 text-left text-[11px] font-semibold transition ${
+                    active
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground/60 hover:text-foreground'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Icon size={14} />
+                    {section.label}
+                  </span>
+                  <span className="text-[10px] font-mono text-muted-foreground/40">
+                    {inboxCounts[section.id] || 0}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
           <div className="mt-4 flex items-center justify-between px-4 py-2 border-t border-border/10">
             <div className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
@@ -444,32 +491,27 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
                 <div className="border-b border-border/10 px-6 py-4">
                   <div className="flex items-center justify-between">
                     <div className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
-                      Capture
+                      Inbox
                     </div>
-                    <div className="flex items-center gap-1">
-                      <CaptureModeButton
-                        active={captureMode === 'flash'}
-                        label="Flash"
-                        icon={StickyNote}
-                        onClick={() => setCaptureMode('flash')}
-                      />
-                      <CaptureModeButton
-                        active={captureMode === 'excerpt'}
-                        label="Excerpt"
-                        icon={Quote}
-                        onClick={() => setCaptureMode('excerpt')}
-                      />
-                      <CaptureModeButton
-                        active={captureMode === 'screenshot'}
-                        label="Screenshot"
-                        icon={Camera}
-                        onClick={() => setCaptureMode('screenshot')}
-                      />
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
+                      {activeInboxSection?.label || 'Inbox'}
                     </div>
                   </div>
 
                   <div className="mt-3 rounded-2xl border border-border/10 bg-muted/5 p-4">
-                    {captureMode === 'flash' ? (
+                    {activeInboxSection?.id === 'comments' ? (
+                      <div className="flex flex-col gap-2 text-[11px] text-muted-foreground/60">
+                        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50">
+                          <Terminal size={12} />
+                          Comment Capture
+                        </div>
+                        <p className="leading-relaxed">
+                          Add comments directly inside the editor. Use line comments to capture context-rich feedback.
+                        </p>
+                      </div>
+                    ) : null}
+
+                    {activeInboxSection?.id === 'flash' ? (
                       <div className="flex flex-col gap-3">
                         <textarea
                           value={flashText}
@@ -492,7 +534,7 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
                       </div>
                     ) : null}
 
-                    {captureMode === 'excerpt' ? (
+                    {activeInboxSection?.id === 'excerpt' ? (
                       <div className="flex flex-col gap-3">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex flex-col gap-1 text-[10px] text-muted-foreground/60">
@@ -534,7 +576,7 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
                       </div>
                     ) : null}
 
-                    {captureMode === 'screenshot' ? (
+                    {activeInboxSection?.id === 'screenshot' ? (
                       <div className="flex flex-col gap-3">
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
@@ -822,23 +864,6 @@ function RowAction({ icon: Icon, onClick, title, color = "hover:text-foreground 
             <Icon size={14} strokeWidth={2} />
         </button>
     )
-}
-
-function CaptureModeButton({ active, label, icon: Icon, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.2em] transition-all ${
-        active
-          ? 'bg-primary/15 text-primary'
-          : 'text-muted-foreground/50 hover:text-foreground hover:bg-muted/10'
-      }`}
-    >
-      <Icon size={11} />
-      {label}
-    </button>
-  );
 }
 
 const kindOptions = [
