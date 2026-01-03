@@ -61,6 +61,7 @@ function App() {
   const [hilDrawerOpen, setHilDrawerOpen] = useState(false);
   const [hilDrawerPanel, setHilDrawerPanel] = useState('comments');
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
+  const [workbenchSelectionByCellId, setWorkbenchSelectionByCellId] = useState({});
   const [hierarchySection, setHierarchySection] = useState('actions');
   const [actionsScope, setActionsScope] = useState('global');
   const [gateScope, setGateScope] = useState('global');
@@ -458,6 +459,26 @@ function App() {
     });
     return Array.from(map.values());
   }, [comments]);
+  const handleWorkbenchSelectionChange = useCallback(
+    (selection) => {
+      const cellKey = selectedCell?.id || 'repo';
+      setWorkbenchSelectionByCellId((current) => {
+        if (!selection) {
+          if (!current[cellKey]) {
+            return current;
+          }
+          const next = { ...current };
+          delete next[cellKey];
+          return next;
+        }
+        return {
+          ...current,
+          [cellKey]: selection,
+        };
+      });
+    },
+    [selectedCell?.id]
+  );
   const openCommentModal = useCallback(
     ({ line, column } = {}) => {
       if (!commentRootPath || !commentFilePath) {
@@ -621,7 +642,7 @@ function App() {
     try {
       const list = await agencyListHilItems({
         worktreePath: promoteWorktreePath,
-        kind: 'comment',
+        kind: 'all',
       });
       if (!list) {
         setPromoteItems([]);
@@ -629,7 +650,8 @@ function App() {
         return;
       }
       const pending = (Array.isArray(list) ? list : [])
-        .filter((item) => item && item.meta?.processed !== true)
+        .filter((item) => item && (item.kind === 'comment' || item.kind === 'memo'))
+        .filter((item) => item.meta?.processed !== true)
         .sort((a, b) => {
           const fileA = a.anchor?.file || '';
           const fileB = b.anchor?.file || '';
@@ -638,7 +660,10 @@ function App() {
           }
           const lineA = Number(a.anchor?.line || 0);
           const lineB = Number(b.anchor?.line || 0);
-          return lineA - lineB;
+          if (lineA !== lineB) {
+            return lineA - lineB;
+          }
+          return (a.createdAt || '').localeCompare(b.createdAt || '');
         });
       setPromoteItems(pending);
       setPromoteSelectedIds(pending.map((item) => item.id));
@@ -646,7 +671,7 @@ function App() {
       const preferredSession = availableSessions.find((session) => session.id === activeSessionId);
       setPromoteSessionId(preferredSession?.id || availableSessions[0]?.id || '');
     } catch (error) {
-      setPromoteError(error?.message || 'Failed to load pending comments.');
+      setPromoteError(error?.message || 'Failed to load pending items.');
       setPromoteItems([]);
       setPromoteSelectedIds([]);
     } finally {
@@ -746,7 +771,7 @@ function App() {
     }
     const selected = promoteItems.filter((item) => promoteSelectedIds.includes(item.id));
     if (!selected.length) {
-      setPromoteError('Select at least one comment to promote.');
+      setPromoteError('Select at least one item to promote.');
       return;
     }
     if (!promoteSessionId) {
@@ -761,6 +786,7 @@ function App() {
         id: item.id,
         path: item.anchor?.file || null,
         line: item.anchor?.line || null,
+        kind: item.kind || null,
       }));
       const draft = await agencyCreateHilItem({
         worktreePath: promoteWorktreePath,
@@ -768,7 +794,7 @@ function App() {
         body: promoteDescription.trim(),
         references,
         meta: {
-          sourceKind: 'comment',
+          sourceKind: 'hil',
           sourceBatch: 'promote',
           promoteSessionId: promoteSessionId,
           promoted: false,
@@ -806,7 +832,7 @@ function App() {
     }
     const selected = promoteItems.filter((item) => promoteSelectedIds.includes(item.id));
     if (!selected.length) {
-      setPromoteError('Select at least one comment to promote.');
+      setPromoteError('Select at least one item to promote.');
       return;
     }
     setPromoteLoading(true);
@@ -891,6 +917,7 @@ function App() {
     setInitialActiveSessions({});
     resetSessions();
     workbench.resetTabs();
+    setWorkbenchSelectionByCellId({});
     setWorkbenchMetaByCellId({});
     setInitialWorkbenchTabs({});
     setInitialWorkbenchActiveTabs({});
@@ -1115,6 +1142,7 @@ function App() {
     ? selectedCell?.name || 'Repository'
     : 'Project';
   const explorerMeta = workbenchMetaByCellId[selectedCell?.id || 'repo'] || {};
+  const memoSelection = workbenchSelectionByCellId[selectedCell?.id || 'repo'] || null;
   const handleAddCommentFromExplorer = useCallback((path) => {
     if (!path) return;
     workbench.openFile({ path, mode: 'pinned', rootPath: explorerRootPath });
@@ -1360,12 +1388,14 @@ function App() {
           commentLines,
           onOpenComment: openCommentModal,
           onCursorPositionChange: setCursorPosition,
+          onSelectionChange: handleWorkbenchSelectionChange,
         }}
         memoPaneProps={{
           worktreePath: selectedCell?.worktreePath || projectRoot || '',
           projectReady,
           projectError,
           onSelectProject: handleSelectProjectRoot,
+          selection: memoSelection,
         }}
       />
 

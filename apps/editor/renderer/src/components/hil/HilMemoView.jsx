@@ -3,7 +3,6 @@ import {
   RefreshCw, 
   CheckCircle2, 
   Archive, 
-  MessageSquarePlus, 
   Hash, 
   Target, 
   Search,
@@ -14,10 +13,20 @@ import {
   Layers,
   FileText,
   Activity,
-  ChevronDown
+  ChevronDown,
+  Camera,
+  Clipboard,
+  Quote,
+  Image as ImageIcon,
+  Inbox
 } from 'lucide-react';
 import { ProjectEmptyState } from '../ProjectEmptyState.jsx';
 import { useHilItems } from '../../hooks/useHilItems.js';
+import {
+  createHilItem as agencyCreateHilItem,
+  materializeClipboard as agencyMaterializeClipboard,
+  getWorkbenchFileUrl as agencyGetWorkbenchFileUrl,
+} from '../../services/agencyBridge.js';
 
 const kindIcons = {
     comment: Terminal,
@@ -27,6 +36,29 @@ const kindIcons = {
 
 const resolveBody = (item) =>
   typeof item?.body === 'string' ? item.body : typeof item?.message === 'string' ? item.message : '';
+
+const normalizeWorktreeName = (worktreePath) =>
+  worktreePath?.split('/').filter(Boolean).pop() || 'worktree';
+
+const isImagePath = (value) => {
+  const ext = (value || '').split('.').pop()?.toLowerCase();
+  return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'avif'].includes(ext || '');
+};
+
+const buildAssetMime = (value) => {
+  const ext = (value || '').split('.').pop()?.toLowerCase();
+  if (!ext) {
+    return 'application/octet-stream';
+  }
+  if (ext === 'svg') return 'image/svg+xml';
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+  if (ext === 'png') return 'image/png';
+  if (ext === 'gif') return 'image/gif';
+  if (ext === 'webp') return 'image/webp';
+  if (ext === 'bmp') return 'image/bmp';
+  if (ext === 'avif') return 'image/avif';
+  return `image/${ext}`;
+};
 
 const summarizeBody = (item) => {
   const raw = resolveBody(item).trim();
@@ -40,20 +72,31 @@ const summarizeBody = (item) => {
   return firstLine;
 };
 
-export function HilMemoView({ worktreePath, projectReady, projectError, onSelectProject }) {
+export function HilMemoView({ worktreePath, projectReady, projectError, onSelectProject, selection }) {
   const { items, filters, setFilters, loading, error, refresh } = useHilItems({
     worktreePath,
     fetchAll: true,
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [dockSelection, setDockSelection] = useState({ type: 'inbox', draftId: null });
+  const [captureMode, setCaptureMode] = useState('flash');
+  const [flashText, setFlashText] = useState('');
+  const [excerptNote, setExcerptNote] = useState('');
+  const [screenshotNote, setScreenshotNote] = useState('');
+  const [captureError, setCaptureError] = useState('');
+  const [captureLoading, setCaptureLoading] = useState(false);
+  const [screenshotAsset, setScreenshotAsset] = useState(null);
 
   const draftItems = useMemo(
     () => items.filter((item) => item.kind === 'draft'),
     [items]
   );
   const inboxItems = useMemo(
-    () => items.filter((item) => item.kind === 'comment' && item.meta?.processed !== true),
+    () =>
+      items.filter(
+        (item) =>
+          (item.kind === 'comment' || item.kind === 'memo') && item.meta?.processed !== true
+      ),
     [items]
   );
   const selectedDraft = useMemo(
@@ -89,7 +132,11 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
   }, [items, searchQuery, filters.kind, filters.status]);
 
   const visibleInboxItems = useMemo(
-    () => filteredItems.filter((item) => item.kind === 'comment' && item.meta?.processed !== true),
+    () =>
+      filteredItems.filter(
+        (item) =>
+          (item.kind === 'comment' || item.kind === 'memo') && item.meta?.processed !== true
+      ),
     [filteredItems]
   );
 
@@ -106,6 +153,171 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
     await window.agency.updateHilItem({ worktreePath, itemId: item.id, patch: { status } });
     refresh();
   }, [refresh, worktreePath]);
+
+  const selectionInWorktree = Boolean(
+    selection?.filePath && selection?.rootPath && worktreePath && selection.rootPath === worktreePath
+  );
+  const selectionText = selectionInWorktree ? selection.text || '' : '';
+  const selectionLines = selectionInWorktree
+    ? { start: selection.startLine, end: selection.endLine }
+    : null;
+
+  useEffect(() => {
+    setCaptureError('');
+  }, [captureMode]);
+
+  const resetCaptureState = useCallback(() => {
+    setFlashText('');
+    setExcerptNote('');
+    setScreenshotNote('');
+    setScreenshotAsset(null);
+    setCaptureError('');
+    setCaptureLoading(false);
+  }, []);
+
+  const handleCreateMemo = useCallback(
+    async ({ body, anchor, meta }) => {
+      if (!worktreePath) {
+        setCaptureError('Select a project before creating memos.');
+        return;
+      }
+      if (!body || !body.trim()) {
+        setCaptureError('Content is required.');
+        return;
+      }
+      setCaptureLoading(true);
+      setCaptureError('');
+      try {
+        await agencyCreateHilItem({
+          worktreePath,
+          kind: 'memo',
+          body: body.trim(),
+          anchor,
+          meta,
+        });
+        resetCaptureState();
+        refresh();
+      } catch (createError) {
+        setCaptureError(createError?.message || 'Failed to create memo.');
+      } finally {
+        setCaptureLoading(false);
+      }
+    },
+    [refresh, resetCaptureState, worktreePath]
+  );
+
+  const handleCreateFlash = useCallback(async () => {
+    await handleCreateMemo({
+      body: flashText,
+      meta: { noteType: 'flash' },
+    });
+  }, [flashText, handleCreateMemo]);
+
+  const handleCreateExcerpt = useCallback(async () => {
+    if (!selectionInWorktree || !selectionText.trim()) {
+      setCaptureError('Select text in the editor to capture an excerpt.');
+      return;
+    }
+    await handleCreateMemo({
+      body: selectionText,
+      anchor: selection?.filePath
+        ? {
+            file: selection.filePath,
+            line: selection.startLine || 1,
+            column: selection.startColumn || 1,
+          }
+        : null,
+      meta: {
+        noteType: 'excerpt',
+        source: {
+          file: selection.filePath,
+          startLine: selection.startLine,
+          endLine: selection.endLine,
+          selection: selectionText,
+          note: excerptNote.trim() || null,
+        },
+      },
+    });
+  }, [excerptNote, handleCreateMemo, selection, selectionInWorktree, selectionText]);
+
+  const handleCaptureScreenshot = useCallback(async () => {
+    if (!worktreePath) {
+      setCaptureError('Select a project before capturing.');
+      return;
+    }
+    setCaptureLoading(true);
+    setCaptureError('');
+    try {
+      const worktreeName = normalizeWorktreeName(worktreePath);
+      const targetDir = `.agency/hil/assets/${worktreeName}`;
+      const result = await agencyMaterializeClipboard({
+        rootPath: worktreePath,
+        targetDir,
+        includeText: false,
+        relativeTo: worktreePath,
+      });
+      const paths = Array.isArray(result?.paths) ? result.paths : [];
+      const imagePath =
+        result?.type === 'image'
+          ? paths[0]
+          : result?.type === 'files'
+            ? paths.find((path) => isImagePath(path))
+            : null;
+      if (!imagePath) {
+        setCaptureError('Clipboard does not contain an image.');
+        return;
+      }
+      const urlResult = await agencyGetWorkbenchFileUrl({
+        rootPath: worktreePath,
+        targetPath: imagePath,
+      });
+      const url = urlResult?.url || '';
+      const preview = {
+        path: imagePath,
+        url,
+        width: null,
+        height: null,
+        mime: buildAssetMime(imagePath),
+      };
+      if (url) {
+        await new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            preview.width = img.naturalWidth || img.width || null;
+            preview.height = img.naturalHeight || img.height || null;
+            resolve();
+          };
+          img.onerror = () => resolve();
+          img.src = url;
+        });
+      }
+      setScreenshotAsset(preview);
+    } catch (captureError) {
+      setCaptureError(captureError?.message || 'Failed to capture screenshot.');
+    } finally {
+      setCaptureLoading(false);
+    }
+  }, [worktreePath]);
+
+  const handleCreateScreenshot = useCallback(async () => {
+    if (!screenshotAsset?.path) {
+      setCaptureError('Capture a screenshot before saving.');
+      return;
+    }
+    const filename = screenshotAsset.path.split('/').pop() || 'screenshot';
+    await handleCreateMemo({
+      body: screenshotNote.trim() || `Screenshot ${filename}`,
+      meta: {
+        noteType: 'screenshot',
+        asset: {
+          path: screenshotAsset.path,
+          mime: screenshotAsset.mime,
+          width: screenshotAsset.width,
+          height: screenshotAsset.height,
+        },
+      },
+    });
+  }, [handleCreateMemo, screenshotAsset, screenshotNote]);
 
   if (!projectReady) {
     return (
@@ -182,8 +394,8 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
                 : 'text-muted-foreground/60 hover:text-foreground'
             }`}
           >
-            <MessageSquarePlus size={14} />
-            Comment Inbox
+            <Inbox size={14} />
+            Inbox
           </button>
 
           <div className="mt-4 flex items-center justify-between px-4 py-2 border-t border-border/10">
@@ -229,6 +441,160 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
               />
             ) : (
               <div className="flex h-full flex-col">
+                <div className="border-b border-border/10 px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
+                      Capture
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <CaptureModeButton
+                        active={captureMode === 'flash'}
+                        label="Flash"
+                        icon={StickyNote}
+                        onClick={() => setCaptureMode('flash')}
+                      />
+                      <CaptureModeButton
+                        active={captureMode === 'excerpt'}
+                        label="Excerpt"
+                        icon={Quote}
+                        onClick={() => setCaptureMode('excerpt')}
+                      />
+                      <CaptureModeButton
+                        active={captureMode === 'screenshot'}
+                        label="Screenshot"
+                        icon={Camera}
+                        onClick={() => setCaptureMode('screenshot')}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 rounded-2xl border border-border/10 bg-muted/5 p-4">
+                    {captureMode === 'flash' ? (
+                      <div className="flex flex-col gap-3">
+                        <textarea
+                          value={flashText}
+                          onChange={(event) => setFlashText(event.target.value)}
+                          rows={3}
+                          placeholder="Write a flash memo..."
+                          className="w-full resize-none rounded-lg border border-border/20 bg-background px-3 py-2.5 text-[12px] text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-all"
+                        />
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground/50">
+                          <span>{flashText.trim() ? 'Ready to save.' : 'Keep it short and direct.'}</span>
+                          <button
+                            type="button"
+                            onClick={handleCreateFlash}
+                            disabled={captureLoading || !flashText.trim()}
+                            className="rounded-md bg-primary px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
+                          >
+                            {captureLoading ? 'Saving...' : 'Save Flash'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {captureMode === 'excerpt' ? (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex flex-col gap-1 text-[10px] text-muted-foreground/60">
+                            <span className="uppercase tracking-[0.2em] font-bold text-muted-foreground/40">
+                              Selection
+                            </span>
+                            {selectionInWorktree && selection?.filePath ? (
+                              <span className="font-mono text-muted-foreground/70">
+                                {selection.filePath}
+                                {selectionLines?.start ? `:${selectionLines.start}` : ''}
+                                {selectionLines?.end && selectionLines.end !== selectionLines.start
+                                  ? `-${selectionLines.end}`
+                                  : ''}
+                              </span>
+                            ) : (
+                              <span className="italic text-muted-foreground/40">
+                                Select text in the editor to capture.
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleCreateExcerpt}
+                            disabled={captureLoading || !selectionText.trim()}
+                            className="rounded-md bg-primary px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
+                          >
+                            {captureLoading ? 'Saving...' : 'Save Excerpt'}
+                          </button>
+                        </div>
+                        <div className="rounded-lg border border-border/10 bg-background/60 p-3 text-[11px] text-muted-foreground/70 font-mono whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar">
+                          {selectionText.trim() || 'No excerpt captured yet.'}
+                        </div>
+                        <input
+                          value={excerptNote}
+                          onChange={(event) => setExcerptNote(event.target.value)}
+                          placeholder="Optional note about this excerpt..."
+                          className="h-9 rounded-md border border-border/20 bg-background px-3 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary/30 focus:outline-none transition-all"
+                        />
+                      </div>
+                    ) : null}
+
+                    {captureMode === 'screenshot' ? (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
+                            <Clipboard size={12} />
+                            Paste an image from clipboard.
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleCaptureScreenshot}
+                            disabled={captureLoading}
+                            className="rounded-md border border-border/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 hover:text-foreground hover:border-primary/30 transition-all disabled:opacity-50"
+                          >
+                            {captureLoading ? 'Capturing...' : 'Capture'}
+                          </button>
+                        </div>
+                        {screenshotAsset ? (
+                          <div className="rounded-xl border border-border/10 bg-background/70 p-3 flex flex-col gap-2">
+                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
+                              <ImageIcon size={12} />
+                              <span className="font-mono">{screenshotAsset.path}</span>
+                              {screenshotAsset.width ? (
+                                <span className="ml-auto text-[9px] text-muted-foreground/40">
+                                  {screenshotAsset.width}×{screenshotAsset.height || '?'}
+                                </span>
+                              ) : null}
+                            </div>
+                            {screenshotAsset.url ? (
+                              <div className="h-40 rounded-lg border border-border/10 bg-black/20 flex items-center justify-center overflow-hidden">
+                                <img src={screenshotAsset.url} alt="Captured screenshot" className="max-h-full max-w-full object-contain" />
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
+                        <input
+                          value={screenshotNote}
+                          onChange={(event) => setScreenshotNote(event.target.value)}
+                          placeholder="Optional note for the screenshot..."
+                          className="h-9 rounded-md border border-border/20 bg-background px-3 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary/30 focus:outline-none transition-all"
+                        />
+                        <div className="flex items-center justify-end">
+                          <button
+                            type="button"
+                            onClick={handleCreateScreenshot}
+                            disabled={captureLoading || !screenshotAsset}
+                            className="rounded-md bg-primary px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
+                          >
+                            {captureLoading ? 'Saving...' : 'Save Screenshot'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {captureError ? (
+                      <div className="mt-3 text-[10px] font-medium text-rose-400 bg-rose-500/5 p-2 rounded border border-rose-500/10">
+                        {captureError}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
                 {error && (
                   <div className="mx-6 mt-4 p-4 bg-rose-500/5 rounded-2xl border border-rose-500/10 text-rose-400 text-[11px] font-medium animate-slide-down">
                     <Activity size={14} className="inline mr-2" /> {error}
@@ -289,8 +655,11 @@ function FilterChip({ label, value, options, onChange }) {
 function MemoRow({ item, index, onUpdateStatus }) {
     const isResolved = item.status === 'resolved' || item.status === 'archived';
     const isProcessed = item.kind === 'comment' && item.meta?.processed === true;
+    const isMemoProcessed = item.kind === 'memo' && item.meta?.processed === true;
     const Icon = kindIcons[item.kind] || FileText;
     const bodySummary = resolveBody(item);
+    const noteType = item.kind === 'memo' ? item.meta?.noteType : null;
+    const noteLabel = noteType ? String(noteType).toUpperCase() : null;
     
     return (
         <div className={`group flex items-center h-12 px-4 gap-6 transition-all duration-500 rounded-xl ${
@@ -306,7 +675,12 @@ function MemoRow({ item, index, onUpdateStatus }) {
             <div className="w-24 shrink-0 flex items-center gap-2">
                 <Icon size={13} strokeWidth={1.5} className={!isResolved ? 'text-primary/60' : 'text-muted-foreground/30'} />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">{item.kind}</span>
-                {isProcessed ? (
+                {noteLabel ? (
+                    <span className="rounded-full border border-border/20 px-1.5 py-0 text-[8px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                        {noteLabel}
+                    </span>
+                ) : null}
+                {isProcessed || isMemoProcessed ? (
                     <span className="rounded-full border border-emerald-500/30 px-1.5 py-0 text-[8px] font-bold uppercase tracking-widest text-emerald-400/70">
                         Done
                     </span>
@@ -448,6 +822,23 @@ function RowAction({ icon: Icon, onClick, title, color = "hover:text-foreground 
             <Icon size={14} strokeWidth={2} />
         </button>
     )
+}
+
+function CaptureModeButton({ active, label, icon: Icon, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.2em] transition-all ${
+        active
+          ? 'bg-primary/15 text-primary'
+          : 'text-muted-foreground/50 hover:text-foreground hover:bg-muted/10'
+      }`}
+    >
+      <Icon size={11} />
+      {label}
+    </button>
+  );
 }
 
 const kindOptions = [

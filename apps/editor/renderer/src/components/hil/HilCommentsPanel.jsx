@@ -501,9 +501,9 @@ function PromoteModal({
       <div className="w-full max-w-3xl rounded-2xl border border-border/20 bg-card p-5 shadow-2xl">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-[12px] font-semibold text-foreground">Promote Comments</div>
+            <div className="text-[12px] font-semibold text-foreground">Promote Items</div>
             <div className="text-[10px] text-muted-foreground/60">
-              Convert selected comments into a draft and wait for completion.
+              Convert selected items into a draft and wait for completion.
             </div>
           </div>
           <button
@@ -523,7 +523,7 @@ function PromoteModal({
               rows={4}
               disabled={isWaiting}
               className="w-full resize-none rounded-lg border border-border/20 bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-all disabled:opacity-60"
-              placeholder="Describe the draft you want to create from selected comments..."
+              placeholder="Describe the draft you want to create from selected items..."
             />
 
             <div className="rounded-xl border border-border/10 bg-muted/5 px-3 py-3">
@@ -572,7 +572,7 @@ function PromoteModal({
               {!isWaiting
                 ? 'Start promote to create a draft and begin the gate.'
                 : gateReady && promoteDraft
-                  ? 'Draft marked complete. You can confirm and consume comments.'
+                  ? 'Draft marked complete. You can confirm and consume items.'
                   : gateMissing
                     ? 'Draft not found. Ensure the draft exists in .agency/hil.'
                     : 'Waiting for the agent to complete the draft and mark it promoted.'}
@@ -588,12 +588,14 @@ function PromoteModal({
         <div className="mt-4 max-h-64 overflow-y-auto custom-scrollbar pr-1 space-y-2">
           {items.length === 0 ? (
             <div className="text-[11px] text-muted-foreground/40 py-6 text-center italic">
-              No pending comments.
+              No pending items.
             </div>
           ) : (
             items.map((item) => {
               const checked = selectedIds.includes(item.id);
               const preview = previewById[item.id];
+              const noteType = item.kind === 'memo' ? item.meta?.noteType : null;
+              const Icon = kindIcons[item.kind] || FileCode;
               return (
                 <div
                   key={item.id}
@@ -610,12 +612,20 @@ function PromoteModal({
                     />
                     <div className="flex flex-1 flex-col gap-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-foreground/80 truncate mr-2 text-[11px]">
-                          {item.anchor?.file || 'Unknown file'}
+                        <span className="flex items-center gap-2 font-semibold text-foreground/80 truncate mr-2 text-[11px]">
+                          <Icon size={12} className="text-primary/60" />
+                          {item.anchor?.file || (item.kind === 'memo' ? 'Memo' : 'Unknown file')}
+                          {noteType ? (
+                            <span className="rounded-full border border-border/20 px-2 py-0 text-[8px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                              {noteType}
+                            </span>
+                          ) : null}
                         </span>
-                        <span className="text-[10px] text-muted-foreground/40 tabular-nums shrink-0 font-medium">
-                          Ln {item.anchor?.line || 1}
-                        </span>
+                        {item.anchor?.line ? (
+                          <span className="text-[10px] text-muted-foreground/40 tabular-nums shrink-0 font-medium">
+                            Ln {item.anchor?.line || 1}
+                          </span>
+                        ) : null}
                       </div>
                       <div className="text-[11px] text-muted-foreground/80 line-clamp-2 leading-relaxed">
                         {item.body || item.message}

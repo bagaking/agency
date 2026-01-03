@@ -101,6 +101,22 @@ export const createHilItem = async (payload) => {
   return api.createHilItem(payload);
 };
 
+export const materializeClipboard = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.materializeClipboard) {
+    return null;
+  }
+  return api.materializeClipboard(payload);
+};
+
+export const getWorkbenchFileUrl = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.getWorkbenchFileUrl) {
+    return null;
+  }
+  return api.getWorkbenchFileUrl(payload);
+};
+
 export const getFileSnippet = async (payload) => {
   const api = getAgencyApi();
   if (!api?.getFileSnippet) {

@@ -88,6 +88,7 @@ export function WorkbenchPane({
   commentLines,
   onOpenComment,
   onCursorPositionChange,
+  onSelectionChange,
 }) {
   if (!projectReady) {
     return (
@@ -109,6 +110,7 @@ export function WorkbenchPane({
       commentLines={commentLines}
       onOpenComment={onOpenComment}
       onCursorPositionChange={onCursorPositionChange}
+      onSelectionChange={onSelectionChange}
     />
   );
 }
@@ -122,6 +124,7 @@ function WorkbenchPaneContent({
   commentLines,
   onOpenComment,
   onCursorPositionChange,
+  onSelectionChange,
 }) {
   const { 
     tabs, 
@@ -274,6 +277,16 @@ function WorkbenchPaneContent({
     },
     [onCursorPositionChange]
   );
+
+  useEffect(() => {
+    if (activeState.kind !== 'code') {
+      onSelectionChange?.(null);
+    }
+  }, [activeState.kind, onSelectionChange]);
+
+  useEffect(() => {
+    onSelectionChange?.(null);
+  }, [activeTab?.id, onSelectionChange]);
 
   const handleUnlock = async () => {
       if (!activeTab) return;
@@ -466,6 +479,20 @@ function WorkbenchPaneContent({
             readOnly={activeState.truncated}
             onChange={(val) => updateTabState(activeTab.id, { content: val, isDirty: true })}
             onCursorChange={handleCursorChange}
+            onSelectionChange={(selection) => {
+              if (!onSelectionChange) {
+                return;
+              }
+              if (!selection) {
+                onSelectionChange(null);
+                return;
+              }
+              onSelectionChange({
+                ...selection,
+                filePath: activeTab.path,
+                rootPath: activeTab.rootPath,
+              });
+            }}
             onLineComment={({ line, column }) => onOpenComment?.({ line, column })}
           />
         ) : (

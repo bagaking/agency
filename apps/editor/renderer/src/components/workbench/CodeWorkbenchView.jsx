@@ -74,6 +74,7 @@ export function CodeWorkbenchView({
   readOnly,
   onChange,
   onCursorChange,
+  onSelectionChange,
   onLineComment,
 }) {
   const monaco = useMonaco();
@@ -96,6 +97,7 @@ export function CodeWorkbenchView({
   const commentActionLabelRef = useRef(null);
   const commentContextRef = useRef({ line: null, column: null });
   const lastHoverLineRef = useRef(null);
+  const lastSelectionRef = useRef('');
 
   const blameMap = useMemo(() => toBlameMap(blameLines), [blameLines]);
   const blameInfo = blameEnabled && hoverLine ? blameMap.get(hoverLine) : null;
@@ -203,6 +205,45 @@ export function CodeWorkbenchView({
       commentContextRef.current = { line: null, column: null };
     };
   }, [editorReady, monaco]);
+
+  useEffect(() => {
+    if (!editorReady || !editorRef.current || !onSelectionChange) {
+      return undefined;
+    }
+    const editor = editorRef.current;
+    const handleSelection = (event) => {
+      const selection = event?.selection;
+      if (!selection) {
+        return;
+      }
+      if (selection.isEmpty()) {
+        if (lastSelectionRef.current !== '') {
+          lastSelectionRef.current = '';
+          onSelectionChange(null);
+        }
+        return;
+      }
+      const model = editor.getModel();
+      const selectedText = model ? model.getValueInRange(selection) : '';
+      const payload = {
+        startLine: selection.startLineNumber,
+        endLine: selection.endLineNumber,
+        startColumn: selection.startColumn,
+        endColumn: selection.endColumn,
+        text: selectedText,
+      };
+      const signature = `${payload.startLine}:${payload.endLine}:${payload.startColumn}:${payload.endColumn}:${selectedText}`;
+      if (signature === lastSelectionRef.current) {
+        return;
+      }
+      lastSelectionRef.current = signature;
+      onSelectionChange(payload);
+    };
+    const subscription = editor.onDidChangeCursorSelection(handleSelection);
+    return () => {
+      subscription?.dispose?.();
+    };
+  }, [editorReady, onSelectionChange]);
 
   useEffect(() => {
     if (!editorReady) {
