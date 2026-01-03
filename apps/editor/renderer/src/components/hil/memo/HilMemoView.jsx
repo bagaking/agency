@@ -14,18 +14,17 @@ import {
   Activity,
   ChevronDown,
   Camera,
-  Clipboard,
   Quote,
-  Image as ImageIcon,
   Inbox
 } from 'lucide-react';
-import { ProjectEmptyState } from '../ProjectEmptyState.jsx';
-import { useHilItems } from '../../hooks/useHilItems.js';
+import { ProjectEmptyState } from '../../ProjectEmptyState.jsx';
+import { useHilItems } from '../../../hooks/useHilItems.js';
+import { InboxSection } from './InboxSection.jsx';
 import {
   createHilItem as agencyCreateHilItem,
   materializeClipboard as agencyMaterializeClipboard,
   getWorkbenchFileUrl as agencyGetWorkbenchFileUrl,
-} from '../../services/agencyBridge.js';
+} from '../../../services/agencyBridge.js';
 
 const kindIcons = {
     comment: Terminal,
@@ -488,154 +487,25 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
               />
             ) : (
               <div className="flex h-full flex-col">
-                <div className="border-b border-border/10 px-6 py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
-                      Inbox
-                    </div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
-                      {activeInboxSection?.label || 'Inbox'}
-                    </div>
-                  </div>
-
-                  <div className="mt-3 rounded-2xl border border-border/10 bg-muted/5 p-4">
-                    {activeInboxSection?.id === 'comments' ? (
-                      <div className="flex flex-col gap-2 text-[11px] text-muted-foreground/60">
-                        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50">
-                          <Terminal size={12} />
-                          Comment Capture
-                        </div>
-                        <p className="leading-relaxed">
-                          Add comments directly inside the editor. Use line comments to capture context-rich feedback.
-                        </p>
-                      </div>
-                    ) : null}
-
-                    {activeInboxSection?.id === 'flash' ? (
-                      <div className="flex flex-col gap-3">
-                        <textarea
-                          value={flashText}
-                          onChange={(event) => setFlashText(event.target.value)}
-                          rows={3}
-                          placeholder="Write a flash memo..."
-                          className="w-full resize-none rounded-lg border border-border/20 bg-background px-3 py-2.5 text-[12px] text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-all"
-                        />
-                        <div className="flex items-center justify-between text-[10px] text-muted-foreground/50">
-                          <span>{flashText.trim() ? 'Ready to save.' : 'Keep it short and direct.'}</span>
-                          <button
-                            type="button"
-                            onClick={handleCreateFlash}
-                            disabled={captureLoading || !flashText.trim()}
-                            className="rounded-md bg-primary px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
-                          >
-                            {captureLoading ? 'Saving...' : 'Save Flash'}
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {activeInboxSection?.id === 'excerpt' ? (
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex flex-col gap-1 text-[10px] text-muted-foreground/60">
-                            <span className="uppercase tracking-[0.2em] font-bold text-muted-foreground/40">
-                              Selection
-                            </span>
-                            {selectionInWorktree && selection?.filePath ? (
-                              <span className="font-mono text-muted-foreground/70">
-                                {selection.filePath}
-                                {selectionLines?.start ? `:${selectionLines.start}` : ''}
-                                {selectionLines?.end && selectionLines.end !== selectionLines.start
-                                  ? `-${selectionLines.end}`
-                                  : ''}
-                              </span>
-                            ) : (
-                              <span className="italic text-muted-foreground/40">
-                                Select text in the editor to capture.
-                              </span>
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handleCreateExcerpt}
-                            disabled={captureLoading || !selectionText.trim()}
-                            className="rounded-md bg-primary px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
-                          >
-                            {captureLoading ? 'Saving...' : 'Save Excerpt'}
-                          </button>
-                        </div>
-                        <div className="rounded-lg border border-border/10 bg-background/60 p-3 text-[11px] text-muted-foreground/70 font-mono whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar">
-                          {selectionText.trim() || 'No excerpt captured yet.'}
-                        </div>
-                        <input
-                          value={excerptNote}
-                          onChange={(event) => setExcerptNote(event.target.value)}
-                          placeholder="Optional note about this excerpt..."
-                          className="h-9 rounded-md border border-border/20 bg-background px-3 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary/30 focus:outline-none transition-all"
-                        />
-                      </div>
-                    ) : null}
-
-                    {activeInboxSection?.id === 'screenshot' ? (
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
-                            <Clipboard size={12} />
-                            Paste an image from clipboard.
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handleCaptureScreenshot}
-                            disabled={captureLoading}
-                            className="rounded-md border border-border/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 hover:text-foreground hover:border-primary/30 transition-all disabled:opacity-50"
-                          >
-                            {captureLoading ? 'Capturing...' : 'Capture'}
-                          </button>
-                        </div>
-                        {screenshotAsset ? (
-                          <div className="rounded-xl border border-border/10 bg-background/70 p-3 flex flex-col gap-2">
-                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
-                              <ImageIcon size={12} />
-                              <span className="font-mono">{screenshotAsset.path}</span>
-                              {screenshotAsset.width ? (
-                                <span className="ml-auto text-[9px] text-muted-foreground/40">
-                                  {screenshotAsset.width}×{screenshotAsset.height || '?'}
-                                </span>
-                              ) : null}
-                            </div>
-                            {screenshotAsset.url ? (
-                              <div className="h-40 rounded-lg border border-border/10 bg-black/20 flex items-center justify-center overflow-hidden">
-                                <img src={screenshotAsset.url} alt="Captured screenshot" className="max-h-full max-w-full object-contain" />
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : null}
-                        <input
-                          value={screenshotNote}
-                          onChange={(event) => setScreenshotNote(event.target.value)}
-                          placeholder="Optional note for the screenshot..."
-                          className="h-9 rounded-md border border-border/20 bg-background px-3 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary/30 focus:outline-none transition-all"
-                        />
-                        <div className="flex items-center justify-end">
-                          <button
-                            type="button"
-                            onClick={handleCreateScreenshot}
-                            disabled={captureLoading || !screenshotAsset}
-                            className="rounded-md bg-primary px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
-                          >
-                            {captureLoading ? 'Saving...' : 'Save Screenshot'}
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {captureError ? (
-                      <div className="mt-3 text-[10px] font-medium text-rose-400 bg-rose-500/5 p-2 rounded border border-rose-500/10">
-                        {captureError}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
+                <InboxSection
+                  activeSection={activeInboxSection}
+                  selectionPath={selectionInWorktree ? selection?.filePath : ''}
+                  selectionLines={selectionLines}
+                  selectionText={selectionText}
+                  flashValue={flashText}
+                  onFlashChange={setFlashText}
+                  onSaveFlash={handleCreateFlash}
+                  excerptNote={excerptNote}
+                  onExcerptNoteChange={setExcerptNote}
+                  onSaveExcerpt={handleCreateExcerpt}
+                  screenshotAsset={screenshotAsset}
+                  screenshotNote={screenshotNote}
+                  onScreenshotNoteChange={setScreenshotNote}
+                  onCaptureScreenshot={handleCaptureScreenshot}
+                  onSaveScreenshot={handleCreateScreenshot}
+                  captureLoading={captureLoading}
+                  captureError={captureError}
+                />
 
                 {error && (
                   <div className="mx-6 mt-4 p-4 bg-rose-500/5 rounded-2xl border border-rose-500/10 text-rose-400 text-[11px] font-medium animate-slide-down">

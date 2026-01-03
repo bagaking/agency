@@ -12,7 +12,7 @@ import { SidebarDock } from './layout/SidebarDock.jsx';
 import { ProjectSettingsView } from './ProjectSettingsView.jsx';
 import { HilDrawer } from './hil/HilDrawer.jsx';
 import { HilCommentsPanel } from './hil/HilCommentsPanel.jsx';
-import { HilMemoView } from './hil/HilMemoView.jsx';
+import { HilMemoView } from './hil/memo/HilMemoView.jsx';
 
 export function AppLayout({
   activeView,
