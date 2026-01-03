@@ -157,11 +157,11 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
               />
             </div>
 
-            <div className="mt-3">
-              <div className="flex items-center gap-2 text-[9px] font-black text-muted-foreground/30 uppercase tracking-[0.3em]">
-                <Filter size={10} strokeWidth={3} /> Selector
+            <div className="mt-2 flex items-center gap-2">
+              <div className="flex items-center gap-1 text-[9px] font-black text-muted-foreground/30 uppercase tracking-[0.3em]">
+                <Filter size={9} strokeWidth={3} /> Selector
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <FilterChip 
                   label="Type" 
                   value={filters.kind} 
@@ -289,7 +289,7 @@ function FilterChip({ label, value, options, onChange }) {
                     <option key={opt.value} value={opt.value} className="bg-popover text-foreground">{opt.label}</option>
                 ))}
             </select>
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-muted/10 border border-border/10 text-[10px] font-bold text-muted-foreground/50 group-hover/chip:text-primary group-hover/chip:border-primary/20 transition-all">
+            <div className="flex items-center gap-2 px-2 py-0.5 rounded-full bg-muted/10 border border-border/10 text-[9px] font-bold text-muted-foreground/50 group-hover/chip:text-primary group-hover/chip:border-primary/20 transition-all">
                 <span className="opacity-40">{label}:</span>
                 <span className="text-muted-foreground/80 tracking-tight">{activeLabel}</span>
                 <ChevronDown size={10} className="opacity-20" />
