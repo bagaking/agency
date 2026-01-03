@@ -643,7 +643,8 @@ function App() {
       setPromoteItems(pending);
       setPromoteSelectedIds(pending.map((item) => item.id));
       const availableSessions = sessions.filter((session) => session.status !== 'closed');
-      setPromoteSessionId(activeSessionId || availableSessions[0]?.id || '');
+      const preferredSession = availableSessions.find((session) => session.id === activeSessionId);
+      setPromoteSessionId(preferredSession?.id || availableSessions[0]?.id || '');
     } catch (error) {
       setPromoteError(error?.message || 'Failed to load pending comments.');
       setPromoteItems([]);
