@@ -126,57 +126,6 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
 
   return (
     <section className="flex h-full flex-1 flex-col bg-background overflow-hidden select-none">
-      {/* 1. Integrated Ghost Header */}
-      <header className="shrink-0 flex items-center px-10 h-20 gap-12">
-        <div className="flex flex-col shrink-0">
-            <h2 className="text-[9px] font-black uppercase tracking-[0.4em] text-primary/40 mb-1">Human-In-Loop</h2>
-            <div className="flex items-center gap-3">
-                <span className="text-2xl font-bold text-foreground tracking-tighter italic">Repository_</span>
-                <div className="flex items-center gap-4 text-[10px] font-bold text-muted-foreground/20 uppercase tracking-widest ml-2">
-                    <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-muted-foreground/30" /> {summary.comment}</span>
-                    <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-muted-foreground/30" /> {summary.memo}</span>
-                    <span className="flex items-center gap-1.5 text-primary/40"><div className="w-1 h-1 rounded-full bg-current" /> {summary.draft}</span>
-                </div>
-            </div>
-        </div>
-
-        {/* Global Search: Ghost Style */}
-        <div className="flex-1 relative group max-w-xl">
-            <Search size={14} className="absolute left-0 top-1/2 -translate-y-1/2 text-muted-foreground/30 group-focus-within:text-primary transition-all" />
-            <input 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="FILTER OBJECTS..."
-                className="w-full h-10 bg-transparent border-b border-border/10 pl-8 text-xs text-foreground placeholder:text-muted-foreground/20 focus:outline-none focus:border-primary/40 transition-all tracking-[0.1em]"
-            />
-        </div>
-
-        <button onClick={refresh} className="shrink-0 p-3 rounded-full bg-muted/5 text-muted-foreground/40 hover:text-foreground transition-all hover:bg-muted/10 active:scale-90">
-            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-        </button>
-      </header>
-
-      {/* 2. Seamless Toolbar */}
-      <div className="shrink-0 flex items-center px-10 h-10 gap-6 bg-muted/5 border-y border-border/10">
-          <div className="flex items-center gap-2 text-[9px] font-black text-muted-foreground/30 uppercase tracking-[0.3em]">
-              <Filter size={10} strokeWidth={3} /> Selector
-          </div>
-          <div className="flex items-center gap-1">
-            <FilterChip 
-                label="Type" 
-                value={filters.kind} 
-                options={kindOptions} 
-                onChange={(v) => setFilters(curr => ({ ...curr, kind: v }))} 
-            />
-            <FilterChip 
-                label="Status" 
-                value={filters.status} 
-                options={statusOptions} 
-                onChange={(v) => setFilters(curr => ({ ...curr, status: v }))} 
-            />
-          </div>
-      </div>
-
       <div className="flex flex-1 overflow-hidden">
         {/* Dock */}
         <aside className="w-64 shrink-0 border-r border-border/20 bg-muted/5">
@@ -233,43 +182,93 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
         </aside>
 
         {/* Main Pane */}
-        <div className="flex-1 overflow-hidden">
-          {dockSelection.type === 'draft' && selectedDraft ? (
-            <DraftDetail
-              draft={selectedDraft}
-              onUpdateStatus={updateStatus}
-            />
-          ) : (
-            <div className="flex h-full flex-col">
-              {error && (
-                <div className="mx-6 mt-4 p-4 bg-rose-500/5 rounded-2xl border border-rose-500/10 text-rose-400 text-[11px] font-medium animate-slide-down">
-                  <Activity size={14} className="inline mr-2" /> {error}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <header className="shrink-0 flex items-center px-6 h-20 gap-12">
+            <div className="flex flex-col shrink-0">
+              <h2 className="text-[9px] font-black uppercase tracking-[0.4em] text-primary/40 mb-1">Human-In-Loop</h2>
+              <div className="flex items-center gap-3">
+                <span className="text-2xl font-bold text-foreground tracking-tighter italic">Repository_</span>
+                <div className="flex items-center gap-4 text-[10px] font-bold text-muted-foreground/20 uppercase tracking-widest ml-2">
+                  <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-muted-foreground/30" /> {summary.comment}</span>
+                  <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-muted-foreground/30" /> {summary.memo}</span>
+                  <span className="flex items-center gap-1.5 text-primary/40"><div className="w-1 h-1 rounded-full bg-current" /> {summary.draft}</span>
                 </div>
-              )}
-              <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
-                <div className="flex flex-col gap-0.5">
-                  {visibleInboxItems.map((item, index) => (
-                    <MemoRow
-                      key={item.id}
-                      index={index}
-                      item={item}
-                      onUpdateStatus={updateStatus}
-                      onPromote={promoteItem}
-                    />
-                  ))}
-                </div>
-
-                {!loading && visibleInboxItems.length === 0 && (
-                  <div className="py-32 flex flex-col items-center justify-center opacity-5">
-                    <Hash size={64} strokeWidth={1} />
-                    <p className="text-[11px] font-black uppercase tracking-[0.5em] mt-6">
-                      Inbox Empty
-                    </p>
-                  </div>
-                )}
               </div>
             </div>
-          )}
+
+            <div className="flex-1 relative group max-w-xl">
+              <Search size={14} className="absolute left-0 top-1/2 -translate-y-1/2 text-muted-foreground/30 group-focus-within:text-primary transition-all" />
+              <input 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="FILTER OBJECTS..."
+                className="w-full h-10 bg-transparent border-b border-border/10 pl-8 text-xs text-foreground placeholder:text-muted-foreground/20 focus:outline-none focus:border-primary/40 transition-all tracking-[0.1em]"
+              />
+            </div>
+
+            <button onClick={refresh} className="shrink-0 p-3 rounded-full bg-muted/5 text-muted-foreground/40 hover:text-foreground transition-all hover:bg-muted/10 active:scale-90">
+              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+            </button>
+          </header>
+
+          <div className="shrink-0 flex items-center px-6 h-10 gap-6 bg-muted/5 border-y border-border/10">
+            <div className="flex items-center gap-2 text-[9px] font-black text-muted-foreground/30 uppercase tracking-[0.3em]">
+              <Filter size={10} strokeWidth={3} /> Selector
+            </div>
+            <div className="flex items-center gap-1">
+              <FilterChip 
+                label="Type" 
+                value={filters.kind} 
+                options={kindOptions} 
+                onChange={(v) => setFilters(curr => ({ ...curr, kind: v }))} 
+              />
+              <FilterChip 
+                label="Status" 
+                value={filters.status} 
+                options={statusOptions} 
+                onChange={(v) => setFilters(curr => ({ ...curr, status: v }))} 
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-hidden">
+            {dockSelection.type === 'draft' && selectedDraft ? (
+              <DraftDetail
+                draft={selectedDraft}
+                onUpdateStatus={updateStatus}
+              />
+            ) : (
+              <div className="flex h-full flex-col">
+                {error && (
+                  <div className="mx-6 mt-4 p-4 bg-rose-500/5 rounded-2xl border border-rose-500/10 text-rose-400 text-[11px] font-medium animate-slide-down">
+                    <Activity size={14} className="inline mr-2" /> {error}
+                  </div>
+                )}
+                <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
+                  <div className="flex flex-col gap-0.5">
+                    {visibleInboxItems.map((item, index) => (
+                      <MemoRow
+                        key={item.id}
+                        index={index}
+                        item={item}
+                        onUpdateStatus={updateStatus}
+                        onPromote={promoteItem}
+                      />
+                    ))}
+                  </div>
+
+                  {!loading && visibleInboxItems.length === 0 && (
+                    <div className="py-32 flex flex-col items-center justify-center opacity-5">
+                      <Hash size={64} strokeWidth={1} />
+                      <p className="text-[11px] font-black uppercase tracking-[0.5em] mt-6">
+                        Inbox Empty
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </section>
