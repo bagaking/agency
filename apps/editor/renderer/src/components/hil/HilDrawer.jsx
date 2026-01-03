@@ -24,29 +24,29 @@ export function HilDrawer({
 
   return (
     <aside
-      className={`relative flex h-full flex-shrink-0 flex-col border-l border-white/[0.03] bg-[#111318]/90 backdrop-blur-2xl transition-all duration-300 ${
+      className={`relative flex h-full flex-shrink-0 flex-col border-l border-border/20 bg-muted/5 backdrop-blur-2xl transition-all duration-300 ${
         drawerOpen ? 'w-[360px]' : 'w-6'
       }`}
     >
       <header
-        className={`shrink-0 h-11 flex items-center gap-2 border-b border-white/[0.02] bg-white/[0.01] ${
+        className={`shrink-0 h-11 flex items-center gap-2 border-b border-border/10 bg-muted/10 ${
           drawerOpen ? 'px-2' : 'px-0 justify-center'
         }`}
       >
         <button
           type="button"
           onClick={handleToggle}
-          className="flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-[#111318]/90 text-muted-foreground/60 shadow hover:text-foreground"
+          className="flex h-6 w-6 items-center justify-center rounded-full border border-border/30 bg-background/60 text-muted-foreground/60 shadow-sm hover:text-foreground hover:border-primary/30"
           title={drawerOpen ? 'Collapse HIL drawer' : 'Expand HIL drawer'}
         >
           {drawerOpen ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
         <div className={`flex min-w-0 flex-col ${drawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} transition-opacity duration-200`}>
-          <h2 className="text-[11px] font-black uppercase tracking-widest text-white/80 truncate">
+          <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80 truncate">
             {title || 'HIL'}
           </h2>
           {subtitle ? (
-            <span className="text-[9px] font-bold text-muted-foreground/30 truncate uppercase tracking-tighter">
+            <span className="text-[9px] font-medium text-muted-foreground/50 truncate uppercase tracking-tighter">
               {subtitle}
             </span>
           ) : null}
@@ -54,19 +54,19 @@ export function HilDrawer({
       </header>
 
       <div className={`flex h-full flex-col ${drawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} transition-opacity duration-200`}>
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border/10">
           {panels.map((panel) => (
             <button
               key={panel.id}
               type="button"
               disabled={panel.disabled}
               onClick={() => onSelectPanel?.(panel.id)}
-              className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest transition ${
+              className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-widest transition ${
                 panel.disabled
                   ? 'text-muted-foreground/30 cursor-not-allowed'
                   : activePanel === panel.id
                     ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground/50 hover:text-foreground'
+                    : 'text-muted-foreground/60 hover:text-foreground'
               }`}
             >
               {panel.label}
