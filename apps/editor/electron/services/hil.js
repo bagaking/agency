@@ -1,9 +1,12 @@
 const fs = require('fs');
 const os = require('os');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
 const path = require('path');
 const yaml = require('js-yaml');
 
 const fsp = fs.promises;
+const execFileAsync = promisify(execFile);
 
 const AGENCY_DIR = '.agency';
 const HIL_DIR = 'hil';
@@ -209,11 +212,42 @@ async function migrateLegacyComments(worktreePath, index) {
   };
 }
 
-function resolveAuthor() {
+const authorCache = new Map();
+
+async function readGitConfigValue(worktreePath, key) {
+  if (!worktreePath) {
+    return null;
+  }
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['config', '--get', key],
+      { cwd: worktreePath, timeout: 2000 }
+    );
+    const value = String(stdout || '').trim();
+    return value || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function resolveAuthor(worktreePath) {
+  if (authorCache.has(worktreePath)) {
+    return authorCache.get(worktreePath);
+  }
+  const name = await readGitConfigValue(worktreePath, 'user.name');
+  const email = await readGitConfigValue(worktreePath, 'user.email');
+  if (name || email) {
+    const author = { type: 'git', label: name || email, email: email || null };
+    authorCache.set(worktreePath, author);
+    return author;
+  }
   try {
     const userInfo = os.userInfo();
     if (userInfo?.username) {
-      return { type: 'local', label: userInfo.username };
+      const author = { type: 'local', label: userInfo.username };
+      authorCache.set(worktreePath, author);
+      return author;
     }
   } catch (error) {
     return null;
@@ -271,7 +305,7 @@ async function createHilItem({
     id: `h_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`,
     kind,
     status,
-    author: author || resolveAuthor(),
+    author: author || await resolveAuthor(worktreePath),
     createdAt: now,
     updatedAt: null,
     body: String(body).trim(),
@@ -362,7 +396,7 @@ async function promoteHilItem({ worktreePath, itemId } = {}) {
     id: `h_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`,
     kind: 'draft',
     status: 'open',
-    author: source.author || resolveAuthor(),
+    author: source.author || await resolveAuthor(worktreePath),
     createdAt: now,
     updatedAt: null,
     body: source.body,
