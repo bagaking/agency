@@ -81,39 +81,41 @@ export function HilCommentsPanel({
   }, [commentModalOpen]);
 
   return (
-    <div className="flex flex-col gap-4 py-2">
+    <div className="flex flex-col gap-3 py-2">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex flex-col">
-          <div className="text-[10px] font-black uppercase tracking-widest text-white/60">
+        <div className="flex items-center gap-2 text-[10px] text-white/70">
+          <span className="font-black uppercase tracking-[0.25em]">
             {fileLabel || 'HIL Comments'}
-          </div>
-          <div className="text-[9px] text-muted-foreground/40 uppercase tracking-[0.2em]">
-            {pendingCount} open / {processedCount} processed
-          </div>
+          </span>
+          <span className="text-[9px] text-muted-foreground/50">
+            {pendingCount} open · {processedCount} processed
+          </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {activeFile ? (
             <button
               type="button"
+              aria-label="Add comment"
+              title="Add comment"
               onClick={() =>
                 onOpenComment?.({
                   line: cursorPosition?.line || 1,
                   column: cursorPosition?.column || 1,
                 })
               }
-              className="flex items-center gap-1 rounded-full border border-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-white/70 hover:text-white"
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 text-white/60 hover:text-white"
             >
               <MessageSquarePlus size={12} />
-              Comment
             </button>
           ) : null}
           <button
             type="button"
+            aria-label="Promote comments"
+            title="Promote comments"
             onClick={() => (bulkPromoteOpen ? onCloseBulkPromote?.() : onOpenBulkPromote?.())}
-            className="flex items-center gap-1 rounded-full border border-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-white/70 hover:text-white"
+            className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 text-white/60 hover:text-white"
           >
             <Target size={12} />
-            Promote
           </button>
         </div>
       </div>
