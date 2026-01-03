@@ -84,10 +84,10 @@ export function HilCommentsPanel({
     <div className="flex flex-col gap-3 py-2 select-none">
       <div className="flex items-center justify-between gap-2 px-1">
         <div className="flex items-center gap-3">
-          <span className="text-xs font-bold tracking-wider text-foreground/80">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
             {fileLabel || 'HIL Comments'}
           </span>
-          <span className="text-[10px] font-medium text-muted-foreground/60">
+          <span className="text-[9px] text-muted-foreground/50">
             {pendingCount} open · {processedCount} processed
           </span>
         </div>
@@ -103,7 +103,7 @@ export function HilCommentsPanel({
                   column: cursorPosition?.column || 1,
                 })
               }
-              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-muted/10 transition-all active:scale-95"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/55 hover:text-foreground hover:bg-muted/10 transition-all active:scale-95"
             >
               <MessageSquarePlus size={14} strokeWidth={1.5} />
             </button>
@@ -113,7 +113,7 @@ export function HilCommentsPanel({
             aria-label="Promote comments"
             title="Promote comments"
             onClick={() => (bulkPromoteOpen ? onCloseBulkPromote?.() : onOpenBulkPromote?.())}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-muted/10 transition-all active:scale-95"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/55 hover:text-foreground hover:bg-muted/10 transition-all active:scale-95"
           >
             <Target size={14} strokeWidth={1.5} />
           </button>
