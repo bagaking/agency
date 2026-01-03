@@ -7,10 +7,12 @@ import {
   RefreshCw, 
   EyeOff, 
   Link2,
+  MessageSquare,
   FolderPlus,
   FilePlus2
 } from 'lucide-react';
 import { getFileIcon, getFolderIcon, statusColors, statusBadges } from './explorerUtils.jsx';
+import { Tooltip } from '../ui/Tooltip.jsx';
 
 export function ExplorerItem({
   item,
@@ -26,6 +28,8 @@ export function ExplorerItem({
   status,
   added,
   deleted,
+  commentCount,
+  onJumpToComments,
   cellBadges,
   depth,
   onToggle,
@@ -43,6 +47,7 @@ export function ExplorerItem({
   const isLink = item.isSymbolicLink;
   const isUntracked = status === 'untracked';
   const isAdded = status === 'added';
+  const hasComments = Number(commentCount) > 0;
 
   const iconInfo = isDir ? null : getFileIcon(node.name, isLink);
   const FileIcon = isDir ? getFolderIcon(node.name, isExpanded) : iconInfo.icon;
@@ -184,6 +189,24 @@ export function ExplorerItem({
 
       {/* Agent Badges */}
       {cellBadges}
+
+      {/* Comment Indicator */}
+      {hasComments && !isDir && (
+        <Tooltip label={`View ${commentCount} comment${commentCount === 1 ? '' : 's'}`}>
+          <button
+            type="button"
+            className="flex items-center gap-1 rounded px-1 py-0.5 text-muted-foreground/40 hover:text-primary/80 hover:bg-primary/10 transition-colors"
+            onClick={(event) => {
+              event.stopPropagation();
+              onJumpToComments?.(item.path);
+            }}
+            aria-label="View comments"
+          >
+            <MessageSquare size={12} strokeWidth={1.5} />
+            <span className="text-[9px] font-semibold tabular-nums">{commentCount}</span>
+          </button>
+        </Tooltip>
+      )}
 
       {/* Loading Indicator */}
       {isLoading && <RefreshCw size={12} className="animate-spin text-muted-foreground/50" />}

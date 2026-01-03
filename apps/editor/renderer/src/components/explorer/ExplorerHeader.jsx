@@ -10,6 +10,7 @@ import {
   ChevronDown, 
   Info 
 } from 'lucide-react';
+import { Tooltip } from '../ui/Tooltip.jsx';
 
 export function ExplorerHeader({
   activeRootLabel,
@@ -34,7 +35,7 @@ export function ExplorerHeader({
   onClearSelection,
 }) {
   return (
-    <header data-testid="explorer-header" className="shrink-0 space-y-3 px-4 py-3 border-b border-border/50 bg-sidebar">
+    <header data-testid="explorer-header" className="shrink-0 space-y-3 px-4 py-3 border-b border-border/40 bg-sidebar text-sidebar-foreground">
       <div className="flex items-center justify-between">
         <div className="flex flex-col min-w-0">
           <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">Explorer</h2>
@@ -86,15 +87,16 @@ export function ExplorerHeader({
             </button>
           )}
         </div>
-        <button
-          className={`flex h-7 w-7 items-center justify-center rounded-full border transition-all ${
-            hasActiveFilters ? 'border-primary/40 bg-primary/10 text-primary active-tab-glow' : 'border-border/40 text-muted-foreground/50 hover:border-border hover:text-foreground'
-          }`}
-          onClick={onToggleFilterMenu}
-          title="Explorer filters"
-        >
-          <Filter size={12} strokeWidth={1.5} />
-        </button>
+        <Tooltip label="Explorer filters">
+          <button
+            className={`flex h-7 w-7 items-center justify-center rounded-full border transition-all ${
+              hasActiveFilters ? 'border-primary/40 bg-primary/10 text-primary active-tab-glow' : 'border-border/40 text-muted-foreground/50 hover:border-border hover:text-foreground'
+            }`}
+            onClick={onToggleFilterMenu}
+          >
+            <Filter size={12} strokeWidth={1.5} />
+          </button>
+        </Tooltip>
       </div>
 
       {searchTruncated && (
@@ -108,14 +110,16 @@ export function ExplorerHeader({
 
 function HeaderButton({ icon: Icon, onClick, title, className = "" }) {
   return (
-    <button
-      type="button"
-      className={`p-1 text-muted-foreground/60 hover:text-foreground transition-colors rounded hover:bg-muted/30 ${className}`}
-      onClick={onClick}
-      title={title}
-    >
-      <Icon size={14} strokeWidth={1.5} />
-    </button>
+    <Tooltip label={title}>
+      <button
+        type="button"
+        className={`p-1 text-muted-foreground/60 hover:text-foreground transition-colors rounded hover:bg-muted/30 ${className}`}
+        onClick={onClick}
+        aria-label={title}
+      >
+        <Icon size={14} strokeWidth={1.5} />
+      </button>
+    </Tooltip>
   );
 }
 

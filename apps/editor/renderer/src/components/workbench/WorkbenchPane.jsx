@@ -143,6 +143,7 @@ function WorkbenchPaneContent({
   const [statusPosition, setStatusPosition] = useState({ line: 1, column: 1 });
   const [tabMenu, setTabMenu] = useState(null);
   const dragSourceRef = useRef(null);
+  const activeEditorRef = useRef(null);
 
   const activeState = activeTab ? tabStateById[activeTab.id] || {} : {};
   const resolvedCommentLines = Array.isArray(commentLines) ? commentLines : [];
@@ -241,10 +242,98 @@ function WorkbenchPaneContent({
       updateTabState(activeTab.id, { saving: false, error: 'Save failed' });
     }
   }, [activeState, activeTab, updateTabState]);
+  const handleSaveAs = useCallback(async () => {
+    if (!activeTab || !activeState || !window.agency?.writeWorkbenchEntry) {
+      return;
+    }
+    const nextPath = window.prompt('Save as…', activeTab.path);
+    if (!nextPath) {
+      return;
+    }
+    const normalizedPath = nextPath.replace(/\\/g, '/').replace(/^\.?\//, '');
+    if (!normalizedPath) {
+      return;
+    }
+    updateTabState(activeTab.id, { saving: true });
+    try {
+      await window.agency.writeWorkbenchEntry({
+        rootPath: activeTab.rootPath,
+        targetPath: normalizedPath,
+        content: activeState.content || '',
+      });
+      updateTabState(activeTab.id, { saving: false });
+      openFile({ path: normalizedPath, mode: 'pinned', rootPath: activeTab.rootPath });
+    } catch (error) {
+      updateTabState(activeTab.id, { saving: false, error: 'Save as failed.' });
+    }
+  }, [activeState, activeTab, openFile, updateTabState]);
 
   const handleReload = useCallback(() => {
     if (activeTab) loadTab(activeTab);
   }, [activeTab, loadTab]);
+
+  const registerActiveEditor = useCallback((editor) => {
+    activeEditorRef.current = editor || null;
+  }, []);
+
+  const runEditorAction = useCallback((actionId) => {
+    const editor = activeEditorRef.current;
+    if (!editor || !actionId) {
+      return;
+    }
+    const action = editor.getAction?.(actionId);
+    action?.run?.();
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (!activeTab) {
+        return;
+      }
+      const target = event.target;
+      const isEditable =
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable);
+      const isMonaco = Boolean(target?.closest?.('.monaco-editor'));
+      if (isEditable && !isMonaco) {
+        return;
+      }
+      const isMac = navigator.platform?.toLowerCase().includes('mac');
+      const modKey = isMac ? event.metaKey : event.ctrlKey;
+      if (!modKey) {
+        return;
+      }
+      const key = event.key.toLowerCase();
+      if (key === 's') {
+        event.preventDefault();
+        if (event.shiftKey) {
+          handleSaveAs();
+        } else {
+          handleSave();
+        }
+        return;
+      }
+      if (key === 'w') {
+        event.preventDefault();
+        if (activeTab?.id) {
+          closeTab(activeTab.id);
+        }
+        return;
+      }
+      if (key === 'f' && activeState.kind === 'code') {
+        event.preventDefault();
+        if (event.altKey) {
+          runEditorAction('editor.action.startFindReplaceAction');
+        } else {
+          runEditorAction('actions.find');
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeState.kind, activeTab, closeTab, handleSave, handleSaveAs, runEditorAction]);
 
   const toggleDiff = useCallback(async () => {
     if (!activeTab || !window.agency?.diffWorkbenchEntry) return;
@@ -494,6 +583,7 @@ function WorkbenchPaneContent({
               });
             }}
             onLineComment={({ line, column }) => onOpenComment?.({ line, column })}
+            onEditorReady={registerActiveEditor}
           />
         ) : (
           <MediaWorkbenchView kind={activeState.kind} fileUrl={activeState.fileUrl} size={activeState.size} onReload={handleReload} />

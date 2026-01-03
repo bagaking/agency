@@ -76,6 +76,7 @@ export function CodeWorkbenchView({
   onCursorChange,
   onSelectionChange,
   onLineComment,
+  onEditorReady,
 }) {
   const monaco = useMonaco();
   const editorRef = useRef(null);
@@ -98,6 +99,7 @@ export function CodeWorkbenchView({
   const commentContextRef = useRef({ line: null, column: null });
   const lastHoverLineRef = useRef(null);
   const lastSelectionRef = useRef('');
+  const onEditorReadyRef = useRef(onEditorReady);
 
   const blameMap = useMemo(() => toBlameMap(blameLines), [blameLines]);
   const blameInfo = blameEnabled && hoverLine ? blameMap.get(hoverLine) : null;
@@ -521,3 +523,16 @@ export function CodeWorkbenchView({
     </div>
   );
 }
+  useEffect(() => {
+    onEditorReadyRef.current = onEditorReady;
+  }, [onEditorReady]);
+
+  useEffect(() => {
+    if (!editorReady || !editorRef.current) {
+      return undefined;
+    }
+    onEditorReadyRef.current?.(editorRef.current);
+    return () => {
+      onEditorReadyRef.current?.(null);
+    };
+  }, [editorReady]);

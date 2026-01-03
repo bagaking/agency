@@ -9,6 +9,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { statusColors, getFileIcon } from './explorerUtils.jsx';
+import { Tooltip } from '../ui/Tooltip.jsx';
 
 const formatIdle = (ms) => {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -105,7 +106,7 @@ export function ExplorerFooter({
   }, [selectionTargets, nodesByPath, folderStatusByPath, statusByPath]);
 
   return (
-    <footer className="shrink-0 flex flex-col bg-sidebar select-none border-t border-border/40 relative">
+    <footer className="shrink-0 flex flex-col bg-sidebar text-sidebar-foreground select-none border-t border-border/40 relative">
       
       {/* 1. Selection Manifest (Tree View) */}
       {showManifest && selectionCount > 0 && (
@@ -125,7 +126,7 @@ export function ExplorerFooter({
 
       {/* 2. Compact Interaction Bar */}
       {selectionCount > 0 && (
-        <div className="flex h-8 items-center px-3 gap-3 animate-tab-in bg-muted/5 border-b border-border/10">
+        <div className="flex h-8 items-center px-3 gap-3 animate-tab-in bg-muted/10 border-b border-border/10">
             <div 
                 className="flex items-center gap-1.5 shrink-0 cursor-help group/trigger h-full px-1"
                 onMouseEnter={() => setShowManifest(true)}
@@ -148,15 +149,20 @@ export function ExplorerFooter({
             />
 
             <div className="flex items-center gap-1">
-                <button 
-                    onClick={handleSend}
-                    className={`p-1 transition-all ${comment.trim() ? 'text-primary hover:scale-110' : 'text-muted-foreground/40 pointer-events-none'}`}
-                >
-                    <Send size={12} strokeWidth={2} />
-                </button>
-                <button onClick={onClearSelection} className="p-1 text-muted-foreground/40 hover:text-foreground/80">
-                    <X size={12} strokeWidth={2} />
-                </button>
+                <Tooltip label="Send to session">
+                  <button 
+                      onClick={handleSend}
+                      className={`p-1 transition-all ${comment.trim() ? 'text-primary hover:scale-110' : 'text-muted-foreground/40 pointer-events-none'}`}
+                      aria-label="Send to session"
+                  >
+                      <Send size={12} strokeWidth={2} />
+                  </button>
+                </Tooltip>
+                <Tooltip label="Clear selection">
+                  <button onClick={onClearSelection} className="p-1 text-muted-foreground/40 hover:text-foreground/80" aria-label="Clear selection">
+                      <X size={12} strokeWidth={2} />
+                  </button>
+                </Tooltip>
             </div>
         </div>
       )}

@@ -32,6 +32,8 @@ function ProjectExplorerSidebarContent({
   onSelectSession,
   onRunCommand,
   onAddComment,
+  commentCountsByPath,
+  onJumpToComments,
 }) {
   const listRef = useRef(null);
   const visiblePathsRef = useRef([]);
@@ -358,6 +360,8 @@ function ProjectExplorerSidebarContent({
         key={item.path} item={item} node={node} isSelected={selectionSet.has(item.path)} isFocused={focusedPath === item.path} isLoading={loadingPaths.has(item.path)}
         isExpanded={expandedPaths.has(item.path) || isSearchActive} isSearchActive={isSearchActive} isOpen={!isDir && openFiles.has(item.path)}
         isDirty={!isDir && dirtyFiles.has(item.path)} isIgnored={isPathIgnored(item.path)} status={entry?.status} added={entry?.added} deleted={entry?.deleted}
+        commentCount={!isDir ? (commentCountsByPath?.[item.path] || 0) : 0}
+        onJumpToComments={onJumpToComments}
         cellBadges={cellBadges} depth={item.depth} onToggle={() => togglePath(item.path)}
         onClick={(e) => { handleSelectPath(item.path, e); setFocusedPath(item.path); listRef.current?.focus(); if (!isDir && !e.metaKey && !e.ctrlKey && !e.shiftKey) onOpenFile?.({ path: item.path, mode: 'preview' }); }}
         onDoubleClick={(e) => { if (!isDir) { e.stopPropagation(); onOpenFile?.({ path: item.path, mode: 'pinned' }); } }}
@@ -492,7 +496,7 @@ function ProjectExplorerSidebarContent({
 export function ProjectExplorerSidebar({
   rootPath: scopeRootPath, rootLabel: scopeRootLabel, cells, selectedId, onSelectCell, selectedCell,
   sessions, activeSessionId, sessionActivityByKey, onOpenFile, onJumpToAgents, workbenchMeta,
-  onSelectSession, onRunCommand, onAddComment,
+  onSelectSession, onRunCommand, onAddComment, commentCountsByPath, onJumpToComments,
   projectReady, projectError, onSelectProject, recentProjects, onOpenRecentProject,
 }) {
   if (!projectReady) {
@@ -529,6 +533,8 @@ export function ProjectExplorerSidebar({
       onSelectSession={onSelectSession}
       onRunCommand={onRunCommand}
       onAddComment={onAddComment}
+      commentCountsByPath={commentCountsByPath}
+      onJumpToComments={onJumpToComments}
     />
   );
 }

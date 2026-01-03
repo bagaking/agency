@@ -84,6 +84,8 @@ function App() {
   const [commentSnippet, setCommentSnippet] = useState(null);
   const [commentSnippetLoading, setCommentSnippetLoading] = useState(false);
   const [commentSnippetError, setCommentSnippetError] = useState('');
+  const [hilCommentCounts, setHilCommentCounts] = useState({});
+  const [hilCommentRefreshToken, setHilCommentRefreshToken] = useState(0);
   const [promoteModalOpen, setPromoteModalOpen] = useState(false);
   const [promoteStep, setPromoteStep] = useState('setup');
   const [promoteDescription, setPromoteDescription] = useState('');
@@ -415,6 +417,37 @@ function App() {
     setHilDrawerPanel(panel);
     setHilDrawerOpen(true);
   }, []);
+  const bumpHilCommentRefresh = useCallback(() => {
+    setHilCommentRefreshToken((value) => value + 1);
+  }, []);
+  const refreshHilCommentCounts = useCallback(
+    async (worktreePath) => {
+      if (!worktreePath) {
+        setHilCommentCounts({});
+        return;
+      }
+      try {
+        const list = await agencyListHilItems({
+          worktreePath,
+          kind: 'comment',
+        });
+        const nextCounts = {};
+        (Array.isArray(list) ? list : [])
+          .filter((item) => item?.kind === 'comment' && item?.status !== 'archived')
+          .forEach((item) => {
+            const file = item?.anchor?.file;
+            if (!file) {
+              return;
+            }
+            nextCounts[file] = (nextCounts[file] || 0) + 1;
+          });
+        setHilCommentCounts(nextCounts);
+      } catch (error) {
+        setHilCommentCounts({});
+      }
+    },
+    []
+  );
   const loadComments = useCallback(async () => {
     if (!commentRootPath || !commentFilePath || !canComment) {
       setComments([]);
@@ -530,6 +563,7 @@ function App() {
         return;
       }
       await loadComments();
+      bumpHilCommentRefresh();
       closeCommentModal();
       openHilDrawer('comments');
     } catch (error) {
@@ -537,7 +571,7 @@ function App() {
     } finally {
       setCommentSaving(false);
     }
-  }, [commentFilePath, commentMessage, commentRootPath, commentTodo, commentTarget, closeCommentModal, loadComments, openHilDrawer]);
+  }, [commentFilePath, commentMessage, commentRootPath, commentTodo, commentTarget, closeCommentModal, loadComments, openHilDrawer, bumpHilCommentRefresh]);
   const updateCommentStatus = useCallback(
     async (comment, status) => {
       if (!comment?.id || !commentRootPath) {
@@ -552,8 +586,9 @@ function App() {
         return;
       }
       await loadComments();
+      bumpHilCommentRefresh();
     },
-    [commentRootPath, loadComments]
+    [commentRootPath, loadComments, bumpHilCommentRefresh]
   );
   const isDraftComplete = useCallback((draft) => {
     if (!draft) {
@@ -571,6 +606,10 @@ function App() {
   useEffect(() => {
     loadComments();
   }, [loadComments]);
+  useEffect(() => {
+    const worktreePath = selectedCell?.worktreePath || projectRoot || '';
+    refreshHilCommentCounts(worktreePath);
+  }, [projectRoot, refreshHilCommentCounts, selectedCell?.worktreePath, hilCommentRefreshToken]);
   useEffect(() => {
     if (!commentFilePath) {
       closeCommentModal();
@@ -1166,6 +1205,17 @@ function App() {
       openCommentModal({ line: 1 });
     }, 100);
   }, [workbench, explorerRootPath, openCommentModal]);
+  const handleJumpToComments = useCallback(
+    (path) => {
+      if (!path) {
+        return;
+      }
+      workbench.openFile({ path, mode: 'pinned', rootPath: explorerRootPath });
+      setActiveView('explorer');
+      openHilDrawer('comments');
+    },
+    [explorerRootPath, openHilDrawer, workbench]
+  );
   const hilCommentsProps = {
     activeFile: activeTab?.path || '',
     cursorPosition,
@@ -1392,6 +1442,8 @@ function App() {
             workbench.openFile({ path, mode, rootPath: explorerRootPath });
           },
           onAddComment: handleAddCommentFromExplorer,
+          commentCountsByPath: hilCommentCounts,
+          onJumpToComments: handleJumpToComments,
         }}
         explorerPaneProps={{
           workbench,
