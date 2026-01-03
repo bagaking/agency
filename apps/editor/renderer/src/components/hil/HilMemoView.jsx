@@ -128,7 +128,56 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
     <section className="flex h-full flex-1 flex-col bg-background overflow-hidden select-none">
       <div className="flex flex-1 overflow-hidden">
         {/* Dock */}
-        <aside className="w-64 shrink-0 border-r border-border/20 bg-muted/5">
+        <aside className="w-72 shrink-0 border-r border-border/20 bg-muted/5 flex flex-col">
+          <div className="border-b border-border/20 px-4 pt-4 pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col shrink-0">
+                <h2 className="text-[9px] font-black uppercase tracking-[0.4em] text-primary/40 mb-1">Human-In-Loop</h2>
+                <div className="flex items-center gap-3">
+                  <span className="text-xl font-bold text-foreground tracking-tighter italic">Repository_</span>
+                  <div className="flex items-center gap-3 text-[9px] font-bold text-muted-foreground/20 uppercase tracking-widest ml-1">
+                    <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-muted-foreground/30" /> {summary.comment}</span>
+                    <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-muted-foreground/30" /> {summary.memo}</span>
+                    <span className="flex items-center gap-1.5 text-primary/40"><div className="w-1 h-1 rounded-full bg-current" /> {summary.draft}</span>
+                  </div>
+                </div>
+              </div>
+              <button onClick={refresh} className="shrink-0 p-2 rounded-full bg-muted/5 text-muted-foreground/40 hover:text-foreground transition-all hover:bg-muted/10 active:scale-90">
+                <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+              </button>
+            </div>
+
+            <div className="mt-4 relative group">
+              <Search size={14} className="absolute left-0 top-1/2 -translate-y-1/2 text-muted-foreground/30 group-focus-within:text-primary transition-all" />
+              <input 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="FILTER OBJECTS..."
+                className="w-full h-10 bg-transparent border-b border-border/10 pl-8 text-xs text-foreground placeholder:text-muted-foreground/20 focus:outline-none focus:border-primary/40 transition-all tracking-[0.1em]"
+              />
+            </div>
+
+            <div className="mt-3">
+              <div className="flex items-center gap-2 text-[9px] font-black text-muted-foreground/30 uppercase tracking-[0.3em]">
+                <Filter size={10} strokeWidth={3} /> Selector
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <FilterChip 
+                  label="Type" 
+                  value={filters.kind} 
+                  options={kindOptions} 
+                  onChange={(v) => setFilters(curr => ({ ...curr, kind: v }))} 
+                />
+                <FilterChip 
+                  label="Status" 
+                  value={filters.status} 
+                  options={statusOptions} 
+                  onChange={(v) => setFilters(curr => ({ ...curr, status: v }))} 
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/10">
             <div className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
               Input Box
@@ -183,54 +232,6 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
 
         {/* Main Pane */}
         <div className="flex-1 overflow-hidden flex flex-col">
-          <header className="shrink-0 flex items-center px-6 h-20 gap-12">
-            <div className="flex flex-col shrink-0">
-              <h2 className="text-[9px] font-black uppercase tracking-[0.4em] text-primary/40 mb-1">Human-In-Loop</h2>
-              <div className="flex items-center gap-3">
-                <span className="text-2xl font-bold text-foreground tracking-tighter italic">Repository_</span>
-                <div className="flex items-center gap-4 text-[10px] font-bold text-muted-foreground/20 uppercase tracking-widest ml-2">
-                  <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-muted-foreground/30" /> {summary.comment}</span>
-                  <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-muted-foreground/30" /> {summary.memo}</span>
-                  <span className="flex items-center gap-1.5 text-primary/40"><div className="w-1 h-1 rounded-full bg-current" /> {summary.draft}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex-1 relative group max-w-xl">
-              <Search size={14} className="absolute left-0 top-1/2 -translate-y-1/2 text-muted-foreground/30 group-focus-within:text-primary transition-all" />
-              <input 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="FILTER OBJECTS..."
-                className="w-full h-10 bg-transparent border-b border-border/10 pl-8 text-xs text-foreground placeholder:text-muted-foreground/20 focus:outline-none focus:border-primary/40 transition-all tracking-[0.1em]"
-              />
-            </div>
-
-            <button onClick={refresh} className="shrink-0 p-3 rounded-full bg-muted/5 text-muted-foreground/40 hover:text-foreground transition-all hover:bg-muted/10 active:scale-90">
-              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-            </button>
-          </header>
-
-          <div className="shrink-0 flex items-center px-6 h-10 gap-6 bg-muted/5 border-y border-border/10">
-            <div className="flex items-center gap-2 text-[9px] font-black text-muted-foreground/30 uppercase tracking-[0.3em]">
-              <Filter size={10} strokeWidth={3} /> Selector
-            </div>
-            <div className="flex items-center gap-1">
-              <FilterChip 
-                label="Type" 
-                value={filters.kind} 
-                options={kindOptions} 
-                onChange={(v) => setFilters(curr => ({ ...curr, kind: v }))} 
-              />
-              <FilterChip 
-                label="Status" 
-                value={filters.status} 
-                options={statusOptions} 
-                onChange={(v) => setFilters(curr => ({ ...curr, status: v }))} 
-              />
-            </div>
-          </div>
-
           <div className="flex-1 overflow-hidden">
             {dockSelection.type === 'draft' && selectedDraft ? (
               <DraftDetail
