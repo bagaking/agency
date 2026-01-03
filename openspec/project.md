@@ -53,6 +53,13 @@ Agency Editor 是面向 agentic 并行开发的上下文管理桌面应用，核
 - Actions 是 CLI/Agent 的启动与恢复入口，后续可演进为 workflow。
 - Explorer 需反映 VCS 状态、Cell 改动归因和文件操作能力。
 
+## 经验沉淀
+- HIL 的输入与整理要分层：Inbox 负责采集，Promote 负责聚合转化，Draft 负责执行闭环。
+- Promote 必须是全局流程，不做单条 comment 的 promote，避免碎片化与不可追踪。
+- 截图/素材采集避免依赖剪贴板，统一落盘到 `.agency/hil` 并记录元数据，保证可复现。
+- 新增 HIL 类型时，优先复用 “Type -> Source -> Item” 的树形组织，保持一致可扩展。
+- HIL 抽屉为全局并列面板，跟随文件上下文联动，但不遮挡主工作区。
+
 ## Important Constraints
 - v0.2 仅要求 macOS 可用。
 - 默认 shell 为 `/bin/zsh`，Gate/Action 命令以 `zsh -lc` 执行。

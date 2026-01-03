@@ -21,6 +21,10 @@ Use pnpm for workspace Node dependencies and keep `pnpm-lock.yaml` committed.
 
 ## Development Norms
 
+### Quality
+
+合理设计代码架构, 注重 DRY 和 SOLID 原则, 出现单个文件超过 800 时主动重构
+
 ### Electron IPC/Preload Health
 
 - Treat `preload` + IPC injection as a required runtime dependency.
