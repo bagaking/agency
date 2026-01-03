@@ -79,6 +79,7 @@ export function HilCommentsPanel({
   promoteStep,
   promoteDraft,
   promoteGateStatus,
+  promoteExecutionStatus,
   promoteSessionId,
   sessions = [],
   sessionActivityByKey = {},
@@ -92,6 +93,7 @@ export function HilCommentsPanel({
   onCreatePromoteSession,
   onStartPromote,
   onConfirmPromote,
+  onFocusPromoteSession,
   worktreePath,
 }) {
   const messageRef = useRef(null);
@@ -251,6 +253,7 @@ export function HilCommentsPanel({
           promoteStep={promoteStep}
           promoteDraft={promoteDraft}
           promoteGateStatus={promoteGateStatus}
+          promoteExecutionStatus={promoteExecutionStatus}
           promoteSessionId={promoteSessionId}
           sessions={sessions}
           sessionActivityByKey={sessionActivityByKey}
@@ -261,6 +264,7 @@ export function HilCommentsPanel({
           onPreviewItem={onPromotePreview}
           onSelectSession={onSelectPromoteSession}
           onCreateSession={onCreatePromoteSession}
+          onFocusSession={onFocusPromoteSession}
           onClose={onClosePromote}
           onStart={onStartPromote}
           onConfirm={onConfirmPromote}
@@ -499,6 +503,7 @@ function PromoteModal({
   promoteStep,
   promoteDraft,
   promoteGateStatus,
+  promoteExecutionStatus,
   promoteSessionId,
   sessions,
   sessionActivityByKey,
@@ -509,6 +514,7 @@ function PromoteModal({
   onPreviewItem,
   onSelectSession,
   onCreateSession,
+  onFocusSession,
   onClose,
   onStart,
   onConfirm,
@@ -520,6 +526,7 @@ function PromoteModal({
   const gateStatus = isWaiting ? promoteGateStatus : 'idle';
   const gateReady = gateStatus === 'ready';
   const gateMissing = gateStatus === 'missing';
+  const executionStatus = promoteExecutionStatus || (isWaiting ? 'waiting' : 'idle');
   const availableSessions = sessions.filter((session) => session.status !== 'closed');
   const activeSession = availableSessions.find((session) => session.id === promoteSessionId) || null;
   const activityKey = selectedCellId && promoteSessionId ? `${selectedCellId}:${promoteSessionId}` : '';
@@ -586,6 +593,14 @@ function PromoteModal({
                 >
                   New
                 </button>
+                <button
+                  type="button"
+                  onClick={onFocusSession}
+                  disabled={!activeSession}
+                  className="rounded-md border border-border/20 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all disabled:opacity-40"
+                >
+                  View
+                </button>
               </div>
               <div className="mt-2 text-[10px] text-muted-foreground/50">
                 {activeSession
@@ -616,6 +631,26 @@ function PromoteModal({
                 Draft ID: <span className="font-mono">{promoteDraft.id}</span>
               </div>
             ) : null}
+
+            <div className="mt-3 flex items-center justify-between">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
+                Execution
+              </div>
+              <ExecutionStatusBadge status={executionStatus} />
+            </div>
+            <div className="mt-2 text-[11px] text-muted-foreground/70 leading-relaxed">
+              {executionStatus === 'running'
+                ? 'Dispatch sent. Track progress in the selected session.'
+                : executionStatus === 'complete'
+                  ? 'Execution completed. Awaiting final confirm.'
+                  : executionStatus === 'failed'
+                    ? 'Execution failed. Retry by restarting promote.'
+                    : executionStatus === 'queued'
+                      ? 'Queued for dispatch.'
+                      : executionStatus === 'missing'
+                        ? 'Draft metadata missing. Refresh and retry.'
+                        : 'Execution status idle.'}
+            </div>
           </div>
         </div>
 
@@ -782,6 +817,38 @@ function PromoteGateBadge({ status }) {
         : status === 'idle'
           ? 'border-border/40 text-muted-foreground/60'
           : 'border-amber-500/30 text-amber-400';
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.2em] ${styles}`}>
+      {label}
+    </span>
+  );
+}
+
+function ExecutionStatusBadge({ status }) {
+  const label =
+    status === 'running'
+      ? 'Running'
+      : status === 'complete'
+        ? 'Complete'
+        : status === 'failed'
+          ? 'Failed'
+          : status === 'queued'
+            ? 'Queued'
+            : status === 'missing'
+              ? 'Missing'
+              : 'Idle';
+  const styles =
+    status === 'complete'
+      ? 'border-emerald-500/30 text-emerald-400'
+      : status === 'running'
+        ? 'border-sky-500/30 text-sky-400'
+        : status === 'failed'
+          ? 'border-rose-500/30 text-rose-400'
+          : status === 'queued'
+            ? 'border-amber-500/30 text-amber-400'
+            : status === 'missing'
+              ? 'border-rose-500/30 text-rose-400'
+              : 'border-border/40 text-muted-foreground/60';
   return (
     <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.2em] ${styles}`}>
       {label}

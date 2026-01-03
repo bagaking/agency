@@ -30,6 +30,7 @@ import {
   updateCellState as agencyUpdateCellState,
   updateHilItem as agencyUpdateHilItem,
 } from './services/agencyBridge.js';
+import { buildPromotePromptBundle, buildPromotePromptText } from './utils/hilPromotePrompt.js';
 const defaultCells = [
   {
     id: 'sample-cell',
@@ -97,6 +98,7 @@ function App() {
   const [promoteDraftId, setPromoteDraftId] = useState('');
   const [promoteDraft, setPromoteDraft] = useState(null);
   const [promoteGateStatus, setPromoteGateStatus] = useState('waiting');
+  const [promoteExecutionStatus, setPromoteExecutionStatus] = useState('idle');
   const [promoteSessionId, setPromoteSessionId] = useState('');
   const projectReady = Boolean(projectRoot);
   const virtualCell = useMemo(() => {
@@ -597,6 +599,9 @@ function App() {
     if (draft.meta?.promoted !== true) {
       return false;
     }
+    if (draft.meta?.executionStatus !== 'complete') {
+      return false;
+    }
     const todos = Array.isArray(draft.meta?.todos) ? draft.meta.todos : null;
     if (!todos || todos.length === 0) {
       return true;
@@ -678,6 +683,7 @@ function App() {
     setPromoteDraftId('');
     setPromoteDraft(null);
     setPromoteGateStatus('waiting');
+    setPromoteExecutionStatus('idle');
     try {
       const list = await agencyListHilItems({
         worktreePath: promoteWorktreePath,
@@ -729,6 +735,7 @@ function App() {
     setPromoteDraft(null);
     setPromoteGateStatus('waiting');
     setPromoteSessionId('');
+    setPromoteExecutionStatus('idle');
   }, []);
   const togglePromoteItem = useCallback((itemId) => {
     if (!itemId) {
@@ -836,6 +843,13 @@ function App() {
     setPromoteLoading(true);
     setPromoteError('');
     try {
+      const promptBundle = buildPromotePromptBundle({
+        description: promoteDescription.trim(),
+        items: selected,
+        previewById: promotePreviewById,
+      });
+      const promptText = buildPromotePromptText(promptBundle);
+      const requestedAt = new Date().toISOString();
       const references = selected.map((item) => ({
         system: 'hil',
         id: item.id,
@@ -853,6 +867,11 @@ function App() {
           sourceBatch: 'promote',
           promoteSessionId: promoteSessionId,
           promoted: false,
+          promptBundle,
+          promptText,
+          executionStatus: 'queued',
+          executionSessionId: promoteSessionId,
+          executionRequestedAt: requestedAt,
         },
       });
       if (!draft) {
@@ -862,10 +881,36 @@ function App() {
       setPromoteDraftId(draft.id);
       setPromoteDraft(draft);
       setPromoteGateStatus('waiting');
+      setPromoteExecutionStatus('queued');
       setPromoteStep('waiting');
+      setActiveView('agent-cells');
+      handleOpenTerminal();
       selectSession(promoteSessionId);
+      await runActionCommand({
+        command: promptText,
+        kind: 'resume',
+        label: 'Promote',
+        sessionId: promoteSessionId,
+      });
+      const updatedDraft = await agencyUpdateHilItem({
+        worktreePath: promoteWorktreePath,
+        itemId: draft.id,
+        patch: {
+          meta: {
+            executionStatus: 'running',
+            executionStartedAt: new Date().toISOString(),
+          },
+        },
+      });
+      if (updatedDraft) {
+        setPromoteDraft(updatedDraft);
+        setPromoteExecutionStatus(updatedDraft.meta?.executionStatus || 'running');
+      } else {
+        setPromoteExecutionStatus('running');
+      }
     } catch (error) {
       setPromoteError(error?.message || 'Failed to start promote workflow.');
+      setPromoteExecutionStatus('failed');
     } finally {
       setPromoteLoading(false);
     }
@@ -875,7 +920,11 @@ function App() {
     promoteSelectedIds,
     promoteSessionId,
     promoteWorktreePath,
+    promotePreviewById,
     selectSession,
+    handleOpenTerminal,
+    runActionCommand,
+    setActiveView,
   ]);
   const confirmPromote = useCallback(async () => {
     if (!promoteWorktreePath || !promoteDraftId) {
@@ -948,9 +997,11 @@ function App() {
         if (!found) {
           setPromoteDraft(null);
           setPromoteGateStatus('missing');
+          setPromoteExecutionStatus('missing');
           return;
         }
         setPromoteDraft(found);
+        setPromoteExecutionStatus(found.meta?.executionStatus || 'waiting');
         setPromoteGateStatus(isDraftComplete(found) ? 'ready' : 'waiting');
       } catch (error) {
         if (canceled) {
@@ -1216,6 +1267,14 @@ function App() {
     },
     [explorerRootPath, openHilDrawer, workbench]
   );
+  const handleFocusPromoteSession = useCallback(() => {
+    if (!promoteSessionId) {
+      return;
+    }
+    setActiveView('agent-cells');
+    handleOpenTerminal();
+    selectSession(promoteSessionId);
+  }, [handleOpenTerminal, promoteSessionId, selectSession]);
   const hilCommentsProps = {
     activeFile: activeTab?.path || '',
     cursorPosition,
@@ -1247,6 +1306,7 @@ function App() {
     promoteStep,
     promoteDraft,
     promoteGateStatus,
+    promoteExecutionStatus,
     promoteSessionId,
     sessions,
     sessionActivityByKey,
@@ -1260,6 +1320,7 @@ function App() {
     onCreatePromoteSession: createPromoteSession,
     onStartPromote: startPromote,
     onConfirmPromote: confirmPromote,
+    onFocusPromoteSession: handleFocusPromoteSession,
   };
   const handleSwitchView = useCallback(
     (view) => {

@@ -375,7 +375,7 @@ export function useSessions({
   }, [activeSessionId, selectedCell, updateFontSizeForSession]);
 
   const runActionCommand = useCallback(
-    async ({ command, kind, label }) => {
+    async ({ command, kind, label, sessionId }) => {
       if (!selectedCell || !command) {
         return;
       }
@@ -406,7 +406,7 @@ export function useSessions({
               [selectedCell.id]: created.id,
             }));
           }
-          setPendingCommand({ cellId: selectedCell.id, command });
+          setPendingCommand({ cellId: selectedCell.id, command, sessionId });
         } catch (error) {
           setSessionError(error?.message || 'Failed to create session.');
         } finally {
@@ -414,7 +414,7 @@ export function useSessions({
         }
         return;
       }
-      setPendingCommand({ cellId: selectedCell.id, command });
+      setPendingCommand({ cellId: selectedCell.id, command, sessionId });
     },
     [onOpenTerminal, selectedCell, tmuxStatus?.available, tmuxStatus?.error]
   );

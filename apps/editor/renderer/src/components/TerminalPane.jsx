@@ -474,6 +474,9 @@ function TerminalPane({
     if (!pendingCommand || !cellId || !isActive || pendingCommand.cellId !== cellId) {
       return;
     }
+    if (pendingCommand.sessionId && pendingCommand.sessionId !== sessionId) {
+      return;
+    }
     if (pendingCommand.command === lastQueuedRef.current) {
       return;
     }
