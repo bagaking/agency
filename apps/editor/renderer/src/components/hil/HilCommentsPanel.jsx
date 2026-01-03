@@ -83,11 +83,11 @@ export function HilCommentsPanel({
   return (
     <div className="flex flex-col gap-3 py-2 select-none">
       <div className="flex items-center justify-between gap-2 px-1">
-        <div className="flex items-center gap-2 text-muted-foreground/50">
-          <span className="text-[10px] font-black uppercase tracking-[0.25em]">
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold tracking-wider text-foreground/80">
             {fileLabel || 'HIL Comments'}
           </span>
-          <span className="text-[9px] uppercase tracking-widest opacity-40">
+          <span className="text-[10px] font-medium text-muted-foreground/60">
             {pendingCount} open · {processedCount} processed
           </span>
         </div>
@@ -103,9 +103,9 @@ export function HilCommentsPanel({
                   column: cursorPosition?.column || 1,
                 })
               }
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-muted/10 border border-border/10 text-muted-foreground/60 hover:text-foreground transition-all hover:bg-muted/20 active:scale-95"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-muted/10 transition-all active:scale-95"
             >
-              <MessageSquarePlus size={12} />
+              <MessageSquarePlus size={14} strokeWidth={1.5} />
             </button>
           ) : null}
           <button
@@ -113,57 +113,57 @@ export function HilCommentsPanel({
             aria-label="Promote comments"
             title="Promote comments"
             onClick={() => (bulkPromoteOpen ? onCloseBulkPromote?.() : onOpenBulkPromote?.())}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-muted/10 border border-border/10 text-muted-foreground/60 hover:text-foreground transition-all hover:bg-muted/20 active:scale-95"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-muted/10 transition-all active:scale-95"
           >
-            <Target size={12} />
+            <Target size={14} strokeWidth={1.5} />
           </button>
         </div>
       </div>
 
       {commentModalOpen ? (
-        <div className="rounded-2xl border border-border/40 bg-card p-4 shadow-2xl overflow-hidden relative">
+        <div className="rounded-xl border border-border/20 bg-card p-4 shadow-xl overflow-hidden relative ring-1 ring-black/5">
           <div className="flex items-center justify-between gap-3 mb-3">
-            <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.1em] text-foreground/80">
-              <MessageSquarePlus size={12} className="text-primary" />
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+              <MessageSquarePlus size={14} className="text-primary" strokeWidth={2} />
               Add Comment
             </div>
             <button
               type="button"
               onClick={onCloseComment}
-              className="rounded-full p-1 text-muted-foreground/40 hover:text-foreground hover:bg-muted/10 transition-all"
+              className="rounded-md p-1 text-muted-foreground/50 hover:text-foreground hover:bg-muted/10 transition-all"
             >
-              <X size={12} />
+              <X size={14} />
             </button>
           </div>
           
           <div className="flex flex-col gap-2">
-            <div className="text-[9px] text-muted-foreground/40 uppercase tracking-[0.2em] px-1">
+            <div className="text-[10px] font-medium text-muted-foreground/60 px-1">
                 {activeFile ? `${activeFile} · Ln ${resolvedLine}` : `Ln ${resolvedLine}`}
             </div>
 
             {commentSnippetLoading ? (
-                <div className="px-1 py-4 flex items-center gap-2 text-[10px] text-muted-foreground/30 italic">
+                <div className="px-1 py-3 flex items-center gap-2 text-[10px] text-muted-foreground/40 italic">
                     <RefreshCw size={10} className="animate-spin" /> Retrieving context...
                 </div>
             ) : commentSnippetError ? (
-                <div className="mx-1 mt-1 text-[9px] text-rose-400/80 bg-rose-500/5 px-2 py-1 rounded border border-rose-500/10">
+                <div className="mx-1 mt-1 text-[10px] text-rose-400 bg-rose-500/5 px-2 py-1.5 rounded border border-rose-500/10">
                     {commentSnippetError}
                 </div>
             ) : targetLineContent ? (
-                <div className="rounded-xl border border-border/20 bg-muted/5 px-3 py-2 text-[10px] text-muted-foreground">
-                    <span className="opacity-30 mr-2 font-mono">Ln {resolvedLine}</span>
-                    <span className="font-mono text-foreground/80">{targetLineContent}</span>
+                <div className="rounded-lg border border-border/10 bg-muted/5 px-3 py-2 text-xs text-foreground/90 font-mono">
+                    <span className="opacity-30 mr-3 select-none text-[10px]">{resolvedLine}</span>
+                    <span>{targetLineContent}</span>
                 </div>
             ) : null}
 
             {snippetLines?.length ? (
-                <div className="rounded-xl border border-border/10 bg-muted/5 px-3 py-2 font-mono text-[9px] text-muted-foreground/40 overflow-hidden">
+                <div className="rounded-lg border border-border/10 bg-muted/5 px-3 py-2 font-mono text-[10px] text-muted-foreground/60 overflow-hidden">
                 {snippetLines.map((line) => (
                     <div
                     key={`${line.line}-${line.isTarget ? 't' : 'n'}`}
-                    className={`flex gap-3 h-4 items-center ${line.isTarget ? 'bg-primary/5 text-primary -mx-3 px-3' : ''}`}
+                    className={`flex gap-3 h-5 items-center ${line.isTarget ? 'bg-primary/5 text-primary -mx-3 px-3 font-medium' : ''}`}
                     >
-                    <span className="w-6 text-right opacity-20 tabular-nums">{line.line}</span>
+                    <span className="w-6 text-right opacity-30 tabular-nums select-none">{line.line}</span>
                     <span className="truncate">{line.content || ' '}</span>
                     </div>
                 ))}
@@ -176,25 +176,25 @@ export function HilCommentsPanel({
             value={commentMessage}
             onChange={(event) => onCommentMessageChange?.(event.target.value)}
             rows={4}
-            className="mt-4 w-full resize-none rounded-xl border border-border/20 bg-background/50 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/20 focus:border-primary/40 focus:outline-none transition-all"
-            placeholder="Write a note to capture context or questions..."
+            className="mt-4 w-full resize-none rounded-lg border border-border/20 bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-all"
+            placeholder="Write a note..."
           />
 
           <div className="mt-4 flex items-center justify-between">
-            <label className="flex items-center gap-2 text-[10px] text-muted-foreground/60 cursor-pointer group/todo">
+            <label className="flex items-center gap-2 text-[11px] text-muted-foreground/70 cursor-pointer group/todo select-none">
               <input
                 type="checkbox"
                 checked={Boolean(commentTodo)}
                 onChange={(event) => onCommentTodoChange?.(event.target.checked)}
-                className="h-3 w-3 rounded border-border bg-transparent text-primary focus:ring-primary/20"
+                className="h-3.5 w-3.5 rounded border-border/60 bg-transparent text-primary focus:ring-offset-0 focus:ring-1 focus:ring-primary/20 transition-all"
               />
-              <span className="group-hover/todo:text-foreground transition-colors">Mark as TODO</span>
+              <span className="group-hover:text-foreground transition-colors">Mark as TODO</span>
             </label>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={onCloseComment}
-                className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 hover:text-foreground transition-all"
+                className="rounded-md px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-all"
               >
                 Cancel
               </button>
@@ -202,14 +202,14 @@ export function HilCommentsPanel({
                 type="button"
                 onClick={onSubmitComment}
                 disabled={commentSaving}
-                className="rounded-full bg-primary/80 hover:bg-primary px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-white shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50"
+                className="rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
               >
                 {commentSaving ? 'Saving...' : 'Submit'}
               </button>
             </div>
           </div>
           {commentError ? (
-            <div className="mt-3 text-[10px] font-semibold text-rose-400 bg-rose-500/5 p-2 rounded-lg border border-rose-500/10">
+            <div className="mt-3 text-[11px] font-medium text-rose-400 bg-rose-500/5 p-2 rounded border border-rose-500/10">
                 {commentError}
             </div>
           ) : null}
@@ -476,29 +476,29 @@ function BulkPromotePanel({
   onSubmit,
 }) {
   return (
-    <div className="rounded-2xl border border-border/40 bg-card p-4 shadow-2xl overflow-hidden relative">
+    <div className="rounded-xl border border-border/20 bg-card p-4 shadow-xl overflow-hidden relative ring-1 ring-black/5">
       <div className="flex items-center justify-between mb-3">
-        <div className="text-[11px] font-black uppercase tracking-[0.1em] text-foreground/80">
+        <div className="text-xs font-bold text-foreground">
           Promote Comments
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full p-1 text-muted-foreground/40 hover:text-foreground hover:bg-muted/10 transition-all"
+          className="rounded-md p-1 text-muted-foreground/50 hover:text-foreground hover:bg-muted/10 transition-all"
         >
-          <X size={12} />
+          <X size={14} />
         </button>
       </div>
       <textarea
         value={description}
         onChange={(event) => onChangeDescription?.(event.target.value)}
         rows={3}
-        className="w-full resize-none rounded-xl border border-border/20 bg-background/50 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/20 focus:border-primary/40 focus:outline-none transition-all"
+        className="w-full resize-none rounded-lg border border-border/20 bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-all"
         placeholder="Describe the draft you want to create from selected comments..."
       />
       <div className="mt-3 flex max-h-64 flex-col gap-2 overflow-y-auto custom-scrollbar pr-1">
         {items.length === 0 ? (
-          <div className="text-[10px] text-muted-foreground/30 py-8 text-center italic">No pending comments.</div>
+          <div className="text-[11px] text-muted-foreground/40 py-8 text-center italic">No pending comments.</div>
         ) : (
           items.map((item) => {
             const checked = selectedIds.includes(item.id);
@@ -506,7 +506,7 @@ function BulkPromotePanel({
             return (
               <div
                 key={item.id}
-                className="rounded-xl border border-border/10 bg-muted/5 px-3 py-2 text-[10px] text-muted-foreground transition-all hover:bg-muted/10 group/item"
+                className="rounded-lg border border-border/10 bg-muted/5 px-3 py-2.5 transition-all hover:bg-muted/10 group/item select-none"
                 onMouseEnter={() => onPreviewItem?.(item)}
               >
                 <label className="flex items-start gap-3 cursor-pointer">
@@ -514,33 +514,33 @@ function BulkPromotePanel({
                     type="checkbox"
                     checked={checked}
                     onChange={() => onToggleItem?.(item.id)}
-                    className="mt-1 h-3 w-3 rounded border-border bg-transparent text-primary focus:ring-primary/20"
+                    className="mt-0.5 h-3.5 w-3.5 rounded border-border/60 bg-transparent text-primary focus:ring-offset-0 focus:ring-1 focus:ring-primary/20 transition-all"
                   />
                   <div className="flex flex-1 flex-col gap-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-foreground/70 truncate mr-2">
+                      <span className="font-semibold text-foreground/80 truncate mr-2 text-[11px]">
                         {item.anchor?.file || 'Unknown file'}
                       </span>
-                      <span className="text-[9px] text-muted-foreground/30 tabular-nums shrink-0">Ln {item.anchor?.line || 1}</span>
+                      <span className="text-[10px] text-muted-foreground/40 tabular-nums shrink-0 font-medium">Ln {item.anchor?.line || 1}</span>
                     </div>
-                    <div className="text-[10px] text-muted-foreground/60 line-clamp-2 leading-snug">
+                    <div className="text-[11px] text-muted-foreground/80 line-clamp-2 leading-relaxed">
                       {item.body || item.message}
                     </div>
                     {preview ? (
                       preview.error ? (
-                        <div className="mt-1 text-[9px] text-rose-400 opacity-60">{preview.error}</div>
+                        <div className="mt-1.5 text-[10px] text-rose-400 opacity-80">{preview.error}</div>
                       ) : (
-                        <div className="mt-1 rounded-lg border border-border/10 bg-background/40 px-2 py-1 font-mono text-[9px] text-muted-foreground/40 overflow-hidden">
+                        <div className="mt-1.5 rounded border border-border/10 bg-background/60 px-2 py-1.5 font-mono text-[10px] text-muted-foreground/60 overflow-hidden">
                           {preview.snippet?.map((line) => (
-                            <div key={`${item.id}-${line.line}`} className="flex gap-2">
-                              <span className="w-6 text-right opacity-20">{line.line}</span>
+                            <div key={`${item.id}-${line.line}`} className="flex gap-3">
+                              <span className="w-5 text-right opacity-30 select-none">{line.line}</span>
                               <span className="truncate">{line.text || ' '}</span>
                             </div>
                           ))}
                         </div>
                       )
                     ) : (
-                      <div className="mt-1 text-[9px] text-muted-foreground/20 italic group-hover/item:text-muted-foreground/40 transition-colors">Hover to preview context.</div>
+                      <div className="mt-1 text-[10px] text-muted-foreground/30 italic group-hover/item:text-muted-foreground/50 transition-colors">Hover to preview context.</div>
                     )}
                   </div>
                 </label>
@@ -549,12 +549,12 @@ function BulkPromotePanel({
           })
         )}
       </div>
-      {error ? <div className="mt-3 text-[10px] font-semibold text-rose-400 bg-rose-500/5 p-2 rounded-lg border border-rose-500/10">{error}</div> : null}
+      {error ? <div className="mt-3 text-[11px] font-medium text-rose-400 bg-rose-500/5 p-2 rounded border border-rose-500/10">{error}</div> : null}
       <div className="mt-4 flex items-center justify-end gap-2">
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 hover:text-foreground transition-all"
+          className="rounded-md px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-all"
         >
           Cancel
         </button>
@@ -562,7 +562,7 @@ function BulkPromotePanel({
           type="button"
           onClick={onSubmit}
           disabled={loading}
-          className="rounded-full bg-primary/80 hover:bg-primary px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-white shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50"
+          className="rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-all active:scale-95 disabled:opacity-50"
         >
           {loading ? 'Promoting...' : 'Create Draft'}
         </button>
