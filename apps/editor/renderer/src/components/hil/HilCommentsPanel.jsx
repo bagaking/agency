@@ -6,7 +6,6 @@ import {
   Terminal, 
   StickyNote, 
   Layers, 
-  Target, 
   Quote,
   FileCode,
   MessageSquarePlus,
@@ -27,7 +26,6 @@ export function HilCommentsPanel({
   loading,
   error,
   onOpenComment,
-  onPromoteComment,
   onUpdateStatus,
   commentModalOpen,
   commentTarget,
@@ -42,19 +40,28 @@ export function HilCommentsPanel({
   onCommentTodoChange,
   onCloseComment,
   onSubmitComment,
-  onOpenBulkPromote,
-  bulkPromoteOpen,
-  bulkPromoteDescription,
-  bulkPromoteError,
-  bulkPromoteLoading,
-  bulkPromoteItems = [],
-  bulkPromoteSelectedIds = [],
-  bulkPromotePreviewById = {},
-  onBulkPromoteDescriptionChange,
-  onBulkPromoteToggleItem,
-  onBulkPromotePreview,
-  onCloseBulkPromote,
-  onSubmitBulkPromote,
+  promoteModalOpen,
+  promoteDescription,
+  promoteError,
+  promoteLoading,
+  promoteItems = [],
+  promoteSelectedIds = [],
+  promotePreviewById = {},
+  promoteStep,
+  promoteDraft,
+  promoteGateStatus,
+  promoteSessionId,
+  sessions = [],
+  sessionActivityByKey = {},
+  selectedCellId,
+  onClosePromote,
+  onPromoteDescriptionChange,
+  onTogglePromoteItem,
+  onPromotePreview,
+  onSelectPromoteSession,
+  onCreatePromoteSession,
+  onStartPromote,
+  onConfirmPromote,
   worktreePath,
 }) {
   const messageRef = useRef(null);
@@ -108,15 +115,6 @@ export function HilCommentsPanel({
               <MessageSquarePlus size={13} strokeWidth={1.5} />
             </button>
           ) : null}
-          <button
-            type="button"
-            aria-label="Promote comments"
-            title="Promote comments"
-            onClick={() => (bulkPromoteOpen ? onCloseBulkPromote?.() : onOpenBulkPromote?.())}
-            className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-muted/10 transition-all active:scale-95"
-          >
-            <Target size={13} strokeWidth={1.5} />
-          </button>
         </div>
       </div>
 
@@ -211,19 +209,30 @@ export function HilCommentsPanel({
         </div>
       ) : null}
 
-      {bulkPromoteOpen ? (
-        <BulkPromotePanel
-          loading={bulkPromoteLoading}
-          error={bulkPromoteError}
-          description={bulkPromoteDescription}
-          items={bulkPromoteItems}
-          selectedIds={bulkPromoteSelectedIds}
-          previewById={bulkPromotePreviewById}
-          onChangeDescription={onBulkPromoteDescriptionChange}
-          onToggleItem={onBulkPromoteToggleItem}
-          onPreviewItem={onBulkPromotePreview}
-          onClose={onCloseBulkPromote}
-          onSubmit={onSubmitBulkPromote}
+      {promoteModalOpen ? (
+        <PromoteModal
+          open={promoteModalOpen}
+          description={promoteDescription}
+          error={promoteError}
+          loading={promoteLoading}
+          items={promoteItems}
+          selectedIds={promoteSelectedIds}
+          previewById={promotePreviewById}
+          promoteStep={promoteStep}
+          promoteDraft={promoteDraft}
+          promoteGateStatus={promoteGateStatus}
+          promoteSessionId={promoteSessionId}
+          sessions={sessions}
+          sessionActivityByKey={sessionActivityByKey}
+          selectedCellId={selectedCellId}
+          onChangeDescription={onPromoteDescriptionChange}
+          onToggleItem={onTogglePromoteItem}
+          onPreviewItem={onPromotePreview}
+          onSelectSession={onSelectPromoteSession}
+          onCreateSession={onCreatePromoteSession}
+          onClose={onClosePromote}
+          onStart={onStartPromote}
+          onConfirm={onConfirmPromote}
         />
       ) : null}
 
@@ -244,7 +253,6 @@ export function HilCommentsPanel({
             key={comment.id || i} 
             comment={comment} 
             onUpdateStatus={onUpdateStatus}
-            onPromote={onPromoteComment}
             worktreePath={worktreePath}
           />
         ))
@@ -258,7 +266,7 @@ export function HilCommentsPanel({
   );
 }
 
-function CommentItem({ comment, onUpdateStatus, onPromote, worktreePath }) {
+function CommentItem({ comment, onUpdateStatus, worktreePath }) {
     const isResolved = comment.status === 'resolved';
     const isProcessed = Boolean(comment.processed);
     const kindLabel = (comment.kind || 'comment').toUpperCase();
@@ -309,15 +317,7 @@ function CommentItem({ comment, onUpdateStatus, onPromote, worktreePath }) {
                     {comment.body || comment.message}
                 </div>
 
-                <footer className="flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0 h-3.5">
-                    <button 
-                        onClick={() => onPromote?.(comment)}
-                        disabled={isProcessed}
-                        className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 hover:text-primary transition-all disabled:opacity-40"
-                    >
-                        <Target size={9} />
-                        Promote
-                    </button>
+                <footer className="flex items-center justify-end opacity-0 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0 h-3.5">
                     <button 
                         onClick={() => onUpdateStatus?.(comment, isResolved ? 'open' : 'resolved')}
                         className="flex items-center gap-1 text-[9px] font-bold text-emerald-500/60 hover:text-emerald-400 transition-all"
@@ -457,111 +457,257 @@ function ContextTooltip({ x, y, snippet, loading, commentBody, fileName }) {
     );
 }
 
-function BulkPromotePanel({
+function PromoteModal({
+  open,
   loading,
   error,
   description,
   items,
   selectedIds,
   previewById,
+  promoteStep,
+  promoteDraft,
+  promoteGateStatus,
+  promoteSessionId,
+  sessions,
+  sessionActivityByKey,
+  selectedCellId,
   onChangeDescription,
   onToggleItem,
   onPreviewItem,
+  onSelectSession,
+  onCreateSession,
   onClose,
-  onSubmit,
+  onStart,
+  onConfirm,
 }) {
-  return (
-    <div className="rounded-xl border border-border/20 bg-card p-4 shadow-xl overflow-hidden relative ring-1 ring-black/5">
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-xs font-bold text-foreground">
-          Promote Comments
+  if (!open) {
+    return null;
+  }
+  const isWaiting = promoteStep === 'waiting';
+  const gateStatus = isWaiting ? promoteGateStatus : 'idle';
+  const gateReady = gateStatus === 'ready';
+  const gateMissing = gateStatus === 'missing';
+  const availableSessions = sessions.filter((session) => session.status !== 'closed');
+  const activeSession = availableSessions.find((session) => session.id === promoteSessionId) || null;
+  const activityKey = selectedCellId && promoteSessionId ? `${selectedCellId}:${promoteSessionId}` : '';
+  const lastActivity = activityKey ? sessionActivityByKey[activityKey] : null;
+  const lastActivityLabel = lastActivity
+    ? new Date(lastActivity).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+    : 'idle';
+
+  return createPortal(
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-3xl rounded-2xl border border-border/20 bg-card p-5 shadow-2xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-[12px] font-semibold text-foreground">Promote Comments</div>
+            <div className="text-[10px] text-muted-foreground/60">
+              Convert selected comments into a draft and wait for completion.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1 text-muted-foreground/50 hover:text-foreground hover:bg-muted/10 transition-all"
+          >
+            <X size={14} />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-md p-1 text-muted-foreground/50 hover:text-foreground hover:bg-muted/10 transition-all"
-        >
-          <X size={14} />
-        </button>
-      </div>
-      <textarea
-        value={description}
-        onChange={(event) => onChangeDescription?.(event.target.value)}
-        rows={3}
-        className="w-full resize-none rounded-lg border border-border/20 bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-all"
-        placeholder="Describe the draft you want to create from selected comments..."
-      />
-      <div className="mt-3 flex max-h-64 flex-col gap-2 overflow-y-auto custom-scrollbar pr-1">
-        {items.length === 0 ? (
-          <div className="text-[11px] text-muted-foreground/40 py-8 text-center italic">No pending comments.</div>
-        ) : (
-          items.map((item) => {
-            const checked = selectedIds.includes(item.id);
-            const preview = previewById[item.id];
-            return (
-              <div
-                key={item.id}
-                className="rounded-lg border border-border/10 bg-muted/5 px-3 py-2.5 transition-all hover:bg-muted/10 group/item select-none"
-                onMouseEnter={() => onPreviewItem?.(item)}
-              >
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => onToggleItem?.(item.id)}
-                    className="mt-0.5 h-3.5 w-3.5 rounded border-border/60 bg-transparent text-primary focus:ring-offset-0 focus:ring-1 focus:ring-primary/20 transition-all"
-                  />
-                  <div className="flex flex-1 flex-col gap-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-foreground/80 truncate mr-2 text-[11px]">
-                        {item.anchor?.file || 'Unknown file'}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground/40 tabular-nums shrink-0 font-medium">Ln {item.anchor?.line || 1}</span>
-                    </div>
-                    <div className="text-[11px] text-muted-foreground/80 line-clamp-2 leading-relaxed">
-                      {item.body || item.message}
-                    </div>
-                    {preview ? (
-                      preview.error ? (
-                        <div className="mt-1.5 text-[10px] text-rose-400 opacity-80">{preview.error}</div>
-                      ) : (
-                        <div className="mt-1.5 rounded border border-border/10 bg-background/60 px-2 py-1.5 font-mono text-[10px] text-muted-foreground/60 overflow-hidden">
-                          {preview.snippet?.map((line) => (
-                            <div key={`${item.id}-${line.line}`} className="flex gap-3">
-                              <span className="w-7 text-right opacity-30 select-none tabular-nums shrink-0">{line.line}</span>
-                              <span className="truncate">{line.text || ' '}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )
-                    ) : (
-                      <div className="mt-1 text-[10px] text-muted-foreground/30 italic group-hover/item:text-muted-foreground/50 transition-colors">Hover to preview context.</div>
-                    )}
-                  </div>
-                </label>
+
+        <div className="mt-4 grid grid-cols-[1.3fr_1fr] gap-4">
+          <div className="space-y-3">
+            <textarea
+              value={description}
+              onChange={(event) => onChangeDescription?.(event.target.value)}
+              rows={4}
+              disabled={isWaiting}
+              className="w-full resize-none rounded-lg border border-border/20 bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-all disabled:opacity-60"
+              placeholder="Describe the draft you want to create from selected comments..."
+            />
+
+            <div className="rounded-xl border border-border/10 bg-muted/5 px-3 py-3">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
+                Agent Session
               </div>
-            );
-          })
-        )}
+              <div className="mt-2 flex items-center gap-2">
+                <select
+                  value={promoteSessionId}
+                  onChange={(event) => onSelectSession?.(event.target.value)}
+                  disabled={isWaiting}
+                  className="flex-1 rounded-md border border-border/20 bg-background px-2 py-1.5 text-[11px] text-foreground focus:border-primary/40 focus:outline-none disabled:opacity-60"
+                >
+                  <option value="">Select session...</option>
+                  {availableSessions.map((session) => (
+                    <option key={session.id} value={session.id}>
+                      {session.name || session.id} · {session.status}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={onCreateSession}
+                  disabled={isWaiting}
+                  className="rounded-md border border-border/20 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all disabled:opacity-60"
+                >
+                  New
+                </button>
+              </div>
+              <div className="mt-2 text-[10px] text-muted-foreground/50">
+                {activeSession
+                  ? `Using ${activeSession.name || activeSession.id} · ${activeSession.status} · last active ${lastActivityLabel}`
+                  : 'No session selected yet.'}
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border/10 bg-muted/5 px-3 py-3">
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
+                Draft Gate
+              </div>
+              <PromoteGateBadge status={gateStatus} />
+            </div>
+            <div className="mt-2 text-[11px] text-muted-foreground/70 leading-relaxed">
+              {!isWaiting
+                ? 'Start promote to create a draft and begin the gate.'
+                : gateReady && promoteDraft
+                  ? 'Draft marked complete. You can confirm and consume comments.'
+                  : gateMissing
+                    ? 'Draft not found. Ensure the draft exists in .agency/hil.'
+                    : 'Waiting for the agent to complete the draft and mark it promoted.'}
+            </div>
+            {promoteDraft ? (
+              <div className="mt-2 text-[10px] text-muted-foreground/50">
+                Draft ID: <span className="font-mono">{promoteDraft.id}</span>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="mt-4 max-h-64 overflow-y-auto custom-scrollbar pr-1 space-y-2">
+          {items.length === 0 ? (
+            <div className="text-[11px] text-muted-foreground/40 py-6 text-center italic">
+              No pending comments.
+            </div>
+          ) : (
+            items.map((item) => {
+              const checked = selectedIds.includes(item.id);
+              const preview = previewById[item.id];
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-lg border border-border/10 bg-muted/5 px-3 py-2 transition-all hover:bg-muted/10 group/item select-none"
+                  onMouseEnter={() => onPreviewItem?.(item)}
+                >
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => onToggleItem?.(item.id)}
+                      disabled={isWaiting}
+                      className="mt-0.5 h-3.5 w-3.5 rounded border-border/60 bg-transparent text-primary focus:ring-offset-0 focus:ring-1 focus:ring-primary/20 transition-all disabled:opacity-60"
+                    />
+                    <div className="flex flex-1 flex-col gap-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-foreground/80 truncate mr-2 text-[11px]">
+                          {item.anchor?.file || 'Unknown file'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground/40 tabular-nums shrink-0 font-medium">
+                          Ln {item.anchor?.line || 1}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground/80 line-clamp-2 leading-relaxed">
+                        {item.body || item.message}
+                      </div>
+                      {preview ? (
+                        preview.error ? (
+                          <div className="mt-1 text-[10px] text-rose-400 opacity-80">{preview.error}</div>
+                        ) : (
+                          <div className="mt-1 rounded border border-border/10 bg-background/60 px-2 py-1.5 font-mono text-[10px] text-muted-foreground/60 overflow-hidden">
+                            {preview.snippet?.map((line) => (
+                              <div key={`${item.id}-${line.line}`} className="flex gap-3">
+                                <span className="w-7 text-right opacity-30 select-none tabular-nums shrink-0">
+                                  {line.line}
+                                </span>
+                                <span className="truncate">{line.text || ' '}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      ) : (
+                        <div className="mt-1 text-[10px] text-muted-foreground/30 italic group-hover/item:text-muted-foreground/50 transition-colors">
+                          Hover to preview context.
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {error ? (
+          <div className="mt-3 text-[11px] font-medium text-rose-400 bg-rose-500/5 p-2 rounded border border-rose-500/10">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="mt-4 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-all"
+          >
+            Cancel
+          </button>
+          {isWaiting ? (
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={!gateReady || loading}
+              className="rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-all active:scale-95 disabled:opacity-50"
+            >
+              {loading ? 'Confirming...' : 'Confirm Draft'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onStart}
+              disabled={loading}
+              className="rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-all active:scale-95 disabled:opacity-50"
+            >
+              {loading ? 'Starting...' : 'Start Promote'}
+            </button>
+          )}
+        </div>
       </div>
-      {error ? <div className="mt-3 text-[11px] font-medium text-rose-400 bg-rose-500/5 p-2 rounded border border-rose-500/10">{error}</div> : null}
-      <div className="mt-4 flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-md px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-all"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={onSubmit}
-          disabled={loading}
-          className="rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-all active:scale-95 disabled:opacity-50"
-        >
-          {loading ? 'Promoting...' : 'Create Draft'}
-        </button>
-      </div>
-    </div>
+    </div>,
+    document.body
+  );
+}
+
+function PromoteGateBadge({ status }) {
+  const label =
+    status === 'ready'
+      ? 'Ready'
+      : status === 'missing'
+        ? 'Missing'
+        : status === 'idle'
+          ? 'Idle'
+          : 'Waiting';
+  const styles =
+    status === 'ready'
+      ? 'border-emerald-500/30 text-emerald-400'
+      : status === 'missing'
+        ? 'border-rose-500/30 text-rose-400'
+        : status === 'idle'
+          ? 'border-border/40 text-muted-foreground/60'
+          : 'border-amber-500/30 text-amber-400';
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.2em] ${styles}`}>
+      {label}
+    </span>
   );
 }

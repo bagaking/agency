@@ -101,6 +101,7 @@ export function AppLayout({
   hilDrawerPanel,
   onToggleHilDrawer,
   onSelectHilDrawerPanel,
+  onOpenHilPromote,
   hilCommentsProps,
 }) {
   const hilSubtitle = explorerPaneProps?.activeRootLabel || explorerSidebarProps?.rootLabel || '';
@@ -282,6 +283,7 @@ export function AppLayout({
           activePanel={hilDrawerPanel}
           onToggle={onToggleHilDrawer}
           onSelectPanel={onSelectHilDrawerPanel}
+          onOpenPromote={onOpenHilPromote}
           title={hilDrawerPanel === 'comments' ? 'Neural Comments' : 'HIL Core'}
           subtitle={hilSubtitle}
         >

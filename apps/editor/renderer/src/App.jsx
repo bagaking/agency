@@ -22,7 +22,6 @@ import {
   onCellsUpdated as subscribeCellsUpdated,
   onProjectUpdated as subscribeProjectUpdated,
   onRecentProjectsUpdated as subscribeRecentProjectsUpdated,
-  promoteHilItem as agencyPromoteHilItem,
   readWorkbenchEntry as agencyReadWorkbenchEntry,
   selectProjectRoot as agencySelectProjectRoot,
   setProjectRoot as agencySetProjectRoot,
@@ -84,13 +83,18 @@ function App() {
   const [commentSnippet, setCommentSnippet] = useState(null);
   const [commentSnippetLoading, setCommentSnippetLoading] = useState(false);
   const [commentSnippetError, setCommentSnippetError] = useState('');
-  const [bulkPromoteOpen, setBulkPromoteOpen] = useState(false);
-  const [bulkPromoteDescription, setBulkPromoteDescription] = useState('');
-  const [bulkPromoteLoading, setBulkPromoteLoading] = useState(false);
-  const [bulkPromoteError, setBulkPromoteError] = useState('');
-  const [bulkPromoteItems, setBulkPromoteItems] = useState([]);
-  const [bulkPromoteSelectedIds, setBulkPromoteSelectedIds] = useState([]);
-  const [bulkPromotePreviewById, setBulkPromotePreviewById] = useState({});
+  const [promoteModalOpen, setPromoteModalOpen] = useState(false);
+  const [promoteStep, setPromoteStep] = useState('setup');
+  const [promoteDescription, setPromoteDescription] = useState('');
+  const [promoteLoading, setPromoteLoading] = useState(false);
+  const [promoteError, setPromoteError] = useState('');
+  const [promoteItems, setPromoteItems] = useState([]);
+  const [promoteSelectedIds, setPromoteSelectedIds] = useState([]);
+  const [promotePreviewById, setPromotePreviewById] = useState({});
+  const [promoteDraftId, setPromoteDraftId] = useState('');
+  const [promoteDraft, setPromoteDraft] = useState(null);
+  const [promoteGateStatus, setPromoteGateStatus] = useState('waiting');
+  const [promoteSessionId, setPromoteSessionId] = useState('');
   const projectReady = Boolean(projectRoot);
   const virtualCell = useMemo(() => {
     if (projectReady) {
@@ -530,23 +534,19 @@ function App() {
     },
     [commentRootPath, loadComments]
   );
-  const promoteComment = useCallback(
-    async (comment) => {
-      if (!comment?.id || !commentRootPath) {
-        return;
-      }
-      const result = await agencyPromoteHilItem({
-        worktreePath: commentRootPath,
-        itemId: comment.id,
-      });
-      if (!result) {
-        return;
-      }
-      await loadComments();
-      openHilDrawer('comments');
-    },
-    [commentRootPath, loadComments, openHilDrawer]
-  );
+  const isDraftComplete = useCallback((draft) => {
+    if (!draft) {
+      return false;
+    }
+    if (draft.meta?.promoted !== true) {
+      return false;
+    }
+    const todos = Array.isArray(draft.meta?.todos) ? draft.meta.todos : null;
+    if (!todos || todos.length === 0) {
+      return true;
+    }
+    return todos.every((todo) => todo?.done === true || todo?.checked === true || todo?.status === 'done');
+  }, []);
   useEffect(() => {
     loadComments();
   }, [loadComments]);
@@ -599,29 +599,33 @@ function App() {
     };
   }, [commentFilePath, commentModalOpen, commentRootPath, commentTarget.line]);
   useEffect(() => {
-    if (commentModalOpen || bulkPromoteOpen) {
+    if (commentModalOpen || promoteModalOpen) {
       setHilDrawerPanel('comments');
       setHilDrawerOpen(true);
     }
-  }, [bulkPromoteOpen, commentModalOpen]);
+  }, [commentModalOpen, promoteModalOpen]);
   const promoteWorktreePath = selectedCell?.worktreePath || projectRoot || '';
-  const openBulkPromote = useCallback(async () => {
+  const openPromoteModal = useCallback(async () => {
     if (!promoteWorktreePath) {
       return;
     }
-    setBulkPromoteOpen(true);
-    setBulkPromoteLoading(true);
-    setBulkPromoteError('');
-    setBulkPromoteDescription('');
-    setBulkPromotePreviewById({});
+    setPromoteModalOpen(true);
+    setPromoteLoading(true);
+    setPromoteError('');
+    setPromoteDescription('');
+    setPromotePreviewById({});
+    setPromoteStep('setup');
+    setPromoteDraftId('');
+    setPromoteDraft(null);
+    setPromoteGateStatus('waiting');
     try {
       const list = await agencyListHilItems({
         worktreePath: promoteWorktreePath,
         kind: 'comment',
       });
       if (!list) {
-        setBulkPromoteItems([]);
-        setBulkPromoteSelectedIds([]);
+        setPromoteItems([]);
+        setPromoteSelectedIds([]);
         return;
       }
       const pending = (Array.isArray(list) ? list : [])
@@ -636,40 +640,48 @@ function App() {
           const lineB = Number(b.anchor?.line || 0);
           return lineA - lineB;
         });
-      setBulkPromoteItems(pending);
-      setBulkPromoteSelectedIds(pending.map((item) => item.id));
+      setPromoteItems(pending);
+      setPromoteSelectedIds(pending.map((item) => item.id));
+      const availableSessions = sessions.filter((session) => session.status !== 'closed');
+      setPromoteSessionId(activeSessionId || availableSessions[0]?.id || '');
     } catch (error) {
-      setBulkPromoteError(error?.message || 'Failed to load pending comments.');
-      setBulkPromoteItems([]);
-      setBulkPromoteSelectedIds([]);
+      setPromoteError(error?.message || 'Failed to load pending comments.');
+      setPromoteItems([]);
+      setPromoteSelectedIds([]);
     } finally {
-      setBulkPromoteLoading(false);
+      setPromoteLoading(false);
     }
-  }, [promoteWorktreePath]);
-  const closeBulkPromote = useCallback(() => {
-    setBulkPromoteOpen(false);
-    setBulkPromoteError('');
-    setBulkPromoteItems([]);
-    setBulkPromoteSelectedIds([]);
-    setBulkPromotePreviewById({});
+  }, [activeSessionId, promoteWorktreePath, sessions]);
+  const closePromoteModal = useCallback(() => {
+    setPromoteModalOpen(false);
+    setPromoteError('');
+    setPromoteItems([]);
+    setPromoteSelectedIds([]);
+    setPromotePreviewById({});
+    setPromoteDescription('');
+    setPromoteStep('setup');
+    setPromoteDraftId('');
+    setPromoteDraft(null);
+    setPromoteGateStatus('waiting');
+    setPromoteSessionId('');
   }, []);
-  const toggleBulkPromoteItem = useCallback((itemId) => {
+  const togglePromoteItem = useCallback((itemId) => {
     if (!itemId) {
       return;
     }
-    setBulkPromoteSelectedIds((current) => {
+    setPromoteSelectedIds((current) => {
       if (current.includes(itemId)) {
         return current.filter((id) => id !== itemId);
       }
       return [...current, itemId];
     });
   }, []);
-  const loadBulkPromotePreview = useCallback(
+  const loadPromotePreview = useCallback(
     async (item) => {
       if (!item?.id || !item?.anchor?.file || !promoteWorktreePath) {
         return;
       }
-      if (bulkPromotePreviewById[item.id]) {
+      if (promotePreviewById[item.id]) {
         return;
       }
       try {
@@ -678,7 +690,7 @@ function App() {
           targetPath: item.anchor.file,
         });
         if (!result) {
-          setBulkPromotePreviewById((current) => ({
+          setPromotePreviewById((current) => ({
             ...current,
             [item.id]: {
               error: 'Unable to load preview.',
@@ -695,7 +707,7 @@ function App() {
           line: start + index,
           text,
         }));
-        setBulkPromotePreviewById((current) => ({
+        setPromotePreviewById((current) => ({
           ...current,
           [item.id]: {
             snippet,
@@ -704,7 +716,7 @@ function App() {
           },
         }));
       } catch (error) {
-        setBulkPromotePreviewById((current) => ({
+        setPromotePreviewById((current) => ({
           ...current,
           [item.id]: {
             error: error?.message || 'Unable to load preview.',
@@ -712,23 +724,36 @@ function App() {
         }));
       }
     },
-    [bulkPromotePreviewById, promoteWorktreePath]
+    [promotePreviewById, promoteWorktreePath]
   );
-  const submitBulkPromote = useCallback(async () => {
+  const createPromoteSession = useCallback(async () => {
     if (!promoteWorktreePath) {
       return;
     }
-    if (!bulkPromoteDescription.trim()) {
-      setBulkPromoteError('Description is required.');
+    const created = await createSession({ name: 'Promote' });
+    if (created?.id) {
+      setPromoteSessionId(created.id);
+    }
+  }, [createSession, promoteWorktreePath]);
+  const startPromote = useCallback(async () => {
+    if (!promoteWorktreePath) {
       return;
     }
-    const selected = bulkPromoteItems.filter((item) => bulkPromoteSelectedIds.includes(item.id));
+    if (!promoteDescription.trim()) {
+      setPromoteError('Description is required.');
+      return;
+    }
+    const selected = promoteItems.filter((item) => promoteSelectedIds.includes(item.id));
     if (!selected.length) {
-      setBulkPromoteError('Select at least one comment to promote.');
+      setPromoteError('Select at least one comment to promote.');
       return;
     }
-    setBulkPromoteLoading(true);
-    setBulkPromoteError('');
+    if (!promoteSessionId) {
+      setPromoteError('Select a session to run the promote workflow.');
+      return;
+    }
+    setPromoteLoading(true);
+    setPromoteError('');
     try {
       const references = selected.map((item) => ({
         system: 'hil',
@@ -739,43 +764,126 @@ function App() {
       const draft = await agencyCreateHilItem({
         worktreePath: promoteWorktreePath,
         kind: 'draft',
-        body: bulkPromoteDescription.trim(),
+        body: promoteDescription.trim(),
         references,
         meta: {
           sourceKind: 'comment',
-          sourceBatch: 'bulk',
+          sourceBatch: 'promote',
+          promoteSessionId: promoteSessionId,
+          promoted: false,
         },
       });
       if (!draft) {
-        setBulkPromoteError('Unable to create draft.');
+        setPromoteError('Unable to create draft.');
         return;
       }
+      setPromoteDraftId(draft.id);
+      setPromoteDraft(draft);
+      setPromoteGateStatus('waiting');
+      setPromoteStep('waiting');
+      selectSession(promoteSessionId);
+    } catch (error) {
+      setPromoteError(error?.message || 'Failed to start promote workflow.');
+    } finally {
+      setPromoteLoading(false);
+    }
+  }, [
+    promoteDescription,
+    promoteItems,
+    promoteSelectedIds,
+    promoteSessionId,
+    promoteWorktreePath,
+    selectSession,
+  ]);
+  const confirmPromote = useCallback(async () => {
+    if (!promoteWorktreePath || !promoteDraftId) {
+      return;
+    }
+    if (promoteGateStatus !== 'ready') {
+      setPromoteError('Draft completion gate is not ready.');
+      return;
+    }
+    const selected = promoteItems.filter((item) => promoteSelectedIds.includes(item.id));
+    if (!selected.length) {
+      setPromoteError('Select at least one comment to promote.');
+      return;
+    }
+    setPromoteLoading(true);
+    setPromoteError('');
+    try {
+      const promotedAt = new Date().toISOString();
       await Promise.all(
         selected.map((item) =>
           agencyUpdateHilItem({
             worktreePath: promoteWorktreePath,
             itemId: item.id,
-            patch: { meta: { processed: true } },
+            patch: {
+              meta: {
+                processed: true,
+                promotedDraftId: promoteDraftId,
+                promoteSessionId: promoteSessionId || null,
+                promotedAt,
+              },
+            },
           })
         )
       );
       await loadComments();
-      closeBulkPromote();
+      closePromoteModal();
       openHilDrawer('comments');
     } catch (error) {
-      setBulkPromoteError(error?.message || 'Failed to promote comments.');
+      setPromoteError(error?.message || 'Failed to confirm promote.');
     } finally {
-      setBulkPromoteLoading(false);
+      setPromoteLoading(false);
     }
   }, [
-    bulkPromoteDescription,
-    bulkPromoteItems,
-    bulkPromoteSelectedIds,
-    closeBulkPromote,
+    closePromoteModal,
     loadComments,
     openHilDrawer,
+    promoteDraftId,
+    promoteGateStatus,
+    promoteItems,
+    promoteSelectedIds,
+    promoteSessionId,
     promoteWorktreePath,
   ]);
+  useEffect(() => {
+    if (!promoteModalOpen || promoteStep !== 'waiting' || !promoteDraftId || !promoteWorktreePath) {
+      return undefined;
+    }
+    let canceled = false;
+    const poll = async () => {
+      try {
+        const list = await agencyListHilItems({
+          worktreePath: promoteWorktreePath,
+          kind: 'draft',
+        });
+        if (canceled) {
+          return;
+        }
+        const drafts = Array.isArray(list) ? list : [];
+        const found = drafts.find((item) => item.id === promoteDraftId);
+        if (!found) {
+          setPromoteDraft(null);
+          setPromoteGateStatus('missing');
+          return;
+        }
+        setPromoteDraft(found);
+        setPromoteGateStatus(isDraftComplete(found) ? 'ready' : 'waiting');
+      } catch (error) {
+        if (canceled) {
+          return;
+        }
+        setPromoteGateStatus('waiting');
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => {
+      canceled = true;
+      clearInterval(interval);
+    };
+  }, [isDraftComplete, promoteDraftId, promoteModalOpen, promoteStep, promoteWorktreePath]);
   const resetProjectState = useCallback(() => {
     setSelectedId(null);
     setCells([]);
@@ -1020,7 +1128,6 @@ function App() {
     loading: commentsLoading,
     error: commentsError,
     onOpenComment: openCommentModal,
-    onPromoteComment: promoteComment,
     onUpdateStatus: updateCommentStatus,
     commentModalOpen,
     commentTarget,
@@ -1035,19 +1142,28 @@ function App() {
     onCommentTodoChange: setCommentTodo,
     onCloseComment: closeCommentModal,
     onSubmitComment: submitComment,
-    onOpenBulkPromote: openBulkPromote,
-    bulkPromoteOpen,
-    bulkPromoteDescription,
-    bulkPromoteError,
-    bulkPromoteLoading,
-    bulkPromoteItems,
-    bulkPromoteSelectedIds,
-    bulkPromotePreviewById,
-    onBulkPromoteDescriptionChange: setBulkPromoteDescription,
-    onBulkPromoteToggleItem: toggleBulkPromoteItem,
-    onBulkPromotePreview: loadBulkPromotePreview,
-    onCloseBulkPromote: closeBulkPromote,
-    onSubmitBulkPromote: submitBulkPromote,
+    promoteModalOpen,
+    promoteDescription,
+    promoteError,
+    promoteLoading,
+    promoteItems,
+    promoteSelectedIds,
+    promotePreviewById,
+    promoteStep,
+    promoteDraft,
+    promoteGateStatus,
+    promoteSessionId,
+    sessions,
+    sessionActivityByKey,
+    selectedCellId: selectedCell?.id || '',
+    onClosePromote: closePromoteModal,
+    onPromoteDescriptionChange: setPromoteDescription,
+    onTogglePromoteItem: togglePromoteItem,
+    onPromotePreview: loadPromotePreview,
+    onSelectPromoteSession: setPromoteSessionId,
+    onCreatePromoteSession: createPromoteSession,
+    onStartPromote: startPromote,
+    onConfirmPromote: confirmPromote,
   };
   const handleSwitchView = useCallback(
     (view) => {
@@ -1210,6 +1326,7 @@ function App() {
         hilDrawerPanel={hilDrawerPanel}
         onToggleHilDrawer={setHilDrawerOpen}
         onSelectHilDrawerPanel={setHilDrawerPanel}
+        onOpenHilPromote={openPromoteModal}
         hilCommentsProps={hilCommentsProps}
         explorerSidebarProps={{
           rootPath: explorerRootPath,

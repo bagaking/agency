@@ -253,8 +253,10 @@ export function useSessions({
             [selectedCell.id]: created.id,
           }));
         }
+        return created || null;
       } catch (error) {
         setSessionError(error?.message || 'Failed to create session.');
+        return null;
       } finally {
         setSessionLoading(false);
       }

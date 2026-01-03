@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Target } from 'lucide-react';
 
 const panels = [
   { id: 'comments', label: 'Comments' },
@@ -11,6 +11,7 @@ export function HilDrawer({
   activePanel,
   onToggle,
   onSelectPanel,
+  onOpenPromote,
   children,
   title,
   subtitle,
@@ -29,28 +30,41 @@ export function HilDrawer({
       }`}
     >
       <header
-        className={`shrink-0 h-11 flex items-center gap-2 border-b border-border/10 bg-muted/10 ${
+        className={`shrink-0 h-11 flex items-center border-b border-border/10 bg-muted/10 ${
           drawerOpen ? 'px-2' : 'px-0 justify-center'
         }`}
       >
-        <button
-          type="button"
-          onClick={handleToggle}
-          className="flex h-6 w-6 items-center justify-center rounded-full border border-border/30 bg-background/60 text-muted-foreground/60 shadow-sm hover:text-foreground hover:border-primary/30"
-          title={drawerOpen ? 'Collapse HIL drawer' : 'Expand HIL drawer'}
-        >
-          {drawerOpen ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-        </button>
-        <div className={`flex min-w-0 flex-col ${drawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} transition-opacity duration-200`}>
-          <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80 truncate">
-            {title || 'HIL'}
-          </h2>
-          {subtitle ? (
-            <span className="text-[9px] font-medium text-muted-foreground/50 truncate uppercase tracking-tighter">
-              {subtitle}
-            </span>
-          ) : null}
+        <div className={`flex items-center gap-2 ${drawerOpen ? 'flex-1 min-w-0' : ''}`}>
+          <button
+            type="button"
+            onClick={handleToggle}
+            className="flex h-6 w-6 items-center justify-center rounded-full border border-border/30 bg-background/60 text-muted-foreground/60 shadow-sm hover:text-foreground hover:border-primary/30"
+            title={drawerOpen ? 'Collapse HIL drawer' : 'Expand HIL drawer'}
+          >
+            {drawerOpen ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+          <div className={`flex min-w-0 flex-col ${drawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} transition-opacity duration-200`}>
+            <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80 truncate">
+              {title || 'HIL'}
+            </h2>
+            {subtitle ? (
+              <span className="text-[9px] font-medium text-muted-foreground/50 truncate uppercase tracking-tighter">
+                {subtitle}
+              </span>
+            ) : null}
+          </div>
         </div>
+        {drawerOpen && onOpenPromote ? (
+          <button
+            type="button"
+            onClick={onOpenPromote}
+            className="ml-auto flex items-center gap-1 rounded-full border border-border/30 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60 hover:text-foreground hover:border-primary/30"
+            title="Promote comments to draft"
+          >
+            <Target size={12} />
+            Promote
+          </button>
+        ) : null}
       </header>
 
       <div className={`flex h-full flex-col ${drawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} transition-opacity duration-200`}>

@@ -107,12 +107,6 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
     refresh();
   }, [refresh, worktreePath]);
 
-  const promoteItem = useCallback(async (item) => {
-    if (!window.agency?.promoteHilItem || !item?.id || !worktreePath) return;
-    await window.agency.promoteHilItem({ worktreePath, itemId: item.id });
-    refresh();
-  }, [refresh, worktreePath]);
-
   if (!projectReady) {
     return (
       <ProjectEmptyState
@@ -243,13 +237,12 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
                 <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
                   <div className="flex flex-col gap-0.5">
                     {visibleInboxItems.map((item, index) => (
-                      <MemoRow
-                        key={item.id}
-                        index={index}
-                        item={item}
-                        onUpdateStatus={updateStatus}
-                        onPromote={promoteItem}
-                      />
+                    <MemoRow
+                      key={item.id}
+                      index={index}
+                      item={item}
+                      onUpdateStatus={updateStatus}
+                    />
                     ))}
                   </div>
 
@@ -293,8 +286,9 @@ function FilterChip({ label, value, options, onChange }) {
     );
 }
 
-function MemoRow({ item, index, onUpdateStatus, onPromote }) {
+function MemoRow({ item, index, onUpdateStatus }) {
     const isResolved = item.status === 'resolved' || item.status === 'archived';
+    const isProcessed = item.kind === 'comment' && item.meta?.processed === true;
     const Icon = kindIcons[item.kind] || FileText;
     const bodySummary = resolveBody(item);
     
@@ -312,6 +306,11 @@ function MemoRow({ item, index, onUpdateStatus, onPromote }) {
             <div className="w-24 shrink-0 flex items-center gap-2">
                 <Icon size={13} strokeWidth={1.5} className={!isResolved ? 'text-primary/60' : 'text-muted-foreground/30'} />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">{item.kind}</span>
+                {isProcessed ? (
+                    <span className="rounded-full border border-emerald-500/30 px-1.5 py-0 text-[8px] font-bold uppercase tracking-widest text-emerald-400/70">
+                        Done
+                    </span>
+                ) : null}
             </div>
 
             {/* Content Summary */}
@@ -326,9 +325,6 @@ function MemoRow({ item, index, onUpdateStatus, onPromote }) {
                         <RowAction icon={CheckCircle2} title="Resolve" onClick={() => onUpdateStatus(item, 'resolved')} color="hover:text-emerald-500 hover:bg-emerald-500/10" />
                     ) : (
                         <RowAction icon={RefreshCw} title="Restore" onClick={() => onUpdateStatus(item, 'open')} color="hover:text-amber-500 hover:bg-amber-500/10" />
-                    )}
-                    {item.kind === 'comment' && (
-                        <RowAction icon={MessageSquarePlus} title="Promote" onClick={() => onPromote(item)} color="hover:text-primary hover:bg-primary/10" />
                     )}
                     <RowAction icon={Archive} title="Archive" onClick={() => onUpdateStatus(item, 'archived')} />
                 </div>
