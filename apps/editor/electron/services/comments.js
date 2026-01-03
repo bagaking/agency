@@ -87,10 +87,20 @@ async function submitComment({
       context: 3,
     });
     if (snippet?.snippet?.length) {
+      const targetLine = snippet.line;
+      const targetEntry = snippet.snippet.find((entry) => entry.line === targetLine) || null;
+      const beforeCtx = snippet.snippet
+        .filter((entry) => entry.line < targetLine)
+        .map((entry) => entry.content);
+      const afterCtx = snippet.snippet
+        .filter((entry) => entry.line > targetLine)
+        .map((entry) => entry.content);
       context = {
         capturedAt: new Date().toISOString(),
-        line: snippet.line,
-        snippet: snippet.snippet,
+        line: targetLine,
+        line_text: targetEntry?.content || '',
+        before_ctx: beforeCtx,
+        after_ctx: afterCtx,
       };
     }
   } catch (error) {
