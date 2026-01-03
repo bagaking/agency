@@ -81,17 +81,17 @@ export function HilCommentsPanel({
   }, [commentModalOpen]);
 
   return (
-    <div className="flex flex-col gap-3 py-2 select-none">
-      <div className="flex items-center justify-between gap-2 px-1">
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
+    <div className="flex flex-col gap-2 py-1 select-none">
+      <div className="flex items-center justify-between gap-2 px-0.5">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold tracking-wider text-foreground/80">
             {fileLabel || 'HIL Comments'}
           </span>
-          <span className="text-[9px] text-muted-foreground/50">
-            {pendingCount} open · {processedCount} processed
+          <span className="text-[9px] font-medium text-muted-foreground/60">
+            {pendingCount} open · {processedCount} done
           </span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           {activeFile ? (
             <button
               type="button"
@@ -103,9 +103,9 @@ export function HilCommentsPanel({
                   column: cursorPosition?.column || 1,
                 })
               }
-              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/55 hover:text-foreground hover:bg-muted/10 transition-all active:scale-95"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-muted/10 transition-all active:scale-95"
             >
-              <MessageSquarePlus size={14} strokeWidth={1.5} />
+              <MessageSquarePlus size={13} strokeWidth={1.5} />
             </button>
           ) : null}
           <button
@@ -113,57 +113,57 @@ export function HilCommentsPanel({
             aria-label="Promote comments"
             title="Promote comments"
             onClick={() => (bulkPromoteOpen ? onCloseBulkPromote?.() : onOpenBulkPromote?.())}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/55 hover:text-foreground hover:bg-muted/10 transition-all active:scale-95"
+            className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-muted/10 transition-all active:scale-95"
           >
-            <Target size={14} strokeWidth={1.5} />
+            <Target size={13} strokeWidth={1.5} />
           </button>
         </div>
       </div>
 
       {commentModalOpen ? (
-        <div className="rounded-xl border border-border/20 bg-card p-4 shadow-xl overflow-hidden relative ring-1 ring-black/5">
-          <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="rounded-xl border border-border/20 bg-card p-3 shadow-xl overflow-hidden relative ring-1 ring-black/5">
+          <div className="flex items-center justify-between gap-2 mb-2">
             <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-              <MessageSquarePlus size={14} className="text-primary" strokeWidth={2} />
+              <MessageSquarePlus size={13} className="text-primary" strokeWidth={2} />
               Add Comment
             </div>
             <button
               type="button"
               onClick={onCloseComment}
-              className="rounded-md p-1 text-muted-foreground/50 hover:text-foreground hover:bg-muted/10 transition-all"
+              className="rounded-md p-0.5 text-muted-foreground/50 hover:text-foreground hover:bg-muted/10 transition-all"
             >
-              <X size={14} />
+              <X size={13} />
             </button>
           </div>
           
-          <div className="flex flex-col gap-2">
-            <div className="text-[10px] font-medium text-muted-foreground/60 px-1">
+          <div className="flex flex-col gap-1.5">
+            <div className="text-[10px] font-medium text-muted-foreground/60 px-0.5">
                 {activeFile ? `${activeFile} · Ln ${resolvedLine}` : `Ln ${resolvedLine}`}
             </div>
 
             {commentSnippetLoading ? (
-                <div className="px-1 py-3 flex items-center gap-2 text-[10px] text-muted-foreground/40 italic">
+                <div className="px-1 py-2 flex items-center gap-2 text-[10px] text-muted-foreground/40 italic">
                     <RefreshCw size={10} className="animate-spin" /> Retrieving context...
                 </div>
             ) : commentSnippetError ? (
-                <div className="mx-1 mt-1 text-[10px] text-rose-400 bg-rose-500/5 px-2 py-1.5 rounded border border-rose-500/10">
+                <div className="mx-0.5 mt-0.5 text-[10px] text-rose-400 bg-rose-500/5 px-2 py-1 rounded border border-rose-500/10">
                     {commentSnippetError}
                 </div>
             ) : targetLineContent ? (
-                <div className="rounded-lg border border-border/10 bg-muted/5 px-3 py-2 text-xs text-foreground/90 font-mono">
+                <div className="rounded-md border border-border/10 bg-muted/5 px-2.5 py-1.5 text-xs text-foreground/90 font-mono">
                     <span className="opacity-30 mr-3 select-none text-[10px]">{resolvedLine}</span>
                     <span>{targetLineContent}</span>
                 </div>
             ) : null}
 
             {snippetLines?.length ? (
-                <div className="rounded-lg border border-border/10 bg-muted/5 px-3 py-2 font-mono text-[10px] text-muted-foreground/60 overflow-hidden">
+                <div className="rounded-md border border-border/10 bg-muted/5 px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground/60 overflow-hidden">
                 {snippetLines.map((line) => (
                     <div
                     key={`${line.line}-${line.isTarget ? 't' : 'n'}`}
-                    className={`flex gap-3 h-5 items-center ${line.isTarget ? 'bg-primary/5 text-primary -mx-3 px-3 font-medium' : ''}`}
+                    className={`flex gap-3 h-4 items-center ${line.isTarget ? 'bg-primary/5 text-primary -mx-2.5 px-2.5 font-medium' : ''}`}
                     >
-                    <span className="w-6 text-right opacity-30 tabular-nums select-none">{line.line}</span>
+                    <span className="w-5 text-right opacity-30 tabular-nums select-none">{line.line}</span>
                     <span className="truncate">{line.content || ' '}</span>
                     </div>
                 ))}
@@ -175,26 +175,26 @@ export function HilCommentsPanel({
             ref={messageRef}
             value={commentMessage}
             onChange={(event) => onCommentMessageChange?.(event.target.value)}
-            rows={4}
-            className="mt-4 w-full resize-none rounded-lg border border-border/20 bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-all"
+            rows={3}
+            className="mt-2 w-full resize-none rounded-lg border border-border/20 bg-background px-2.5 py-2 text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-all"
             placeholder="Write a note..."
           />
 
-          <div className="mt-4 flex items-center justify-between">
-            <label className="flex items-center gap-2 text-[11px] text-muted-foreground/70 cursor-pointer group/todo select-none">
+          <div className="mt-2.5 flex items-center justify-between">
+            <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 cursor-pointer group/todo select-none">
               <input
                 type="checkbox"
                 checked={Boolean(commentTodo)}
                 onChange={(event) => onCommentTodoChange?.(event.target.checked)}
-                className="h-3.5 w-3.5 rounded border-border/60 bg-transparent text-primary focus:ring-offset-0 focus:ring-1 focus:ring-primary/20 transition-all"
+                className="h-3 w-3 rounded border-border/60 bg-transparent text-primary focus:ring-offset-0 focus:ring-1 focus:ring-primary/20 transition-all"
               />
-              <span className="group-hover:text-foreground transition-colors">Mark as TODO</span>
+              <span className="group-hover:text-foreground transition-colors">TODO</span>
             </label>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={onCloseComment}
-                className="rounded-md px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-all"
+                className="rounded-md px-2.5 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-all"
               >
                 Cancel
               </button>
@@ -202,14 +202,14 @@ export function HilCommentsPanel({
                 type="button"
                 onClick={onSubmitComment}
                 disabled={commentSaving}
-                className="rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                className="rounded-md bg-primary hover:bg-primary/90 px-3 py-1 text-[10px] font-semibold text-primary-foreground shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
               >
                 {commentSaving ? 'Saving...' : 'Submit'}
               </button>
             </div>
           </div>
           {commentError ? (
-            <div className="mt-3 text-[11px] font-medium text-rose-400 bg-rose-500/5 p-2 rounded border border-rose-500/10">
+            <div className="mt-2 text-[10px] font-medium text-rose-400 bg-rose-500/5 p-1.5 rounded border border-rose-500/10">
                 {commentError}
             </div>
           ) : null}
@@ -272,14 +272,14 @@ function CommentItem({ comment, onUpdateStatus, onPromote, worktreePath }) {
     return (
         <div className={`group relative flex flex-col rounded-xl transition-all duration-300 ${isResolved ? 'opacity-40 grayscale' : 'hover:bg-muted/5'}`}>
             {/* Type Indicator with Tooltip */}
-            <div className="absolute -left-2 -top-2 z-10">
+            <div className="absolute -left-2 -top-1.5 z-10">
                 <div 
                     title={`Type: ${kindLabel}`}
-                    className={`flex h-5 w-5 items-center justify-center rounded-md border shadow-xl transition-all ${
+                    className={`flex h-4 w-4 items-center justify-center rounded border shadow-sm transition-all ${
                         isResolved ? 'bg-muted border-border text-muted-foreground' : 'bg-popover border-border/40 text-primary'
                     }`}
                 >
-                    <Icon size={10} strokeWidth={2.5} />
+                    <Icon size={9} strokeWidth={2.5} />
                 </div>
             </div>
 
@@ -293,15 +293,15 @@ function CommentItem({ comment, onUpdateStatus, onPromote, worktreePath }) {
                 />
             )}
 
-            <div className="px-3 pb-3">
-                <header className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
+            <div className="px-2.5 pb-2.5">
+                <header className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5">
                       <span className="text-[11px] font-bold text-foreground/80 tracking-tight uppercase">
                           {comment.author?.label || 'Agent'}
                       </span>
                       {isProcessed ? (
-                        <span className="rounded-full border border-emerald-500/30 px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest text-emerald-400/70">
-                          Processed
+                        <span className="rounded-full border border-emerald-500/30 px-1.5 py-0 text-[8px] font-bold uppercase tracking-widest text-emerald-400/70">
+                          Done
                         </span>
                       ) : null}
                     </div>
@@ -310,24 +310,24 @@ function CommentItem({ comment, onUpdateStatus, onPromote, worktreePath }) {
                     </span>
                 </header>
 
-                <div className="text-[11px] leading-relaxed text-muted-foreground break-words mb-3 selection:bg-primary/30">
+                <div className="text-[11px] leading-snug text-muted-foreground break-words mb-2 selection:bg-primary/30">
                     {comment.body || comment.message}
                 </div>
 
-                <footer className="flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0">
+                <footer className="flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0 h-4">
                     <button 
                         onClick={() => onPromote?.(comment)}
                         disabled={isProcessed}
-                        className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 hover:text-primary transition-all disabled:opacity-40"
+                        className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 hover:text-primary transition-all disabled:opacity-40"
                     >
-                        <Target size={12} />
+                        <Target size={10} />
                         Promote
                     </button>
                     <button 
                         onClick={() => onUpdateStatus?.(comment, isResolved ? 'open' : 'resolved')}
                         className="flex items-center gap-1 text-[9px] font-bold text-emerald-500/60 hover:text-emerald-400 transition-all"
                     >
-                        <CheckCircle2 size={12} />
+                        <CheckCircle2 size={10} />
                         {isResolved ? 'Reopen' : 'Resolve'}
                     </button>
                 </footer>
@@ -359,11 +359,11 @@ function ContextAnchor({ anchor, commentBody, worktreePath, isResolved }) {
 
     return (
         <div 
-            className="flex items-center gap-2 mb-2 px-1 cursor-help"
+            className="flex items-center gap-1.5 mb-1.5 px-0.5 cursor-help"
             onMouseEnter={(e) => { setMousePos({ x: e.clientX, y: e.clientY }); setShowTooltip(true); }}
             onMouseLeave={() => setShowTooltip(false)}
         >
-            <div className={`h-1.5 w-1.5 rounded-full ${isResolved ? 'bg-muted-foreground/20' : 'bg-primary shadow-[0_0_8px_rgba(59,130,246,0.5)]'}`} />
+            <div className={`h-1 w-1 rounded-full ${isResolved ? 'bg-muted-foreground/20' : 'bg-primary shadow-[0_0_6px_rgba(59,130,246,0.6)]'}`} />
             <span className={`text-[10px] font-black uppercase tracking-tighter ${isResolved ? 'text-muted-foreground/40' : 'text-primary'}`}>
                 Ln {anchor.line}
             </span>
@@ -409,14 +409,14 @@ function ContextTooltip({ x, y, snippet, loading, commentBody, fileName }) {
         <div 
             ref={ref}
             style={{ left: pos.left, top: pos.top }}
-            className="fixed z-[999] w-[480px] rounded-2xl border border-border/40 bg-popover/98 backdrop-blur-3xl shadow-2xl p-5 flex flex-col gap-5 ring-1 ring-border/10"
+            className="fixed z-[999] w-[480px] rounded-xl border border-border/40 bg-popover/98 backdrop-blur-3xl shadow-2xl p-4 flex flex-col gap-3 ring-1 ring-border/10"
         >
             {/* Code Context Section */}
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
                 <header className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
-                            <FileCode size={14} />
+                        <div className="p-1 rounded-md bg-primary/10 text-primary">
+                            <FileCode size={13} />
                         </div>
                         <div className="flex flex-col">
                             <span className="text-[10px] font-black uppercase tracking-widest text-foreground/80">Code Reference</span>
@@ -426,18 +426,18 @@ function ContextTooltip({ x, y, snippet, loading, commentBody, fileName }) {
                     {loading && <RefreshCw size={12} className="animate-spin text-primary/40" />}
                 </header>
 
-                <div className="rounded-xl bg-background/40 border border-border/10 overflow-hidden">
+                <div className="rounded-lg bg-background/40 border border-border/10 overflow-hidden">
                     {snippet ? (
-                        <div className="py-2 flex flex-col">
+                        <div className="py-1.5 flex flex-col">
                             {snippet.map((l, i) => (
-                                <div key={i} className={`flex items-center gap-4 px-4 h-6 text-[11px] ${l.isTarget ? 'bg-primary/10 border-y border-primary/5' : ''}`}>
-                                    <span className={`w-8 text-right font-mono text-[9px] shrink-0 ${l.isTarget ? 'text-primary font-bold' : 'text-muted-foreground/30'}`}>{l.line}</span>
+                                <div key={i} className={`flex items-center gap-3 px-3 h-5 text-[10px] ${l.isTarget ? 'bg-primary/10 border-y border-primary/5' : ''}`}>
+                                    <span className={`w-6 text-right font-mono text-[9px] shrink-0 ${l.isTarget ? 'text-primary font-bold' : 'text-muted-foreground/30'}`}>{l.line}</span>
                                     <pre className={`truncate font-mono ${l.isTarget ? 'text-foreground font-semibold' : 'text-muted-foreground/40'}`}>{l.content || ' '}</pre>
                                 </div>
                             ))}
                         </div>
                     ) : (
-                        <div className="h-32 flex items-center justify-center italic text-[10px] text-muted-foreground/20 uppercase tracking-widest">
+                        <div className="h-24 flex items-center justify-center italic text-[10px] text-muted-foreground/20 uppercase tracking-widest">
                             {loading ? 'Retrieving Matrix...' : 'Snippet Unavailable'}
                         </div>
                     )}
@@ -447,13 +447,13 @@ function ContextTooltip({ x, y, snippet, loading, commentBody, fileName }) {
             <div className="h-px w-full bg-border/10" />
 
             {/* Comment Preview Section */}
-            <div className="flex flex-col gap-2 relative">
+            <div className="flex flex-col gap-1.5 relative">
                 <div className="absolute -left-2 top-0 bottom-0 w-1 bg-primary/20 rounded-full" />
-                <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-primary/60 mb-1">
+                <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-primary/60 mb-0.5">
                     <Quote size={10} fill="currentColor" />
                     Annotation Detail
                 </div>
-                <p className="text-xs leading-relaxed text-foreground/80 italic font-serif pl-2">
+                <p className="text-[11px] leading-relaxed text-foreground/80 italic font-serif pl-2">
                     "{commentBody}"
                 </p>
             </div>
