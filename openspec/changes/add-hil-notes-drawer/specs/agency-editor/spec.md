@@ -4,11 +4,21 @@
 The editor SHALL store human-in-loop artifacts in a worktree-scoped HIL index under `.agency/hil/index-<worktree>.yaml`.
 The HIL index SHALL be YAML and mergeable, and SHALL contain items of kind `comment`, `memo`, or `draft`.
 Each HIL item SHALL include `meta.processed`, defaulting to `false` unless explicitly set.
+HIL comment items SHALL store a lightweight context snapshot containing `line_text`, `before_ctx`, and `after_ctx`.
+When available, the editor SHALL resolve comment author identity from git config (`user.name`/`user.email`) before falling back to the local username.
 
 #### Scenario: Store a comment in HIL index
 - **WHEN** a user submits a line comment
 - **THEN** the editor appends a `comment` item to the HIL index for the active worktree
 - **AND** the new item has `meta.processed: false`
+
+#### Scenario: Capture minimal comment context
+- **WHEN** a user submits a line comment
+- **THEN** the editor stores the target `line_text` and the surrounding `before_ctx`/`after_ctx` arrays
+
+#### Scenario: Prefer git author identity
+- **WHEN** git user.name or user.email is configured
+- **THEN** new HIL comment items record the git identity as author
 
 ### Requirement: Global HIL Drawer
 The editor SHALL provide a global right-side drawer for HIL panels.

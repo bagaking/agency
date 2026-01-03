@@ -19,7 +19,7 @@ Item fields (minimum):
 - `id`: stable id
 - `kind`: `comment` | `memo` | `draft`
 - `status`: `open` | `resolved` | `archived`
-- `author`: `{ type, label }` (optional)
+- `author`: `{ type, label, email }` (optional; prefer git user.name/email when available)
 - `createdAt`: ISO timestamp
 - `updatedAt`: ISO timestamp (optional)
 - `body`: string (markdown-supported)
@@ -27,6 +27,7 @@ Item fields (minimum):
 - `references`: array of `{ system, id, path }` (optional)
 - `meta`: object for forward compatibility
 - `meta.processed`: boolean, defaults to `false`
+- `meta.context`: `{ line_text, before_ctx[], after_ctx[] }` for comment context snapshots
 
 ## UI/UX
 - Global right-side drawer, fixed width, collapsible, default collapsed.

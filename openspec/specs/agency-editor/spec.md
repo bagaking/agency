@@ -651,3 +651,73 @@ New Window SHALL open a new editor window.
 #### Scenario: Switch project from menu
 - **WHEN** a user selects Switch Project from the application menu
 - **THEN** the editor prompts for a new repository and updates the active project context
+
+### Requirement: Worktree-Scoped HIL Index
+The editor SHALL store human-in-loop artifacts in a worktree-scoped HIL index under `.agency/hil/index-<worktree>.yaml`.
+The HIL index SHALL be YAML and mergeable, and SHALL contain items of kind `comment`, `memo`, or `draft`.
+Each HIL item SHALL include `meta.processed`, defaulting to `false` unless explicitly set.
+
+#### Scenario: Store a comment in HIL index
+- **WHEN** a user submits a line comment
+- **THEN** the editor appends a `comment` item to the HIL index for the active worktree
+- **AND** the new item has `meta.processed: false`
+
+### Requirement: HIL Comment Context Snapshot
+HIL comment items SHALL store a lightweight context snapshot containing `line_text`, `before_ctx`, and `after_ctx`.
+
+#### Scenario: Capture minimal comment context
+- **WHEN** a user submits a line comment
+- **THEN** the editor stores the target line text and surrounding context arrays
+
+### Requirement: HIL Author Resolution
+When available, the editor SHALL resolve comment author identity from git config (`user.name`/`user.email`) before falling back to the local username.
+
+#### Scenario: Prefer git author identity
+- **WHEN** git user.name or user.email is configured
+- **THEN** new HIL comment items record the git identity as author
+
+### Requirement: Global HIL Drawer
+The editor SHALL provide a global right-side drawer for HIL panels.
+The drawer SHALL be collapsible and default to collapsed.
+The drawer SHALL auto-open when a HIL action is invoked (e.g., submitting a comment).
+
+#### Scenario: Auto-open drawer after comment
+- **WHEN** a user submits a line comment
+- **THEN** the right-side drawer opens to show the Comments panel
+
+### Requirement: Memo Navigation Entry
+The editor SHALL provide a Memo entry in the activity bar to access HIL artifacts.
+The Memo view SHALL list HIL items for the active worktree and allow filtering by kind and status.
+
+#### Scenario: Open Memo view
+- **WHEN** a user selects Memo in the activity bar
+- **THEN** the editor shows the HIL list for the current worktree
+
+### Requirement: Promote Comment to Draft
+The editor SHALL allow users to promote a comment into a `draft` HIL item.
+Promotion SHALL NOT directly edit spec files or external spec systems.
+
+#### Scenario: Promote comment
+- **WHEN** a user promotes a comment to a draft
+- **THEN** a new `draft` item is created in the HIL index
+- **AND** repeating the promote action returns the existing draft instead of creating a duplicate
+- **AND** the source comment is marked `meta.processed: true`
+
+### Requirement: Bulk Promote Pending Comments
+The editor SHALL allow users to promote all pending comments for the current worktree into a single draft.
+Bulk promote SHALL require a description and SHALL list all comments that are not yet processed.
+The bulk promote UI SHALL provide hoverable context previews for each comment.
+
+#### Scenario: Promote pending comments with description
+- **WHEN** a user opens bulk promote from the HIL drawer
+- **THEN** the editor shows all unprocessed comments with file and line context
+- **AND** requires a description before promoting
+- **AND** creates a draft with references to the selected comments
+- **AND** marks the selected comments as processed
+
+### Requirement: Legacy Comment Migration
+If legacy comment storage exists, the editor SHALL import those comments into the HIL index non-destructively.
+
+#### Scenario: Migrate legacy comments
+- **WHEN** a worktree contains `.agency/comments-<worktree>.yaml`
+- **THEN** the editor imports comments into the HIL index and leaves the legacy file intact
