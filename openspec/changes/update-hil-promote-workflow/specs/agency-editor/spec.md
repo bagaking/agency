@@ -4,6 +4,7 @@
 The editor SHALL provide a global Promote flow for pending comments.
 Promote SHALL be initiated from a dedicated modal that requires a draft description and a target Agent session (existing or newly created).
 The Promote modal SHALL display gate status for the selected session and MUST wait for draft completion before enabling confirmation.
+Draft completion SHALL be indicated by the draft metadata (e.g. `meta.promoted: true`).
 
 #### Scenario: Promote via modal
 - **WHEN** a user opens Promote
