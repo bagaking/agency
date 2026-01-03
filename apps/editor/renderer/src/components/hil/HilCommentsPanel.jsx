@@ -81,13 +81,13 @@ export function HilCommentsPanel({
   }, [commentModalOpen]);
 
   return (
-    <div className="flex flex-col gap-3 py-2">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-[10px] text-white/70">
-          <span className="font-black uppercase tracking-[0.25em]">
+    <div className="flex flex-col gap-3 py-2 select-none">
+      <div className="flex items-center justify-between gap-2 px-1">
+        <div className="flex items-center gap-2 text-muted-foreground/50">
+          <span className="text-[10px] font-black uppercase tracking-[0.25em]">
             {fileLabel || 'HIL Comments'}
           </span>
-          <span className="text-[9px] text-muted-foreground/50">
+          <span className="text-[9px] uppercase tracking-widest opacity-40">
             {pendingCount} open · {processedCount} processed
           </span>
         </div>
@@ -103,7 +103,7 @@ export function HilCommentsPanel({
                   column: cursorPosition?.column || 1,
                 })
               }
-              className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 text-white/60 hover:text-white"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-muted/10 border border-border/10 text-muted-foreground/60 hover:text-foreground transition-all hover:bg-muted/20 active:scale-95"
             >
               <MessageSquarePlus size={12} />
             </button>
@@ -113,7 +113,7 @@ export function HilCommentsPanel({
             aria-label="Promote comments"
             title="Promote comments"
             onClick={() => (bulkPromoteOpen ? onCloseBulkPromote?.() : onOpenBulkPromote?.())}
-            className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 text-white/60 hover:text-white"
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-muted/10 border border-border/10 text-muted-foreground/60 hover:text-foreground transition-all hover:bg-muted/20 active:scale-95"
           >
             <Target size={12} />
           </button>
@@ -121,71 +121,80 @@ export function HilCommentsPanel({
       </div>
 
       {commentModalOpen ? (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 shadow-[0_10px_40px_rgba(0,0,0,0.25)]">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-white/80">
-              <MessageSquarePlus size={12} />
-              Add Comment around Line {resolvedLine}
+        <div className="rounded-2xl border border-border/40 bg-card p-4 shadow-2xl overflow-hidden relative">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.1em] text-foreground/80">
+              <MessageSquarePlus size={12} className="text-primary" />
+              Add Comment
             </div>
             <button
               type="button"
               onClick={onCloseComment}
-              className="rounded-full border border-white/10 p-1 text-white/40 hover:text-white"
+              className="rounded-full p-1 text-muted-foreground/40 hover:text-foreground hover:bg-muted/10 transition-all"
             >
               <X size={12} />
             </button>
           </div>
-          <div className="mt-1 text-[9px] text-muted-foreground/40 uppercase tracking-[0.2em]">
-            {activeFile ? `${activeFile} · Ln ${resolvedLine}` : `Ln ${resolvedLine}`}
-          </div>
-          {commentSnippetLoading ? (
-            <div className="mt-2 text-[10px] text-muted-foreground/40">
-              Loading line context...
+          
+          <div className="flex flex-col gap-2">
+            <div className="text-[9px] text-muted-foreground/40 uppercase tracking-[0.2em] px-1">
+                {activeFile ? `${activeFile} · Ln ${resolvedLine}` : `Ln ${resolvedLine}`}
             </div>
-          ) : commentSnippetError ? (
-            <div className="mt-2 text-[10px] text-rose-400">{commentSnippetError}</div>
-          ) : targetLineContent ? (
-            <div className="mt-2 rounded-lg border border-white/5 bg-black/40 px-3 py-2 text-[10px] text-white/70">
-              <span className="text-white/30">Line {resolvedLine}:</span>{' '}
-              <span className="font-mono">{targetLineContent}</span>
-            </div>
-          ) : null}
-          {snippetLines?.length ? (
-            <div className="mt-2 rounded-lg border border-white/5 bg-black/30 px-3 py-2 font-mono text-[9px] text-white/40">
-              {snippetLines.map((line) => (
-                <div
-                  key={`${line.line}-${line.isTarget ? 't' : 'n'}`}
-                  className={`flex gap-2 ${line.isTarget ? 'text-primary' : ''}`}
-                >
-                  <span className="w-6 text-right text-white/20">{line.line}</span>
-                  <span className="truncate">{line.content || ' '}</span>
+
+            {commentSnippetLoading ? (
+                <div className="px-1 py-4 flex items-center gap-2 text-[10px] text-muted-foreground/30 italic">
+                    <RefreshCw size={10} className="animate-spin" /> Retrieving context...
                 </div>
-              ))}
-            </div>
-          ) : null}
+            ) : commentSnippetError ? (
+                <div className="mx-1 mt-1 text-[9px] text-rose-400/80 bg-rose-500/5 px-2 py-1 rounded border border-rose-500/10">
+                    {commentSnippetError}
+                </div>
+            ) : targetLineContent ? (
+                <div className="rounded-xl border border-border/20 bg-muted/5 px-3 py-2 text-[10px] text-muted-foreground">
+                    <span className="opacity-30 mr-2 font-mono">Ln {resolvedLine}</span>
+                    <span className="font-mono text-foreground/80">{targetLineContent}</span>
+                </div>
+            ) : null}
+
+            {snippetLines?.length ? (
+                <div className="rounded-xl border border-border/10 bg-muted/5 px-3 py-2 font-mono text-[9px] text-muted-foreground/40 overflow-hidden">
+                {snippetLines.map((line) => (
+                    <div
+                    key={`${line.line}-${line.isTarget ? 't' : 'n'}`}
+                    className={`flex gap-3 h-4 items-center ${line.isTarget ? 'bg-primary/5 text-primary -mx-3 px-3' : ''}`}
+                    >
+                    <span className="w-6 text-right opacity-20 tabular-nums">{line.line}</span>
+                    <span className="truncate">{line.content || ' '}</span>
+                    </div>
+                ))}
+                </div>
+            ) : null}
+          </div>
+
           <textarea
             ref={messageRef}
             value={commentMessage}
             onChange={(event) => onCommentMessageChange?.(event.target.value)}
             rows={4}
-            className="mt-3 w-full resize-none rounded-xl border border-white/5 bg-black/30 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-primary/40 focus:outline-none"
+            className="mt-4 w-full resize-none rounded-xl border border-border/20 bg-background/50 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/20 focus:border-primary/40 focus:outline-none transition-all"
             placeholder="Write a note to capture context or questions..."
           />
-          <div className="mt-3 flex items-center justify-between">
-            <label className="flex items-center gap-2 text-[10px] text-white/60">
+
+          <div className="mt-4 flex items-center justify-between">
+            <label className="flex items-center gap-2 text-[10px] text-muted-foreground/60 cursor-pointer group/todo">
               <input
                 type="checkbox"
                 checked={Boolean(commentTodo)}
                 onChange={(event) => onCommentTodoChange?.(event.target.checked)}
-                className="h-3 w-3 rounded border-white/20 bg-transparent text-primary"
+                className="h-3 w-3 rounded border-border bg-transparent text-primary focus:ring-primary/20"
               />
-              Mark as TODO
+              <span className="group-hover/todo:text-foreground transition-colors">Mark as TODO</span>
             </label>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={onCloseComment}
-                className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-white/40 hover:text-white"
+                className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 hover:text-foreground transition-all"
               >
                 Cancel
               </button>
@@ -193,14 +202,16 @@ export function HilCommentsPanel({
                 type="button"
                 onClick={onSubmitComment}
                 disabled={commentSaving}
-                className="rounded-full bg-primary/80 px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-white shadow disabled:opacity-50"
+                className="rounded-full bg-primary/80 hover:bg-primary px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-white shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50"
               >
                 {commentSaving ? 'Saving...' : 'Submit'}
               </button>
             </div>
           </div>
           {commentError ? (
-            <div className="mt-2 text-[10px] font-semibold text-rose-400">{commentError}</div>
+            <div className="mt-3 text-[10px] font-semibold text-rose-400 bg-rose-500/5 p-2 rounded-lg border border-rose-500/10">
+                {commentError}
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -259,13 +270,13 @@ function CommentItem({ comment, onUpdateStatus, onPromote, worktreePath }) {
     const Icon = kindIcons[comment.kind] || Terminal;
     
     return (
-        <div className={`group relative flex flex-col rounded-xl transition-all duration-300 ${isResolved ? 'opacity-30 grayscale' : 'hover:bg-white/5'}`}>
+        <div className={`group relative flex flex-col rounded-xl transition-all duration-300 ${isResolved ? 'opacity-40 grayscale' : 'hover:bg-muted/5'}`}>
             {/* Type Indicator with Tooltip */}
             <div className="absolute -left-2 -top-2 z-10">
                 <div 
                     title={`Type: ${kindLabel}`}
                     className={`flex h-5 w-5 items-center justify-center rounded-md border shadow-xl transition-all ${
-                        isResolved ? 'bg-muted border-border text-muted-foreground' : 'bg-[#1a1d23] border-white/10 text-primary'
+                        isResolved ? 'bg-muted border-border text-muted-foreground' : 'bg-popover border-border/40 text-primary'
                     }`}
                 >
                     <Icon size={10} strokeWidth={2.5} />
@@ -285,7 +296,7 @@ function CommentItem({ comment, onUpdateStatus, onPromote, worktreePath }) {
             <div className="px-3 pb-3">
                 <header className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-bold text-white/80 tracking-tight uppercase">
+                      <span className="text-[11px] font-bold text-foreground/80 tracking-tight uppercase">
                           {comment.author?.label || 'Agent'}
                       </span>
                       {isProcessed ? (
@@ -299,11 +310,11 @@ function CommentItem({ comment, onUpdateStatus, onPromote, worktreePath }) {
                     </span>
                 </header>
 
-                <div className="text-[11px] leading-relaxed text-muted-foreground/70 break-words mb-3 selection:bg-primary/30">
+                <div className="text-[11px] leading-relaxed text-muted-foreground break-words mb-3 selection:bg-primary/30">
                     {comment.body || comment.message}
                 </div>
 
-                <footer className="flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all">
+                <footer className="flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0">
                     <button 
                         onClick={() => onPromote?.(comment)}
                         disabled={isProcessed}
@@ -359,7 +370,7 @@ function ContextAnchor({ anchor, commentBody, worktreePath, isResolved }) {
             <span className="text-[10px] text-muted-foreground/30 font-mono italic truncate max-w-[180px]">
                 {anchor.file.split('/').pop()}
             </span>
-            <div className="h-px flex-1 bg-gradient-to-r from-primary/10 to-transparent" />
+            <div className={`h-px flex-1 bg-gradient-to-r ${isResolved ? 'from-muted-foreground/10' : 'from-primary/10'} to-transparent`} />
             
             {showTooltip && (
                 <ContextTooltip 
@@ -398,7 +409,7 @@ function ContextTooltip({ x, y, snippet, loading, commentBody, fileName }) {
         <div 
             ref={ref}
             style={{ left: pos.left, top: pos.top }}
-            className="fixed z-[999] w-[480px] rounded-2xl border border-white/10 bg-[#1a1d23]/98 backdrop-blur-3xl shadow-[0_30px_100px_rgba(0,0,0,0.7)] p-5 animate-tab-in flex flex-col gap-5 ring-1 ring-black/50"
+            className="fixed z-[999] w-[480px] rounded-2xl border border-border/40 bg-popover/98 backdrop-blur-3xl shadow-2xl p-5 flex flex-col gap-5 ring-1 ring-border/10"
         >
             {/* Code Context Section */}
             <div className="flex flex-col gap-3">
@@ -408,20 +419,20 @@ function ContextTooltip({ x, y, snippet, loading, commentBody, fileName }) {
                             <FileCode size={14} />
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white/80">Code Reference</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-foreground/80">Code Reference</span>
                             <span className="text-[9px] font-mono text-muted-foreground/40">{fileName}</span>
                         </div>
                     </div>
                     {loading && <RefreshCw size={12} className="animate-spin text-primary/40" />}
                 </header>
 
-                <div className="rounded-xl bg-black/40 border border-white/5 overflow-hidden">
+                <div className="rounded-xl bg-background/40 border border-border/10 overflow-hidden">
                     {snippet ? (
                         <div className="py-2 flex flex-col">
                             {snippet.map((l, i) => (
                                 <div key={i} className={`flex items-center gap-4 px-4 h-6 text-[11px] ${l.isTarget ? 'bg-primary/10 border-y border-primary/5' : ''}`}>
-                                    <span className={`w-8 text-right font-mono text-[9px] shrink-0 ${l.isTarget ? 'text-primary font-bold' : 'text-white/10'}`}>{l.line}</span>
-                                    <pre className={`truncate font-mono ${l.isTarget ? 'text-primary-foreground font-semibold' : 'text-white/40'}`}>{l.content || ' '}</pre>
+                                    <span className={`w-8 text-right font-mono text-[9px] shrink-0 ${l.isTarget ? 'text-primary font-bold' : 'text-muted-foreground/30'}`}>{l.line}</span>
+                                    <pre className={`truncate font-mono ${l.isTarget ? 'text-foreground font-semibold' : 'text-muted-foreground/40'}`}>{l.content || ' '}</pre>
                                 </div>
                             ))}
                         </div>
@@ -433,7 +444,7 @@ function ContextTooltip({ x, y, snippet, loading, commentBody, fileName }) {
                 </div>
             </div>
 
-            <div className="h-px w-full bg-white/5" />
+            <div className="h-px w-full bg-border/10" />
 
             {/* Comment Preview Section */}
             <div className="flex flex-col gap-2 relative">
@@ -442,7 +453,7 @@ function ContextTooltip({ x, y, snippet, loading, commentBody, fileName }) {
                     <Quote size={10} fill="currentColor" />
                     Annotation Detail
                 </div>
-                <p className="text-xs leading-relaxed text-white/80 italic font-serif pl-2">
+                <p className="text-xs leading-relaxed text-foreground/80 italic font-serif pl-2">
                     "{commentBody}"
                 </p>
             </div>
@@ -465,15 +476,15 @@ function BulkPromotePanel({
   onSubmit,
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 shadow-[0_10px_40px_rgba(0,0,0,0.25)]">
-      <div className="flex items-center justify-between">
-        <div className="text-[11px] font-black uppercase tracking-widest text-white/80">
-          Promote Pending Comments
+    <div className="rounded-2xl border border-border/40 bg-card p-4 shadow-2xl overflow-hidden relative">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-[11px] font-black uppercase tracking-[0.1em] text-foreground/80">
+          Promote Comments
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full border border-white/10 p-1 text-white/40 hover:text-white"
+          className="rounded-full p-1 text-muted-foreground/40 hover:text-foreground hover:bg-muted/10 transition-all"
         >
           <X size={12} />
         </button>
@@ -482,12 +493,12 @@ function BulkPromotePanel({
         value={description}
         onChange={(event) => onChangeDescription?.(event.target.value)}
         rows={3}
-        className="mt-3 w-full resize-none rounded-xl border border-white/5 bg-black/30 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-primary/40 focus:outline-none"
+        className="w-full resize-none rounded-xl border border-border/20 bg-background/50 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/20 focus:border-primary/40 focus:outline-none transition-all"
         placeholder="Describe the draft you want to create from selected comments..."
       />
-      <div className="mt-3 flex max-h-64 flex-col gap-2 overflow-y-auto pr-1">
+      <div className="mt-3 flex max-h-64 flex-col gap-2 overflow-y-auto custom-scrollbar pr-1">
         {items.length === 0 ? (
-          <div className="text-[10px] text-muted-foreground/50">No pending comments.</div>
+          <div className="text-[10px] text-muted-foreground/30 py-8 text-center italic">No pending comments.</div>
         ) : (
           items.map((item) => {
             const checked = selectedIds.includes(item.id);
@@ -495,41 +506,41 @@ function BulkPromotePanel({
             return (
               <div
                 key={item.id}
-                className="rounded-xl border border-white/5 bg-black/20 px-3 py-2 text-[10px] text-white/70"
+                className="rounded-xl border border-border/10 bg-muted/5 px-3 py-2 text-[10px] text-muted-foreground transition-all hover:bg-muted/10 group/item"
                 onMouseEnter={() => onPreviewItem?.(item)}
               >
-                <label className="flex items-start gap-2">
+                <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={checked}
                     onChange={() => onToggleItem?.(item.id)}
-                    className="mt-0.5 h-3 w-3 rounded border-white/20 bg-transparent text-primary"
+                    className="mt-1 h-3 w-3 rounded border-border bg-transparent text-primary focus:ring-primary/20"
                   />
-                  <div className="flex flex-1 flex-col gap-1">
+                  <div className="flex flex-1 flex-col gap-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-white/80">
+                      <span className="font-bold text-foreground/70 truncate mr-2">
                         {item.anchor?.file || 'Unknown file'}
                       </span>
-                      <span className="text-[9px] text-muted-foreground/40">Ln {item.anchor?.line || 1}</span>
+                      <span className="text-[9px] text-muted-foreground/30 tabular-nums shrink-0">Ln {item.anchor?.line || 1}</span>
                     </div>
-                    <div className="text-[10px] text-white/60 line-clamp-2">
+                    <div className="text-[10px] text-muted-foreground/60 line-clamp-2 leading-snug">
                       {item.body || item.message}
                     </div>
                     {preview ? (
                       preview.error ? (
-                        <div className="text-[9px] text-rose-400">{preview.error}</div>
+                        <div className="mt-1 text-[9px] text-rose-400 opacity-60">{preview.error}</div>
                       ) : (
-                        <div className="rounded-lg border border-white/5 bg-black/40 px-2 py-1 font-mono text-[9px] text-white/40">
+                        <div className="mt-1 rounded-lg border border-border/10 bg-background/40 px-2 py-1 font-mono text-[9px] text-muted-foreground/40 overflow-hidden">
                           {preview.snippet?.map((line) => (
                             <div key={`${item.id}-${line.line}`} className="flex gap-2">
-                              <span className="w-6 text-right text-white/20">{line.line}</span>
+                              <span className="w-6 text-right opacity-20">{line.line}</span>
                               <span className="truncate">{line.text || ' '}</span>
                             </div>
                           ))}
                         </div>
                       )
                     ) : (
-                      <div className="text-[9px] text-muted-foreground/30">Hover to preview context.</div>
+                      <div className="mt-1 text-[9px] text-muted-foreground/20 italic group-hover/item:text-muted-foreground/40 transition-colors">Hover to preview context.</div>
                     )}
                   </div>
                 </label>
@@ -538,12 +549,12 @@ function BulkPromotePanel({
           })
         )}
       </div>
-      {error ? <div className="mt-2 text-[10px] text-rose-400">{error}</div> : null}
+      {error ? <div className="mt-3 text-[10px] font-semibold text-rose-400 bg-rose-500/5 p-2 rounded-lg border border-rose-500/10">{error}</div> : null}
       <div className="mt-4 flex items-center justify-end gap-2">
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-white/40 hover:text-white"
+          className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 hover:text-foreground transition-all"
         >
           Cancel
         </button>
@@ -551,7 +562,7 @@ function BulkPromotePanel({
           type="button"
           onClick={onSubmit}
           disabled={loading}
-          className="rounded-full bg-primary/80 px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-white shadow disabled:opacity-50"
+          className="rounded-full bg-primary/80 hover:bg-primary px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-white shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50"
         >
           {loading ? 'Promoting...' : 'Create Draft'}
         </button>
