@@ -44,7 +44,7 @@ export function HilMemoSidebar({
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            <Tooltip label="HIL captures comments, memos, and drafts for the active worktree.">
+            <Tooltip label="HIL captures comments, memos, and drafts for the active worktree." side="left">
               <button
                 type="button"
                 className="shrink-0 p-1.5 rounded-full hover:bg-sidebar-accent text-muted-foreground/40 hover:text-foreground transition-all"
