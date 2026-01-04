@@ -722,16 +722,6 @@ function App() {
     },
     [handleOpenTerminal, selectSession]
   );
-  const hilDraftsProps = {
-    drafts: hilMemo.draftItems,
-    summarizeBody: hilMemo.summarizeBody,
-    onOpenDraft: handleOpenMemoDraft,
-    onViewSession: handleViewActionSheetSession,
-    onRunDraft: handleRunDraftInActiveSession,
-    actionSheets,
-    sessions,
-    activeSessionId,
-  };
   const handleArchiveActionSheet = useCallback(
     async (id) => {
       if (!id) {
@@ -1835,6 +1825,16 @@ function App() {
     },
     [handleSwitchView, hilMemo.setDockSelection]
   );
+  const hilDraftsProps = {
+    drafts: hilMemo.draftItems,
+    summarizeBody: hilMemo.summarizeBody,
+    onOpenDraft: handleOpenMemoDraft,
+    onViewSession: handleViewActionSheetSession,
+    onRunDraft: handleRunDraftInActiveSession,
+    actionSheets,
+    sessions,
+    activeSessionId,
+  };
   const memoDrawerProps = {
     activeInboxId: hilMemo.activeInboxSection?.id || 'comments',
     onSelectInbox: handleOpenMemoInbox,
