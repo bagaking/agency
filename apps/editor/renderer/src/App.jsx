@@ -12,6 +12,7 @@ import { useSessions } from './hooks/useSessions.js';
 import { useActionSheets } from './hooks/useActionSheets.js';
 import { useWorkbench } from './hooks/useWorkbench.js';
 import { useHilMemoState } from './hooks/useHilMemoState.js';
+import { useHilMemoCaptureState } from './hooks/useHilMemoCaptureState.js';
 import {
   createCell as agencyCreateCell,
   createHilItem as agencyCreateHilItem,
@@ -1653,6 +1654,14 @@ function App() {
     : 'Project';
   const explorerMeta = workbenchMetaByCellId[selectedCell?.id || 'repo'] || {};
   const memoSelection = workbenchSelectionByCellId[selectedCell?.id || 'repo'] || null;
+  const memoCapture = useHilMemoCaptureState({
+    worktreePath: selectedCell?.worktreePath || projectRoot || '',
+    projectRoot,
+    cells: projectReady ? cells : [],
+    selectedCellId: selectedCell?.id || '',
+    selection: memoSelection,
+    refresh: hilMemo.refresh,
+  });
   const handleAddCommentFromExplorer = useCallback((path) => {
     if (!path) return;
     workbench.openFile({ path, mode: 'pinned', rootPath: explorerRootPath });
@@ -1769,6 +1778,16 @@ function App() {
     activeInboxId: hilMemo.activeInboxSection?.id || 'comments',
     onSelectInbox: handleOpenMemoInbox,
     onOpenInbox: () => handleOpenMemoInbox('comments'),
+    flashValue: memoCapture.flashText,
+    onFlashChange: memoCapture.setFlashText,
+    onSaveFlash: memoCapture.handleCreateFlash,
+    screenshotAsset: memoCapture.screenshotAsset,
+    pendingCapture: memoCapture.captureResult,
+    screenshotNote: memoCapture.screenshotNote,
+    onScreenshotNoteChange: memoCapture.setScreenshotNote,
+    onCaptureScreenshot: memoCapture.handleCaptureScreenshot,
+    onOpenRouting: memoCapture.handleOpenRouting,
+    captureLoading: memoCapture.captureLoading,
   };
   const hilDraftsProps = {
     drafts: hilMemo.draftItems,
@@ -1996,13 +2015,11 @@ function App() {
         }}
         memoPaneProps={{
           ...hilMemo,
+          ...memoCapture,
+          worktreePath: selectedCell?.worktreePath || projectRoot || '',
           projectReady,
           projectError,
           onSelectProject: handleSelectProjectRoot,
-          selection: memoSelection,
-          cells: projectReady ? cells : [],
-          selectedCellId: selectedCell?.id || '',
-          projectRoot,
           sessions,
           onViewSession: handleViewActionSheetSession,
           actionSheets: actionSheets,

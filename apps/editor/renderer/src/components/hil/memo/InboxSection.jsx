@@ -24,6 +24,9 @@ export function InboxSection({
   captureLoading,
   captureError,
 }) {
+  const highlightClass = activeSection?.id && activeSection.id !== 'comments'
+    ? 'ring-1 ring-primary/20 shadow-[0_0_20px_rgba(59,130,246,0.08)]'
+    : '';
   return (
     <div className="border-b border-border/10 px-6 py-4">
       <div className="flex items-center justify-between">
@@ -35,7 +38,7 @@ export function InboxSection({
         </div>
       </div>
 
-      <div className="mt-3 rounded-2xl border border-border/10 bg-muted/5 p-4">
+      <div className={`mt-3 rounded-2xl border border-border/10 bg-muted/5 p-4 transition-all duration-300 ${highlightClass}`}>
         {activeSection?.id === 'comments' ? (
           <div className="flex flex-col gap-2 text-[11px] text-muted-foreground/60">
             <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50">

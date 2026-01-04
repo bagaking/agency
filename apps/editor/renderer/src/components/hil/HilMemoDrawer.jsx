@@ -1,26 +1,35 @@
-import React from 'react';
-import { StickyNote, Camera, Inbox } from 'lucide-react';
-
-const shortcuts = [
-  {
-    id: 'flash',
-    label: 'Flash',
-    description: 'Quick note capture',
-    icon: StickyNote,
-  },
-  {
-    id: 'screenshot',
-    label: 'Screenshot',
-    description: 'Capture and annotate',
-    icon: Camera,
-  },
-];
+import React, { useState } from 'react';
+import { StickyNote, Camera, Inbox, Mic } from 'lucide-react';
+import { FlashCaptureCard } from './memo/FlashCaptureCard.jsx';
+import { ScreenshotCaptureCard } from './memo/ScreenshotCaptureCard.jsx';
+import { useModal } from '../modals/ModalSystem.jsx';
 
 export function HilMemoDrawer({
   activeInboxId,
   onSelectInbox,
   onOpenInbox,
+  flashValue,
+  onFlashChange,
+  onSaveFlash,
+  screenshotAsset,
+  pendingCapture,
+  screenshotNote,
+  onScreenshotNoteChange,
+  onCaptureScreenshot,
+  onOpenRouting,
+  captureLoading,
 }) {
+  const [focusedId, setFocusedId] = useState('');
+  const modal = useModal();
+
+  const handleVoice = () => {
+    modal?.notify?.({
+      title: 'Voice capture',
+      description: 'Voice capture is not available yet.',
+      tone: 'warning',
+    });
+  };
+
   return (
     <div className="flex flex-col gap-4 py-1 select-none">
       <div className="px-0.5">
@@ -32,33 +41,57 @@ export function HilMemoDrawer({
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        {shortcuts.map((shortcut) => {
-          const Icon = shortcut.icon;
-          const active = activeInboxId === shortcut.id;
-          return (
+      <div className="flex flex-col gap-3">
+        <MemoShortcutCard
+          id="flash"
+          label="Flash"
+          description="Quick note capture"
+          icon={StickyNote}
+          active={activeInboxId === 'flash'}
+          focusedId={focusedId}
+          onFocus={setFocusedId}
+          onBlur={() => setFocusedId('')}
+          onSelect={onSelectInbox}
+          actions={(
             <button
-              key={shortcut.id}
               type="button"
-              onClick={() => onSelectInbox?.(shortcut.id)}
-              className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-left transition ${
-                active
-                  ? 'border-primary/40 bg-primary/5 text-primary'
-                  : 'border-border/10 bg-muted/5 text-muted-foreground/70 hover:text-foreground hover:border-primary/30'
-              }`}
+              onClick={handleVoice}
+              className="rounded-md border border-border/20 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60 hover:text-foreground hover:border-primary/30"
             >
-              <span className={`flex h-8 w-8 items-center justify-center rounded-lg border ${
-                active ? 'border-primary/40 bg-primary/10' : 'border-border/20 bg-background/60'
-              }`}>
-                <Icon size={14} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[12px] font-semibold">{shortcut.label}</div>
-                <div className="text-[10px] text-muted-foreground/50">{shortcut.description}</div>
-              </div>
+              <Mic size={10} className="inline mr-1" />
+              Voice
             </button>
-          );
-        })}
+          )}
+        >
+          <FlashCaptureCard
+            value={flashValue}
+            onChange={onFlashChange}
+            onSave={onSaveFlash}
+            loading={captureLoading}
+          />
+        </MemoShortcutCard>
+
+        <MemoShortcutCard
+          id="screenshot"
+          label="Screenshot"
+          description="Capture and annotate"
+          icon={Camera}
+          active={activeInboxId === 'screenshot'}
+          focusedId={focusedId}
+          onFocus={setFocusedId}
+          onBlur={() => setFocusedId('')}
+          onSelect={onSelectInbox}
+        >
+          <ScreenshotCaptureCard
+            asset={screenshotAsset}
+            pending={pendingCapture}
+            note={screenshotNote}
+            onNoteChange={onScreenshotNoteChange}
+            onCapture={onCaptureScreenshot}
+            onOpenRouting={onOpenRouting}
+            loading={captureLoading}
+          />
+        </MemoShortcutCard>
       </div>
 
       <button
@@ -72,6 +105,76 @@ export function HilMemoDrawer({
         </span>
         <span className="text-[9px] font-medium text-muted-foreground/40">Comments</span>
       </button>
+    </div>
+  );
+}
+
+function MemoShortcutCard({
+  id,
+  label,
+  description,
+  icon: Icon,
+  active,
+  focusedId,
+  onFocus,
+  onBlur,
+  onSelect,
+  actions,
+  children,
+}) {
+  const expanded = !active || focusedId === id;
+  return (
+    <div
+      onFocusCapture={() => {
+        onSelect?.(id);
+        onFocus?.(id);
+      }}
+      onBlurCapture={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget)) {
+          return;
+        }
+        onBlur?.();
+      }}
+      className={`rounded-2xl border transition-all duration-300 ${
+        active
+          ? 'border-primary/40 bg-primary/5 shadow-[0_0_20px_rgba(59,130,246,0.08)]'
+          : 'border-border/10 bg-muted/5 hover:border-primary/30'
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => onSelect?.(id)}
+        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
+      >
+        <span className="flex items-center gap-3">
+          <span className={`flex h-8 w-8 items-center justify-center rounded-lg border ${
+            active ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/20 bg-background/60 text-muted-foreground/60'
+          }`}>
+            <Icon size={14} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[12px] font-semibold text-foreground/80">{label}</span>
+            <span className="block text-[10px] text-muted-foreground/50">{description}</span>
+          </span>
+        </span>
+        <span className="flex items-center gap-2">
+          {active ? (
+            <span className="rounded-full border border-primary/40 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-primary">
+              Active
+            </span>
+          ) : null}
+          {actions}
+        </span>
+      </button>
+      <div
+        className={`px-3 pb-3 overflow-hidden transition-all duration-300 ${
+          expanded ? 'max-h-[520px] opacity-100' : 'max-h-0 opacity-0'
+        }`}
+      >
+        <div className={`transition-all duration-300 ${expanded ? 'translate-y-0' : '-translate-y-1'}`}>
+          {children}
+        </div>
+      </div>
     </div>
   );
 }
