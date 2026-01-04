@@ -41,3 +41,10 @@ The editor SHALL update Action Sheet status when checks change and reflect gate 
 #### Scenario: Gate status updates
 - **WHEN** an Action Sheet check transitions to passed or failed
 - **THEN** the UI updates the Action Sheet status to reflect the gate results
+
+### Requirement: Promote Draft Execution Visibility
+The Memo draft detail view SHALL surface execution status for promoted drafts, including session binding.
+
+#### Scenario: View promote execution status in draft detail
+- **WHEN** a user opens a draft created by Promote
+- **THEN** the draft detail view shows execution status and the linked session id

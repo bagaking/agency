@@ -1659,6 +1659,8 @@ function App() {
           cells: projectReady ? cells : [],
           selectedCellId: selectedCell?.id || '',
           projectRoot,
+          sessions,
+          onViewSession: handleViewActionSheetSession,
         }}
       />
 

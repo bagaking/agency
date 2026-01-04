@@ -50,6 +50,23 @@ const summarizeBody = (item) => {
   return firstLine;
 };
 
+const isDraftComplete = (draft) => {
+  if (!draft) {
+    return false;
+  }
+  if (draft.meta?.promoted !== true) {
+    return false;
+  }
+  if (draft.meta?.executionStatus !== 'complete') {
+    return false;
+  }
+  const todos = Array.isArray(draft.meta?.todos) ? draft.meta.todos : null;
+  if (!todos || todos.length === 0) {
+    return true;
+  }
+  return todos.every((todo) => todo?.done === true || todo?.checked === true || todo?.status === 'done');
+};
+
 export function HilMemoView({
   worktreePath,
   projectReady,
@@ -59,6 +76,8 @@ export function HilMemoView({
   cells = [],
   selectedCellId,
   projectRoot,
+  sessions = [],
+  onViewSession,
 }) {
   const { items, filters, setFilters, loading, error, refresh } = useHilItems({
     worktreePath,
@@ -173,6 +192,16 @@ export function HilMemoView({
     });
     return counts;
   }, [items]);
+
+  const sessionsById = useMemo(() => {
+    const map = new Map();
+    (sessions || []).forEach((session) => {
+      if (session?.id) {
+        map.set(session.id, session);
+      }
+    });
+    return map;
+  }, [sessions]);
 
   const routingTargets = useMemo(() => {
     const list = [];
@@ -558,6 +587,8 @@ export function HilMemoView({
               <DraftDetail
                 draft={selectedDraft}
                 onUpdateStatus={updateStatus}
+                sessionsById={sessionsById}
+                onViewSession={onViewSession}
               />
             ) : (
               <div className="flex h-full flex-col">
@@ -726,10 +757,19 @@ function MemoRow({ item, index, onUpdateStatus }) {
     );
 }
 
-function DraftDetail({ draft, onUpdateStatus }) {
-    const isResolved = draft.status === 'resolved' || draft.status === 'archived';
+function DraftDetail({ draft, onUpdateStatus, sessionsById, onViewSession }) {
     const createdAt = draft.createdAt ? new Date(draft.createdAt) : null;
     const references = Array.isArray(draft.references) ? draft.references : [];
+    const executionStatus = draft.meta?.executionStatus || 'idle';
+    const executionSessionId = draft.meta?.executionSessionId || draft.meta?.promoteSessionId || '';
+    const executionRequestedAt = draft.meta?.executionRequestedAt ? new Date(draft.meta.executionRequestedAt) : null;
+    const executionStartedAt = draft.meta?.executionStartedAt ? new Date(draft.meta.executionStartedAt) : null;
+    const executionFinishedAt = draft.meta?.executionFinishedAt ? new Date(draft.meta.executionFinishedAt) : null;
+    const actionSheetId = draft.meta?.actionSheetId || '';
+    const sessionLabel = executionSessionId
+        ? sessionsById?.get(executionSessionId)?.name || executionSessionId
+        : '';
+    const gateReady = isDraftComplete(draft);
 
     return (
         <div className="flex h-full flex-col">
@@ -778,6 +818,50 @@ function DraftDetail({ draft, onUpdateStatus }) {
                 </div>
             </header>
             <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
+                <div className="rounded-2xl border border-border/10 bg-muted/5 p-4">
+                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
+                        Execution Status
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground/70">
+                        <span className="inline-flex items-center gap-2 rounded-full border border-border/20 bg-muted/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60">
+                            {executionStatus}
+                        </span>
+                        <span className="inline-flex items-center gap-2">
+                            <Target size={12} className={gateReady ? 'text-emerald-400' : 'text-muted-foreground/40'} />
+                            {gateReady ? 'Gate ready' : 'Gate waiting'}
+                        </span>
+                        {executionSessionId ? (
+                            <span className="inline-flex items-center gap-2">
+                                <Terminal size={12} className="text-primary/60" />
+                                {sessionLabel}
+                            </span>
+                        ) : null}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-muted-foreground/40">
+                        {executionRequestedAt ? (
+                            <span>Requested {executionRequestedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                        ) : null}
+                        {executionStartedAt ? (
+                            <span>Started {executionStartedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                        ) : null}
+                        {executionFinishedAt ? (
+                            <span>Finished {executionFinishedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                        ) : null}
+                        {actionSheetId ? (
+                            <span>Action Sheet {actionSheetId}</span>
+                        ) : null}
+                    </div>
+                    <div className="mt-3 flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => onViewSession?.(executionSessionId)}
+                            disabled={!executionSessionId}
+                            className="rounded-md border border-border/20 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-40"
+                        >
+                            View Session
+                        </button>
+                    </div>
+                </div>
                 <div className="rounded-2xl border border-border/10 bg-muted/5 p-4">
                     <div className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
                         Draft Body
