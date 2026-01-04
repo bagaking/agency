@@ -5,6 +5,7 @@ import {
   saveCaptureAsset as agencySaveCaptureAsset,
   copyCaptureToClipboard as agencyCopyCaptureToClipboard,
   getWorkbenchFileUrl as agencyGetWorkbenchFileUrl,
+  fetchHilExcerpt as agencyFetchHilExcerpt,
 } from '../services/agencyBridge.js';
 
 export function useHilMemoCaptureState({
@@ -16,6 +17,9 @@ export function useHilMemoCaptureState({
   refresh,
 }) {
   const [flashText, setFlashText] = useState('');
+  const [excerptUrl, setExcerptUrl] = useState('');
+  const [excerptPreview, setExcerptPreview] = useState(null);
+  const [excerptFetching, setExcerptFetching] = useState(false);
   const [excerptNote, setExcerptNote] = useState('');
   const [screenshotNote, setScreenshotNote] = useState('');
   const [captureError, setCaptureError] = useState('');
@@ -75,6 +79,16 @@ export function useHilMemoCaptureState({
     : null;
 
   useEffect(() => {
+    const normalizedInput = excerptUrl.trim();
+    if (!excerptPreview || !normalizedInput) {
+      return;
+    }
+    if (excerptPreview.url && excerptPreview.url !== normalizedInput) {
+      setExcerptPreview(null);
+    }
+  }, [excerptPreview, excerptUrl]);
+
+  useEffect(() => {
     if (routingOpen && !routingTargetId) {
       const nextTarget = resolveDefaultRoutingTarget();
       if (nextTarget) {
@@ -85,6 +99,9 @@ export function useHilMemoCaptureState({
 
   const resetCaptureState = useCallback(() => {
     setFlashText('');
+    setExcerptUrl('');
+    setExcerptPreview(null);
+    setExcerptFetching(false);
     setExcerptNote('');
     setScreenshotNote('');
     setScreenshotAsset(null);
@@ -135,32 +152,58 @@ export function useHilMemoCaptureState({
     });
   }, [flashText, handleCreateMemo]);
 
-  const handleCreateExcerpt = useCallback(async () => {
-    if (!selectionInWorktree || !selectionText.trim()) {
-      setCaptureError('Select text in the editor to capture an excerpt.');
+  const handleFetchExcerpt = useCallback(async () => {
+    const trimmedUrl = excerptUrl.trim();
+    if (!trimmedUrl) {
+      setCaptureError('Enter a URL to fetch.');
       return;
     }
+    setCaptureError('');
+    setExcerptFetching(true);
+    try {
+      const result = await agencyFetchHilExcerpt({ url: trimmedUrl });
+      if (!result) {
+        throw new Error('Excerpt fetch unavailable.');
+      }
+      setExcerptPreview(result);
+      if (result?.url) {
+        setExcerptUrl(result.url);
+      }
+    } catch (error) {
+      setExcerptPreview(null);
+      setCaptureError(error?.message || 'Failed to fetch excerpt.');
+    } finally {
+      setExcerptFetching(false);
+    }
+  }, [excerptUrl]);
+
+  const handleCreateExcerpt = useCallback(async () => {
+    if (!excerptPreview) {
+      setCaptureError('Fetch a URL before saving an excerpt.');
+      return;
+    }
+    const summary = excerptPreview.summary || excerptPreview.excerpt || excerptPreview.title || excerptPreview.url || '';
     await handleCreateMemo({
-      body: selectionText,
-      anchor: selection?.filePath
-        ? {
-            file: selection.filePath,
-            line: selection.startLine || 1,
-            column: selection.startColumn || 1,
-          }
-        : null,
+      body: summary,
       meta: {
         noteType: 'excerpt',
         source: {
-          file: selection.filePath,
-          startLine: selection.startLine,
-          endLine: selection.endLine,
-          selection: selectionText,
+          url: excerptPreview.url,
+          title: excerptPreview.title,
+          byline: excerptPreview.byline,
+          siteName: excerptPreview.siteName,
+          excerpt: excerptPreview.excerpt,
+          summary: excerptPreview.summary,
+          text: excerptPreview.text,
+          wordCount: excerptPreview.wordCount,
+          charCount: excerptPreview.charCount,
+          fetchedAt: excerptPreview.fetchedAt,
+          truncated: excerptPreview.truncated,
           note: excerptNote.trim() || null,
         },
       },
     });
-  }, [excerptNote, handleCreateMemo, selection, selectionInWorktree, selectionText]);
+  }, [excerptNote, excerptPreview, handleCreateMemo]);
 
   const handleCaptureScreenshot = useCallback(async () => {
     if (!worktreePath) {
@@ -278,6 +321,10 @@ export function useHilMemoCaptureState({
   return {
     flashText,
     setFlashText,
+    excerptUrl,
+    setExcerptUrl,
+    excerptPreview,
+    excerptFetching,
     excerptNote,
     setExcerptNote,
     screenshotNote,
@@ -299,6 +346,7 @@ export function useHilMemoCaptureState({
     selectionText,
     selectionLines,
     handleCreateFlash,
+    handleFetchExcerpt,
     handleCreateExcerpt,
     handleCaptureScreenshot,
     handleConfirmRouting,

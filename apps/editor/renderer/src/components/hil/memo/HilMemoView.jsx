@@ -63,6 +63,10 @@ export function HilMemoView({
   onCreateActionSheet,
   flashText,
   setFlashText,
+  excerptUrl,
+  setExcerptUrl,
+  excerptPreview,
+  excerptFetching,
   excerptNote,
   setExcerptNote,
   screenshotNote,
@@ -79,11 +83,9 @@ export function HilMemoView({
   setRoutingTargetId,
   routingError,
   routingTargets,
-  selectionPath,
-  selectionText,
-  selectionLines,
   handleCreateFlash,
   handleCreateExcerpt,
+  handleFetchExcerpt,
   handleCaptureScreenshot,
   handleConfirmRouting,
   handleCancelRouting,
@@ -294,12 +296,14 @@ export function HilMemoView({
             <div className="flex h-full flex-col">
               <InboxSection
                 activeSection={activeInboxSection}
-                selectionPath={selectionPath}
-                selectionLines={selectionLines}
-                selectionText={selectionText}
                 flashValue={flashText}
                 onFlashChange={setFlashText}
                 onSaveFlash={handleCreateFlash}
+                excerptUrl={excerptUrl}
+                onExcerptUrlChange={setExcerptUrl}
+                onFetchExcerpt={handleFetchExcerpt}
+                excerptPreview={excerptPreview}
+                excerptFetching={excerptFetching}
                 excerptNote={excerptNote}
                 onExcerptNoteChange={setExcerptNote}
                 onSaveExcerpt={handleCreateExcerpt}

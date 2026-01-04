@@ -6,12 +6,14 @@ import { ScreenshotCaptureCard } from './ScreenshotCaptureCard.jsx';
 
 export function InboxSection({
   activeSection,
-  selectionPath,
-  selectionLines,
-  selectionText,
   flashValue,
   onFlashChange,
   onSaveFlash,
+  excerptUrl,
+  onExcerptUrlChange,
+  onFetchExcerpt,
+  excerptPreview,
+  excerptFetching,
   excerptNote,
   onExcerptNoteChange,
   onSaveExcerpt,
@@ -62,9 +64,11 @@ export function InboxSection({
 
         {activeSection?.id === 'excerpt' ? (
           <ExcerptCaptureCard
-            selectionText={selectionText}
-            selectionPath={selectionPath}
-            selectionLines={selectionLines}
+            url={excerptUrl}
+            onUrlChange={onExcerptUrlChange}
+            onFetch={onFetchExcerpt}
+            preview={excerptPreview}
+            fetching={excerptFetching}
             note={excerptNote}
             onNoteChange={onExcerptNoteChange}
             onSave={onSaveExcerpt}

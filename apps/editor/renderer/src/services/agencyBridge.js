@@ -93,6 +93,14 @@ export const promoteHilItem = async (payload) => {
   return api.promoteHilItem(payload);
 };
 
+export const fetchHilExcerpt = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.fetchHilExcerpt) {
+    return null;
+  }
+  return api.fetchHilExcerpt(payload);
+};
+
 export const listHilItems = async (payload) => {
   const api = getAgencyApi();
   if (!api?.listHilItems) {

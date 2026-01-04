@@ -167,6 +167,7 @@ contextBridge.exposeInMainWorld('agency', {
   updateHilItem: (payload) => ipcRenderer.invoke('hil:update', payload),
   deleteHilItem: (payload) => ipcRenderer.invoke('hil:delete', payload),
   promoteHilItem: (payload) => ipcRenderer.invoke('hil:promote', payload),
+  fetchHilExcerpt: (payload) => ipcRenderer.invoke('hil:excerpt:fetch', payload),
   listActionSheets: (payload) => ipcRenderer.invoke('actionSheets:list', payload),
   readActionSheet: (payload) => ipcRenderer.invoke('actionSheets:read', payload),
   createActionSheet: (payload) => ipcRenderer.invoke('actionSheets:create', payload),

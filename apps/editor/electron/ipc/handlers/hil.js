@@ -1,5 +1,6 @@
 const { ipcMain } = require('electron');
 const { listHilItems, createHilItem, updateHilItem, deleteHilItem, promoteHilItem } = require('../../services/hil');
+const { fetchHilExcerpt } = require('../../services/hilExcerpt');
 
 function setupHilHandlers() {
   ipcMain.handle('hil:list', async (_event, payload) => {
@@ -16,6 +17,9 @@ function setupHilHandlers() {
   });
   ipcMain.handle('hil:promote', async (_event, payload) => {
     return promoteHilItem(payload || {});
+  });
+  ipcMain.handle('hil:excerpt:fetch', async (_event, payload) => {
+    return fetchHilExcerpt(payload || {});
   });
 }
 
