@@ -52,7 +52,7 @@ export function buildPromotePromptText(bundle) {
       lines.push(`- [${item.kind}] ${item.body || '(empty)'}${label ? ` (${label})` : ''}`);
       if (item.snippet?.length) {
         item.snippet.forEach((snippetLine) => {
-          const lineNo = snippetLine.line ? `${snippetLine.line}`.padStart(4, ' ');
+          const lineNo = snippetLine.line ? `${snippetLine.line}`.padStart(4, ' ') : '    ';
           lines.push(`    ${lineNo} | ${snippetLine.text}`);
         });
       }
