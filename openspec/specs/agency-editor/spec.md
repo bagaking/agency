@@ -750,12 +750,14 @@ Promotion SHALL NOT directly edit spec files or external spec systems.
 The Promote flow SHALL dispatch a structured prompt to the selected Agent session when started.
 The editor SHALL focus the selected session and open the terminal/workbench so progress is visible.
 The Promote modal SHALL surface execution status for the running promote workflow.
+The Promote flow SHALL synchronize Action Sheet execution state with the promote gate.
 
 #### Scenario: Start promote dispatch
 - **WHEN** a user starts Promote with selected items and a target session
 - **THEN** a structured prompt is sent to that session
 - **AND** the UI focuses the session terminal
 - **AND** the Promote modal shows the execution status
+- **AND** the linked Action Sheet state updates with the promote gate
 
 ### Requirement: Promote Tree Organization
 The Promote modal SHALL group selectable items in a tree by Type and Source.
@@ -1015,10 +1017,15 @@ Each Action Sheet SHALL include a plan, prompt bundle, gate/check status, and ex
 
 ### Requirement: Action Sheet Prompt Format
 The Action Sheet prompt SHALL be assembled with tagged sections for `requirements`, `context`, `checks`, and `done`.
+The `done` section SHALL name the file and checklist marker that must be updated to mark work complete and drive Memo draft status.
 
 #### Scenario: Assemble Action Sheet prompt
 - **WHEN** an Action Sheet is dispatched
 - **THEN** the prompt contains `<requirements>`, `<context>`, `<checks>`, and `<done>` sections
+
+#### Scenario: Done instructions are explicit
+- **WHEN** an Action Sheet is created for execution
+- **THEN** the `done` section includes the file path and checklist marker used to record completion
 
 ### Requirement: Action Sheet Execution and Session Binding
 The editor SHALL dispatch Action Sheet prompts to a selected session and record the session binding.
@@ -1052,4 +1059,50 @@ The Memo draft detail view SHALL surface execution status for promoted drafts, i
 #### Scenario: View promote execution status in draft detail
 - **WHEN** a user opens a draft created by Promote
 - **THEN** the draft detail view shows execution status and the linked session id
+
+### Requirement: Explorer Feed Action Sheet
+The Explorer feed SHALL allow users to create an Action Sheet from selected files and a description.
+The Action Sheet prompt SHALL include the selection tree as context.
+
+#### Scenario: Create Action Sheet from Explorer selection
+- **WHEN** a user selects multiple files and submits a feed description
+- **THEN** the editor creates an Action Sheet with the selection tree in the prompt context
+- **AND** dispatches the Action Sheet to the selected session
+
+### Requirement: Promote Action Sheet Linkage
+The Promote flow SHALL create or bind an Action Sheet and store its id on the promote draft metadata.
+The Promote UI SHALL surface the linked Action Sheet state and provide a navigation entry to view it.
+
+#### Scenario: Promote binds Action Sheet
+- **WHEN** a user starts Promote with selected items
+- **THEN** the editor creates an Action Sheet and stores its id on the draft metadata
+- **AND** the Promote modal shows the Action Sheet state
+
+### Requirement: Action Sheet Activity Bar Entry
+The editor SHALL provide an Action Sheets entry in the activity bar directly below Agent Cells.
+
+#### Scenario: Open Action Sheets from activity bar
+- **WHEN** a user selects Action Sheets in the activity bar
+- **THEN** the editor shows the Action Sheets panel
+
+### Requirement: Action Sheet Panel Layout
+The Action Sheets view SHALL use the standard left/right layout with a list panel and detail panel.
+
+#### Scenario: View Action Sheet list and details
+- **WHEN** the Action Sheets view is active
+- **THEN** the left panel lists Action Sheets
+- **AND** the right panel shows details for the selected Action Sheet
+
+### Requirement: Action Sheet Panel Embedding
+The Action Sheet panel SHALL be embeddable in other flows to display status, retry, and session jump controls.
+
+#### Scenario: Show Action Sheet status in Promote
+- **WHEN** the Promote modal is open with a linked Action Sheet
+- **THEN** a compact Action Sheet status panel is shown
+- **AND** users can jump to the linked session terminal
+
+#### Scenario: Show Action Sheet status in Draft detail
+- **WHEN** a draft detail view is open with a linked Action Sheet
+- **THEN** a compact Action Sheet status panel is shown
+- **AND** users can retry the Action Sheet or jump to the linked session terminal
 
