@@ -381,7 +381,7 @@ function MemoRow({ item, index, onUpdateStatus, resolveBody }) {
     const noteLabel = noteType ? String(noteType).toUpperCase() : null;
     
     return (
-        <div className={`group flex items-center h-12 px-4 gap-6 transition-all duration-500 rounded-xl ${
+        <div className={`group flex items-start px-4 py-3 gap-6 transition-all duration-500 rounded-xl ${
             isResolved ? 'opacity-40 grayscale' : 'hover:bg-muted/5'
         }`}>
             {/* Index & Status Dot */}
@@ -407,13 +407,13 @@ function MemoRow({ item, index, onUpdateStatus, resolveBody }) {
             </div>
 
             {/* Content Summary */}
-            <div className="flex-1 min-w-0 flex items-center gap-4">
-                <div className="text-[13px] text-muted-foreground truncate tracking-tight group-hover:text-foreground transition-colors duration-300 font-medium">
+            <div className="flex-1 min-w-0 flex items-start gap-4">
+                <div className="text-[13px] text-muted-foreground/80 leading-snug line-clamp-2 tracking-tight group-hover:text-foreground transition-colors duration-300 font-medium">
                     {bodySummary}
                 </div>
                 
                 {/* Inline Hover Actions: Zen Style */}
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
+                <div className="mt-0.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
                     {item.status === 'open' ? (
                         <RowAction icon={CheckCircle2} title="Resolve" onClick={() => onUpdateStatus(item, 'resolved')} color="hover:text-emerald-500 hover:bg-emerald-500/10" />
                     ) : (
@@ -424,7 +424,7 @@ function MemoRow({ item, index, onUpdateStatus, resolveBody }) {
             </div>
 
             {/* Context & Temporal */}
-            <div className="w-64 shrink-0 flex items-center justify-end gap-6">
+            <div className="w-64 shrink-0 flex items-start justify-end gap-6 pt-0.5">
                 {item.anchor?.file && (
                     <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground/30 italic truncate max-w-[160px] group-hover:text-muted-foreground/50 transition-colors">
                         <Target size={10} className="shrink-0" />
