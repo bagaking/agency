@@ -101,6 +101,70 @@ export const createHilItem = async (payload) => {
   return api.createHilItem(payload);
 };
 
+export const listActionSheets = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.listActionSheets) {
+    return null;
+  }
+  return api.listActionSheets(payload);
+};
+
+export const readActionSheet = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.readActionSheet) {
+    return null;
+  }
+  return api.readActionSheet(payload);
+};
+
+export const createActionSheet = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.createActionSheet) {
+    return null;
+  }
+  return api.createActionSheet(payload);
+};
+
+export const updateActionSheetStatus = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.updateActionSheetStatus) {
+    return null;
+  }
+  return api.updateActionSheetStatus(payload);
+};
+
+export const updateActionSheetPlan = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.updateActionSheetPlan) {
+    return null;
+  }
+  return api.updateActionSheetPlan(payload);
+};
+
+export const updateActionSheetPrompt = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.updateActionSheetPrompt) {
+    return null;
+  }
+  return api.updateActionSheetPrompt(payload);
+};
+
+export const updateActionSheetChecks = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.updateActionSheetChecks) {
+    return null;
+  }
+  return api.updateActionSheetChecks(payload);
+};
+
+export const runActionSheetChecks = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.runActionSheetChecks) {
+    return null;
+  }
+  return api.runActionSheetChecks(payload);
+};
+
 export const startScreenshotCapture = async (payload) => {
   const api = getAgencyApi();
   if (!api?.startScreenshotCapture) {
