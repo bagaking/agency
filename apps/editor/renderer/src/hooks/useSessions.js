@@ -374,11 +374,12 @@ export function useSessions({
     });
   }, [activeSessionId, selectedCell, updateFontSizeForSession]);
 
-  const runActionCommand = useCallback(
-    async ({ command, kind, label, sessionId }) => {
+  const dispatchSessionCommand = useCallback(
+    async ({ command, kind, label, sessionId, appendEnter }) => {
       if (!selectedCell || !command) {
         return;
       }
+      const shouldAppendEnter = appendEnter ?? kind === 'dispatch';
       onOpenTerminal?.();
       if (kind === 'start') {
         if (tmuxStatus?.available === false) {
@@ -406,7 +407,7 @@ export function useSessions({
               [selectedCell.id]: created.id,
             }));
           }
-          setPendingCommand({ cellId: selectedCell.id, command, sessionId });
+          setPendingCommand({ cellId: selectedCell.id, command, sessionId, appendEnter: shouldAppendEnter });
         } catch (error) {
           setSessionError(error?.message || 'Failed to create session.');
         } finally {
@@ -414,7 +415,7 @@ export function useSessions({
         }
         return;
       }
-      setPendingCommand({ cellId: selectedCell.id, command, sessionId });
+      setPendingCommand({ cellId: selectedCell.id, command, sessionId, appendEnter: shouldAppendEnter });
     },
     [onOpenTerminal, selectedCell, tmuxStatus?.available, tmuxStatus?.error]
   );
@@ -472,7 +473,7 @@ export function useSessions({
     zoomIn,
     zoomOut,
     zoomReset,
-    runActionCommand,
+    dispatchSessionCommand,
     acknowledgeCommandSent,
     handleSessionAttached,
     clearSessionError,

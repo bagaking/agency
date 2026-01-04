@@ -9,11 +9,11 @@ import {
 } from 'lucide-react';
 import { stateBadge, gateBadge, formatTime, resolveActionSheetLabel } from './actionSheetUi.js';
 
-const resolveRunLabel = (state) => {
+const resolveDispatchLabel = (state) => {
   if (state === 'failed' || state === 'completed' || state === 'canceled') {
-    return 'Retry';
+    return 'Re-dispatch';
   }
-  return 'Run';
+  return 'Dispatch';
 };
 
 export function ActionSheetStatusPanel({
@@ -21,7 +21,7 @@ export function ActionSheetStatusPanel({
   sessions = [],
   sessionId,
   onSelectSession,
-  onRunSheet,
+  onDispatchSheet,
   onCancelSheet,
   onRefreshChecks,
   onViewSession,
@@ -38,8 +38,8 @@ export function ActionSheetStatusPanel({
   }
   const availableSessions = (sessions || []).filter((session) => session.status !== 'closed');
   const currentSessionId = sessionId || sheet.sessionId || '';
-  const runLabel = resolveRunLabel(sheet.state);
-  const canRun = Boolean(currentSessionId) && sheet.state !== 'running' && sheet.state !== 'waiting_gate';
+  const dispatchLabel = resolveDispatchLabel(sheet.state);
+  const canDispatch = Boolean(currentSessionId) && sheet.state !== 'running' && sheet.state !== 'waiting_gate';
   const canCancel = sheet.state === 'running' || sheet.state === 'waiting_gate';
   const statusClass = stateBadge(sheet.state);
   const gateStatus = sheet.gateStatus || 'idle';
@@ -77,7 +77,7 @@ export function ActionSheetStatusPanel({
           Gate: <span className={gateBadge(gateStatus)}>{gateStatus}</span>
         </span>
         <span>Attempts: {sheet.attempts || 0}</span>
-        <span>Last run: {formatTime(sheet.lastRunAt) || '—'}</span>
+        <span>Last dispatch: {formatTime(sheet.lastRunAt) || '—'}</span>
         {sheet.nextRunAt ? <span>Next: {formatTime(sheet.nextRunAt)}</span> : null}
       </div>
 
@@ -103,12 +103,12 @@ export function ActionSheetStatusPanel({
           </select>
           <button
             type="button"
-            onClick={() => onRunSheet?.(sheet.id, currentSessionId)}
-            disabled={!canRun}
+            onClick={() => onDispatchSheet?.(sheet.id, currentSessionId)}
+            disabled={!canDispatch}
             className="rounded-md bg-primary px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-60"
           >
             <Play size={12} className="inline mr-1" />
-            {runLabel}
+            {dispatchLabel}
           </button>
           <button
             type="button"
@@ -129,12 +129,12 @@ export function ActionSheetStatusPanel({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => onRunSheet?.(sheet.id, currentSessionId)}
-              disabled={!canRun}
+              onClick={() => onDispatchSheet?.(sheet.id, currentSessionId)}
+              disabled={!canDispatch}
               className="rounded-md bg-primary px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-60"
             >
               <Play size={12} className="inline mr-1" />
-              {runLabel}
+              {dispatchLabel}
             </button>
             <button
               type="button"

@@ -393,7 +393,7 @@ function App() {
     zoomIn,
     zoomOut,
     zoomReset,
-    runActionCommand,
+    dispatchSessionCommand,
     acknowledgeCommandSent,
     handleSessionAttached,
     resetSessions,
@@ -419,13 +419,13 @@ function App() {
     updateSheetPrompt: updateActionSheetPrompt,
     updateSheetChecks: updateActionSheetChecks,
     refreshChecks: refreshActionSheetChecks,
-    runSheet: runActionSheet,
+    dispatchSheet: dispatchActionSheet,
     cancelSheet: cancelActionSheet,
     conditionalDefaults,
   } = useActionSheets({
     worktreePath: actionSheetsRoot,
     selectedCellId: selectedCell?.id || '',
-    runActionCommand,
+    dispatchSessionCommand,
     onOpenTerminal: handleOpenTerminal,
     onSelectSession: selectSession,
     onSwitchView: setActiveView,
@@ -521,25 +521,25 @@ function App() {
     },
     [updateActionSheetChecks, updateActionSheetPlan, updateActionSheetPrompt, updateActionSheetStatus]
   );
-  const handleRunActionSheet = useCallback(
+  const handleDispatchActionSheet = useCallback(
     async (id, sessionId) => {
       if (!id) {
         return;
       }
       if (!sessionId) {
-        setActionSheetInlineError('Select a session before running an Action Sheet.');
+        setActionSheetInlineError('Select a session before dispatching an Action Sheet.');
         return;
       }
       setActionSheetInlineError('');
       setActionSheetSessionId(sessionId);
-      await runActionSheet({ id, sessionId });
+      await dispatchActionSheet({ id, sessionId });
     },
-    [runActionSheet]
+    [dispatchActionSheet]
   );
-  const handleExplorerFeed = useCallback(
+  const handleDispatchExplorerFeed = useCallback(
     async ({ description, context, sessionId }) => {
       if (!actionSheetsRoot) {
-        setActionSheetInlineError('Select a project before sending feed.');
+        setActionSheetInlineError('Select a project before dispatching feed.');
         return;
       }
       const trimmedDescription = String(description || '').trim();
@@ -547,7 +547,7 @@ function App() {
         return;
       }
       if (!sessionId) {
-        setActionSheetInlineError('Select a session before sending feed.');
+        setActionSheetInlineError('Select a session before dispatching feed.');
         return;
       }
       try {
@@ -577,9 +577,9 @@ function App() {
         await updateActionSheetChecks(created.id, completion.checks);
         setActionSheetInlineError('');
         setActionSheetSessionId(sessionId);
-        await runActionSheet({ id: created.id, sessionId });
+        await dispatchActionSheet({ id: created.id, sessionId });
       } catch (error) {
-        setActionSheetInlineError(error?.message || 'Failed to start feed Action Sheet.');
+        setActionSheetInlineError(error?.message || 'Failed to dispatch feed Action Sheet.');
         throw error;
       }
     },
@@ -587,7 +587,7 @@ function App() {
       actionSheetsRoot,
       conditionalDefaults,
       createActionSheet,
-      runActionSheet,
+      dispatchActionSheet,
       updateActionSheetChecks,
       updateActionSheetPlan,
       updateActionSheetPrompt,
@@ -1034,7 +1034,7 @@ function App() {
       setPromoteSessionId(created.id);
     }
   }, [createSession, promoteWorktreePath]);
-  const startPromote = useCallback(async () => {
+  const dispatchPromote = useCallback(async () => {
     if (!promoteWorktreePath) {
       return;
     }
@@ -1048,7 +1048,7 @@ function App() {
       return;
     }
     if (!promoteSessionId) {
-      setPromoteError('Select a session to run the promote workflow.');
+      setPromoteError('Select a session to dispatch the promote workflow.');
       return;
     }
     setPromoteLoading(true);
@@ -1127,7 +1127,7 @@ function App() {
       setPromoteActionSheetId(createdSheet.id);
       setPromoteActionSheet(createdSheet.status || null);
       setPromoteStep('waiting');
-      await runActionSheet({ id: createdSheet.id, sessionId: promoteSessionId });
+      await dispatchActionSheet({ id: createdSheet.id, sessionId: promoteSessionId });
       const updatedDraft = await agencyUpdateHilItem({
         worktreePath: promoteWorktreePath,
         itemId: draft.id,
@@ -1145,7 +1145,7 @@ function App() {
         setPromoteExecutionStatus('running');
       }
     } catch (error) {
-      setPromoteError(error?.message || 'Failed to start promote workflow.');
+      setPromoteError(error?.message || 'Failed to dispatch promote workflow.');
       setPromoteExecutionStatus('failed');
     } finally {
       setPromoteLoading(false);
@@ -1159,7 +1159,7 @@ function App() {
     promotePreviewById,
     conditionalDefaults,
     createActionSheet,
-    runActionSheet,
+    dispatchActionSheet,
     updateActionSheetChecks,
     updateActionSheetPlan,
     updateActionSheetPrompt,
@@ -1539,7 +1539,7 @@ function App() {
     onZoomOut: zoomOut,
     onZoomReset: zoomReset,
     onSelectProject: handleSelectProjectRoot,
-    onRunCommand: runActionCommand,
+    onDispatchCommand: dispatchSessionCommand,
     pendingCommand,
     onCommandSent: acknowledgeCommandSent,
     onSessionActivity: updateSessionActivity,
@@ -1624,10 +1624,10 @@ function App() {
     onPromotePreview: loadPromotePreview,
     onSelectPromoteSession: setPromoteSessionId,
     onCreatePromoteSession: createPromoteSession,
-    onStartPromote: startPromote,
+    onDispatchPromote: dispatchPromote,
     onConfirmPromote: confirmPromote,
     onFocusPromoteSession: handleFocusPromoteSession,
-    onRunActionSheet: handleRunActionSheet,
+    onDispatchActionSheet: handleDispatchActionSheet,
     onCancelActionSheet: cancelActionSheet,
     onOpenActionSheets: handleOpenActionSheets,
   };
@@ -1807,7 +1807,7 @@ function App() {
           onUpdateChecks: updateActionSheetChecks,
           onRefreshList: refreshActionSheets,
           onRefreshChecks: refreshActionSheetChecks,
-          onRunSheet: handleRunActionSheet,
+          onDispatchSheet: handleDispatchActionSheet,
           onCancelSheet: cancelActionSheet,
           onViewSession: handleViewActionSheetSession,
           sessions: availableActionSessions,
@@ -1830,7 +1830,7 @@ function App() {
           onJumpToAgents: () => handleSwitchView('agent-cells'),
           workbenchMeta: explorerMeta,
           onSelectSession: selectSession,
-          onSubmitFeed: handleExplorerFeed,
+          onDispatchFeed: handleDispatchExplorerFeed,
           onOpenFile: ({ path, mode }) => {
             workbench.openFile({ path, mode, rootPath: explorerRootPath });
           },
@@ -1864,7 +1864,7 @@ function App() {
           sessions,
           onViewSession: handleViewActionSheetSession,
           actionSheets: actionSheets,
-          onRunActionSheet: handleRunActionSheet,
+          onDispatchActionSheet: handleDispatchActionSheet,
           onCancelActionSheet: cancelActionSheet,
           onOpenActionSheets: handleOpenActionSheets,
         }}

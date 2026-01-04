@@ -59,7 +59,7 @@ export function HilMemoView({
   sessions = [],
   onViewSession,
   actionSheets = [],
-  onRunActionSheet,
+  onDispatchActionSheet,
   onCancelActionSheet,
   onOpenActionSheets,
   // Props from useHilMemoState
@@ -383,7 +383,7 @@ export function HilMemoView({
               onViewSession={onViewSession}
               actionSheetsById={actionSheetsById}
               sessions={sessions}
-              onRunActionSheet={onRunActionSheet}
+              onDispatchActionSheet={onDispatchActionSheet}
               onCancelActionSheet={onCancelActionSheet}
               onOpenActionSheets={onOpenActionSheets}
               resolveBody={resolveBody}
@@ -541,7 +541,7 @@ function DraftDetail({
   onViewSession,
   actionSheetsById,
   sessions,
-  onRunActionSheet,
+  onDispatchActionSheet,
   onCancelActionSheet,
   onOpenActionSheets,
   resolveBody,
@@ -659,7 +659,7 @@ function DraftDetail({
                     sheet={actionSheetStatus}
                     sessions={sessions}
                     sessionId={actionSheetStatus?.sessionId || executionSessionId}
-                    onRunSheet={onRunActionSheet}
+                    onDispatchSheet={onDispatchActionSheet}
                     onCancelSheet={onCancelActionSheet}
                     onViewSession={onViewSession}
                     onOpenPanel={onOpenActionSheets}

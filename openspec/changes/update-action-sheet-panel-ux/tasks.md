@@ -7,3 +7,8 @@
 
 ## 2. Validation
 - [x] 2.1 Update specs and validate with `openspec validate --strict`.
+
+## 3. Notes
+- Keep Tailwind calc spacing valid for min-height layouts (use `calc(100% - 200px)` formatting).
+- Use real newlines in textarea placeholders (avoid HTML entities inside JSX strings).
+- Preserve keyboard accessibility for check toggles (prefer buttons over div click targets).

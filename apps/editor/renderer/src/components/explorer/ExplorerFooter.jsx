@@ -30,14 +30,14 @@ export function ExplorerFooter({
   sessionActivityByKey,
   now,
   onSelectSession,
-  onSubmitFeed,
+  onDispatchFeed,
   activeCell,
 }) {
   const [comment, setComment] = useState('');
   const [showManifest, setShowManifest] = useState(false);
   const activeSessions = (sessions || []).filter((s) => s.status !== 'closed');
 
-  const handleSend = async () => {
+  const handleDispatch = async () => {
     const current = activeSessions.find(s => s.id === activeSessionId) || activeSessions[0];
     const trimmedComment = comment.trim();
     if (!current || selectionCount === 0 || !trimmedComment) return;
@@ -56,7 +56,7 @@ export function ExplorerFooter({
       : (selectionTargets || []).map((path) => `- ${path}`);
     const context = treeLines.join('\n');
     try {
-      await onSubmitFeed?.({
+      await onDispatchFeed?.({
         description: trimmedComment,
         context,
         sessionId: current.id,
@@ -148,15 +148,15 @@ export function ExplorerFooter({
                 onChange={(e) => setComment(e.target.value)}
                 placeholder="attach instruction..."
                 className="flex-1 bg-transparent border-none text-[11px] text-muted-foreground placeholder:text-muted-foreground/30 focus:outline-none"
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                onKeyDown={(e) => e.key === 'Enter' && handleDispatch()}
             />
 
             <div className="flex items-center gap-1">
-                <Tooltip label="Send to session">
+                <Tooltip label="Dispatch to session">
                   <button 
-                      onClick={handleSend}
+                      onClick={handleDispatch}
                       className={`p-1 transition-all ${comment.trim() ? 'text-primary hover:scale-110' : 'text-muted-foreground/40 pointer-events-none'}`}
-                      aria-label="Send to session"
+                      aria-label="Dispatch to session"
                   >
                       <Send size={12} strokeWidth={2} />
                   </button>

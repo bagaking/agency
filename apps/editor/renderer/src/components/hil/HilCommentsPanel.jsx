@@ -93,10 +93,10 @@ export function HilCommentsPanel({
   onPromotePreview,
   onSelectPromoteSession,
   onCreatePromoteSession,
-  onStartPromote,
+  onDispatchPromote,
   onConfirmPromote,
   onFocusPromoteSession,
-  onRunActionSheet,
+  onDispatchActionSheet,
   onCancelActionSheet,
   onOpenActionSheets,
   worktreePath,
@@ -272,9 +272,9 @@ export function HilCommentsPanel({
           onCreateSession={onCreatePromoteSession}
           onFocusSession={onFocusPromoteSession}
           onClose={onClosePromote}
-          onStart={onStartPromote}
+          onDispatch={onDispatchPromote}
           onConfirm={onConfirmPromote}
-          onRunActionSheet={onRunActionSheet}
+          onDispatchActionSheet={onDispatchActionSheet}
           onCancelActionSheet={onCancelActionSheet}
           onOpenActionSheets={onOpenActionSheets}
         />
@@ -526,9 +526,9 @@ function PromoteModal({
   onCreateSession,
   onFocusSession,
   onClose,
-  onStart,
+  onDispatch,
   onConfirm,
-  onRunActionSheet,
+  onDispatchActionSheet,
   onCancelActionSheet,
   onOpenActionSheets,
 }) {
@@ -633,7 +633,7 @@ function PromoteModal({
               </div>
               <div className="mt-2 text-[11px] text-muted-foreground/70 leading-relaxed">
                 {!isWaiting
-                  ? 'Start promote to create a draft and begin the gate.'
+                  ? 'Dispatch promote to create a draft and begin the gate.'
                   : gateReady && promoteDraft
                     ? 'Draft marked complete. You can confirm and consume items.'
                     : gateMissing
@@ -658,7 +658,7 @@ function PromoteModal({
                 : executionStatus === 'complete'
                   ? 'Execution completed. Awaiting final confirm.'
                   : executionStatus === 'failed'
-                    ? 'Execution failed. Retry by restarting promote.'
+                    ? 'Execution failed. Retry by re-dispatching promote.'
                     : executionStatus === 'queued'
                       ? 'Queued for dispatch.'
                       : executionStatus === 'canceled'
@@ -674,7 +674,7 @@ function PromoteModal({
                 sheet={promoteActionSheet}
                 sessions={availableSessions}
                 sessionId={promoteSessionId}
-                onRunSheet={onRunActionSheet}
+                onDispatchSheet={onDispatchActionSheet}
                 onCancelSheet={onCancelActionSheet}
                 onViewSession={onFocusSession}
                 onOpenPanel={onOpenActionSheets}
@@ -817,11 +817,11 @@ function PromoteModal({
           ) : (
             <button
               type="button"
-              onClick={onStart}
+              onClick={onDispatch}
               disabled={loading}
               className="rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-all active:scale-95 disabled:opacity-50"
             >
-              {loading ? 'Starting...' : 'Start Promote'}
+              {loading ? 'Dispatching...' : 'Dispatch Promote'}
             </button>
           )}
         </div>

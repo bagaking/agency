@@ -7,3 +7,7 @@
 
 ## 2. Validation
 - [x] 2.1 Update specs and validate with `openspec validate --strict`.
+
+## 3. Notes
+- Use Dispatch terminology consistently for session-bound prompt delivery.
+- Dispatch should append a trailing enter key so prompts actually execute in the session.

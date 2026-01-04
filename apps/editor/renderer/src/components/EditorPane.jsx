@@ -52,7 +52,7 @@ export function EditorPane({
   onZoomIn,
   onZoomOut,
   onZoomReset,
-  onRunCommand,
+  onDispatchCommand,
   pendingCommand,
   onCommandSent,
   onSessionActivity,
@@ -454,7 +454,7 @@ export function EditorPane({
                         {quickActions && quickActions.slice(0, 3).map((action) => (
                             <button
                                 key={action.id}
-                                onClick={() => onRunCommand?.({ command: action.startCommand || '', kind: 'start', label: action.label || action.id })}
+                                onClick={() => onDispatchCommand?.({ command: action.startCommand || '', kind: 'start', label: action.label || action.id })}
                                 className="px-2 py-0.5 rounded border border-border/40 bg-muted/20 text-[10px] text-muted-foreground hover:border-primary/50 hover:text-primary transition-all whitespace-nowrap active:scale-95"
                             >
                                 {action.label || action.id}

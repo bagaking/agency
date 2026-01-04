@@ -39,7 +39,9 @@ function TerminalPane({
   const worktreePath = cell?.worktreePath;
   const safePathPattern = /^[A-Za-z0-9_\-./]+$/;
 
-  const sendCommand = (command) => {
+  const sendCommand = (payload) => {
+    const command = typeof payload === 'string' ? payload : payload?.command;
+    const appendEnter = typeof payload === 'string' ? true : payload?.appendEnter !== false;
     if (!command || !cellId) {
       return;
     }
@@ -48,8 +50,11 @@ function TerminalPane({
     lines.forEach((line) => {
       window.agency?.writeTerminal({ cellId, sessionId, data: `${line}\r` });
     });
+    if (appendEnter) {
+      window.agency?.writeTerminal({ cellId, sessionId, data: '\r' });
+    }
     if (onCommandSent) {
-      onCommandSent({ cellId, command });
+      onCommandSent({ cellId, command, appendEnter });
     }
     if (onActivity) {
       onActivity({ cellId, sessionId });
@@ -445,7 +450,7 @@ function TerminalPane({
           if (commandQueueRef.current.length) {
             const queue = [...commandQueueRef.current];
             commandQueueRef.current = [];
-            queue.forEach((command) => sendCommand(command));
+            queue.forEach((item) => sendCommand(item));
           }
         }
       })
@@ -477,14 +482,18 @@ function TerminalPane({
     if (pendingCommand.sessionId && pendingCommand.sessionId !== sessionId) {
       return;
     }
-    if (pendingCommand.command === lastQueuedRef.current) {
+    const commandKey = `${pendingCommand.command ?? ''}::${pendingCommand.appendEnter !== false ? '1' : '0'}`;
+    if (commandKey === lastQueuedRef.current) {
       return;
     }
-    lastQueuedRef.current = pendingCommand.command;
+    lastQueuedRef.current = commandKey;
     if (sessionReady) {
-      sendCommand(pendingCommand.command);
+      sendCommand(pendingCommand);
     } else {
-      commandQueueRef.current.push(pendingCommand.command);
+      commandQueueRef.current.push({
+        command: pendingCommand.command,
+        appendEnter: pendingCommand.appendEnter,
+      });
     }
   }, [pendingCommand, sessionReady, cellId, sessionId, isActive]);
 

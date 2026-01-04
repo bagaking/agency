@@ -30,7 +30,7 @@ function ProjectExplorerSidebarContent({
   onJumpToAgents,
   workbenchMeta,
   onSelectSession,
-  onSubmitFeed,
+  onDispatchFeed,
   onAddComment,
   commentCountsByPath,
   onJumpToComments,
@@ -475,7 +475,7 @@ function ProjectExplorerSidebarContent({
         sessionActivityByKey={sessionActivityByKey}
         now={now}
         onSelectSession={onSelectSession}
-        onSubmitFeed={onSubmitFeed}
+        onDispatchFeed={onDispatchFeed}
       />
 
       {contextMenu && (
@@ -496,7 +496,7 @@ function ProjectExplorerSidebarContent({
 export function ProjectExplorerSidebar({
   rootPath: scopeRootPath, rootLabel: scopeRootLabel, cells, selectedId, onSelectCell, selectedCell,
   sessions, activeSessionId, sessionActivityByKey, onOpenFile, onJumpToAgents, workbenchMeta,
-  onSelectSession, onSubmitFeed, onAddComment, commentCountsByPath, onJumpToComments,
+  onSelectSession, onDispatchFeed, onAddComment, commentCountsByPath, onJumpToComments,
   projectReady, projectError, onSelectProject, recentProjects, onOpenRecentProject,
 }) {
   if (!projectReady) {
@@ -531,7 +531,7 @@ export function ProjectExplorerSidebar({
       onJumpToAgents={onJumpToAgents}
       workbenchMeta={workbenchMeta}
       onSelectSession={onSelectSession}
-      onSubmitFeed={onSubmitFeed}
+      onDispatchFeed={onDispatchFeed}
       onAddComment={onAddComment}
       commentCountsByPath={commentCountsByPath}
       onJumpToComments={onJumpToComments}

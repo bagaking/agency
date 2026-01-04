@@ -26,7 +26,7 @@ const toNumber = (value, fallback) => {
 export function useActionSheets({
   worktreePath,
   selectedCellId,
-  runActionCommand,
+  dispatchSessionCommand,
   onOpenTerminal,
   onSelectSession,
   onSwitchView,
@@ -211,11 +211,12 @@ export function useActionSheets({
         if (gateStatus === 'passed') {
           clearRunner(id);
           if (conditional?.followupPrompt?.trim()) {
-            await runActionCommand({
+            await dispatchSessionCommand({
               command: conditional.followupPrompt.trim(),
-              kind: 'resume',
+              kind: 'dispatch',
               label: `${sheet?.status?.title || 'Action Sheet'} (follow-up)`,
               sessionId: sheet?.status?.sessionId,
+              appendEnter: true,
             });
             await updateSheetStatus(id, {
               followupDispatchedAt: new Date().toISOString(),
@@ -233,7 +234,7 @@ export function useActionSheets({
             const nextRunAt = new Date(Date.now() + cooldownMs).toISOString();
             await updateSheetStatus(id, { state: 'queued', nextRunAt });
             const timeoutId = window.setTimeout(() => {
-              runSheet({ id, sessionId: sheet?.status?.sessionId }).catch(() => undefined);
+              dispatchSheet({ id, sessionId: sheet?.status?.sessionId }).catch(() => undefined);
             }, cooldownMs);
             runnerTimersRef.current.set(id, { timeoutId });
           }
@@ -241,12 +242,12 @@ export function useActionSheets({
       }, intervalMs);
       runnerTimersRef.current.set(id, { intervalId });
     },
-    [clearRunner, refreshChecks, runActionCommand, updateSheetStatus, worktreePath]
+    [clearRunner, refreshChecks, dispatchSessionCommand, updateSheetStatus, worktreePath]
   );
 
-  const runSheet = useCallback(
+  const dispatchSheet = useCallback(
     async ({ id, sessionId }) => {
-      if (!worktreePath || !id || !runActionCommand) {
+      if (!worktreePath || !id || !dispatchSessionCommand) {
         return;
       }
       try {
@@ -276,18 +277,19 @@ export function useActionSheets({
         if (sessionId && onSelectSession) {
           onSelectSession(sessionId);
         }
-        await runActionCommand({
+        await dispatchSessionCommand({
           command: promptText,
-          kind: 'resume',
+          kind: 'dispatch',
           label: sheet.status?.title || 'Action Sheet',
           sessionId,
+          appendEnter: true,
         });
         await updateSheetStatus(id, { state: 'waiting_gate', lastError: '' });
         scheduleMonitor(id);
       } catch (err) {
         await updateSheetStatus(id, {
           state: 'failed',
-          lastError: err?.message || 'Failed to run Action Sheet.',
+          lastError: err?.message || 'Failed to dispatch Action Sheet.',
         });
         clearRunner(id);
         throw err;
@@ -297,7 +299,7 @@ export function useActionSheets({
       onOpenTerminal,
       onSelectSession,
       onSwitchView,
-      runActionCommand,
+      dispatchSessionCommand,
       scheduleMonitor,
       selectedCellId,
       updateSheetStatus,
@@ -331,7 +333,7 @@ export function useActionSheets({
     updateSheetPrompt,
     updateSheetChecks,
     refreshChecks,
-    runSheet,
+    dispatchSheet,
     cancelSheet,
     conditionalDefaults,
   };
