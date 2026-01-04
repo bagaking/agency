@@ -341,6 +341,10 @@ export function useActionSheets({
         await updateSheetStatus(id, { state: 'waiting_gate', lastError: '' });
         scheduleMonitor(id);
       } catch (err) {
+        if (err?.message === 'Action Sheet not found.') {
+          clearRunner(id);
+          throw err;
+        }
         await updateSheetStatus(id, {
           state: 'failed',
           lastError: err?.message || 'Failed to dispatch Action Sheet.',

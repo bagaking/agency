@@ -45,6 +45,18 @@ async function resolveActionSheetDir(worktreePath, id) {
   return path.join(root, id);
 }
 
+async function requireActionSheetDir(worktreePath, id) {
+  const dir = await resolveActionSheetDir(worktreePath, id);
+  const exists = await fsp
+    .stat(dir)
+    .then((stat) => stat.isDirectory())
+    .catch(() => false);
+  if (!exists) {
+    throw new Error('Action Sheet not found.');
+  }
+  return dir;
+}
+
 async function readJson(filePath, fallback = null) {
   try {
     const raw = await fsp.readFile(filePath, 'utf8');
@@ -91,6 +103,16 @@ function normalizeChecks(list = [], previous = []) {
       checkedAt: item.checkedAt || prior?.checkedAt || null,
     };
   });
+}
+
+function resolveTitleFromPlan(plan = '') {
+  const line = String(plan || '')
+    .split('\n')
+    .find((entry) => entry.trim().startsWith('#'));
+  if (!line) {
+    return '';
+  }
+  return line.replace(/^#+\s*/, '').trim();
 }
 
 function buildStatus(payload = {}) {
@@ -152,21 +174,33 @@ async function readActionSheet({ worktreePath, id }) {
     throw new Error('actionSheet id is required.');
   }
   const dir = await resolveActionSheetDir(worktreePath, id);
+  const dirExists = await fsp
+    .stat(dir)
+    .then((stat) => stat.isDirectory())
+    .catch(() => false);
+  if (!dirExists) {
+    return null;
+  }
   const [plan, prompt, checks, status] = await Promise.all([
     fsp.readFile(path.join(dir, PLAN_FILENAME), 'utf8').catch(() => ''),
     readJson(path.join(dir, PROMPT_FILENAME), normalizePrompt()),
     readJson(path.join(dir, CHECKS_FILENAME), { checks: [] }),
     readJson(path.join(dir, STATUS_FILENAME), null),
   ]);
-  if (!status) {
-    throw new Error('Action Sheet status not found.');
+  let resolvedStatus = status;
+  if (!resolvedStatus) {
+    resolvedStatus = buildStatus({
+      id,
+      title: resolveTitleFromPlan(plan) || 'Action Sheet',
+    });
+    await writeJson(path.join(dir, STATUS_FILENAME), resolvedStatus);
   }
   return {
     id,
     plan,
     prompt: normalizePrompt(prompt),
     checks: normalizeChecks(checks.checks || []),
-    status: buildStatus({ ...status, id }),
+    status: buildStatus({ ...resolvedStatus, id }),
   };
 }
 
@@ -193,7 +227,7 @@ async function createActionSheet({ worktreePath, payload = {} }) {
 }
 
 async function updateActionSheetStatus({ worktreePath, id, patch = {} }) {
-  const dir = await resolveActionSheetDir(worktreePath, id);
+  const dir = await requireActionSheetDir(worktreePath, id);
   const statusPath = path.join(dir, STATUS_FILENAME);
   const current = await readJson(statusPath, buildStatus({ id }));
   const next = {
@@ -216,7 +250,7 @@ async function archiveActionSheet({ worktreePath, id }) {
   if (!id) {
     throw new Error('actionSheet id is required.');
   }
-  const dir = await resolveActionSheetDir(worktreePath, id);
+  const dir = await requireActionSheetDir(worktreePath, id);
   const statusPath = path.join(dir, STATUS_FILENAME);
   const current = await readJson(statusPath, buildStatus({ id }));
   const archivedAt = current.archivedAt || new Date().toISOString();
@@ -240,20 +274,20 @@ async function deleteActionSheet({ worktreePath, id }) {
 }
 
 async function updateActionSheetPlan({ worktreePath, id, plan }) {
-  const dir = await resolveActionSheetDir(worktreePath, id);
+  const dir = await requireActionSheetDir(worktreePath, id);
   await fsp.writeFile(path.join(dir, PLAN_FILENAME), String(plan || ''), 'utf8');
   return readActionSheet({ worktreePath, id });
 }
 
 async function updateActionSheetPrompt({ worktreePath, id, prompt }) {
-  const dir = await resolveActionSheetDir(worktreePath, id);
+  const dir = await requireActionSheetDir(worktreePath, id);
   const normalized = normalizePrompt(prompt || {});
   await writeJson(path.join(dir, PROMPT_FILENAME), normalized);
   return readActionSheet({ worktreePath, id });
 }
 
 async function updateActionSheetChecks({ worktreePath, id, checks }) {
-  const dir = await resolveActionSheetDir(worktreePath, id);
+  const dir = await requireActionSheetDir(worktreePath, id);
   const current = await readJson(path.join(dir, CHECKS_FILENAME), { checks: [] });
   const normalized = normalizeChecks(checks || [], current.checks || []);
   await writeJson(path.join(dir, CHECKS_FILENAME), {
@@ -297,6 +331,9 @@ function formatCheckFailure({ command, code, stderr, stdout }) {
 
 async function runActionSheetChecks({ worktreePath, id }) {
   const sheet = await readActionSheet({ worktreePath, id });
+  if (!sheet) {
+    throw new Error('Action Sheet not found.');
+  }
   let repoRoot = worktreePath;
   try {
     repoRoot = await getRepoRoot(worktreePath);

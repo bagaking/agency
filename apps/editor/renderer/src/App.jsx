@@ -22,6 +22,7 @@ import {
   getUiState,
   listCells as agencyListCells,
   listComments as agencyListComments,
+  listActionSheets as agencyListActionSheets,
   listHilItems as agencyListHilItems,
   onCellsUpdated as subscribeCellsUpdated,
   onProjectUpdated as subscribeProjectUpdated,
@@ -616,8 +617,27 @@ function App() {
         setActionSheetInlineError('Select a project before running a draft.');
         return;
       }
+      const actionSheetsPath = actionSheetsRoot || hilWorktreePath;
+      if (!actionSheetsPath) {
+        setActionSheetInlineError('Select a project before running a draft.');
+        return;
+      }
       try {
         let actionSheetId = draft.meta?.actionSheetId || '';
+        if (actionSheetId && agencyListActionSheets) {
+          try {
+            const list = await agencyListActionSheets({
+              worktreePath: actionSheetsPath,
+              includeArchived: true,
+            });
+            const exists = Array.isArray(list) && list.some((sheet) => sheet.id === actionSheetId);
+            if (!exists) {
+              actionSheetId = '';
+            }
+          } catch (error) {
+            actionSheetId = '';
+          }
+        }
         if (!actionSheetId) {
           const created = await handleCreateDraftActionSheet(draft);
           actionSheetId = created?.id || '';
@@ -647,6 +667,8 @@ function App() {
     },
     [
       activeSessionId,
+      actionSheetsRoot,
+      agencyListActionSheets,
       handleCreateDraftActionSheet,
       handleDispatchActionSheet,
       hilMemo.refresh,
