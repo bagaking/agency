@@ -101,6 +101,30 @@ export const createHilItem = async (payload) => {
   return api.createHilItem(payload);
 };
 
+export const startScreenshotCapture = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.startScreenshotCapture) {
+    return null;
+  }
+  return api.startScreenshotCapture(payload);
+};
+
+export const saveCaptureAsset = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.saveCaptureAsset) {
+    return null;
+  }
+  return api.saveCaptureAsset(payload);
+};
+
+export const copyCaptureToClipboard = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.copyCaptureToClipboard) {
+    return null;
+  }
+  return api.copyCaptureToClipboard(payload);
+};
+
 export const materializeClipboard = async (payload) => {
   const api = getAgencyApi();
   if (!api?.materializeClipboard) {

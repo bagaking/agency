@@ -18,6 +18,8 @@ const { setupProjectHandlers } = require('./ipc/handlers/project');
 const { setupClipboardHandlers } = require('./ipc/handlers/clipboard');
 const { setupCommentsHandlers } = require('./ipc/handlers/comments');
 const { setupHilHandlers } = require('./ipc/handlers/hil');
+const { setupCaptureHandlers } = require('./ipc/handlers/capture');
+const captureManager = require('./services/screenshotCapture/captureManager');
 const {
   selectProjectRoot,
   setWindowProjectRoot,
@@ -240,6 +242,7 @@ app.whenReady().then(async () => {
   setupClipboardHandlers();
   setupCommentsHandlers();
   setupHilHandlers();
+  setupCaptureHandlers();
   setupAssetProtocol();
 
   if (process.platform === 'darwin') {
@@ -257,6 +260,7 @@ app.whenReady().then(async () => {
 
   buildAppMenu();
   createWindow();
+  captureManager.registerGlobalShortcut();
 
   logRuntime('info', 'main window created');
 
@@ -276,6 +280,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  captureManager.unregisterGlobalShortcut();
   closeRuntimeLogger();
 });
 
