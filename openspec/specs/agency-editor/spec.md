@@ -706,6 +706,7 @@ Sections that accept user input SHALL provide inline input controls at the top o
 ### Requirement: Memo Capture Modes
 The Memo view SHALL provide capture actions for Flash note, Excerpt, and Screenshot.
 Captured items SHALL be stored as HIL `memo` entries with `meta.noteType` set to the capture type.
+Screenshot capture SHALL open an in-app capture UI for region selection and annotation, followed by a routing panel.
 
 #### Scenario: Capture a flash note
 - **WHEN** a user selects Flash and submits text
@@ -716,17 +717,17 @@ Captured items SHALL be stored as HIL `memo` entries with `meta.noteType` set to
 - **THEN** the editor creates a `memo` item with `meta.noteType: excerpt`
 - **AND** stores the excerpt source metadata
 
-#### Scenario: Capture a screenshot
-- **WHEN** a user captures or imports a screenshot in Memo
-- **THEN** the editor creates a `memo` item with `meta.noteType: screenshot`
-- **AND** stores an asset reference for the image
+#### Scenario: Capture a screenshot via UI
+- **WHEN** a user clicks Capture in the Screenshot section
+- **THEN** the editor opens a capture overlay for region selection and annotation
+- **AND** the editor shows a routing panel to save to HIL, clipboard, or both
 
 ### Requirement: Memo Assets Storage
-Screenshot memo assets SHALL be stored under `.agency/hil/assets/<worktree>/` with a stable path recorded in the memo metadata.
+Screenshot memo assets SHALL be stored as PNG under `.agency/hil/assets/<worktree>/` with a stable path recorded in the memo metadata.
 
 #### Scenario: Persist screenshot asset
 - **WHEN** a screenshot memo is created
-- **THEN** the image asset is saved under the worktree assets directory
+- **THEN** the image asset is saved under the worktree assets directory as a PNG
 
 ### Requirement: Promote Memo Items into Drafts
 Memo items SHALL be eligible for selection in the Promote flow and referenced by drafts.
@@ -746,16 +747,15 @@ Promotion SHALL NOT directly edit spec files or external spec systems.
 - **AND** the source comment is marked `meta.processed: true`
 
 ### Requirement: Bulk Promote Pending Items
-The editor SHALL allow users to promote all pending items for the current worktree into a single draft.
-Bulk promote SHALL require a description and SHALL list all items that are not yet processed.
-The bulk promote UI SHALL provide hoverable context previews for each item.
+The Promote flow SHALL dispatch a structured prompt to the selected Agent session when started.
+The editor SHALL focus the selected session and open the terminal/workbench so progress is visible.
+The Promote modal SHALL surface execution status for the running promote workflow.
 
-#### Scenario: Promote pending items with description
-- **WHEN** a user opens bulk promote from the HIL drawer
-- **THEN** the editor shows all unprocessed items with file and line context
-- **AND** requires a description before promoting
-- **AND** creates a draft with references to the selected items
-- **AND** marks the selected items as processed
+#### Scenario: Start promote dispatch
+- **WHEN** a user starts Promote with selected items and a target session
+- **THEN** a structured prompt is sent to that session
+- **AND** the UI focuses the session terminal
+- **AND** the Promote modal shows the execution status
 
 ### Requirement: Promote Tree Organization
 The Promote modal SHALL group selectable items in a tree by Type and Source.
@@ -911,4 +911,96 @@ The preview list SHALL summarize comments for the active file.
 #### Scenario: View comment preview list
 - **WHEN** a file has submitted line comments
 - **THEN** the preview list shows each comment with its line number and TODO indicator
+
+### Requirement: Explorer Editing Shortcuts
+The editor SHALL support common file editing shortcuts for workbench tabs, including save, save-as, close tab, and find/replace.
+Shortcuts SHALL respect platform conventions (Cmd on macOS, Ctrl on Windows/Linux).
+
+#### Scenario: Save via keyboard
+- **WHEN** a user presses Cmd/Ctrl+S in an open file
+- **THEN** the editor saves the file without requiring a UI button click
+
+#### Scenario: Close tab via keyboard
+- **WHEN** a user presses Cmd/Ctrl+W in an open file
+- **THEN** the editor closes the active tab
+
+#### Scenario: Find via keyboard
+- **WHEN** a user presses Cmd/Ctrl+F in an open file
+- **THEN** the editor opens the find UI for that file
+
+### Requirement: Explorer Action Tooltips
+Icon-only Explorer controls SHALL display a tooltip with an action description on hover.
+Tooltip styling SHALL match the app’s muted/foreground palette.
+
+#### Scenario: Hover tooltip
+- **WHEN** a user hovers an icon-only Explorer control
+- **THEN** a tooltip appears with the control’s purpose
+
+### Requirement: Explorer Palette Consistency
+Explorer header and footer sections SHALL use the same muted/foreground palette as other primary panels.
+
+#### Scenario: Explorer palette aligned
+- **WHEN** the Explorer view is visible
+- **THEN** its header/footer colors match the app’s standard panel palette
+
+### Requirement: Comment Indicator Navigation
+Files with HIL comments SHALL show a comment icon in the Explorer row.
+Clicking the icon SHALL open the HIL drawer focused on comments for that file.
+
+#### Scenario: Jump to comments from Explorer
+- **WHEN** a file row shows a comment icon and the user clicks it
+- **THEN** the HIL drawer opens and filters to comments for that file
+
+### Requirement: Promote Execution Status Tracking
+The editor SHALL record promote execution status on the draft metadata.
+Completion gating SHALL require `meta.promoted: true` AND `meta.executionStatus: complete` before enabling confirmation.
+
+#### Scenario: Gate waits for execution completion
+- **WHEN** the promote workflow is running
+- **THEN** the confirm action remains disabled until execution status is complete
+
+### Requirement: Promote Prompt Bundle
+The editor SHALL generate a prompt bundle that includes the draft description, selected item references, and file anchors.
+The prompt bundle SHALL be stored alongside the draft metadata for auditability.
+
+#### Scenario: Prompt bundle stored
+- **WHEN** Promote starts
+- **THEN** the draft metadata stores the prompt bundle that was dispatched
+
+### Requirement: Screenshot Routing After Capture
+After capture, the editor SHALL present a routing panel that lets the user choose:
+- Target project/worktree + Agent Cell (save to HIL)
+- Clipboard-only
+- Save to HIL and clipboard
+
+#### Scenario: Route capture to HIL
+- **WHEN** a user completes a capture and selects a target Agent Cell
+- **THEN** the editor saves the screenshot to the selected worktree and creates a memo
+
+#### Scenario: Route capture to clipboard only
+- **WHEN** a user completes a capture and chooses clipboard-only
+- **THEN** the editor copies the image to clipboard without creating a memo
+
+### Requirement: Capture Window Visibility
+The capture flow SHALL allow the user to choose whether Agency windows are visible in the screenshot.
+
+#### Scenario: Hide Agency windows during capture
+- **WHEN** a user starts a capture with Agency windows hidden
+- **THEN** the overlay hides or minimizes Agency windows before capture
+
+#### Scenario: Include Agency windows during capture
+- **WHEN** a user starts a capture with Agency windows visible
+- **THEN** the overlay keeps Agency windows visible in the screenshot
+
+### Requirement: Screenshot Capture Session Management
+The editor SHALL allow only one active capture session at a time.
+The capture session SHALL be bound to the originating window and return the result to that window.
+
+#### Scenario: Single active capture session
+- **WHEN** a user starts a capture while another capture is active
+- **THEN** the editor rejects or queues the new capture request
+
+#### Scenario: Return capture to originating window
+- **WHEN** a capture completes
+- **THEN** the result is delivered to the window that initiated the capture
 

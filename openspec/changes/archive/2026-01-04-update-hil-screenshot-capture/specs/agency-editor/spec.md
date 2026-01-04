@@ -1,14 +1,32 @@
 ## MODIFIED Requirements
 
-### Requirement: Screenshot Memo Capture in Inbox
-The Screenshot section SHALL open an in-app capture UI for region selection and annotation.
-The capture result SHALL be saved as a PNG asset and recorded on the memo item.
+### Requirement: Memo Capture Modes
+The Memo view SHALL provide capture actions for Flash note, Excerpt, and Screenshot.
+Captured items SHALL be stored as HIL `memo` entries with `meta.noteType` set to the capture type.
+Screenshot capture SHALL open an in-app capture UI for region selection and annotation, followed by a routing panel.
 
-#### Scenario: Capture screenshot memo via UI
+#### Scenario: Capture a flash note
+- **WHEN** a user selects Flash and submits text
+- **THEN** the editor creates a `memo` item with `meta.noteType: flash`
+
+#### Scenario: Capture an excerpt
+- **WHEN** a user selects Excerpt from a file selection
+- **THEN** the editor creates a `memo` item with `meta.noteType: excerpt`
+- **AND** stores the excerpt source metadata
+
+#### Scenario: Capture a screenshot via UI
 - **WHEN** a user clicks Capture in the Screenshot section
 - **THEN** the editor opens a capture overlay for region selection and annotation
-- **AND** saves the PNG under `.agency/hil/assets/<worktree>/`
-- **AND** records the asset metadata on the memo item
+- **AND** the editor shows a routing panel to save to HIL, clipboard, or both
+
+### Requirement: Memo Assets Storage
+Screenshot memo assets SHALL be stored as PNG under `.agency/hil/assets/<worktree>/` with a stable path recorded in the memo metadata.
+
+#### Scenario: Persist screenshot asset
+- **WHEN** a screenshot memo is created
+- **THEN** the image asset is saved under the worktree assets directory as a PNG
+
+## ADDED Requirements
 
 ### Requirement: Screenshot Routing After Capture
 After capture, the editor SHALL present a routing panel that lets the user choose:
