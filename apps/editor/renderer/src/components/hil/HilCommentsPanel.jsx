@@ -248,42 +248,6 @@ export function HilCommentsPanel({
         </div>
       ) : null}
 
-      {promoteModalOpen ? (
-        <PromoteModal
-          open={promoteModalOpen}
-          description={promoteDescription}
-          error={promoteError}
-          loading={promoteLoading}
-          items={promoteItems}
-          selectedIds={promoteSelectedIds}
-          previewById={promotePreviewById}
-          promoteStep={promoteStep}
-          promoteDraft={promoteDraft}
-          promoteActionSheet={promoteActionSheet}
-          promoteGateStatus={promoteGateStatus}
-          promoteExecutionStatus={promoteExecutionStatus}
-          promoteSessionId={promoteSessionId}
-          sessions={sessions}
-          sessionActivityByKey={sessionActivityByKey}
-          selectedCellId={selectedCellId}
-          onChangeDescription={onPromoteDescriptionChange}
-          onToggleItem={onTogglePromoteItem}
-          onToggleGroup={onTogglePromoteGroup}
-          onPreviewItem={onPromotePreview}
-          onSelectSession={onSelectPromoteSession}
-          onCreateSession={onCreatePromoteSession}
-          onFocusSession={onFocusPromoteSession}
-          onClose={onClosePromote}
-          onDispatch={onDispatchPromote}
-          onConfirm={onConfirmPromote}
-          onDispatchActionSheet={onDispatchActionSheet}
-          onCancelActionSheet={onCancelActionSheet}
-          onArchiveActionSheet={onArchiveActionSheet}
-          onDeleteActionSheet={onDeleteActionSheet}
-          onOpenActionSheets={onOpenActionSheets}
-        />
-      ) : null}
-
       {error ? (
         <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-[10px] text-rose-300">
           {error}
@@ -505,7 +469,7 @@ function ContextTooltip({ x, y, snippet, loading, commentBody, fileName }) {
     );
 }
 
-function PromoteModal({
+export function PromoteModal({
   open,
   loading,
   error,

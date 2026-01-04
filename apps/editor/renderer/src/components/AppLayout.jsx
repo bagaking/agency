@@ -11,7 +11,7 @@ import { WorktreeLinksView } from './WorktreeLinksView.jsx';
 import { SidebarDock } from './layout/SidebarDock.jsx';
 import { ProjectSettingsView } from './ProjectSettingsView.jsx';
 import { HilDrawer } from './hil/HilDrawer.jsx';
-import { HilCommentsPanel } from './hil/HilCommentsPanel.jsx';
+import { HilCommentsPanel, PromoteModal } from './hil/HilCommentsPanel.jsx';
 import { HilDraftsPanel } from './hil/HilDraftsPanel.jsx';
 import { HilMemoDrawer } from './hil/HilMemoDrawer.jsx';
 import { HilMemoView } from './hil/memo/HilMemoView.jsx';
@@ -328,6 +328,42 @@ export function AppLayout({
             <HilDraftsPanel {...hilDraftsProps} />
           ) : null}
         </HilDrawer>
+
+        {hilCommentsProps?.promoteModalOpen ? (
+          <PromoteModal
+            open={hilCommentsProps.promoteModalOpen}
+            description={hilCommentsProps.promoteDescription}
+            error={hilCommentsProps.promoteError}
+            loading={hilCommentsProps.promoteLoading}
+            items={hilCommentsProps.promoteItems}
+            selectedIds={hilCommentsProps.promoteSelectedIds}
+            previewById={hilCommentsProps.promotePreviewById}
+            promoteStep={hilCommentsProps.promoteStep}
+            promoteDraft={hilCommentsProps.promoteDraft}
+            promoteActionSheet={hilCommentsProps.promoteActionSheet}
+            promoteGateStatus={hilCommentsProps.promoteGateStatus}
+            promoteExecutionStatus={hilCommentsProps.promoteExecutionStatus}
+            promoteSessionId={hilCommentsProps.promoteSessionId}
+            sessions={hilCommentsProps.sessions}
+            sessionActivityByKey={hilCommentsProps.sessionActivityByKey}
+            selectedCellId={hilCommentsProps.selectedCellId}
+            onChangeDescription={hilCommentsProps.onPromoteDescriptionChange}
+            onToggleItem={hilCommentsProps.onTogglePromoteItem}
+            onToggleGroup={hilCommentsProps.onTogglePromoteGroup}
+            onPreviewItem={hilCommentsProps.onPromotePreview}
+            onSelectSession={hilCommentsProps.onSelectPromoteSession}
+            onCreateSession={hilCommentsProps.onCreatePromoteSession}
+            onFocusSession={hilCommentsProps.onFocusPromoteSession}
+            onClose={hilCommentsProps.onClosePromote}
+            onDispatch={hilCommentsProps.onDispatchPromote}
+            onConfirm={hilCommentsProps.onConfirmPromote}
+            onDispatchActionSheet={hilCommentsProps.onDispatchActionSheet}
+            onCancelActionSheet={hilCommentsProps.onCancelActionSheet}
+            onArchiveActionSheet={hilCommentsProps.onArchiveActionSheet}
+            onDeleteActionSheet={hilCommentsProps.onDeleteActionSheet}
+            onOpenActionSheets={hilCommentsProps.onOpenActionSheets}
+          />
+        ) : null}
       </div>
     </div>
   );
