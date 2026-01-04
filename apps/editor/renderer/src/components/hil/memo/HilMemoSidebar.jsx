@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   RefreshCw, 
   Search,
@@ -8,7 +9,8 @@ import {
   Camera,
   Quote,
   ChevronDown,
-  Info
+  Check,
+  X
 } from 'lucide-react';
 import { Tooltip } from '../../ui/Tooltip.jsx';
 
@@ -30,48 +32,52 @@ export function HilMemoSidebar({
   summarizeBody,
 }) {
   return (
-    <aside className="flex flex-col h-full bg-sidebar">
-      <div className="border-b border-sidebar-border px-4 pt-4 pb-3 bg-sidebar/50">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex flex-col shrink-0">
-            <h2 className="text-[9px] font-black uppercase tracking-[0.4em] text-primary/40 mb-1">Human-In-Loop</h2>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-[9px] font-bold text-muted-foreground/20 uppercase tracking-widest">
-                <span className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-muted-foreground/30" /> {summary.comment}</span>
-                <span className="flex items-center gap-1"><div className="w-1 h-1 rounded-full bg-muted-foreground/30" /> {summary.memo}</span>
-                <span className="flex items-center gap-1 text-primary/40"><div className="w-1 h-1 rounded-full bg-current" /> {summary.draft}</span>
-              </div>
+    <aside className="flex flex-col h-full bg-sidebar overflow-hidden select-none">
+      {/* Header Section */}
+      <div className="shrink-0 border-b border-sidebar-border px-4 py-3 bg-sidebar z-20">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex flex-col min-w-0">
+            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50 truncate">
+              HIL Repository
+            </h2>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="text-xs font-semibold text-foreground truncate">
+                {summary.comment + summary.memo + summary.draft} total items
+              </span>
+              <div className="h-1 w-1 rounded-full bg-primary/80" />
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Tooltip label="HIL captures comments, memos, and drafts for the active worktree." side="left">
-              <button
-                type="button"
-                className="shrink-0 p-1.5 rounded-full hover:bg-sidebar-accent text-muted-foreground/40 hover:text-foreground transition-all"
-                aria-label="HIL help"
-              >
-                <Info size={14} />
-              </button>
-            </Tooltip>
-            <button onClick={refresh} className="shrink-0 p-1.5 rounded-full hover:bg-sidebar-accent text-muted-foreground/40 hover:text-foreground transition-all">
-              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          <Tooltip label="Refresh repository">
+            <button 
+              onClick={refresh} 
+              className="shrink-0 p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground/40 hover:text-foreground transition-all"
+            >
+              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
             </button>
-          </div>
+          </Tooltip>
         </div>
 
-        <div className="mt-4 relative group">
-          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/30 group-focus-within:text-primary transition-all" />
+        <div className="relative group">
+          <Search size={12} strokeWidth={2} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
           <input 
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="FILTER OBJECTS..."
-            className="w-full h-8 rounded-full border border-sidebar-border/40 bg-sidebar-accent/20 pl-8 pr-3 text-[11px] text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 focus:bg-sidebar/60 transition-all tracking-wider"
+            placeholder="Search repository..."
+            className="w-full rounded-full border border-border/40 bg-muted/10 px-8 py-1.5 text-[11px] text-foreground transition-all placeholder:text-muted-foreground/30 focus:bg-background focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
           />
+          {searchQuery && (
+            <button 
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-foreground" 
+              onClick={() => onSearchChange('')}
+            >
+              <X size={12} strokeWidth={1.5} />
+            </button>
+          )}
         </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <div className="mt-3 flex items-center gap-1.5 overflow-visible">
           <FilterChip 
-            label="Type" 
+            label="Kind" 
             value={filters.kind} 
             options={kindOptions} 
             onChange={(v) => onFiltersChange({ ...filters, kind: v })} 
@@ -81,161 +87,182 @@ export function HilMemoSidebar({
             value={filters.status} 
             options={statusOptions} 
             onChange={(v) => onFiltersChange({ ...filters, status: v })} 
+            align="right"
           />
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-4 py-2 bg-sidebar/30 border-b border-sidebar-border/50">
-        <div className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
-          Inbox
-        </div>
-        <span className="text-[9px] font-mono text-muted-foreground/40">{pendingInboxCount}</span>
-      </div>
-      
-      <div className="flex flex-col py-1">
-        {inboxSections.map((section) => {
-          const Icon = section.icon;
-          const active = dockSelection.type === 'inbox' && dockSelection.inboxType === section.id;
-          return (
-            <button
-              key={section.id}
-              type="button"
-              onClick={() => onDockSelectionChange({ type: 'inbox', inboxType: section.id, draftId: null })}
-              className={`flex w-full items-center justify-between px-4 py-2 text-left text-[11px] transition-all border-l-2 ${
-                active
-                  ? 'bg-sidebar-accent text-primary border-primary'
-                  : 'text-muted-foreground/60 hover:text-foreground border-transparent hover:bg-sidebar-accent/50'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <Icon size={14} className={active ? 'text-primary' : 'text-muted-foreground/40'} />
-                <span className={active ? 'font-bold' : 'font-medium'}>{section.label}</span>
-              </span>
-              <span className="text-[10px] font-mono opacity-40">
-                {inboxCounts[section.id] || 0}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-2 flex items-center justify-between px-4 py-2 bg-sidebar/30 border-y border-sidebar-border/50">
-        <div className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
-          Drafts
-        </div>
-        <span className="text-[9px] font-mono text-muted-foreground/40">{draftCount}</span>
-      </div>
-      
-      <div className="flex-1 overflow-y-auto py-1">
-        {draftItems.length ? (
-          draftItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onDockSelectionChange({ type: 'draft', draftId: item.id })}
-              className={`flex w-full flex-col gap-1 px-4 py-2 text-left transition-all border-l-2 ${
-                dockSelection.type === 'draft' && dockSelection.draftId === item.id
-                  ? 'bg-sidebar-accent text-primary border-primary'
-                  : 'text-muted-foreground/60 hover:text-foreground border-transparent hover:bg-sidebar-accent/50'
-              }`}
-            >
-              <span className={`text-[11px] truncate ${dockSelection.type === 'draft' && dockSelection.draftId === item.id ? 'font-bold' : 'font-medium'}`}>
-                {summarizeBody(item)}
-              </span>
-              <div className="flex items-center justify-between">
-                <span className="text-[8px] uppercase tracking-[0.2em] opacity-40">
-                    {item.status}
-                </span>
-                <Layers size={10} className="opacity-20" />
-              </div>
-            </button>
-          ))
-        ) : (
-          <div className="px-4 py-8 text-center">
-            <div className="text-[10px] text-muted-foreground/30 italic">
-              No drafts yet.
-            </div>
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        {/* Inbox Section */}
+        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-1.5 bg-sidebar/95 border-b border-sidebar-border/40 backdrop-blur-md">
+          <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+            Inbox
           </div>
-        )}
+          <span className="text-[9px] font-mono text-muted-foreground/30 bg-sidebar-accent/30 px-1.5 rounded-sm">
+            {pendingInboxCount}
+          </span>
+        </div>
+        
+        <div className="flex flex-col py-1 pb-3">
+          {inboxSections.map((section) => {
+            const Icon = section.icon;
+            const active = dockSelection.type === 'inbox' && dockSelection.inboxType === section.id;
+            return (
+              <button
+                key={section.id}
+                type="button"
+                onClick={() => onDockSelectionChange({ type: 'inbox', inboxType: section.id, draftId: null })}
+                className={`flex w-full items-center justify-between px-4 py-1.5 text-left text-[11px] transition-all border-l-2 ${
+                  active
+                    ? 'bg-sidebar-accent text-primary border-primary font-medium shadow-[inset_0_0_10px_rgba(59,130,246,0.02)]'
+                    : 'text-muted-foreground/70 hover:text-foreground border-transparent hover:bg-sidebar-accent/30'
+                }`}
+              >
+                <span className="flex items-center gap-2.5 truncate">
+                  <Icon size={12} className={active ? 'text-primary' : 'text-muted-foreground/40'} />
+                  <span className="truncate">{section.label}</span>
+                </span>
+                <span className="text-[9px] font-mono opacity-30 shrink-0">
+                  {inboxCounts[section.id] || 0}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Drafts Section */}
+        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-1.5 bg-sidebar/95 border-y border-sidebar-border/40 backdrop-blur-md">
+          <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+            Drafts
+          </div>
+          <span className="text-[9px] font-mono text-muted-foreground/30 bg-sidebar-accent/30 px-1.5 rounded-sm">
+            {draftCount}
+          </span>
+        </div>
+        
+        <div className="flex flex-col py-1 pb-8">
+          {draftItems.length ? (
+            draftItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onDockSelectionChange({ type: 'draft', draftId: item.id })}
+                className={`flex w-full flex-col gap-0.5 px-4 py-2.5 text-left transition-all border-l-2 ${
+                  dockSelection.type === 'draft' && dockSelection.draftId === item.id
+                    ? 'bg-sidebar-accent text-primary border-primary shadow-[inset_0_0_10px_rgba(59,130,246,0.02)]'
+                    : 'text-muted-foreground/70 hover:text-foreground border-transparent hover:bg-sidebar-accent/30'
+                }`}
+              >
+                <span className={`text-[11px] truncate ${dockSelection.type === 'draft' && dockSelection.draftId === item.id ? 'font-medium' : ''}`}>
+                  {summarizeBody(item)}
+                </span>
+                <div className="flex items-center justify-between gap-2 mt-0.5">
+                  <span className="text-[9px] uppercase tracking-wider opacity-40 truncate font-medium">
+                      {item.status}
+                  </span>
+                  <Layers size={10} className="opacity-10 shrink-0" />
+                </div>
+              </button>
+            ))
+          ) : (
+            <div className="px-4 py-8 text-center">
+              <div className="text-[10px] text-muted-foreground/20 italic">
+                No active drafts
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </aside>
   );
 }
 
-function FilterChip({ label, value, options, onChange }) {
-  const [open, setOpen] = useState(false);
-  const buttonRef = useRef(null);
-  const menuRef = useRef(null);
-  const activeLabel = options.find((option) => option.value === value)?.label;
+function FilterChip({ label, value, options, onChange, align = 'left' }) {
+    const [open, setOpen] = useState(false);
+    const containerRef = useRef(null);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+    const activeLabel = options.find(o => o.value === value)?.label || value;
 
-  useEffect(() => {
-    if (!open) {
-      return undefined;
-    }
-    const handleClick = (event) => {
-      if (buttonRef.current?.contains(event.target)) {
-        return;
-      }
-      if (menuRef.current?.contains(event.target)) {
-        return;
-      }
-      setOpen(false);
-    };
-    const handleKey = (event) => {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
-    };
-    window.addEventListener('mousedown', handleClick);
-    window.addEventListener('keydown', handleKey);
-    return () => {
-      window.removeEventListener('mousedown', handleClick);
-      window.removeEventListener('keydown', handleKey);
-    };
-  }, [open]);
+    useEffect(() => {
+        if (!open) return;
+        
+        const updatePosition = () => {
+            if (containerRef.current) {
+                const rect = containerRef.current.getBoundingClientRect();
+                setDropdownPos({
+                    top: rect.bottom + 4,
+                    left: align === 'right' ? rect.right - 128 : rect.left,
+                    width: 128
+                });
+            }
+        };
 
-  return (
-    <div className="relative">
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-sidebar-accent/40 border border-sidebar-border/30 text-[9px] font-bold text-muted-foreground/60 hover:text-primary hover:border-primary/30 transition-all"
-        aria-expanded={open}
-      >
-        <span className="opacity-40">{label}:</span>
-        <span className="text-muted-foreground/80 tracking-tight">{activeLabel}</span>
-        <ChevronDown size={8} className={`opacity-30 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open ? (
-        <div
-          ref={menuRef}
-          className="absolute z-[70] mt-1 min-w-[140px] rounded-md border border-border/40 bg-popover p-1 text-[10px] shadow-xl"
-        >
-          {options.map((option) => {
-            const isActive = option.value === value;
-            return (
-              <button
-                key={option.value}
+        updatePosition();
+        window.addEventListener('resize', updatePosition);
+        window.addEventListener('scroll', updatePosition, true);
+
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        
+        return () => {
+            window.removeEventListener('resize', updatePosition);
+            window.removeEventListener('scroll', updatePosition, true);
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [open, align]);
+
+    return (
+        <div className="relative shrink-0" ref={containerRef}>
+            <button
                 type="button"
-                onClick={() => {
-                  onChange(option.value);
-                  setOpen(false);
-                }}
-                className={`w-full text-left px-2 py-1 rounded transition-colors ${
-                  isActive
-                    ? 'bg-primary/15 text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                onClick={() => setOpen(!open)}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-md border transition-all text-[10px] ${
+                    open 
+                    ? 'bg-background border-primary/40 text-foreground shadow-sm' 
+                    : 'bg-muted/10 border-border/40 text-muted-foreground/60 hover:border-border hover:text-foreground'
                 }`}
-              >
-                {option.label}
-              </button>
-            );
-          })}
+            >
+                <span className="opacity-40 font-bold uppercase tracking-tighter text-[8px]">{label}</span>
+                <span className="font-medium truncate max-w-[60px]">{activeLabel}</span>
+                <ChevronDown size={8} className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+            </button>
+
+            {open && createPortal(
+                <div 
+                    style={{ 
+                        position: 'fixed',
+                        top: dropdownPos.top,
+                        left: dropdownPos.left,
+                        width: dropdownPos.width,
+                        zIndex: 9999
+                    }}
+                    className={`bg-popover border border-border rounded-lg shadow-2xl py-1 overflow-hidden backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-100 ${align === 'right' ? 'origin-top-right' : 'origin-top-left'}`}
+                >
+                    {options.map((opt) => (
+                        <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                                onChange(opt.value);
+                                setOpen(false);
+                            }}
+                            className={`flex w-full items-center justify-between px-3 py-1.5 text-[11px] hover:bg-primary/10 transition-colors ${
+                                value === opt.value ? 'text-primary bg-primary/5 font-medium' : 'text-muted-foreground'
+                            }`}
+                        >
+                            <span>{opt.label}</span>
+                            {value === opt.value && <Check size={10} />}
+                        </button>
+                    ))}
+                </div>,
+                document.body
+            )}
         </div>
-      ) : null}
-    </div>
-  );
+    );
 }
 
 const kindOptions = [
