@@ -100,7 +100,9 @@ function ModalCard({ modal, onClose }) {
               </button>
             </div>
             {description ? (
-              <div className="text-[12px] leading-relaxed text-muted-foreground/80">{description}</div>
+              <div className="text-[12px] leading-relaxed text-muted-foreground/80 whitespace-pre-wrap max-h-[50vh] overflow-y-auto pr-1">
+                {description}
+              </div>
             ) : null}
           </div>
         </div>

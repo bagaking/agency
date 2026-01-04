@@ -336,6 +336,24 @@ export function HilMemoView({
                     item={item}
                     onUpdateStatus={updateStatus}
                     resolveBody={resolveBody}
+                    onOpenDetail={(detail) => {
+                      if (!modal?.openModal) {
+                        return;
+                      }
+                      const bodyText = resolveBody(detail) || 'No content.';
+                      const noteType = detail.kind === 'memo' ? detail.meta?.noteType : '';
+                      const titleParts = [detail.kind, noteType].filter(Boolean).map((value) => String(value).toUpperCase());
+                      const title = titleParts.length ? `${titleParts.join(' · ')} Detail` : 'Memo Detail';
+                      const sourceUrl = detail.meta?.source?.url || '';
+                      modal.openModal({
+                        title,
+                        description: sourceUrl ? `${sourceUrl}\n\n${bodyText}` : bodyText,
+                        variant: 'alert',
+                        tone: 'info',
+                        dismissLabel: 'Close',
+                        dismissOnOverlay: true,
+                      });
+                    }}
                   />
                   ))}
                 </div>
@@ -371,7 +389,7 @@ export function HilMemoView({
   );
 }
 
-function MemoRow({ item, index, onUpdateStatus, resolveBody }) {
+function MemoRow({ item, index, onUpdateStatus, resolveBody, onOpenDetail }) {
     const isResolved = item.status === 'resolved' || item.status === 'archived';
     const isProcessed = item.kind === 'comment' && item.meta?.processed === true;
     const isMemoProcessed = item.kind === 'memo' && item.meta?.processed === true;
@@ -381,37 +399,50 @@ function MemoRow({ item, index, onUpdateStatus, resolveBody }) {
     const noteLabel = noteType ? String(noteType).toUpperCase() : null;
     
     return (
-        <div className={`group flex items-start px-4 py-3 gap-6 transition-all duration-500 rounded-xl ${
-            isResolved ? 'opacity-40 grayscale' : 'hover:bg-muted/5'
-        }`}>
-            {/* Index & Status Dot */}
-            <div className="w-8 flex items-center gap-3 shrink-0">
-                <span className="text-[9px] font-mono text-muted-foreground/30 font-black">{String(index + 1).padStart(2, '0')}</span>
-                <div className={`h-1.5 w-1.5 rounded-full transition-all duration-700 ${item.status === 'open' ? 'bg-primary shadow-[0_0_10px_rgba(59,130,246,0.4)]' : 'bg-muted-foreground/30'}`} />
-            </div>
-
-            {/* Type Identifier */}
-            <div className="w-24 shrink-0 flex items-center gap-2">
-                <Icon size={13} strokeWidth={1.5} className={!isResolved ? 'text-primary/60' : 'text-muted-foreground/30'} />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">{item.kind}</span>
-                {noteLabel ? (
-                    <span className="rounded-full border border-border/20 px-1.5 py-0 text-[8px] font-bold uppercase tracking-widest text-muted-foreground/50">
-                        {noteLabel}
-                    </span>
-                ) : null}
-                {isProcessed || isMemoProcessed ? (
-                    <span className="rounded-full border border-emerald-500/30 px-1.5 py-0 text-[8px] font-bold uppercase tracking-widest text-emerald-400/70">
-                        Done
-                    </span>
-                ) : null}
-            </div>
-
-            {/* Content Summary */}
-            <div className="flex-1 min-w-0 flex items-start gap-4">
-                <div className="text-[13px] text-muted-foreground/80 leading-snug line-clamp-2 tracking-tight group-hover:text-foreground transition-colors duration-300 font-medium">
-                    {bodySummary}
+        <div
+            role="button"
+            tabIndex={0}
+            onClick={() => onOpenDetail?.(item)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onOpenDetail?.(item);
+              }
+            }}
+            className={`group flex flex-col gap-1 px-4 py-3 transition-all duration-500 rounded-xl focus:outline-none ${
+                isResolved ? 'opacity-40 grayscale' : 'hover:bg-muted/5'
+            }`}
+        >
+            <div className="flex items-start gap-4">
+                {/* Index & Status Dot */}
+                <div className="w-8 flex items-center gap-3 shrink-0 pt-0.5">
+                    <span className="text-[9px] font-mono text-muted-foreground/30 font-black">{String(index + 1).padStart(2, '0')}</span>
+                    <div className={`h-1.5 w-1.5 rounded-full transition-all duration-700 ${item.status === 'open' ? 'bg-primary shadow-[0_0_10px_rgba(59,130,246,0.4)]' : 'bg-muted-foreground/30'}`} />
                 </div>
-                
+
+                {/* Content Summary */}
+                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                    <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">
+                        <span className="inline-flex items-center gap-2">
+                          <Icon size={13} strokeWidth={1.5} className={!isResolved ? 'text-primary/60' : 'text-muted-foreground/30'} />
+                          {item.kind}
+                        </span>
+                        {noteLabel ? (
+                            <span className="rounded-full border border-border/20 px-1.5 py-0 text-[8px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                                {noteLabel}
+                            </span>
+                        ) : null}
+                        {isProcessed || isMemoProcessed ? (
+                            <span className="rounded-full border border-emerald-500/30 px-1.5 py-0 text-[8px] font-bold uppercase tracking-widest text-emerald-400/70">
+                                Done
+                            </span>
+                        ) : null}
+                    </div>
+                    <div className="text-[13px] text-muted-foreground/80 leading-snug line-clamp-2 tracking-tight group-hover:text-foreground transition-colors duration-300 font-medium">
+                        {bodySummary}
+                    </div>
+                </div>
+
                 {/* Inline Hover Actions: Zen Style */}
                 <div className="mt-0.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
                     {item.status === 'open' ? (
@@ -424,15 +455,17 @@ function MemoRow({ item, index, onUpdateStatus, resolveBody }) {
             </div>
 
             {/* Context & Temporal */}
-            <div className="w-64 shrink-0 flex items-start justify-end gap-6 pt-0.5">
-                {item.anchor?.file && (
-                    <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground/30 italic truncate max-w-[160px] group-hover:text-muted-foreground/50 transition-colors">
+            <div className="ml-12 flex items-center justify-between gap-3 text-[10px] text-muted-foreground/40">
+                {item.anchor?.file ? (
+                    <div className="flex items-center gap-2 font-mono italic truncate max-w-[220px] group-hover:text-muted-foreground/60 transition-colors">
                         <Target size={10} className="shrink-0" />
                         {item.anchor.file.split('/').pop()}
                         <span className="not-italic opacity-40">:{item.anchor.line}</span>
                     </div>
+                ) : (
+                    <span className="italic text-muted-foreground/30">Unlinked</span>
                 )}
-                <div className="text-[10px] font-mono text-muted-foreground/20 font-bold tabular-nums">
+                <div className="font-mono font-bold tabular-nums text-muted-foreground/30">
                     {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                 </div>
             </div>
