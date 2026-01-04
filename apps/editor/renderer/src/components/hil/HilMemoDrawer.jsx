@@ -141,9 +141,16 @@ function MemoShortcutCard({
           : 'border-border/10 bg-muted/5 hover:border-primary/30'
       }`}
     >
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => onSelect?.(id)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onSelect?.(id);
+          }
+        }}
         className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
       >
         <span className="flex items-center gap-3">
@@ -165,7 +172,7 @@ function MemoShortcutCard({
           ) : null}
           {actions}
         </span>
-      </button>
+      </div>
       <div
         className={`px-3 pb-3 overflow-hidden transition-all duration-300 ${
           expanded ? 'max-h-[520px] opacity-100' : 'max-h-0 opacity-0'
