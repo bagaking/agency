@@ -32,8 +32,6 @@ The `done` section SHALL name the file and checklist marker that must be updated
 - **WHEN** an Action Sheet is created for execution
 - **THEN** the `done` section includes the file path and checklist marker used to record completion
 
-## MODIFIED Requirements
-
 ### Requirement: Bulk Promote Pending Items
 The Promote flow SHALL dispatch a structured prompt to the selected Agent session when started.
 The editor SHALL focus the selected session and open the terminal/workbench so progress is visible.
