@@ -8,6 +8,7 @@ import { useQuickActions } from './hooks/useQuickActions.js';
 import { useGates } from './hooks/useGates.js';
 import { useWorktreeLinks } from './hooks/useWorktreeLinks.js';
 import { useSessions } from './hooks/useSessions.js';
+import { useActionSheets } from './hooks/useActionSheets.js';
 import { useWorkbench } from './hooks/useWorkbench.js';
 import {
   createCell as agencyCreateCell,
@@ -100,6 +101,8 @@ function App() {
   const [promoteGateStatus, setPromoteGateStatus] = useState('waiting');
   const [promoteExecutionStatus, setPromoteExecutionStatus] = useState('idle');
   const [promoteSessionId, setPromoteSessionId] = useState('');
+  const [actionSheetSessionId, setActionSheetSessionId] = useState('');
+  const [actionSheetInlineError, setActionSheetInlineError] = useState('');
   const projectReady = Boolean(projectRoot);
   const virtualCell = useMemo(() => {
     if (projectReady) {
@@ -395,12 +398,52 @@ function App() {
     onOpenTerminal: handleOpenTerminal,
     initialActiveSessions,
   });
+  const actionSheetsRoot = projectRoot || selectedCell?.worktreePath || '';
+  const {
+    sheets: actionSheets,
+    selectedId: actionSheetId,
+    selectedSheet: actionSheetDetail,
+    loading: actionSheetsLoading,
+    detailLoading: actionSheetDetailLoading,
+    error: actionSheetsError,
+    setSelectedId: setActionSheetId,
+    refreshList: refreshActionSheets,
+    createSheet: createActionSheet,
+    updateSheetStatus: updateActionSheetStatus,
+    updateSheetPlan: updateActionSheetPlan,
+    updateSheetPrompt: updateActionSheetPrompt,
+    updateSheetChecks: updateActionSheetChecks,
+    refreshChecks: refreshActionSheetChecks,
+    runSheet: runActionSheet,
+    cancelSheet: cancelActionSheet,
+    conditionalDefaults,
+  } = useActionSheets({
+    worktreePath: actionSheetsRoot,
+    selectedCellId: selectedCell?.id || '',
+    runActionCommand,
+    onOpenTerminal: handleOpenTerminal,
+    onSelectSession: selectSession,
+    onSwitchView: setActiveView,
+  });
   const workbench = useWorkbench({
     selectedCell: scopedCell,
     repoRoot: projectRoot,
     initialTabsByCellId: initialWorkbenchTabs,
     initialActiveTabByCellId: initialWorkbenchActiveTabs,
   });
+  useEffect(() => {
+    if (actionSheetSessionId || !activeSessionId) {
+      return;
+    }
+    setActionSheetSessionId(activeSessionId);
+  }, [actionSheetSessionId, activeSessionId]);
+  useEffect(() => {
+    const linked = actionSheetDetail?.status?.sessionId;
+    if (actionSheetSessionId || !linked) {
+      return;
+    }
+    setActionSheetSessionId(linked);
+  }, [actionSheetDetail?.status?.sessionId, actionSheetSessionId]);
   const activeTab = workbench.activeTab;
   const canComment = Boolean(activeTab && activeTab.kind === 'code');
   const commentRootPath = activeTab?.rootPath || '';
@@ -419,6 +462,64 @@ function App() {
     setHilDrawerPanel(panel);
     setHilDrawerOpen(true);
   }, []);
+  const availableActionSessions = useMemo(
+    () => sessions.filter((session) => session.status !== 'closed'),
+    [sessions]
+  );
+  const handleCreateActionSheet = useCallback(async () => {
+    if (!actionSheetsRoot) {
+      setActionSheetInlineError('Select a project before creating Action Sheets.');
+      return;
+    }
+    await createActionSheet({
+      title: 'Action Sheet',
+      prompt: { requirements: '', context: '', checks: '', done: '' },
+      checks: [],
+      conditional: conditionalDefaults,
+    });
+  }, [actionSheetsRoot, conditionalDefaults, createActionSheet]);
+  const handleSaveActionSheet = useCallback(
+    async (id, payload) => {
+      if (!id) {
+        return;
+      }
+      await updateActionSheetStatus(id, {
+        title: payload.title,
+        conditional: payload.conditional,
+      });
+      await updateActionSheetPlan(id, payload.plan);
+      await updateActionSheetPrompt(id, payload.prompt);
+      await updateActionSheetChecks(id, payload.checks);
+    },
+    [updateActionSheetChecks, updateActionSheetPlan, updateActionSheetPrompt, updateActionSheetStatus]
+  );
+  const handleRunActionSheet = useCallback(
+    async (id, sessionId) => {
+      if (!id) {
+        return;
+      }
+      if (!sessionId) {
+        setActionSheetInlineError('Select a session before running an Action Sheet.');
+        return;
+      }
+      setActionSheetInlineError('');
+      setActionSheetSessionId(sessionId);
+      await runActionSheet({ id, sessionId });
+    },
+    [runActionSheet]
+  );
+  const handleViewActionSheetSession = useCallback(
+    (sessionId) => {
+      if (!sessionId) {
+        return;
+      }
+      setActionSheetSessionId(sessionId);
+      setActiveView('agent-cells');
+      handleOpenTerminal();
+      selectSession(sessionId);
+    },
+    [handleOpenTerminal, selectSession]
+  );
   const bumpHilCommentRefresh = useCallback(() => {
     setHilCommentRefreshToken((value) => value + 1);
   }, []);
@@ -1363,6 +1464,9 @@ function App() {
       if (target === 'softlinks') {
         clearWorktreeLinksError();
       }
+      if (target === 'action-sheets') {
+        setActionSheetInlineError('');
+      }
     },
     [clearGatesError, clearQuickActionsError, clearWorktreeLinksError]
   );
@@ -1387,6 +1491,9 @@ function App() {
       setHierarchySection(section);
       if (section === 'softlinks') {
         clearWorktreeLinksError();
+      }
+      if (section === 'action-sheets') {
+        setActionSheetInlineError('');
       }
     },
     [clearWorktreeLinksError]
@@ -1485,6 +1592,29 @@ function App() {
         onSelectHilDrawerPanel={setHilDrawerPanel}
         onOpenHilPromote={openPromoteModal}
         hilCommentsProps={hilCommentsProps}
+        actionSheetsProps={{
+          projectReady,
+          projectError,
+          onSelectProject: handleSelectProjectRoot,
+          sheets: actionSheets,
+          selectedSheet: actionSheetDetail,
+          selectedId: actionSheetId,
+          onSelectSheet: setActionSheetId,
+          onCreateSheet: handleCreateActionSheet,
+          onSaveSheet: handleSaveActionSheet,
+          onUpdateChecks: updateActionSheetChecks,
+          onRefreshList: refreshActionSheets,
+          onRefreshChecks: refreshActionSheetChecks,
+          onRunSheet: handleRunActionSheet,
+          onCancelSheet: cancelActionSheet,
+          onViewSession: handleViewActionSheetSession,
+          sessions: availableActionSessions,
+          sessionId: actionSheetSessionId,
+          onSelectSession: setActionSheetSessionId,
+          loading: actionSheetsLoading,
+          detailLoading: actionSheetDetailLoading,
+          error: actionSheetInlineError || actionSheetsError,
+        }}
         explorerSidebarProps={{
           rootPath: explorerRootPath,
           rootLabel: explorerRootLabel,

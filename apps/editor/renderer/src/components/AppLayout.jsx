@@ -13,6 +13,7 @@ import { ProjectSettingsView } from './ProjectSettingsView.jsx';
 import { HilDrawer } from './hil/HilDrawer.jsx';
 import { HilCommentsPanel } from './hil/HilCommentsPanel.jsx';
 import { HilMemoView } from './hil/memo/HilMemoView.jsx';
+import { ActionSheetsView } from './actionSheets/ActionSheetsView.jsx';
 
 export function AppLayout({
   activeView,
@@ -103,6 +104,7 @@ export function AppLayout({
   onSelectHilDrawerPanel,
   onOpenHilPromote,
   hilCommentsProps,
+  actionSheetsProps,
 }) {
   const hilSubtitle = explorerPaneProps?.activeRootLabel || explorerSidebarProps?.rootLabel || '';
   const activeSidebar =
@@ -137,6 +139,7 @@ export function AppLayout({
         onSelectActionsScope={onSelectActionsScope}
         onSelectGateScope={onSelectGateScope}
         onSelectSoftlinks={() => onSelectHierarchySection('softlinks')}
+        onSelectActionSheets={() => onSelectHierarchySection('action-sheets')}
         canUseProjectScope={canUseProjectScope}
         canUseAgentScope={canUseAgentScope}
         actionSummary={actionSummary}
@@ -230,6 +233,12 @@ export function AppLayout({
                 onUpdateGate={onUpdateGate}
                 onSaveGates={onSaveGates}
               />
+            </div>
+          ) : null}
+
+          {activeView === 'hierarchy' && hierarchySection === 'action-sheets' ? (
+            <div className="absolute inset-0">
+              <ActionSheetsView {...actionSheetsProps} />
             </div>
           ) : null}
 
