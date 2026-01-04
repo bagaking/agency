@@ -424,6 +424,7 @@ function App() {
     initialActiveSessions,
   });
   const actionSheetsRoot = projectRoot || selectedCell?.worktreePath || '';
+  const hilWorktreePath = selectedCell?.worktreePath || projectRoot || '';
   const {
     sheets: actionSheets,
     selectedId: actionSheetId,
@@ -602,6 +603,56 @@ function App() {
     },
     [dispatchActionSheet]
   );
+  const handleRunDraftInActiveSession = useCallback(
+    async (draft) => {
+      if (!draft?.id) {
+        return;
+      }
+      if (!activeSessionId) {
+        setActionSheetInlineError('Select a session before running a draft.');
+        return;
+      }
+      if (!hilWorktreePath) {
+        setActionSheetInlineError('Select a project before running a draft.');
+        return;
+      }
+      try {
+        let actionSheetId = draft.meta?.actionSheetId || '';
+        if (!actionSheetId) {
+          const created = await handleCreateDraftActionSheet(draft);
+          actionSheetId = created?.id || '';
+          if (!actionSheetId) {
+            throw new Error('Unable to create Action Sheet.');
+          }
+          const updated = await agencyUpdateHilItem({
+            worktreePath: hilWorktreePath,
+            itemId: draft.id,
+            patch: {
+              meta: {
+                ...(draft.meta || {}),
+                actionSheetId,
+              },
+            },
+          });
+          if (!updated) {
+            throw new Error('HIL IPC unavailable.');
+          }
+          await hilMemo.refresh?.();
+        }
+        setActionSheetInlineError('');
+        await handleDispatchActionSheet(actionSheetId, activeSessionId);
+      } catch (error) {
+        setActionSheetInlineError(error?.message || 'Failed to dispatch draft Action Sheet.');
+      }
+    },
+    [
+      activeSessionId,
+      handleCreateDraftActionSheet,
+      handleDispatchActionSheet,
+      hilMemo.refresh,
+      hilWorktreePath,
+    ]
+  );
   const handleDispatchExplorerFeed = useCallback(
     async ({ description, context, sessionId }) => {
       if (!actionSheetsRoot) {
@@ -671,6 +722,16 @@ function App() {
     },
     [handleOpenTerminal, selectSession]
   );
+  const hilDraftsProps = {
+    drafts: hilMemo.draftItems,
+    summarizeBody: hilMemo.summarizeBody,
+    onOpenDraft: handleOpenMemoDraft,
+    onViewSession: handleViewActionSheetSession,
+    onRunDraft: handleRunDraftInActiveSession,
+    actionSheets,
+    sessions,
+    activeSessionId,
+  };
   const handleArchiveActionSheet = useCallback(
     async (id) => {
       if (!id) {
@@ -1788,11 +1849,6 @@ function App() {
     onCaptureScreenshot: memoCapture.handleCaptureScreenshot,
     onOpenRouting: memoCapture.handleOpenRouting,
     captureLoading: memoCapture.captureLoading,
-  };
-  const hilDraftsProps = {
-    drafts: hilMemo.draftItems,
-    summarizeBody: hilMemo.summarizeBody,
-    onOpenDraft: handleOpenMemoDraft,
   };
   const handleOpenExplorerForCell = useCallback(
     (cellId) => {

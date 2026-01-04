@@ -6,6 +6,7 @@ The right-side HIL drawer currently shows the same content across views, which d
 ## What Changes
 - Make the HIL drawer panel defaults view-specific (Agent Cells -> Drafts; Action Sheets/Explorer -> Comments) while preserving per-view user selection and keeping forced opens (comments/promote) from overwriting the preference.
 - Add a Drafts panel to the drawer with lightweight draft listings and memo navigation.
+- Extend the Drafts panel to surface linked Action Sheet session status, jump to running sessions, and offer a one-click run-in-active-session action that auto-creates a draft Action Sheet when missing.
 - In Memo view, replace the Comments/Drafts tabs with Inbox shortcut actions (Flash, Screenshot) and an Open Inbox entry that navigates the main pane.
 - Keep the Memo main Inbox inputs intact; drawer shortcuts are supplemental only.
 - When Promote is opened from Agent Cells, default the selected session to the active session; other views fall back to last selection or first available session.
