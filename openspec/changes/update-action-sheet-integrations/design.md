@@ -17,7 +17,7 @@ Explorer and Promote currently dispatch prompts directly to sessions. Action She
   - requirements = user description
   - context = selection tree
   - checks = empty by default (user can edit later)
-  - done = instruction to update check status
+  - done = explicit instruction that names the file and checklist marker to update
 - Promote will create an Action Sheet and store `actionSheetId` in draft meta.
 - Promote gate completion will mark the Action Sheet checks/status as passed/completed.
 

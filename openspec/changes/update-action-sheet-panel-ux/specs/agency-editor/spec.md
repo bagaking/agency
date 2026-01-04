@@ -16,9 +16,14 @@ The Action Sheets view SHALL use the standard left/right layout with a list pane
 - **AND** the right panel shows details for the selected Action Sheet
 
 ### Requirement: Action Sheet Panel Embedding
-The Action Sheet panel SHALL be embeddable in other flows to display status and session jump controls.
+The Action Sheet panel SHALL be embeddable in other flows to display status, retry, and session jump controls.
 
 #### Scenario: Show Action Sheet status in Promote
 - **WHEN** the Promote modal is open with a linked Action Sheet
 - **THEN** a compact Action Sheet status panel is shown
 - **AND** users can jump to the linked session terminal
+
+#### Scenario: Show Action Sheet status in Draft detail
+- **WHEN** a draft detail view is open with a linked Action Sheet
+- **THEN** a compact Action Sheet status panel is shown
+- **AND** users can retry the Action Sheet or jump to the linked session terminal
