@@ -20,9 +20,12 @@ import {
 import { ProjectEmptyState } from '../../ProjectEmptyState.jsx';
 import { useHilItems } from '../../../hooks/useHilItems.js';
 import { InboxSection } from './InboxSection.jsx';
+import { CaptureRoutingSheet } from '../../capture/CaptureRoutingSheet.jsx';
 import {
   createHilItem as agencyCreateHilItem,
-  materializeClipboard as agencyMaterializeClipboard,
+  startScreenshotCapture as agencyStartScreenshotCapture,
+  saveCaptureAsset as agencySaveCaptureAsset,
+  copyCaptureToClipboard as agencyCopyCaptureToClipboard,
   getWorkbenchFileUrl as agencyGetWorkbenchFileUrl,
 } from '../../../services/agencyBridge.js';
 
@@ -34,29 +37,6 @@ const kindIcons = {
 
 const resolveBody = (item) =>
   typeof item?.body === 'string' ? item.body : typeof item?.message === 'string' ? item.message : '';
-
-const normalizeWorktreeName = (worktreePath) =>
-  worktreePath?.split('/').filter(Boolean).pop() || 'worktree';
-
-const isImagePath = (value) => {
-  const ext = (value || '').split('.').pop()?.toLowerCase();
-  return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'avif'].includes(ext || '');
-};
-
-const buildAssetMime = (value) => {
-  const ext = (value || '').split('.').pop()?.toLowerCase();
-  if (!ext) {
-    return 'application/octet-stream';
-  }
-  if (ext === 'svg') return 'image/svg+xml';
-  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
-  if (ext === 'png') return 'image/png';
-  if (ext === 'gif') return 'image/gif';
-  if (ext === 'webp') return 'image/webp';
-  if (ext === 'bmp') return 'image/bmp';
-  if (ext === 'avif') return 'image/avif';
-  return `image/${ext}`;
-};
 
 const summarizeBody = (item) => {
   const raw = resolveBody(item).trim();
@@ -70,7 +50,16 @@ const summarizeBody = (item) => {
   return firstLine;
 };
 
-export function HilMemoView({ worktreePath, projectReady, projectError, onSelectProject, selection }) {
+export function HilMemoView({
+  worktreePath,
+  projectReady,
+  projectError,
+  onSelectProject,
+  selection,
+  cells = [],
+  selectedCellId,
+  projectRoot,
+}) {
   const { items, filters, setFilters, loading, error, refresh } = useHilItems({
     worktreePath,
     fetchAll: true,
@@ -87,6 +76,11 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
   const [captureError, setCaptureError] = useState('');
   const [captureLoading, setCaptureLoading] = useState(false);
   const [screenshotAsset, setScreenshotAsset] = useState(null);
+  const [captureResult, setCaptureResult] = useState(null);
+  const [routingOpen, setRoutingOpen] = useState(false);
+  const [routingMode, setRoutingMode] = useState('hil');
+  const [routingTargetId, setRoutingTargetId] = useState('');
+  const [routingError, setRoutingError] = useState('');
 
   const draftItems = useMemo(
     () => items.filter((item) => item.kind === 'draft'),
@@ -180,6 +174,44 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
     return counts;
   }, [items]);
 
+  const routingTargets = useMemo(() => {
+    const list = [];
+    const seen = new Set();
+    if (projectRoot) {
+      list.push({
+        id: 'project-root',
+        label: 'Project Root',
+        worktreePath: projectRoot,
+      });
+      seen.add(projectRoot);
+    }
+    (cells || [])
+      .filter((cell) => cell?.worktreePath)
+      .forEach((cell) => {
+        if (seen.has(cell.worktreePath)) {
+          return;
+        }
+        seen.add(cell.worktreePath);
+        list.push({
+          id: cell.id,
+          label: cell.name || cell.id,
+          worktreePath: cell.worktreePath,
+        });
+      });
+    return list;
+  }, [cells, projectRoot]);
+
+  const resolveDefaultRoutingTarget = useCallback(() => {
+    const selectedCell = cells.find((cell) => cell.id === selectedCellId && cell.worktreePath);
+    if (selectedCell?.id) {
+      return selectedCell.id;
+    }
+    if (projectRoot) {
+      return 'project-root';
+    }
+    return routingTargets[0]?.id || '';
+  }, [cells, projectRoot, routingTargets, selectedCellId]);
+
   const updateStatus = useCallback(async (item, status) => {
     if (!window.agency?.updateHilItem || !item?.id || !worktreePath) return;
     await window.agency.updateHilItem({ worktreePath, itemId: item.id, patch: { status } });
@@ -198,11 +230,25 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
     setCaptureError('');
   }, [activeInboxSection?.id]);
 
+  useEffect(() => {
+    if (routingOpen && !routingTargetId) {
+      const nextTarget = resolveDefaultRoutingTarget();
+      if (nextTarget) {
+        setRoutingTargetId(nextTarget);
+      }
+    }
+  }, [resolveDefaultRoutingTarget, routingOpen, routingTargetId]);
+
   const resetCaptureState = useCallback(() => {
     setFlashText('');
     setExcerptNote('');
     setScreenshotNote('');
     setScreenshotAsset(null);
+    setCaptureResult(null);
+    setRoutingOpen(false);
+    setRoutingMode('hil');
+    setRoutingTargetId('');
+    setRoutingError('');
     setCaptureError('');
     setCaptureLoading(false);
   }, []);
@@ -280,76 +326,104 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
     setCaptureLoading(true);
     setCaptureError('');
     try {
-      const worktreeName = normalizeWorktreeName(worktreePath);
-      const targetDir = `.agency/hil/assets/${worktreeName}`;
-      const result = await agencyMaterializeClipboard({
-        rootPath: worktreePath,
-        targetDir,
-        includeText: false,
-        relativeTo: worktreePath,
-      });
-      const paths = Array.isArray(result?.paths) ? result.paths : [];
-      const imagePath =
-        result?.type === 'image'
-          ? paths[0]
-          : result?.type === 'files'
-            ? paths.find((path) => isImagePath(path))
-            : null;
-      if (!imagePath) {
-        setCaptureError('Clipboard does not contain an image.');
+      const result = await agencyStartScreenshotCapture({ includeAgencyWindows: false });
+      if (!result?.dataUrl) {
+        setCaptureError('Capture failed.');
         return;
       }
-      const urlResult = await agencyGetWorkbenchFileUrl({
-        rootPath: worktreePath,
-        targetPath: imagePath,
-      });
-      const url = urlResult?.url || '';
-      const preview = {
-        path: imagePath,
-        url,
-        width: null,
-        height: null,
-        mime: buildAssetMime(imagePath),
-      };
-      if (url) {
-        await new Promise((resolve) => {
-          const img = new Image();
-          img.onload = () => {
-            preview.width = img.naturalWidth || img.width || null;
-            preview.height = img.naturalHeight || img.height || null;
-            resolve();
-          };
-          img.onerror = () => resolve();
-          img.src = url;
-        });
+      setCaptureResult(result);
+      setRoutingMode('hil');
+      if (!routingTargetId) {
+        const nextTarget = resolveDefaultRoutingTarget();
+        if (nextTarget) {
+          setRoutingTargetId(nextTarget);
+        }
       }
-      setScreenshotAsset(preview);
+      setRoutingError('');
+      setRoutingOpen(true);
     } catch (captureError) {
       setCaptureError(captureError?.message || 'Failed to capture screenshot.');
     } finally {
       setCaptureLoading(false);
     }
-  }, [worktreePath]);
+  }, [cells, routingTargetId, selectedCellId, worktreePath]);
 
-  const handleCreateScreenshot = useCallback(async () => {
-    if (!screenshotAsset?.path) {
-      setCaptureError('Capture a screenshot before saving.');
+  const handleConfirmRouting = useCallback(async () => {
+    if (!captureResult?.dataUrl) {
+      setRoutingError('Capture payload missing.');
       return;
     }
-    const filename = screenshotAsset.path.split('/').pop() || 'screenshot';
-    await handleCreateMemo({
-      body: screenshotNote.trim() || `Screenshot ${filename}`,
-      meta: {
-        noteType: 'screenshot',
-        asset: {
-          path: screenshotAsset.path,
-          mime: screenshotAsset.mime,
-          width: screenshotAsset.width,
-          height: screenshotAsset.height,
-        },
-      },
-    });
-  }, [handleCreateMemo, screenshotAsset, screenshotNote]);
+    const target = cells.find((cell) => cell.id === routingTargetId) || null;
+    const targetWorktree = target?.worktreePath || projectRoot || worktreePath;
+    const saveToHil = routingMode === 'hil' || routingMode === 'both';
+    const saveToClipboard = routingMode === 'clipboard' || routingMode === 'both';
+    if (saveToHil && !targetWorktree) {
+      setRoutingError('Select a target worktree.');
+      return;
+    }
+    setCaptureLoading(true);
+    setRoutingError('');
+    try {
+      if (saveToClipboard) {
+        await agencyCopyCaptureToClipboard({ dataUrl: captureResult.dataUrl });
+      }
+      let assetMeta = null;
+      if (saveToHil) {
+        assetMeta = await agencySaveCaptureAsset({
+          worktreePath: targetWorktree,
+          dataUrl: captureResult.dataUrl,
+        });
+        if (!assetMeta?.path) {
+          throw new Error('Failed to save screenshot asset.');
+        }
+        const filename = assetMeta.path.split('/').pop() || 'screenshot';
+        await agencyCreateHilItem({
+          worktreePath: targetWorktree,
+          kind: 'memo',
+          body: screenshotNote.trim() || `Screenshot ${filename}`,
+          meta: {
+            noteType: 'screenshot',
+            asset: assetMeta,
+          },
+        });
+        if (targetWorktree === worktreePath) {
+          const urlResult = await agencyGetWorkbenchFileUrl({
+            rootPath: targetWorktree,
+            targetPath: assetMeta.path,
+          });
+          setScreenshotAsset({
+            ...assetMeta,
+            url: urlResult?.url || '',
+          });
+          refresh();
+        }
+      }
+      setCaptureResult(null);
+      setRoutingOpen(false);
+      setScreenshotNote('');
+      setRoutingMode('hil');
+      setRoutingTargetId('');
+    } catch (error) {
+      setRoutingError(error?.message || 'Failed to route capture.');
+    } finally {
+      setCaptureLoading(false);
+    }
+  }, [
+    captureResult,
+    cells,
+    projectRoot,
+    refresh,
+    routingMode,
+    routingTargetId,
+    screenshotNote,
+    worktreePath,
+  ]);
+
+  const handleCancelRouting = useCallback(() => {
+    setRoutingOpen(false);
+    setCaptureResult(null);
+    setRoutingError('');
+  }, []);
 
   if (!projectReady) {
     return (
@@ -499,10 +573,15 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
                   onExcerptNoteChange={setExcerptNote}
                   onSaveExcerpt={handleCreateExcerpt}
                   screenshotAsset={screenshotAsset}
+                  pendingCapture={captureResult}
                   screenshotNote={screenshotNote}
                   onScreenshotNoteChange={setScreenshotNote}
                   onCaptureScreenshot={handleCaptureScreenshot}
-                  onSaveScreenshot={handleCreateScreenshot}
+                  onOpenRouting={() => {
+                    if (captureResult) {
+                      setRoutingOpen(true);
+                    }
+                  }}
                   captureLoading={captureLoading}
                   captureError={captureError}
                 />
@@ -538,6 +617,20 @@ export function HilMemoView({ worktreePath, projectReady, projectError, onSelect
           </div>
         </div>
       </div>
+      <CaptureRoutingSheet
+        open={routingOpen}
+        previewUrl={captureResult?.dataUrl || ''}
+        note={screenshotNote}
+        onNoteChange={setScreenshotNote}
+        targets={routingTargets}
+        selectedTargetId={routingTargetId}
+        onSelectTarget={setRoutingTargetId}
+        mode={routingMode}
+        onModeChange={setRoutingMode}
+        onConfirm={handleConfirmRouting}
+        onCancel={handleCancelRouting}
+        error={routingError}
+      />
     </section>
   );
 }

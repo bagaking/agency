@@ -16,10 +16,11 @@ export function InboxSection({
   onExcerptNoteChange,
   onSaveExcerpt,
   screenshotAsset,
+  pendingCapture,
   screenshotNote,
   onScreenshotNoteChange,
   onCaptureScreenshot,
-  onSaveScreenshot,
+  onOpenRouting,
   captureLoading,
   captureError,
 }) {
@@ -71,10 +72,11 @@ export function InboxSection({
         {activeSection?.id === 'screenshot' ? (
           <ScreenshotCaptureCard
             asset={screenshotAsset}
+            pending={pendingCapture}
             note={screenshotNote}
             onNoteChange={onScreenshotNoteChange}
             onCapture={onCaptureScreenshot}
-            onSave={onSaveScreenshot}
+            onOpenRouting={onOpenRouting}
             loading={captureLoading}
           />
         ) : null}

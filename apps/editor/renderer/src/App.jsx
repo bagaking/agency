@@ -1526,6 +1526,9 @@ function App() {
           projectError,
           onSelectProject: handleSelectProjectRoot,
           selection: memoSelection,
+          cells: projectReady ? cells : [],
+          selectedCellId: selectedCell?.id || '',
+          projectRoot,
         }}
       />
 
