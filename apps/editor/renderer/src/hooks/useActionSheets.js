@@ -269,6 +269,7 @@ export function useActionSheets({
               label: `${sheet?.status?.title || 'Action Sheet'} (follow-up)`,
               sessionId: sheet?.status?.sessionId,
               appendEnter: true,
+              doubleEnter: true,
             });
             await updateSheetStatus(id, {
               followupDispatchedAt: new Date().toISOString(),
@@ -335,6 +336,7 @@ export function useActionSheets({
           label: sheet.status?.title || 'Action Sheet',
           sessionId,
           appendEnter: true,
+          doubleEnter: true,
         });
         await updateSheetStatus(id, { state: 'waiting_gate', lastError: '' });
         scheduleMonitor(id);

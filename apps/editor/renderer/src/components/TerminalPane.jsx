@@ -42,6 +42,7 @@ function TerminalPane({
   const sendCommand = (payload) => {
     const command = typeof payload === 'string' ? payload : payload?.command;
     const appendEnter = typeof payload === 'string' ? true : payload?.appendEnter !== false;
+    const doubleEnter = typeof payload === 'string' ? false : payload?.doubleEnter === true;
     if (!command || !cellId) {
       return;
     }
@@ -53,8 +54,11 @@ function TerminalPane({
     if (appendEnter) {
       window.agency?.writeTerminal({ cellId, sessionId, data: '\r' });
     }
+    if (doubleEnter) {
+      window.agency?.writeTerminal({ cellId, sessionId, data: '\r' });
+    }
     if (onCommandSent) {
-      onCommandSent({ cellId, command, appendEnter });
+      onCommandSent({ cellId, command, appendEnter, doubleEnter });
     }
     if (onActivity) {
       onActivity({ cellId, sessionId });
@@ -482,7 +486,9 @@ function TerminalPane({
     if (pendingCommand.sessionId && pendingCommand.sessionId !== sessionId) {
       return;
     }
-    const commandKey = `${pendingCommand.command ?? ''}::${pendingCommand.appendEnter !== false ? '1' : '0'}`;
+    const commandKey = `${pendingCommand.command ?? ''}::${pendingCommand.appendEnter !== false ? '1' : '0'}::${
+      pendingCommand.doubleEnter ? '1' : '0'
+    }`;
     if (commandKey === lastQueuedRef.current) {
       return;
     }
@@ -493,6 +499,7 @@ function TerminalPane({
       commandQueueRef.current.push({
         command: pendingCommand.command,
         appendEnter: pendingCommand.appendEnter,
+        doubleEnter: pendingCommand.doubleEnter,
       });
     }
   }, [pendingCommand, sessionReady, cellId, sessionId, isActive]);
