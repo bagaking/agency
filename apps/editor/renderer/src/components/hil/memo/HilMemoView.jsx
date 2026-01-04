@@ -5,20 +5,14 @@ import {
   Archive, 
   Hash, 
   Target, 
-  Search,
-  Clock,
   Terminal,
   StickyNote,
   Layers,
   FileText,
   Activity,
-  ChevronDown,
-  Camera,
-  Quote,
-  Inbox
+  Clock,
 } from 'lucide-react';
 import { ProjectEmptyState } from '../../ProjectEmptyState.jsx';
-import { useHilItems } from '../../../hooks/useHilItems.js';
 import { InboxSection } from './InboxSection.jsx';
 import { CaptureRoutingSheet } from '../../capture/CaptureRoutingSheet.jsx';
 import { ActionSheetStatusPanel } from '../../actionSheets/ActionSheetStatusPanel.jsx';
@@ -34,21 +28,6 @@ const kindIcons = {
     comment: Terminal,
     memo: StickyNote,
     draft: Layers
-};
-
-const resolveBody = (item) =>
-  typeof item?.body === 'string' ? item.body : typeof item?.message === 'string' ? item.message : '';
-
-const summarizeBody = (item) => {
-  const raw = resolveBody(item).trim();
-  if (!raw) {
-    return 'Untitled Draft';
-  }
-  const firstLine = raw.split('\n')[0];
-  if (firstLine.length > 46) {
-    return `${firstLine.slice(0, 46)}…`;
-  }
-  return firstLine;
 };
 
 const isDraftComplete = (draft) => {
@@ -83,17 +62,21 @@ export function HilMemoView({
   onRunActionSheet,
   onCancelActionSheet,
   onOpenActionSheets,
+  // Props from useHilMemoState
+  items,
+  loading,
+  error,
+  refresh,
+  searchQuery,
+  dockSelection,
+  setDockSelection,
+  draftItems,
+  selectedDraft,
+  activeInboxSection,
+  visibleInboxItems,
+  summarizeBody,
+  resolveBody,
 }) {
-  const { items, filters, setFilters, loading, error, refresh } = useHilItems({
-    worktreePath,
-    fetchAll: true,
-  });
-  const [searchQuery, setSearchQuery] = useState('');
-  const [dockSelection, setDockSelection] = useState({
-    type: 'inbox',
-    inboxType: 'comments',
-    draftId: null,
-  });
   const [flashText, setFlashText] = useState('');
   const [excerptNote, setExcerptNote] = useState('');
   const [screenshotNote, setScreenshotNote] = useState('');
@@ -105,98 +88,6 @@ export function HilMemoView({
   const [routingMode, setRoutingMode] = useState('hil');
   const [routingTargetId, setRoutingTargetId] = useState('');
   const [routingError, setRoutingError] = useState('');
-
-  const draftItems = useMemo(
-    () => items.filter((item) => item.kind === 'draft'),
-    [items]
-  );
-  const inboxItems = useMemo(
-    () =>
-      items.filter(
-        (item) =>
-          (item.kind === 'comment' || item.kind === 'memo') && item.meta?.processed !== true
-      ),
-    [items]
-  );
-  const selectedDraft = useMemo(
-    () => draftItems.find((item) => item.id === dockSelection.draftId) || null,
-    [dockSelection.draftId, draftItems]
-  );
-  const pendingInboxCount = inboxItems.length;
-  const draftCount = draftItems.length;
-
-  useEffect(() => {
-    if (dockSelection.type === 'draft' && !selectedDraft) {
-      setDockSelection({ type: 'inbox', inboxType: 'comments', draftId: null });
-    }
-  }, [dockSelection.type, selectedDraft]);
-
-  const filteredItems = useMemo(() => {
-    let result = items;
-    if (filters.kind !== 'all') {
-      result = result.filter((item) => item.kind === filters.kind);
-    }
-    if (filters.status !== 'all') {
-      result = result.filter((item) => item.status === filters.status);
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (item) =>
-          (item.body || item.message || '').toLowerCase().includes(q) ||
-          (item.anchor?.file || '').toLowerCase().includes(q)
-      );
-    }
-    return result;
-  }, [items, searchQuery, filters.kind, filters.status]);
-
-  const inboxSections = useMemo(
-    () => [
-      { id: 'comments', label: 'Comments', kind: 'comment', noteType: null, icon: Terminal },
-      { id: 'flash', label: 'Flash', kind: 'memo', noteType: 'flash', icon: StickyNote },
-      { id: 'excerpt', label: 'Excerpt', kind: 'memo', noteType: 'excerpt', icon: Quote },
-      { id: 'screenshot', label: 'Screenshot', kind: 'memo', noteType: 'screenshot', icon: Camera },
-    ],
-    []
-  );
-  const activeInboxSection =
-    inboxSections.find((section) => section.id === dockSelection.inboxType) || inboxSections[0];
-  const inboxCounts = useMemo(() => {
-    const counts = {};
-    inboxSections.forEach((section) => {
-      counts[section.id] = inboxItems.filter((item) => {
-        if (item.kind !== section.kind) return false;
-        if (section.noteType && item.meta?.noteType !== section.noteType) return false;
-        return true;
-      }).length;
-    });
-    return counts;
-  }, [inboxItems, inboxSections]);
-  const visibleInboxItems = useMemo(() => {
-    if (!activeInboxSection) {
-      return [];
-    }
-    return filteredItems.filter((item) => {
-      if (item.meta?.processed === true) {
-        return false;
-      }
-      if (item.kind !== activeInboxSection.kind) {
-        return false;
-      }
-      if (activeInboxSection.noteType && item.meta?.noteType !== activeInboxSection.noteType) {
-        return false;
-      }
-      return true;
-    });
-  }, [activeInboxSection, filteredItems]);
-
-  const summary = useMemo(() => {
-    const counts = { comment: 0, memo: 0, draft: 0 };
-    items.forEach((item) => {
-      if (counts[item.kind] !== undefined) counts[item.kind] += 1;
-    });
-    return counts;
-  }, [items]);
 
   const sessionsById = useMemo(() => {
     const map = new Map();
@@ -481,191 +372,79 @@ export function HilMemoView({
   }
 
   return (
-    <section className="flex h-full flex-1 flex-col bg-background overflow-hidden select-none">
-      <div className="flex flex-1 overflow-hidden">
-        {/* Dock */}
-        <aside className="w-72 shrink-0 border-r border-border/20 bg-muted/5 flex flex-col">
-          <div className="border-b border-border/20 px-4 pt-4 pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex flex-col shrink-0">
-                <h2 className="text-[9px] font-black uppercase tracking-[0.4em] text-primary/40 mb-1">Human-In-Loop</h2>
-                <div className="flex items-center gap-3">
-                  <span className="text-xl font-bold text-foreground tracking-tighter italic">Repository_</span>
-                  <div className="flex items-center gap-3 text-[9px] font-bold text-muted-foreground/20 uppercase tracking-widest ml-1">
-                    <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-muted-foreground/30" /> {summary.comment}</span>
-                    <span className="flex items-center gap-1.5"><div className="w-1 h-1 rounded-full bg-muted-foreground/30" /> {summary.memo}</span>
-                    <span className="flex items-center gap-1.5 text-primary/40"><div className="w-1 h-1 rounded-full bg-current" /> {summary.draft}</span>
-                  </div>
+    <div className="flex h-full flex-col bg-background overflow-hidden">
+      <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-hidden">
+          {dockSelection.type === 'draft' && selectedDraft ? (
+            <DraftDetail
+              draft={selectedDraft}
+              onUpdateStatus={updateStatus}
+              sessionsById={sessionsById}
+              onViewSession={onViewSession}
+              actionSheetsById={actionSheetsById}
+              sessions={sessions}
+              onRunActionSheet={onRunActionSheet}
+              onCancelActionSheet={onCancelActionSheet}
+              onOpenActionSheets={onOpenActionSheets}
+              resolveBody={resolveBody}
+              summarizeBody={summarizeBody}
+            />
+          ) : (
+            <div className="flex h-full flex-col">
+              <InboxSection
+                activeSection={activeInboxSection}
+                selectionPath={selectionInWorktree ? selection?.filePath : ''}
+                selectionLines={selectionLines}
+                selectionText={selectionText}
+                flashValue={flashText}
+                onFlashChange={setFlashText}
+                onSaveFlash={handleCreateFlash}
+                excerptNote={excerptNote}
+                onExcerptNoteChange={setExcerptNote}
+                onSaveExcerpt={handleCreateExcerpt}
+                screenshotAsset={screenshotAsset}
+                pendingCapture={captureResult}
+                screenshotNote={screenshotNote}
+                onScreenshotNoteChange={setScreenshotNote}
+                onCaptureScreenshot={handleCaptureScreenshot}
+                onOpenRouting={() => {
+                  if (captureResult) {
+                    setRoutingOpen(true);
+                  }
+                }}
+                captureLoading={captureLoading}
+                captureError={captureError}
+              />
+
+              {error && (
+                <div className="mx-6 mt-4 p-4 bg-rose-500/5 rounded-2xl border border-rose-500/10 text-rose-400 text-[11px] font-medium animate-slide-down">
+                  <Activity size={14} className="inline mr-2" /> {error}
                 </div>
-              </div>
-              <button onClick={refresh} className="shrink-0 p-2 rounded-full bg-muted/5 text-muted-foreground/40 hover:text-foreground transition-all hover:bg-muted/10 active:scale-90">
-                <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-              </button>
-            </div>
+              )}
+              <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
+                <div className="flex flex-col gap-0.5">
+                  {visibleInboxItems.map((item, index) => (
+                  <MemoRow
+                    key={item.id}
+                    index={index}
+                    item={item}
+                    onUpdateStatus={updateStatus}
+                    resolveBody={resolveBody}
+                  />
+                  ))}
+                </div>
 
-            <div className="mt-4 relative group">
-              <Search size={14} className="absolute left-0 top-1/2 -translate-y-1/2 text-muted-foreground/30 group-focus-within:text-primary transition-all" />
-              <input 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="FILTER OBJECTS..."
-                className="w-full h-10 bg-transparent border-b border-border/10 pl-8 text-xs text-foreground placeholder:text-muted-foreground/20 focus:outline-none focus:border-primary/40 transition-all tracking-[0.1em]"
-              />
-            </div>
-
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              <FilterChip 
-                label="Type" 
-                value={filters.kind} 
-                options={kindOptions} 
-                onChange={(v) => setFilters(curr => ({ ...curr, kind: v }))} 
-              />
-              <FilterChip 
-                label="Status" 
-                value={filters.status} 
-                options={statusOptions} 
-                onChange={(v) => setFilters(curr => ({ ...curr, status: v }))} 
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border/10">
-            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
-              Inbox
-            </div>
-            <span className="text-[10px] font-mono text-muted-foreground/40">{pendingInboxCount}</span>
-          </div>
-          <div className="flex flex-col">
-            {inboxSections.map((section) => {
-              const Icon = section.icon;
-              const active = dockSelection.type === 'inbox' && dockSelection.inboxType === section.id;
-              return (
-                <button
-                  key={section.id}
-                  type="button"
-                  onClick={() => setDockSelection({ type: 'inbox', inboxType: section.id, draftId: null })}
-                  className={`flex w-full items-center justify-between px-4 py-2 text-left text-[11px] font-semibold transition ${
-                    active
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground/60 hover:text-foreground'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <Icon size={14} />
-                    {section.label}
-                  </span>
-                  <span className="text-[10px] font-mono text-muted-foreground/40">
-                    {inboxCounts[section.id] || 0}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-4 flex items-center justify-between px-4 py-2 border-t border-border/10">
-            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
-              Drafts
-            </div>
-            <span className="text-[10px] font-mono text-muted-foreground/40">{draftCount}</span>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {draftItems.length ? (
-              draftItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setDockSelection({ type: 'draft', draftId: item.id })}
-                  className={`flex w-full flex-col gap-1 px-4 py-2 text-left text-[11px] transition ${
-                    dockSelection.type === 'draft' && dockSelection.draftId === item.id
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground/60 hover:text-foreground'
-                  }`}
-                >
-                  <span className="truncate font-semibold">{summarizeBody(item)}</span>
-                  <span className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground/40">
-                    {item.status}
-                  </span>
-                </button>
-              ))
-            ) : (
-              <div className="px-4 py-6 text-[10px] text-muted-foreground/40">
-                No drafts yet.
-              </div>
-            )}
-          </div>
-        </aside>
-
-        {/* Main Pane */}
-        <div className="flex-1 overflow-hidden flex flex-col">
-          <div className="flex-1 overflow-hidden">
-            {dockSelection.type === 'draft' && selectedDraft ? (
-              <DraftDetail
-                draft={selectedDraft}
-                onUpdateStatus={updateStatus}
-                sessionsById={sessionsById}
-                onViewSession={onViewSession}
-                actionSheetsById={actionSheetsById}
-                sessions={sessions}
-                onRunActionSheet={onRunActionSheet}
-                onCancelActionSheet={onCancelActionSheet}
-                onOpenActionSheets={onOpenActionSheets}
-              />
-            ) : (
-              <div className="flex h-full flex-col">
-                <InboxSection
-                  activeSection={activeInboxSection}
-                  selectionPath={selectionInWorktree ? selection?.filePath : ''}
-                  selectionLines={selectionLines}
-                  selectionText={selectionText}
-                  flashValue={flashText}
-                  onFlashChange={setFlashText}
-                  onSaveFlash={handleCreateFlash}
-                  excerptNote={excerptNote}
-                  onExcerptNoteChange={setExcerptNote}
-                  onSaveExcerpt={handleCreateExcerpt}
-                  screenshotAsset={screenshotAsset}
-                  pendingCapture={captureResult}
-                  screenshotNote={screenshotNote}
-                  onScreenshotNoteChange={setScreenshotNote}
-                  onCaptureScreenshot={handleCaptureScreenshot}
-                  onOpenRouting={() => {
-                    if (captureResult) {
-                      setRoutingOpen(true);
-                    }
-                  }}
-                  captureLoading={captureLoading}
-                  captureError={captureError}
-                />
-
-                {error && (
-                  <div className="mx-6 mt-4 p-4 bg-rose-500/5 rounded-2xl border border-rose-500/10 text-rose-400 text-[11px] font-medium animate-slide-down">
-                    <Activity size={14} className="inline mr-2" /> {error}
+                {!loading && visibleInboxItems.length === 0 && (
+                  <div className="py-32 flex flex-col items-center justify-center opacity-5">
+                    <Hash size={64} strokeWidth={1} />
+                    <p className="text-[11px] font-black uppercase tracking-[0.5em] mt-6">
+                      Inbox Empty
+                    </p>
                   </div>
                 )}
-                <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
-                  <div className="flex flex-col gap-0.5">
-                    {visibleInboxItems.map((item, index) => (
-                    <MemoRow
-                      key={item.id}
-                      index={index}
-                      item={item}
-                      onUpdateStatus={updateStatus}
-                    />
-                    ))}
-                  </div>
-
-                  {!loading && visibleInboxItems.length === 0 && (
-                    <div className="py-32 flex flex-col items-center justify-center opacity-5">
-                      <Hash size={64} strokeWidth={1} />
-                      <p className="text-[11px] font-black uppercase tracking-[0.5em] mt-6">
-                        Inbox Empty
-                      </p>
-                    </div>
-                  )}
-                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
       <CaptureRoutingSheet
@@ -682,33 +461,11 @@ export function HilMemoView({
         onCancel={handleCancelRouting}
         error={routingError}
       />
-    </section>
+    </div>
   );
 }
 
-function FilterChip({ label, value, options, onChange }) {
-    const activeLabel = options.find(o => o.value === value)?.label;
-    return (
-        <div className="relative group/chip">
-            <select
-                className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-            >
-                {options.map((opt) => (
-                    <option key={opt.value} value={opt.value} className="bg-popover text-foreground">{opt.label}</option>
-                ))}
-            </select>
-            <div className="flex items-center gap-2 px-2 py-0.5 rounded-full bg-muted/10 border border-border/10 text-[9px] font-bold text-muted-foreground/50 group-hover/chip:text-primary group-hover/chip:border-primary/20 transition-all">
-                <span className="opacity-40">{label}:</span>
-                <span className="text-muted-foreground/80 tracking-tight">{activeLabel}</span>
-                <ChevronDown size={10} className="opacity-20" />
-            </div>
-        </div>
-    );
-}
-
-function MemoRow({ item, index, onUpdateStatus }) {
+function MemoRow({ item, index, onUpdateStatus, resolveBody }) {
     const isResolved = item.status === 'resolved' || item.status === 'archived';
     const isProcessed = item.kind === 'comment' && item.meta?.processed === true;
     const isMemoProcessed = item.kind === 'memo' && item.meta?.processed === true;
@@ -787,6 +544,8 @@ function DraftDetail({
   onRunActionSheet,
   onCancelActionSheet,
   onOpenActionSheets,
+  resolveBody,
+  summarizeBody,
 }) {
     const createdAt = draft.createdAt ? new Date(draft.createdAt) : null;
     const references = Array.isArray(draft.references) ? draft.references : [];
@@ -908,11 +667,11 @@ function DraftDetail({
                     showSessionSelect={false}
                   />
                 ) : null}
-                <div className="rounded-2xl border border-border/10 bg-muted/5 p-4">
+                <div className="rounded-2xl border border-border/10 bg-muted/5 p-4 mt-4">
                     <div className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
                         Draft Body
                     </div>
-                    <div className="mt-3 text-[13px] leading-relaxed text-foreground/80 whitespace-pre-wrap">
+                    <div className="mt-3 text-[13px] leading-relaxed text-foreground/80 whitespace-pre-wrap font-mono">
                         {resolveBody(draft) || 'No content.'}
                     </div>
                 </div>
@@ -958,17 +717,3 @@ function RowAction({ icon: Icon, onClick, title, color = "hover:text-foreground 
         </button>
     )
 }
-
-const kindOptions = [
-  { value: 'all', label: 'Everything' },
-  { value: 'comment', label: 'Comments' },
-  { value: 'memo', label: 'Memos' },
-  { value: 'draft', label: 'Drafts' },
-];
-
-const statusOptions = [
-  { value: 'all', label: 'Any Status' },
-  { value: 'open', label: 'Active' },
-  { value: 'resolved', label: 'Resolved' },
-  { value: 'archived', label: 'Archived' },
-];

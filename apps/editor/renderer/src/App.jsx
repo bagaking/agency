@@ -10,6 +10,7 @@ import { useWorktreeLinks } from './hooks/useWorktreeLinks.js';
 import { useSessions } from './hooks/useSessions.js';
 import { useActionSheets } from './hooks/useActionSheets.js';
 import { useWorkbench } from './hooks/useWorkbench.js';
+import { useHilMemoState } from './hooks/useHilMemoState.js';
 import {
   createCell as agencyCreateCell,
   createHilItem as agencyCreateHilItem,
@@ -434,6 +435,9 @@ function App() {
     repoRoot: projectRoot,
     initialTabsByCellId: initialWorkbenchTabs,
     initialActiveTabByCellId: initialWorkbenchActiveTabs,
+  });
+  const hilMemo = useHilMemoState({
+    worktreePath: selectedCell?.worktreePath || projectRoot || '',
   });
   useEffect(() => {
     if (actionSheetSessionId || !activeSessionId) {
@@ -1849,7 +1853,7 @@ function App() {
           onSelectionChange: handleWorkbenchSelectionChange,
         }}
         memoPaneProps={{
-          worktreePath: selectedCell?.worktreePath || projectRoot || '',
+          ...hilMemo,
           projectReady,
           projectError,
           onSelectProject: handleSelectProjectRoot,
@@ -1863,6 +1867,10 @@ function App() {
           onRunActionSheet: handleRunActionSheet,
           onCancelActionSheet: cancelActionSheet,
           onOpenActionSheets: handleOpenActionSheets,
+        }}
+        memoSidebarProps={{
+          ...hilMemo,
+          projectReady,
         }}
       />
 

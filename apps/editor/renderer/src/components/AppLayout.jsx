@@ -13,7 +13,9 @@ import { ProjectSettingsView } from './ProjectSettingsView.jsx';
 import { HilDrawer } from './hil/HilDrawer.jsx';
 import { HilCommentsPanel } from './hil/HilCommentsPanel.jsx';
 import { HilMemoView } from './hil/memo/HilMemoView.jsx';
+import { HilMemoSidebar } from './hil/memo/HilMemoSidebar.jsx';
 import { ActionSheetsView } from './actionSheets/ActionSheetsView.jsx';
+import { ActionSheetsSidebar } from './actionSheets/ActionSheetsSidebar.jsx';
 
 export function AppLayout({
   activeView,
@@ -98,6 +100,7 @@ export function AppLayout({
   explorerSidebarProps,
   explorerPaneProps,
   memoPaneProps,
+  memoSidebarProps,
   hilDrawerOpen,
   hilDrawerPanel,
   onToggleHilDrawer,
@@ -144,6 +147,10 @@ export function AppLayout({
         actionSummary={actionSummary}
         gateSummary={gateSummary}
       />
+    ) : activeView === 'action-sheets' ? (
+      <ActionSheetsSidebar {...actionSheetsProps} />
+    ) : activeView === 'memo' ? (
+      <HilMemoSidebar {...memoSidebarProps} />
     ) : null;
   return (
     <div className="flex flex-1 overflow-hidden">
