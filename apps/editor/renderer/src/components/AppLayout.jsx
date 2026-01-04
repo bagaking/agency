@@ -12,6 +12,8 @@ import { SidebarDock } from './layout/SidebarDock.jsx';
 import { ProjectSettingsView } from './ProjectSettingsView.jsx';
 import { HilDrawer } from './hil/HilDrawer.jsx';
 import { HilCommentsPanel } from './hil/HilCommentsPanel.jsx';
+import { HilDraftsPanel } from './hil/HilDraftsPanel.jsx';
+import { HilMemoDrawer } from './hil/HilMemoDrawer.jsx';
 import { HilMemoView } from './hil/memo/HilMemoView.jsx';
 import { HilMemoSidebar } from './hil/memo/HilMemoSidebar.jsx';
 import { ActionSheetsView } from './actionSheets/ActionSheetsView.jsx';
@@ -107,9 +109,24 @@ export function AppLayout({
   onSelectHilDrawerPanel,
   onOpenHilPromote,
   hilCommentsProps,
+  hilDraftsProps,
+  memoDrawerProps,
   actionSheetsProps,
 }) {
   const hilSubtitle = explorerPaneProps?.activeRootLabel || explorerSidebarProps?.rootLabel || '';
+  const isMemoView = activeView === 'memo';
+  const hilDrawerPanels = isMemoView
+    ? []
+    : [
+        { id: 'comments', label: 'Comments' },
+        { id: 'drafts', label: 'Drafts' },
+      ];
+  const hilDrawerTitle = isMemoView
+    ? 'Memo Inbox'
+    : hilDrawerPanel === 'drafts'
+      ? 'HIL Drafts'
+      : 'Neural Comments';
+  const hilDrawerSubtitle = isMemoView ? 'Shortcuts' : hilSubtitle;
   const activeSidebar =
     activeView === 'explorer' ? (
       <ProjectExplorerSidebar
@@ -299,10 +316,17 @@ export function AppLayout({
           onToggle={onToggleHilDrawer}
           onSelectPanel={onSelectHilDrawerPanel}
           onOpenPromote={onOpenHilPromote}
-          title={hilDrawerPanel === 'comments' ? 'Neural Comments' : 'HIL Core'}
-          subtitle={hilSubtitle}
+          panels={hilDrawerPanels}
+          title={hilDrawerTitle}
+          subtitle={hilDrawerSubtitle}
         >
-          {hilDrawerPanel === 'comments' ? <HilCommentsPanel {...hilCommentsProps} /> : null}
+          {isMemoView ? (
+            <HilMemoDrawer {...memoDrawerProps} />
+          ) : hilDrawerPanel === 'comments' ? (
+            <HilCommentsPanel {...hilCommentsProps} />
+          ) : hilDrawerPanel === 'drafts' ? (
+            <HilDraftsPanel {...hilDraftsProps} />
+          ) : null}
         </HilDrawer>
       </div>
     </div>

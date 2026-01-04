@@ -4,6 +4,7 @@ import {
   CheckCircle2, 
   Archive, 
   Trash2,
+  Plus,
   Hash, 
   Target, 
   Terminal,
@@ -68,6 +69,7 @@ export function HilMemoView({
   onArchiveActionSheet,
   onDeleteActionSheet,
   onOpenActionSheets,
+  onCreateActionSheet,
   // Props from useHilMemoState
   items,
   loading,
@@ -181,21 +183,47 @@ export function HilMemoView({
     }
   }, [modal, refresh, worktreePath]);
 
+  const handleArchiveDraft = useCallback(
+    async (draft) => {
+      if (!draft?.id) {
+        return;
+      }
+      if (!modal?.confirm) {
+        console.warn('Modal system unavailable; archive aborted.');
+        return;
+      }
+      const confirmed = await modal.confirm({
+        title: 'Archive Draft',
+        description: 'This draft will move to archived status.',
+        confirmLabel: 'Archive',
+        cancelLabel: 'Cancel',
+        tone: 'warning',
+        icon: Archive,
+      });
+      if (!confirmed) {
+        return;
+      }
+      await updateStatus(draft, 'archived');
+    },
+    [modal, updateStatus]
+  );
   const handleDeleteDraft = useCallback(
     async (draft) => {
       if (!draft?.id || !worktreePath) {
         return;
       }
-      const confirmed = modal?.confirm
-        ? await modal.confirm({
-            title: 'Delete Draft',
-            description: 'This draft will be removed from the HIL index and cannot be restored.',
-            confirmLabel: 'Delete',
-            cancelLabel: 'Cancel',
-            tone: 'danger',
-            icon: Trash2,
-          })
-        : window.confirm('Delete this draft? This cannot be undone.');
+      if (!modal?.confirm) {
+        console.warn('Modal system unavailable; delete aborted.');
+        return;
+      }
+      const confirmed = await modal.confirm({
+        title: 'Delete Draft',
+        description: 'This draft will be removed from the HIL index and cannot be restored.',
+        confirmLabel: 'Delete',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+        icon: Trash2,
+      });
       if (!confirmed) {
         return;
       }
@@ -218,6 +246,43 @@ export function HilMemoView({
       }
     },
     [modal, refresh, setDockSelection, worktreePath]
+  );
+  const handleCreateDraftActionSheet = useCallback(
+    async (draft) => {
+      if (!draft?.id || !worktreePath || typeof onCreateActionSheet !== 'function') {
+        return;
+      }
+      try {
+        const created = await onCreateActionSheet(draft);
+        if (!created?.id) {
+          throw new Error('Unable to create Action Sheet.');
+        }
+        const updated = await agencyUpdateHilItem({
+          worktreePath,
+          itemId: draft.id,
+          patch: {
+            meta: {
+              ...(draft.meta || {}),
+              actionSheetId: created.id,
+            },
+          },
+        });
+        if (!updated) {
+          throw new Error('HIL IPC unavailable.');
+        }
+        setMutationError('');
+        await refresh();
+      } catch (createError) {
+        console.error(createError);
+        setMutationError(createError?.message || 'Failed to create Action Sheet.');
+        modal?.notify?.({
+          title: 'Action Sheet create failed',
+          description: createError?.message || 'Unable to create an Action Sheet from this draft.',
+          tone: 'warning',
+        });
+      }
+    },
+    [modal, onCreateActionSheet, refresh, worktreePath]
   );
 
   const selectionInWorktree = Boolean(
@@ -446,6 +511,7 @@ export function HilMemoView({
             <DraftDetail
               draft={selectedDraft}
               onUpdateStatus={updateStatus}
+              onArchiveDraft={handleArchiveDraft}
               sessionsById={sessionsById}
               onViewSession={onViewSession}
               actionSheetsById={actionSheetsById}
@@ -457,6 +523,7 @@ export function HilMemoView({
               onOpenActionSheets={onOpenActionSheets}
               mutationError={mutationError}
               onDeleteDraft={handleDeleteDraft}
+              onCreateActionSheet={handleCreateDraftActionSheet}
               resolveBody={resolveBody}
               summarizeBody={summarizeBody}
             />
@@ -613,6 +680,7 @@ function MemoRow({ item, index, onUpdateStatus, resolveBody }) {
 function DraftDetail({
   draft,
   onUpdateStatus,
+  onArchiveDraft,
   onDeleteDraft,
   mutationError,
   sessionsById,
@@ -624,6 +692,7 @@ function DraftDetail({
   onArchiveActionSheet,
   onDeleteActionSheet,
   onOpenActionSheets,
+  onCreateActionSheet,
   resolveBody,
   summarizeBody,
 }) {
@@ -636,6 +705,7 @@ function DraftDetail({
     const executionFinishedAt = draft.meta?.executionFinishedAt ? new Date(draft.meta.executionFinishedAt) : null;
     const actionSheetId = draft.meta?.actionSheetId || '';
     const actionSheetStatus = actionSheetId ? actionSheetsById?.get(actionSheetId) || null : null;
+    const hasActionSheet = Boolean(actionSheetId);
     const sessionLabel = executionSessionId
         ? sessionsById?.get(executionSessionId)?.name || executionSessionId
         : '';
@@ -683,7 +753,7 @@ function DraftDetail({
                     <RowAction
                         icon={Archive}
                         title="Archive"
-                        onClick={() => onUpdateStatus(draft, 'archived')}
+                        onClick={() => onArchiveDraft?.(draft)}
                     />
                     <RowAction
                         icon={Trash2}
@@ -743,21 +813,61 @@ function DraftDetail({
                         </button>
                     </div>
                 </div>
-                {actionSheetStatus ? (
-                  <ActionSheetStatusPanel
-                    sheet={actionSheetStatus}
-                    sessions={sessions}
-                    sessionId={actionSheetStatus?.sessionId || executionSessionId}
-                    onDispatchSheet={onDispatchActionSheet}
-                    onCancelSheet={onCancelActionSheet}
-                    onArchiveSheet={onArchiveActionSheet}
-                    onDeleteSheet={onDeleteActionSheet}
-                    onViewSession={onViewSession}
-                    onOpenPanel={onOpenActionSheets}
-                    compact
-                    showSessionSelect={false}
-                  />
-                ) : null}
+                {hasActionSheet ? (
+                  actionSheetStatus ? (
+                    <ActionSheetStatusPanel
+                      sheet={actionSheetStatus}
+                      sessions={sessions}
+                      sessionId={actionSheetStatus?.sessionId || executionSessionId}
+                      onDispatchSheet={onDispatchActionSheet}
+                      onCancelSheet={onCancelActionSheet}
+                      onArchiveSheet={onArchiveActionSheet}
+                      onDeleteSheet={onDeleteActionSheet}
+                      onViewSession={onViewSession}
+                      onOpenPanel={onOpenActionSheets}
+                      compact
+                      showSessionSelect={false}
+                    />
+                  ) : (
+                    <div className="rounded-2xl border border-border/10 bg-muted/5 p-4 mt-4">
+                      <div className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
+                        Action Sheet
+                      </div>
+                      <div className="mt-2 text-[11px] text-muted-foreground/60">
+                        Linked Action Sheet: {actionSheetId}
+                      </div>
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          onClick={() => onOpenActionSheets?.(actionSheetId)}
+                          className="rounded-md border border-border/30 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                        >
+                          Open Action Sheets
+                        </button>
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  <div className="rounded-2xl border border-border/10 bg-muted/5 p-4 mt-4">
+                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
+                      Action Sheet
+                    </div>
+                    <div className="mt-2 text-[11px] text-muted-foreground/60">
+                      No Action Sheet linked.
+                    </div>
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => onCreateActionSheet?.(draft)}
+                        disabled={!onCreateActionSheet}
+                        className="rounded-md border border-primary/40 bg-primary/5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-primary hover:bg-primary/10 disabled:opacity-40"
+                      >
+                        <Plus size={12} className="inline mr-1" />
+                        Create Action Sheet
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="rounded-2xl border border-border/10 bg-muted/5 p-4 mt-4">
                     <div className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
                         Draft Body

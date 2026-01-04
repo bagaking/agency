@@ -1,9 +1,9 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight, Target } from 'lucide-react';
 
-const panels = [
+const defaultPanels = [
   { id: 'comments', label: 'Comments' },
-  { id: 'drafts', label: 'Drafts', disabled: true },
+  { id: 'drafts', label: 'Drafts' },
 ];
 
 export function HilDrawer({
@@ -15,6 +15,7 @@ export function HilDrawer({
   children,
   title,
   subtitle,
+  panels = defaultPanels,
 }) {
   const drawerOpen = Boolean(open);
   const handleToggle = () => {
@@ -68,25 +69,27 @@ export function HilDrawer({
       </header>
 
       <div className={`flex h-full flex-col ${drawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} transition-opacity duration-200`}>
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-border/10">
-          {panels.map((panel) => (
-            <button
-              key={panel.id}
-              type="button"
-              disabled={panel.disabled}
-              onClick={() => onSelectPanel?.(panel.id)}
-              className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-widest transition ${
-                panel.disabled
-                  ? 'text-muted-foreground/30 cursor-not-allowed'
-                  : activePanel === panel.id
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground/60 hover:text-foreground'
-              }`}
-            >
-              {panel.label}
-            </button>
-          ))}
-        </div>
+        {panels.length ? (
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-border/10">
+            {panels.map((panel) => (
+              <button
+                key={panel.id}
+                type="button"
+                disabled={panel.disabled}
+                onClick={() => onSelectPanel?.(panel.id)}
+                className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-widest transition ${
+                  panel.disabled
+                    ? 'text-muted-foreground/30 cursor-not-allowed'
+                    : activePanel === panel.id
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground/60 hover:text-foreground'
+                }`}
+              >
+                {panel.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         <div className="flex-1 overflow-y-auto px-4 py-3">{children}</div>
       </div>

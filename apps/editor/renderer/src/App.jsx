@@ -48,6 +48,15 @@ const defaultCells = [
     validation: { warnings: ['Spec file not found (temporary validation).'] },
   },
 ];
+
+const HIL_DRAWER_DEFAULTS = {
+  'agent-cells': 'drafts',
+  'action-sheets': 'comments',
+  explorer: 'comments',
+};
+
+const resolveHilDrawerDefault = (view) => HIL_DRAWER_DEFAULTS[view] || 'comments';
+
 function App() {
   const [cells, setCells] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -66,6 +75,7 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [hilDrawerOpen, setHilDrawerOpen] = useState(false);
   const [hilDrawerPanel, setHilDrawerPanel] = useState('comments');
+  const [hilDrawerPanelByView, setHilDrawerPanelByView] = useState({});
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
   const [workbenchSelectionByCellId, setWorkbenchSelectionByCellId] = useState({});
   const [hierarchySection, setHierarchySection] = useState('actions');
@@ -105,6 +115,7 @@ function App() {
   const [promoteGateStatus, setPromoteGateStatus] = useState('waiting');
   const [promoteExecutionStatus, setPromoteExecutionStatus] = useState('idle');
   const [promoteSessionId, setPromoteSessionId] = useState('');
+  const [lastPromoteSessionId, setLastPromoteSessionId] = useState('');
   const [promoteActionSheetId, setPromoteActionSheetId] = useState('');
   const [promoteActionSheet, setPromoteActionSheet] = useState(null);
   const [actionSheetSessionId, setActionSheetSessionId] = useState('');
@@ -229,9 +240,11 @@ function App() {
           if (typeof state?.sidebarCollapsed === 'boolean') {
             setSidebarCollapsed(state.sidebarCollapsed);
           }
+          let restoredActiveView = 'agent-cells';
           if (typeof state?.activeView === 'string') {
             const allowedViews = new Set(['agent-cells', 'action-sheets', 'explorer', 'hierarchy', 'settings', 'memo']);
             if (allowedViews.has(state.activeView)) {
+              restoredActiveView = state.activeView;
               setActiveView(state.activeView);
             }
           }
@@ -240,6 +253,11 @@ function App() {
           }
           if (typeof state?.hilDrawerPanel === 'string') {
             setHilDrawerPanel(state.hilDrawerPanel);
+          }
+          if (state?.hilDrawerPanelByView && typeof state.hilDrawerPanelByView === 'object') {
+            setHilDrawerPanelByView(state.hilDrawerPanelByView);
+          } else if (typeof state?.hilDrawerPanel === 'string') {
+            setHilDrawerPanelByView({ [restoredActiveView]: state.hilDrawerPanel });
           }
           if (!resolvedProjectRoot) {
             setActiveView('agent-cells');
@@ -471,46 +489,88 @@ function App() {
       [cellId]: meta || {},
     }));
   }, []);
+  useEffect(() => {
+    if (commentModalOpen || promoteModalOpen) {
+      setHilDrawerPanel('comments');
+      setHilDrawerOpen(true);
+      return;
+    }
+    const preferredPanel = hilDrawerPanelByView[activeView];
+    setHilDrawerPanel(preferredPanel || resolveHilDrawerDefault(activeView));
+  }, [activeView, commentModalOpen, hilDrawerPanelByView, promoteModalOpen]);
   const openHilDrawer = useCallback((panel = 'comments') => {
     setHilDrawerPanel(panel);
     setHilDrawerOpen(true);
   }, []);
+  const handleSelectHilDrawerPanel = useCallback(
+    (panel) => {
+      if (!panel) {
+        return;
+      }
+      setHilDrawerPanel(panel);
+      setHilDrawerPanelByView((current) => ({
+        ...current,
+        [activeView]: panel,
+      }));
+    },
+    [activeView]
+  );
   const availableActionSessions = useMemo(
     () => sessions.filter((session) => session.status !== 'closed'),
     [sessions]
   );
+  const createDefaultActionSheet = useCallback(
+    async ({ title }) => {
+      if (!actionSheetsRoot) {
+        throw new Error('Select a project before creating Action Sheets.');
+      }
+      const created = await createActionSheet({
+        title,
+        prompt: { requirements: '', context: '', checks: '', done: '' },
+        checks: [],
+        conditional: conditionalDefaults,
+      });
+      if (!created?.id) {
+        throw new Error('Unable to create Action Sheet.');
+      }
+      const completion = buildActionSheetCompletion(created.id);
+      await updateActionSheetPlan(created.id, buildActionSheetPlan({ title, marker: completion.marker }));
+      await updateActionSheetPrompt(created.id, {
+        requirements: '',
+        context: '',
+        checks: '',
+        done: completion.done,
+      });
+      await updateActionSheetChecks(created.id, completion.checks);
+      return created;
+    },
+    [
+      actionSheetsRoot,
+      conditionalDefaults,
+      createActionSheet,
+      updateActionSheetChecks,
+      updateActionSheetPlan,
+      updateActionSheetPrompt,
+    ]
+  );
   const handleCreateActionSheet = useCallback(async () => {
-    if (!actionSheetsRoot) {
-      setActionSheetInlineError('Select a project before creating Action Sheets.');
-      return;
+    try {
+      await createDefaultActionSheet({ title: 'Action Sheet' });
+    } catch (error) {
+      setActionSheetInlineError(error?.message || 'Unable to create Action Sheet.');
     }
-    const title = 'Action Sheet';
-    const created = await createActionSheet({
-      title,
-      prompt: { requirements: '', context: '', checks: '', done: '' },
-      checks: [],
-      conditional: conditionalDefaults,
-    });
-    if (!created?.id) {
-      return;
-    }
-    const completion = buildActionSheetCompletion(created.id);
-    await updateActionSheetPlan(created.id, buildActionSheetPlan({ title, marker: completion.marker }));
-    await updateActionSheetPrompt(created.id, {
-      requirements: '',
-      context: '',
-      checks: '',
-      done: completion.done,
-    });
-    await updateActionSheetChecks(created.id, completion.checks);
-  }, [
-    actionSheetsRoot,
-    conditionalDefaults,
-    createActionSheet,
-    updateActionSheetChecks,
-    updateActionSheetPlan,
-    updateActionSheetPrompt,
-  ]);
+  }, [createDefaultActionSheet]);
+  const handleCreateDraftActionSheet = useCallback(
+    async (draft) => {
+      if (!draft?.id) {
+        throw new Error('Draft unavailable.');
+      }
+      const summary = hilMemo.summarizeBody ? hilMemo.summarizeBody(draft) : 'Draft';
+      const title = `Draft: ${summary}`.slice(0, 64);
+      return createDefaultActionSheet({ title });
+    },
+    [createDefaultActionSheet, hilMemo.summarizeBody]
+  );
   const handleSaveActionSheet = useCallback(
     async (id, payload) => {
       if (!id) {
@@ -904,11 +964,10 @@ function App() {
     };
   }, [commentFilePath, commentModalOpen, commentRootPath, commentTarget.line]);
   useEffect(() => {
-    if (commentModalOpen || promoteModalOpen) {
-      setHilDrawerPanel('comments');
-      setHilDrawerOpen(true);
+    if (promoteSessionId) {
+      setLastPromoteSessionId(promoteSessionId);
     }
-  }, [commentModalOpen, promoteModalOpen]);
+  }, [promoteSessionId]);
   const promoteWorktreePath = selectedCell?.worktreePath || projectRoot || '';
   const openPromoteModal = useCallback(async () => {
     if (!promoteWorktreePath) {
@@ -955,8 +1014,13 @@ function App() {
       setPromoteItems(pending);
       setPromoteSelectedIds(pending.map((item) => item.id));
       const availableSessions = sessions.filter((session) => session.status !== 'closed');
-      const preferredSession = availableSessions.find((session) => session.id === activeSessionId);
-      setPromoteSessionId(preferredSession?.id || availableSessions[0]?.id || '');
+      const preferredSession =
+        activeView === 'agent-cells'
+          ? availableSessions.find((session) => session.id === activeSessionId) ||
+            availableSessions.find((session) => session.id === lastPromoteSessionId)
+          : availableSessions.find((session) => session.id === lastPromoteSessionId);
+      const fallbackSession = preferredSession || availableSessions[0] || null;
+      setPromoteSessionId(fallbackSession?.id || '');
     } catch (error) {
       setPromoteError(error?.message || 'Failed to load pending items.');
       setPromoteItems([]);
@@ -964,7 +1028,7 @@ function App() {
     } finally {
       setPromoteLoading(false);
     }
-  }, [activeSessionId, promoteWorktreePath, sessions]);
+  }, [activeSessionId, activeView, lastPromoteSessionId, promoteWorktreePath, sessions]);
   const closePromoteModal = useCallback(() => {
     setPromoteModalOpen(false);
     setPromoteError('');
@@ -1455,6 +1519,7 @@ function App() {
           activeView,
           hilDrawerOpen,
           hilDrawerPanel,
+          hilDrawerPanelByView,
           workbenchTabsByCellId: workbench.serializeTabs(workbench.tabsByCellId),
           workbenchActiveTabByCellId: workbench.activeTabByCellId,
         }).catch(() => undefined);
@@ -1464,6 +1529,7 @@ function App() {
     activeView,
     hilDrawerOpen,
     hilDrawerPanel,
+    hilDrawerPanelByView,
     sidebarCollapsed,
     sidebarWidth,
     uiStateLoaded,
@@ -1675,6 +1741,40 @@ function App() {
     },
     [sidebarCollapsed]
   );
+  const handleOpenMemoInbox = useCallback(
+    (inboxType = 'comments') => {
+      handleSwitchView('memo');
+      hilMemo.setDockSelection({
+        type: 'inbox',
+        inboxType,
+        draftId: null,
+      });
+    },
+    [handleSwitchView, hilMemo.setDockSelection]
+  );
+  const handleOpenMemoDraft = useCallback(
+    (draftId) => {
+      if (!draftId) {
+        return;
+      }
+      handleSwitchView('memo');
+      hilMemo.setDockSelection({
+        type: 'draft',
+        draftId,
+      });
+    },
+    [handleSwitchView, hilMemo.setDockSelection]
+  );
+  const memoDrawerProps = {
+    activeInboxId: hilMemo.activeInboxSection?.id || 'comments',
+    onSelectInbox: handleOpenMemoInbox,
+    onOpenInbox: () => handleOpenMemoInbox('comments'),
+  };
+  const hilDraftsProps = {
+    drafts: hilMemo.draftItems,
+    summarizeBody: hilMemo.summarizeBody,
+    onOpenDraft: handleOpenMemoDraft,
+  };
   const handleOpenExplorerForCell = useCallback(
     (cellId) => {
       if (cellId) {
@@ -1827,9 +1927,11 @@ function App() {
         hilDrawerOpen={hilDrawerOpen}
         hilDrawerPanel={hilDrawerPanel}
         onToggleHilDrawer={setHilDrawerOpen}
-        onSelectHilDrawerPanel={setHilDrawerPanel}
+        onSelectHilDrawerPanel={handleSelectHilDrawerPanel}
         onOpenHilPromote={openPromoteModal}
         hilCommentsProps={hilCommentsProps}
+        hilDraftsProps={hilDraftsProps}
+        memoDrawerProps={memoDrawerProps}
         actionSheetsProps={{
           projectReady,
           projectError,
@@ -1909,6 +2011,7 @@ function App() {
           onArchiveActionSheet: handleArchiveActionSheet,
           onDeleteActionSheet: handleDeleteActionSheet,
           onOpenActionSheets: handleOpenActionSheets,
+          onCreateActionSheet: handleCreateDraftActionSheet,
         }}
         memoSidebarProps={{
           ...hilMemo,
