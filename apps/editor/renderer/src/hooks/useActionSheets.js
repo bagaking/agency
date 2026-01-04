@@ -4,6 +4,8 @@ import {
   readActionSheet,
   createActionSheet,
   updateActionSheetStatus,
+  archiveActionSheet,
+  deleteActionSheet,
   updateActionSheetPlan,
   updateActionSheetPrompt,
   updateActionSheetChecks,
@@ -37,7 +39,19 @@ export function useActionSheets({
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
   const runnerTimersRef = useRef(new Map());
+
+  const clearRunner = useCallback((id) => {
+    const record = runnerTimersRef.current.get(id);
+    if (record?.intervalId) {
+      window.clearInterval(record.intervalId);
+    }
+    if (record?.timeoutId) {
+      window.clearTimeout(record.timeoutId);
+    }
+    runnerTimersRef.current.delete(id);
+  }, []);
 
   const refreshList = useCallback(async () => {
     if (!worktreePath || !listActionSheets) {
@@ -47,14 +61,14 @@ export function useActionSheets({
     setLoading(true);
     setError('');
     try {
-      const result = await listActionSheets({ worktreePath });
+      const result = await listActionSheets({ worktreePath, includeArchived: showArchived });
       setSheets(Array.isArray(result) ? result : []);
     } catch (loadError) {
       setError(loadError?.message || 'Failed to load Action Sheets.');
     } finally {
       setLoading(false);
     }
-  }, [worktreePath]);
+  }, [showArchived, worktreePath]);
 
   const loadSheet = useCallback(
     async (id) => {
@@ -94,6 +108,17 @@ export function useActionSheets({
     loadSheet(selectedId);
   }, [loadSheet, selectedId]);
 
+  useEffect(() => {
+    if (!selectedId) {
+      return;
+    }
+    const stillListed = sheets.some((sheet) => sheet.id === selectedId);
+    if (!stillListed) {
+      setSelectedId('');
+      setSelectedSheet(null);
+    }
+  }, [sheets, selectedId]);
+
   const createSheet = useCallback(
     async (payload) => {
       if (!worktreePath || !createActionSheet) {
@@ -128,6 +153,44 @@ export function useActionSheets({
       return updated;
     },
     [refreshList, selectedId, worktreePath]
+  );
+
+  const archiveSheet = useCallback(
+    async (id) => {
+      if (!worktreePath || !id || !archiveActionSheet) {
+        return null;
+      }
+      const updated = await archiveActionSheet({ worktreePath, id });
+      await refreshList();
+      if (!showArchived && id === selectedId) {
+        setSelectedId('');
+        setSelectedSheet(null);
+      } else if (id === selectedId) {
+        setSelectedSheet((current) =>
+          current ? { ...current, status: { ...current.status, ...updated } } : current
+        );
+      }
+      return updated;
+    },
+    [refreshList, selectedId, showArchived, worktreePath]
+  );
+
+  const deleteSheet = useCallback(
+    async (id) => {
+      if (!worktreePath || !id || !deleteActionSheet) {
+        return null;
+      }
+      clearRunner(id);
+      const result = await deleteActionSheet({ worktreePath, id });
+      setSheets((current) => current.filter((sheet) => sheet.id !== id));
+      await refreshList();
+      if (id === selectedId) {
+        setSelectedId('');
+        setSelectedSheet(null);
+      }
+      return result;
+    },
+    [clearRunner, refreshList, selectedId, worktreePath]
   );
 
   const updateSheetPlan = useCallback(
@@ -187,17 +250,6 @@ export function useActionSheets({
     },
     [loadSheet, refreshList, worktreePath]
   );
-
-  const clearRunner = useCallback((id) => {
-    const record = runnerTimersRef.current.get(id);
-    if (record?.intervalId) {
-      window.clearInterval(record.intervalId);
-    }
-    if (record?.timeoutId) {
-      window.clearTimeout(record.timeoutId);
-    }
-    runnerTimersRef.current.delete(id);
-  }, []);
 
   const scheduleMonitor = useCallback(
     (id, options = {}) => {
@@ -336,5 +388,9 @@ export function useActionSheets({
     dispatchSheet,
     cancelSheet,
     conditionalDefaults,
+    showArchived,
+    setShowArchived,
+    archiveSheet,
+    deleteSheet,
   };
 }

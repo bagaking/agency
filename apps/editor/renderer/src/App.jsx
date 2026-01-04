@@ -4,6 +4,7 @@ import { StatusBar } from './components/StatusBar.jsx';
 import { AppLayout } from './components/AppLayout.jsx';
 import { CreateCellModal } from './components/modals/CreateCellModal.jsx';
 import { LifecycleConfirmModal } from './components/modals/LifecycleConfirmModal.jsx';
+import { ModalProvider } from './components/modals/ModalSystem.jsx';
 import { useQuickActions } from './hooks/useQuickActions.js';
 import { useGates } from './hooks/useGates.js';
 import { useWorktreeLinks } from './hooks/useWorktreeLinks.js';
@@ -422,6 +423,10 @@ function App() {
     dispatchSheet: dispatchActionSheet,
     cancelSheet: cancelActionSheet,
     conditionalDefaults,
+    showArchived: showArchivedActionSheets,
+    setShowArchived: setShowArchivedActionSheets,
+    archiveSheet: archiveActionSheet,
+    deleteSheet: deleteActionSheet,
   } = useActionSheets({
     worktreePath: actionSheetsRoot,
     selectedCellId: selectedCell?.id || '',
@@ -604,6 +609,34 @@ function App() {
       selectSession(sessionId);
     },
     [handleOpenTerminal, selectSession]
+  );
+  const handleArchiveActionSheet = useCallback(
+    async (id) => {
+      if (!id) {
+        return;
+      }
+      setActionSheetInlineError('');
+      try {
+        await archiveActionSheet(id);
+      } catch (error) {
+        setActionSheetInlineError(error?.message || 'Failed to archive Action Sheet.');
+      }
+    },
+    [archiveActionSheet]
+  );
+  const handleDeleteActionSheet = useCallback(
+    async (id) => {
+      if (!id) {
+        return;
+      }
+      setActionSheetInlineError('');
+      try {
+        await deleteActionSheet(id);
+      } catch (error) {
+        setActionSheetInlineError(error?.message || 'Failed to delete Action Sheet.');
+      }
+    },
+    [deleteActionSheet]
   );
   const handleOpenActionSheets = useCallback(
     (sheetId) => {
@@ -1629,6 +1662,8 @@ function App() {
     onFocusPromoteSession: handleFocusPromoteSession,
     onDispatchActionSheet: handleDispatchActionSheet,
     onCancelActionSheet: cancelActionSheet,
+    onArchiveActionSheet: handleArchiveActionSheet,
+    onDeleteActionSheet: handleDeleteActionSheet,
     onOpenActionSheets: handleOpenActionSheets,
   };
   const handleSwitchView = useCallback(
@@ -1701,7 +1736,8 @@ function App() {
     [clearWorktreeLinksError]
   );
   return (
-    <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
+    <ModalProvider>
+      <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
       <AppLayout
         activeView={activeView}
         onSwitchView={handleSwitchView}
@@ -1806,9 +1842,13 @@ function App() {
           onSaveSheet: handleSaveActionSheet,
           onUpdateChecks: updateActionSheetChecks,
           onRefreshList: refreshActionSheets,
+          showArchived: showArchivedActionSheets,
+          onToggleArchived: () => setShowArchivedActionSheets((value) => !value),
           onRefreshChecks: refreshActionSheetChecks,
           onDispatchSheet: handleDispatchActionSheet,
           onCancelSheet: cancelActionSheet,
+          onArchiveSheet: handleArchiveActionSheet,
+          onDeleteSheet: handleDeleteActionSheet,
           onViewSession: handleViewActionSheetSession,
           sessions: availableActionSessions,
           sessionId: actionSheetSessionId,
@@ -1866,6 +1906,8 @@ function App() {
           actionSheets: actionSheets,
           onDispatchActionSheet: handleDispatchActionSheet,
           onCancelActionSheet: cancelActionSheet,
+          onArchiveActionSheet: handleArchiveActionSheet,
+          onDeleteActionSheet: handleDeleteActionSheet,
           onOpenActionSheets: handleOpenActionSheets,
         }}
         memoSidebarProps={{
@@ -1933,7 +1975,8 @@ function App() {
           }}
         />
       ) : null}
-    </div>
+      </div>
+    </ModalProvider>
   );
 }
 

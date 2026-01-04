@@ -3,6 +3,7 @@ import {
   RefreshCw, 
   CheckCircle2, 
   Archive, 
+  Trash2,
   Hash, 
   Target, 
   Terminal,
@@ -16,8 +17,11 @@ import { ProjectEmptyState } from '../../ProjectEmptyState.jsx';
 import { InboxSection } from './InboxSection.jsx';
 import { CaptureRoutingSheet } from '../../capture/CaptureRoutingSheet.jsx';
 import { ActionSheetStatusPanel } from '../../actionSheets/ActionSheetStatusPanel.jsx';
+import { useModal } from '../../modals/ModalSystem.jsx';
 import {
   createHilItem as agencyCreateHilItem,
+  updateHilItem as agencyUpdateHilItem,
+  deleteHilItem as agencyDeleteHilItem,
   startScreenshotCapture as agencyStartScreenshotCapture,
   saveCaptureAsset as agencySaveCaptureAsset,
   copyCaptureToClipboard as agencyCopyCaptureToClipboard,
@@ -61,6 +65,8 @@ export function HilMemoView({
   actionSheets = [],
   onDispatchActionSheet,
   onCancelActionSheet,
+  onArchiveActionSheet,
+  onDeleteActionSheet,
   onOpenActionSheets,
   // Props from useHilMemoState
   items,
@@ -82,12 +88,14 @@ export function HilMemoView({
   const [screenshotNote, setScreenshotNote] = useState('');
   const [captureError, setCaptureError] = useState('');
   const [captureLoading, setCaptureLoading] = useState(false);
+  const [mutationError, setMutationError] = useState('');
   const [screenshotAsset, setScreenshotAsset] = useState(null);
   const [captureResult, setCaptureResult] = useState(null);
   const [routingOpen, setRoutingOpen] = useState(false);
   const [routingMode, setRoutingMode] = useState('hil');
   const [routingTargetId, setRoutingTargetId] = useState('');
   const [routingError, setRoutingError] = useState('');
+  const modal = useModal();
 
   const sessionsById = useMemo(() => {
     const map = new Map();
@@ -148,10 +156,69 @@ export function HilMemoView({
   }, [cells, projectRoot, routingTargets, selectedCellId]);
 
   const updateStatus = useCallback(async (item, status) => {
-    if (!window.agency?.updateHilItem || !item?.id || !worktreePath) return;
-    await window.agency.updateHilItem({ worktreePath, itemId: item.id, patch: { status } });
-    refresh();
-  }, [refresh, worktreePath]);
+    if (!item?.id || !worktreePath) {
+      return;
+    }
+    try {
+      const updated = await agencyUpdateHilItem({
+        worktreePath,
+        itemId: item.id,
+        patch: { status },
+      });
+      if (!updated) {
+        throw new Error('HIL IPC unavailable.');
+      }
+      setMutationError('');
+      await refresh();
+    } catch (updateError) {
+      console.error(updateError);
+      setMutationError(updateError?.message || 'Failed to update item.');
+      modal?.notify?.({
+        title: 'Draft update failed',
+        description: updateError?.message || 'Unable to update the draft status.',
+        tone: 'warning',
+      });
+    }
+  }, [modal, refresh, worktreePath]);
+
+  const handleDeleteDraft = useCallback(
+    async (draft) => {
+      if (!draft?.id || !worktreePath) {
+        return;
+      }
+      const confirmed = modal?.confirm
+        ? await modal.confirm({
+            title: 'Delete Draft',
+            description: 'This draft will be removed from the HIL index and cannot be restored.',
+            confirmLabel: 'Delete',
+            cancelLabel: 'Cancel',
+            tone: 'danger',
+            icon: Trash2,
+          })
+        : window.confirm('Delete this draft? This cannot be undone.');
+      if (!confirmed) {
+        return;
+      }
+      try {
+        const result = await agencyDeleteHilItem({ worktreePath, itemId: draft.id });
+        if (!result) {
+          throw new Error('HIL IPC unavailable.');
+        }
+        setMutationError('');
+        await refresh();
+        setDockSelection({ type: 'inbox', inboxType: 'comments', draftId: null });
+      } catch (deleteError) {
+        console.error(deleteError);
+        setMutationError(deleteError?.message || 'Failed to delete draft.');
+        modal?.notify?.({
+          title: 'Draft delete failed',
+          description: deleteError?.message || 'Unable to delete the draft.',
+          tone: 'danger',
+        });
+      }
+    },
+    [modal, refresh, setDockSelection, worktreePath]
+  );
 
   const selectionInWorktree = Boolean(
     selection?.filePath && selection?.rootPath && worktreePath && selection.rootPath === worktreePath
@@ -385,7 +452,11 @@ export function HilMemoView({
               sessions={sessions}
               onDispatchActionSheet={onDispatchActionSheet}
               onCancelActionSheet={onCancelActionSheet}
+              onArchiveActionSheet={onArchiveActionSheet}
+              onDeleteActionSheet={onDeleteActionSheet}
               onOpenActionSheets={onOpenActionSheets}
+              mutationError={mutationError}
+              onDeleteDraft={handleDeleteDraft}
               resolveBody={resolveBody}
               summarizeBody={summarizeBody}
             />
@@ -416,6 +487,11 @@ export function HilMemoView({
                 captureError={captureError}
               />
 
+              {mutationError && (
+                <div className="mx-6 mt-4 p-4 bg-rose-500/5 rounded-2xl border border-rose-500/10 text-rose-400 text-[11px] font-medium animate-slide-down">
+                  <Activity size={14} className="inline mr-2" /> {mutationError}
+                </div>
+              )}
               {error && (
                 <div className="mx-6 mt-4 p-4 bg-rose-500/5 rounded-2xl border border-rose-500/10 text-rose-400 text-[11px] font-medium animate-slide-down">
                   <Activity size={14} className="inline mr-2" /> {error}
@@ -537,12 +613,16 @@ function MemoRow({ item, index, onUpdateStatus, resolveBody }) {
 function DraftDetail({
   draft,
   onUpdateStatus,
+  onDeleteDraft,
+  mutationError,
   sessionsById,
   onViewSession,
   actionSheetsById,
   sessions,
   onDispatchActionSheet,
   onCancelActionSheet,
+  onArchiveActionSheet,
+  onDeleteActionSheet,
   onOpenActionSheets,
   resolveBody,
   summarizeBody,
@@ -555,9 +635,7 @@ function DraftDetail({
     const executionStartedAt = draft.meta?.executionStartedAt ? new Date(draft.meta.executionStartedAt) : null;
     const executionFinishedAt = draft.meta?.executionFinishedAt ? new Date(draft.meta.executionFinishedAt) : null;
     const actionSheetId = draft.meta?.actionSheetId || '';
-    const actionSheetStatus = actionSheetId
-        ? actionSheetsById?.get(actionSheetId) || { id: actionSheetId, state: 'idle', gateStatus: 'idle' }
-        : null;
+    const actionSheetStatus = actionSheetId ? actionSheetsById?.get(actionSheetId) || null : null;
     const sessionLabel = executionSessionId
         ? sessionsById?.get(executionSessionId)?.name || executionSessionId
         : '';
@@ -607,8 +685,19 @@ function DraftDetail({
                         title="Archive"
                         onClick={() => onUpdateStatus(draft, 'archived')}
                     />
+                    <RowAction
+                        icon={Trash2}
+                        title="Delete"
+                        onClick={() => onDeleteDraft?.(draft)}
+                        color="hover:text-rose-400 hover:bg-rose-500/10"
+                    />
                 </div>
             </header>
+            {mutationError ? (
+                <div className="mx-6 mt-4 rounded-2xl border border-rose-500/10 bg-rose-500/5 px-4 py-3 text-[11px] font-medium text-rose-400 animate-slide-down">
+                    <Activity size={14} className="inline mr-2" /> {mutationError}
+                </div>
+            ) : null}
             <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
                 <div className="rounded-2xl border border-border/10 bg-muted/5 p-4">
                     <div className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
@@ -639,7 +728,7 @@ function DraftDetail({
                         {executionFinishedAt ? (
                             <span>Finished {executionFinishedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
                         ) : null}
-                        {actionSheetId ? (
+                        {actionSheetStatus ? (
                             <span>Action Sheet {actionSheetId}</span>
                         ) : null}
                     </div>
@@ -654,13 +743,15 @@ function DraftDetail({
                         </button>
                     </div>
                 </div>
-                {actionSheetId ? (
+                {actionSheetStatus ? (
                   <ActionSheetStatusPanel
                     sheet={actionSheetStatus}
                     sessions={sessions}
                     sessionId={actionSheetStatus?.sessionId || executionSessionId}
                     onDispatchSheet={onDispatchActionSheet}
                     onCancelSheet={onCancelActionSheet}
+                    onArchiveSheet={onArchiveActionSheet}
+                    onDeleteSheet={onDeleteActionSheet}
                     onViewSession={onViewSession}
                     onOpenPanel={onOpenActionSheets}
                     compact

@@ -14,6 +14,12 @@ function setupActionSheetsHandlers() {
   ipcMain.handle('actionSheets:updateStatus', async (_event, payload) =>
     actionSheets.updateActionSheetStatus(payload || {})
   );
+  ipcMain.handle('actionSheets:archive', async (_event, payload) =>
+    actionSheets.archiveActionSheet(payload || {})
+  );
+  ipcMain.handle('actionSheets:delete', async (_event, payload) =>
+    actionSheets.deleteActionSheet(payload || {})
+  );
   ipcMain.handle('actionSheets:updatePlan', async (_event, payload) =>
     actionSheets.updateActionSheetPlan(payload || {})
   );

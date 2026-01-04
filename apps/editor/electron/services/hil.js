@@ -391,6 +391,27 @@ async function updateHilItem({ worktreePath, itemId, patch } = {}) {
   return next;
 }
 
+async function deleteHilItem({ worktreePath, itemId } = {}) {
+  if (!worktreePath) {
+    throw new Error('worktreePath is required.');
+  }
+  if (!itemId) {
+    throw new Error('itemId is required.');
+  }
+  const index = await ensureHilIndex(worktreePath);
+  const items = Array.isArray(index.items) ? [...index.items] : [];
+  const indexById = items.findIndex((item) => item.id === itemId);
+  if (indexById === -1) {
+    throw new Error('HIL item not found.');
+  }
+  const [removed] = items.splice(indexById, 1);
+  await writeHilIndex(worktreePath, { version: index.version || 1, items });
+  if (removed) {
+    await fsp.rm(getHilItemPath(worktreePath, removed), { force: true });
+  }
+  return { id: itemId, deleted: true };
+}
+
 async function promoteHilItem({ worktreePath, itemId } = {}) {
   if (!worktreePath) {
     throw new Error('worktreePath is required.');
@@ -475,5 +496,6 @@ module.exports = {
   listHilItems,
   createHilItem,
   updateHilItem,
+  deleteHilItem,
   promoteHilItem,
 };

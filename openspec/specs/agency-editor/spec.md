@@ -801,6 +801,19 @@ The dock SHALL list a Comment Inbox (Input Box) entry and Draft entries for all 
 - **WHEN** a user selects Comment Inbox
 - **THEN** the main pane shows pending comment items
 
+### Requirement: Draft Lifecycle Actions
+The Memo draft detail view SHALL allow archiving and deleting drafts.
+Deleting a draft SHALL remove it from the HIL index and local draft artifacts.
+
+#### Scenario: Archive a draft
+- **WHEN** a user archives a draft
+- **THEN** the draft status updates to archived
+
+#### Scenario: Delete a draft
+- **WHEN** a user confirms delete on a draft
+- **THEN** the draft is removed from `.agency/hil/<worktree>/drafts/`
+- **AND** the draft no longer appears in the dock
+
 ### Requirement: Activity Bar Home Shortcut
 The editor SHALL treat the activity bar logo as a home shortcut that opens the Agent Cells view.
 
@@ -1093,6 +1106,27 @@ The Action Sheets view SHALL use the standard left/right layout with a list pane
 - **THEN** the left panel lists Action Sheets
 - **AND** the right panel shows details for the selected Action Sheet
 
+### Requirement: Global Modal System
+The editor SHALL provide a unified modal system for confirmations and notices.
+New confirmations SHALL use the modal system instead of native OS dialogs.
+
+#### Scenario: Confirm a destructive action
+- **WHEN** a user initiates a destructive action
+- **THEN** the modal system presents a confirm dialog with explicit cancel/confirm actions
+
+### Requirement: Action Sheet Lifecycle Management
+The editor SHALL allow Action Sheets to be archived or deleted from the UI.
+Archived Action Sheets SHALL be hidden by default and surfaced on demand.
+
+#### Scenario: Archive an Action Sheet
+- **WHEN** a user archives an Action Sheet
+- **THEN** the Action Sheet is marked archived in its status
+- **AND** the default list hides the archived Action Sheet
+
+#### Scenario: Delete an Action Sheet
+- **WHEN** a user confirms delete for an Action Sheet
+- **THEN** the Action Sheet data is removed from `.agency/action-sheets/<id>/`
+
 ### Requirement: Action Sheet Panel Embedding
 The Action Sheet panel SHALL be embeddable in other flows to display status, retry, and session jump controls.
 
@@ -1106,3 +1140,9 @@ The Action Sheet panel SHALL be embeddable in other flows to display status, ret
 - **THEN** a compact Action Sheet status panel is shown
 - **AND** users can retry the Action Sheet or jump to the linked session terminal
 
+### Requirement: Embedded Action Sheet Missing State
+When an embedded Action Sheet reference no longer exists, the UI SHALL hide the embedded panel.
+
+#### Scenario: Linked Action Sheet is deleted
+- **WHEN** a linked Action Sheet is deleted
+- **THEN** embedded Action Sheet panels disappear instead of showing stale data

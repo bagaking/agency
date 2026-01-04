@@ -6,8 +6,11 @@ import {
   RefreshCw,
   Terminal,
   ExternalLink,
+  Archive,
+  Trash2,
 } from 'lucide-react';
 import { stateBadge, gateBadge, formatTime, resolveActionSheetLabel } from './actionSheetUi.js';
+import { useModal } from '../modals/ModalSystem.jsx';
 
 const resolveDispatchLabel = (state) => {
   if (state === 'failed' || state === 'completed' || state === 'canceled') {
@@ -28,6 +31,9 @@ export function ActionSheetStatusPanel({
   onOpenPanel,
   compact = false,
   showSessionSelect = true,
+  showManagement = true,
+  onArchiveSheet,
+  onDeleteSheet,
 }) {
   if (!sheet) {
     return (
@@ -44,6 +50,30 @@ export function ActionSheetStatusPanel({
   const statusClass = stateBadge(sheet.state);
   const gateStatus = sheet.gateStatus || 'idle';
   const title = resolveActionSheetLabel(sheet);
+  const isArchived = Boolean(sheet.archived);
+  const modal = useModal();
+
+  const handleDelete = async () => {
+    if (!sheet.id || !onDeleteSheet) {
+      return;
+    }
+    if (modal?.confirm) {
+      const confirmed = await modal.confirm({
+        title: 'Delete Action Sheet',
+        description: 'This Action Sheet will be removed from disk and cannot be restored.',
+        confirmLabel: 'Delete',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+        icon: Trash2,
+      });
+      if (!confirmed) {
+        return;
+      }
+    } else if (!window.confirm('Delete this Action Sheet? This cannot be undone.')) {
+      return;
+    }
+    await onDeleteSheet(sheet.id);
+  };
 
   return (
     <div className={`rounded-xl border border-border/10 bg-muted/5 ${compact ? 'p-3' : 'p-4'} space-y-3`}>
@@ -73,6 +103,11 @@ export function ActionSheetStatusPanel({
         <span className={`inline-flex items-center gap-2 rounded-full border px-2 py-0.5 text-[9px] uppercase ${statusClass}`}>
           {sheet.state || 'idle'}
         </span>
+        {isArchived ? (
+          <span className="inline-flex items-center gap-2 rounded-full border border-border/30 px-2 py-0.5 text-[9px] uppercase text-muted-foreground">
+            Archived
+          </span>
+        ) : null}
         <span>
           Gate: <span className={gateBadge(gateStatus)}>{gateStatus}</span>
         </span>
@@ -167,6 +202,26 @@ export function ActionSheetStatusPanel({
         >
           <PauseCircle size={12} />
         </button>
+        {showManagement ? (
+          <>
+            <button
+              type="button"
+              onClick={() => onArchiveSheet?.(sheet.id)}
+              disabled={isArchived || !onArchiveSheet}
+              className="rounded-md border border-border/30 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground disabled:opacity-50"
+            >
+              <Archive size={12} />
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={!onDeleteSheet}
+              className="rounded-md border border-rose-500/40 px-2 py-1 text-[10px] text-rose-300 hover:text-rose-200 disabled:opacity-50"
+            >
+              <Trash2 size={12} />
+            </button>
+          </>
+        ) : null}
       </div>
     </div>
   );

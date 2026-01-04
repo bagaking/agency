@@ -43,6 +43,8 @@ export function ActionSheetsView({
   onRefreshChecks,
   onDispatchSheet,
   onCancelSheet,
+  onArchiveSheet,
+  onDeleteSheet,
   onViewSession,
   sessions,
   sessionId,
@@ -200,6 +202,8 @@ export function ActionSheetsView({
               onSelectSession={onSelectSession}
               onDispatchSheet={onDispatchSheet}
               onCancelSheet={onCancelSheet}
+              onArchiveSheet={onArchiveSheet}
+              onDeleteSheet={onDeleteSheet}
               onRefreshChecks={onRefreshChecks}
               onViewSession={onViewSession}
             />

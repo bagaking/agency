@@ -98,6 +98,8 @@ export function HilCommentsPanel({
   onFocusPromoteSession,
   onDispatchActionSheet,
   onCancelActionSheet,
+  onArchiveActionSheet,
+  onDeleteActionSheet,
   onOpenActionSheets,
   worktreePath,
 }) {
@@ -276,6 +278,8 @@ export function HilCommentsPanel({
           onConfirm={onConfirmPromote}
           onDispatchActionSheet={onDispatchActionSheet}
           onCancelActionSheet={onCancelActionSheet}
+          onArchiveActionSheet={onArchiveActionSheet}
+          onDeleteActionSheet={onDeleteActionSheet}
           onOpenActionSheets={onOpenActionSheets}
         />
       ) : null}
@@ -530,6 +534,8 @@ function PromoteModal({
   onConfirm,
   onDispatchActionSheet,
   onCancelActionSheet,
+  onArchiveActionSheet,
+  onDeleteActionSheet,
   onOpenActionSheets,
 }) {
   if (!open) {
@@ -676,6 +682,8 @@ function PromoteModal({
                 sessionId={promoteSessionId}
                 onDispatchSheet={onDispatchActionSheet}
                 onCancelSheet={onCancelActionSheet}
+                onArchiveSheet={onArchiveActionSheet}
+                onDeleteSheet={onDeleteActionSheet}
                 onViewSession={onFocusSession}
                 onOpenPanel={onOpenActionSheets}
                 compact

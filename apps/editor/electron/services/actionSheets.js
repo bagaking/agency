@@ -106,6 +106,8 @@ function buildStatus(payload = {}) {
     nextRunAt: payload.nextRunAt || null,
     createdAt: payload.createdAt || timestamp,
     updatedAt: payload.updatedAt || timestamp,
+    archived: Boolean(payload.archived),
+    archivedAt: payload.archivedAt || null,
     lastRunAt: payload.lastRunAt || null,
     lastGateAt: payload.lastGateAt || null,
     lastError: payload.lastError || '',
@@ -118,7 +120,7 @@ function buildStatus(payload = {}) {
   };
 }
 
-async function listActionSheets({ worktreePath }) {
+async function listActionSheets({ worktreePath, includeArchived = false }) {
   const root = await resolveActionSheetsRoot(worktreePath);
   let entries = [];
   try {
@@ -135,7 +137,11 @@ async function listActionSheets({ worktreePath }) {
     const statusPath = path.join(root, id, STATUS_FILENAME);
     const status = await readJson(statusPath, null);
     if (status) {
-      sheets.push(status);
+      const normalized = buildStatus({ ...status, id });
+      if (!includeArchived && normalized.archived) {
+        continue;
+      }
+      sheets.push(normalized);
     }
   }
   return sheets.sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
@@ -160,7 +166,7 @@ async function readActionSheet({ worktreePath, id }) {
     plan,
     prompt: normalizePrompt(prompt),
     checks: normalizeChecks(checks.checks || []),
-    status: buildStatus(status),
+    status: buildStatus({ ...status, id }),
   };
 }
 
@@ -204,6 +210,33 @@ async function updateActionSheetStatus({ worktreePath, id, patch = {} }) {
     });
   }
   return next;
+}
+
+async function archiveActionSheet({ worktreePath, id }) {
+  if (!id) {
+    throw new Error('actionSheet id is required.');
+  }
+  const dir = await resolveActionSheetDir(worktreePath, id);
+  const statusPath = path.join(dir, STATUS_FILENAME);
+  const current = await readJson(statusPath, buildStatus({ id }));
+  const archivedAt = current.archivedAt || new Date().toISOString();
+  const next = await updateActionSheetStatus({
+    worktreePath,
+    id,
+    patch: { archived: true, archivedAt },
+  });
+  logRuntime('info', 'action sheet archived', { id, worktreePath });
+  return next;
+}
+
+async function deleteActionSheet({ worktreePath, id }) {
+  if (!id) {
+    throw new Error('actionSheet id is required.');
+  }
+  const dir = await resolveActionSheetDir(worktreePath, id);
+  await fsp.rm(dir, { recursive: true, force: true });
+  logRuntime('info', 'action sheet deleted', { id, worktreePath });
+  return { id, deleted: true };
 }
 
 async function updateActionSheetPlan({ worktreePath, id, plan }) {
@@ -327,6 +360,8 @@ module.exports = {
   readActionSheet,
   createActionSheet,
   updateActionSheetStatus,
+  archiveActionSheet,
+  deleteActionSheet,
   updateActionSheetPlan,
   updateActionSheetPrompt,
   updateActionSheetChecks,

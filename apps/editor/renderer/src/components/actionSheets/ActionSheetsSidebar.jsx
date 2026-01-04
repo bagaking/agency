@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, RefreshCw, FolderOpen } from 'lucide-react';
+import { Plus, RefreshCw, FolderOpen, Archive } from 'lucide-react';
 import { stateBadge, formatTime } from './actionSheetUi.js';
 
 export function ActionSheetsSidebar({
@@ -9,9 +9,12 @@ export function ActionSheetsSidebar({
   onSelectSheet,
   onCreateSheet,
   onRefreshList,
+  showArchived = false,
+  onToggleArchived,
   loading,
 }) {
   const hasRunning = sheets.some((sheet) => sheet.state === 'running' || sheet.state === 'waiting_gate');
+  const archivedCount = sheets.filter((sheet) => sheet.archived).length;
 
   if (!projectReady) {
     return (
@@ -53,6 +56,19 @@ export function ActionSheetsSidebar({
           <RefreshCw size={10} className={loading ? 'animate-spin' : ''} />
           Refresh
         </button>
+        <button
+          type="button"
+          onClick={onToggleArchived}
+          className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[9px] uppercase tracking-[0.2em] transition-colors ${
+            showArchived
+              ? 'border-primary/40 text-primary'
+              : 'border-transparent text-muted-foreground/60 hover:text-foreground'
+          }`}
+        >
+          <Archive size={10} />
+          {showArchived ? 'Hide archived' : 'Show archived'}
+          {showArchived && archivedCount ? ` (${archivedCount})` : ''}
+        </button>
         {hasRunning && (
           <div className="flex items-center gap-1.5">
             <span className="relative flex h-1.5 w-1.5">
@@ -84,9 +100,16 @@ export function ActionSheetsSidebar({
                 <span className={`text-[12px] font-medium truncate ${selectedId === sheet.id ? 'text-foreground' : ''}`}>
                     {sheet.title || sheet.id}
                 </span>
-                <span className={`rounded-full border px-1.5 py-0.5 text-[8px] uppercase font-bold tracking-wider ${stateBadge(sheet.state)}`}>
-                  {sheet.state || 'queued'}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  {sheet.archived ? (
+                    <span className="rounded-full border border-border/30 px-1.5 py-0.5 text-[8px] uppercase font-semibold tracking-wider text-muted-foreground">
+                      archived
+                    </span>
+                  ) : null}
+                  <span className={`rounded-full border px-1.5 py-0.5 text-[8px] uppercase font-bold tracking-wider ${stateBadge(sheet.state)}`}>
+                    {sheet.state || 'queued'}
+                  </span>
+                </div>
               </div>
               <div className="text-[10px] flex items-center gap-2 opacity-60">
                 <span>{sheet.sessionId ? `#${sheet.sessionId}` : '-'}</span>

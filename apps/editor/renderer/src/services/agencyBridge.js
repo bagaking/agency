@@ -77,6 +77,14 @@ export const updateHilItem = async (payload) => {
   return api.updateHilItem(payload);
 };
 
+export const deleteHilItem = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.deleteHilItem) {
+    return null;
+  }
+  return api.deleteHilItem(payload);
+};
+
 export const promoteHilItem = async (payload) => {
   const api = getAgencyApi();
   if (!api?.promoteHilItem) {
@@ -131,6 +139,22 @@ export const updateActionSheetStatus = async (payload) => {
     return null;
   }
   return api.updateActionSheetStatus(payload);
+};
+
+export const archiveActionSheet = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.archiveActionSheet) {
+    return null;
+  }
+  return api.archiveActionSheet(payload);
+};
+
+export const deleteActionSheet = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.deleteActionSheet) {
+    return null;
+  }
+  return api.deleteActionSheet(payload);
 };
 
 export const updateActionSheetPlan = async (payload) => {
