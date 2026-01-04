@@ -82,6 +82,11 @@ export function useActionSheets({
   }, [refreshList]);
 
   useEffect(() => {
+    setSelectedId('');
+    setSelectedSheet(null);
+  }, [worktreePath]);
+
+  useEffect(() => {
     if (!selectedId) {
       setSelectedSheet(null);
       return;
