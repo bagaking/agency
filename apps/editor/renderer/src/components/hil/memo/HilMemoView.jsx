@@ -348,7 +348,7 @@ export function HilMemoView({
                       modal.openModal({
                         title,
                         description: sourceUrl ? `${sourceUrl}\n\n${bodyText}` : bodyText,
-                        variant: 'alert',
+                        variant: 'floating',
                         tone: 'info',
                         dismissLabel: 'Close',
                         dismissOnOverlay: true,

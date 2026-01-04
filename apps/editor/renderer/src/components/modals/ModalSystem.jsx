@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useMemo, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   AlertTriangle,
@@ -43,6 +43,7 @@ const toneStyles = {
 const defaultIcons = {
   notice: Bell,
   alert: Info,
+  floating: Info,
   confirm: AlertTriangle,
   success: CheckCircle2,
 };
@@ -65,8 +66,10 @@ function ModalCard({ modal, onClose }) {
   } = modal;
   const styles = resolveTone(tone);
   const Icon = IconOverride || defaultIcons[variant] || AlertTriangle;
+  const isFloating = variant === 'floating';
   const showCancel = variant === 'confirm';
-  const showDismiss = variant === 'notice' || variant === 'alert';
+  const showDismiss = variant === 'notice' || variant === 'alert' || variant === 'floating';
+  const showLabel = !isFloating;
 
   return (
     <div className="relative w-full max-w-md animate-tab-in">
@@ -85,9 +88,11 @@ function ModalCard({ modal, onClose }) {
           <div className="flex-1 space-y-2">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-[12px] font-semibold uppercase tracking-[0.35em] text-muted-foreground/70">
-                  {variant === 'confirm' ? 'Confirm' : variant === 'notice' ? 'Notice' : 'Alert'}
-                </div>
+                {showLabel ? (
+                  <div className="text-[12px] font-semibold uppercase tracking-[0.35em] text-muted-foreground/70">
+                    {variant === 'confirm' ? 'Confirm' : variant === 'notice' ? 'Notice' : 'Alert'}
+                  </div>
+                ) : null}
                 <div className="mt-1 text-[15px] font-semibold text-foreground">{title}</div>
               </div>
               <button
@@ -142,6 +147,8 @@ function ModalCard({ modal, onClose }) {
 
 function ModalHost({ stack, onClose }) {
   const modal = stack[stack.length - 1];
+  const floatingRef = useRef(null);
+  const isFloating = modal?.variant === 'floating';
 
   useEffect(() => {
     if (!modal?.autoCloseMs) {
@@ -153,11 +160,51 @@ function ModalHost({ stack, onClose }) {
     return () => window.clearTimeout(timer);
   }, [modal, onClose]);
 
+  useEffect(() => {
+    if (!modal || !isFloating) {
+      return undefined;
+    }
+    const handlePointerDown = (event) => {
+      if (floatingRef.current && floatingRef.current.contains(event.target)) {
+        return;
+      }
+      window.setTimeout(() => {
+        onClose(modal.id, false);
+      }, 0);
+    };
+    const handleKeyDown = (event) => {
+      const target = event.target;
+      if (floatingRef.current && target && floatingRef.current.contains(target)) {
+        return;
+      }
+      window.setTimeout(() => {
+        onClose(modal.id, false);
+      }, 0);
+    };
+    window.addEventListener('pointerdown', handlePointerDown, true);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown, true);
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [isFloating, modal, onClose]);
+
   if (!modal || typeof document === 'undefined') {
     return null;
   }
 
   const dismissOnOverlay = modal.dismissOnOverlay ?? modal.variant !== 'confirm';
+
+  if (isFloating) {
+    return createPortal(
+      <div className="fixed right-6 top-20 z-[9999] pointer-events-none">
+        <div ref={floatingRef} className="pointer-events-auto">
+          <ModalCard modal={modal} onClose={onClose} />
+        </div>
+      </div>,
+      document.body
+    );
+  }
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4">
