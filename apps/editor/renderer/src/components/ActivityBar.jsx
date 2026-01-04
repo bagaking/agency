@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, ListTree, Folder, Brain } from 'lucide-react';
+import { Settings, ListTree, Folder, Brain, ClipboardList } from 'lucide-react';
 import { Logo } from './Logo.jsx';
 
 export function ActivityBar({ activeView, onSwitchView }) {
@@ -20,6 +20,7 @@ export function ActivityBar({ activeView, onSwitchView }) {
   };
 
   const items = [
+    { id: 'action-sheets', icon: ClipboardList, label: 'Action Sheets' },
     { id: 'explorer', icon: Folder, label: 'Explorer' },
     { id: 'memo', icon: Brain, label: 'Memo' },
   ];

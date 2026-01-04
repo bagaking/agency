@@ -1,11 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Plus,
-  Play,
   RefreshCw,
   CheckCircle2,
   XCircle,
-  PauseCircle,
   Terminal,
   ChevronRight,
   ChevronLeft,
@@ -13,27 +11,8 @@ import {
   ClipboardCheck,
 } from 'lucide-react';
 import { ProjectEmptyState } from '../ProjectEmptyState.jsx';
-
-const stateBadge = (state) => {
-  if (state === 'running') return 'bg-sky-500/10 text-sky-300 border-sky-500/20';
-  if (state === 'waiting_gate') return 'bg-amber-500/10 text-amber-200 border-amber-500/20';
-  if (state === 'completed') return 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20';
-  if (state === 'failed') return 'bg-rose-500/10 text-rose-300 border-rose-500/20';
-  if (state === 'canceled') return 'bg-muted/10 text-muted-foreground border-border/30';
-  return 'bg-muted/10 text-muted-foreground border-border/30';
-};
-
-const gateBadge = (status) => {
-  if (status === 'passed') return 'text-emerald-300';
-  if (status === 'failed') return 'text-rose-300';
-  return 'text-muted-foreground/60';
-};
-
-const formatTime = (value) => {
-  if (!value) return '';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString();
-};
+import { ActionSheetStatusPanel } from './ActionSheetStatusPanel.jsx';
+import { stateBadge, formatTime } from './actionSheetUi.js';
 
 const normalizeChecksText = (checks) =>
   (checks || [])
@@ -119,13 +98,7 @@ export function ActionSheetsView({
   const activeStatus = selectedSheet?.status || null;
   const activeChecks = selectedSheet?.checks || [];
 
-  const statusBadgeClass = stateBadge(activeStatus?.state);
-  const gateStatus = activeStatus?.gateStatus || 'idle';
   const hasRunning = sheets.some((sheet) => sheet.state === 'running' || sheet.state === 'waiting_gate');
-
-  const pendingLabel = activeStatus?.nextRunAt
-    ? `Next run ${formatTime(activeStatus.nextRunAt)}`
-    : '';
 
   const cycleStatus = (status) => {
     if (status === 'passed') return 'failed';
@@ -288,78 +261,16 @@ export function ActionSheetsView({
           </div>
         ) : activeStatus ? (
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            <div className="rounded-xl border border-border/10 bg-muted/5 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
-                    Status
-                  </div>
-                  <div className={`mt-1 inline-flex items-center gap-2 rounded-full border px-2 py-1 text-[10px] ${statusBadgeClass}`}>
-                    {activeStatus.state}
-                  </div>
-                  {pendingLabel ? (
-                    <div className="text-[10px] text-muted-foreground/50 mt-1">{pendingLabel}</div>
-                  ) : null}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onRefreshChecks?.(selectedId)}
-                    className="rounded-md border border-border/30 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground"
-                  >
-                    <RefreshCw size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onCancelSheet?.(selectedId)}
-                    className="rounded-md border border-border/30 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground"
-                  >
-                    <PauseCircle size={12} />
-                  </button>
-                </div>
-              </div>
-              <div className="mt-3 flex items-center gap-4 text-[10px] text-muted-foreground/60">
-                <span>Gate: <span className={gateBadge(gateStatus)}>{gateStatus}</span></span>
-                <span>Attempts: {activeStatus.attempts || 0}</span>
-                <span>Last run: {formatTime(activeStatus.lastRunAt) || '—'}</span>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-border/10 bg-muted/5 p-4 space-y-3">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
-                Session
-              </div>
-              <div className="flex items-center gap-2">
-                <select
-                  value={sessionId}
-                  onChange={(event) => onSelectSession?.(event.target.value)}
-                  className="flex-1 rounded-md border border-border/20 bg-background px-2 py-1.5 text-[11px] text-foreground focus:border-primary/40 focus:outline-none"
-                >
-                  <option value="">Select session...</option>
-                  {sessions.map((session) => (
-                    <option key={session.id} value={session.id}>
-                      {session.name || session.id} · {session.status}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => onRunSheet?.(selectedId, sessionId)}
-                  className="rounded-md bg-primary px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-primary-foreground hover:bg-primary/90 transition-all"
-                >
-                  <Play size={12} className="inline mr-1" />
-                  Run
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onViewSession?.(sessionId)}
-                  className="rounded-md border border-border/30 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground"
-                >
-                  <Terminal size={12} className="inline mr-1" />
-                  View
-                </button>
-              </div>
-            </div>
+            <ActionSheetStatusPanel
+              sheet={activeStatus}
+              sessions={sessions}
+              sessionId={sessionId}
+              onSelectSession={onSelectSession}
+              onRunSheet={onRunSheet}
+              onCancelSheet={onCancelSheet}
+              onRefreshChecks={onRefreshChecks}
+              onViewSession={onViewSession}
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="rounded-xl border border-border/10 bg-muted/5 p-4 space-y-2">

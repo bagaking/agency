@@ -1,5 +1,5 @@
 import React from 'react';
-import { SquareTerminal, FolderClosed, User, Link2, ShieldCheck, ClipboardList } from 'lucide-react';
+import { SquareTerminal, FolderClosed, User, Link2, ShieldCheck } from 'lucide-react';
 
 export function HierarchySidebar({
   section,
@@ -8,7 +8,6 @@ export function HierarchySidebar({
   onSelectActionsScope,
   onSelectGateScope,
   onSelectSoftlinks,
-  onSelectActionSheets,
   canUseProjectScope,
   canUseAgentScope,
   actionSummary,
@@ -89,16 +88,6 @@ export function HierarchySidebar({
           />
         </div>
 
-        <div className="mb-2 mt-6 px-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">EXECUTION</div>
-        <div className="space-y-0.5">
-          <ScopeItem
-            icon={ClipboardList}
-            label="Action Sheets"
-            meta="Runner"
-            selected={section === 'action-sheets'}
-            onClick={() => onSelectActionSheets?.()}
-          />
-        </div>
       </div>
     </aside>
   );

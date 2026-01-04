@@ -13,6 +13,7 @@ import {
   RefreshCw,
   X
 } from 'lucide-react';
+import { ActionSheetStatusPanel } from '../actionSheets/ActionSheetStatusPanel.jsx';
 
 const kindIcons = {
     comment: Terminal,
@@ -78,6 +79,7 @@ export function HilCommentsPanel({
   promotePreviewById = {},
   promoteStep,
   promoteDraft,
+  promoteActionSheet,
   promoteGateStatus,
   promoteExecutionStatus,
   promoteSessionId,
@@ -94,6 +96,9 @@ export function HilCommentsPanel({
   onStartPromote,
   onConfirmPromote,
   onFocusPromoteSession,
+  onRunActionSheet,
+  onCancelActionSheet,
+  onOpenActionSheets,
   worktreePath,
 }) {
   const messageRef = useRef(null);
@@ -252,6 +257,7 @@ export function HilCommentsPanel({
           previewById={promotePreviewById}
           promoteStep={promoteStep}
           promoteDraft={promoteDraft}
+          promoteActionSheet={promoteActionSheet}
           promoteGateStatus={promoteGateStatus}
           promoteExecutionStatus={promoteExecutionStatus}
           promoteSessionId={promoteSessionId}
@@ -268,6 +274,9 @@ export function HilCommentsPanel({
           onClose={onClosePromote}
           onStart={onStartPromote}
           onConfirm={onConfirmPromote}
+          onRunActionSheet={onRunActionSheet}
+          onCancelActionSheet={onCancelActionSheet}
+          onOpenActionSheets={onOpenActionSheets}
         />
       ) : null}
 
@@ -502,6 +511,7 @@ function PromoteModal({
   previewById,
   promoteStep,
   promoteDraft,
+  promoteActionSheet,
   promoteGateStatus,
   promoteExecutionStatus,
   promoteSessionId,
@@ -518,6 +528,9 @@ function PromoteModal({
   onClose,
   onStart,
   onConfirm,
+  onRunActionSheet,
+  onCancelActionSheet,
+  onOpenActionSheets,
 }) {
   if (!open) {
     return null;
@@ -610,35 +623,36 @@ function PromoteModal({
             </div>
           </div>
 
-          <div className="rounded-xl border border-border/10 bg-muted/5 px-3 py-3">
-            <div className="flex items-center justify-between">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
-                Draft Gate
+          <div className="space-y-3">
+            <div className="rounded-xl border border-border/10 bg-muted/5 px-3 py-3">
+              <div className="flex items-center justify-between">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
+                  Draft Gate
+                </div>
+                <PromoteGateBadge status={gateStatus} />
               </div>
-              <PromoteGateBadge status={gateStatus} />
-            </div>
-            <div className="mt-2 text-[11px] text-muted-foreground/70 leading-relaxed">
-              {!isWaiting
-                ? 'Start promote to create a draft and begin the gate.'
-                : gateReady && promoteDraft
-                  ? 'Draft marked complete. You can confirm and consume items.'
-                  : gateMissing
-                    ? 'Draft not found. Ensure the draft exists in .agency/hil.'
-                    : 'Waiting for the agent to complete the draft and mark it promoted.'}
-            </div>
-            {promoteDraft ? (
-              <div className="mt-2 text-[10px] text-muted-foreground/50">
-                Draft ID: <span className="font-mono">{promoteDraft.id}</span>
+              <div className="mt-2 text-[11px] text-muted-foreground/70 leading-relaxed">
+                {!isWaiting
+                  ? 'Start promote to create a draft and begin the gate.'
+                  : gateReady && promoteDraft
+                    ? 'Draft marked complete. You can confirm and consume items.'
+                    : gateMissing
+                      ? 'Draft not found. Ensure the draft exists in .agency/hil.'
+                      : 'Waiting for the agent to complete the draft and mark it promoted.'}
               </div>
-            ) : null}
+              {promoteDraft ? (
+                <div className="mt-2 text-[10px] text-muted-foreground/50">
+                  Draft ID: <span className="font-mono">{promoteDraft.id}</span>
+                </div>
+              ) : null}
 
-            <div className="mt-3 flex items-center justify-between">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
-                Execution
+              <div className="mt-3 flex items-center justify-between">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
+                  Execution
+                </div>
+                <ExecutionStatusBadge status={executionStatus} />
               </div>
-              <ExecutionStatusBadge status={executionStatus} />
-            </div>
-            <div className="mt-2 text-[11px] text-muted-foreground/70 leading-relaxed">
+              <div className="mt-2 text-[11px] text-muted-foreground/70 leading-relaxed">
               {executionStatus === 'running'
                 ? 'Dispatch sent. Track progress in the selected session.'
                 : executionStatus === 'complete'
@@ -647,10 +661,27 @@ function PromoteModal({
                     ? 'Execution failed. Retry by restarting promote.'
                     : executionStatus === 'queued'
                       ? 'Queued for dispatch.'
-                      : executionStatus === 'missing'
-                        ? 'Draft metadata missing. Refresh and retry.'
-                        : 'Execution status idle.'}
+                      : executionStatus === 'canceled'
+                        ? 'Execution canceled. Restart to retry.'
+                        : executionStatus === 'missing'
+                          ? 'Draft metadata missing. Refresh and retry.'
+                          : 'Execution status idle.'}
+              </div>
             </div>
+
+            {promoteActionSheet ? (
+              <ActionSheetStatusPanel
+                sheet={promoteActionSheet}
+                sessions={availableSessions}
+                sessionId={promoteSessionId}
+                onRunSheet={onRunActionSheet}
+                onCancelSheet={onCancelActionSheet}
+                onViewSession={onFocusSession}
+                onOpenPanel={onOpenActionSheets}
+                compact
+                showSessionSelect={false}
+              />
+            ) : null}
           </div>
         </div>
 
@@ -834,6 +865,8 @@ function ExecutionStatusBadge({ status }) {
           ? 'Failed'
           : status === 'queued'
             ? 'Queued'
+            : status === 'canceled'
+              ? 'Canceled'
             : status === 'missing'
               ? 'Missing'
               : 'Idle';
@@ -848,7 +881,9 @@ function ExecutionStatusBadge({ status }) {
             ? 'border-amber-500/30 text-amber-400'
             : status === 'missing'
               ? 'border-rose-500/30 text-rose-400'
-              : 'border-border/40 text-muted-foreground/60';
+              : status === 'canceled'
+                ? 'border-border/40 text-muted-foreground/50'
+                : 'border-border/40 text-muted-foreground/60';
   return (
     <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.2em] ${styles}`}>
       {label}

@@ -30,14 +30,14 @@ export function ExplorerFooter({
   sessionActivityByKey,
   now,
   onSelectSession,
-  onRunCommand,
+  onSubmitFeed,
   activeCell,
 }) {
   const [comment, setComment] = useState('');
   const [showManifest, setShowManifest] = useState(false);
   const activeSessions = (sessions || []).filter((s) => s.status !== 'closed');
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const current = activeSessions.find(s => s.id === activeSessionId) || activeSessions[0];
     const trimmedComment = comment.trim();
     if (!current || selectionCount === 0 || !trimmedComment) return;
@@ -54,14 +54,17 @@ export function ExplorerFooter({
     const treeLines = manifestTree.length
       ? buildTreeLines(manifestTree)
       : (selectionTargets || []).map((path) => `- ${path}`);
-    const payload = `<context>\n${treeLines.join('\n')}\n</context>\n<query>\n${trimmedComment}\n</query>`;
-
-    onRunCommand?.({
-      command: payload,
-      kind: 'resume',
-      label: 'Feed',
-    });
-    setComment('');
+    const context = treeLines.join('\n');
+    try {
+      await onSubmitFeed?.({
+        description: trimmedComment,
+        context,
+        sessionId: current.id,
+      });
+      setComment('');
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const manifestTree = useMemo(() => {

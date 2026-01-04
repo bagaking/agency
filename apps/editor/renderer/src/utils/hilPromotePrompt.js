@@ -36,12 +36,11 @@ export function buildPromotePromptBundle({ description, items, previewById }) {
   };
 }
 
-export function buildPromotePromptText(bundle) {
+const buildPromoteContextLines = (bundle) => {
   if (!bundle) {
-    return '';
+    return [];
   }
   const lines = [];
-  lines.push('<context>');
   if (bundle.description) {
     lines.push(`Draft: ${bundle.description}`);
   }
@@ -58,9 +57,29 @@ export function buildPromotePromptText(bundle) {
       }
     });
   }
-  lines.push('</context>');
+  return lines;
+};
+
+export function buildPromotePromptText(bundle) {
+  if (!bundle) {
+    return '';
+  }
+  const lines = ['<context>', ...buildPromoteContextLines(bundle), '</context>'];
   lines.push('<query>');
   lines.push('Convert the selected items into a structured draft. Update the draft metadata when complete.');
   lines.push('</query>');
   return lines.join('\n');
+}
+
+export function buildPromoteActionSheetPrompt({ description, items, previewById }) {
+  const bundle = buildPromotePromptBundle({ description, items, previewById });
+  const requirements = [
+    description ? `Draft goal: ${description}` : 'Draft goal: (unspecified)',
+    'Convert the selected items into a structured draft.',
+    'Update the draft metadata when complete.',
+  ].join('\n');
+  return {
+    requirements,
+    context: buildPromoteContextLines(bundle).join('\n'),
+  };
 }

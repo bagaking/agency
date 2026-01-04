@@ -23,6 +23,7 @@ import {
   onCellsUpdated as subscribeCellsUpdated,
   onProjectUpdated as subscribeProjectUpdated,
   onRecentProjectsUpdated as subscribeRecentProjectsUpdated,
+  readActionSheet as agencyReadActionSheet,
   readWorkbenchEntry as agencyReadWorkbenchEntry,
   selectProjectRoot as agencySelectProjectRoot,
   setProjectRoot as agencySetProjectRoot,
@@ -31,7 +32,8 @@ import {
   updateCellState as agencyUpdateCellState,
   updateHilItem as agencyUpdateHilItem,
 } from './services/agencyBridge.js';
-import { buildPromotePromptBundle, buildPromotePromptText } from './utils/hilPromotePrompt.js';
+import { buildPromotePromptBundle, buildPromotePromptText, buildPromoteActionSheetPrompt } from './utils/hilPromotePrompt.js';
+import { buildActionSheetCompletion, buildActionSheetPlan } from './utils/actionSheetCompletion.js';
 const defaultCells = [
   {
     id: 'sample-cell',
@@ -101,6 +103,8 @@ function App() {
   const [promoteGateStatus, setPromoteGateStatus] = useState('waiting');
   const [promoteExecutionStatus, setPromoteExecutionStatus] = useState('idle');
   const [promoteSessionId, setPromoteSessionId] = useState('');
+  const [promoteActionSheetId, setPromoteActionSheetId] = useState('');
+  const [promoteActionSheet, setPromoteActionSheet] = useState(null);
   const [actionSheetSessionId, setActionSheetSessionId] = useState('');
   const [actionSheetInlineError, setActionSheetInlineError] = useState('');
   const projectReady = Boolean(projectRoot);
@@ -224,7 +228,7 @@ function App() {
             setSidebarCollapsed(state.sidebarCollapsed);
           }
           if (typeof state?.activeView === 'string') {
-            const allowedViews = new Set(['agent-cells', 'explorer', 'hierarchy', 'settings', 'memo']);
+            const allowedViews = new Set(['agent-cells', 'action-sheets', 'explorer', 'hierarchy', 'settings', 'memo']);
             if (allowedViews.has(state.activeView)) {
               setActiveView(state.activeView);
             }
@@ -471,13 +475,33 @@ function App() {
       setActionSheetInlineError('Select a project before creating Action Sheets.');
       return;
     }
-    await createActionSheet({
-      title: 'Action Sheet',
+    const title = 'Action Sheet';
+    const created = await createActionSheet({
+      title,
       prompt: { requirements: '', context: '', checks: '', done: '' },
       checks: [],
       conditional: conditionalDefaults,
     });
-  }, [actionSheetsRoot, conditionalDefaults, createActionSheet]);
+    if (!created?.id) {
+      return;
+    }
+    const completion = buildActionSheetCompletion(created.id);
+    await updateActionSheetPlan(created.id, buildActionSheetPlan({ title, marker: completion.marker }));
+    await updateActionSheetPrompt(created.id, {
+      requirements: '',
+      context: '',
+      checks: '',
+      done: completion.done,
+    });
+    await updateActionSheetChecks(created.id, completion.checks);
+  }, [
+    actionSheetsRoot,
+    conditionalDefaults,
+    createActionSheet,
+    updateActionSheetChecks,
+    updateActionSheetPlan,
+    updateActionSheetPrompt,
+  ]);
   const handleSaveActionSheet = useCallback(
     async (id, payload) => {
       if (!id) {
@@ -508,6 +532,63 @@ function App() {
     },
     [runActionSheet]
   );
+  const handleExplorerFeed = useCallback(
+    async ({ description, context, sessionId }) => {
+      if (!actionSheetsRoot) {
+        setActionSheetInlineError('Select a project before sending feed.');
+        return;
+      }
+      const trimmedDescription = String(description || '').trim();
+      if (!trimmedDescription) {
+        return;
+      }
+      if (!sessionId) {
+        setActionSheetInlineError('Select a session before sending feed.');
+        return;
+      }
+      try {
+        const title = `Feed: ${trimmedDescription.slice(0, 32)}`;
+        const created = await createActionSheet({
+          title,
+          prompt: {
+            requirements: trimmedDescription,
+            context: String(context || ''),
+            checks: '',
+            done: '',
+          },
+          checks: [],
+          conditional: conditionalDefaults,
+        });
+        if (!created?.id) {
+          throw new Error('Unable to create Action Sheet.');
+        }
+        const completion = buildActionSheetCompletion(created.id);
+        await updateActionSheetPlan(created.id, buildActionSheetPlan({ title, marker: completion.marker }));
+        await updateActionSheetPrompt(created.id, {
+          requirements: trimmedDescription,
+          context: String(context || ''),
+          checks: '',
+          done: completion.done,
+        });
+        await updateActionSheetChecks(created.id, completion.checks);
+        setActionSheetInlineError('');
+        setActionSheetSessionId(sessionId);
+        await runActionSheet({ id: created.id, sessionId });
+      } catch (error) {
+        setActionSheetInlineError(error?.message || 'Failed to start feed Action Sheet.');
+        throw error;
+      }
+    },
+    [
+      actionSheetsRoot,
+      conditionalDefaults,
+      createActionSheet,
+      runActionSheet,
+      updateActionSheetChecks,
+      updateActionSheetPlan,
+      updateActionSheetPrompt,
+    ]
+  );
   const handleViewActionSheetSession = useCallback(
     (sessionId) => {
       if (!sessionId) {
@@ -519,6 +600,15 @@ function App() {
       selectSession(sessionId);
     },
     [handleOpenTerminal, selectSession]
+  );
+  const handleOpenActionSheets = useCallback(
+    (sheetId) => {
+      if (sheetId) {
+        setActionSheetId(sheetId);
+      }
+      setActiveView('action-sheets');
+    },
+    []
   );
   const bumpHilCommentRefresh = useCallback(() => {
     setHilCommentRefreshToken((value) => value + 1);
@@ -709,6 +799,18 @@ function App() {
     }
     return todos.every((todo) => todo?.done === true || todo?.checked === true || todo?.status === 'done');
   }, []);
+  const normalizeActionSheetExecution = useCallback((state) => {
+    if (state === 'completed') {
+      return 'complete';
+    }
+    if (state === 'waiting_gate') {
+      return 'running';
+    }
+    if (state === 'queued' || state === 'running' || state === 'failed' || state === 'canceled') {
+      return state;
+    }
+    return 'idle';
+  }, []);
   useEffect(() => {
     loadComments();
   }, [loadComments]);
@@ -785,6 +887,8 @@ function App() {
     setPromoteDraft(null);
     setPromoteGateStatus('waiting');
     setPromoteExecutionStatus('idle');
+    setPromoteActionSheetId('');
+    setPromoteActionSheet(null);
     try {
       const list = await agencyListHilItems({
         worktreePath: promoteWorktreePath,
@@ -837,6 +941,8 @@ function App() {
     setPromoteGateStatus('waiting');
     setPromoteSessionId('');
     setPromoteExecutionStatus('idle');
+    setPromoteActionSheetId('');
+    setPromoteActionSheet(null);
   }, []);
   const togglePromoteItem = useCallback((itemId) => {
     if (!itemId) {
@@ -950,6 +1056,11 @@ function App() {
         previewById: promotePreviewById,
       });
       const promptText = buildPromotePromptText(promptBundle);
+      const actionSheetPrompt = buildPromoteActionSheetPrompt({
+        description: promoteDescription.trim(),
+        items: selected,
+        previewById: promotePreviewById,
+      });
       const requestedAt = new Date().toISOString();
       const references = selected.map((item) => ({
         system: 'hil',
@@ -958,6 +1069,31 @@ function App() {
         line: item.anchor?.line || null,
         kind: item.kind || null,
       }));
+      const actionSheetTitle = `Promote: ${promoteDescription.trim().slice(0, 32)}`;
+      const createdSheet = await createActionSheet({
+        title: actionSheetTitle,
+        prompt: {
+          requirements: actionSheetPrompt.requirements,
+          context: actionSheetPrompt.context,
+          checks: '',
+          done: '',
+        },
+        checks: [],
+        conditional: conditionalDefaults,
+      });
+      if (!createdSheet?.id) {
+        setPromoteError('Unable to create Action Sheet.');
+        return;
+      }
+      const completion = buildActionSheetCompletion(createdSheet.id);
+      await updateActionSheetPlan(createdSheet.id, buildActionSheetPlan({ title: actionSheetTitle, marker: completion.marker }));
+      await updateActionSheetPrompt(createdSheet.id, {
+        requirements: actionSheetPrompt.requirements,
+        context: actionSheetPrompt.context,
+        checks: '',
+        done: completion.done,
+      });
+      await updateActionSheetChecks(createdSheet.id, completion.checks);
       const draft = await agencyCreateHilItem({
         worktreePath: promoteWorktreePath,
         kind: 'draft',
@@ -967,6 +1103,7 @@ function App() {
           sourceKind: 'hil',
           sourceBatch: 'promote',
           promoteSessionId: promoteSessionId,
+          actionSheetId: createdSheet.id,
           promoted: false,
           promptBundle,
           promptText,
@@ -983,16 +1120,10 @@ function App() {
       setPromoteDraft(draft);
       setPromoteGateStatus('waiting');
       setPromoteExecutionStatus('queued');
+      setPromoteActionSheetId(createdSheet.id);
+      setPromoteActionSheet(createdSheet.status || null);
       setPromoteStep('waiting');
-      setActiveView('agent-cells');
-      handleOpenTerminal();
-      selectSession(promoteSessionId);
-      await runActionCommand({
-        command: promptText,
-        kind: 'resume',
-        label: 'Promote',
-        sessionId: promoteSessionId,
-      });
+      await runActionSheet({ id: createdSheet.id, sessionId: promoteSessionId });
       const updatedDraft = await agencyUpdateHilItem({
         worktreePath: promoteWorktreePath,
         itemId: draft.id,
@@ -1022,10 +1153,12 @@ function App() {
     promoteSessionId,
     promoteWorktreePath,
     promotePreviewById,
-    selectSession,
-    handleOpenTerminal,
-    runActionCommand,
-    setActiveView,
+    conditionalDefaults,
+    createActionSheet,
+    runActionSheet,
+    updateActionSheetChecks,
+    updateActionSheetPlan,
+    updateActionSheetPrompt,
   ]);
   const confirmPromote = useCallback(async () => {
     if (!promoteWorktreePath || !promoteDraftId) {
@@ -1101,9 +1234,68 @@ function App() {
           setPromoteExecutionStatus('missing');
           return;
         }
-        setPromoteDraft(found);
-        setPromoteExecutionStatus(found.meta?.executionStatus || 'waiting');
-        setPromoteGateStatus(isDraftComplete(found) ? 'ready' : 'waiting');
+        let nextDraft = found;
+        const sheetId = promoteActionSheetId || found.meta?.actionSheetId || '';
+        if (sheetId && !promoteActionSheetId) {
+          setPromoteActionSheetId(sheetId);
+        }
+        let actionSheetStatus = null;
+        if (sheetId) {
+          try {
+            const sheet = await agencyReadActionSheet({
+              worktreePath: promoteWorktreePath,
+              id: sheetId,
+            });
+            if (sheet?.status) {
+              actionSheetStatus = sheet.status;
+              setPromoteActionSheet(sheet.status);
+            }
+          } catch (readError) {
+            setPromoteActionSheet(null);
+          }
+        } else {
+          setPromoteActionSheet(null);
+        }
+        if (actionSheetStatus?.gateStatus === 'passed') {
+          if (nextDraft.meta?.promoted !== true || nextDraft.meta?.executionStatus !== 'complete') {
+            const updated = await agencyUpdateHilItem({
+              worktreePath: promoteWorktreePath,
+              itemId: nextDraft.id,
+              patch: {
+                meta: {
+                  promoted: true,
+                  executionStatus: 'complete',
+                  executionFinishedAt: new Date().toISOString(),
+                },
+              },
+            });
+            if (updated) {
+              nextDraft = updated;
+            }
+          }
+        } else if (actionSheetStatus?.state === 'failed' && nextDraft.meta?.executionStatus !== 'failed') {
+          const updated = await agencyUpdateHilItem({
+            worktreePath: promoteWorktreePath,
+            itemId: nextDraft.id,
+            patch: {
+              meta: {
+                executionStatus: 'failed',
+              },
+            },
+          });
+          if (updated) {
+            nextDraft = updated;
+          }
+        }
+        setPromoteDraft(nextDraft);
+        if (actionSheetStatus?.state) {
+          setPromoteExecutionStatus(normalizeActionSheetExecution(actionSheetStatus.state));
+        } else {
+          setPromoteExecutionStatus(nextDraft.meta?.executionStatus || 'waiting');
+        }
+        const gateReady =
+          actionSheetStatus?.gateStatus === 'passed' || isDraftComplete(nextDraft);
+        setPromoteGateStatus(gateReady ? 'ready' : 'waiting');
       } catch (error) {
         if (canceled) {
           return;
@@ -1117,7 +1309,15 @@ function App() {
       canceled = true;
       clearInterval(interval);
     };
-  }, [isDraftComplete, promoteDraftId, promoteModalOpen, promoteStep, promoteWorktreePath]);
+  }, [
+    isDraftComplete,
+    normalizeActionSheetExecution,
+    promoteActionSheetId,
+    promoteDraftId,
+    promoteModalOpen,
+    promoteStep,
+    promoteWorktreePath,
+  ]);
   const resetProjectState = useCallback(() => {
     setSelectedId(null);
     setCells([]);
@@ -1406,6 +1606,7 @@ function App() {
     promotePreviewById,
     promoteStep,
     promoteDraft,
+    promoteActionSheet,
     promoteGateStatus,
     promoteExecutionStatus,
     promoteSessionId,
@@ -1422,6 +1623,9 @@ function App() {
     onStartPromote: startPromote,
     onConfirmPromote: confirmPromote,
     onFocusPromoteSession: handleFocusPromoteSession,
+    onRunActionSheet: handleRunActionSheet,
+    onCancelActionSheet: cancelActionSheet,
+    onOpenActionSheets: handleOpenActionSheets,
   };
   const handleSwitchView = useCallback(
     (view) => {
@@ -1464,9 +1668,6 @@ function App() {
       if (target === 'softlinks') {
         clearWorktreeLinksError();
       }
-      if (target === 'action-sheets') {
-        setActionSheetInlineError('');
-      }
     },
     [clearGatesError, clearQuickActionsError, clearWorktreeLinksError]
   );
@@ -1491,9 +1692,6 @@ function App() {
       setHierarchySection(section);
       if (section === 'softlinks') {
         clearWorktreeLinksError();
-      }
-      if (section === 'action-sheets') {
-        setActionSheetInlineError('');
       }
     },
     [clearWorktreeLinksError]
@@ -1628,7 +1826,7 @@ function App() {
           onJumpToAgents: () => handleSwitchView('agent-cells'),
           workbenchMeta: explorerMeta,
           onSelectSession: selectSession,
-          onRunCommand: runActionCommand,
+          onSubmitFeed: handleExplorerFeed,
           onOpenFile: ({ path, mode }) => {
             workbench.openFile({ path, mode, rootPath: explorerRootPath });
           },
@@ -1661,6 +1859,10 @@ function App() {
           projectRoot,
           sessions,
           onViewSession: handleViewActionSheetSession,
+          actionSheets: actionSheets,
+          onRunActionSheet: handleRunActionSheet,
+          onCancelActionSheet: cancelActionSheet,
+          onOpenActionSheets: handleOpenActionSheets,
         }}
       />
 

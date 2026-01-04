@@ -21,6 +21,7 @@ import { ProjectEmptyState } from '../../ProjectEmptyState.jsx';
 import { useHilItems } from '../../../hooks/useHilItems.js';
 import { InboxSection } from './InboxSection.jsx';
 import { CaptureRoutingSheet } from '../../capture/CaptureRoutingSheet.jsx';
+import { ActionSheetStatusPanel } from '../../actionSheets/ActionSheetStatusPanel.jsx';
 import {
   createHilItem as agencyCreateHilItem,
   startScreenshotCapture as agencyStartScreenshotCapture,
@@ -78,6 +79,10 @@ export function HilMemoView({
   projectRoot,
   sessions = [],
   onViewSession,
+  actionSheets = [],
+  onRunActionSheet,
+  onCancelActionSheet,
+  onOpenActionSheets,
 }) {
   const { items, filters, setFilters, loading, error, refresh } = useHilItems({
     worktreePath,
@@ -202,6 +207,16 @@ export function HilMemoView({
     });
     return map;
   }, [sessions]);
+
+  const actionSheetsById = useMemo(() => {
+    const map = new Map();
+    (actionSheets || []).forEach((sheet) => {
+      if (sheet?.id) {
+        map.set(sheet.id, sheet);
+      }
+    });
+    return map;
+  }, [actionSheets]);
 
   const routingTargets = useMemo(() => {
     const list = [];
@@ -589,6 +604,11 @@ export function HilMemoView({
                 onUpdateStatus={updateStatus}
                 sessionsById={sessionsById}
                 onViewSession={onViewSession}
+                actionSheetsById={actionSheetsById}
+                sessions={sessions}
+                onRunActionSheet={onRunActionSheet}
+                onCancelActionSheet={onCancelActionSheet}
+                onOpenActionSheets={onOpenActionSheets}
               />
             ) : (
               <div className="flex h-full flex-col">
@@ -757,7 +777,17 @@ function MemoRow({ item, index, onUpdateStatus }) {
     );
 }
 
-function DraftDetail({ draft, onUpdateStatus, sessionsById, onViewSession }) {
+function DraftDetail({
+  draft,
+  onUpdateStatus,
+  sessionsById,
+  onViewSession,
+  actionSheetsById,
+  sessions,
+  onRunActionSheet,
+  onCancelActionSheet,
+  onOpenActionSheets,
+}) {
     const createdAt = draft.createdAt ? new Date(draft.createdAt) : null;
     const references = Array.isArray(draft.references) ? draft.references : [];
     const executionStatus = draft.meta?.executionStatus || 'idle';
@@ -766,6 +796,9 @@ function DraftDetail({ draft, onUpdateStatus, sessionsById, onViewSession }) {
     const executionStartedAt = draft.meta?.executionStartedAt ? new Date(draft.meta.executionStartedAt) : null;
     const executionFinishedAt = draft.meta?.executionFinishedAt ? new Date(draft.meta.executionFinishedAt) : null;
     const actionSheetId = draft.meta?.actionSheetId || '';
+    const actionSheetStatus = actionSheetId
+        ? actionSheetsById?.get(actionSheetId) || { id: actionSheetId, state: 'idle', gateStatus: 'idle' }
+        : null;
     const sessionLabel = executionSessionId
         ? sessionsById?.get(executionSessionId)?.name || executionSessionId
         : '';
@@ -862,6 +895,19 @@ function DraftDetail({ draft, onUpdateStatus, sessionsById, onViewSession }) {
                         </button>
                     </div>
                 </div>
+                {actionSheetId ? (
+                  <ActionSheetStatusPanel
+                    sheet={actionSheetStatus}
+                    sessions={sessions}
+                    sessionId={actionSheetStatus?.sessionId || executionSessionId}
+                    onRunSheet={onRunActionSheet}
+                    onCancelSheet={onCancelActionSheet}
+                    onViewSession={onViewSession}
+                    onOpenPanel={onOpenActionSheets}
+                    compact
+                    showSessionSelect={false}
+                  />
+                ) : null}
                 <div className="rounded-2xl border border-border/10 bg-muted/5 p-4">
                     <div className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
                         Draft Body

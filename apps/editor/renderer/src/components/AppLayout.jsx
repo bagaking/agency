@@ -139,7 +139,6 @@ export function AppLayout({
         onSelectActionsScope={onSelectActionsScope}
         onSelectGateScope={onSelectGateScope}
         onSelectSoftlinks={() => onSelectHierarchySection('softlinks')}
-        onSelectActionSheets={() => onSelectHierarchySection('action-sheets')}
         canUseProjectScope={canUseProjectScope}
         canUseAgentScope={canUseAgentScope}
         actionSummary={actionSummary}
@@ -236,7 +235,7 @@ export function AppLayout({
             </div>
           ) : null}
 
-          {activeView === 'hierarchy' && hierarchySection === 'action-sheets' ? (
+          {activeView === 'action-sheets' ? (
             <div className="absolute inset-0">
               <ActionSheetsView {...actionSheetsProps} />
             </div>
