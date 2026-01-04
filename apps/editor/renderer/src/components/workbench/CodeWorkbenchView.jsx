@@ -423,6 +423,20 @@ export function CodeWorkbenchView({
     }
   }, [commentsEnabled]);
 
+  useEffect(() => {
+    onEditorReadyRef.current = onEditorReady;
+  }, [onEditorReady]);
+
+  useEffect(() => {
+    if (!editorReady || !editorRef.current) {
+      return undefined;
+    }
+    onEditorReadyRef.current?.(editorRef.current);
+    return () => {
+      onEditorReadyRef.current?.(null);
+    };
+  }, [editorReady]);
+
   return (
     <div className="relative h-full w-full">
       {diffTruncated ? (
@@ -523,16 +537,3 @@ export function CodeWorkbenchView({
     </div>
   );
 }
-  useEffect(() => {
-    onEditorReadyRef.current = onEditorReady;
-  }, [onEditorReady]);
-
-  useEffect(() => {
-    if (!editorReady || !editorRef.current) {
-      return undefined;
-    }
-    onEditorReadyRef.current?.(editorRef.current);
-    return () => {
-      onEditorReadyRef.current?.(null);
-    };
-  }, [editorReady]);
