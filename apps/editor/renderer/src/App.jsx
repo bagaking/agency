@@ -22,7 +22,6 @@ import {
   getUiState,
   listCells as agencyListCells,
   listComments as agencyListComments,
-  listActionSheets as agencyListActionSheets,
   listHilItems as agencyListHilItems,
   onCellsUpdated as subscribeCellsUpdated,
   onProjectUpdated as subscribeProjectUpdated,
@@ -624,14 +623,13 @@ function App() {
       }
       try {
         let actionSheetId = draft.meta?.actionSheetId || '';
-        if (actionSheetId && agencyListActionSheets) {
+        if (actionSheetId && agencyReadActionSheet) {
           try {
-            const list = await agencyListActionSheets({
+            const sheet = await agencyReadActionSheet({
               worktreePath: actionSheetsPath,
-              includeArchived: true,
+              id: actionSheetId,
             });
-            const exists = Array.isArray(list) && list.some((sheet) => sheet.id === actionSheetId);
-            if (!exists) {
+            if (!sheet) {
               actionSheetId = '';
             }
           } catch (error) {
@@ -668,7 +666,7 @@ function App() {
     [
       activeSessionId,
       actionSheetsRoot,
-      agencyListActionSheets,
+      agencyReadActionSheet,
       handleCreateDraftActionSheet,
       handleDispatchActionSheet,
       hilMemo.refresh,
