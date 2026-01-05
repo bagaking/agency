@@ -15,6 +15,7 @@ Memo Flash capture has a placeholder voice action without functionality. We need
 - Encapsulate recognition logic in a dedicated hook/module that exposes `start`, `stop`, state, and transcript events.
 - Insert finalized transcripts into the Flash input by appending text, keeping manual edits available.
 - If speech recognition is unsupported or errors, show a non-blocking status and log a runtime warning.
+- Provide a language selector with an Auto default that uses the browser language list.
 
 ## Risks / Trade-offs
 - Web Speech API availability varies by platform; fallback is required.
@@ -25,4 +26,4 @@ Memo Flash capture has a placeholder voice action without functionality. We need
 - Replace the demo voice button with functional controls.
 
 ## Open Questions
-- Should we allow selecting recognition language per memo, or default to `navigator.language` only?
+- None for this iteration.
