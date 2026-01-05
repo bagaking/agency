@@ -1,4 +1,4 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Memo Voice Input
 The Memo Flash capture UI SHALL provide a voice input control with explicit start and stop actions.
@@ -7,6 +7,7 @@ While recording, the UI SHALL show a recording state and a live transcript previ
 Finalized transcripts SHALL be appended to the Flash text field without discarding existing typed content.
 If voice input is unsupported, blocked, or fails, the editor SHALL surface a non-blocking status message with the failure reason and keep manual input available.
 When voice input fails to start or crashes, the editor SHALL log a runtime warning with diagnostic context.
+On macOS, the editor SHALL prefer native speech recognition when available and fall back to Web Speech when native capture is unavailable.
 
 #### Scenario: Capture flash text by voice
 - **WHEN** a user starts voice input from the Flash capture UI
@@ -22,6 +23,10 @@ When voice input fails to start or crashes, the editor SHALL log a runtime warni
 - **WHEN** a user selects a recognition language in the Flash capture UI
 - **THEN** subsequent voice capture uses the selected language
 - **AND** the selected value is shown in the UI
+
+#### Scenario: Use macOS native speech recognition
+- **WHEN** the editor runs on macOS and native speech recognition is available
+- **THEN** voice capture uses the native speech backend
 
 #### Scenario: Voice input unavailable
 - **WHEN** speech recognition is unsupported, blocked, or errors
