@@ -7,6 +7,16 @@ import Darwin
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 
+func emitDebug(_ payload: [String: Any]) {
+  JsonEmitter.emit(["type": "debug", "data": payload])
+}
+
+NSSetUncaughtExceptionHandler { exception in
+  FileHandle.standardError.write(
+    ("Uncaught exception: \(exception)\n").data(using: .utf8) ?? Data()
+  )
+}
+
 struct JsonEmitter {
   static func emit(_ payload: [String: Any]) {
     guard let data = try? JSONSerialization.data(withJSONObject: payload, options: []) else {
@@ -59,6 +69,14 @@ let audioEngine = AVAudioEngine()
 var recognitionTask: SFSpeechRecognitionTask?
 var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
 var stopRequested = false
+
+let bundle = Bundle.main
+emitDebug([
+  "bundleId": bundle.bundleIdentifier ?? "",
+  "bundlePath": bundle.bundlePath,
+  "hasMicUsage": bundle.object(forInfoDictionaryKey: "NSMicrophoneUsageDescription") != nil,
+  "hasSpeechUsage": bundle.object(forInfoDictionaryKey: "NSSpeechRecognitionUsageDescription") != nil,
+])
 
 func stopCapture(_ reason: String? = nil) {
   if stopRequested {
@@ -131,12 +149,14 @@ func requestPermissions(completion: @escaping (Bool, String?) -> Void) {
   var micGranted = false
 
   group.enter()
+  emitDebug(["stage": "request-speech-auth"])
   SFSpeechRecognizer.requestAuthorization { status in
     speechStatus = status
     group.leave()
   }
 
   group.enter()
+  emitDebug(["stage": "request-mic-auth"])
   AVCaptureDevice.requestAccess(for: .audio) { granted in
     micGranted = granted
     group.leave()
