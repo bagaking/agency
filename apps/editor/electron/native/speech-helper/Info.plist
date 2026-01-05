@@ -16,6 +16,8 @@
   <string>0.2.0</string>
   <key>CFBundleVersion</key>
   <string>0.2.0</string>
+  <key>LSUIElement</key>
+  <true/>
   <key>NSMicrophoneUsageDescription</key>
   <string>Voice input needs microphone access to capture speech for memos.</string>
   <key>NSSpeechRecognitionUsageDescription</key>

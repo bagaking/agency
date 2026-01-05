@@ -1,7 +1,11 @@
 import Foundation
 import Speech
 import AVFoundation
+import AppKit
 import Darwin
+
+let app = NSApplication.shared
+app.setActivationPolicy(.accessory)
 
 struct JsonEmitter {
   static func emit(_ payload: [String: Any]) {

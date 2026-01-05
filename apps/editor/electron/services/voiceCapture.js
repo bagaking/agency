@@ -64,6 +64,22 @@ async function fileExists(filePath) {
   }
 }
 
+async function isHelperStale(helperPath, infoPath) {
+  try {
+    const [helperStat, sourceStat, infoStat] = await Promise.all([
+      fs.promises.stat(helperPath),
+      fs.promises.stat(helperSource),
+      fs.promises.stat(infoPath),
+    ]);
+    return (
+      sourceStat.mtimeMs > helperStat.mtimeMs ||
+      infoStat.mtimeMs > helperStat.mtimeMs
+    );
+  } catch (error) {
+    return true;
+  }
+}
+
 async function ensureHelperBinary() {
   if (process.platform !== 'darwin') {
     return { ok: false, reason: 'unsupported-platform' };
@@ -71,7 +87,11 @@ async function ensureHelperBinary() {
   const helperPath = resolveHelperPath();
   const infoPath = resolveHelperInfoPath();
   if ((await pathExists(helperPath)) && (await fileExists(infoPath))) {
-    return { ok: true, helperPath, built: false };
+    const stale = await isHelperStale(helperPath, infoPath);
+    if (!stale) {
+      return { ok: true, helperPath, built: false };
+    }
+    logRuntime('info', 'speech helper rebuild required', { helperPath });
   }
   if (app.isPackaged) {
     return { ok: false, reason: 'missing-helper' };
@@ -85,6 +105,8 @@ async function ensureHelperBinary() {
       'Speech',
       '-framework',
       'AVFoundation',
+      '-framework',
+      'AppKit',
       helperSource,
       '-o',
       helperPath,
