@@ -6,6 +6,7 @@ const { logRuntime } = require('./runtimeLog');
 
 const helperRoot = path.join(__dirname, '..', 'native', 'speech-helper');
 const helperSource = path.join(helperRoot, 'SpeechHelper.swift');
+const helperInfoPlist = path.join(helperRoot, 'Info.plist');
 const helperBundleName = 'SpeechHelper.app';
 const devHelperBundle = path.join(helperRoot, 'bin', helperBundleName);
 const devHelperBin = path.join(devHelperBundle, 'Contents', 'MacOS', 'speech-helper');
@@ -40,9 +41,23 @@ function resolveHelperPath() {
   return devHelperBin;
 }
 
+function resolveHelperInfoPath() {
+  const helperPath = resolveHelperPath();
+  return path.join(path.dirname(helperPath), '..', 'Info.plist');
+}
+
 async function pathExists(filePath) {
   try {
     await fs.promises.access(filePath, fs.constants.X_OK);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function fileExists(filePath) {
+  try {
+    await fs.promises.access(filePath, fs.constants.F_OK);
     return true;
   } catch (error) {
     return false;
@@ -54,7 +69,8 @@ async function ensureHelperBinary() {
     return { ok: false, reason: 'unsupported-platform' };
   }
   const helperPath = resolveHelperPath();
-  if (await pathExists(helperPath)) {
+  const infoPath = resolveHelperInfoPath();
+  if ((await pathExists(helperPath)) && (await fileExists(infoPath))) {
     return { ok: true, helperPath, built: false };
   }
   if (app.isPackaged) {
@@ -74,6 +90,11 @@ async function ensureHelperBinary() {
       helperPath,
     ]);
     await fs.promises.chmod(helperPath, 0o755);
+    if (!(await fileExists(helperInfoPlist))) {
+      return { ok: false, reason: 'missing-infoplist' };
+    }
+    await fs.promises.mkdir(path.dirname(infoPath), { recursive: true });
+    await fs.promises.copyFile(helperInfoPlist, infoPath);
     return { ok: true, helperPath, built: true };
   } catch (error) {
     logRuntime('warn', 'speech helper build failed', {
@@ -87,13 +108,16 @@ async function getVoiceCaptureSupport() {
   if (process.platform !== 'darwin') {
     return { supported: false, reason: 'unsupported-platform' };
   }
+  const helperPath = resolveHelperPath();
+  const infoPath = resolveHelperInfoPath();
+  const helperReady = (await pathExists(helperPath)) && (await fileExists(infoPath));
   if (app.isPackaged) {
-    const helperPath = resolveHelperPath();
-    const exists = await pathExists(helperPath);
-    return { supported: exists, reason: exists ? null : 'missing-helper' };
+    return { supported: helperReady, reason: helperReady ? null : 'missing-helper' };
   }
-  const exists = await pathExists(resolveHelperPath());
-  return { supported: true, reason: exists ? null : 'build-on-demand' };
+  if (helperReady) {
+    return { supported: true, reason: null };
+  }
+  return { supported: true, reason: 'build-on-demand' };
 }
 
 function sendEvent(payload) {
