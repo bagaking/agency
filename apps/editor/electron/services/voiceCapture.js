@@ -142,8 +142,14 @@ async function startVoiceCapture({ language } = {}, sender) {
   if (activeCapture) {
     await stopVoiceCapture({ captureId: activeCapture.id });
   }
+  logRuntime('info', 'speech helper start requested', {
+    language,
+  });
   const helper = await ensureHelperBinary();
   if (!helper.ok) {
+    logRuntime('warn', 'speech helper unavailable', {
+      reason: helper.reason || 'helper-unavailable',
+    });
     return { supported: false, reason: helper.reason || 'helper-unavailable' };
   }
   const captureId = `speech-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
@@ -204,6 +210,12 @@ async function startVoiceCapture({ language } = {}, sender) {
         `Speech helper exited (${signal || `code ${code}`}).`
       );
     }
+    logRuntime('warn', 'speech helper exited', {
+      captureId,
+      code,
+      signal,
+      stopRequested: activeCapture?.stopRequested || false,
+    });
     clearActiveCapture();
   });
 

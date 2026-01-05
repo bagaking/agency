@@ -425,6 +425,13 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     }
     try {
       const result = await startVoiceCapture?.({ language: resolvedLanguage });
+      logVoiceDiagnostics({
+        level: 'info',
+        message: 'native voice capture start response',
+        meta: {
+          result: result || null,
+        },
+      });
       if (!result?.supported || !result?.captureId) {
         logVoiceDiagnostics({
           level: 'warn',
