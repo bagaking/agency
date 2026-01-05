@@ -204,19 +204,27 @@ async function startVoiceCapture({ language } = {}, sender) {
   });
 
   child.on('exit', (code, signal) => {
-    sendEvent({ type: 'status', status: 'stopped', code, signal });
-    if (!activeCapture?.stopRequested && (code || signal)) {
-      sendError(
-        `Speech helper exited (${signal || `code ${code}`}).`
-      );
+    if (!activeCapture?.stopRequested) {
+      const reason = signal || (Number.isFinite(code) ? `code ${code}` : null);
+      if (reason && (code !== 0 || signal)) {
+        sendError(`Speech helper exited (${reason}).`);
+      } else if (code === 0) {
+        sendError('Speech helper exited unexpectedly.');
+      }
     }
+    sendEvent({ type: 'status', status: 'stopped', code, signal });
     logRuntime('warn', 'speech helper exited', {
       captureId,
       code,
       signal,
       stopRequested: activeCapture?.stopRequested || false,
     });
-    clearActiveCapture();
+    const captureSnapshot = activeCapture;
+    setTimeout(() => {
+      if (activeCapture === captureSnapshot) {
+        clearActiveCapture();
+      }
+    }, 200);
   });
 
   child.on('error', (error) => {

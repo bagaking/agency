@@ -188,6 +188,8 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
           type: payload.type,
           status: payload.status || null,
           message: payload.message || null,
+          code: payload.code ?? null,
+          signal: payload.signal ?? null,
         },
       });
       if (payload.type === 'status') {
