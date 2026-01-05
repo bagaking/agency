@@ -1,6 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Memo Drawer Shortcut Interaction
+Memo drawer shortcut cards SHALL support Flash, Excerpt, and Screenshot capture surfaces.
 Memo drawer shortcut cards SHALL allow inline capture interaction without switching the main Memo panel by default.
 The drawer SHALL provide an explicit "View Records" action on each shortcut card to switch the main Memo inbox section.
 When a memo capture is confirmed and stored, the main Memo panel SHALL switch to the corresponding inbox section.

@@ -27,6 +27,7 @@
 - Memo drawer shortcut cards are interactive capture surfaces and do not switch the main Memo panel when clicked.
 - Use the explicit "View Records" action on a shortcut card to switch the main Memo inbox section.
 - After a capture is confirmed and saved, the main Memo panel switches to the corresponding inbox section.
+- Shortcut cards include Flash, Excerpt, and Screenshot captures.
 
 ## Cell Lifecycle Files
 
