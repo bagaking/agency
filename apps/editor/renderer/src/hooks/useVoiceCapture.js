@@ -110,6 +110,13 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
   useEffect(() => {
     const available = Boolean(resolveSpeechRecognition());
     setWebSupported(available);
+    logVoiceDiagnostics({
+      level: 'info',
+      message: 'web speech support checked',
+      meta: {
+        supported: available,
+      },
+    });
   }, []);
 
   useEffect(() => {
@@ -120,6 +127,14 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
         return;
       }
       setNativeSupported(Boolean(result?.supported));
+      logVoiceDiagnostics({
+        level: 'info',
+        message: 'native speech support checked',
+        meta: {
+          supported: Boolean(result?.supported),
+          reason: result?.reason || null,
+        },
+      });
     };
     fetchSupport();
     return () => {
@@ -130,12 +145,20 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
   useEffect(() => {
     if (!supported) {
       setStatusSafe('unavailable');
+      logVoiceDiagnostics({
+        level: 'warn',
+        message: 'voice capture unavailable',
+        meta: {
+          webSupported,
+          nativeSupported,
+        },
+      });
       return;
     }
     if (statusRef.current === 'unavailable') {
       setStatusSafe('idle');
     }
-  }, [setStatusSafe, supported]);
+  }, [nativeSupported, setStatusSafe, supported, webSupported]);
 
   const resolvedLanguage = useMemo(() => resolveLanguage(language), [language]);
   const languageOptions = useMemo(() => buildLanguageOptions(), []);
@@ -414,6 +437,16 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
   }, [buildDiagnostics, nativeSupported, resolvedLanguage, setStatusSafe]);
 
   const start = useCallback(async () => {
+    logVoiceDiagnostics({
+      level: 'info',
+      message: 'voice capture start requested',
+      meta: {
+        webSupported,
+        nativeSupported,
+        language,
+        resolvedLanguage,
+      },
+    });
     if (!supported) {
       setError('Voice input is not supported in this environment.');
       setStatusSafe('unavailable');
@@ -424,7 +457,16 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       return;
     }
     startWebSpeech();
-  }, [setStatusSafe, startNativeSpeech, startWebSpeech, supported]);
+  }, [
+    language,
+    nativeSupported,
+    resolvedLanguage,
+    setStatusSafe,
+    startNativeSpeech,
+    startWebSpeech,
+    supported,
+    webSupported,
+  ]);
 
   const stop = useCallback(() => {
     if (nativeActiveRef.current && nativeCaptureIdRef.current) {
