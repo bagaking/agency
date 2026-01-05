@@ -229,6 +229,38 @@ export const copyCaptureToClipboard = async (payload) => {
   return api.copyCaptureToClipboard(payload);
 };
 
+export const getVoiceCaptureSupport = async () => {
+  const api = getAgencyApi();
+  if (!api?.getVoiceCaptureSupport) {
+    return null;
+  }
+  return api.getVoiceCaptureSupport();
+};
+
+export const startVoiceCapture = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.startVoiceCapture) {
+    return null;
+  }
+  return api.startVoiceCapture(payload);
+};
+
+export const stopVoiceCapture = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.stopVoiceCapture) {
+    return null;
+  }
+  return api.stopVoiceCapture(payload);
+};
+
+export const onVoiceCaptureEvent = (handler) => {
+  const api = getAgencyApi();
+  if (!api?.onVoiceCaptureEvent) {
+    return null;
+  }
+  return api.onVoiceCaptureEvent(handler);
+};
+
 export const materializeClipboard = async (payload) => {
   const api = getAgencyApi();
   if (!api?.materializeClipboard) {

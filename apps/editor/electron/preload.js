@@ -181,6 +181,14 @@ contextBridge.exposeInMainWorld('agency', {
   startScreenshotCapture: (payload) => ipcRenderer.invoke('capture:start', payload),
   saveCaptureAsset: (payload) => ipcRenderer.invoke('capture:saveAsset', payload),
   copyCaptureToClipboard: (payload) => ipcRenderer.invoke('capture:copy', payload),
+  getVoiceCaptureSupport: () => ipcRenderer.invoke('voice:capture:support'),
+  startVoiceCapture: (payload) => ipcRenderer.invoke('voice:capture:start', payload),
+  stopVoiceCapture: (payload) => ipcRenderer.invoke('voice:capture:stop', payload),
+  onVoiceCaptureEvent: (handler) => {
+    const wrapped = (_event, payload) => handler(payload);
+    ipcRenderer.on('voice:capture:event', wrapped);
+    return () => ipcRenderer.removeListener('voice:capture:event', wrapped);
+  },
   createCell: (payload) => ipcRenderer.invoke('cells:create', payload),
   updateCellState: (payload) => ipcRenderer.invoke('cells:updateState', payload),
   logRuntime: (payload) => ipcRenderer.send('runtime-log:write', payload),

@@ -20,6 +20,7 @@ const { setupCommentsHandlers } = require('./ipc/handlers/comments');
 const { setupHilHandlers } = require('./ipc/handlers/hil');
 const { setupCaptureHandlers } = require('./ipc/handlers/capture');
 const { setupActionSheetsHandlers } = require('./ipc/handlers/actionSheets');
+const { setupVoiceCaptureHandlers } = require('./ipc/handlers/voiceCapture');
 const captureManager = require('./services/screenshotCapture/captureManager');
 const {
   selectProjectRoot,
@@ -245,6 +246,7 @@ app.whenReady().then(async () => {
   setupHilHandlers();
   setupCaptureHandlers();
   setupActionSheetsHandlers();
+  setupVoiceCaptureHandlers();
   setupAssetProtocol();
 
   if (process.platform === 'darwin') {

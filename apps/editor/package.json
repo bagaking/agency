@@ -12,8 +12,9 @@
     "dev:main": "wait-on tcp:5173 && cross-env ELECTRON_RENDERER_URL=http://localhost:5173 electron electron/main.js",
     "dev": "concurrently \"npm:dev:renderer\" \"npm:dev:main\"",
     "build:renderer": "vite build",
-    "package": "pnpm run build:renderer && PNPM_BIN_DIR=$(pnpm bin -g) && PATH=\"$PNPM_BIN_DIR:$PATH\" PNPM_HOME=\"$PNPM_BIN_DIR\" TMPDIR=/tmp electron-builder --mac",
-    "package:dir": "pnpm run build:renderer && PNPM_BIN_DIR=$(pnpm bin -g) && PATH=\"$PNPM_BIN_DIR:$PATH\" PNPM_HOME=\"$PNPM_BIN_DIR\" TMPDIR=/tmp electron-builder --mac --dir",
+    "build:speech-helper": "node scripts/build-speech-helper.js",
+    "package": "pnpm run build:renderer && pnpm run build:speech-helper && PNPM_BIN_DIR=$(pnpm bin -g) && PATH=\"$PNPM_BIN_DIR:$PATH\" PNPM_HOME=\"$PNPM_BIN_DIR\" TMPDIR=/tmp electron-builder --mac",
+    "package:dir": "pnpm run build:renderer && pnpm run build:speech-helper && PNPM_BIN_DIR=$(pnpm bin -g) && PATH=\"$PNPM_BIN_DIR:$PATH\" PNPM_HOME=\"$PNPM_BIN_DIR\" TMPDIR=/tmp electron-builder --mac --dir",
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "postinstall": "node scripts/postinstall.js"
@@ -35,6 +36,12 @@
     "asarUnpack": [
       "**/node-pty/**"
     ],
+    "extraResources": [
+      {
+        "from": "electron/native/speech-helper/bin/speech-helper",
+        "to": "speech-helper/speech-helper"
+      }
+    ],
     "npmRebuild": true,
     "mac": {
       "category": "public.app-category.developer-tools",
@@ -42,7 +49,11 @@
         "dmg",
         "zip"
       ],
-      "icon": "renderer/public/icon.png"
+      "icon": "renderer/public/icon.png",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Voice input needs microphone access to capture speech for memos.",
+        "NSSpeechRecognitionUsageDescription": "Voice input uses speech recognition to transcribe memos."
+      }
     }
   },
   "dependencies": {

@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { logRuntime } from '../services/agencyBridge.js';
+import {
+  logRuntime,
+  getVoiceCaptureSupport,
+  startVoiceCapture,
+  stopVoiceCapture,
+  onVoiceCaptureEvent,
+} from '../services/agencyBridge.js';
 
 const resolveSpeechRecognition = () => {
   if (typeof window === 'undefined') {
@@ -76,14 +82,18 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
   const recognitionRef = useRef(null);
   const statusRef = useRef('idle');
   const stopRequestedRef = useRef(false);
+  const nativeCaptureIdRef = useRef('');
+  const nativeActiveRef = useRef(false);
   const lastErrorRef = useRef('');
   const restartRef = useRef({ attempts: 0, lastAt: 0 });
-  const [supported, setSupported] = useState(false);
+  const [webSupported, setWebSupported] = useState(false);
+  const [nativeSupported, setNativeSupported] = useState(false);
   const [status, setStatus] = useState('idle');
   const [interimText, setInterimText] = useState('');
   const [finalText, setFinalText] = useState('');
   const [error, setError] = useState('');
   const [language, setLanguage] = useState(() => normalizeLanguage(initialLanguage) || 'auto');
+  const supported = webSupported || nativeSupported;
 
   const setStatusSafe = useCallback((nextStatus) => {
     statusRef.current = nextStatus;
@@ -99,9 +109,33 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
 
   useEffect(() => {
     const available = Boolean(resolveSpeechRecognition());
-    setSupported(available);
-    setStatusSafe(available ? 'idle' : 'unavailable');
-  }, [setStatusSafe]);
+    setWebSupported(available);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const fetchSupport = async () => {
+      const result = await getVoiceCaptureSupport?.();
+      if (!active) {
+        return;
+      }
+      setNativeSupported(Boolean(result?.supported));
+    };
+    fetchSupport();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!supported) {
+      setStatusSafe('unavailable');
+      return;
+    }
+    if (statusRef.current === 'unavailable') {
+      setStatusSafe('idle');
+    }
+  }, [setStatusSafe, supported]);
 
   const resolvedLanguage = useMemo(() => resolveLanguage(language), [language]);
   const languageOptions = useMemo(() => buildLanguageOptions(), []);
@@ -118,6 +152,60 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     }),
     [language, resolvedLanguage]
   );
+
+  const handleNativeEvent = useCallback(
+    (payload) => {
+      if (!payload || payload.captureId !== nativeCaptureIdRef.current) {
+        return;
+      }
+      if (payload.type === 'status') {
+        if (payload.status === 'recording') {
+          setStatusSafe('recording');
+        } else if (payload.status === 'starting') {
+          setStatusSafe('starting');
+        } else if (payload.status === 'stopping') {
+          setStatusSafe('stopping');
+        } else if (payload.status === 'stopped') {
+          nativeActiveRef.current = false;
+          nativeCaptureIdRef.current = '';
+          if (statusRef.current !== 'error') {
+            setStatusSafe('idle');
+          }
+          setInterimText('');
+        }
+      }
+      if (payload.type === 'partial') {
+        const text = String(payload.text || '').trim();
+        setInterimText(text);
+        return;
+      }
+      if (payload.type === 'final') {
+        const text = String(payload.text || '').trim();
+        setInterimText('');
+        if (text) {
+          setFinalText((current) => (current ? `${current} ${text}` : text));
+          onFinal?.(text);
+        }
+        return;
+      }
+      if (payload.type === 'error') {
+        nativeActiveRef.current = false;
+        nativeCaptureIdRef.current = '';
+        setError(payload.message || 'Voice input failed.');
+        setStatusSafe('error');
+      }
+    },
+    [onFinal, setStatusSafe]
+  );
+
+  useEffect(() => {
+    const unsubscribe = onVoiceCaptureEvent?.(handleNativeEvent);
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, [handleNativeEvent]);
 
   const createRecognition = useCallback(() => {
     const SpeechRecognition = resolveSpeechRecognition();
@@ -227,8 +315,8 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     return recognition;
   }, [buildDiagnostics, onFinal, setStatusSafe]);
 
-  const start = useCallback(() => {
-    if (!supported) {
+  const startWebSpeech = useCallback(() => {
+    if (!webSupported) {
       setError('Voice input is not supported in this environment.');
       setStatusSafe('unavailable');
       return;
@@ -263,9 +351,9 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
         },
       });
     }
-  }, [buildDiagnostics, createRecognition, resolvedLanguage, setStatusSafe, supported]);
+  }, [buildDiagnostics, createRecognition, resolvedLanguage, setStatusSafe, webSupported]);
 
-  const stop = useCallback(() => {
+  const stopWebSpeech = useCallback(() => {
     if (!recognitionRef.current) {
       return;
     }
@@ -285,7 +373,74 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     }
   }, [buildDiagnostics, setStatusSafe]);
 
+  const startNativeSpeech = useCallback(async () => {
+    if (!nativeSupported) {
+      return false;
+    }
+    if (statusRef.current === 'recording' || statusRef.current === 'starting') {
+      return true;
+    }
+    try {
+      const result = await startVoiceCapture?.({ language: resolvedLanguage });
+      if (!result?.supported || !result?.captureId) {
+        logVoiceDiagnostics({
+          level: 'warn',
+          message: 'native voice capture unavailable',
+          meta: {
+            reason: result?.reason || 'unsupported',
+            ...buildDiagnostics(),
+          },
+        });
+        return false;
+      }
+      nativeCaptureIdRef.current = result.captureId;
+      nativeActiveRef.current = true;
+      setError('');
+      setInterimText('');
+      setFinalText('');
+      setStatusSafe('starting');
+      return true;
+    } catch (error) {
+      logVoiceDiagnostics({
+        level: 'warn',
+        message: 'native voice capture start failed',
+        meta: {
+          error: error?.message || String(error),
+          ...buildDiagnostics(),
+        },
+      });
+      return false;
+    }
+  }, [buildDiagnostics, nativeSupported, resolvedLanguage, setStatusSafe]);
+
+  const start = useCallback(async () => {
+    if (!supported) {
+      setError('Voice input is not supported in this environment.');
+      setStatusSafe('unavailable');
+      return;
+    }
+    const nativeStarted = await startNativeSpeech();
+    if (nativeStarted) {
+      return;
+    }
+    startWebSpeech();
+  }, [setStatusSafe, startNativeSpeech, startWebSpeech, supported]);
+
+  const stop = useCallback(() => {
+    if (nativeActiveRef.current && nativeCaptureIdRef.current) {
+      setStatusSafe('stopping');
+      stopVoiceCapture?.({ captureId: nativeCaptureIdRef.current });
+      return;
+    }
+    stopWebSpeech();
+  }, [setStatusSafe, stopWebSpeech]);
+
   const reset = useCallback(() => {
+    if (nativeActiveRef.current && nativeCaptureIdRef.current) {
+      stopVoiceCapture?.({ captureId: nativeCaptureIdRef.current });
+    }
+    nativeActiveRef.current = false;
+    nativeCaptureIdRef.current = '';
     setInterimText('');
     setFinalText('');
     setError('');
@@ -297,6 +452,9 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
 
   useEffect(() => {
     return () => {
+      if (nativeActiveRef.current && nativeCaptureIdRef.current) {
+        stopVoiceCapture?.({ captureId: nativeCaptureIdRef.current });
+      }
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort?.();
