@@ -498,17 +498,41 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
   ]);
 
   const stop = useCallback(() => {
+    logVoiceDiagnostics({
+      level: 'info',
+      message: 'voice capture stop requested',
+      meta: {
+        status: statusRef.current,
+        nativeActive: nativeActiveRef.current,
+        captureId: nativeCaptureIdRef.current || null,
+      },
+    });
     if (nativeActiveRef.current && nativeCaptureIdRef.current) {
       setStatusSafe('stopping');
-      stopVoiceCapture?.({ captureId: nativeCaptureIdRef.current });
+      stopVoiceCapture?.({
+        captureId: nativeCaptureIdRef.current,
+        source: 'user-stop',
+      });
       return;
     }
     stopWebSpeech();
   }, [setStatusSafe, stopWebSpeech]);
 
   const reset = useCallback(() => {
+    logVoiceDiagnostics({
+      level: 'info',
+      message: 'voice capture reset',
+      meta: {
+        status: statusRef.current,
+        nativeActive: nativeActiveRef.current,
+        captureId: nativeCaptureIdRef.current || null,
+      },
+    });
     if (nativeActiveRef.current && nativeCaptureIdRef.current) {
-      stopVoiceCapture?.({ captureId: nativeCaptureIdRef.current });
+      stopVoiceCapture?.({
+        captureId: nativeCaptureIdRef.current,
+        source: 'reset',
+      });
     }
     nativeActiveRef.current = false;
     nativeCaptureIdRef.current = '';
@@ -523,8 +547,20 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
 
   useEffect(() => {
     return () => {
+      logVoiceDiagnostics({
+        level: 'info',
+        message: 'voice capture cleanup',
+        meta: {
+          status: statusRef.current,
+          nativeActive: nativeActiveRef.current,
+          captureId: nativeCaptureIdRef.current || null,
+        },
+      });
       if (nativeActiveRef.current && nativeCaptureIdRef.current) {
-        stopVoiceCapture?.({ captureId: nativeCaptureIdRef.current });
+        stopVoiceCapture?.({
+          captureId: nativeCaptureIdRef.current,
+          source: 'cleanup',
+        });
       }
       if (recognitionRef.current) {
         try {

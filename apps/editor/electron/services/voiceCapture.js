@@ -163,13 +163,17 @@ function clearActiveCapture() {
   activeCapture = null;
 }
 
-async function stopVoiceCapture({ captureId } = {}) {
+async function stopVoiceCapture({ captureId, source } = {}) {
   if (!activeCapture) {
     return { stopped: false, reason: 'no-active-capture' };
   }
   if (captureId && captureId !== activeCapture.id) {
     return { stopped: false, reason: 'capture-mismatch' };
   }
+  logRuntime('info', 'speech helper stop requested', {
+    captureId: activeCapture.id,
+    source: source || null,
+  });
   sendEvent({ type: 'status', status: 'stopping' });
   const child = activeCapture.process;
   activeCapture.stopRequested = true;
