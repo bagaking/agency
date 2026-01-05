@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { StickyNote, Camera, Inbox, Mic } from 'lucide-react';
+import { StickyNote, Camera, Inbox } from 'lucide-react';
 import { FlashCaptureCard } from './memo/FlashCaptureCard.jsx';
 import { ScreenshotCaptureCard } from './memo/ScreenshotCaptureCard.jsx';
-import { useModal } from '../modals/ModalSystem.jsx';
 
 export function HilMemoDrawer({
   activeInboxId,
@@ -11,6 +10,7 @@ export function HilMemoDrawer({
   flashValue,
   onFlashChange,
   onSaveFlash,
+  flashVoice,
   screenshotAsset,
   pendingCapture,
   screenshotNote,
@@ -20,15 +20,6 @@ export function HilMemoDrawer({
   captureLoading,
 }) {
   const [focusedId, setFocusedId] = useState('');
-  const modal = useModal();
-
-  const handleVoice = () => {
-    modal?.notify?.({
-      title: 'Voice capture',
-      description: 'Voice capture is not available yet.',
-      tone: 'warning',
-    });
-  };
 
   return (
     <div className="flex flex-col gap-4 py-1 select-none">
@@ -52,21 +43,12 @@ export function HilMemoDrawer({
           onFocus={setFocusedId}
           onBlur={() => setFocusedId('')}
           onSelect={onSelectInbox}
-          actions={(
-            <button
-              type="button"
-              onClick={handleVoice}
-              className="rounded-md border border-border/20 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60 hover:text-foreground hover:border-primary/30"
-            >
-              <Mic size={10} className="inline mr-1" />
-              Voice
-            </button>
-          )}
         >
           <FlashCaptureCard
             value={flashValue}
             onChange={onFlashChange}
             onSave={onSaveFlash}
+            voice={flashVoice}
             loading={captureLoading}
           />
         </MemoShortcutCard>

@@ -1,8 +1,10 @@
 import React from 'react';
+import { VoiceCaptureControl } from './VoiceCaptureControl.jsx';
 
-export function FlashCaptureCard({ value, onChange, onSave, loading }) {
+export function FlashCaptureCard({ value, onChange, onSave, loading, voice }) {
   return (
     <div className="flex flex-col gap-3">
+      {voice ? <VoiceCaptureControl voice={voice} /> : null}
       <textarea
         value={value}
         onChange={(event) => onChange?.(event.target.value)}

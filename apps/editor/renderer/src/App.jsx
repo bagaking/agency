@@ -1862,6 +1862,7 @@ function App() {
     flashValue: memoCapture.flashText,
     onFlashChange: memoCapture.setFlashText,
     onSaveFlash: memoCapture.handleCreateFlash,
+    flashVoice: memoCapture.flashVoice,
     screenshotAsset: memoCapture.screenshotAsset,
     pendingCapture: memoCapture.captureResult,
     screenshotNote: memoCapture.screenshotNote,

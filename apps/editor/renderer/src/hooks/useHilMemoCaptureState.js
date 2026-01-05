@@ -4,9 +4,9 @@ import {
   startScreenshotCapture as agencyStartScreenshotCapture,
   saveCaptureAsset as agencySaveCaptureAsset,
   copyCaptureToClipboard as agencyCopyCaptureToClipboard,
-  getWorkbenchFileUrl as agencyGetWorkbenchFileUrl,
   fetchHilExcerpt as agencyFetchHilExcerpt,
 } from '../services/agencyBridge.js';
+import { useVoiceCapture } from './useVoiceCapture.js';
 
 export function useHilMemoCaptureState({
   worktreePath,
@@ -30,6 +30,24 @@ export function useHilMemoCaptureState({
   const [routingMode, setRoutingMode] = useState('hil');
   const [routingTargetId, setRoutingTargetId] = useState('');
   const [routingError, setRoutingError] = useState('');
+
+  const appendFlashText = useCallback((snippet) => {
+    const addition = String(snippet || '').trim();
+    if (!addition) {
+      return;
+    }
+    setFlashText((current) => {
+      const base = String(current || '').trim();
+      if (!base) {
+        return addition;
+      }
+      return `${base} ${addition}`;
+    });
+  }, [setFlashText]);
+
+  const flashVoice = useVoiceCapture({
+    onFinal: appendFlashText,
+  });
 
   const routingTargets = useMemo(() => {
     const list = [];
@@ -98,6 +116,7 @@ export function useHilMemoCaptureState({
   }, [resolveDefaultRoutingTarget, routingOpen, routingTargetId]);
 
   const resetCaptureState = useCallback(() => {
+    flashVoice.stop?.();
     setFlashText('');
     setExcerptUrl('');
     setExcerptPreview(null);
@@ -112,7 +131,8 @@ export function useHilMemoCaptureState({
     setRoutingError('');
     setCaptureError('');
     setCaptureLoading(false);
-  }, []);
+    flashVoice.reset?.();
+  }, [flashVoice]);
 
   const handleCreateMemo = useCallback(
     async ({ body, anchor, meta }) => {
@@ -321,6 +341,7 @@ export function useHilMemoCaptureState({
   return {
     flashText,
     setFlashText,
+    flashVoice,
     excerptUrl,
     setExcerptUrl,
     excerptPreview,

@@ -21,6 +21,14 @@ export const getProjectContext = async () => {
   return api.getProjectContext();
 };
 
+export const logRuntime = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.logRuntime) {
+    return null;
+  }
+  return api.logRuntime(payload);
+};
+
 export const getUiState = async () => {
   const api = getAgencyApi();
   if (!api?.getUiState) {

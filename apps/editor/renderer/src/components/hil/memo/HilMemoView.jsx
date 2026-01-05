@@ -63,6 +63,7 @@ export function HilMemoView({
   onCreateActionSheet,
   flashText,
   setFlashText,
+  flashVoice,
   excerptUrl,
   setExcerptUrl,
   excerptPreview,
@@ -299,6 +300,7 @@ export function HilMemoView({
                 flashValue={flashText}
                 onFlashChange={setFlashText}
                 onSaveFlash={handleCreateFlash}
+                flashVoice={flashVoice}
                 excerptUrl={excerptUrl}
                 onExcerptUrlChange={setExcerptUrl}
                 onFetchExcerpt={handleFetchExcerpt}
