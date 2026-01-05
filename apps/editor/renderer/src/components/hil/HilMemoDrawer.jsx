@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { StickyNote, Camera, Inbox } from 'lucide-react';
+import { StickyNote, Camera, Inbox, Quote } from 'lucide-react';
 import { FlashCaptureCard } from './memo/FlashCaptureCard.jsx';
+import { ExcerptCaptureCard } from './memo/ExcerptCaptureCard.jsx';
 import { ScreenshotCaptureCard } from './memo/ScreenshotCaptureCard.jsx';
 
 export function HilMemoDrawer({
@@ -11,6 +12,14 @@ export function HilMemoDrawer({
   onFlashChange,
   onSaveFlash,
   flashVoice,
+  excerptUrl,
+  onExcerptUrlChange,
+  onFetchExcerpt,
+  excerptPreview,
+  excerptFetching,
+  excerptNote,
+  onExcerptNoteChange,
+  onSaveExcerpt,
   screenshotAsset,
   pendingCapture,
   screenshotNote,
@@ -20,6 +29,15 @@ export function HilMemoDrawer({
   captureLoading,
 }) {
   const [focusedId, setFocusedId] = useState('');
+  const renderViewRecordsButton = (targetId) => (
+    <button
+      type="button"
+      onClick={() => onSelectInbox?.(targetId)}
+      className="rounded-md border border-border/20 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60 hover:text-foreground hover:border-primary/30"
+    >
+      View Records
+    </button>
+  );
 
   return (
     <div className="flex flex-col gap-4 py-1 select-none">
@@ -42,13 +60,37 @@ export function HilMemoDrawer({
           focusedId={focusedId}
           onFocus={setFocusedId}
           onBlur={() => setFocusedId('')}
-          onSelect={onSelectInbox}
+          actions={renderViewRecordsButton('flash')}
         >
           <FlashCaptureCard
             value={flashValue}
             onChange={onFlashChange}
             onSave={onSaveFlash}
             voice={flashVoice}
+            loading={captureLoading}
+          />
+        </MemoShortcutCard>
+
+        <MemoShortcutCard
+          id="excerpt"
+          label="Excerpt"
+          description="Capture a source URL"
+          icon={Quote}
+          active={activeInboxId === 'excerpt'}
+          focusedId={focusedId}
+          onFocus={setFocusedId}
+          onBlur={() => setFocusedId('')}
+          actions={renderViewRecordsButton('excerpt')}
+        >
+          <ExcerptCaptureCard
+            url={excerptUrl}
+            onUrlChange={onExcerptUrlChange}
+            onFetch={onFetchExcerpt}
+            preview={excerptPreview}
+            fetching={excerptFetching}
+            note={excerptNote}
+            onNoteChange={onExcerptNoteChange}
+            onSave={onSaveExcerpt}
             loading={captureLoading}
           />
         </MemoShortcutCard>
@@ -62,7 +104,7 @@ export function HilMemoDrawer({
           focusedId={focusedId}
           onFocus={setFocusedId}
           onBlur={() => setFocusedId('')}
-          onSelect={onSelectInbox}
+          actions={renderViewRecordsButton('screenshot')}
         >
           <ScreenshotCaptureCard
             asset={screenshotAsset}
@@ -100,7 +142,6 @@ function MemoShortcutCard({
   focusedId,
   onFocus,
   onBlur,
-  onSelect,
   actions,
   children,
 }) {
@@ -108,7 +149,6 @@ function MemoShortcutCard({
   return (
     <div
       onFocusCapture={() => {
-        onSelect?.(id);
         onFocus?.(id);
       }}
       onBlurCapture={(event) => {
@@ -126,11 +166,11 @@ function MemoShortcutCard({
       <div
         role="button"
         tabIndex={0}
-        onClick={() => onSelect?.(id)}
+        onClick={() => onFocus?.(id)}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
-            onSelect?.(id);
+            onFocus?.(id);
           }
         }}
         className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"

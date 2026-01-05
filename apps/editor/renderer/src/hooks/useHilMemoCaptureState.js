@@ -15,6 +15,7 @@ export function useHilMemoCaptureState({
   cells = [],
   selectedCellId,
   selection,
+  onCaptureSaved,
   refresh,
 }) {
   const [flashText, setFlashText] = useState('');
@@ -155,6 +156,9 @@ export function useHilMemoCaptureState({
           anchor,
           meta,
         });
+        if (meta?.noteType) {
+          onCaptureSaved?.(meta.noteType);
+        }
         resetCaptureState();
         await refresh?.();
       } catch (createError) {
@@ -163,7 +167,7 @@ export function useHilMemoCaptureState({
         setCaptureLoading(false);
       }
     },
-    [refresh, resetCaptureState, worktreePath]
+    [onCaptureSaved, refresh, resetCaptureState, worktreePath]
   );
 
   const handleCreateFlash = useCallback(async () => {
@@ -305,6 +309,9 @@ export function useHilMemoCaptureState({
           });
           await refresh?.();
         }
+        if (targetWorktree === worktreePath) {
+          onCaptureSaved?.('screenshot');
+        }
       }
       setCaptureResult(null);
       setRoutingOpen(false);
@@ -325,6 +332,7 @@ export function useHilMemoCaptureState({
     routingTargetId,
     screenshotNote,
     worktreePath,
+    onCaptureSaved,
   ]);
 
   const handleCancelRouting = useCallback(() => {

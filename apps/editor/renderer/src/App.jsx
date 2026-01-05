@@ -1717,6 +1717,15 @@ function App() {
     onSessionAttached: handleSessionAttached,
     terminalFontSize: activeFontSize,
   };
+  const handleSwitchView = useCallback(
+    (view) => {
+      setActiveView(view);
+      if (sidebarCollapsed) {
+        setSidebarCollapsed(false);
+      }
+    },
+    [sidebarCollapsed]
+  );
   const explorerRootPath = projectReady
     ? selectedCell?.worktreePath || projectRoot || ''
     : '';
@@ -1725,12 +1734,27 @@ function App() {
     : 'Project';
   const explorerMeta = workbenchMetaByCellId[selectedCell?.id || 'repo'] || {};
   const memoSelection = workbenchSelectionByCellId[selectedCell?.id || 'repo'] || null;
+  const handleMemoCaptureSaved = useCallback(
+    (noteType) => {
+      if (!noteType) {
+        return;
+      }
+      handleSwitchView('memo');
+      hilMemo.setDockSelection({
+        type: 'inbox',
+        inboxType: noteType,
+        draftId: null,
+      });
+    },
+    [handleSwitchView, hilMemo.setDockSelection]
+  );
   const memoCapture = useHilMemoCaptureState({
     worktreePath: selectedCell?.worktreePath || projectRoot || '',
     projectRoot,
     cells: projectReady ? cells : [],
     selectedCellId: selectedCell?.id || '',
     selection: memoSelection,
+    onCaptureSaved: handleMemoCaptureSaved,
     refresh: hilMemo.refresh,
   });
   const handleAddCommentFromExplorer = useCallback((path) => {
@@ -1812,15 +1836,6 @@ function App() {
     onDeleteActionSheet: handleDeleteActionSheet,
     onOpenActionSheets: handleOpenActionSheets,
   };
-  const handleSwitchView = useCallback(
-    (view) => {
-      setActiveView(view);
-      if (sidebarCollapsed) {
-        setSidebarCollapsed(false);
-      }
-    },
-    [sidebarCollapsed]
-  );
   const handleOpenMemoInbox = useCallback(
     (inboxType = 'comments') => {
       handleSwitchView('memo');
@@ -1863,6 +1878,14 @@ function App() {
     onFlashChange: memoCapture.setFlashText,
     onSaveFlash: memoCapture.handleCreateFlash,
     flashVoice: memoCapture.flashVoice,
+    excerptUrl: memoCapture.excerptUrl,
+    onExcerptUrlChange: memoCapture.setExcerptUrl,
+    onFetchExcerpt: memoCapture.handleFetchExcerpt,
+    excerptPreview: memoCapture.excerptPreview,
+    excerptFetching: memoCapture.excerptFetching,
+    excerptNote: memoCapture.excerptNote,
+    onExcerptNoteChange: memoCapture.setExcerptNote,
+    onSaveExcerpt: memoCapture.handleCreateExcerpt,
     screenshotAsset: memoCapture.screenshotAsset,
     pendingCapture: memoCapture.captureResult,
     screenshotNote: memoCapture.screenshotNote,
