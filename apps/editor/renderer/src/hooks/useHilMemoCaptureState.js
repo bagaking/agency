@@ -4,6 +4,7 @@ import {
   startScreenshotCapture as agencyStartScreenshotCapture,
   saveCaptureAsset as agencySaveCaptureAsset,
   copyCaptureToClipboard as agencyCopyCaptureToClipboard,
+  getWorkbenchFileUrl as agencyGetWorkbenchFileUrl,
   fetchHilExcerpt as agencyFetchHilExcerpt,
 } from '../services/agencyBridge.js';
 import { useVoiceCapture } from './useVoiceCapture.js';
