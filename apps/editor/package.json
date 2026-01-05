@@ -38,8 +38,8 @@
     ],
     "extraResources": [
       {
-        "from": "electron/native/speech-helper/bin/speech-helper",
-        "to": "speech-helper/speech-helper"
+        "from": "electron/native/speech-helper/bin/SpeechHelper.app",
+        "to": "speech-helper/SpeechHelper.app"
       }
     ],
     "npmRebuild": true,

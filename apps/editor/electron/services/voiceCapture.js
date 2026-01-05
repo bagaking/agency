@@ -6,7 +6,9 @@ const { logRuntime } = require('./runtimeLog');
 
 const helperRoot = path.join(__dirname, '..', 'native', 'speech-helper');
 const helperSource = path.join(helperRoot, 'SpeechHelper.swift');
-const devHelperBin = path.join(helperRoot, 'bin', 'speech-helper');
+const helperBundleName = 'SpeechHelper.app';
+const devHelperBundle = path.join(helperRoot, 'bin', helperBundleName);
+const devHelperBin = path.join(devHelperBundle, 'Contents', 'MacOS', 'speech-helper');
 
 let activeCapture = null;
 
@@ -26,7 +28,14 @@ function execFileAsync(command, args) {
 
 function resolveHelperPath() {
   if (app.isPackaged) {
-    return path.join(process.resourcesPath, 'speech-helper', 'speech-helper');
+    return path.join(
+      process.resourcesPath,
+      'speech-helper',
+      helperBundleName,
+      'Contents',
+      'MacOS',
+      'speech-helper'
+    );
   }
   return devHelperBin;
 }
