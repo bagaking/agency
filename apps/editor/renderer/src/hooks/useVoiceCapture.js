@@ -65,6 +65,13 @@ const buildLanguageOptions = () => {
   return entries;
 };
 
+const logVoiceDiagnostics = ({ level = 'warn', message, meta }) => {
+  if (typeof console !== 'undefined' && console[level]) {
+    console[level](`[voice capture] ${message}`, meta);
+  }
+  logRuntime?.({ level, message, meta });
+};
+
 export function useVoiceCapture({ language: initialLanguage, onFinal }) {
   const recognitionRef = useRef(null);
   const statusRef = useRef('idle');
@@ -137,7 +144,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       setStatusSafe('error');
       lastErrorRef.current = event?.error || message;
       stopRequestedRef.current = true;
-      logRuntime?.({
+      logVoiceDiagnostics({
         level: 'warn',
         message: 'voice capture error',
         meta: {
@@ -178,7 +185,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
             } catch (restartError) {
               setError(restartError?.message || 'Unable to restart voice input.');
               setStatusSafe('error');
-              logRuntime?.({
+              logVoiceDiagnostics({
                 level: 'warn',
                 message: 'voice capture restart failed',
                 meta: {
@@ -247,7 +254,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       setError(message);
       setStatusSafe('error');
       lastErrorRef.current = message;
-      logRuntime?.({
+      logVoiceDiagnostics({
         level: 'warn',
         message: 'voice capture start failed',
         meta: {
@@ -267,7 +274,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     try {
       recognitionRef.current.stop();
     } catch (stopError) {
-      logRuntime?.({
+      logVoiceDiagnostics({
         level: 'warn',
         message: 'voice capture stop failed',
         meta: {
