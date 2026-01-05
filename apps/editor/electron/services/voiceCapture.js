@@ -97,6 +97,10 @@ function sendEvent(payload) {
   });
 }
 
+function sendError(message) {
+  sendEvent({ type: 'error', message });
+}
+
 function clearActiveCapture() {
   if (!activeCapture) {
     return;
@@ -113,6 +117,7 @@ async function stopVoiceCapture({ captureId } = {}) {
   }
   sendEvent({ type: 'status', status: 'stopping' });
   const child = activeCapture.process;
+  activeCapture.stopRequested = true;
   if (child?.stdin && !child.stdin.destroyed) {
     try {
       child.stdin.write('stop\n');
@@ -155,6 +160,7 @@ async function startVoiceCapture({ language } = {}, sender) {
     process: child,
     sender,
     buffer: '',
+    stopRequested: false,
   };
 
   sendEvent({ type: 'status', status: 'starting' });
@@ -193,6 +199,11 @@ async function startVoiceCapture({ language } = {}, sender) {
 
   child.on('exit', (code, signal) => {
     sendEvent({ type: 'status', status: 'stopped', code, signal });
+    if (!activeCapture?.stopRequested && (code || signal)) {
+      sendError(
+        `Speech helper exited (${signal || `code ${code}`}).`
+      );
+    }
     clearActiveCapture();
   });
 
@@ -200,6 +211,7 @@ async function startVoiceCapture({ language } = {}, sender) {
     logRuntime('warn', 'speech helper process error', {
       error: error?.message || String(error),
     });
+    sendError(error?.message || 'Speech helper failed to start.');
   });
 
   return { supported: true, captureId, backend: 'native' };

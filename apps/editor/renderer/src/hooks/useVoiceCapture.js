@@ -181,6 +181,15 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       if (!payload || payload.captureId !== nativeCaptureIdRef.current) {
         return;
       }
+      logVoiceDiagnostics({
+        level: payload.type === 'error' ? 'warn' : 'info',
+        message: 'native voice event',
+        meta: {
+          type: payload.type,
+          status: payload.status || null,
+          message: payload.message || null,
+        },
+      });
       if (payload.type === 'status') {
         if (payload.status === 'recording') {
           setStatusSafe('recording');
@@ -222,7 +231,18 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
   );
 
   useEffect(() => {
+    if (!onVoiceCaptureEvent) {
+      logVoiceDiagnostics({
+        level: 'warn',
+        message: 'voice capture event subscription unavailable',
+      });
+      return undefined;
+    }
     const unsubscribe = onVoiceCaptureEvent?.(handleNativeEvent);
+    logVoiceDiagnostics({
+      level: 'info',
+      message: 'voice capture event subscription ready',
+    });
     return () => {
       if (typeof unsubscribe === 'function') {
         unsubscribe();
