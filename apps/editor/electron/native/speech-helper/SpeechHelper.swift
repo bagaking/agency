@@ -755,9 +755,12 @@ func startRecognitionTask() {
             pendingLocaleId = nil
             pendingLocaleCount = 0
             resetLanguageDetection()
-            if updateRecognizerIfNeeded(for: detected.localeId) {
-              return
-            }
+            pendingLocaleSwitch = detected.localeId
+            emitDebug([
+              "stage": "language-switch-queued",
+              "locale": detected.localeId,
+              "reason": "auto-detect",
+            ])
           }
         } else {
           pendingLocaleId = nil
