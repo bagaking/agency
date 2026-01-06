@@ -20,6 +20,7 @@ const hostUsageDescriptions = {
 
 let activeCapture = null;
 let hostUsagePatched = false;
+let helperWarmupPromise = null;
 
 function execFileAsync(command, args) {
   return new Promise((resolve, reject) => {
@@ -176,6 +177,13 @@ async function getVoiceCaptureSupport() {
   if (app.isPackaged) {
     return { supported: helperReady, reason: helperReady ? null : 'missing-helper' };
   }
+  if (!helperReady && !helperWarmupPromise) {
+    helperWarmupPromise = ensureHelperBinary()
+      .catch(() => {})
+      .finally(() => {
+        helperWarmupPromise = null;
+      });
+  }
   if (helperReady) {
     return { supported: true, reason: null };
   }
@@ -239,6 +247,9 @@ async function startVoiceCapture({ language } = {}, sender) {
     return { supported: false, reason: 'unsupported-platform' };
   }
   await ensureHostUsageDescriptions();
+  if (helperWarmupPromise) {
+    await helperWarmupPromise;
+  }
   if (activeCapture) {
     await stopVoiceCapture({ captureId: activeCapture.id });
   }

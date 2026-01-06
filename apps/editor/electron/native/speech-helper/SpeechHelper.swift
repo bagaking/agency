@@ -195,6 +195,7 @@ let noSpeechRestartDelaySeconds: TimeInterval = 0.2
 let noSpeechRestartCooldownSeconds: TimeInterval = 0.4
 var lastNoSpeechRestartAt = Date.distantPast
 var rescoreQueue: [(segmentId: String, draftText: String, detectedLocale: String, buffers: [AVAudioPCMBuffer], candidates: [String])] = []
+var pendingLocaleSwitch: String?
 
 let bundle = Bundle.main
 emitDebug([
@@ -451,7 +452,8 @@ func startNextRescoreJob() {
     emitFinalText(resultText, reason: rescored != nil ? "rescore" : "rescore-fallback", localeId: resultLocale, segmentId: job.segmentId)
     if autoDetectLanguage {
       resetLanguageDetection()
-      _ = updateRecognizerIfNeeded(for: resultLocale)
+      pendingLocaleSwitch = resultLocale
+      emitDebug(["stage": "language-switch-queued", "locale": resultLocale])
     }
     rescoreInFlight = false
     emitDebug([
@@ -486,6 +488,22 @@ func updateRecognizerIfNeeded(for localeId: String) -> Bool {
     return true
   }
   return false
+}
+
+func applyPendingLocaleSwitch() {
+  guard let localeId = pendingLocaleSwitch else {
+    return
+  }
+  pendingLocaleSwitch = nil
+  if localeId.isEmpty || localeId == currentLocaleId {
+    return
+  }
+  if let nextRecognizer = createRecognizer(localeId: localeId) {
+    currentLocaleId = localeId
+    recognizer = nextRecognizer
+    emitDebug(["stage": "language-switch", "locale": localeId, "deferred": true])
+    lastSwitchAt = Date()
+  }
 }
 
 func emitFinalText(_ text: String, reason: String, localeId: String, segmentId: String) {
@@ -614,6 +632,7 @@ func attemptExit() {
 }
 
 func startRecognitionTask() {
+  applyPendingLocaleSwitch()
   recognitionTaskToken += 1
   let taskToken = recognitionTaskToken
   phraseStartedAt = Date()

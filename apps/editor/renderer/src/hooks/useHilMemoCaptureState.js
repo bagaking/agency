@@ -35,17 +35,6 @@ export function useHilMemoCaptureState({
   const [routingError, setRoutingError] = useState('');
   const voiceDraftsRef = useRef(new Map());
 
-  const replaceLastOccurrence = useCallback((source, target, replacement) => {
-    if (!source || !target) {
-      return null;
-    }
-    const index = source.lastIndexOf(target);
-    if (index === -1) {
-      return null;
-    }
-    return `${source.slice(0, index)}${replacement}${source.slice(index + target.length)}`;
-  }, []);
-
   const appendFlashText = useCallback((snippet) => {
     if (!snippet) {
       return;
@@ -56,11 +45,12 @@ export function useHilMemoCaptureState({
         return;
       }
       setFlashText((current) => {
-        const base = String(current || '').trim();
-        if (!base) {
+        const raw = String(current || '');
+        if (!raw.trim()) {
           return addition;
         }
-        return `${base} ${addition}`;
+        const separator = raw.endsWith(' ') ? '' : ' ';
+        return `${raw}${separator}${addition}`;
       });
       return;
     }
@@ -71,33 +61,66 @@ export function useHilMemoCaptureState({
     const segmentId = snippet.segmentId || '';
     if (!segmentId) {
       setFlashText((current) => {
-        const base = String(current || '').trim();
-        if (!base) {
+        const raw = String(current || '');
+        if (!raw.trim()) {
           return text;
         }
-        return `${base} ${text}`;
+        const separator = raw.endsWith(' ') ? '' : ' ';
+        return `${raw}${separator}${text}`;
       });
       return;
     }
     const drafts = voiceDraftsRef.current;
-    const previous = drafts.get(segmentId);
-    drafts.set(segmentId, text);
     setFlashText((current) => {
       const raw = String(current || '');
-      const base = raw.trim();
-      if (!base) {
-        return text;
+      const entry = drafts.get(segmentId);
+      if (!entry) {
+        const separator = raw && !raw.endsWith(' ') ? ' ' : '';
+        const next = `${raw}${separator}${text}`;
+        const start = next.length - text.length;
+        drafts.set(segmentId, { text, start, end: next.length });
+        return next;
       }
-      if (!previous) {
-        return `${base} ${text}`;
+      const prevText = entry.text;
+      let { start, end } = entry;
+      let next = '';
+      let replaced = false;
+      if (Number.isFinite(start) && Number.isFinite(end) && raw.slice(start, end) === prevText) {
+        next = `${raw.slice(0, start)}${text}${raw.slice(end)}`;
+        replaced = true;
+      } else {
+        const index = raw.indexOf(prevText);
+        if (index !== -1) {
+          start = index;
+          end = index + prevText.length;
+          next = `${raw.slice(0, index)}${text}${raw.slice(index + prevText.length)}`;
+          replaced = true;
+        }
       }
-      const replaced = replaceLastOccurrence(raw, previous, text);
-      if (replaced !== null) {
-        return replaced.trim();
+      if (!replaced) {
+        const separator = raw && !raw.endsWith(' ') ? ' ' : '';
+        next = `${raw}${separator}${text}`;
+        start = next.length - text.length;
+        end = next.length;
+      } else {
+        const delta = text.length - prevText.length;
+        if (delta !== 0) {
+          drafts.forEach((value, key) => {
+            if (key === segmentId) {
+              return;
+            }
+            if (value.start >= end) {
+              value.start += delta;
+              value.end += delta;
+            }
+          });
+        }
+        end = start + text.length;
       }
-      return `${base} ${text}`;
+      drafts.set(segmentId, { text, start, end });
+      return next;
     });
-  }, [replaceLastOccurrence]);
+  }, []);
 
   const flashVoice = useVoiceCapture({
     onFinal: appendFlashText,
