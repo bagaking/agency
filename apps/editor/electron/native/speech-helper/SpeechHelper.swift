@@ -32,10 +32,6 @@ struct JsonEmitter {
     emit(["type": "partial", "text": text])
   }
 
-  static func final(_ text: String) {
-    emit(["type": "final", "text": text])
-  }
-
   static func error(_ message: String) {
     emit(["type": "error", "message": message])
   }
@@ -93,6 +89,7 @@ let audioEngine = AVAudioEngine()
 var recognitionTask: SFSpeechRecognitionTask?
 var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
 var stopRequested = false
+var recognitionTaskToken = 0
 let languageRecognizer = autoDetectLanguage ? NLLanguageRecognizer() : nil
 let silenceThresholdSeconds: TimeInterval = 0.9
 let autoDetectConfidence: Double = 0.6
@@ -245,12 +242,17 @@ func stopCapture(_ reason: String? = nil) {
 }
 
 func startRecognitionTask() {
+  recognitionTaskToken += 1
+  let taskToken = recognitionTaskToken
   recognitionTask?.cancel()
   recognitionRequest?.endAudio()
   let request = SFSpeechAudioBufferRecognitionRequest()
   request.shouldReportPartialResults = true
   recognitionRequest = request
   recognitionTask = recognizer.recognitionTask(with: request) { result, error in
+    if taskToken != recognitionTaskToken {
+      return
+    }
     if let error = error {
       if !stopRequested {
         JsonEmitter.error(error.localizedDescription)

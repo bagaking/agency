@@ -92,7 +92,6 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
   const [nativeSupported, setNativeSupported] = useState(false);
   const [status, setStatus] = useState('idle');
   const [interimText, setInterimText] = useState('');
-  const [finalText, setFinalText] = useState('');
   const [error, setError] = useState('');
   const [language, setLanguage] = useState(() => normalizeLanguage(initialLanguage) || 'auto');
   const supported = webSupported || nativeSupported;
@@ -213,7 +212,6 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
             const fallback = lastInterimRef.current;
             lastInterimRef.current = '';
             if (fallback && fallback !== lastFinalRef.current) {
-              setFinalText((current) => (current ? `${current} ${fallback}` : fallback));
               onFinal?.(fallback);
             }
           }
@@ -232,7 +230,6 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
         lastFinalRef.current = text;
         setInterimText('');
         if (text) {
-          setFinalText((current) => (current ? `${current} ${text}` : text));
           onFinal?.(text);
         }
         return;
@@ -367,7 +364,6 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       }
       const normalizedFinal = String(finalChunk || '').trim();
       if (normalizedFinal) {
-        setFinalText((current) => (current ? `${current} ${normalizedFinal}` : normalizedFinal));
         onFinal?.(normalizedFinal);
       }
     };
@@ -465,7 +461,6 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       nativeActiveRef.current = true;
       setError('');
       setInterimText('');
-      setFinalText('');
       lastInterimRef.current = '';
       lastFinalRef.current = '';
       setStatusSafe('starting');
@@ -557,7 +552,6 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     lastInterimRef.current = '';
     lastFinalRef.current = '';
     setInterimText('');
-    setFinalText('');
     setError('');
     lastErrorRef.current = '';
     if (statusRef.current !== 'unavailable') {
@@ -622,7 +616,6 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     resolvedLanguage,
     setLanguage,
     interimText,
-    finalText,
     error,
     statusMessage,
     start,
