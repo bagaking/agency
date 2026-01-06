@@ -184,6 +184,8 @@ contextBridge.exposeInMainWorld('agency', {
   getVoiceCaptureSupport: () => ipcRenderer.invoke('voice:capture:support'),
   startVoiceCapture: (payload) => ipcRenderer.invoke('voice:capture:start', payload),
   stopVoiceCapture: (payload) => ipcRenderer.invoke('voice:capture:stop', payload),
+  saveVoiceCaptureAudio: (payload) => ipcRenderer.invoke('voice:capture:saveAudio', payload),
+  discardVoiceCaptureAudio: (payload) => ipcRenderer.invoke('voice:capture:discardAudio', payload),
   onVoiceCaptureEvent: (handler) => {
     const wrapped = (_event, payload) => handler(payload);
     ipcRenderer.on('voice:capture:event', wrapped);

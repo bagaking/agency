@@ -8,6 +8,9 @@ Finalized transcripts SHALL be appended to the Flash text field without discardi
 If voice input is unsupported, blocked, or fails, the editor SHALL surface a non-blocking status message with the failure reason and keep manual input available.
 When voice input fails to start or crashes, the editor SHALL log a runtime warning with diagnostic context.
 On macOS, the editor SHALL prefer native speech recognition when available and fall back to Web Speech when native capture is unavailable.
+When language is set to Auto, the editor SHALL detect the spoken language per segment and select a matching recognition model before finalizing text.
+If auto language detection is uncertain, the editor SHALL rescore the audio segment with the likely language and only append text after rescore completes.
+When voice capture is used to create a Flash memo, the editor SHALL save the original audio alongside the memo and expose playback controls.
 
 #### Scenario: Capture flash text by voice
 - **WHEN** a user starts voice input from the Flash capture UI
@@ -27,6 +30,16 @@ On macOS, the editor SHALL prefer native speech recognition when available and f
 #### Scenario: Use macOS native speech recognition
 - **WHEN** the editor runs on macOS and native speech recognition is available
 - **THEN** voice capture uses the native speech backend
+
+#### Scenario: Auto language detection with rescore
+- **WHEN** a user records a Flash memo with language set to Auto
+- **THEN** the editor detects the spoken language per segment
+- **AND** the editor rescans the audio when detection is uncertain before appending text
+
+#### Scenario: Save and play Flash audio
+- **WHEN** a user saves a Flash memo recorded via voice input
+- **THEN** the original audio is stored with the memo
+- **AND** the memo UI provides playback controls
 
 #### Scenario: Voice input unavailable
 - **WHEN** speech recognition is unsupported, blocked, or errors

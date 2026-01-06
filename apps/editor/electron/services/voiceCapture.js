@@ -3,6 +3,7 @@ const { execFile, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { logRuntime } = require('./runtimeLog');
+const { ensureVoiceCacheDir } = require('./voiceCache');
 
 const helperRoot = path.join(__dirname, '..', 'native', 'speech-helper');
 const helperSource = path.join(helperRoot, 'SpeechHelper.swift');
@@ -256,6 +257,16 @@ async function startVoiceCapture({ language } = {}, sender) {
   if (language) {
     args.push('--lang', language);
   }
+  let audioPath = '';
+  try {
+    const cacheDir = await ensureVoiceCacheDir();
+    audioPath = path.join(cacheDir, `voice-${captureId}.wav`);
+    args.push('--audio', audioPath);
+  } catch (error) {
+    logRuntime('warn', 'speech helper audio path failed', {
+      error: error?.message || String(error),
+    });
+  }
   const child = spawn(helper.helperPath, args, {
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -264,6 +275,7 @@ async function startVoiceCapture({ language } = {}, sender) {
     id: captureId,
     process: child,
     sender,
+    audioPath,
     buffer: '',
     stopRequested: false,
   };
@@ -286,6 +298,14 @@ async function startVoiceCapture({ language } = {}, sender) {
       try {
         const event = JSON.parse(trimmed);
         if (event && typeof event === 'object') {
+          if (event.type === 'audio') {
+            logRuntime('info', 'speech helper audio ready', {
+              captureId,
+              path: event.path || null,
+              durationMs: event.durationMs ?? null,
+              mime: event.mime || null,
+            });
+          }
           sendEvent(event);
         }
       } catch (error) {

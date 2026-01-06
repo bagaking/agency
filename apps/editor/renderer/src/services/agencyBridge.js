@@ -253,6 +253,22 @@ export const stopVoiceCapture = async (payload) => {
   return api.stopVoiceCapture(payload);
 };
 
+export const saveVoiceCaptureAudio = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.saveVoiceCaptureAudio) {
+    return null;
+  }
+  return api.saveVoiceCaptureAudio(payload);
+};
+
+export const discardVoiceCaptureAudio = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.discardVoiceCaptureAudio) {
+    return null;
+  }
+  return api.discardVoiceCaptureAudio(payload);
+};
+
 export const onVoiceCaptureEvent = (handler) => {
   const api = getAgencyApi();
   if (!api?.onVoiceCaptureEvent) {

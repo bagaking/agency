@@ -6,6 +6,7 @@ import {
   copyCaptureToClipboard as agencyCopyCaptureToClipboard,
   getWorkbenchFileUrl as agencyGetWorkbenchFileUrl,
   fetchHilExcerpt as agencyFetchHilExcerpt,
+  saveVoiceCaptureAudio as agencySaveVoiceCaptureAudio,
 } from '../services/agencyBridge.js';
 import { useVoiceCapture } from './useVoiceCapture.js';
 
@@ -171,11 +172,40 @@ export function useHilMemoCaptureState({
   );
 
   const handleCreateFlash = useCallback(async () => {
+    let voiceMeta = null;
+    if (flashVoice?.audio) {
+      const voicePayload = flashVoice.audio;
+      try {
+        const saved = await agencySaveVoiceCaptureAudio({
+          worktreePath,
+          sourcePath: voicePayload.path || null,
+          dataUrl: voicePayload.dataUrl || null,
+          durationMs: voicePayload.durationMs ?? null,
+          mime: voicePayload.mime || null,
+        });
+        if (!saved?.path) {
+          setCaptureError('Failed to save voice audio.');
+          return;
+        }
+        voiceMeta = {
+          asset: saved,
+          backend: voicePayload.backend || null,
+          capturedAt: new Date().toISOString(),
+        };
+        await flashVoice.clearAudio?.();
+      } catch (error) {
+        setCaptureError(error?.message || 'Failed to save voice audio.');
+        return;
+      }
+    }
     await handleCreateMemo({
       body: flashText,
-      meta: { noteType: 'flash' },
+      meta: {
+        noteType: 'flash',
+        ...(voiceMeta ? { voice: voiceMeta } : {}),
+      },
     });
-  }, [flashText, handleCreateMemo]);
+  }, [flashText, flashVoice, handleCreateMemo, worktreePath]);
 
   const handleFetchExcerpt = useCallback(async () => {
     const trimmedUrl = excerptUrl.trim();

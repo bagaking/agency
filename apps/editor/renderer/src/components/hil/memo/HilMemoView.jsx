@@ -13,6 +13,8 @@ import {
   FileText,
   Activity,
   Clock,
+  Play,
+  Pause,
 } from 'lucide-react';
 import { ProjectEmptyState } from '../../ProjectEmptyState.jsx';
 import { InboxSection } from './InboxSection.jsx';
@@ -22,6 +24,7 @@ import { useModal } from '../../modals/ModalSystem.jsx';
 import {
   updateHilItem as agencyUpdateHilItem,
   deleteHilItem as agencyDeleteHilItem,
+  getWorkbenchFileUrl as agencyGetWorkbenchFileUrl,
 } from '../../../services/agencyBridge.js';
 
 const kindIcons = {
@@ -336,6 +339,7 @@ export function HilMemoView({
                     key={item.id}
                     index={index}
                     item={item}
+                    worktreePath={worktreePath}
                     onUpdateStatus={updateStatus}
                     resolveBody={resolveBody}
                     onOpenDetail={(detail) => {
@@ -391,7 +395,7 @@ export function HilMemoView({
   );
 }
 
-function MemoRow({ item, index, onUpdateStatus, resolveBody, onOpenDetail }) {
+function MemoRow({ item, index, worktreePath, onUpdateStatus, resolveBody, onOpenDetail }) {
     const isResolved = item.status === 'resolved' || item.status === 'archived';
     const isProcessed = item.kind === 'comment' && item.meta?.processed === true;
     const isMemoProcessed = item.kind === 'memo' && item.meta?.processed === true;
@@ -399,6 +403,7 @@ function MemoRow({ item, index, onUpdateStatus, resolveBody, onOpenDetail }) {
     const bodySummary = resolveBody(item);
     const noteType = item.kind === 'memo' ? item.meta?.noteType : null;
     const noteLabel = noteType ? String(noteType).toUpperCase() : null;
+    const voiceAsset = item.kind === 'memo' ? item.meta?.voice?.asset : null;
     
     return (
         <div
@@ -443,6 +448,11 @@ function MemoRow({ item, index, onUpdateStatus, resolveBody, onOpenDetail }) {
                     <div className="text-[13px] text-muted-foreground/80 leading-snug line-clamp-2 tracking-tight group-hover:text-foreground transition-colors duration-300 font-medium">
                         {bodySummary}
                     </div>
+                    {voiceAsset ? (
+                        <div className="mt-1">
+                          <MemoAudioButton voiceAsset={voiceAsset} worktreePath={worktreePath} />
+                        </div>
+                    ) : null}
                 </div>
 
                 {/* Inline Hover Actions: Zen Style */}
@@ -473,6 +483,81 @@ function MemoRow({ item, index, onUpdateStatus, resolveBody, onOpenDetail }) {
             </div>
         </div>
     );
+}
+
+function MemoAudioButton({ voiceAsset, worktreePath }) {
+  const [audioUrl, setAudioUrl] = useState('');
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef(null);
+
+  const ensureUrl = useCallback(async () => {
+    if (audioUrl || !voiceAsset?.path) {
+      return audioUrl;
+    }
+    const result = await agencyGetWorkbenchFileUrl({
+      rootPath: worktreePath || null,
+      targetPath: voiceAsset.path,
+    });
+    const url = result?.url || '';
+    setAudioUrl(url);
+    return url;
+  }, [audioUrl, voiceAsset?.path, worktreePath]);
+
+  const handleToggle = async (event) => {
+    event.stopPropagation();
+    const url = await ensureUrl();
+    if (!url) {
+      return;
+    }
+    const audioEl = audioRef.current;
+    if (!audioEl) {
+      return;
+    }
+    if (audioEl.paused) {
+      try {
+        await audioEl.play();
+        setPlaying(true);
+      } catch (error) {
+        setPlaying(false);
+      }
+    } else {
+      audioEl.pause();
+      setPlaying(false);
+    }
+  };
+
+  useEffect(() => {
+    const audioEl = audioRef.current;
+    if (!audioEl) {
+      return undefined;
+    }
+    const handleEnded = () => {
+      setPlaying(false);
+    };
+    audioEl.addEventListener('ended', handleEnded);
+    return () => {
+      audioEl.removeEventListener('ended', handleEnded);
+    };
+  }, [audioUrl]);
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={handleToggle}
+        className="flex items-center gap-1 rounded-md border border-border/20 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60 hover:border-primary/40 hover:text-foreground"
+      >
+        {playing ? <Pause size={10} /> : <Play size={10} />}
+        {playing ? 'Pause' : 'Play'}
+      </button>
+      {voiceAsset?.durationMs ? (
+        <span className="text-[9px] text-muted-foreground/50">
+          {(voiceAsset.durationMs / 1000).toFixed(1)}s
+        </span>
+      ) : null}
+      <audio ref={audioRef} src={audioUrl} />
+    </div>
+  );
 }
 
 function DraftDetail({

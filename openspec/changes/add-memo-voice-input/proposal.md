@@ -8,6 +8,8 @@ The Memo drawer currently shows a demo voice button that does not record or tran
 - Add IPC wiring so the renderer can start/stop speech capture and receive transcript events.
 - Keep Web Speech as a fallback when native capture is unavailable.
 - Surface recording state, errors, and diagnostics in the UI and runtime logs.
+- Tune auto language detection with an early probe and rescore pass before committing text.
+- Save original voice audio with Flash memos and offer playback controls.
 
 ## Impact
 - Affected spec: `openspec/specs/agency-editor/spec.md`

@@ -52,6 +52,18 @@ func parseLanguage() -> (value: String, isAuto: Bool) {
   return (value, false)
 }
 
+func parseAudioPath() -> String? {
+  let args = CommandLine.arguments
+  guard let index = args.firstIndex(of: "--audio"), index + 1 < args.count else {
+    return nil
+  }
+  let value = args[index + 1].trimmingCharacters(in: .whitespacesAndNewlines)
+  if value.isEmpty {
+    return nil
+  }
+  return value
+}
+
 func resolveLocaleIdentifier(_ language: NLLanguage) -> String {
   switch language {
   case .simplifiedChinese:
@@ -89,6 +101,9 @@ let audioEngine = AVAudioEngine()
 var recognitionTask: SFSpeechRecognitionTask?
 var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
 var stopRequested = false
+let audioOutputPath = parseAudioPath()
+var audioFile: AVAudioFile?
+var recordedDuration: TimeInterval = 0
 var recognitionTaskToken = 0
 let languageRecognizer = autoDetectLanguage ? NLLanguageRecognizer() : nil
 let silenceThresholdSeconds: TimeInterval = 0.9
@@ -114,6 +129,9 @@ var segmentBuffers: [AVAudioPCMBuffer] = []
 var segmentDuration: TimeInterval = 0
 var rescoreInFlight = false
 var phraseStartedAt = Date.distantPast
+var exitCheckAttempts = 0
+let exitCheckInterval: TimeInterval = 0.2
+let maxExitChecks = 15
 
 let bundle = Bundle.main
 emitDebug([
@@ -164,6 +182,44 @@ func resetLanguageDetection() {
 func resetSegmentBuffers() {
   segmentBuffers.removeAll()
   segmentDuration = 0
+}
+
+func prepareAudioFile(format: AVAudioFormat) {
+  guard let audioOutputPath else {
+    return
+  }
+  let url = URL(fileURLWithPath: audioOutputPath)
+  do {
+    if FileManager.default.fileExists(atPath: audioOutputPath) {
+      try FileManager.default.removeItem(atPath: audioOutputPath)
+    }
+  } catch {
+    emitDebug(["stage": "audio-cleanup-failed", "error": error.localizedDescription])
+  }
+  do {
+    audioFile = try AVAudioFile(forWriting: url, settings: format.settings, commonFormat: format.commonFormat, interleaved: format.isInterleaved)
+    recordedDuration = 0
+  } catch {
+    emitDebug(["stage": "audio-file-failed", "error": error.localizedDescription])
+  }
+}
+
+func emitAudioSummary() {
+  guard let audioOutputPath else {
+    return
+  }
+  guard recordedDuration > 0 else {
+    return
+  }
+  guard FileManager.default.fileExists(atPath: audioOutputPath) else {
+    return
+  }
+  JsonEmitter.emit([
+    "type": "audio",
+    "path": audioOutputPath,
+    "durationMs": Int(round(recordedDuration * 1000)),
+    "mime": "audio/wav",
+  ])
 }
 
 func storeSegmentBuffer(_ buffer: AVAudioPCMBuffer) {
@@ -305,6 +361,9 @@ func handleFinalText(_ text: String, reason: String) -> String? {
       }
       rescoreInFlight = false
       emitDebug(["stage": "rescore-done", "locale": resultLocale, "fallback": rescored == nil])
+      if stopRequested {
+        attemptExit()
+      }
     }
     return nil
   }
@@ -366,13 +425,24 @@ func stopCapture(_ reason: String? = nil) {
     audioEngine.stop()
     audioEngine.inputNode.removeTap(onBus: 0)
   }
+  audioFile = nil
+  emitAudioSummary()
   JsonEmitter.status("stopped")
   if let message = reason {
     JsonEmitter.error(message)
   }
-  DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-    exit(0)
+  attemptExit()
+}
+
+func attemptExit() {
+  if rescoreInFlight && exitCheckAttempts < maxExitChecks {
+    exitCheckAttempts += 1
+    DispatchQueue.main.asyncAfter(deadline: .now() + exitCheckInterval) {
+      attemptExit()
+    }
+    return
   }
+  exit(0)
 }
 
 func startRecognitionTask() {
@@ -466,9 +536,21 @@ func startAudioEngine() throws {
   let inputNode = audioEngine.inputNode
   let format = inputNode.outputFormat(forBus: 0)
   inputNode.removeTap(onBus: 0)
+  prepareAudioFile(format: format)
   inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
     recognitionRequest?.append(buffer)
     storeSegmentBuffer(buffer)
+    if let audioFile {
+      do {
+        try audioFile.write(from: buffer)
+        let sampleRate = buffer.format.sampleRate
+        if sampleRate > 0 {
+          recordedDuration += Double(buffer.frameLength) / sampleRate
+        }
+      } catch {
+        emitDebug(["stage": "audio-write-failed", "error": error.localizedDescription])
+      }
+    }
   }
   audioEngine.prepare()
   try audioEngine.start()

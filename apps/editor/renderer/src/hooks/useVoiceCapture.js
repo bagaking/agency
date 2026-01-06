@@ -4,6 +4,7 @@ import {
   getVoiceCaptureSupport,
   startVoiceCapture,
   stopVoiceCapture,
+  discardVoiceCaptureAudio,
   onVoiceCaptureEvent,
 } from '../services/agencyBridge.js';
 
@@ -88,6 +89,11 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
   const lastFinalRef = useRef('');
   const lastErrorRef = useRef('');
   const restartRef = useRef({ attempts: 0, lastAt: 0 });
+  const mediaRecorderRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const mediaChunksRef = useRef([]);
+  const mediaStartRef = useRef(0);
+  const [audio, setAudio] = useState(null);
   const [webSupported, setWebSupported] = useState(false);
   const [nativeSupported, setNativeSupported] = useState(false);
   const [status, setStatus] = useState('idle');
@@ -177,6 +183,20 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     [language, resolvedLanguage]
   );
 
+  const buildAssetUrl = useCallback((filePath) => {
+    if (!filePath) {
+      return '';
+    }
+    return `agency-asset://${filePath}`;
+  }, []);
+
+  const clearAudio = useCallback(async () => {
+    if (audio?.path) {
+      await discardVoiceCaptureAudio?.({ sourcePath: audio.path });
+    }
+    setAudio(null);
+  }, [audio?.path, discardVoiceCaptureAudio]);
+
   const handleNativeEvent = useCallback(
     (payload) => {
       if (!payload || payload.captureId !== nativeCaptureIdRef.current) {
@@ -234,6 +254,19 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
         }
         return;
       }
+      if (payload.type === 'audio') {
+        if (!payload.path) {
+          return;
+        }
+        setAudio({
+          path: payload.path,
+          mime: payload.mime || 'audio/wav',
+          durationMs: payload.durationMs ?? null,
+          backend: 'native',
+          previewUrl: buildAssetUrl(payload.path),
+        });
+        return;
+      }
       if (payload.type === 'error') {
         nativeActiveRef.current = false;
         nativeCaptureIdRef.current = '';
@@ -241,7 +274,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
         setStatusSafe('error');
       }
     },
-    [onFinal, setStatusSafe]
+    [buildAssetUrl, onFinal, setStatusSafe]
   );
 
   useEffect(() => {
@@ -263,6 +296,87 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       }
     };
   }, [handleNativeEvent]);
+
+  const startWebAudioCapture = useCallback(async () => {
+    if (typeof window === 'undefined' || !navigator?.mediaDevices?.getUserMedia) {
+      return null;
+    }
+    if (typeof window.MediaRecorder === 'undefined') {
+      return null;
+    }
+    if (mediaRecorderRef.current) {
+      return mediaRecorderRef.current;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      const preferredTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+      ];
+      let mimeType = '';
+      mimeType =
+        preferredTypes.find((type) => window.MediaRecorder.isTypeSupported(type)) || '';
+      const recorder = new window.MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      mediaChunksRef.current = [];
+      mediaStartRef.current = Date.now();
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          mediaChunksRef.current.push(event.data);
+        }
+      };
+      recorder.onstop = () => {
+        const chunks = mediaChunksRef.current;
+        mediaChunksRef.current = [];
+        if (!chunks.length) {
+          return;
+        }
+        const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const dataUrl = typeof reader.result === 'string' ? reader.result : '';
+          if (!dataUrl) {
+            return;
+          }
+          setAudio({
+            dataUrl,
+            mime: recorder.mimeType || 'audio/webm',
+            durationMs: Date.now() - (mediaStartRef.current || Date.now()),
+            backend: 'web',
+            previewUrl: dataUrl,
+          });
+        };
+        reader.readAsDataURL(blob);
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      return recorder;
+    } catch (error) {
+      logVoiceDiagnostics({
+        level: 'warn',
+        message: 'voice capture audio recording failed',
+        meta: {
+          error: error?.message || String(error),
+          ...buildDiagnostics(),
+        },
+      });
+      return null;
+    }
+  }, [buildDiagnostics]);
+
+  const stopWebAudioCapture = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop();
+    }
+    mediaRecorderRef.current = null;
+    const stream = mediaStreamRef.current;
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+  }, []);
 
   const createRecognition = useCallback(() => {
     const SpeechRecognition = resolveSpeechRecognition();
@@ -289,6 +403,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       setStatusSafe('error');
       lastErrorRef.current = event?.error || message;
       stopRequestedRef.current = true;
+      stopWebAudioCapture();
       logVoiceDiagnostics({
         level: 'warn',
         message: 'voice capture error',
@@ -369,7 +484,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     };
 
     return recognition;
-  }, [buildDiagnostics, onFinal, setStatusSafe]);
+  }, [buildDiagnostics, onFinal, setStatusSafe, stopWebAudioCapture]);
 
   const startWebSpeech = useCallback(() => {
     if (!webSupported) {
@@ -390,6 +505,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     recognition.lang = resolvedLanguage;
     stopRequestedRef.current = false;
     lastErrorRef.current = '';
+    startWebAudioCapture();
     setStatusSafe('starting');
     try {
       recognition.start();
@@ -407,7 +523,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
         },
       });
     }
-  }, [buildDiagnostics, createRecognition, resolvedLanguage, setStatusSafe, webSupported]);
+  }, [buildDiagnostics, createRecognition, resolvedLanguage, setStatusSafe, startWebAudioCapture, webSupported]);
 
   const stopWebSpeech = useCallback(() => {
     if (!recognitionRef.current) {
@@ -427,7 +543,8 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
         },
       });
     }
-  }, [buildDiagnostics, setStatusSafe]);
+    stopWebAudioCapture();
+  }, [buildDiagnostics, setStatusSafe, stopWebAudioCapture]);
 
   const startNativeSpeech = useCallback(async () => {
     if (!nativeSupported) {
@@ -494,18 +611,22 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       setStatusSafe('unavailable');
       return;
     }
+    stopWebAudioCapture();
+    await clearAudio();
     const nativeStarted = await startNativeSpeech();
     if (nativeStarted) {
       return;
     }
     startWebSpeech();
   }, [
+    clearAudio,
     language,
     nativeSupported,
     resolvedLanguage,
     setStatusSafe,
     startNativeSpeech,
     startWebSpeech,
+    stopWebAudioCapture,
     supported,
     webSupported,
   ]);
@@ -554,10 +675,12 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     setInterimText('');
     setError('');
     lastErrorRef.current = '';
+    stopWebAudioCapture();
+    clearAudio();
     if (statusRef.current !== 'unavailable') {
       setStatusSafe('idle');
     }
-  }, [setStatusSafe]);
+  }, [clearAudio, setStatusSafe, stopWebAudioCapture]);
 
   useEffect(() => {
     return () => {
@@ -576,6 +699,8 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
           source: 'cleanup',
         });
       }
+      stopWebAudioCapture();
+      clearAudio();
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort?.();
@@ -585,7 +710,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       }
       recognitionRef.current = null;
     };
-  }, []);
+  }, [clearAudio, stopWebAudioCapture]);
 
   const isRecording = status === 'recording' || status === 'starting';
   const statusMessage = useMemo(() => {
@@ -616,6 +741,8 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     resolvedLanguage,
     setLanguage,
     interimText,
+    audio,
+    clearAudio,
     error,
     statusMessage,
     start,
