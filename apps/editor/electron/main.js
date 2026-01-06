@@ -1,4 +1,5 @@
 const { app, BrowserWindow, Menu, nativeImage, protocol, net } = require('electron');
+const { performance } = require('perf_hooks');
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -39,6 +40,40 @@ let mainWindow;
 
 app.setName('Agency');
 
+const startupTimeline = {
+  startedAt: performance.now(),
+  events: [],
+  flushed: false,
+};
+
+function recordStartup(stage, meta = {}) {
+  const event = { stage, at: performance.now(), meta };
+  startupTimeline.events.push(event);
+  if (startupTimeline.flushed) {
+    logRuntime('info', 'startup stage', {
+      stage,
+      elapsedMs: Math.round(event.at - startupTimeline.startedAt),
+      ...meta,
+    });
+  }
+}
+
+function flushStartupTimeline() {
+  if (startupTimeline.flushed) {
+    return;
+  }
+  startupTimeline.flushed = true;
+  startupTimeline.events.forEach((event) => {
+    logRuntime('info', 'startup stage', {
+      stage: event.stage,
+      elapsedMs: Math.round(event.at - startupTimeline.startedAt),
+      ...event.meta,
+    });
+  });
+}
+
+recordStartup('process-start');
+
 function resolveIconPath() {
   const devIcon = path.join(__dirname, '../renderer/public/icon.png');
   if (fs.existsSync(devIcon)) {
@@ -64,6 +99,7 @@ function resolveIconImage() {
 }
 
 function createWindow({ startEmpty = false } = {}) {
+  recordStartup('window-create-start', { startEmpty });
   const iconImage = resolveIconImage();
   const win = new BrowserWindow({
     width: 1280,
@@ -86,19 +122,23 @@ function createWindow({ startEmpty = false } = {}) {
   win.on('closed', () => {
     clearWindowProjectRoot(win.id);
   });
+  recordStartup('window-created', { id: win.id });
 
   const rendererUrl = process.env.ELECTRON_RENDERER_URL;
   if (isDev && rendererUrl) {
+    recordStartup('renderer-load-start', { url: rendererUrl });
     win.loadURL(rendererUrl);
     // Open DevTools only if NOT in test mode to avoid confusing Playwright
     if (!process.env.AGENCY_TEST_MODE) {
       win.webContents.openDevTools({ mode: 'detach' });
     }
   } else {
+    recordStartup('renderer-load-start', { url: 'file://dist/renderer/index.html' });
     win.loadFile(path.join(__dirname, '../dist/renderer/index.html'));
   }
 
   win.webContents.on('did-finish-load', () => {
+    recordStartup('renderer-loaded', { url: win.webContents.getURL() });
     logRuntime('info', 'renderer loaded', { url: win.webContents.getURL() });
   });
 
@@ -219,7 +259,10 @@ function buildAppMenu() {
 }
 
 app.whenReady().then(async () => {
+  recordStartup('app-when-ready');
   await initRuntimeLogger();
+  recordStartup('runtime-logger-ready');
+  flushStartupTimeline();
   const runtimeInfo = getRuntimeLogInfo();
   logRuntime('info', 'app ready', {
     version: app.getVersion(),
@@ -228,6 +271,7 @@ app.whenReady().then(async () => {
     runtimeInfo,
   });
 
+  recordStartup('ipc-handlers-setup-start');
   setupCellHandlers({ getMainWindow: () => mainWindow });
   setupWorktreeHandlers();
   setupTerminalHandlers({ getMainWindow: () => mainWindow });
@@ -247,6 +291,8 @@ app.whenReady().then(async () => {
   setupCaptureHandlers();
   setupActionSheetsHandlers();
   setupVoiceCaptureHandlers();
+  recordStartup('ipc-handlers-ready');
+  recordStartup('asset-protocol-setup');
   setupAssetProtocol();
 
   if (process.platform === 'darwin') {
@@ -263,8 +309,11 @@ app.whenReady().then(async () => {
   }
 
   buildAppMenu();
+  recordStartup('menu-built');
   createWindow();
+  recordStartup('window-create-requested');
   captureManager.registerGlobalShortcut();
+  recordStartup('global-shortcuts-registered');
 
   logRuntime('info', 'main window created');
 
