@@ -391,7 +391,6 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     recognition.onstart = () => {
       setError('');
       setInterimText('');
-      setFinalText('');
       lastErrorRef.current = '';
       restartRef.current = { attempts: 0, lastAt: 0 };
       setStatusSafe('recording');
