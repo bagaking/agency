@@ -33,7 +33,15 @@ export function useHilMemoCaptureState({
   const [routingMode, setRoutingMode] = useState('hil');
   const [routingTargetId, setRoutingTargetId] = useState('');
   const [routingError, setRoutingError] = useState('');
+  const flashTextRef = useRef('');
   const voiceDraftsRef = useRef(new Map());
+  const voiceDraftOrderRef = useRef([]);
+  const voiceBaseRef = useRef('');
+  const voiceActiveRef = useRef(false);
+
+  useEffect(() => {
+    flashTextRef.current = String(flashText || '');
+  }, [flashText]);
 
   const appendFlashText = useCallback((snippet) => {
     if (!snippet) {
@@ -70,61 +78,40 @@ export function useHilMemoCaptureState({
       });
       return;
     }
+    if (!voiceActiveRef.current) {
+      voiceBaseRef.current = flashTextRef.current;
+      voiceActiveRef.current = true;
+    }
     const drafts = voiceDraftsRef.current;
-    setFlashText((current) => {
-      const raw = String(current || '');
-      const entry = drafts.get(segmentId);
-      if (!entry) {
-        const separator = raw && !raw.endsWith(' ') ? ' ' : '';
-        const next = `${raw}${separator}${text}`;
-        const start = next.length - text.length;
-        drafts.set(segmentId, { text, start, end: next.length });
-        return next;
-      }
-      const prevText = entry.text;
-      let { start, end } = entry;
-      let next = '';
-      let replaced = false;
-      if (Number.isFinite(start) && Number.isFinite(end) && raw.slice(start, end) === prevText) {
-        next = `${raw.slice(0, start)}${text}${raw.slice(end)}`;
-        replaced = true;
-      } else {
-        const index = raw.indexOf(prevText);
-        if (index !== -1) {
-          start = index;
-          end = index + prevText.length;
-          next = `${raw.slice(0, index)}${text}${raw.slice(index + prevText.length)}`;
-          replaced = true;
-        }
-      }
-      if (!replaced) {
-        const separator = raw && !raw.endsWith(' ') ? ' ' : '';
-        next = `${raw}${separator}${text}`;
-        start = next.length - text.length;
-        end = next.length;
-      } else {
-        const delta = text.length - prevText.length;
-        if (delta !== 0) {
-          drafts.forEach((value, key) => {
-            if (key === segmentId) {
-              return;
-            }
-            if (value.start >= end) {
-              value.start += delta;
-              value.end += delta;
-            }
-          });
-        }
-        end = start + text.length;
-      }
-      drafts.set(segmentId, { text, start, end });
-      return next;
-    });
+    const order = voiceDraftOrderRef.current;
+    if (!drafts.has(segmentId)) {
+      order.push(segmentId);
+    }
+    drafts.set(segmentId, text);
+    const voiceText = order
+      .map((id) => drafts.get(id))
+      .filter(Boolean)
+      .join(' ');
+    const base = voiceBaseRef.current || '';
+    if (!voiceText) {
+      setFlashText(base);
+      return;
+    }
+    const separator = base && !base.endsWith(' ') ? ' ' : '';
+    setFlashText(`${base}${separator}${voiceText}`);
   }, []);
 
   const flashVoice = useVoiceCapture({
     onFinal: appendFlashText,
   });
+
+  const handleFlashChange = useCallback((value) => {
+    setFlashText(value);
+    voiceDraftsRef.current.clear();
+    voiceDraftOrderRef.current = [];
+    voiceBaseRef.current = String(value || '');
+    voiceActiveRef.current = false;
+  }, []);
 
   const routingTargets = useMemo(() => {
     const list = [];
@@ -196,6 +183,9 @@ export function useHilMemoCaptureState({
     flashVoice.stop?.();
     setFlashText('');
     voiceDraftsRef.current.clear();
+    voiceDraftOrderRef.current = [];
+    voiceBaseRef.current = '';
+    voiceActiveRef.current = false;
     setExcerptUrl('');
     setExcerptPreview(null);
     setExcerptFetching(false);
@@ -455,6 +445,7 @@ export function useHilMemoCaptureState({
   return {
     flashText,
     setFlashText,
+    onFlashChange: handleFlashChange,
     flashVoice,
     excerptUrl,
     setExcerptUrl,

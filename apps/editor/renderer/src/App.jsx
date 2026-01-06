@@ -1875,7 +1875,7 @@ function App() {
     onSelectInbox: handleOpenMemoInbox,
     onOpenInbox: () => handleOpenMemoInbox('comments'),
     flashValue: memoCapture.flashText,
-    onFlashChange: memoCapture.setFlashText,
+    onFlashChange: memoCapture.onFlashChange,
     onSaveFlash: memoCapture.handleCreateFlash,
     flashVoice: memoCapture.flashVoice,
     excerptUrl: memoCapture.excerptUrl,

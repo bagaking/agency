@@ -65,6 +65,7 @@ export function HilMemoView({
   onOpenActionSheets,
   onCreateActionSheet,
   flashText,
+  onFlashChange,
   setFlashText,
   flashVoice,
   excerptUrl,
@@ -108,6 +109,16 @@ export function HilMemoView({
 }) {
   const [mutationError, setMutationError] = useState('');
   const modal = useModal();
+  const handleFlashChange = useCallback(
+    (value) => {
+      if (onFlashChange) {
+        onFlashChange(value);
+        return;
+      }
+      setFlashText?.(value);
+    },
+    [onFlashChange, setFlashText]
+  );
 
   const sessionsById = useMemo(() => {
     const map = new Map();
@@ -301,7 +312,7 @@ export function HilMemoView({
               <InboxSection
                 activeSection={activeInboxSection}
                 flashValue={flashText}
-                onFlashChange={setFlashText}
+                onFlashChange={handleFlashChange}
                 onSaveFlash={handleCreateFlash}
                 flashVoice={flashVoice}
                 excerptUrl={excerptUrl}
