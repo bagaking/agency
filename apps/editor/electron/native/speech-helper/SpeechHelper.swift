@@ -163,6 +163,7 @@ let autoSwitchProbeWindowSeconds: TimeInterval = 1.8
 let autoSwitchCooldownSeconds: TimeInterval = 2.0
 let rescoreTimeoutSeconds: TimeInterval = 2.0
 let maxSegmentSeconds: TimeInterval = 14.0
+let preRollMaxSeconds: TimeInterval = 0.45
 var lastPartialText = ""
 var lastPartialAt: Date?
 var silenceWorkItem: DispatchWorkItem?
@@ -175,6 +176,8 @@ var pendingLocaleCount = 0
 var lastSwitchAt = Date.distantPast
 var segmentBuffers: [AVAudioPCMBuffer] = []
 var segmentDuration: TimeInterval = 0
+var preRollBuffers: [AVAudioPCMBuffer] = []
+var preRollDuration: TimeInterval = 0
 var rescoreInFlight = false
 var segmentCounter = 0
 var phraseStartedAt = Date.distantPast
@@ -261,6 +264,11 @@ func resetSegmentBuffers() {
   segmentDuration = 0
 }
 
+func resetPreRollBuffers() {
+  preRollBuffers.removeAll()
+  preRollDuration = 0
+}
+
 func prepareAudioFile(format: AVAudioFormat) {
   guard let audioOutputPath else {
     return
@@ -296,6 +304,36 @@ func emitAudioSummary() {
     "path": audioOutputPath,
     "durationMs": Int(round(recordedDuration * 1000)),
     "mime": "audio/wav",
+  ])
+}
+
+func storePreRollBuffer(_ buffer: AVAudioPCMBuffer) {
+  guard let copied = buffer.copy() as? AVAudioPCMBuffer else {
+    return
+  }
+  let sampleRate = copied.format.sampleRate
+  if sampleRate > 0 {
+    preRollDuration += Double(copied.frameLength) / sampleRate
+  }
+  preRollBuffers.append(copied)
+  while preRollDuration > preRollMaxSeconds && !preRollBuffers.isEmpty {
+    let removed = preRollBuffers.removeFirst()
+    let removedRate = removed.format.sampleRate
+    if removedRate > 0 {
+      preRollDuration -= Double(removed.frameLength) / removedRate
+    }
+  }
+}
+
+func appendPreRoll(to request: SFSpeechAudioBufferRecognitionRequest) {
+  guard !preRollBuffers.isEmpty else {
+    return
+  }
+  preRollBuffers.forEach { request.append($0) }
+  emitDebug([
+    "stage": "pre-roll",
+    "bufferCount": preRollBuffers.count,
+    "durationMs": Int(round(preRollDuration * 1000)),
   ])
 }
 
@@ -611,6 +649,7 @@ func stopCapture(_ reason: String? = nil) {
     audioEngine.stop()
     audioEngine.inputNode.removeTap(onBus: 0)
   }
+  resetPreRollBuffers()
   audioFile = nil
   emitAudioSummary()
   JsonEmitter.status("stopped")
@@ -645,6 +684,7 @@ func startRecognitionTask() {
     request.addsPunctuation = true
   }
   recognitionRequest = request
+  appendPreRoll(to: request)
   recognitionTask = recognizer.recognitionTask(with: request) { result, error in
     if taskToken != recognitionTaskToken {
       return
@@ -780,6 +820,7 @@ func startAudioEngine() throws {
   prepareAudioFile(format: format)
   inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
     recognitionRequest?.append(buffer)
+    storePreRollBuffer(buffer)
     storeSegmentBuffer(buffer)
     if let audioFile {
       do {
