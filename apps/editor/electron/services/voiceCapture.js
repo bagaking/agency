@@ -10,8 +10,15 @@ const helperInfoPlist = path.join(helperRoot, 'Info.plist');
 const helperBundleName = 'SpeechHelper.app';
 const devHelperBundle = path.join(helperRoot, 'bin', helperBundleName);
 const devHelperBin = path.join(devHelperBundle, 'Contents', 'MacOS', 'speech-helper');
+const hostUsageDescriptions = {
+  NSMicrophoneUsageDescription:
+    'Voice input needs microphone access to capture speech for memos.',
+  NSSpeechRecognitionUsageDescription:
+    'Voice input uses speech recognition to transcribe memos.',
+};
 
 let activeCapture = null;
+let hostUsagePatched = false;
 
 function execFileAsync(command, args) {
   return new Promise((resolve, reject) => {
@@ -64,6 +71,38 @@ async function fileExists(filePath) {
   }
 }
 
+function resolveHostInfoPlistPath() {
+  if (process.platform !== 'darwin') {
+    return null;
+  }
+  const execDir = path.dirname(process.execPath);
+  return path.join(execDir, '..', 'Info.plist');
+}
+
+async function ensureHostUsageDescriptions() {
+  if (process.platform !== 'darwin' || app.isPackaged || hostUsagePatched) {
+    return;
+  }
+  const infoPath = resolveHostInfoPlistPath();
+  if (!infoPath || !(await fileExists(infoPath))) {
+    logRuntime('warn', 'speech helper host Info.plist missing', { infoPath });
+    return;
+  }
+  const updates = Object.entries(hostUsageDescriptions);
+  for (const [key, value] of updates) {
+    try {
+      await execFileAsync('/usr/bin/plutil', ['-replace', key, '-string', value, infoPath]);
+    } catch (error) {
+      logRuntime('warn', 'speech helper host Info.plist update failed', {
+        key,
+        error: error?.stderr || error?.message || String(error),
+      });
+    }
+  }
+  hostUsagePatched = true;
+  logRuntime('info', 'speech helper host Info.plist updated', { infoPath });
+}
+
 async function isHelperStale(helperPath, infoPath) {
   try {
     const [helperStat, sourceStat, infoStat] = await Promise.all([
@@ -105,8 +144,6 @@ async function ensureHelperBinary() {
       'Speech',
       '-framework',
       'AVFoundation',
-      '-framework',
-      'AppKit',
       helperSource,
       '-o',
       helperPath,
@@ -198,6 +235,7 @@ async function startVoiceCapture({ language } = {}, sender) {
   if (process.platform !== 'darwin') {
     return { supported: false, reason: 'unsupported-platform' };
   }
+  await ensureHostUsageDescriptions();
   if (activeCapture) {
     await stopVoiceCapture({ captureId: activeCapture.id });
   }

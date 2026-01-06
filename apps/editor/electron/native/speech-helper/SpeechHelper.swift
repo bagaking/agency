@@ -1,11 +1,7 @@
 import Foundation
 import Speech
 import AVFoundation
-import AppKit
 import Darwin
-
-let app = NSApplication.shared
-app.setActivationPolicy(.accessory)
 
 func emitDebug(_ payload: [String: Any]) {
   JsonEmitter.emit(["type": "debug", "data": payload])
