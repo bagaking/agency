@@ -599,19 +599,22 @@ func startRecognitionTask() {
         let isNoSpeech = noSpeechErrorHints.contains { lowercased.contains($0) }
         if isNoSpeech {
           let now = Date()
-          if now.timeIntervalSince(lastNoSpeechRestartAt) >= noSpeechRestartCooldownSeconds {
-            lastNoSpeechRestartAt = now
-            emitDebug([
-              "stage": "no-speech-restart",
-              "domain": error.domain,
-              "code": error.code,
-            ])
-            lastPartialText = ""
-            lastPartialAt = nil
-            DispatchQueue.main.asyncAfter(deadline: .now() + noSpeechRestartDelaySeconds) {
-              if !stopRequested {
-                startRecognitionTask()
-              }
+          let elapsed = now.timeIntervalSince(lastNoSpeechRestartAt)
+          let delay = elapsed >= noSpeechRestartCooldownSeconds
+            ? noSpeechRestartDelaySeconds
+            : (noSpeechRestartCooldownSeconds - elapsed + noSpeechRestartDelaySeconds)
+          lastNoSpeechRestartAt = now
+          emitDebug([
+            "stage": "no-speech-restart",
+            "domain": error.domain,
+            "code": error.code,
+            "delayMs": Int(round(delay * 1000)),
+          ])
+          lastPartialText = ""
+          lastPartialAt = nil
+          DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            if !stopRequested {
+              startRecognitionTask()
             }
           }
           return
