@@ -84,6 +84,8 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
   const stopRequestedRef = useRef(false);
   const nativeCaptureIdRef = useRef('');
   const nativeActiveRef = useRef(false);
+  const lastInterimRef = useRef('');
+  const lastFinalRef = useRef('');
   const lastErrorRef = useRef('');
   const restartRef = useRef({ attempts: 0, lastAt: 0 });
   const [webSupported, setWebSupported] = useState(false);
@@ -188,6 +190,8 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
           type: payload.type,
           status: payload.status || null,
           message: payload.message || null,
+          reason: payload.reason || null,
+          language: payload.language || null,
           code: payload.code ?? null,
           signal: payload.signal ?? null,
         },
@@ -205,16 +209,27 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
           if (statusRef.current !== 'error') {
             setStatusSafe('idle');
           }
+          if (lastInterimRef.current) {
+            const fallback = lastInterimRef.current;
+            lastInterimRef.current = '';
+            if (fallback && fallback !== lastFinalRef.current) {
+              setFinalText((current) => (current ? `${current} ${fallback}` : fallback));
+              onFinal?.(fallback);
+            }
+          }
           setInterimText('');
         }
       }
       if (payload.type === 'partial') {
         const text = String(payload.text || '').trim();
+        lastInterimRef.current = text;
         setInterimText(text);
         return;
       }
       if (payload.type === 'final') {
         const text = String(payload.text || '').trim();
+        lastInterimRef.current = '';
+        lastFinalRef.current = text;
         setInterimText('');
         if (text) {
           setFinalText((current) => (current ? `${current} ${text}` : text));
@@ -426,7 +441,8 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       return true;
     }
     try {
-      const result = await startVoiceCapture?.({ language: resolvedLanguage });
+      const nativeLanguage = language === 'auto' ? 'auto' : resolvedLanguage;
+      const result = await startVoiceCapture?.({ language: nativeLanguage });
       logVoiceDiagnostics({
         level: 'info',
         message: 'native voice capture start response',
@@ -450,6 +466,8 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       setError('');
       setInterimText('');
       setFinalText('');
+      lastInterimRef.current = '';
+      lastFinalRef.current = '';
       setStatusSafe('starting');
       return true;
     } catch (error) {
@@ -463,7 +481,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       });
       return false;
     }
-  }, [buildDiagnostics, nativeSupported, resolvedLanguage, setStatusSafe]);
+  }, [buildDiagnostics, language, nativeSupported, resolvedLanguage, setStatusSafe]);
 
   const start = useCallback(async () => {
     logVoiceDiagnostics({
@@ -536,6 +554,8 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     }
     nativeActiveRef.current = false;
     nativeCaptureIdRef.current = '';
+    lastInterimRef.current = '';
+    lastFinalRef.current = '';
     setInterimText('');
     setFinalText('');
     setError('');

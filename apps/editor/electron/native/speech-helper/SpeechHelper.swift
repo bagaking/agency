@@ -2,6 +2,7 @@ import Foundation
 import Speech
 import AVFoundation
 import Darwin
+import NaturalLanguage
 
 func emitDebug(_ payload: [String: Any]) {
   JsonEmitter.emit(["type": "debug", "data": payload])
@@ -40,24 +41,51 @@ struct JsonEmitter {
   }
 }
 
-func parseLanguage() -> String {
+func parseLanguage() -> (value: String, isAuto: Bool) {
   let args = CommandLine.arguments
   guard let index = args.firstIndex(of: "--lang"), index + 1 < args.count else {
-    return Locale.current.identifier
+    return (Locale.current.identifier, false)
   }
   let value = args[index + 1].trimmingCharacters(in: .whitespacesAndNewlines)
-  return value.isEmpty ? Locale.current.identifier : value
+  if value.isEmpty {
+    return (Locale.current.identifier, false)
+  }
+  if value.lowercased() == "auto" {
+    return (Locale.current.identifier, true)
+  }
+  return (value, false)
 }
 
-let language = parseLanguage()
-let locale = Locale(identifier: language)
-guard let recognizer = SFSpeechRecognizer(locale: locale) else {
+func resolveLocaleIdentifier(_ language: NLLanguage) -> String {
+  switch language {
+  case .simplifiedChinese:
+    return "zh-CN"
+  case .traditionalChinese:
+    return "zh-TW"
+  case .japanese:
+    return "ja-JP"
+  case .korean:
+    return "ko-KR"
+  case .english:
+    return "en-US"
+  default:
+    return language.rawValue
+  }
+}
+
+func createRecognizer(localeId: String) -> SFSpeechRecognizer? {
+  let locale = Locale(identifier: localeId)
+  guard let recognizer = SFSpeechRecognizer(locale: locale) else {
+    return nil
+  }
+  return recognizer.isAvailable ? recognizer : nil
+}
+
+let languageInput = parseLanguage()
+let autoDetectLanguage = languageInput.isAuto
+var currentLocaleId = languageInput.value
+guard var recognizer = createRecognizer(localeId: currentLocaleId) else {
   JsonEmitter.error("Speech recognizer unavailable for language.")
-  exit(1)
-}
-
-if !recognizer.isAvailable {
-  JsonEmitter.error("Speech recognizer is unavailable.")
   exit(1)
 }
 
@@ -65,6 +93,14 @@ let audioEngine = AVAudioEngine()
 var recognitionTask: SFSpeechRecognitionTask?
 var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
 var stopRequested = false
+let languageRecognizer = autoDetectLanguage ? NLLanguageRecognizer() : nil
+let silenceThresholdSeconds: TimeInterval = 0.9
+let autoDetectConfidence: Double = 0.6
+var lastPartialText = ""
+var lastPartialAt: Date?
+var silenceWorkItem: DispatchWorkItem?
+var lastFinalText = ""
+var lastFinalAt = Date.distantPast
 
 let bundle = Bundle.main
 emitDebug([
@@ -72,15 +108,127 @@ emitDebug([
   "bundlePath": bundle.bundlePath,
   "hasMicUsage": bundle.object(forInfoDictionaryKey: "NSMicrophoneUsageDescription") != nil,
   "hasSpeechUsage": bundle.object(forInfoDictionaryKey: "NSSpeechRecognitionUsageDescription") != nil,
+  "autoLanguage": autoDetectLanguage,
+  "locale": currentLocaleId,
 ])
+
+func punctuationForLocale(_ localeId: String) -> String {
+  let lowercased = localeId.lowercased()
+  if lowercased.hasPrefix("zh") || lowercased.hasPrefix("ja") || lowercased.hasPrefix("ko") {
+    return "。"
+  }
+  return "."
+}
+
+func normalizeFinalText(_ text: String, localeId: String) -> String {
+  let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+  if trimmed.isEmpty {
+    return ""
+  }
+  let punctuationSet = CharacterSet(charactersIn: "。？！.!?…")
+  if let lastScalar = trimmed.unicodeScalars.last, punctuationSet.contains(lastScalar) {
+    return trimmed
+  }
+  return trimmed + punctuationForLocale(localeId)
+}
+
+func detectLocaleId(from text: String) -> String? {
+  guard let languageRecognizer = languageRecognizer else {
+    return nil
+  }
+  languageRecognizer.processString(text)
+  let hypotheses = languageRecognizer.languageHypotheses(withMaximum: 1)
+  guard let best = hypotheses.max(by: { $0.value < $1.value }) else {
+    return nil
+  }
+  if best.value < autoDetectConfidence {
+    return nil
+  }
+  return resolveLocaleIdentifier(best.key)
+}
+
+func resetLanguageDetection() {
+  languageRecognizer?.reset()
+}
+
+func updateRecognizerIfNeeded(for localeId: String) -> Bool {
+  if localeId.isEmpty || localeId == currentLocaleId {
+    return false
+  }
+  if let nextRecognizer = createRecognizer(localeId: localeId) {
+    currentLocaleId = localeId
+    recognizer = nextRecognizer
+    emitDebug(["stage": "language-switch", "locale": localeId])
+    startRecognitionTask()
+    return true
+  }
+  return false
+}
+
+func emitFinalText(_ text: String, reason: String, localeId: String) {
+  let normalized = normalizeFinalText(text, localeId: localeId)
+  if normalized.isEmpty {
+    return
+  }
+  let now = Date()
+  if normalized == lastFinalText && now.timeIntervalSince(lastFinalAt) < 0.6 {
+    return
+  }
+  lastFinalText = normalized
+  lastFinalAt = now
+  JsonEmitter.emit([
+    "type": "final",
+    "text": normalized,
+    "reason": reason,
+    "language": localeId,
+  ])
+}
+
+func finalizePartial(reason: String) {
+  let text = lastPartialText.trimmingCharacters(in: .whitespacesAndNewlines)
+  lastPartialText = ""
+  lastPartialAt = nil
+  silenceWorkItem?.cancel()
+  silenceWorkItem = nil
+  if text.isEmpty {
+    return
+  }
+  let detectedLocale = detectLocaleId(from: text) ?? currentLocaleId
+  emitFinalText(text, reason: reason, localeId: detectedLocale)
+  var restarted = false
+  if autoDetectLanguage && !stopRequested {
+    resetLanguageDetection()
+    restarted = updateRecognizerIfNeeded(for: detectedLocale)
+  }
+  if reason == "silence" && !stopRequested && !restarted {
+    startRecognitionTask()
+  }
+}
+
+func scheduleSilenceFinalization() {
+  silenceWorkItem?.cancel()
+  let workItem = DispatchWorkItem {
+    guard !stopRequested else {
+      return
+    }
+    guard let lastPartialAt else {
+      return
+    }
+    if Date().timeIntervalSince(lastPartialAt) >= silenceThresholdSeconds {
+      finalizePartial(reason: "silence")
+    }
+  }
+  silenceWorkItem = workItem
+  DispatchQueue.main.asyncAfter(deadline: .now() + silenceThresholdSeconds, execute: workItem)
+}
 
 func stopCapture(_ reason: String? = nil) {
   if stopRequested {
     return
   }
   stopRequested = true
+  finalizePartial(reason: "stop")
   recognitionTask?.finish()
-  recognitionTask?.cancel()
   recognitionRequest?.endAudio()
   recognitionRequest = nil
   if audioEngine.isRunning {
@@ -118,11 +266,28 @@ func startRecognitionTask() {
       return
     }
     if result.isFinal {
-      JsonEmitter.final(text)
+      lastPartialText = ""
+      lastPartialAt = nil
+      silenceWorkItem?.cancel()
+      silenceWorkItem = nil
+      let detectedLocale = autoDetectLanguage ? (detectLocaleId(from: text) ?? currentLocaleId) : currentLocaleId
+      emitFinalText(text, reason: "final", localeId: detectedLocale)
+      if autoDetectLanguage {
+        resetLanguageDetection()
+      }
       if !stopRequested {
-        startRecognitionTask()
+        let switched = autoDetectLanguage ? updateRecognizerIfNeeded(for: detectedLocale) : false
+        if !switched {
+          startRecognitionTask()
+        }
       }
     } else {
+      lastPartialText = text
+      lastPartialAt = Date()
+      if autoDetectLanguage {
+        _ = detectLocaleId(from: text)
+      }
+      scheduleSilenceFinalization()
       JsonEmitter.partial(text)
     }
   }

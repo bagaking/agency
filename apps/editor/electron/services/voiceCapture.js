@@ -144,6 +144,8 @@ async function ensureHelperBinary() {
       'Speech',
       '-framework',
       'AVFoundation',
+      '-framework',
+      'NaturalLanguage',
       helperSource,
       '-o',
       helperPath,

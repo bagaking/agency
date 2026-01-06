@@ -46,6 +46,8 @@ async function build() {
     'Speech',
     '-framework',
     'AVFoundation',
+    '-framework',
+    'NaturalLanguage',
     helperSource,
     '-o',
     helperBin,
