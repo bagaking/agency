@@ -563,6 +563,11 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     if (statusRef.current === 'recording' || statusRef.current === 'starting') {
       return true;
     }
+    setError('');
+    setInterimText('');
+    lastInterimRef.current = '';
+    lastFinalRef.current = '';
+    setStatusSafe('starting');
     try {
       const nativeLanguage = language === 'auto' ? 'auto' : resolvedLanguage;
       const result = await startVoiceCapture?.({ language: nativeLanguage });
@@ -582,14 +587,13 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
             ...buildDiagnostics(),
           },
         });
+        if (statusRef.current !== 'unavailable') {
+          setStatusSafe('idle');
+        }
         return false;
       }
       nativeCaptureIdRef.current = result.captureId;
       nativeActiveRef.current = true;
-      setError('');
-      setInterimText('');
-      lastInterimRef.current = '';
-      lastFinalRef.current = '';
       setStatusSafe('starting');
       return true;
     } catch (error) {
@@ -601,6 +605,9 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
           ...buildDiagnostics(),
         },
       });
+      if (statusRef.current !== 'unavailable') {
+        setStatusSafe('idle');
+      }
       return false;
     }
   }, [buildDiagnostics, language, nativeSupported, resolvedLanguage, setStatusSafe]);

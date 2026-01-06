@@ -172,6 +172,10 @@ var phraseStartedAt = Date.distantPast
 var exitCheckAttempts = 0
 let exitCheckInterval: TimeInterval = 0.2
 let maxExitChecks = 15
+var recoverableErrorCount = 0
+var lastRecoverableErrorAt = Date.distantPast
+let recoverableErrorCooldownSeconds: TimeInterval = 1.5
+let maxRecoverableErrors = 2
 
 let bundle = Bundle.main
 emitDebug([
@@ -574,8 +578,33 @@ func startRecognitionTask() {
     if taskToken != recognitionTaskToken {
       return
     }
-    if let error = error {
+    if let error = error as NSError? {
       if !stopRequested {
+        emitDebug([
+          "stage": "recognition-error",
+          "domain": error.domain,
+          "code": error.code,
+          "message": error.localizedDescription,
+        ])
+        if error.domain == "kAFAssistantErrorDomain" && error.code == 209 {
+          let now = Date()
+          if now.timeIntervalSince(lastRecoverableErrorAt) >= recoverableErrorCooldownSeconds {
+            lastRecoverableErrorAt = now
+            recoverableErrorCount += 1
+            if recoverableErrorCount <= maxRecoverableErrors {
+              emitDebug([
+                "stage": "recognition-retry",
+                "domain": error.domain,
+                "code": error.code,
+                "attempt": recoverableErrorCount,
+              ])
+              lastPartialText = ""
+              lastPartialAt = nil
+              startRecognitionTask()
+              return
+            }
+          }
+        }
         JsonEmitter.error(error.localizedDescription)
         stopCapture()
       }
@@ -731,6 +760,8 @@ requestPermissions { ok, error in
   }
   do {
     try startAudioEngine()
+    recoverableErrorCount = 0
+    lastRecoverableErrorAt = Date.distantPast
     startRecognitionTask()
     JsonEmitter.status("recording")
   } catch {

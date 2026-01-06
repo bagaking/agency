@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mic, Square } from 'lucide-react';
+import { Loader2, Mic, Square } from 'lucide-react';
 
 export function VoiceCaptureControl({ voice }) {
   if (!voice) {
@@ -7,6 +7,7 @@ export function VoiceCaptureControl({ voice }) {
   }
   const {
     supported,
+    status,
     isRecording,
     language,
     languageOptions,
@@ -19,6 +20,8 @@ export function VoiceCaptureControl({ voice }) {
     stop,
   } = voice;
   const disabled = !supported;
+  const isStarting = status === 'starting';
+  const isActive = status === 'recording';
   const languageDisabled = disabled || isRecording;
   const handleClick = () => {
     if (isRecording) {
@@ -42,27 +45,44 @@ export function VoiceCaptureControl({ voice }) {
         <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
           <span
             className={`h-2 w-2 rounded-full ${
-              isRecording ? 'bg-emerald-400 animate-pulse' : 'bg-muted-foreground/30'
+              isActive
+                ? 'bg-emerald-400 animate-pulse'
+                : isStarting
+                ? 'bg-amber-400 animate-pulse'
+                : 'bg-muted-foreground/30'
             }`}
           />
           Voice Input
         </div>
-        <button
-          type="button"
-          onClick={handleClick}
-          disabled={disabled}
-          className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[9px] font-semibold uppercase tracking-widest transition-all ${
-            disabled
-              ? 'border-border/10 text-muted-foreground/40'
-              : isRecording
-              ? 'border-rose-400/40 text-rose-300 hover:border-rose-400/70'
-              : 'border-border/30 text-muted-foreground/70 hover:border-primary/40 hover:text-foreground'
-          }`}
-          aria-label={isRecording ? 'Stop voice input' : 'Start voice input'}
-        >
-          {isRecording ? <Square size={10} /> : <Mic size={10} />}
-          {isRecording ? 'Stop' : 'Start'}
-        </button>
+        <div className="flex items-center gap-2">
+          {isStarting ? (
+            <span className="text-[9px] font-semibold uppercase tracking-widest text-amber-300 animate-pulse">
+              Starting...
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={handleClick}
+            disabled={disabled}
+            className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[9px] font-semibold uppercase tracking-widest transition-all ${
+              disabled
+                ? 'border-border/10 text-muted-foreground/40'
+                : isRecording
+                ? 'border-rose-400/40 text-rose-300 hover:border-rose-400/70'
+                : 'border-border/30 text-muted-foreground/70 hover:border-primary/40 hover:text-foreground'
+            }`}
+            aria-label={isRecording ? 'Stop voice input' : 'Start voice input'}
+          >
+            {isStarting ? (
+              <Loader2 size={10} className="animate-spin" />
+            ) : isRecording ? (
+              <Square size={10} />
+            ) : (
+              <Mic size={10} />
+            )}
+            {isRecording ? 'Stop' : 'Start'}
+          </button>
+        </div>
       </div>
       {languageOptions?.length ? (
         <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground/60">
