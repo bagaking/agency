@@ -14,6 +14,8 @@
 - [x] 1.13 Save recorded audio as a HIL asset when a Flash memo is created.
 - [x] 1.14 Add audio playback controls for Flash memos with saved audio.
 - [x] 1.15 Cleanup temporary audio when capture is reset or replaced.
+- [x] 1.16 Rescore full segments on Auto with multi-locale fallback and longer silence finalization.
+- [x] 1.17 Surface voice playback controls in memo detail overlays.
 
 ## 2. Validation
 - [ ] 2.1 Manual: start/stop voice capture and verify transcript appends to Flash text.

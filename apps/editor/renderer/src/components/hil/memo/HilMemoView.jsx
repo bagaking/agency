@@ -351,9 +351,19 @@ export function HilMemoView({
                       const titleParts = [detail.kind, noteType].filter(Boolean).map((value) => String(value).toUpperCase());
                       const title = titleParts.length ? `${titleParts.join(' · ')} Detail` : 'Memo Detail';
                       const sourceUrl = detail.meta?.source?.url || '';
+                      const voiceAsset = detail.kind === 'memo' ? detail.meta?.voice?.asset : null;
+                      const content = voiceAsset ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+                            Voice
+                          </span>
+                          <MemoAudioButton voiceAsset={voiceAsset} worktreePath={worktreePath} />
+                        </div>
+                      ) : null;
                       modal.openModal({
                         title,
                         description: sourceUrl ? `${sourceUrl}\n\n${bodyText}` : bodyText,
+                        content,
                         variant: 'floating',
                         tone: 'info',
                         dismissLabel: 'Close',

@@ -89,6 +89,47 @@ func createRecognizer(localeId: String) -> SFSpeechRecognizer? {
   return recognizer.isAvailable ? recognizer : nil
 }
 
+func normalizeLocaleId(_ value: String) -> String {
+  let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+  if trimmed.isEmpty {
+    return trimmed
+  }
+  let lowercased = trimmed.lowercased()
+  if lowercased == "zh" || lowercased.hasPrefix("zh-hans") {
+    return "zh-CN"
+  }
+  if lowercased.hasPrefix("zh-hant") {
+    return "zh-TW"
+  }
+  if lowercased == "en" {
+    return "en-US"
+  }
+  if lowercased == "ja" {
+    return "ja-JP"
+  }
+  if lowercased == "ko" {
+    return "ko-KR"
+  }
+  return trimmed
+}
+
+func preferredLocaleCandidates() -> [String] {
+  var results: [String] = []
+  for entry in Locale.preferredLanguages {
+    let normalized = normalizeLocaleId(entry)
+    if normalized.isEmpty {
+      continue
+    }
+    if !results.contains(normalized) {
+      results.append(normalized)
+    }
+    if results.count >= 3 {
+      break
+    }
+  }
+  return results
+}
+
 let languageInput = parseLanguage()
 let autoDetectLanguage = languageInput.isAuto
 var currentLocaleId = languageInput.value
@@ -106,7 +147,7 @@ var audioFile: AVAudioFile?
 var recordedDuration: TimeInterval = 0
 var recognitionTaskToken = 0
 let languageRecognizer = autoDetectLanguage ? NLLanguageRecognizer() : nil
-let silenceThresholdSeconds: TimeInterval = 0.9
+let silenceThresholdSeconds: TimeInterval = 1.6
 let autoDetectConfidence: Double = 0.6
 let autoSwitchConfidence: Double = 0.78
 let autoSwitchProbeConfidence: Double = 0.62
@@ -114,9 +155,8 @@ let autoSwitchMinChars = 8
 let autoSwitchProbeMinChars = 4
 let autoSwitchProbeWindowSeconds: TimeInterval = 1.8
 let autoSwitchCooldownSeconds: TimeInterval = 2.0
-let rescoreConfidence: Double = 0.72
 let rescoreTimeoutSeconds: TimeInterval = 2.0
-let maxSegmentSeconds: TimeInterval = 8.0
+let maxSegmentSeconds: TimeInterval = 14.0
 var lastPartialText = ""
 var lastPartialAt: Date?
 var silenceWorkItem: DispatchWorkItem?
@@ -167,6 +207,19 @@ func detectLocale(from text: String) -> (localeId: String, confidence: Double)? 
   guard let languageRecognizer = languageRecognizer else {
     return nil
   }
+  languageRecognizer.processString(text)
+  let hypotheses = languageRecognizer.languageHypotheses(withMaximum: 1)
+  guard let best = hypotheses.max(by: { $0.value < $1.value }) else {
+    return nil
+  }
+  return (resolveLocaleIdentifier(best.key), best.value)
+}
+
+func detectLocaleSnapshot(from text: String) -> (localeId: String, confidence: Double)? {
+  guard let languageRecognizer = languageRecognizer else {
+    return nil
+  }
+  languageRecognizer.reset()
   languageRecognizer.processString(text)
   let hypotheses = languageRecognizer.languageHypotheses(withMaximum: 1)
   guard let best = hypotheses.max(by: { $0.value < $1.value }) else {
@@ -247,19 +300,13 @@ func shouldRescore(detected: (localeId: String, confidence: Double)?) -> String?
   guard autoDetectLanguage, !rescoreInFlight else {
     return nil
   }
-  guard let detected else {
+  guard !segmentBuffers.isEmpty else {
     return nil
   }
-  if detected.localeId == currentLocaleId {
-    return nil
+  if let detected, detected.confidence >= autoDetectConfidence {
+    return detected.localeId
   }
-  if detected.confidence < rescoreConfidence {
-    return nil
-  }
-  if segmentBuffers.isEmpty {
-    return nil
-  }
-  return detected.localeId
+  return currentLocaleId
 }
 
 func rescoreSegment(buffers: [AVAudioPCMBuffer], localeId: String, completion: @escaping (String?) -> Void) {
@@ -303,6 +350,66 @@ func rescoreSegment(buffers: [AVAudioPCMBuffer], localeId: String, completion: @
   }
 }
 
+func scoreRescoreText(_ text: String, localeId: String) -> Double {
+  let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+  if trimmed.isEmpty {
+    return 0
+  }
+  let recognizer = NLLanguageRecognizer()
+  recognizer.processString(trimmed)
+  let hypotheses = recognizer.languageHypotheses(withMaximum: 1)
+  let best = hypotheses.max(by: { $0.value < $1.value })
+  let bestLocale = best.map { resolveLocaleIdentifier($0.key) } ?? ""
+  let confidence = best?.value ?? 0
+  let lengthBonus = min(Double(trimmed.count) / 80.0, 0.2)
+  let localeBias: Double = bestLocale == localeId ? 0.15 : 0
+  return confidence + lengthBonus + localeBias
+}
+
+func rescoreSegmentMultiple(buffers: [AVAudioPCMBuffer], locales: [String], completion: @escaping (String?, String?) -> Void) {
+  var uniqueLocales: [String] = []
+  var seen = Set<String>()
+  for locale in locales where !locale.isEmpty {
+    if seen.contains(locale) {
+      continue
+    }
+    seen.insert(locale)
+    uniqueLocales.append(locale)
+  }
+  if uniqueLocales.isEmpty {
+    completion(nil, nil)
+    return
+  }
+  var bestText: String?
+  var bestLocale: String?
+  var bestScore: Double = -1
+
+  func handle(index: Int) {
+    if index >= uniqueLocales.count {
+      completion(bestText, bestLocale)
+      return
+    }
+    let localeId = uniqueLocales[index]
+    guard createRecognizer(localeId: localeId) != nil else {
+      handle(index: index + 1)
+      return
+    }
+    rescoreSegment(buffers: buffers, localeId: localeId) { rescored in
+      if let rescored {
+        let score = scoreRescoreText(rescored, localeId: localeId)
+        if score > bestScore {
+          bestScore = score
+          bestText = rescored
+          bestLocale = localeId
+        }
+      }
+      handle(index: index + 1)
+    }
+  }
+
+  handle(index: 0)
+}
+
 func updateRecognizerIfNeeded(for localeId: String) -> Bool {
   if localeId.isEmpty || localeId == currentLocaleId {
     return false
@@ -342,7 +449,7 @@ func handleFinalText(_ text: String, reason: String) -> String? {
   if trimmed.isEmpty {
     return nil
   }
-  let detected = detectLocale(from: trimmed)
+  let detected = detectLocaleSnapshot(from: trimmed)
   let detectedLocale = (detected?.confidence ?? 0) >= autoDetectConfidence
     ? detected?.localeId ?? currentLocaleId
     : currentLocaleId
@@ -350,10 +457,15 @@ func handleFinalText(_ text: String, reason: String) -> String? {
     let buffers = segmentBuffers
     resetSegmentBuffers()
     rescoreInFlight = true
-    emitDebug(["stage": "rescore-start", "locale": rescoreLocale])
-    rescoreSegment(buffers: buffers, localeId: rescoreLocale) { rescored in
+    var candidates: [String] = [rescoreLocale, currentLocaleId]
+    if let detectedLocale = detected?.localeId {
+      candidates.append(detectedLocale)
+    }
+    candidates.append(contentsOf: preferredLocaleCandidates())
+    emitDebug(["stage": "rescore-start", "locale": rescoreLocale, "candidates": candidates])
+    rescoreSegmentMultiple(buffers: buffers, locales: candidates) { rescored, localeId in
       let resultText = rescored?.trimmingCharacters(in: .whitespacesAndNewlines) ?? trimmed
-      let resultLocale = rescored != nil ? rescoreLocale : detectedLocale
+      let resultLocale = localeId ?? detectedLocale
       emitFinalText(resultText, reason: rescored != nil ? "rescore" : "rescore-fallback", localeId: resultLocale)
       if autoDetectLanguage {
         resetLanguageDetection()

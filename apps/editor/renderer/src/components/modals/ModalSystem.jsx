@@ -57,6 +57,7 @@ function ModalCard({ modal, onClose }) {
     id,
     title,
     description,
+    content,
     variant = 'confirm',
     tone = 'info',
     icon: IconOverride,
@@ -107,6 +108,11 @@ function ModalCard({ modal, onClose }) {
             {description ? (
               <div className="text-[12px] leading-relaxed text-muted-foreground/80 whitespace-pre-wrap max-h-[50vh] overflow-y-auto pr-1">
                 {description}
+              </div>
+            ) : null}
+            {content ? (
+              <div className="pt-3">
+                {content}
               </div>
             ) : null}
           </div>

@@ -94,6 +94,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
   const mediaChunksRef = useRef([]);
   const mediaStartRef = useRef(0);
   const [audio, setAudio] = useState(null);
+  const [rescoreMessage, setRescoreMessage] = useState('');
   const [webSupported, setWebSupported] = useState(false);
   const [nativeSupported, setNativeSupported] = useState(false);
   const [status, setStatus] = useState('idle');
@@ -215,6 +216,15 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
           signal: payload.signal ?? null,
         },
       });
+      if (payload.type === 'debug') {
+        const stage = payload.data?.stage;
+        if (stage === 'rescore-start') {
+          setRescoreMessage(payload.data?.locale || 'auto');
+        } else if (stage === 'rescore-done') {
+          setRescoreMessage('');
+        }
+        return;
+      }
       if (payload.type === 'status') {
         if (payload.status === 'recording') {
           setStatusSafe('recording');
@@ -228,6 +238,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
           if (statusRef.current !== 'error') {
             setStatusSafe('idle');
           }
+          setRescoreMessage('');
           if (lastInterimRef.current) {
             const fallback = lastInterimRef.current;
             lastInterimRef.current = '';
@@ -610,6 +621,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       setStatusSafe('unavailable');
       return;
     }
+    setRescoreMessage('');
     stopWebAudioCapture();
     await clearAudio();
     const nativeStarted = await startNativeSpeech();
@@ -674,6 +686,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     setInterimText('');
     setError('');
     lastErrorRef.current = '';
+    setRescoreMessage('');
     stopWebAudioCapture();
     clearAudio();
     if (statusRef.current !== 'unavailable') {
@@ -713,6 +726,9 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
 
   const isRecording = status === 'recording' || status === 'starting';
   const statusMessage = useMemo(() => {
+    if (rescoreMessage) {
+      return `Rescoring (${rescoreMessage})...`;
+    }
     if (status === 'unavailable') {
       return 'Voice input is unavailable.';
     }
@@ -729,7 +745,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       return error || 'Voice input failed.';
     }
     return 'Ready for voice input.';
-  }, [error, status]);
+  }, [error, rescoreMessage, status]);
 
   return {
     supported,
