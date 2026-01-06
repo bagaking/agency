@@ -214,6 +214,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
           language: payload.language || null,
           code: payload.code ?? null,
           signal: payload.signal ?? null,
+          data: payload.data || null,
         },
       });
       if (payload.type === 'debug') {
