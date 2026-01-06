@@ -93,11 +93,17 @@ var recognitionTaskToken = 0
 let languageRecognizer = autoDetectLanguage ? NLLanguageRecognizer() : nil
 let silenceThresholdSeconds: TimeInterval = 0.9
 let autoDetectConfidence: Double = 0.6
+let autoSwitchConfidence: Double = 0.78
+let autoSwitchMinChars = 8
+let autoSwitchCooldownSeconds: TimeInterval = 2.0
 var lastPartialText = ""
 var lastPartialAt: Date?
 var silenceWorkItem: DispatchWorkItem?
 var lastFinalText = ""
 var lastFinalAt = Date.distantPast
+var pendingLocaleId: String?
+var pendingLocaleCount = 0
+var lastSwitchAt = Date.distantPast
 
 let bundle = Bundle.main
 emitDebug([
@@ -129,7 +135,7 @@ func normalizeFinalText(_ text: String, localeId: String) -> String {
   return trimmed + punctuationForLocale(localeId)
 }
 
-func detectLocaleId(from text: String) -> String? {
+func detectLocale(from text: String) -> (localeId: String, confidence: Double)? {
   guard let languageRecognizer = languageRecognizer else {
     return nil
   }
@@ -138,10 +144,7 @@ func detectLocaleId(from text: String) -> String? {
   guard let best = hypotheses.max(by: { $0.value < $1.value }) else {
     return nil
   }
-  if best.value < autoDetectConfidence {
-    return nil
-  }
-  return resolveLocaleIdentifier(best.key)
+  return (resolveLocaleIdentifier(best.key), best.value)
 }
 
 func resetLanguageDetection() {
@@ -156,6 +159,7 @@ func updateRecognizerIfNeeded(for localeId: String) -> Bool {
     currentLocaleId = localeId
     recognizer = nextRecognizer
     emitDebug(["stage": "language-switch", "locale": localeId])
+    lastSwitchAt = Date()
     startRecognitionTask()
     return true
   }
@@ -187,10 +191,15 @@ func finalizePartial(reason: String) {
   lastPartialAt = nil
   silenceWorkItem?.cancel()
   silenceWorkItem = nil
+  pendingLocaleId = nil
+  pendingLocaleCount = 0
   if text.isEmpty {
     return
   }
-  let detectedLocale = detectLocaleId(from: text) ?? currentLocaleId
+  let detected = detectLocale(from: text)
+  let detectedLocale = (detected?.confidence ?? 0) >= autoDetectConfidence
+    ? detected?.localeId ?? currentLocaleId
+    : currentLocaleId
   emitFinalText(text, reason: reason, localeId: detectedLocale)
   var restarted = false
   if autoDetectLanguage && !stopRequested {
@@ -248,6 +257,10 @@ func startRecognitionTask() {
   recognitionRequest?.endAudio()
   let request = SFSpeechAudioBufferRecognitionRequest()
   request.shouldReportPartialResults = true
+  request.taskHint = .dictation
+  if #available(macOS 13.0, *) {
+    request.addsPunctuation = true
+  }
   recognitionRequest = request
   recognitionTask = recognizer.recognitionTask(with: request) { result, error in
     if taskToken != recognitionTaskToken {
@@ -272,7 +285,12 @@ func startRecognitionTask() {
       lastPartialAt = nil
       silenceWorkItem?.cancel()
       silenceWorkItem = nil
-      let detectedLocale = autoDetectLanguage ? (detectLocaleId(from: text) ?? currentLocaleId) : currentLocaleId
+      pendingLocaleId = nil
+      pendingLocaleCount = 0
+      let detected = detectLocale(from: text)
+      let detectedLocale = autoDetectLanguage && (detected?.confidence ?? 0) >= autoDetectConfidence
+        ? detected?.localeId ?? currentLocaleId
+        : currentLocaleId
       emitFinalText(text, reason: "final", localeId: detectedLocale)
       if autoDetectLanguage {
         resetLanguageDetection()
@@ -287,7 +305,29 @@ func startRecognitionTask() {
       lastPartialText = text
       lastPartialAt = Date()
       if autoDetectLanguage {
-        _ = detectLocaleId(from: text)
+        if text.count >= autoSwitchMinChars,
+           let detected = detectLocale(from: text),
+           detected.confidence >= autoSwitchConfidence,
+           detected.localeId != currentLocaleId {
+          if detected.localeId == pendingLocaleId {
+            pendingLocaleCount += 1
+          } else {
+            pendingLocaleId = detected.localeId
+            pendingLocaleCount = 1
+          }
+          if pendingLocaleCount >= 2,
+             Date().timeIntervalSince(lastSwitchAt) >= autoSwitchCooldownSeconds {
+            pendingLocaleId = nil
+            pendingLocaleCount = 0
+            resetLanguageDetection()
+            if updateRecognizerIfNeeded(for: detected.localeId) {
+              return
+            }
+          }
+        } else {
+          pendingLocaleId = nil
+          pendingLocaleCount = 0
+        }
       }
       scheduleSilenceFinalization()
       JsonEmitter.partial(text)
