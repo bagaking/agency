@@ -182,6 +182,9 @@ let noSpeechErrorHints = [
   "未检测到语音",
   "没有检测到语音",
 ]
+let noSpeechRestartDelaySeconds: TimeInterval = 0.2
+let noSpeechRestartCooldownSeconds: TimeInterval = 0.4
+var lastNoSpeechRestartAt = Date.distantPast
 
 let bundle = Bundle.main
 emitDebug([
@@ -594,7 +597,26 @@ func startRecognitionTask() {
         ])
         let lowercased = error.localizedDescription.lowercased()
         let isNoSpeech = noSpeechErrorHints.contains { lowercased.contains($0) }
-        let isRecoverable = (error.domain == "kAFAssistantErrorDomain" && error.code == 209) || isNoSpeech
+        if isNoSpeech {
+          let now = Date()
+          if now.timeIntervalSince(lastNoSpeechRestartAt) >= noSpeechRestartCooldownSeconds {
+            lastNoSpeechRestartAt = now
+            emitDebug([
+              "stage": "no-speech-restart",
+              "domain": error.domain,
+              "code": error.code,
+            ])
+            lastPartialText = ""
+            lastPartialAt = nil
+            DispatchQueue.main.asyncAfter(deadline: .now() + noSpeechRestartDelaySeconds) {
+              if !stopRequested {
+                startRecognitionTask()
+              }
+            }
+          }
+          return
+        }
+        let isRecoverable = (error.domain == "kAFAssistantErrorDomain" && error.code == 209)
         if isRecoverable {
           let now = Date()
           if now.timeIntervalSince(lastRecoverableErrorAt) >= recoverableErrorCooldownSeconds {
@@ -606,7 +628,7 @@ func startRecognitionTask() {
                 "domain": error.domain,
                 "code": error.code,
                 "attempt": recoverableErrorCount,
-                "reason": isNoSpeech ? "no-speech" : "assistant-209",
+                "reason": "assistant-209",
               ])
               lastPartialText = ""
               lastPartialAt = nil
