@@ -94,8 +94,14 @@ let languageRecognizer = autoDetectLanguage ? NLLanguageRecognizer() : nil
 let silenceThresholdSeconds: TimeInterval = 0.9
 let autoDetectConfidence: Double = 0.6
 let autoSwitchConfidence: Double = 0.78
+let autoSwitchProbeConfidence: Double = 0.62
 let autoSwitchMinChars = 8
+let autoSwitchProbeMinChars = 4
+let autoSwitchProbeWindowSeconds: TimeInterval = 1.8
 let autoSwitchCooldownSeconds: TimeInterval = 2.0
+let rescoreConfidence: Double = 0.72
+let rescoreTimeoutSeconds: TimeInterval = 2.0
+let maxSegmentSeconds: TimeInterval = 8.0
 var lastPartialText = ""
 var lastPartialAt: Date?
 var silenceWorkItem: DispatchWorkItem?
@@ -104,6 +110,10 @@ var lastFinalAt = Date.distantPast
 var pendingLocaleId: String?
 var pendingLocaleCount = 0
 var lastSwitchAt = Date.distantPast
+var segmentBuffers: [AVAudioPCMBuffer] = []
+var segmentDuration: TimeInterval = 0
+var rescoreInFlight = false
+var phraseStartedAt = Date.distantPast
 
 let bundle = Bundle.main
 emitDebug([
@@ -151,6 +161,92 @@ func resetLanguageDetection() {
   languageRecognizer?.reset()
 }
 
+func resetSegmentBuffers() {
+  segmentBuffers.removeAll()
+  segmentDuration = 0
+}
+
+func storeSegmentBuffer(_ buffer: AVAudioPCMBuffer) {
+  guard autoDetectLanguage else {
+    return
+  }
+  guard let copied = buffer.copy() as? AVAudioPCMBuffer else {
+    return
+  }
+  let sampleRate = copied.format.sampleRate
+  if sampleRate > 0 {
+    segmentDuration += Double(copied.frameLength) / sampleRate
+  }
+  segmentBuffers.append(copied)
+  while segmentDuration > maxSegmentSeconds && !segmentBuffers.isEmpty {
+    let removed = segmentBuffers.removeFirst()
+    let removedRate = removed.format.sampleRate
+    if removedRate > 0 {
+      segmentDuration -= Double(removed.frameLength) / removedRate
+    }
+  }
+}
+
+func shouldRescore(detected: (localeId: String, confidence: Double)?) -> String? {
+  guard autoDetectLanguage, !rescoreInFlight else {
+    return nil
+  }
+  guard let detected else {
+    return nil
+  }
+  if detected.localeId == currentLocaleId {
+    return nil
+  }
+  if detected.confidence < rescoreConfidence {
+    return nil
+  }
+  if segmentBuffers.isEmpty {
+    return nil
+  }
+  return detected.localeId
+}
+
+func rescoreSegment(buffers: [AVAudioPCMBuffer], localeId: String, completion: @escaping (String?) -> Void) {
+  guard let rescoreRecognizer = createRecognizer(localeId: localeId) else {
+    completion(nil)
+    return
+  }
+  let request = SFSpeechAudioBufferRecognitionRequest()
+  request.shouldReportPartialResults = false
+  request.taskHint = .dictation
+  if #available(macOS 13.0, *) {
+    request.addsPunctuation = true
+  }
+  buffers.forEach { request.append($0) }
+  request.endAudio()
+  var resolved = false
+  let task = rescoreRecognizer.recognitionTask(with: request) { result, error in
+    if resolved {
+      return
+    }
+    if error != nil {
+      resolved = true
+      completion(nil)
+      return
+    }
+    guard let result else {
+      return
+    }
+    if result.isFinal {
+      resolved = true
+      completion(result.bestTranscription.formattedString)
+    }
+  }
+  DispatchQueue.main.asyncAfter(deadline: .now() + rescoreTimeoutSeconds) {
+    if resolved {
+      return
+    }
+    resolved = true
+    task.cancel()
+    completion(nil)
+  }
+}
+
 func updateRecognizerIfNeeded(for localeId: String) -> Bool {
   if localeId.isEmpty || localeId == currentLocaleId {
     return false
@@ -185,6 +281,38 @@ func emitFinalText(_ text: String, reason: String, localeId: String) {
   ])
 }
 
+func handleFinalText(_ text: String, reason: String) -> String? {
+  let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+  if trimmed.isEmpty {
+    return nil
+  }
+  let detected = detectLocale(from: trimmed)
+  let detectedLocale = (detected?.confidence ?? 0) >= autoDetectConfidence
+    ? detected?.localeId ?? currentLocaleId
+    : currentLocaleId
+  if let rescoreLocale = shouldRescore(detected: detected) {
+    let buffers = segmentBuffers
+    resetSegmentBuffers()
+    rescoreInFlight = true
+    emitDebug(["stage": "rescore-start", "locale": rescoreLocale])
+    rescoreSegment(buffers: buffers, localeId: rescoreLocale) { rescored in
+      let resultText = rescored?.trimmingCharacters(in: .whitespacesAndNewlines) ?? trimmed
+      let resultLocale = rescored != nil ? rescoreLocale : detectedLocale
+      emitFinalText(resultText, reason: rescored != nil ? "rescore" : "rescore-fallback", localeId: resultLocale)
+      if autoDetectLanguage {
+        resetLanguageDetection()
+        _ = updateRecognizerIfNeeded(for: resultLocale)
+      }
+      rescoreInFlight = false
+      emitDebug(["stage": "rescore-done", "locale": resultLocale, "fallback": rescored == nil])
+    }
+    return nil
+  }
+  emitFinalText(trimmed, reason: reason, localeId: detectedLocale)
+  resetSegmentBuffers()
+  return detectedLocale
+}
+
 func finalizePartial(reason: String) {
   let text = lastPartialText.trimmingCharacters(in: .whitespacesAndNewlines)
   lastPartialText = ""
@@ -194,17 +322,14 @@ func finalizePartial(reason: String) {
   pendingLocaleId = nil
   pendingLocaleCount = 0
   if text.isEmpty {
+    resetSegmentBuffers()
     return
   }
-  let detected = detectLocale(from: text)
-  let detectedLocale = (detected?.confidence ?? 0) >= autoDetectConfidence
-    ? detected?.localeId ?? currentLocaleId
-    : currentLocaleId
-  emitFinalText(text, reason: reason, localeId: detectedLocale)
+  let emittedLocale = handleFinalText(text, reason: reason)
   var restarted = false
-  if autoDetectLanguage && !stopRequested {
+  if autoDetectLanguage && !stopRequested, let emittedLocale {
     resetLanguageDetection()
-    restarted = updateRecognizerIfNeeded(for: detectedLocale)
+    restarted = updateRecognizerIfNeeded(for: emittedLocale)
   }
   if reason == "silence" && !stopRequested && !restarted {
     startRecognitionTask()
@@ -253,6 +378,7 @@ func stopCapture(_ reason: String? = nil) {
 func startRecognitionTask() {
   recognitionTaskToken += 1
   let taskToken = recognitionTaskToken
+  phraseStartedAt = Date()
   recognitionTask?.cancel()
   recognitionRequest?.endAudio()
   let request = SFSpeechAudioBufferRecognitionRequest()
@@ -287,16 +413,14 @@ func startRecognitionTask() {
       silenceWorkItem = nil
       pendingLocaleId = nil
       pendingLocaleCount = 0
-      let detected = detectLocale(from: text)
-      let detectedLocale = autoDetectLanguage && (detected?.confidence ?? 0) >= autoDetectConfidence
-        ? detected?.localeId ?? currentLocaleId
-        : currentLocaleId
-      emitFinalText(text, reason: "final", localeId: detectedLocale)
+      let emittedLocale = handleFinalText(text, reason: "final")
       if autoDetectLanguage {
         resetLanguageDetection()
       }
       if !stopRequested {
-        let switched = autoDetectLanguage ? updateRecognizerIfNeeded(for: detectedLocale) : false
+        let switched = (autoDetectLanguage && emittedLocale != nil)
+          ? updateRecognizerIfNeeded(for: emittedLocale ?? currentLocaleId)
+          : false
         if !switched {
           startRecognitionTask()
         }
@@ -305,9 +429,12 @@ func startRecognitionTask() {
       lastPartialText = text
       lastPartialAt = Date()
       if autoDetectLanguage {
-        if text.count >= autoSwitchMinChars,
+        let sinceStart = Date().timeIntervalSince(phraseStartedAt)
+        let minChars = sinceStart <= autoSwitchProbeWindowSeconds ? autoSwitchProbeMinChars : autoSwitchMinChars
+        let confidence = sinceStart <= autoSwitchProbeWindowSeconds ? autoSwitchProbeConfidence : autoSwitchConfidence
+        if text.count >= minChars,
            let detected = detectLocale(from: text),
-           detected.confidence >= autoSwitchConfidence,
+           detected.confidence >= confidence,
            detected.localeId != currentLocaleId {
           if detected.localeId == pendingLocaleId {
             pendingLocaleCount += 1
@@ -341,6 +468,7 @@ func startAudioEngine() throws {
   inputNode.removeTap(onBus: 0)
   inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
     recognitionRequest?.append(buffer)
+    storeSegmentBuffer(buffer)
   }
   audioEngine.prepare()
   try audioEngine.start()
