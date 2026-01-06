@@ -258,11 +258,13 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       }
       if (payload.type === 'final') {
         const text = String(payload.text || '').trim();
+        const segmentId = payload.segmentId || '';
+        const reason = payload.reason || 'final';
         lastInterimRef.current = '';
         lastFinalRef.current = text;
         setInterimText('');
         if (text) {
-          onFinal?.(text);
+          onFinal?.({ text, segmentId, reason, language: payload.language || null });
         }
         return;
       }

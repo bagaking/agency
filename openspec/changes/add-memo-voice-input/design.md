@@ -20,7 +20,7 @@ Memo Flash capture has a placeholder voice action without functionality. Web Spe
 - Record audio during voice capture and save a copy under `.agency/hil/assets` when a Flash memo is saved.
 - Provide a lightweight audio playback affordance for Flash memos that include audio.
 - When language is set to Auto, perform a quick early language probe and a slower, higher-confidence switch window.
-- Always rescore the full segment audio on Auto using detected/current/preferred locales and choose the best result before writing text into the Flash input.
+- On Auto, append a draft transcript immediately and rescore the full segment audio using detected/current/preferred locales, replacing the draft text when ready.
 - If speech recognition is unsupported or errors, show a non-blocking status and log a runtime warning.
 - Provide a language selector with an Auto default that uses the browser language list.
 

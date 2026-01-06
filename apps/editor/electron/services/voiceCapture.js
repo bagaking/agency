@@ -104,12 +104,12 @@ async function ensureHostUsageDescriptions() {
   logRuntime('info', 'speech helper host Info.plist updated', { infoPath });
 }
 
-async function isHelperStale(helperPath, infoPath) {
+async function isHelperStale(helperPath) {
   try {
     const [helperStat, sourceStat, infoStat] = await Promise.all([
       fs.promises.stat(helperPath),
       fs.promises.stat(helperSource),
-      fs.promises.stat(infoPath),
+      fs.promises.stat(helperInfoPlist),
     ]);
     return (
       sourceStat.mtimeMs > helperStat.mtimeMs ||
@@ -127,7 +127,7 @@ async function ensureHelperBinary() {
   const helperPath = resolveHelperPath();
   const infoPath = resolveHelperInfoPath();
   if ((await pathExists(helperPath)) && (await fileExists(infoPath))) {
-    const stale = await isHelperStale(helperPath, infoPath);
+    const stale = await isHelperStale(helperPath);
     if (!stale) {
       return { ok: true, helperPath, built: false };
     }

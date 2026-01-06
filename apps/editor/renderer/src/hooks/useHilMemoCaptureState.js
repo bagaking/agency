@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createHilItem as agencyCreateHilItem,
   startScreenshotCapture as agencyStartScreenshotCapture,
@@ -33,20 +33,71 @@ export function useHilMemoCaptureState({
   const [routingMode, setRoutingMode] = useState('hil');
   const [routingTargetId, setRoutingTargetId] = useState('');
   const [routingError, setRoutingError] = useState('');
+  const voiceDraftsRef = useRef(new Map());
+
+  const replaceLastOccurrence = useCallback((source, target, replacement) => {
+    if (!source || !target) {
+      return null;
+    }
+    const index = source.lastIndexOf(target);
+    if (index === -1) {
+      return null;
+    }
+    return `${source.slice(0, index)}${replacement}${source.slice(index + target.length)}`;
+  }, []);
 
   const appendFlashText = useCallback((snippet) => {
-    const addition = String(snippet || '').trim();
-    if (!addition) {
+    if (!snippet) {
       return;
     }
-    setFlashText((current) => {
-      const base = String(current || '').trim();
-      if (!base) {
-        return addition;
+    if (typeof snippet === 'string') {
+      const addition = String(snippet || '').trim();
+      if (!addition) {
+        return;
       }
-      return `${base} ${addition}`;
+      setFlashText((current) => {
+        const base = String(current || '').trim();
+        if (!base) {
+          return addition;
+        }
+        return `${base} ${addition}`;
+      });
+      return;
+    }
+    const text = String(snippet.text || '').trim();
+    if (!text) {
+      return;
+    }
+    const segmentId = snippet.segmentId || '';
+    if (!segmentId) {
+      setFlashText((current) => {
+        const base = String(current || '').trim();
+        if (!base) {
+          return text;
+        }
+        return `${base} ${text}`;
+      });
+      return;
+    }
+    const drafts = voiceDraftsRef.current;
+    const previous = drafts.get(segmentId);
+    drafts.set(segmentId, text);
+    setFlashText((current) => {
+      const raw = String(current || '');
+      const base = raw.trim();
+      if (!base) {
+        return text;
+      }
+      if (!previous) {
+        return `${base} ${text}`;
+      }
+      const replaced = replaceLastOccurrence(raw, previous, text);
+      if (replaced !== null) {
+        return replaced.trim();
+      }
+      return `${base} ${text}`;
     });
-  }, [setFlashText]);
+  }, [replaceLastOccurrence]);
 
   const flashVoice = useVoiceCapture({
     onFinal: appendFlashText,
@@ -121,6 +172,7 @@ export function useHilMemoCaptureState({
   const resetCaptureState = useCallback(() => {
     flashVoice.stop?.();
     setFlashText('');
+    voiceDraftsRef.current.clear();
     setExcerptUrl('');
     setExcerptPreview(null);
     setExcerptFetching(false);

@@ -130,6 +130,12 @@ func preferredLocaleCandidates() -> [String] {
   return results
 }
 
+func nextSegmentId() -> String {
+  segmentCounter += 1
+  let timestamp = Int(Date().timeIntervalSince1970 * 1000)
+  return "seg-\(timestamp)-\(segmentCounter)"
+}
+
 let languageInput = parseLanguage()
 let autoDetectLanguage = languageInput.isAuto
 var currentLocaleId = languageInput.value
@@ -162,12 +168,15 @@ var lastPartialAt: Date?
 var silenceWorkItem: DispatchWorkItem?
 var lastFinalText = ""
 var lastFinalAt = Date.distantPast
+var lastFinalReason = ""
+var lastFinalSegmentId = ""
 var pendingLocaleId: String?
 var pendingLocaleCount = 0
 var lastSwitchAt = Date.distantPast
 var segmentBuffers: [AVAudioPCMBuffer] = []
 var segmentDuration: TimeInterval = 0
 var rescoreInFlight = false
+var segmentCounter = 0
 var phraseStartedAt = Date.distantPast
 var exitCheckAttempts = 0
 let exitCheckInterval: TimeInterval = 0.2
@@ -185,6 +194,7 @@ let noSpeechErrorHints = [
 let noSpeechRestartDelaySeconds: TimeInterval = 0.2
 let noSpeechRestartCooldownSeconds: TimeInterval = 0.4
 var lastNoSpeechRestartAt = Date.distantPast
+var rescoreQueue: [(segmentId: String, draftText: String, detectedLocale: String, buffers: [AVAudioPCMBuffer], candidates: [String])] = []
 
 let bundle = Bundle.main
 emitDebug([
@@ -310,7 +320,7 @@ func storeSegmentBuffer(_ buffer: AVAudioPCMBuffer) {
 }
 
 func shouldRescore(detected: (localeId: String, confidence: Double)?) -> String? {
-  guard autoDetectLanguage, !rescoreInFlight else {
+  guard autoDetectLanguage else {
     return nil
   }
   guard !segmentBuffers.isEmpty else {
@@ -423,6 +433,46 @@ func rescoreSegmentMultiple(buffers: [AVAudioPCMBuffer], locales: [String], comp
   handle(index: 0)
 }
 
+func startNextRescoreJob() {
+  if rescoreInFlight || rescoreQueue.isEmpty {
+    return
+  }
+  rescoreInFlight = true
+  let job = rescoreQueue.removeFirst()
+  emitDebug([
+    "stage": "rescore-start",
+    "locale": job.detectedLocale,
+    "candidates": job.candidates,
+    "segmentId": job.segmentId,
+  ])
+  rescoreSegmentMultiple(buffers: job.buffers, locales: job.candidates) { rescored, localeId in
+    let resultText = rescored?.trimmingCharacters(in: .whitespacesAndNewlines) ?? job.draftText
+    let resultLocale = localeId ?? job.detectedLocale
+    emitFinalText(resultText, reason: rescored != nil ? "rescore" : "rescore-fallback", localeId: resultLocale, segmentId: job.segmentId)
+    if autoDetectLanguage {
+      resetLanguageDetection()
+      _ = updateRecognizerIfNeeded(for: resultLocale)
+    }
+    rescoreInFlight = false
+    emitDebug([
+      "stage": "rescore-done",
+      "locale": resultLocale,
+      "fallback": rescored == nil,
+      "segmentId": job.segmentId,
+    ])
+    if stopRequested && rescoreQueue.isEmpty {
+      attemptExit()
+      return
+    }
+    startNextRescoreJob()
+  }
+}
+
+func enqueueRescoreJob(segmentId: String, draftText: String, detectedLocale: String, buffers: [AVAudioPCMBuffer], candidates: [String]) {
+  rescoreQueue.append((segmentId: segmentId, draftText: draftText, detectedLocale: detectedLocale, buffers: buffers, candidates: candidates))
+  startNextRescoreJob()
+}
+
 func updateRecognizerIfNeeded(for localeId: String) -> Bool {
   if localeId.isEmpty || localeId == currentLocaleId {
     return false
@@ -438,22 +488,28 @@ func updateRecognizerIfNeeded(for localeId: String) -> Bool {
   return false
 }
 
-func emitFinalText(_ text: String, reason: String, localeId: String) {
+func emitFinalText(_ text: String, reason: String, localeId: String, segmentId: String) {
   let normalized = normalizeFinalText(text, localeId: localeId)
   if normalized.isEmpty {
     return
   }
   let now = Date()
-  if normalized == lastFinalText && now.timeIntervalSince(lastFinalAt) < 0.6 {
+  if normalized == lastFinalText
+      && reason == lastFinalReason
+      && segmentId == lastFinalSegmentId
+      && now.timeIntervalSince(lastFinalAt) < 0.6 {
     return
   }
   lastFinalText = normalized
   lastFinalAt = now
+  lastFinalReason = reason
+  lastFinalSegmentId = segmentId
   JsonEmitter.emit([
     "type": "final",
     "text": normalized,
     "reason": reason,
     "language": localeId,
+    "segmentId": segmentId,
   ])
 }
 
@@ -462,6 +518,7 @@ func handleFinalText(_ text: String, reason: String) -> String? {
   if trimmed.isEmpty {
     return nil
   }
+  let segmentId = nextSegmentId()
   let detected = detectLocaleSnapshot(from: trimmed)
   let detectedLocale = (detected?.confidence ?? 0) >= autoDetectConfidence
     ? detected?.localeId ?? currentLocaleId
@@ -469,30 +526,16 @@ func handleFinalText(_ text: String, reason: String) -> String? {
   if let rescoreLocale = shouldRescore(detected: detected) {
     let buffers = segmentBuffers
     resetSegmentBuffers()
-    rescoreInFlight = true
+    emitFinalText(trimmed, reason: "draft", localeId: detectedLocale, segmentId: segmentId)
     var candidates: [String] = [rescoreLocale, currentLocaleId]
     if let detectedLocale = detected?.localeId {
       candidates.append(detectedLocale)
     }
     candidates.append(contentsOf: preferredLocaleCandidates())
-    emitDebug(["stage": "rescore-start", "locale": rescoreLocale, "candidates": candidates])
-    rescoreSegmentMultiple(buffers: buffers, locales: candidates) { rescored, localeId in
-      let resultText = rescored?.trimmingCharacters(in: .whitespacesAndNewlines) ?? trimmed
-      let resultLocale = localeId ?? detectedLocale
-      emitFinalText(resultText, reason: rescored != nil ? "rescore" : "rescore-fallback", localeId: resultLocale)
-      if autoDetectLanguage {
-        resetLanguageDetection()
-        _ = updateRecognizerIfNeeded(for: resultLocale)
-      }
-      rescoreInFlight = false
-      emitDebug(["stage": "rescore-done", "locale": resultLocale, "fallback": rescored == nil])
-      if stopRequested {
-        attemptExit()
-      }
-    }
+    enqueueRescoreJob(segmentId: segmentId, draftText: trimmed, detectedLocale: detectedLocale, buffers: buffers, candidates: candidates)
     return nil
   }
-  emitFinalText(trimmed, reason: reason, localeId: detectedLocale)
+  emitFinalText(trimmed, reason: reason, localeId: detectedLocale, segmentId: segmentId)
   resetSegmentBuffers()
   return detectedLocale
 }
@@ -560,7 +603,7 @@ func stopCapture(_ reason: String? = nil) {
 }
 
 func attemptExit() {
-  if rescoreInFlight && exitCheckAttempts < maxExitChecks {
+  if (rescoreInFlight || !rescoreQueue.isEmpty) && exitCheckAttempts < maxExitChecks {
     exitCheckAttempts += 1
     DispatchQueue.main.asyncAfter(deadline: .now() + exitCheckInterval) {
       attemptExit()
