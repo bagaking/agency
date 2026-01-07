@@ -19,6 +19,9 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 Use pnpm for workspace Node dependencies and keep `pnpm-lock.yaml` committed.
 
+## Docs Hygiene
+- When changing voice input, rescore behavior, or language handling, update `docs/voice-input-implementation-notes.md` accordingly so new contributors can follow the latest flow.
+
 ## Development Norms
 
 ### Quality
