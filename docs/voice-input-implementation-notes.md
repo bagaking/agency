@@ -1,85 +1,101 @@
 # Memo 语音输入冷启动实现经验总结
 
+## 面向无上下文读者的定位
+这份文档的目标是帮助新成员在缺少项目背景的情况下快速落地“语音输入 + 自动重扫 + 回放”的能力，并清楚分辨哪些部分可复用、哪些属于本项目特化。
+
+适用边界：
+- 目标运行环境为 Electron。
+- macOS 原生 Speech 作为主路径，Web Speech 仅作 fallback。
+- 任何自动化改写都不能阻断录音过程。
+
 ## 作者视角（为何这样组织）
-这份总结以“语音系统工程 + Electron 平台工程 + 交互体验设计”的联合视角撰写：
+以“语音系统工程 + Electron 平台工程 + 交互体验设计”的联合视角撰写：
 - 语音工程关注识别链路稳定与并发任务冲突。
 - 平台工程关注进程隔离、IPC 与日志可观测性。
 - 体验设计关注用户的可理解性与状态反馈一致性。
 
-因此内容采用“分层结构 + 通用/特化拆分 + 失败模式 + 冷启动路线图”的组织方式。
+因此采用“分层结构 + 通用/特化拆分 + 冷启动路线图 + 失败模式”的组织方式。
 
-## 目标与边界
-目标：在 Electron 环境提供可靠语音转写（含多语种），录音过程可见、可控，并保留手工输入与音频回放能力。
-边界：Web Speech 在 Electron 场景不稳定，必须提供 native 方案；同时任何自动化修正不得中断实时录音体验。
+## 冷启动最短路径（可运行 → 可用 → 可靠）
+1) 可运行（最小闭环）
+- native helper 支持 start/stop + partial/final/error。
+- UI 显示录音状态与实时转写。
+- 关键文件：`apps/editor/electron/native/speech-helper/SpeechHelper.swift`、`apps/editor/renderer/src/hooks/useVoiceCapture.js`。
 
-## 分层架构（通用模板）
-1) UI 层
-- 录音控制、状态提示、实时转写预览、rescore 状态提示。
+2) 可用（基础体验）
+- IPC 打通并稳定转发事件。
+- fallback 到 Web Speech。
+- 关键文件：`apps/editor/electron/services/voiceCapture.js`、`apps/editor/renderer/src/components/hil/memo/VoiceCaptureControl.jsx`。
 
-2) Renderer 逻辑层
-- 语音事件状态机、文本合并策略（实时流 vs 最终写入）。
+3) 可靠（生产体验）
+- rescore 独立进程化（与实时识别隔离）。
+- 语言规范化与候选过滤。
+- UI 拆分“实时转写 vs 输入框写入”。
 
-3) Main 进程服务层
-- 启动 native helper、转发事件、管理 rescore 队列。
+## 架构分层与数据流（通用模板）
+1) UI 层：录音按钮、状态提示、实时转写预览、rescore 状态。
+2) Renderer 逻辑层：状态机、合并策略、输入框写入。
+3) Main 服务层：启动 helper、转发事件、管理 rescore 队列。
+4) Native 层：实时识别与音频采集；rescore 独立执行。
 
-4) Native 识别层
-- 实时识别与音频采集；rescore 独立执行。
+数据流（简化）：
+录音 → capture helper → `rescore-request` → main rescore queue → rescore helper → `final(rescore)` → renderer 写入输入框。
 
-这四层结构是通用可复用模式，适用于多数 Electron 语音输入场景。
-
-## 通用能力 vs 项目特化
+## 通用能力 vs 项目特化（快速判断）
 ### 通用能力（可复用）
 - capture/rescore 双进程模型（隔离识别任务）。
 - rescore 队列与进程管理。
-- locale 规范化与候选过滤（基于系统支持列表）。
+- locale 规范化与候选过滤（基于 `SFSpeechRecognizer.supportedLocales()`）。
 - pre-roll 缓冲（减少句首丢字）。
 - 实时转写与最终写入分离。
 
 ### 项目特化（与 Agency 相关）
-- HIL/Memo 的 Flash 保存语义与资产存储路径。
-- IPC 必须走 `agencyBridge`。
-- OpenSpec 规范更新与 `openspec validate --strict` 流程。
+- HIL/Memo 的 Flash 保存语义与资产路径（HIL 资产策略）。
+- IPC 必须通过 `agencyBridge`（不直接访问 `window.agency`）。
+- OpenSpec 文档与 `openspec validate --strict` 流程要求。
 
-## 冷启动路线图（最短落地路径）
-1) 快速可用
-- native helper 最小可用（start/stop + partial/final/error）。
-- UI 显示录音中与错误提示。
+## 关键实现入口（按模块查找）
+- Native capture/rescore：`apps/editor/electron/native/speech-helper/SpeechHelper.swift`
+  - capture 模式：实时识别 + `rescore-request`
+  - rescore 模式：读取段音频，输出 `final(rescore)`
+- Main 进程服务：`apps/editor/electron/services/voiceCapture.js`
+  - 管理 helper 启停、rescore 队列、事件转发
+- Renderer hook：`apps/editor/renderer/src/hooks/useVoiceCapture.js`
+  - 接收事件、管理 interim/final 状态
+- 交互 UI：`apps/editor/renderer/src/components/hil/memo/VoiceCaptureControl.jsx`
+- Memo 组装逻辑：`apps/editor/renderer/src/hooks/useHilMemoCaptureState.js`
 
-2) 稳定可靠
-- 事件日志与诊断输出。
-- Web Speech fallback。
-- 录音音频保存与回放。
+## 常见坑 / 原因 / 解决 / 预防
+1) Rescore 中断实时识别
+- 原因：同进程并行识别任务互相打断。
+- 解决：rescore 独立 helper 进程。
+- 预防：设计阶段规定 rescore 不允许与实时识别共进程。
 
-3) 质量提升
-- auto 语种识别 + rescore。
-- 分段处理与 UI 明确反馈。
+2) 句首丢字
+- 原因：识别任务重启时丢失最前音频。
+- 解决：pre-roll 缓冲回放。
+- 预防：所有识别重启统一注入 pre-roll。
 
-## 关键决策与理由
-1) Rescore 独立进程化
-- 避免在同进程内并发 SFSpeech 任务导致实时识别被打断。
+3) 语种识别不稳定
+- 原因：短句文本语言识别波动 + locale 非标准值。
+- 解决：locale 规范化 + 候选过滤 + 延迟切换。
+- 预防：短句不切换，使用累积判断或候选集合。
 
-2) 语言规范化
-- 统一 locale（如 zh-CN/en-US），过滤不可用候选，避免错误切换。
-
-3) UI 拆分实时转写与最终写入
-- 实时流显示“正在说 + rescoring”，输入框仅写入已完成 rescore 的文本，防止覆盖与闪烁。
-
-## 常见坑与解决策略
-- Rescore 导致实时识别中断：必须隔离进程。
-- 句首丢字：加入 pre-roll 缓冲回放。
-- 短句语种不稳定：提高切换门槛，使用候选集过滤。
-- rescore 写回导致 UI 闪烁：rescore 事件不清空 interim，分离 UI 状态。
+4) rescore 写回导致 UI 闪烁
+- 原因：rescore 事件清空 interim。
+- 解决：rescore 不清空 interim，实时流与最终写入分离。
+- 预防：UI 模型明确区分“实时流”和“最终写入”。
 
 ## 验收清单（最低可行）
 - 连续说 1/2/3 句，不互相覆盖。
 - rescore 期间继续说话，实时转写持续更新。
-- auto 语种在中文/英文混说场景下稳定。
+- auto 语种在中英混说场景下稳定。
 - 保存 Flash 后音频可回放。
 
 ## 面向未来的优化建议
 - 使用多段文本累积判断语种，减少短句误判。
-- rescore 支持更明确的超时与退化策略。
-- 将“识别质量统计指标”纳入日志分析，以数据驱动阈值优化。
+- rescore 加入超时与退化策略（明确 fallback 规则）。
+- 引入识别质量指标日志，支持数据化调参。
 
 ## 一句话总结
 语音输入的稳定性不是“识别准确率”问题，而是“隔离 + 状态管理 + 可视化反馈”问题。
