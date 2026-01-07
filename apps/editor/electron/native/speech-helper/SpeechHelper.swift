@@ -337,6 +337,16 @@ func detectLocaleSnapshot(from text: String) -> (localeId: String, confidence: D
   return (resolveLocaleIdentifier(best.key), best.value)
 }
 
+func detectLocaleOnce(from text: String) -> (localeId: String, confidence: Double)? {
+  let recognizer = NLLanguageRecognizer()
+  recognizer.processString(text)
+  let hypotheses = recognizer.languageHypotheses(withMaximum: 1)
+  guard let best = hypotheses.max(by: { $0.value < $1.value }) else {
+    return nil
+  }
+  return (resolveLocaleIdentifier(best.key), best.value)
+}
+
 func resetLanguageDetection() {
   languageRecognizer?.reset()
 }
@@ -571,7 +581,7 @@ func scoreRescoreText(_ text: String, localeId: String) -> Double {
   return confidence + lengthBonus + localeBias
 }
 
-func rescoreAudioFileMultiple(url: URL, locales: [String], completion: @escaping (String?, String?) -> Void) {
+func rescoreAudioFileMultiple(url: URL, locales: [String], completion: @escaping (String?, String?, Double) -> Void) {
   var uniqueLocales: [String] = []
   var seen = Set<String>()
   for locale in locales where !locale.isEmpty {
@@ -582,7 +592,7 @@ func rescoreAudioFileMultiple(url: URL, locales: [String], completion: @escaping
     uniqueLocales.append(locale)
   }
   if uniqueLocales.isEmpty {
-    completion(nil, nil)
+    completion(nil, nil, -1)
     return
   }
   var bestText: String?
@@ -591,7 +601,7 @@ func rescoreAudioFileMultiple(url: URL, locales: [String], completion: @escaping
 
   func handle(index: Int) {
     if index >= uniqueLocales.count {
-      completion(bestText, bestLocale)
+      completion(bestText, bestLocale, bestScore)
       return
     }
     let localeId = uniqueLocales[index]
@@ -692,7 +702,21 @@ func handleFinalText(_ text: String, reason: String) -> String? {
       candidates.append(detectedLocale)
     }
     candidates.append(contentsOf: preferredLocaleCandidates())
-    let normalizedCandidates = normalizeRescoreCandidates(candidates)
+    var normalizedCandidates = normalizeRescoreCandidates(candidates)
+    if let detected, detected.confidence >= autoDetectConfidence {
+      let targetLocale = resolveSupportedLocaleId(detected.localeId)
+      let targetLanguage = Locale(identifier: targetLocale).languageCode
+      if let targetLanguage {
+        let filtered = normalizedCandidates.filter {
+          Locale(identifier: $0).languageCode == targetLanguage
+        }
+        if !filtered.isEmpty {
+          normalizedCandidates = filtered
+        } else if !targetLocale.isEmpty {
+          normalizedCandidates = [targetLocale]
+        }
+      }
+    }
     if let audioPath = writeSegmentAudio(segmentId: segmentId, buffers: buffers) {
       emitRescoreRequest(
         segmentId: segmentId,
@@ -1025,7 +1049,7 @@ func runRescore() {
   JsonEmitter.status("starting")
   let audioPath = parseAudioPath() ?? ""
   let segmentId = parseSegmentId() ?? "segment-\(Int(Date().timeIntervalSince1970 * 1000))"
-  let draftText = parseDraftText()
+  let draftText = parseDraftText() ?? ""
   let candidates = normalizeRescoreCandidates(parseRescoreCandidates())
   if audioPath.isEmpty {
     JsonEmitter.error("Rescore audio path missing.")
@@ -1035,23 +1059,30 @@ func runRescore() {
   if candidates.isEmpty {
     emitDebug(["stage": "rescore-missing-candidates", "segmentId": segmentId])
   }
+  let draftDetected = detectLocaleOnce(from: draftText)
+  let draftLocale = resolveSupportedLocaleId(draftDetected?.localeId ?? defaultLocaleFallback)
+  let draftScore = draftText.isEmpty ? 0 : scoreRescoreText(draftText, localeId: draftLocale)
+  let minRescoreGain: Double = 0.08
   let url = URL(fileURLWithPath: audioPath)
-  rescoreAudioFileMultiple(url: url, locales: candidates) { rescored, localeId in
+  rescoreAudioFileMultiple(url: url, locales: candidates) { rescored, localeId, score in
     let normalizedText = rescored?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-    if !normalizedText.isEmpty {
+    let rescoreLocale = resolveSupportedLocaleId(localeId ?? draftLocale)
+    let shouldUseRescore = !normalizedText.isEmpty
+      && (draftText.isEmpty || score + minRescoreGain >= draftScore)
+    if shouldUseRescore {
       JsonEmitter.emit([
         "type": "final",
         "text": normalizedText,
         "reason": "rescore",
-        "language": localeId ?? defaultLocaleFallback,
+        "language": rescoreLocale,
         "segmentId": segmentId,
       ])
-    } else if let fallback = draftText {
+    } else if !draftText.isEmpty {
       JsonEmitter.emit([
         "type": "final",
-        "text": fallback,
+        "text": draftText,
         "reason": "rescore-fallback",
-        "language": localeId ?? defaultLocaleFallback,
+        "language": draftLocale,
         "segmentId": segmentId,
       ])
     } else {
