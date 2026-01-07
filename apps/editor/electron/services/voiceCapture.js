@@ -11,6 +11,16 @@ const helperInfoPlist = path.join(helperRoot, 'Info.plist');
 const helperBundleName = 'SpeechHelper.app';
 const devHelperBundle = path.join(helperRoot, 'bin', helperBundleName);
 const devHelperBin = path.join(devHelperBundle, 'Contents', 'MacOS', 'speech-helper');
+const VOICE_EVENT_TYPES = {
+  AUDIO: 'audio',
+  FINAL: 'final',
+  RESCORE_REQUEST: 'rescore-request',
+};
+const RESCORE_REASONS = {
+  SUCCESS: 'rescore',
+  FALLBACK: 'rescore-fallback',
+};
+const RESCORE_MODE = 'rescore';
 const hostUsageDescriptions = {
   NSMicrophoneUsageDescription:
     'Voice input needs microphone access to capture speech for memos.',
@@ -21,6 +31,10 @@ const hostUsageDescriptions = {
 let activeCapture = null;
 let hostUsagePatched = false;
 let helperWarmupPromise = null;
+const rescoreState = {
+  queue: [],
+  inFlight: null,
+};
 
 function execFileAsync(command, args) {
   return new Promise((resolve, reject) => {
@@ -211,6 +225,204 @@ function clearActiveCapture() {
   activeCapture = null;
 }
 
+function hasPendingRescore() {
+  return Boolean(rescoreState.inFlight || rescoreState.queue.length);
+}
+
+function maybeClearActiveCapture() {
+  if (!activeCapture) {
+    return;
+  }
+  if (!activeCapture.ended || hasPendingRescore()) {
+    return;
+  }
+  clearActiveCapture();
+}
+
+function resetRescoreState(reason) {
+  if (rescoreState.inFlight?.process && !rescoreState.inFlight.process.killed) {
+    try {
+      rescoreState.inFlight.process.kill('SIGTERM');
+    } catch (error) {
+      logRuntime('warn', 'speech rescore helper kill failed', {
+        error: error?.message || String(error),
+      });
+    }
+  }
+  rescoreState.inFlight = null;
+  rescoreState.queue = [];
+  if (reason) {
+    logRuntime('info', 'speech rescore reset', { reason });
+  }
+}
+
+function cleanupRescoreAudio(audioPath) {
+  if (!audioPath) {
+    return;
+  }
+  fs.promises.unlink(audioPath).catch(() => {});
+}
+
+function sendRescoreStatus({ stage, segmentId, candidates, fallback, locale, error }) {
+  sendEvent({
+    type: 'debug',
+    data: {
+      stage,
+      segmentId: segmentId || null,
+      candidates: candidates || null,
+      fallback: typeof fallback === 'boolean' ? fallback : null,
+      locale: locale || null,
+      error: error || null,
+    },
+  });
+}
+
+function finalizeRescoreJob(job, { fallback, locale, error, textOverride } = {}) {
+  if (!job || job.resolved) {
+    return;
+  }
+  job.resolved = true;
+  const resolvedLocale = locale || job.language || null;
+  if (job.captureId && activeCapture?.id !== job.captureId) {
+    cleanupRescoreAudio(job.audioPath);
+  } else {
+    const text = textOverride || job.draftText || '';
+    if (text) {
+      sendEvent({
+        type: VOICE_EVENT_TYPES.FINAL,
+        text,
+        reason: fallback ? RESCORE_REASONS.FALLBACK : RESCORE_REASONS.SUCCESS,
+        language: resolvedLocale,
+        segmentId: job.segmentId || null,
+      });
+    }
+    cleanupRescoreAudio(job.audioPath);
+  }
+  sendRescoreStatus({
+    stage: 'rescore-done',
+    segmentId: job.segmentId,
+    fallback: Boolean(fallback),
+    locale: resolvedLocale,
+    error,
+  });
+  rescoreState.inFlight = null;
+  startNextRescoreJob();
+  if (!hasPendingRescore()) {
+    maybeClearActiveCapture();
+  }
+}
+
+function startNextRescoreJob() {
+  if (rescoreState.inFlight || rescoreState.queue.length === 0) {
+    return;
+  }
+  const job = rescoreState.queue.shift();
+  if (!job) {
+    return;
+  }
+  rescoreState.inFlight = job;
+  sendRescoreStatus({
+    stage: 'rescore-start',
+    segmentId: job.segmentId,
+    candidates: job.candidates,
+    locale: job.language || null,
+  });
+  logRuntime('info', 'speech rescore start', {
+    captureId: job.captureId || null,
+    segmentId: job.segmentId || null,
+    candidates: job.candidates || [],
+  });
+
+  const args = ['--mode', RESCORE_MODE, '--audio', job.audioPath];
+  if (job.segmentId) {
+    args.push('--segment', job.segmentId);
+  }
+  if (job.candidates?.length) {
+    args.push('--candidates', job.candidates.join(','));
+  }
+  if (job.draftText) {
+    args.push('--draft', job.draftText);
+  }
+
+  const child = spawn(job.helperPath, args, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  job.process = child;
+  job.buffer = '';
+  let resolved = false;
+
+  child.stdout.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => {
+    const next = `${job.buffer || ''}${chunk}`;
+    const lines = next.split('\n');
+    job.buffer = lines.pop() || '';
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        continue;
+      }
+      try {
+        const event = JSON.parse(trimmed);
+        if (event?.type === VOICE_EVENT_TYPES.FINAL && !resolved) {
+          resolved = true;
+          finalizeRescoreJob(job, {
+            fallback: event.reason === RESCORE_REASONS.FALLBACK,
+            locale: event.language || null,
+            textOverride: event.text || '',
+          });
+        }
+      } catch (error) {
+        logRuntime('warn', 'speech rescore output parse failed', {
+          error: error?.message || String(error),
+          line: trimmed,
+        });
+      }
+    }
+  });
+
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk) => {
+    logRuntime('warn', 'speech rescore stderr', {
+      segmentId: job.segmentId || null,
+      stderr: chunk,
+    });
+  });
+
+  child.on('exit', (code, signal) => {
+    if (!resolved) {
+      finalizeRescoreJob(job, {
+        fallback: true,
+        locale: job.language || null,
+        error: signal || (Number.isFinite(code) ? `code ${code}` : null),
+      });
+    }
+    logRuntime('info', 'speech rescore exited', {
+      segmentId: job.segmentId || null,
+      code,
+      signal,
+    });
+  });
+
+  child.on('error', (error) => {
+    logRuntime('warn', 'speech rescore process error', {
+      error: error?.message || String(error),
+    });
+    finalizeRescoreJob(job, {
+      fallback: true,
+      locale: job.language || null,
+      error: error?.message || String(error),
+    });
+  });
+}
+
+function enqueueRescoreJob(job) {
+  if (!job?.audioPath) {
+    return;
+  }
+  rescoreState.queue.push(job);
+  startNextRescoreJob();
+}
+
 async function stopVoiceCapture({ captureId, source } = {}) {
   if (!activeCapture) {
     return { stopped: false, reason: 'no-active-capture' };
@@ -253,6 +465,7 @@ async function startVoiceCapture({ language } = {}, sender) {
   if (activeCapture) {
     await stopVoiceCapture({ captureId: activeCapture.id });
   }
+  resetRescoreState('start-new-capture');
   logRuntime('info', 'speech helper start requested', {
     language,
   });
@@ -264,7 +477,7 @@ async function startVoiceCapture({ language } = {}, sender) {
     return { supported: false, reason: helper.reason || 'helper-unavailable' };
   }
   const captureId = `speech-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-  const args = [];
+  const args = ['--mode', 'capture'];
   if (language) {
     args.push('--lang', language);
   }
@@ -287,8 +500,10 @@ async function startVoiceCapture({ language } = {}, sender) {
     process: child,
     sender,
     audioPath,
+    helperPath: helper.helperPath,
     buffer: '',
     stopRequested: false,
+    ended: false,
   };
 
   sendEvent({ type: 'status', status: 'starting' });
@@ -309,7 +524,19 @@ async function startVoiceCapture({ language } = {}, sender) {
       try {
         const event = JSON.parse(trimmed);
         if (event && typeof event === 'object') {
-          if (event.type === 'audio') {
+          if (event.type === VOICE_EVENT_TYPES.RESCORE_REQUEST) {
+            enqueueRescoreJob({
+              captureId,
+              helperPath: helper.helperPath,
+              segmentId: event.segmentId || null,
+              audioPath: event.audioPath || '',
+              draftText: event.text || '',
+              language: event.language || null,
+              candidates: Array.isArray(event.candidates) ? event.candidates : [],
+            });
+            continue;
+          }
+          if (event.type === VOICE_EVENT_TYPES.AUDIO) {
             logRuntime('info', 'speech helper audio ready', {
               captureId,
               path: event.path || null,
@@ -349,10 +576,13 @@ async function startVoiceCapture({ language } = {}, sender) {
       signal,
       stopRequested: activeCapture?.stopRequested || false,
     });
+    if (activeCapture) {
+      activeCapture.ended = true;
+    }
     const captureSnapshot = activeCapture;
     setTimeout(() => {
       if (activeCapture === captureSnapshot) {
-        clearActiveCapture();
+        maybeClearActiveCapture();
       }
     }, 200);
   });

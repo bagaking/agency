@@ -64,6 +64,49 @@ func parseAudioPath() -> String? {
   return value
 }
 
+func parseMode() -> String {
+  let args = CommandLine.arguments
+  guard let index = args.firstIndex(of: "--mode"), index + 1 < args.count else {
+    return "capture"
+  }
+  let value = args[index + 1].trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+  return value.isEmpty ? "capture" : value
+}
+
+func parseSegmentId() -> String? {
+  let args = CommandLine.arguments
+  guard let index = args.firstIndex(of: "--segment"), index + 1 < args.count else {
+    return nil
+  }
+  let value = args[index + 1].trimmingCharacters(in: .whitespacesAndNewlines)
+  return value.isEmpty ? nil : value
+}
+
+func parseRescoreCandidates() -> [String] {
+  let args = CommandLine.arguments
+  guard let index = args.firstIndex(of: "--candidates"), index + 1 < args.count else {
+    return []
+  }
+  let value = args[index + 1]
+  if value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+    return []
+  }
+  return value
+    .split(separator: ",")
+    .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+    .filter { !$0.isEmpty }
+}
+
+func parseDraftText() -> String? {
+  let args = CommandLine.arguments
+  guard let index = args.firstIndex(of: "--draft"), index + 1 < args.count else {
+    return nil
+  }
+  let value = args[index + 1]
+  let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+  return trimmed.isEmpty ? nil : trimmed
+}
+
 func resolveLocaleIdentifier(_ language: NLLanguage) -> String {
   switch language {
   case .simplifiedChinese:
@@ -113,10 +156,54 @@ func normalizeLocaleId(_ value: String) -> String {
   return trimmed
 }
 
+let supportedLocaleIds: Set<String> = {
+  let locales = SFSpeechRecognizer.supportedLocales()
+  var results = Set<String>()
+  for locale in locales {
+    let normalized = normalizeLocaleId(locale.identifier)
+    if !normalized.isEmpty {
+      results.insert(normalized)
+    }
+  }
+  return results
+}()
+
+let defaultLocaleFallback: String = {
+  if supportedLocaleIds.contains("en-US") {
+    return "en-US"
+  }
+  return supportedLocaleIds.first ?? "en-US"
+}()
+
+func resolveSupportedLocaleId(_ value: String) -> String {
+  let normalized = normalizeLocaleId(value)
+  if normalized.isEmpty {
+    return defaultLocaleFallback
+  }
+  if supportedLocaleIds.contains(normalized) {
+    return normalized
+  }
+  let locale = Locale(identifier: normalized)
+  if let languageCode = locale.languageCode {
+    if languageCode == "zh" {
+      if supportedLocaleIds.contains("zh-CN") {
+        return "zh-CN"
+      }
+      if supportedLocaleIds.contains("zh-TW") {
+        return "zh-TW"
+      }
+    }
+    if let match = supportedLocaleIds.first(where: { $0.hasPrefix("\(languageCode)-") }) {
+      return match
+    }
+  }
+  return defaultLocaleFallback
+}
+
 func preferredLocaleCandidates() -> [String] {
   var results: [String] = []
   for entry in Locale.preferredLanguages {
-    let normalized = normalizeLocaleId(entry)
+    let normalized = resolveSupportedLocaleId(entry)
     if normalized.isEmpty {
       continue
     }
@@ -138,7 +225,7 @@ func nextSegmentId() -> String {
 
 let languageInput = parseLanguage()
 let autoDetectLanguage = languageInput.isAuto
-var currentLocaleId = languageInput.value
+var currentLocaleId = resolveSupportedLocaleId(languageInput.value)
 guard var recognizer = createRecognizer(localeId: currentLocaleId) else {
   JsonEmitter.error("Speech recognizer unavailable for language.")
   exit(1)
@@ -178,12 +265,8 @@ var segmentBuffers: [AVAudioPCMBuffer] = []
 var segmentDuration: TimeInterval = 0
 var preRollBuffers: [AVAudioPCMBuffer] = []
 var preRollDuration: TimeInterval = 0
-var rescoreInFlight = false
 var segmentCounter = 0
 var phraseStartedAt = Date.distantPast
-var exitCheckAttempts = 0
-let exitCheckInterval: TimeInterval = 0.2
-let maxExitChecks = 15
 var recoverableErrorCount = 0
 var lastRecoverableErrorAt = Date.distantPast
 let recoverableErrorCooldownSeconds: TimeInterval = 1.5
@@ -197,7 +280,6 @@ let noSpeechErrorHints = [
 let noSpeechRestartDelaySeconds: TimeInterval = 0.2
 let noSpeechRestartCooldownSeconds: TimeInterval = 0.4
 var lastNoSpeechRestartAt = Date.distantPast
-var rescoreQueue: [(segmentId: String, draftText: String, detectedLocale: String, buffers: [AVAudioPCMBuffer], candidates: [String])] = []
 var pendingLocaleSwitch: String?
 
 let bundle = Bundle.main
@@ -358,6 +440,68 @@ func storeSegmentBuffer(_ buffer: AVAudioPCMBuffer) {
   }
 }
 
+func normalizeRescoreCandidates(_ locales: [String]) -> [String] {
+  var results: [String] = []
+  var seen = Set<String>()
+  for locale in locales {
+    let normalized = normalizeLocaleId(locale)
+    if normalized.isEmpty {
+      continue
+    }
+    let supported = supportedLocaleIds.contains(normalized)
+      ? normalized
+      : resolveSupportedLocaleId(normalized)
+    if supported.isEmpty || seen.contains(supported) {
+      continue
+    }
+    seen.insert(supported)
+    results.append(supported)
+  }
+  return results
+}
+
+func writeSegmentAudio(segmentId: String, buffers: [AVAudioPCMBuffer]) -> String? {
+  guard let first = buffers.first else {
+    return nil
+  }
+  let tempDir = FileManager.default.temporaryDirectory
+  let filename = "speech-\(segmentId).wav"
+  let url = tempDir.appendingPathComponent(filename)
+  do {
+    if FileManager.default.fileExists(atPath: url.path) {
+      try FileManager.default.removeItem(at: url)
+    }
+    let file = try AVAudioFile(
+      forWriting: url,
+      settings: first.format.settings,
+      commonFormat: first.format.commonFormat,
+      interleaved: first.format.isInterleaved
+    )
+    for buffer in buffers {
+      try file.write(from: buffer)
+    }
+    return url.path
+  } catch {
+    emitDebug([
+      "stage": "segment-audio-failed",
+      "segmentId": segmentId,
+      "error": error.localizedDescription,
+    ])
+    return nil
+  }
+}
+
+func emitRescoreRequest(segmentId: String, draftText: String, detectedLocale: String, audioPath: String, candidates: [String]) {
+  JsonEmitter.emit([
+    "type": "rescore-request",
+    "segmentId": segmentId,
+    "text": draftText,
+    "language": detectedLocale,
+    "audioPath": audioPath,
+    "candidates": candidates,
+  ])
+}
+
 func shouldRescore(detected: (localeId: String, confidence: Double)?) -> String? {
   guard autoDetectLanguage else {
     return nil
@@ -371,19 +515,17 @@ func shouldRescore(detected: (localeId: String, confidence: Double)?) -> String?
   return currentLocaleId
 }
 
-func rescoreSegment(buffers: [AVAudioPCMBuffer], localeId: String, completion: @escaping (String?) -> Void) {
+func rescoreAudioFile(url: URL, localeId: String, completion: @escaping (String?) -> Void) {
   guard let rescoreRecognizer = createRecognizer(localeId: localeId) else {
     completion(nil)
     return
   }
-  let request = SFSpeechAudioBufferRecognitionRequest()
+  let request = SFSpeechURLRecognitionRequest(url: url)
   request.shouldReportPartialResults = false
   request.taskHint = .dictation
   if #available(macOS 13.0, *) {
     request.addsPunctuation = true
   }
-  buffers.forEach { request.append($0) }
-  request.endAudio()
   var resolved = false
   let task = rescoreRecognizer.recognitionTask(with: request) { result, error in
     if resolved {
@@ -421,14 +563,15 @@ func scoreRescoreText(_ text: String, localeId: String) -> Double {
   recognizer.processString(trimmed)
   let hypotheses = recognizer.languageHypotheses(withMaximum: 1)
   let best = hypotheses.max(by: { $0.value < $1.value })
-  let bestLocale = best.map { resolveLocaleIdentifier($0.key) } ?? ""
+  let bestLocale = best.map { resolveSupportedLocaleId(resolveLocaleIdentifier($0.key)) } ?? ""
   let confidence = best?.value ?? 0
   let lengthBonus = min(Double(trimmed.count) / 80.0, 0.2)
-  let localeBias: Double = bestLocale == localeId ? 0.15 : 0
+  let normalizedLocale = resolveSupportedLocaleId(localeId)
+  let localeBias: Double = bestLocale == normalizedLocale ? 0.15 : 0
   return confidence + lengthBonus + localeBias
 }
 
-func rescoreSegmentMultiple(buffers: [AVAudioPCMBuffer], locales: [String], completion: @escaping (String?, String?) -> Void) {
+func rescoreAudioFileMultiple(url: URL, locales: [String], completion: @escaping (String?, String?) -> Void) {
   var uniqueLocales: [String] = []
   var seen = Set<String>()
   for locale in locales where !locale.isEmpty {
@@ -456,7 +599,7 @@ func rescoreSegmentMultiple(buffers: [AVAudioPCMBuffer], locales: [String], comp
       handle(index: index + 1)
       return
     }
-    rescoreSegment(buffers: buffers, localeId: localeId) { rescored in
+    rescoreAudioFile(url: url, localeId: localeId) { rescored in
       if let rescored {
         let score = scoreRescoreText(rescored, localeId: localeId)
         if score > bestScore {
@@ -470,47 +613,6 @@ func rescoreSegmentMultiple(buffers: [AVAudioPCMBuffer], locales: [String], comp
   }
 
   handle(index: 0)
-}
-
-func startNextRescoreJob() {
-  if rescoreInFlight || rescoreQueue.isEmpty {
-    return
-  }
-  rescoreInFlight = true
-  let job = rescoreQueue.removeFirst()
-  emitDebug([
-    "stage": "rescore-start",
-    "locale": job.detectedLocale,
-    "candidates": job.candidates,
-    "segmentId": job.segmentId,
-  ])
-  rescoreSegmentMultiple(buffers: job.buffers, locales: job.candidates) { rescored, localeId in
-    let resultText = rescored?.trimmingCharacters(in: .whitespacesAndNewlines) ?? job.draftText
-    let resultLocale = localeId ?? job.detectedLocale
-    emitFinalText(resultText, reason: rescored != nil ? "rescore" : "rescore-fallback", localeId: resultLocale, segmentId: job.segmentId)
-    if autoDetectLanguage {
-      resetLanguageDetection()
-      pendingLocaleSwitch = resultLocale
-      emitDebug(["stage": "language-switch-queued", "locale": resultLocale])
-    }
-    rescoreInFlight = false
-    emitDebug([
-      "stage": "rescore-done",
-      "locale": resultLocale,
-      "fallback": rescored == nil,
-      "segmentId": job.segmentId,
-    ])
-    if stopRequested && rescoreQueue.isEmpty {
-      attemptExit()
-      return
-    }
-    startNextRescoreJob()
-  }
-}
-
-func enqueueRescoreJob(segmentId: String, draftText: String, detectedLocale: String, buffers: [AVAudioPCMBuffer], candidates: [String]) {
-  rescoreQueue.append((segmentId: segmentId, draftText: draftText, detectedLocale: detectedLocale, buffers: buffers, candidates: candidates))
-  startNextRescoreJob()
 }
 
 func updateRecognizerIfNeeded(for localeId: String) -> Bool {
@@ -576,19 +678,32 @@ func handleFinalText(_ text: String, reason: String) -> String? {
   }
   let segmentId = nextSegmentId()
   let detected = detectLocaleSnapshot(from: trimmed)
-  let detectedLocale = (detected?.confidence ?? 0) >= autoDetectConfidence
-    ? detected?.localeId ?? currentLocaleId
-    : currentLocaleId
+  let detectedLocale = resolveSupportedLocaleId(
+    (detected?.confidence ?? 0) >= autoDetectConfidence
+      ? detected?.localeId ?? currentLocaleId
+      : currentLocaleId
+  )
   if let rescoreLocale = shouldRescore(detected: detected) {
     let buffers = segmentBuffers
     resetSegmentBuffers()
     emitFinalText(trimmed, reason: "draft", localeId: detectedLocale, segmentId: segmentId)
-    var candidates: [String] = [rescoreLocale, currentLocaleId]
+    var candidates: [String] = [rescoreLocale, currentLocaleId, detectedLocale]
     if let detectedLocale = detected?.localeId {
       candidates.append(detectedLocale)
     }
     candidates.append(contentsOf: preferredLocaleCandidates())
-    enqueueRescoreJob(segmentId: segmentId, draftText: trimmed, detectedLocale: detectedLocale, buffers: buffers, candidates: candidates)
+    let normalizedCandidates = normalizeRescoreCandidates(candidates)
+    if let audioPath = writeSegmentAudio(segmentId: segmentId, buffers: buffers) {
+      emitRescoreRequest(
+        segmentId: segmentId,
+        draftText: trimmed,
+        detectedLocale: detectedLocale,
+        audioPath: audioPath,
+        candidates: normalizedCandidates
+      )
+    } else {
+      emitFinalText(trimmed, reason: "rescore-fallback", localeId: detectedLocale, segmentId: segmentId)
+    }
     return nil
   }
   emitFinalText(trimmed, reason: reason, localeId: detectedLocale, segmentId: segmentId)
@@ -660,13 +775,6 @@ func stopCapture(_ reason: String? = nil) {
 }
 
 func attemptExit() {
-  if (rescoreInFlight || !rescoreQueue.isEmpty) && exitCheckAttempts < maxExitChecks {
-    exitCheckAttempts += 1
-    DispatchQueue.main.asyncAfter(deadline: .now() + exitCheckInterval) {
-      attemptExit()
-    }
-    return
-  }
   exit(0)
 }
 
@@ -890,25 +998,74 @@ func setupStopListener() {
   }
 }
 
-setupStopListener()
-JsonEmitter.status("starting")
-
-requestPermissions { ok, error in
-  if !ok {
-    JsonEmitter.error(error ?? "Permission denied.")
-    stopCapture()
-    return
+func runCapture() {
+  setupStopListener()
+  JsonEmitter.status("starting")
+  requestPermissions { ok, error in
+    if !ok {
+      JsonEmitter.error(error ?? "Permission denied.")
+      stopCapture()
+      return
+    }
+    do {
+      try startAudioEngine()
+      recoverableErrorCount = 0
+      lastRecoverableErrorAt = Date.distantPast
+      startRecognitionTask()
+      JsonEmitter.status("recording")
+    } catch {
+      JsonEmitter.error(error.localizedDescription)
+      stopCapture()
+    }
   }
-  do {
-    try startAudioEngine()
-    recoverableErrorCount = 0
-    lastRecoverableErrorAt = Date.distantPast
-    startRecognitionTask()
-    JsonEmitter.status("recording")
-  } catch {
-    JsonEmitter.error(error.localizedDescription)
-    stopCapture()
-  }
+  RunLoop.current.run()
 }
 
-RunLoop.current.run()
+func runRescore() {
+  JsonEmitter.status("starting")
+  let audioPath = parseAudioPath() ?? ""
+  let segmentId = parseSegmentId() ?? "segment-\(Int(Date().timeIntervalSince1970 * 1000))"
+  let draftText = parseDraftText()
+  let candidates = normalizeRescoreCandidates(parseRescoreCandidates())
+  if audioPath.isEmpty {
+    JsonEmitter.error("Rescore audio path missing.")
+    JsonEmitter.status("stopped")
+    exit(1)
+  }
+  if candidates.isEmpty {
+    emitDebug(["stage": "rescore-missing-candidates", "segmentId": segmentId])
+  }
+  let url = URL(fileURLWithPath: audioPath)
+  rescoreAudioFileMultiple(url: url, locales: candidates) { rescored, localeId in
+    let normalizedText = rescored?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    if !normalizedText.isEmpty {
+      JsonEmitter.emit([
+        "type": "final",
+        "text": normalizedText,
+        "reason": "rescore",
+        "language": localeId ?? defaultLocaleFallback,
+        "segmentId": segmentId,
+      ])
+    } else if let fallback = draftText {
+      JsonEmitter.emit([
+        "type": "final",
+        "text": fallback,
+        "reason": "rescore-fallback",
+        "language": localeId ?? defaultLocaleFallback,
+        "segmentId": segmentId,
+      ])
+    } else {
+      JsonEmitter.error("Rescore failed.")
+    }
+    JsonEmitter.status("stopped")
+    exit(0)
+  }
+  RunLoop.current.run()
+}
+
+let mode = parseMode()
+if mode == "rescore" {
+  runRescore()
+} else {
+  runCapture()
+}
