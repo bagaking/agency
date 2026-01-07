@@ -261,9 +261,12 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
         const text = String(payload.text || '').trim();
         const segmentId = payload.segmentId || '';
         const reason = payload.reason || 'final';
-        lastInterimRef.current = '';
+        const isRescore = reason === 'rescore' || reason === 'rescore-fallback';
+        if (!isRescore) {
+          lastInterimRef.current = '';
+          setInterimText('');
+        }
         lastFinalRef.current = text;
-        setInterimText('');
         if (text) {
           onFinal?.({ text, segmentId, reason, language: payload.language || null });
         }
