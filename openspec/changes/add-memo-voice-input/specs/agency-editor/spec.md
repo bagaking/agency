@@ -3,19 +3,20 @@
 ### Requirement: Memo Voice Input
 The Memo Flash capture UI SHALL provide a voice input control with explicit start and stop actions.
 The control SHALL allow selecting a recognition language, defaulting to the browser language when set to Auto.
-While recording, the UI SHALL show a recording state and a live transcript preview.
+While recording, the UI SHALL show a recording state and a live transcript preview that includes interim speech and draft segments.
 Finalized transcripts SHALL be appended to the Flash text field without discarding existing typed content.
 If voice input is unsupported, blocked, or fails, the editor SHALL surface a non-blocking status message with the failure reason and keep manual input available.
 When voice input fails to start or crashes, the editor SHALL log a runtime warning with diagnostic context.
 On macOS, the editor SHALL prefer native speech recognition when available and fall back to Web Speech when native capture is unavailable.
-When language is set to Auto, the editor SHALL append a draft transcript for each segment and replace it after rescoring the full segment audio.
-If auto language detection is uncertain, the editor SHALL rescore using the current and preferred locales before selecting the replacement text.
+When language is set to Auto, the editor SHALL surface draft transcripts in the live preview and only commit text after rescoring the full segment audio.
+Rescoring SHALL NOT interrupt ongoing capture or prevent subsequent speech from appearing in the live preview.
+If auto language detection is uncertain, the editor SHALL rescore using normalized, supported locale candidates before selecting the replacement text.
 When voice capture is used to create a Flash memo, the editor SHALL save the original audio alongside the memo and expose playback controls.
 
 #### Scenario: Capture flash text by voice
 - **WHEN** a user starts voice input from the Flash capture UI
 - **THEN** the editor records speech and shows transcription progress
-- **AND** finalized transcription is appended to the Flash text field
+- **AND** finalized transcription is appended to the Flash text field after rescore completes
 
 #### Scenario: Stop recording and keep manual input
 - **WHEN** a user stops voice input during Flash capture
@@ -34,7 +35,11 @@ When voice capture is used to create a Flash memo, the editor SHALL save the ori
 #### Scenario: Auto language detection with rescore
 - **WHEN** a user records a Flash memo with language set to Auto
 - **THEN** the editor detects the spoken language per segment
-- **AND** the editor rescans the full segment audio before replacing the draft text
+- **AND** the editor rescans the full segment audio before committing text to the Flash input
+
+#### Scenario: Rescore does not block live capture
+- **WHEN** a user continues speaking while a prior segment is rescoring
+- **THEN** the live transcript preview continues updating with new speech
 
 #### Scenario: Save and play Flash audio
 - **WHEN** a user saves a Flash memo recorded via voice input

@@ -16,6 +16,12 @@
 - [x] 1.15 Cleanup temporary audio when capture is reset or replaced.
 - [x] 1.16 Rescore full segments on Auto with multi-locale fallback and longer silence finalization.
 - [x] 1.17 Surface voice playback controls in memo detail overlays.
+- [ ] 1.18 Add an isolated rescore helper mode that accepts segment audio and locale candidates.
+- [ ] 1.19 Emit rescore requests from the live capture helper with segment audio paths.
+- [ ] 1.20 Add a main-process rescore queue that spawns the rescore helper and forwards results.
+- [ ] 1.21 Normalize locale identifiers and filter rescore candidates to supported locales.
+- [ ] 1.22 Split live transcript preview from committed Flash input text.
+- [ ] 1.23 Show rescore status per segment in the live transcript UI.
 
 ## 2. Validation
 - [ ] 2.1 Manual: start/stop voice capture and verify transcript appends to Flash text.
@@ -25,3 +31,5 @@
 - [ ] 2.5 Manual (macOS): remove helper or simulate failure and confirm Web Speech fallback.
 - [ ] 2.6 Manual: verify auto language detection + rescore before text appends.
 - [ ] 2.7 Manual: save a Flash memo with voice audio and verify playback.
+- [ ] 2.8 Manual: verify rescore runs without interrupting live capture.
+- [ ] 2.9 Manual: verify Flash input is only updated after rescore completes.
