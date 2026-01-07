@@ -1,7 +1,7 @@
 import React from 'react';
 import { Loader2, Mic, Square } from 'lucide-react';
 
-export function VoiceCaptureControl({ voice }) {
+export function VoiceCaptureControl({ voice, segments = [] }) {
   if (!voice) {
     return null;
   }
@@ -39,6 +39,8 @@ export function VoiceCaptureControl({ voice }) {
     }
     return value;
   };
+  const liveSegments = Array.isArray(segments) ? segments : [];
+  const hasLiveTranscript = liveSegments.length > 0 || Boolean(interimText);
   return (
     <div className="flex flex-col gap-1.5 rounded-lg border border-border/20 bg-background/70 px-2.5 py-2">
       <div className="flex items-center justify-between gap-2">
@@ -108,9 +110,24 @@ export function VoiceCaptureControl({ voice }) {
       <div className="text-[10px] text-muted-foreground/60">
         {statusMessage}
       </div>
-      {interimText ? (
-        <div className="rounded-md border border-border/20 bg-muted/20 px-2 py-1 text-[10px] text-foreground/70">
-          {interimText}
+      {hasLiveTranscript ? (
+        <div className="rounded-md border border-border/20 bg-muted/20 px-2 py-1 text-[10px] text-foreground/70 space-y-1">
+          <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+            Live Transcript
+          </div>
+          {liveSegments.map((segment) => (
+            <div key={segment.id} className="flex items-start justify-between gap-2">
+              <span className="leading-relaxed">{segment.text}</span>
+              {segment.status === 'rescoring' ? (
+                <span className="text-[8px] font-semibold uppercase tracking-widest text-amber-300">
+                  Rescoring
+                </span>
+              ) : null}
+            </div>
+          ))}
+          {interimText ? (
+            <div className="italic text-foreground/60">{interimText}</div>
+          ) : null}
         </div>
       ) : null}
       {error ? (

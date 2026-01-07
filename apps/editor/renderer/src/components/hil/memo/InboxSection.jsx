@@ -10,6 +10,7 @@ export function InboxSection({
   onFlashChange,
   onSaveFlash,
   flashVoice,
+  flashVoiceSegments,
   excerptUrl,
   onExcerptUrlChange,
   onFetchExcerpt,
@@ -60,6 +61,7 @@ export function InboxSection({
             onChange={onFlashChange}
             onSave={onSaveFlash}
             voice={flashVoice}
+            voiceSegments={flashVoiceSegments}
             loading={captureLoading}
           />
         ) : null}

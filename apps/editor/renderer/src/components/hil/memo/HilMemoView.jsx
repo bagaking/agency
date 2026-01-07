@@ -68,6 +68,7 @@ export function HilMemoView({
   onFlashChange,
   setFlashText,
   flashVoice,
+  flashVoiceSegments,
   excerptUrl,
   setExcerptUrl,
   excerptPreview,
@@ -315,6 +316,7 @@ export function HilMemoView({
                 onFlashChange={handleFlashChange}
                 onSaveFlash={handleCreateFlash}
                 flashVoice={flashVoice}
+                flashVoiceSegments={flashVoiceSegments}
                 excerptUrl={excerptUrl}
                 onExcerptUrlChange={setExcerptUrl}
                 onFetchExcerpt={handleFetchExcerpt}

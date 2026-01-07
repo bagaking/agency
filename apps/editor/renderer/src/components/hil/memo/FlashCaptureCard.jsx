@@ -1,11 +1,11 @@
 import React from 'react';
 import { VoiceCaptureControl } from './VoiceCaptureControl.jsx';
 
-export function FlashCaptureCard({ value, onChange, onSave, loading, voice }) {
+export function FlashCaptureCard({ value, onChange, onSave, loading, voice, voiceSegments }) {
   const audio = voice?.audio;
   return (
     <div className="flex flex-col gap-3">
-      {voice ? <VoiceCaptureControl voice={voice} /> : null}
+      {voice ? <VoiceCaptureControl voice={voice} segments={voiceSegments} /> : null}
       {audio?.previewUrl ? (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-border/20 bg-muted/10 px-3 py-2">
           <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">

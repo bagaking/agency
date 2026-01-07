@@ -1878,6 +1878,7 @@ function App() {
     onFlashChange: memoCapture.onFlashChange,
     onSaveFlash: memoCapture.handleCreateFlash,
     flashVoice: memoCapture.flashVoice,
+    flashVoiceSegments: memoCapture.flashVoiceSegments,
     excerptUrl: memoCapture.excerptUrl,
     onExcerptUrlChange: memoCapture.setExcerptUrl,
     onFetchExcerpt: memoCapture.handleFetchExcerpt,

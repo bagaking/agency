@@ -33,84 +33,91 @@ export function useHilMemoCaptureState({
   const [routingMode, setRoutingMode] = useState('hil');
   const [routingTargetId, setRoutingTargetId] = useState('');
   const [routingError, setRoutingError] = useState('');
-  const flashTextRef = useRef('');
-  const voiceDraftsRef = useRef(new Map());
-  const voiceDraftOrderRef = useRef([]);
-  const voiceBaseRef = useRef('');
-  const voiceActiveRef = useRef(false);
+  const [voiceLiveSegments, setVoiceLiveSegments] = useState([]);
+  const voiceLiveMapRef = useRef(new Map());
+  const voiceLiveOrderRef = useRef([]);
+  const voiceCommittedRef = useRef(new Set());
 
-  useEffect(() => {
-    flashTextRef.current = String(flashText || '');
-  }, [flashText]);
+  const syncVoiceLiveSegments = useCallback(() => {
+    const order = voiceLiveOrderRef.current;
+    const map = voiceLiveMapRef.current;
+    setVoiceLiveSegments(order.map((id) => map.get(id)).filter(Boolean));
+  }, []);
 
-  const appendFlashText = useCallback((snippet) => {
-    if (!snippet) {
-      return;
-    }
-    if (typeof snippet === 'string') {
-      const addition = String(snippet || '').trim();
-      if (!addition) {
-        return;
-      }
-      setFlashText((current) => {
-        const raw = String(current || '');
-        if (!raw.trim()) {
-          return addition;
-        }
-        const separator = raw.endsWith(' ') ? '' : ' ';
-        return `${raw}${separator}${addition}`;
-      });
-      return;
-    }
-    const text = String(snippet.text || '').trim();
+  const appendCommittedText = useCallback((addition) => {
+    const text = String(addition || '').trim();
     if (!text) {
       return;
     }
-    const segmentId = snippet.segmentId || '';
-    if (!segmentId) {
-      setFlashText((current) => {
-        const raw = String(current || '');
-        if (!raw.trim()) {
-          return text;
-        }
-        const separator = raw.endsWith(' ') ? '' : ' ';
-        return `${raw}${separator}${text}`;
-      });
-      return;
-    }
-    if (!voiceActiveRef.current) {
-      voiceBaseRef.current = flashTextRef.current;
-      voiceActiveRef.current = true;
-    }
-    const drafts = voiceDraftsRef.current;
-    const order = voiceDraftOrderRef.current;
-    if (!drafts.has(segmentId)) {
-      order.push(segmentId);
-    }
-    drafts.set(segmentId, text);
-    const voiceText = order
-      .map((id) => drafts.get(id))
-      .filter(Boolean)
-      .join(' ');
-    const base = voiceBaseRef.current || '';
-    if (!voiceText) {
-      setFlashText(base);
-      return;
-    }
-    const separator = base && !base.endsWith(' ') ? ' ' : '';
-    setFlashText(`${base}${separator}${voiceText}`);
+    setFlashText((current) => {
+      const raw = String(current || '');
+      if (!raw.trim()) {
+        return text;
+      }
+      const separator = raw.endsWith(' ') ? '' : ' ';
+      return `${raw}${separator}${text}`;
+    });
   }, []);
 
+  const handleVoiceFinal = useCallback(
+    (snippet) => {
+      if (!snippet) {
+        return;
+      }
+      if (typeof snippet === 'string') {
+        appendCommittedText(snippet);
+        return;
+      }
+      const text = String(snippet.text || '').trim();
+      if (!text) {
+        return;
+      }
+      const segmentId = snippet.segmentId || '';
+      const reason = snippet.reason || 'final';
+      const isDraft = reason === 'draft';
+      if (segmentId && isDraft) {
+        const map = voiceLiveMapRef.current;
+        const order = voiceLiveOrderRef.current;
+        if (!map.has(segmentId)) {
+          order.push(segmentId);
+        }
+        map.set(segmentId, {
+          id: segmentId,
+          text,
+          status: 'rescoring',
+          reason,
+          language: snippet.language || null,
+        });
+        syncVoiceLiveSegments();
+        return;
+      }
+      if (segmentId && voiceCommittedRef.current.has(segmentId)) {
+        return;
+      }
+      appendCommittedText(text);
+      if (segmentId) {
+        voiceCommittedRef.current.add(segmentId);
+        const map = voiceLiveMapRef.current;
+        if (map.has(segmentId)) {
+          map.delete(segmentId);
+          voiceLiveOrderRef.current = voiceLiveOrderRef.current.filter((id) => id !== segmentId);
+          syncVoiceLiveSegments();
+        }
+      }
+    },
+    [appendCommittedText, syncVoiceLiveSegments]
+  );
+
   const flashVoice = useVoiceCapture({
-    onFinal: appendFlashText,
+    onFinal: handleVoiceFinal,
   });
 
   const handleFlashChange = useCallback((value) => {
     setFlashText(value);
-    voiceDraftsRef.current.clear();
-    voiceDraftOrderRef.current = [];
-    voiceBaseRef.current = String(value || '');
-    voiceActiveRef.current = false;
+    voiceLiveMapRef.current.clear();
+    voiceLiveOrderRef.current = [];
+    voiceCommittedRef.current.clear();
+    setVoiceLiveSegments([]);
   }, []);
 
   const routingTargets = useMemo(() => {
@@ -182,10 +189,10 @@ export function useHilMemoCaptureState({
   const resetCaptureState = useCallback(() => {
     flashVoice.stop?.();
     setFlashText('');
-    voiceDraftsRef.current.clear();
-    voiceDraftOrderRef.current = [];
-    voiceBaseRef.current = '';
-    voiceActiveRef.current = false;
+    voiceLiveMapRef.current.clear();
+    voiceLiveOrderRef.current = [];
+    voiceCommittedRef.current.clear();
+    setVoiceLiveSegments([]);
     setExcerptUrl('');
     setExcerptPreview(null);
     setExcerptFetching(false);
@@ -447,6 +454,7 @@ export function useHilMemoCaptureState({
     setFlashText,
     onFlashChange: handleFlashChange,
     flashVoice,
+    flashVoiceSegments: voiceLiveSegments,
     excerptUrl,
     setExcerptUrl,
     excerptPreview,
