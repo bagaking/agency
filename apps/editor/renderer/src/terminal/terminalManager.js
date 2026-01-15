@@ -4,6 +4,8 @@ import { FitAddon } from '@xterm/addon-fit';
 const terminals = new Map();
 
 const DEFAULT_FONT_SIZE = 13;
+const TERMINAL_FONT_STACK =
+  'Menlo, Monaco, "SF Mono", "Hiragino Sans GB", "PingFang SC", "Noto Sans CJK SC", "Courier New", monospace';
 
 const buildKey = (cellId, sessionId) => `${cellId}:${sessionId}`;
 
@@ -14,7 +16,7 @@ const resolveFontSize = (fontSize) => {
 
 const createEntry = ({ cellId, sessionId, fontSize }) => {
   const terminal = new Terminal({
-    fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+    fontFamily: TERMINAL_FONT_STACK,
     fontSize: resolveFontSize(fontSize),
     cursorBlink: true,
     scrollback: 5000,

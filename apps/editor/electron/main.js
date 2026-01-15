@@ -23,6 +23,7 @@ const { setupCaptureHandlers } = require('./ipc/handlers/capture');
 const { setupActionSheetsHandlers } = require('./ipc/handlers/actionSheets');
 const { setupVoiceCaptureHandlers } = require('./ipc/handlers/voiceCapture');
 const captureManager = require('./services/screenshotCapture/captureManager');
+const { warmupVoiceCapture } = require('./services/voiceCapture');
 const {
   selectProjectRoot,
   setWindowProjectRoot,
@@ -45,6 +46,30 @@ const startupTimeline = {
   events: [],
   flushed: false,
 };
+
+function ensureDarwinPath() {
+  if (process.platform !== 'darwin') {
+    return { updated: false, path: process.env.PATH || '', additions: [] };
+  }
+  const defaultPaths = [
+    '/opt/homebrew/bin',
+    '/usr/local/bin',
+    '/usr/bin',
+    '/bin',
+    '/usr/sbin',
+    '/sbin',
+  ];
+  const existing = (process.env.PATH || '')
+    .split(path.delimiter)
+    .filter(Boolean);
+  const additions = defaultPaths.filter((entry) => !existing.includes(entry));
+  if (additions.length === 0) {
+    return { updated: false, path: existing.join(path.delimiter), additions: [] };
+  }
+  const nextPath = [...existing, ...additions].join(path.delimiter);
+  process.env.PATH = nextPath;
+  return { updated: true, path: nextPath, additions };
+}
 
 function recordStartup(stage, meta = {}) {
   const event = { stage, at: performance.now(), meta };
@@ -262,6 +287,10 @@ app.whenReady().then(async () => {
   recordStartup('app-when-ready');
   await initRuntimeLogger();
   recordStartup('runtime-logger-ready');
+  const pathUpdate = ensureDarwinPath();
+  if (pathUpdate.updated) {
+    logRuntime('info', 'process PATH updated', { additions: pathUpdate.additions });
+  }
   flushStartupTimeline();
   const runtimeInfo = getRuntimeLogInfo();
   logRuntime('info', 'app ready', {
@@ -312,6 +341,20 @@ app.whenReady().then(async () => {
   recordStartup('menu-built');
   createWindow();
   recordStartup('window-create-requested');
+  recordStartup('voice-helper-warmup-start');
+  warmupVoiceCapture({ source: 'app-ready' })
+    .then((result) => {
+      recordStartup('voice-helper-warmup-done', {
+        ok: result?.ok ?? false,
+        built: result?.built || false,
+        reason: result?.reason || null,
+      });
+    })
+    .catch((error) => {
+      recordStartup('voice-helper-warmup-failed', {
+        error: error?.message || String(error),
+      });
+    });
   captureManager.registerGlobalShortcut();
   recordStartup('global-shortcuts-registered');
 

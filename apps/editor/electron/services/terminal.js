@@ -87,6 +87,27 @@ function resolveCwd(cwd) {
   return process.env.AGENCY_DEFAULT_CWD || process.cwd();
 }
 
+function isUtf8Locale(value) {
+  if (!value) {
+    return false;
+  }
+  const normalized = String(value).toUpperCase();
+  return normalized.includes('UTF-8') || normalized.includes('UTF8');
+}
+
+function resolveLocaleEnv(env) {
+  const explicit = env.AGENCY_TERMINAL_LOCALE;
+  if (explicit) {
+    return { ...env, LANG: explicit, LC_ALL: explicit, LC_CTYPE: explicit };
+  }
+  const current = env.LC_ALL || env.LC_CTYPE || env.LANG || '';
+  if (!current || current === 'C' || current === 'POSIX' || !isUtf8Locale(current)) {
+    const fallback = 'en_US.UTF-8';
+    return { ...env, LANG: fallback, LC_ALL: fallback, LC_CTYPE: fallback };
+  }
+  return env;
+}
+
 function buildSpawnError(message, suggestion) {
   const suffix = suggestion ? ` ${suggestion}` : '';
   return new Error(`${message}${suffix}`);
@@ -105,15 +126,16 @@ function trySpawn({ cellId, cwd, mode, file, args }) {
   const resolvedCwd = resolveCwd(cwd);
   try {
     ensureSpawnHelperExecutable();
+    const env = resolveLocaleEnv({
+      ...process.env,
+      TERM: 'xterm-256color',
+    });
     return pty.spawn(executable, args, {
       name: 'xterm-256color',
       cols: 120,
       rows: 30,
       cwd: resolvedCwd,
-      env: {
-        ...process.env,
-        TERM: 'xterm-256color',
-      },
+      env,
     });
   } catch (error) {
     logRuntime('error', 'terminal spawn failed', {
