@@ -51,7 +51,7 @@ export function AgentCellsSidebar({
         <div className="grid grid-cols-2 gap-1">
           <NavItem
             icon={SquareTerminal}
-            label="Actions"
+            label="Terminus"
             onClick={() => onJump?.('actions')}
             disabled={!projectReady}
           />

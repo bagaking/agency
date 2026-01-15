@@ -5,6 +5,8 @@ const getAgencyApi = () => {
   return window.agency || null;
 };
 
+export const isAgencyAvailable = () => Boolean(getAgencyApi());
+
 export const listCells = async (payload) => {
   const api = getAgencyApi();
   if (!api?.listCells) {
@@ -43,6 +45,22 @@ export const setUiState = async (payload) => {
     return null;
   }
   return api.setUiState(payload);
+};
+
+export const getQuickActions = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.getQuickActions) {
+    return null;
+  }
+  return api.getQuickActions(payload);
+};
+
+export const setQuickActions = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.setQuickActions) {
+    return null;
+  }
+  return api.setQuickActions(payload);
 };
 
 export const onCellsUpdated = (handler) => {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { buildActionRows, mergeQuickActions } from '../utils/quickActions.js';
+import { getQuickActions, isAgencyAvailable, setQuickActions } from '../services/agencyBridge.js';
 
 const pathBaseName = (value) => value.split('/').filter(Boolean).pop() || value;
 
@@ -16,15 +17,48 @@ export function useQuickActions({ selectedCell, actionsScope }) {
   const [agentQuickActions, setAgentQuickActions] = useState([]);
   const [quickActionsError, setQuickActionsError] = useState('');
   const [quickActionsSaving, setQuickActionsSaving] = useState(false);
+  const [dirtyByScope, setDirtyByScope] = useState({
+    global: false,
+    project: false,
+    agent: false,
+  });
+
+  const ensureIpcAvailable = (context) => {
+    if (isAgencyAvailable()) {
+      return true;
+    }
+    setQuickActionsError('IPC unavailable. Reload the app or reinstall the packaged build.');
+    console.error('Quick actions IPC unavailable', context ? { context } : {});
+    return false;
+  };
+
+  const clearDirty = (scope) => {
+    setDirtyByScope((current) => {
+      if (!current[scope]) {
+        return current;
+      }
+      return { ...current, [scope]: false };
+    });
+  };
+
+  const markDirty = (scope) => {
+    setDirtyByScope((current) => {
+      if (current[scope]) {
+        return current;
+      }
+      return { ...current, [scope]: true };
+    });
+  };
 
   useEffect(() => {
     const loadGlobalQuickActions = async () => {
-      if (!window.agency?.getQuickActions) {
+      if (!ensureIpcAvailable('load-global')) {
         return;
       }
       try {
-        const actions = await window.agency.getQuickActions({ scope: 'global' });
+        const actions = await getQuickActions({ scope: 'global' });
         setGlobalQuickActions(Array.isArray(actions) ? actions : []);
+        clearDirty('global');
       } catch (error) {
         setQuickActionsError(error?.message || 'Failed to load quick actions.');
       }
@@ -34,27 +68,31 @@ export function useQuickActions({ selectedCell, actionsScope }) {
 
   useEffect(() => {
     const loadScopedQuickActions = async () => {
-      if (!window.agency?.getQuickActions) {
+      if (!ensureIpcAvailable('load-scoped')) {
         return;
       }
       if (!selectedCell?.worktreePath) {
         setProjectQuickActions([]);
         setAgentQuickActions([]);
+        clearDirty('project');
+        clearDirty('agent');
         return;
       }
       try {
         const [project, agent] = await Promise.all([
-          window.agency.getQuickActions({
+          getQuickActions({
             scope: 'project',
             worktreePath: selectedCell.worktreePath,
           }),
-          window.agency.getQuickActions({
+          getQuickActions({
             scope: 'agent',
             worktreePath: selectedCell.worktreePath,
           }),
         ]);
         setProjectQuickActions(Array.isArray(project) ? project : []);
         setAgentQuickActions(Array.isArray(agent) ? agent : []);
+        clearDirty('project');
+        clearDirty('agent');
       } catch (error) {
         setQuickActionsError(error?.message || 'Failed to load quick actions.');
         setProjectQuickActions([]);
@@ -117,17 +155,19 @@ export function useQuickActions({ selectedCell, actionsScope }) {
       ...current,
       {
         id: generateActionId(),
-        label: 'New Action',
+        label: 'New Terminus',
         startCommand: '',
         resumeCommand: '',
       },
     ]);
+    markDirty(actionsScope);
   };
 
   const updateQuickAction = (id, patch) => {
     updateScopedActions((current) =>
       current.map((action) => (action.id === id ? { ...action, ...patch } : action))
     );
+    markDirty(actionsScope);
   };
 
   const overrideQuickAction = (id) => {
@@ -142,18 +182,21 @@ export function useQuickActions({ selectedCell, actionsScope }) {
       }
       return [...current, payload];
     });
+    markDirty(actionsScope);
   };
 
   const removeQuickAction = (id) => {
     updateScopedActions((current) => current.filter((action) => action.id !== id));
+    markDirty(actionsScope);
   };
 
   const resetQuickAction = (id) => {
     updateScopedActions((current) => current.filter((action) => action.id !== id));
+    markDirty(actionsScope);
   };
 
   const saveQuickActions = async () => {
-    if (!window.agency?.setQuickActions) {
+    if (!ensureIpcAvailable('save')) {
       return;
     }
     if (actionsScope !== 'global' && !selectedCell?.worktreePath) {
@@ -164,17 +207,20 @@ export function useQuickActions({ selectedCell, actionsScope }) {
     setQuickActionsError('');
     try {
       const actionsToSave = scopeActions;
-      const saved = await window.agency.setQuickActions({
+      const saved = await setQuickActions({
         scope: actionsScope,
         worktreePath: selectedCell?.worktreePath,
         actions: actionsToSave,
       });
       if (actionsScope === 'project') {
         setProjectQuickActions(Array.isArray(saved) ? saved : actionsToSave);
+        clearDirty('project');
       } else if (actionsScope === 'agent') {
         setAgentQuickActions(Array.isArray(saved) ? saved : actionsToSave);
+        clearDirty('agent');
       } else {
         setGlobalQuickActions(Array.isArray(saved) ? saved : actionsToSave);
+        clearDirty('global');
       }
     } catch (error) {
       setQuickActionsError(error?.message || 'Failed to save quick actions.');
@@ -191,6 +237,7 @@ export function useQuickActions({ selectedCell, actionsScope }) {
   };
 
   const clearQuickActionsError = () => setQuickActionsError('');
+  const quickActionsDirty = dirtyByScope[actionsScope] || false;
 
   return {
     resolvedQuickActions,
@@ -201,6 +248,7 @@ export function useQuickActions({ selectedCell, actionsScope }) {
     agentActionsPath,
     quickActionsError,
     quickActionsSaving,
+    quickActionsDirty,
     actionSummary,
     addQuickAction,
     updateQuickAction,

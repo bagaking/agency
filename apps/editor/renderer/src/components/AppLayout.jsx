@@ -50,6 +50,7 @@ export function AppLayout({
   agentActionsPath,
   quickActionsError,
   quickActionsSaving,
+  quickActionsDirty,
   onAddAction,
   onRemoveAction,
   onOverrideAction,
@@ -224,6 +225,7 @@ export function AppLayout({
                   agent: agentActionsPath,
                 }}
                 error={quickActionsError}
+                dirty={quickActionsDirty}
                 saving={quickActionsSaving}
                 onAddAction={onAddAction}
                 onRemoveAction={onRemoveAction}

@@ -20,6 +20,7 @@ import {
   getProjectContext,
   getTmuxStatus as agencyGetTmuxStatus,
   getUiState,
+  isAgencyAvailable,
   listCells as agencyListCells,
   listComments as agencyListComments,
   listHilItems as agencyListHilItems,
@@ -86,6 +87,7 @@ function App() {
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [terminalMode, setTerminalMode] = useState('shell');
   const [tmuxStatus, setTmuxStatus] = useState({ available: true });
+  const [ipcAvailable, setIpcAvailable] = useState(true);
   const [initialActiveSessions, setInitialActiveSessions] = useState({});
   const [initialWorkbenchTabs, setInitialWorkbenchTabs] = useState({});
   const [initialWorkbenchActiveTabs, setInitialWorkbenchActiveTabs] = useState({});
@@ -332,6 +334,14 @@ function App() {
     };
     loadTmuxStatus();
   }, []);
+
+  useEffect(() => {
+    const available = isAgencyAvailable();
+    setIpcAvailable(available);
+    if (!available) {
+      console.error('IPC unavailable: preload failed to expose window.agency.');
+    }
+  }, []);
   const {
     links: worktreeLinks,
     autoLinkOnCreate: worktreeLinksAuto,
@@ -361,6 +371,7 @@ function App() {
     agentActionsPath,
     quickActionsError,
     quickActionsSaving,
+    quickActionsDirty,
     actionSummary,
     addQuickAction,
     updateQuickAction,
@@ -1995,6 +2006,7 @@ function App() {
         agentActionsPath={agentActionsPath}
         quickActionsError={quickActionsError}
         quickActionsSaving={quickActionsSaving}
+        quickActionsDirty={quickActionsDirty}
         onAddAction={addQuickAction}
         onRemoveAction={removeQuickAction}
         onOverrideAction={overrideQuickAction}
@@ -2137,7 +2149,12 @@ function App() {
         }}
       />
 
-      <StatusBar loading={loading} onRefresh={loadCells} tmuxStatus={tmuxStatus} />
+      <StatusBar
+        loading={loading}
+        onRefresh={loadCells}
+        tmuxStatus={tmuxStatus}
+        ipcAvailable={ipcAvailable}
+      />
 
       {showCreate ? (
         <CreateCellModal onClose={() => setShowCreate(false)} onCreate={handleCreate} />

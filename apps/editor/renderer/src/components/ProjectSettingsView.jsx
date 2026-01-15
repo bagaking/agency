@@ -24,7 +24,7 @@ export function ProjectSettingsView({
   const configCards = [
     {
       id: 'actions',
-      title: 'Quick Actions',
+      title: 'Terminus',
       description: 'Define custom scripts and automation entry points.',
       icon: SquareTerminal,
       onClick: onOpenActions,

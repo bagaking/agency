@@ -25,6 +25,7 @@ export function QuickActionsView({
   scopeDisabled,
   scopePaths,
   error,
+  dirty,
   saving,
   onAddAction,
   onRemoveAction,
@@ -40,15 +41,15 @@ export function QuickActionsView({
     scope === 'global'
       ? 'Global User Config'
       : scope === 'project'
-        ? scopePaths?.project || 'Select a Cell to edit project actions.'
-        : scopePaths?.agent || 'Select a Cell to edit agent actions.';
+        ? scopePaths?.project || 'Select a Cell to edit project Terminus.'
+        : scopePaths?.agent || 'Select a Cell to edit agent Terminus.';
 
   return (
     <section className="flex h-full flex-1 flex-col bg-background">
       <header className="flex items-center justify-between border-b border-border px-6 py-4">
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-foreground">Actions</h2>
+            <h2 className="text-lg font-semibold text-foreground">Terminus</h2>
             <div className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${badgeClass('primary')}`}>
                 {scopeLabel} Scope
             </div>
@@ -59,6 +60,9 @@ export function QuickActionsView({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <span className={`text-[10px] font-bold uppercase tracking-widest ${dirty ? 'text-amber-400/80' : 'text-emerald-400/80'}`}>
+            {dirty ? 'Unsaved Changes' : 'All Changes Saved'}
+          </span>
           <button
             type="button"
             onClick={onAddAction}
@@ -71,7 +75,7 @@ export function QuickActionsView({
           <button
             type="button"
             onClick={onSaveActions}
-            disabled={saving || scopeDisabled}
+            disabled={saving || scopeDisabled || !dirty}
             className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-all shadow-sm shadow-primary/20 disabled:opacity-50"
           >
             <Save size={14} />
@@ -91,7 +95,7 @@ export function QuickActionsView({
         {scopeDisabled && (
             <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 text-xs text-amber-200/80 mb-6">
                 <Info size={16} className="shrink-0" />
-                Select an agent in the sidebar to configure {scopeLabel} scoped actions.
+                Select an agent in the sidebar to configure {scopeLabel} scoped Terminus.
             </div>
         )}
 
@@ -127,7 +131,7 @@ export function QuickActionsView({
                             </div>
                             <div className="flex flex-col min-w-0">
                                 <span className={`text-sm font-medium truncate ${isLocal ? 'text-foreground' : 'text-muted-foreground/60'}`}>
-                                    {action.label || 'Unnamed Action'}
+                                    {action.label || 'Unnamed Terminus'}
                                 </span>
                                 <div className="flex items-center gap-2">
                                     {!isLocal && (
@@ -159,7 +163,7 @@ export function QuickActionsView({
                         <div className="p-4 space-y-4 animate-tab-in">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 block">Action Label</label>
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 block">Terminus Label</label>
                                     <input
                                         className="w-full rounded border border-border/50 bg-background/50 px-3 py-1.5 text-sm focus:border-primary focus:outline-none disabled:opacity-50"
                                         value={action.label || ''}
@@ -222,7 +226,7 @@ export function QuickActionsView({
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground border border-dashed border-border rounded-xl">
                <Command size={32} className="opacity-10 mb-2" />
-               <p className="text-sm">No actions configured for this scope.</p>
+               <p className="text-sm">No Terminus configured for this scope.</p>
             </div>
           )}
         </div>

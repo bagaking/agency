@@ -23,7 +23,7 @@ export function HierarchySidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 py-4">
-        <div className="mb-2 px-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">AUTOMATION ACTIONS</div>
+        <div className="mb-2 px-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">TERMINUS</div>
         <div className="space-y-0.5">
           <ScopeItem
             icon={SquareTerminal}
