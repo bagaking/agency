@@ -334,6 +334,9 @@ app.whenReady().then(async () => {
       } else {
         logRuntime('warn', 'dock icon missing');
       }
+      if (isDev) {
+        app.dock.setBadge('DEV');
+      }
     } catch (error) {
       logRuntime('warn', 'dock icon set failed', { error: error?.message || String(error) });
     }
