@@ -4,6 +4,8 @@
 <dict>
   <key>CFBundleDisplayName</key>
   <string>Agency Speech Helper</string>
+  <key>CFBundleName</key>
+  <string>Agency Speech Helper</string>
   <key>CFBundleExecutable</key>
   <string>speech-helper</string>
   <key>CFBundleIdentifier</key>

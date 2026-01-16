@@ -1,5 +1,6 @@
 import React from 'react';
 import { Loader2, Mic, Square } from 'lucide-react';
+import { openSystemPermissions } from '../../../services/agencyBridge.js';
 
 export function VoiceCaptureControl({ voice, segments = [] }) {
   if (!voice) {
@@ -39,6 +40,17 @@ export function VoiceCaptureControl({ voice, segments = [] }) {
     }
     return value;
   };
+  const errorText = String(error || '').toLowerCase();
+  const permissionKind = errorText.includes('speech')
+    ? 'speech'
+    : errorText.includes('microphone')
+      ? 'microphone'
+      : null;
+  const showPermissionsHint =
+    Boolean(permissionKind) ||
+    errorText.includes('permission') ||
+    errorText.includes('denied') ||
+    errorText.includes('not-allowed');
   const liveSegments = Array.isArray(segments) ? segments : [];
   const hasLiveTranscript = liveSegments.length > 0 || Boolean(interimText);
   return (
@@ -131,8 +143,17 @@ export function VoiceCaptureControl({ voice, segments = [] }) {
         </div>
       ) : null}
       {error ? (
-        <div className="text-[10px] font-medium text-rose-400">
-          {error}
+        <div className="flex items-center justify-between gap-2 text-[10px] font-medium text-rose-400">
+          <span>{error}</span>
+          {showPermissionsHint ? (
+            <button
+              type="button"
+              onClick={() => openSystemPermissions?.({ kind: permissionKind })}
+              className="rounded border border-rose-400/40 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-rose-300 hover:border-rose-400/70 hover:text-rose-200 transition-all"
+            >
+              Open System Settings
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>

@@ -374,3 +374,11 @@ export const createCell = async (payload) => {
   }
   return api.createCell(payload);
 };
+
+export const openSystemPermissions = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.openSystemPermissions) {
+    return null;
+  }
+  return api.openSystemPermissions(payload);
+};

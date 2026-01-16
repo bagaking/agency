@@ -218,4 +218,5 @@ contextBridge.exposeInMainWorld('agency', {
     ipcRenderer.on('explorer:changed', wrapped);
     return () => ipcRenderer.removeListener('explorer:changed', wrapped);
   },
+  openSystemPermissions: (payload) => ipcRenderer.invoke('system:openPermissions', payload),
 });

@@ -26,6 +26,9 @@ Memo Flash capture has a placeholder voice action without functionality. Web Spe
 - If speech recognition is unsupported or errors, show a non-blocking status and log a runtime warning.
 - Provide a language selector with an Auto default that uses the browser language list.
 - Normalize locale identifiers and rescore candidates to a consistent set of supported locales.
+- Warm up the native speech helper at app ready so first capture avoids on-demand build or Info.plist patch delays.
+- Use permission fast-path checks to skip redundant authorization requests when already granted.
+- Emit timing diagnostics for warmup, permission checks, and audio engine startup to trace slow starts.
 
 ## Risks / Trade-offs
 - Requires macOS permissions (microphone + speech recognition) and packaging metadata.

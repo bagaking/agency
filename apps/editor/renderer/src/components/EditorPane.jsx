@@ -450,8 +450,8 @@ export function EditorPane({
                         <Clock size={10} />
                         <span className="tabular-nums">Idle {idleLabel}</span>
                     </div>
-                    <div className="flex items-center gap-1 border-r border-border/50 pr-2 mr-1">
-                        {quickActions && quickActions.slice(0, 3).map((action) => (
+                    <div className="flex items-center gap-1 border-r border-border/50 pr-2 mr-1 max-w-[360px] overflow-x-auto no-scrollbar">
+                        {quickActions && quickActions.map((action) => (
                             <button
                                 key={action.id}
                                 onClick={() => onDispatchCommand?.({ command: action.startCommand || '', kind: 'start', label: action.label || action.id })}

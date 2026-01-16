@@ -6,6 +6,7 @@ import {
   stopVoiceCapture,
   discardVoiceCaptureAudio,
   onVoiceCaptureEvent,
+  openSystemPermissions,
 } from '../services/agencyBridge.js';
 
 const resolveSpeechRecognition = () => {
@@ -19,7 +20,7 @@ const mapSpeechError = (error) => {
   switch (error) {
     case 'not-allowed':
     case 'service-not-allowed':
-      return 'Microphone permission was denied.';
+      return 'Microphone permission denied. Enable access in System Settings.';
     case 'audio-capture':
       return 'No microphone was found.';
     case 'no-speech':
@@ -88,6 +89,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
   const lastInterimRef = useRef('');
   const lastFinalRef = useRef('');
   const lastErrorRef = useRef('');
+  const permissionPromptedRef = useRef(false);
   const restartRef = useRef({ attempts: 0, lastAt: 0 });
   const mediaRecorderRef = useRef(null);
   const mediaStreamRef = useRef(null);
@@ -191,6 +193,38 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     return `agency-asset://${filePath}`;
   }, []);
 
+  const resolvePermissionKind = useCallback((value) => {
+    const normalized = String(value || '').toLowerCase();
+    if (!normalized) {
+      return null;
+    }
+    if (normalized.includes('speech')) {
+      return 'speech';
+    }
+    if (normalized.includes('microphone') || normalized.includes('mic')) {
+      return 'microphone';
+    }
+    if (normalized.includes('not-allowed') || normalized.includes('permission')) {
+      return 'microphone';
+    }
+    return null;
+  }, []);
+
+  const maybeOpenPermissions = useCallback(
+    (message, kindOverride) => {
+      if (!openSystemPermissions || permissionPromptedRef.current) {
+        return;
+      }
+      const kind = kindOverride || resolvePermissionKind(message);
+      if (!kind) {
+        return;
+      }
+      permissionPromptedRef.current = true;
+      openSystemPermissions({ kind });
+    },
+    [openSystemPermissions, resolvePermissionKind]
+  );
+
   const clearAudio = useCallback(async () => {
     if (audio?.path) {
       await discardVoiceCaptureAudio?.({ sourcePath: audio.path });
@@ -288,11 +322,23 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       if (payload.type === 'error') {
         nativeActiveRef.current = false;
         nativeCaptureIdRef.current = '';
-        setError(payload.message || 'Voice input failed.');
+        const rawMessage = payload.message || 'Voice input failed.';
+        const permissionKind = resolvePermissionKind(rawMessage);
+        if (permissionKind === 'microphone') {
+          setError('Microphone permission denied. Enable Agency Speech Helper in System Settings.');
+          maybeOpenPermissions(rawMessage, 'microphone');
+        } else if (permissionKind === 'speech') {
+          setError(
+            'Speech recognition permission denied. Enable Agency Speech Helper in System Settings.'
+          );
+          maybeOpenPermissions(rawMessage, 'speech');
+        } else {
+          setError(rawMessage);
+        }
         setStatusSafe('error');
       }
     },
-    [buildAssetUrl, onFinal, setStatusSafe]
+    [buildAssetUrl, maybeOpenPermissions, onFinal, resolvePermissionKind, setStatusSafe]
   );
 
   useEffect(() => {
@@ -421,6 +467,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       lastErrorRef.current = event?.error || message;
       stopRequestedRef.current = true;
       stopWebAudioCapture();
+      maybeOpenPermissions(event?.error || message);
       logVoiceDiagnostics({
         level: 'warn',
         message: 'voice capture error',
@@ -501,7 +548,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     };
 
     return recognition;
-  }, [buildDiagnostics, onFinal, setStatusSafe, stopWebAudioCapture]);
+  }, [buildDiagnostics, maybeOpenPermissions, onFinal, setStatusSafe, stopWebAudioCapture]);
 
   const startWebSpeech = useCallback(() => {
     if (!webSupported) {
@@ -630,6 +677,8 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
         resolvedLanguage,
       },
     });
+    permissionPromptedRef.current = false;
+    setError('');
     if (!supported) {
       setError('Voice input is not supported in this environment.');
       setStatusSafe('unavailable');
@@ -756,7 +805,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
       return 'Stopping...';
     }
     if (status === 'error') {
-      return error || 'Voice input failed.';
+      return 'Voice input failed.';
     }
     return 'Ready for voice input.';
   }, [error, rescoreMessage, status]);

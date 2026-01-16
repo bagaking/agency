@@ -32,6 +32,11 @@
 - 语言规范化与候选过滤。
 - UI 拆分“实时转写 vs 输入框写入”。
 
+4) 启动性能（可感知）
+- 启动时后台 warmup helper（避免首录音触发编译/拷贝）。
+- 权限检查走 fast-path（授权后不重复异步请求）。
+- 关键阶段日志可观测（warmup、权限、录音进入）。
+
 ## 架构分层与数据流（通用模板）
 1) UI 层：录音按钮、状态提示、实时转写预览、rescore 状态。
 2) Renderer 逻辑层：状态机、合并策略、输入框写入。
@@ -48,6 +53,7 @@
 - locale 规范化与候选过滤（基于 `SFSpeechRecognizer.supportedLocales()`）。
 - pre-roll 缓冲（减少句首丢字）。
 - 实时转写与最终写入分离。
+- 启动 warmup + 权限 fast-path（降低首录音等待）。
 
 ### 项目特化（与 Agency 相关）
 - HIL/Memo 的 Flash 保存语义与资产路径（HIL 资产策略）。
@@ -90,6 +96,21 @@
 - 原因：rescore 评分不受控，候选语种过宽导致错误语言被选中。
 - 解决：对 draft 与 rescore 结果做评分对比，仅在“明显更好”时替换；高置信度时限制候选语系。
 - 预防：为 rescore 定义最小增益阈值与候选过滤规则，并记录日志用于校准。
+
+6) 首次录音启动慢
+- 原因：helper 需编译/拷贝，或权限请求重复等待。
+- 解决：app ready 后后台 warmup；权限检查走 fast-path。
+- 预防：在启动日志里记录 warmup 与权限耗时，便于定位长尾。
+
+7) 麦克风权限被拒后无法再提示
+- 原因：权限被拒后请求逻辑早退，用户误以为只尝试一次。
+- 解决：每次 start 都尝试权限请求，权限拒绝时自动打开系统设置页。
+- 预防：在 UI 中提供“打开系统设置”入口，并保留错误日志。
+
+8) 权限弹窗从未出现（系统列表无条目）
+- 原因：speech helper 未签名，TCC 不创建权限条目。
+- 解决：在打包流程中对 SpeechHelper.app 进行 codesign，并明确显示名为 “Agency Speech Helper”。
+- 预防：afterPack 钩子签名 helper，保持与主应用同一签名链路；macOS Hardened Runtime 下补充 `com.apple.security.device.audio-input` entitlement。
 
 ## 验收清单（最低可行）
 - 连续说 1/2/3 句，不互相覆盖。

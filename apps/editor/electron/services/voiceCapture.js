@@ -141,15 +141,16 @@ async function ensureHelperBinary() {
   }
   const helperPath = resolveHelperPath();
   const infoPath = resolveHelperInfoPath();
-  if ((await pathExists(helperPath)) && (await fileExists(infoPath))) {
+  const helperReady = (await pathExists(helperPath)) && (await fileExists(infoPath));
+  if (app.isPackaged) {
+    return helperReady ? { ok: true, helperPath, built: false } : { ok: false, reason: 'missing-helper' };
+  }
+  if (helperReady) {
     const stale = await isHelperStale(helperPath);
     if (!stale) {
       return { ok: true, helperPath, built: false };
     }
     logRuntime('info', 'speech helper rebuild required', { helperPath });
-  }
-  if (app.isPackaged) {
-    return { ok: false, reason: 'missing-helper' };
   }
   try {
     await fs.promises.mkdir(path.dirname(helperPath), { recursive: true });
@@ -181,6 +182,43 @@ async function ensureHelperBinary() {
   }
 }
 
+async function warmupVoiceCapture({ source, reason } = {}) {
+  if (process.platform !== 'darwin') {
+    return { ok: false, reason: 'unsupported-platform' };
+  }
+  if (helperWarmupPromise) {
+    return helperWarmupPromise;
+  }
+  const startedAt = Date.now();
+  logRuntime('info', 'speech helper warmup start', {
+    source: source || null,
+    reason: reason || null,
+  });
+  helperWarmupPromise = (async () => {
+    await ensureHostUsageDescriptions();
+    const helper = await ensureHelperBinary();
+    logRuntime('info', 'speech helper warmup done', {
+      source: source || null,
+      ok: helper.ok,
+      built: helper.built || false,
+      reason: helper.reason || null,
+      elapsedMs: Date.now() - startedAt,
+    });
+    return helper;
+  })()
+    .catch((error) => {
+      logRuntime('warn', 'speech helper warmup failed', {
+        source: source || null,
+        error: error?.message || String(error),
+      });
+      return { ok: false, reason: 'warmup-failed' };
+    })
+    .finally(() => {
+      helperWarmupPromise = null;
+    });
+  return helperWarmupPromise;
+}
+
 async function getVoiceCaptureSupport() {
   if (process.platform !== 'darwin') {
     return { supported: false, reason: 'unsupported-platform' };
@@ -191,12 +229,14 @@ async function getVoiceCaptureSupport() {
   if (app.isPackaged) {
     return { supported: helperReady, reason: helperReady ? null : 'missing-helper' };
   }
-  if (!helperReady && !helperWarmupPromise) {
-    helperWarmupPromise = ensureHelperBinary()
-      .catch(() => {})
-      .finally(() => {
-        helperWarmupPromise = null;
-      });
+  if (!helperReady) {
+    warmupVoiceCapture({ source: 'support-check', reason: 'missing-helper' }).catch(() => {});
+    return { supported: true, reason: 'build-on-demand' };
+  }
+  const stale = await isHelperStale(helperPath);
+  if (stale) {
+    warmupVoiceCapture({ source: 'support-check', reason: 'stale-helper' }).catch(() => {});
+    return { supported: true, reason: 'rebuild-pending' };
   }
   if (helperReady) {
     return { supported: true, reason: null };
@@ -601,4 +641,5 @@ module.exports = {
   getVoiceCaptureSupport,
   startVoiceCapture,
   stopVoiceCapture,
+  warmupVoiceCapture,
 };

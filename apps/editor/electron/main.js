@@ -22,6 +22,7 @@ const { setupHilHandlers } = require('./ipc/handlers/hil');
 const { setupCaptureHandlers } = require('./ipc/handlers/capture');
 const { setupActionSheetsHandlers } = require('./ipc/handlers/actionSheets');
 const { setupVoiceCaptureHandlers } = require('./ipc/handlers/voiceCapture');
+const { setupSystemHandlers } = require('./ipc/handlers/system');
 const captureManager = require('./services/screenshotCapture/captureManager');
 const { warmupVoiceCapture } = require('./services/voiceCapture');
 const {
@@ -320,6 +321,7 @@ app.whenReady().then(async () => {
   setupCaptureHandlers();
   setupActionSheetsHandlers();
   setupVoiceCaptureHandlers();
+  setupSystemHandlers();
   recordStartup('ipc-handlers-ready');
   recordStartup('asset-protocol-setup');
   setupAssetProtocol();

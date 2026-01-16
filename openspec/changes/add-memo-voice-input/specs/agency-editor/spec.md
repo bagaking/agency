@@ -12,6 +12,8 @@ When language is set to Auto, the editor SHALL surface draft transcripts in the 
 Rescoring SHALL NOT interrupt ongoing capture or prevent subsequent speech from appearing in the live preview.
 If auto language detection is uncertain, the editor SHALL rescore using normalized, supported locale candidates before selecting the replacement text.
 When voice capture is used to create a Flash memo, the editor SHALL save the original audio alongside the memo and expose playback controls.
+The editor SHALL warm up the native speech helper in the background after app ready and log the warmup duration so first capture does not block on helper setup.
+When voice capture starts, the editor SHALL emit timing diagnostics for permission checks and audio initialization.
 
 #### Scenario: Capture flash text by voice
 - **WHEN** a user starts voice input from the Flash capture UI
@@ -45,6 +47,15 @@ When voice capture is used to create a Flash memo, the editor SHALL save the ori
 - **WHEN** a user saves a Flash memo recorded via voice input
 - **THEN** the original audio is stored with the memo
 - **AND** the memo UI provides playback controls
+
+#### Scenario: Warm up native speech helper
+- **WHEN** the editor finishes app startup on macOS
+- **THEN** the speech helper is warmed in the background
+- **AND** warmup timing is logged for diagnostics
+
+#### Scenario: Log voice initialization timing
+- **WHEN** a user starts voice capture
+- **THEN** the editor logs permission and audio initialization timing
 
 #### Scenario: Voice input unavailable
 - **WHEN** speech recognition is unsupported, blocked, or errors

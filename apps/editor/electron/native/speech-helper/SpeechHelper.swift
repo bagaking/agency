@@ -971,26 +971,42 @@ func startAudioEngine() throws {
 }
 
 func requestPermissions(completion: @escaping (Bool, String?) -> Void) {
-  let group = DispatchGroup()
-  var speechStatus: SFSpeechRecognizerAuthorizationStatus = .notDetermined
-  var micGranted = false
-
-  group.enter()
-  emitDebug(["stage": "request-speech-auth"])
-  SFSpeechRecognizer.requestAuthorization { status in
-    speechStatus = status
-    group.leave()
+  let speechStatus = SFSpeechRecognizer.authorizationStatus()
+  let micStatus = AVCaptureDevice.authorizationStatus(for: .audio)
+  emitDebug([
+    "stage": "permission-check",
+    "speechStatus": speechStatus.rawValue,
+    "micStatus": micStatus.rawValue,
+  ])
+  if speechStatus == .authorized && micStatus == .authorized {
+    completion(true, nil)
+    return
   }
 
-  group.enter()
-  emitDebug(["stage": "request-mic-auth"])
-  AVCaptureDevice.requestAccess(for: .audio) { granted in
-    micGranted = granted
-    group.leave()
+  let group = DispatchGroup()
+  var resolvedSpeechStatus = speechStatus
+  var micGranted = (micStatus == .authorized)
+
+  if speechStatus != .authorized {
+    group.enter()
+    emitDebug(["stage": "request-speech-auth"])
+    SFSpeechRecognizer.requestAuthorization { status in
+      resolvedSpeechStatus = status
+      group.leave()
+    }
+  }
+
+  if micStatus != .authorized {
+    group.enter()
+    emitDebug(["stage": "request-mic-auth"])
+    AVCaptureDevice.requestAccess(for: .audio) { granted in
+      micGranted = granted
+      group.leave()
+    }
   }
 
   group.notify(queue: .main) {
-    if speechStatus != .authorized {
+    if resolvedSpeechStatus != .authorized {
       completion(false, "Speech recognition permission denied.")
       return
     }
@@ -1025,7 +1041,15 @@ func setupStopListener() {
 func runCapture() {
   setupStopListener()
   JsonEmitter.status("starting")
+  let captureStartedAt = Date()
+  emitDebug(["stage": "capture-start"])
   requestPermissions { ok, error in
+    let permissionsElapsed = Int(round(Date().timeIntervalSince(captureStartedAt) * 1000))
+    emitDebug([
+      "stage": "permissions-ready",
+      "elapsedMs": permissionsElapsed,
+      "ok": ok,
+    ])
     if !ok {
       JsonEmitter.error(error ?? "Permission denied.")
       stopCapture()
@@ -1033,10 +1057,18 @@ func runCapture() {
     }
     do {
       try startAudioEngine()
+      emitDebug([
+        "stage": "audio-engine-started",
+        "elapsedMs": Int(round(Date().timeIntervalSince(captureStartedAt) * 1000)),
+      ])
       recoverableErrorCount = 0
       lastRecoverableErrorAt = Date.distantPast
       startRecognitionTask()
       JsonEmitter.status("recording")
+      emitDebug([
+        "stage": "recording",
+        "elapsedMs": Int(round(Date().timeIntervalSince(captureStartedAt) * 1000)),
+      ])
     } catch {
       JsonEmitter.error(error.localizedDescription)
       stopCapture()

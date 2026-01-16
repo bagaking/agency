@@ -22,6 +22,9 @@
 - [x] 1.21 Normalize locale identifiers and filter rescore candidates to supported locales.
 - [x] 1.22 Split live transcript preview from committed Flash input text.
 - [x] 1.23 Show rescore status per segment in the live transcript UI.
+- [x] 1.24 Warm up the native speech helper after app ready and log warmup timing.
+- [x] 1.25 Add fast-path permission checks in the speech helper to reduce start latency.
+- [x] 1.26 Emit timing diagnostics for voice initialization stages (permissions, audio engine).
 
 ## 2. Validation
 - [ ] 2.1 Manual: start/stop voice capture and verify transcript appends to Flash text.
