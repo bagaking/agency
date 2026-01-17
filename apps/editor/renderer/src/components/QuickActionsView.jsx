@@ -54,8 +54,8 @@ export function QuickActionsView({
 
   return (
     <section className="flex h-full flex-1 flex-col bg-background">
-      <header className="flex items-center justify-between border-b border-border px-6 py-4">
-        <div className="flex-1">
+      <header className="flex flex-wrap items-center gap-3 border-b border-border px-6 py-4">
+        <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold text-foreground">Terminus</h2>
             <div className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${badgeClass('primary')}`}>
@@ -67,7 +67,7 @@ export function QuickActionsView({
              <span className="text-[11px] text-muted-foreground font-mono truncate opacity-60" title={scopeHint}>{scopeHint}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
           <span className={`text-[10px] font-bold uppercase tracking-widest ${dirty ? 'text-amber-400/80' : 'text-emerald-400/80'}`}>
             {dirty ? 'Unsaved Changes' : 'All Changes Saved'}
           </span>
