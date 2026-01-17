@@ -5,6 +5,11 @@ import {
   ensureStarted,
   ensureTerminalEntry,
 } from '../terminal/terminalManager.js';
+import {
+  buildShortcutIndex,
+  dispatchTerminalAction,
+  matchShortcutBinding,
+} from '../terminal/terminalInputDispatcher.js';
 
 function TerminalPane({
   cell,
@@ -17,6 +22,7 @@ function TerminalPane({
   fontSize,
   isVisible,
   isActive,
+  shortcutBindings,
 }) {
   const containerRef = useRef(null);
   const entryRef = useRef(null);
@@ -26,18 +32,19 @@ function TerminalPane({
   const lastQueuedRef = useRef(null);
   const lastResizeRef = useRef({ width: 0, height: 0, cols: 0, rows: 0 });
   const lastOutputAtRef = useRef(0);
-  const lastPasteAtRef = useRef(0);
   const deferredResizeRef = useRef(null);
   const resizeLogRef = useRef({});
   const resizeHandlerRef = useRef(null);
   const focusHandlerRef = useRef(null);
   const resizeAttemptsRef = useRef(0);
   const activationWarnedRef = useRef(false);
+  const bindingIndexRef = useRef(new Map());
+  const dispatchRef = useRef(null);
+  const pasteTrackerRef = useRef(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [sessionReady, setSessionReady] = useState(false);
   const cellId = cell?.id;
   const worktreePath = cell?.worktreePath;
-  const safePathPattern = /^[A-Za-z0-9_\-./]+$/;
 
   const sendCommand = (payload) => {
     const command = typeof payload === 'string' ? payload : payload?.command;
@@ -47,14 +54,9 @@ function TerminalPane({
       return;
     }
     const text = String(command).replace(/\r\n/g, '\n');
-    const lines = text.split('\n');
-    lines.forEach((line) => {
-      window.agency?.writeTerminal({ cellId, sessionId, data: `${line}\r` });
-    });
-    if (appendEnter) {
-      window.agency?.writeTerminal({ cellId, sessionId, data: '\r' });
-    }
-    if (doubleEnter) {
+    window.agency?.writeTerminal({ cellId, sessionId, data: text });
+    const enterCount = (appendEnter ? 1 : 0) + (doubleEnter ? 1 : 0);
+    for (let i = 0; i < enterCount; i += 1) {
       window.agency?.writeTerminal({ cellId, sessionId, data: '\r' });
     }
     if (onCommandSent) {
@@ -65,15 +67,22 @@ function TerminalPane({
     }
   };
 
-  const formatShellPath = (value) => {
-    if (!value) {
-      return '';
-    }
-    if (safePathPattern.test(value)) {
-      return value;
-    }
-    return `'${String(value).replace(/'/g, `'\\''`)}'`;
-  };
+  useEffect(() => {
+    bindingIndexRef.current = buildShortcutIndex(shortcutBindings || []);
+  }, [shortcutBindings]);
+
+  useEffect(() => {
+    dispatchRef.current = (action) =>
+      dispatchTerminalAction({
+        action,
+        cellId,
+        sessionId,
+        worktreePath,
+        onActivity,
+        logRuntime: window.agency?.logRuntime,
+        pasteTracker: pasteTrackerRef,
+      });
+  }, [cellId, sessionId, worktreePath, onActivity]);
 
   useEffect(() => {
     if (!cellId || !sessionId || !containerRef.current || !worktreePath) {
@@ -238,125 +247,23 @@ function TerminalPane({
     };
     containerRef.current.addEventListener('mousedown', handleFocus);
 
-    const handleTerminalPaste = async () => {
-      if (!window.agency?.materializeClipboard || !worktreePath) {
-        return false;
+    const handleCustomKeyEvent = (event) => {
+      const index = bindingIndexRef.current;
+      if (!index || index.size === 0) {
+        return true;
       }
-      const now = Date.now();
-      if (now - lastPasteAtRef.current < 120) {
-        return false;
+      const binding = matchShortcutBinding(event, index);
+      if (!binding) {
+        return true;
       }
-      lastPasteAtRef.current = now;
-      try {
-        const result = await window.agency.materializeClipboard({
-          rootPath: worktreePath,
-          targetDir: '.agency/tmp',
-          includeText: true,
-          relativeTo: worktreePath,
-        });
-        if (result?.type === 'files' || result?.type === 'image') {
-          const paths = (result.paths || []).filter(Boolean).map(formatShellPath);
-          if (paths.length) {
-            window.agency?.writeTerminal({ cellId, sessionId, data: paths.join(' ') });
-            if (onActivity) {
-              onActivity({ cellId, sessionId });
-            }
-          }
-          return true;
-        }
-        if (result?.type === 'text' && result.text) {
-          const normalized = String(result.text)
-            .replace(/\r\n/g, '\n')
-            .replace(/\n/g, '\r');
-          window.agency?.writeTerminal({ cellId, sessionId, data: normalized });
-          if (onActivity) {
-            onActivity({ cellId, sessionId });
-          }
-          return true;
-        }
-      } catch (error) {
-        window.agency?.logRuntime?.({
-          level: 'error',
-          message: 'terminal paste failed',
-          meta: {
-            cellId,
-            sessionId,
-            error: error?.message || String(error),
-          },
-        });
+      if (event.type === 'keydown') {
+        dispatchRef.current?.(binding.action || {});
       }
+      event.preventDefault();
+      event.stopPropagation();
       return false;
     };
-
-    const handleCustomKeyEvent = (event) => {
-      if (event.key === 'Enter' && event.metaKey) {
-        if (event.type === 'keydown') {
-          window.agency?.writeTerminal({ cellId, sessionId, data: '\r' });
-        }
-        event.preventDefault();
-        return false;
-      }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'v') {
-        if (!window.agency?.materializeClipboard || !worktreePath) {
-          return true;
-        }
-        if (event.type === 'keydown') {
-          handleTerminalPaste();
-        }
-        event.preventDefault();
-        return false;
-      }
-      return true;
-    };
     entry.terminal.attachCustomKeyEventHandler(handleCustomKeyEvent);
-
-    const wheelTargets = [
-      entry.terminal.element,
-      entry.terminal.element?.querySelector('.xterm-viewport'),
-      containerRef.current,
-    ].filter(Boolean);
-    const pasteTargets = [
-      entry.terminal.element,
-      entry.terminal.element?.querySelector('textarea'),
-      containerRef.current,
-    ].filter(Boolean);
-    const handleWheel = (event) => {
-      if (!terminalRef.current) {
-        return;
-      }
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      const delta = event.deltaY;
-      if (delta === 0) {
-        return;
-      }
-      const viewport = terminalRef.current?._core?.viewport;
-      let lines = viewport?.getLinesScrolled ? viewport.getLinesScrolled(event) : 0;
-      if (!lines && delta !== 0) {
-        const base = Math.round(Math.abs(delta) / 40);
-        const adjusted = base === 0 ? 1 : base;
-        lines = adjusted * (delta > 0 ? 1 : -1);
-        if (event.shiftKey) {
-          lines *= 3;
-        }
-      }
-      if (lines) {
-        terminalRef.current.scrollLines(lines);
-      }
-    };
-    wheelTargets.forEach((target) => {
-      target.addEventListener('wheel', handleWheel, { passive: false, capture: true });
-    });
-    const handlePasteEvent = (event) => {
-      if (!window.agency?.materializeClipboard || !worktreePath) {
-        return;
-      }
-      event.preventDefault();
-      handleTerminalPaste();
-    };
-    pasteTargets.forEach((target) => {
-      target.addEventListener('paste', handlePasteEvent);
-    });
 
     const unsubscribe = window.agency?.onTerminalData((payload) => {
       if (payload?.cellId === cellId && payload?.sessionId === sessionId) {
@@ -400,12 +307,6 @@ function TerminalPane({
       if (deferredResizeRef.current) {
         clearTimeout(deferredResizeRef.current);
       }
-      wheelTargets.forEach((target) => {
-        target.removeEventListener('wheel', handleWheel, { capture: true });
-      });
-      pasteTargets.forEach((target) => {
-        target.removeEventListener('paste', handlePasteEvent);
-      });
       if (unsubscribe) {
         unsubscribe();
       }

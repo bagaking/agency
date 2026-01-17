@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   X,
   Send,
@@ -35,6 +35,7 @@ export function ExplorerFooter({
 }) {
   const [comment, setComment] = useState('');
   const [showManifest, setShowManifest] = useState(false);
+  const isComposingRef = useRef(false);
   const activeSessions = (sessions || []).filter((s) => s.status !== 'closed');
 
   const handleDispatch = async () => {
@@ -143,12 +144,23 @@ export function ExplorerFooter({
             
             <div className="h-3 w-[1px] bg-border/20" />
 
-            <input 
+            <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
+                onCompositionStart={() => { isComposingRef.current = true; }}
+                onCompositionEnd={() => { isComposingRef.current = false; }}
+                onKeyDown={(event) => {
+                  if (isComposingRef.current || event.nativeEvent?.isComposing) {
+                    return;
+                  }
+                  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                    event.preventDefault();
+                    handleDispatch();
+                  }
+                }}
+                rows={1}
                 placeholder="attach instruction..."
-                className="flex-1 bg-transparent border-none text-[11px] text-muted-foreground placeholder:text-muted-foreground/30 focus:outline-none"
-                onKeyDown={(e) => e.key === 'Enter' && handleDispatch()}
+                className="flex-1 bg-transparent border-none text-[11px] text-muted-foreground placeholder:text-muted-foreground/30 focus:outline-none resize-none leading-4 min-h-[18px] max-h-24 overflow-y-auto"
             />
 
             <div className="flex items-center gap-1">

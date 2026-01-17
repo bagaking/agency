@@ -9,7 +9,7 @@ export const buildActionSheetCompletion = (sheetId) => {
     `File: ${planPath}`,
     `- [x] ${marker}`,
   ].join('\n');
-  const checkCommand = `rg -n "^\\- \\[x\\] ${escapeRegex(marker)}$" ${planPath}`;
+  const checkCommand = `rg -n "^\\- \\[x\\] ${escapeRegex(marker)}\\s*$" ${planPath}`;
   return {
     planPath,
     marker,

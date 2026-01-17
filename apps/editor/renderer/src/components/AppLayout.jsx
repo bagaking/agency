@@ -46,6 +46,7 @@ export function AppLayout({
   actionsScopeDisabled,
   actionSummary,
   actionsRows,
+  bindingsRows,
   projectActionsPath,
   agentActionsPath,
   quickActionsError,
@@ -57,6 +58,12 @@ export function AppLayout({
   onResetAction,
   onUpdateAction,
   onSaveActions,
+  onAddBinding,
+  onRemoveBinding,
+  onOverrideBinding,
+  onResetBinding,
+  onUpdateBinding,
+  onClearTerminusError,
   gateScope,
   onSelectGateScope,
   gateStage,
@@ -218,6 +225,7 @@ export function AppLayout({
             <div className="absolute inset-0">
               <QuickActionsView
                 actions={actionsRows}
+                bindings={bindingsRows}
                 scope={actionsScope}
                 scopeDisabled={actionsScopeDisabled}
                 scopePaths={{
@@ -233,6 +241,12 @@ export function AppLayout({
                 onResetAction={onResetAction}
                 onUpdateAction={onUpdateAction}
                 onSaveActions={onSaveActions}
+                onAddBinding={onAddBinding}
+                onRemoveBinding={onRemoveBinding}
+                onOverrideBinding={onOverrideBinding}
+                onResetBinding={onResetBinding}
+                onUpdateBinding={onUpdateBinding}
+                onClearError={onClearTerminusError}
               />
             </div>
           ) : null}

@@ -45,7 +45,7 @@ codex-locale:
 codex-locale-resume:
 	@echo "CODEX_HOME=$(CODEX_HOME)"
 	@echo "Running codex with CODEX_HOME=$(CODEX_HOME)"
-	codex --dangerously-bypass-approvals-and-sandbox resume
+	codex --dangerously-bypass-approvals-and-sandbox resume 019bbf77-b7c8-7650-9179-28f12d8a1a62
 
 codex-locale-pub:
 	@echo "CODEX_HOME=$(CODEX_HOME_PUB)"

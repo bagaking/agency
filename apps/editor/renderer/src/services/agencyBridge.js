@@ -63,6 +63,22 @@ export const setQuickActions = async (payload) => {
   return api.setQuickActions(payload);
 };
 
+export const getTerminusSettings = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.getTerminusSettings) {
+    return null;
+  }
+  return api.getTerminusSettings(payload);
+};
+
+export const setTerminusSettings = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.setTerminusSettings) {
+    return null;
+  }
+  return api.setTerminusSettings(payload);
+};
+
 export const onCellsUpdated = (handler) => {
   const api = getAgencyApi();
   if (!api?.onCellsUpdated) {

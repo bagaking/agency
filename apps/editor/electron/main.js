@@ -9,6 +9,7 @@ const { setupTerminalHandlers } = require('./ipc/handlers/terminal');
 const { setupSessionHandlers } = require('./ipc/handlers/sessions');
 const { setupUiStateHandlers } = require('./ipc/handlers/uiState');
 const { setupQuickActionsHandlers } = require('./ipc/handlers/quickActions');
+const { setupTerminusSettingsHandlers } = require('./ipc/handlers/terminusSettings');
 const { setupGatesHandlers } = require('./ipc/handlers/gates');
 const { setupTmuxHandlers } = require('./ipc/handlers/tmux');
 const { setupWorktreeLinksHandlers } = require('./ipc/handlers/worktreeLinks');
@@ -308,6 +309,7 @@ app.whenReady().then(async () => {
   setupSessionHandlers();
   setupUiStateHandlers();
   setupQuickActionsHandlers();
+  setupTerminusSettingsHandlers();
   setupGatesHandlers();
   setupTmuxHandlers();
   setupWorktreeLinksHandlers();

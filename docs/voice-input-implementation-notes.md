@@ -112,6 +112,11 @@
 - 解决：在打包流程中对 SpeechHelper.app 进行 codesign，并明确显示名为 “Agency Speech Helper”。
 - 预防：afterPack 钩子签名 helper，保持与主应用同一签名链路；macOS Hardened Runtime 下补充 `com.apple.security.device.audio-input` entitlement。
 
+9) Dev/Release 权限条目难区分
+- 原因：两者使用同一 helper bundle id 与显示名，TCC 列表难区分或不刷新名称。
+- 解决：dev helper 使用独立的 bundle id 与显示名 “Agency Speech Helper (Dev)”，release helper 改为独立的 bundle id 强制刷新名称。
+- 预防：dev 只替换 helper 的 Info.plist 来源，不影响正式包内容。
+
 ## 验收清单（最低可行）
 - 连续说 1/2/3 句，不互相覆盖。
 - rescore 期间继续说话，实时转写持续更新。

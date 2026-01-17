@@ -33,7 +33,8 @@ export function EditorPane({
   sessions,
   sessionLoading,
   sessionError,
-  quickActions,
+  terminusProfiles,
+  terminusBindings,
   tmuxStatus,
   gateResultsByStage,
   gatesCheckingByStage,
@@ -216,6 +217,7 @@ export function EditorPane({
             sessionLoading={sessionLoading}
             sessionError={sessionError}
             onOpenTerminal={onOpenTerminal}
+            shortcutBindings={terminusBindings}
           />
         </div>
       </main>
@@ -451,10 +453,15 @@ export function EditorPane({
                         <span className="tabular-nums">Idle {idleLabel}</span>
                     </div>
                     <div className="flex items-center gap-1 border-r border-border/50 pr-2 mr-1 max-w-[360px] overflow-x-auto no-scrollbar">
-                        {quickActions && quickActions.map((action) => (
+                        {terminusProfiles && terminusProfiles.map((action) => (
                             <button
                                 key={action.id}
-                                onClick={() => onDispatchCommand?.({ command: action.startCommand || '', kind: 'start', label: action.label || action.id })}
+                                onClick={() => onDispatchCommand?.({
+                                    command: action.startCommand || '',
+                                    kind: 'start',
+                                    label: action.label || action.id,
+                                    appendEnter: true,
+                                  })}
                                 className="px-2 py-0.5 rounded border border-border/40 bg-muted/20 text-[10px] text-muted-foreground hover:border-primary/50 hover:text-primary transition-all whitespace-nowrap active:scale-95"
                             >
                                 {action.label || action.id}
@@ -551,6 +558,7 @@ export function EditorPane({
                 sessionLoading={sessionLoading}
                 sessionError={sessionError}
                 onOpenTerminal={onOpenTerminal}
+                shortcutBindings={terminusBindings}
              />
         </div>
     </main>

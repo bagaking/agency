@@ -5,7 +5,7 @@ import { AppLayout } from './components/AppLayout.jsx';
 import { CreateCellModal } from './components/modals/CreateCellModal.jsx';
 import { LifecycleConfirmModal } from './components/modals/LifecycleConfirmModal.jsx';
 import { ModalProvider } from './components/modals/ModalSystem.jsx';
-import { useQuickActions } from './hooks/useQuickActions.js';
+import { useTerminusSettings } from './hooks/useTerminusSettings.js';
 import { useGates } from './hooks/useGates.js';
 import { useWorktreeLinks } from './hooks/useWorktreeLinks.js';
 import { useSessions } from './hooks/useSessions.js';
@@ -364,23 +364,30 @@ function App() {
     clearError: clearWorktreeLinksError,
   } = useWorktreeLinks({ selectedCell: scopedCell, cells, projectRoot });
   const {
-    resolvedQuickActions,
-    actionsRows,
-    scopeDisabled: actionsScopeDisabled,
-    projectActionsPath,
-    agentActionsPath,
-    quickActionsError,
-    quickActionsSaving,
-    quickActionsDirty,
-    actionSummary,
-    addQuickAction,
-    updateQuickAction,
-    overrideQuickAction,
-    removeQuickAction,
-    resetQuickAction,
-    saveQuickActions,
-    clearQuickActionsError,
-  } = useQuickActions({ selectedCell: scopedCell, actionsScope });
+    resolvedProfiles,
+    resolvedBindings,
+    profileRows,
+    bindingRows,
+    scopeDisabled: terminusScopeDisabled,
+    projectSettingsPath,
+    agentSettingsPath,
+    error: terminusError,
+    saving: terminusSaving,
+    dirty: terminusDirty,
+    summary: terminusSummary,
+    addProfile,
+    updateProfile,
+    overrideProfile,
+    removeProfile,
+    resetProfile,
+    addBinding,
+    updateBinding,
+    overrideBinding,
+    removeBinding,
+    resetBinding,
+    saveSettings: saveTerminusSettings,
+    clearError: clearTerminusError,
+  } = useTerminusSettings({ selectedCell: scopedCell, terminusScope: actionsScope });
   const {
     gateRows,
     gateScopeDisabled,
@@ -1691,6 +1698,10 @@ function App() {
   }, [loadCells, saveGates]);
   const canUseScopedConfig = Boolean(scopedCell?.worktreePath);
   const resolvedRepoRoot = projectRoot || worktreeLinksRepoRoot;
+  const terminusProfiles = useMemo(
+    () => (resolvedProfiles || []).filter((profile) => String(profile.startCommand || '').trim()),
+    [resolvedProfiles]
+  );
 
   const editorPaneProps = {
     cell: selectedCell,
@@ -1702,7 +1713,8 @@ function App() {
     sessions,
     sessionLoading,
     sessionError,
-    quickActions: resolvedQuickActions,
+    terminusProfiles,
+    terminusBindings: resolvedBindings,
     tmuxStatus,
     gateResultsByStage,
     gatesCheckingByStage,
@@ -1999,20 +2011,27 @@ function App() {
         onOpenSoftlinks={() => handleHierarchyJump('softlinks')}
         actionsScope={actionsScope}
         onSelectActionsScope={handleSelectActionsScope}
-        actionsScopeDisabled={actionsScopeDisabled}
-        actionSummary={actionSummary}
-        actionsRows={actionsRows}
-        projectActionsPath={projectActionsPath}
-        agentActionsPath={agentActionsPath}
-        quickActionsError={quickActionsError}
-        quickActionsSaving={quickActionsSaving}
-        quickActionsDirty={quickActionsDirty}
-        onAddAction={addQuickAction}
-        onRemoveAction={removeQuickAction}
-        onOverrideAction={overrideQuickAction}
-        onResetAction={resetQuickAction}
-        onUpdateAction={updateQuickAction}
-        onSaveActions={saveQuickActions}
+        actionsScopeDisabled={terminusScopeDisabled}
+        actionSummary={terminusSummary}
+        actionsRows={profileRows}
+        projectActionsPath={projectSettingsPath}
+        agentActionsPath={agentSettingsPath}
+        quickActionsError={terminusError}
+        quickActionsSaving={terminusSaving}
+        quickActionsDirty={terminusDirty}
+        onAddAction={addProfile}
+        onRemoveAction={removeProfile}
+        onOverrideAction={overrideProfile}
+        onResetAction={resetProfile}
+        onUpdateAction={updateProfile}
+        onSaveActions={saveTerminusSettings}
+        bindingsRows={bindingRows}
+        onAddBinding={addBinding}
+        onRemoveBinding={removeBinding}
+        onOverrideBinding={overrideBinding}
+        onResetBinding={resetBinding}
+        onUpdateBinding={updateBinding}
+        onClearTerminusError={clearTerminusError}
         gateScope={gateScope}
         onSelectGateScope={handleSelectGateScope}
         gateStage={gateStage}

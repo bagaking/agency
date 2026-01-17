@@ -18,6 +18,7 @@ export function TerminalArea({
   sessionLoading,
   sessionError,
   onOpenTerminal,
+  shortcutBindings,
 }) {
   const assetBase = import.meta.env.BASE_URL || '/';
   const hasSessions = Boolean(sessions && sessions.length > 0);
@@ -50,6 +51,7 @@ export function TerminalArea({
                     onSessionAttached={onSessionAttached}
                     isVisible={isVisible}
                     isActive={isActive}
+                    shortcutBindings={shortcutBindings}
                   />
                 </div>
               );

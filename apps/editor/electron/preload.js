@@ -121,6 +121,8 @@ contextBridge.exposeInMainWorld('agency', {
   setUiState: (payload) => ipcRenderer.invoke('ui-state:set', payload),
   getQuickActions: (payload) => ipcRenderer.invoke('quick-actions:get', payload),
   setQuickActions: (payload) => ipcRenderer.invoke('quick-actions:set', payload),
+  getTerminusSettings: (payload) => ipcRenderer.invoke('terminus-settings:get', payload),
+  setTerminusSettings: (payload) => ipcRenderer.invoke('terminus-settings:set', payload),
   getGates: (payload) => ipcRenderer.invoke('gates:get', payload),
   setGates: (payload) => ipcRenderer.invoke('gates:set', payload),
   checkGates: (payload) => ipcRenderer.invoke('gates:check', payload),

@@ -8,6 +8,7 @@ const { ensureVoiceCacheDir } = require('./voiceCache');
 const helperRoot = path.join(__dirname, '..', 'native', 'speech-helper');
 const helperSource = path.join(helperRoot, 'SpeechHelper.swift');
 const helperInfoPlist = path.join(helperRoot, 'Info.plist');
+const helperInfoPlistDev = path.join(helperRoot, 'Info.dev.plist');
 const helperBundleName = 'SpeechHelper.app';
 const devHelperBundle = path.join(helperRoot, 'bin', helperBundleName);
 const devHelperBin = path.join(devHelperBundle, 'Contents', 'MacOS', 'speech-helper');
@@ -69,6 +70,16 @@ function resolveHelperInfoPath() {
   return path.join(path.dirname(helperPath), '..', 'Info.plist');
 }
 
+function resolveHelperInfoSource() {
+  if (app.isPackaged) {
+    return helperInfoPlist;
+  }
+  if (fs.existsSync(helperInfoPlistDev)) {
+    return helperInfoPlistDev;
+  }
+  return helperInfoPlist;
+}
+
 async function pathExists(filePath) {
   try {
     await fs.promises.access(filePath, fs.constants.X_OK);
@@ -84,6 +95,36 @@ async function fileExists(filePath) {
     return true;
   } catch (error) {
     return false;
+  }
+}
+
+async function syncHelperInfoPlist(infoSource, infoTarget) {
+  if (!infoSource || !infoTarget) {
+    return;
+  }
+  try {
+    const [source, target] = await Promise.all([
+      fs.promises.readFile(infoSource),
+      fs.promises.readFile(infoTarget),
+    ]);
+    if (Buffer.compare(source, target) === 0) {
+      return;
+    }
+  } catch (error) {
+    // Fall through to copy if target missing or read fails.
+  }
+  try {
+    await fs.promises.copyFile(infoSource, infoTarget);
+    logRuntime('info', 'speech helper Info.plist synced', {
+      source: infoSource,
+      target: infoTarget,
+    });
+  } catch (error) {
+    logRuntime('warn', 'speech helper Info.plist sync failed', {
+      error: error?.message || String(error),
+      source: infoSource,
+      target: infoTarget,
+    });
   }
 }
 
@@ -119,12 +160,13 @@ async function ensureHostUsageDescriptions() {
   logRuntime('info', 'speech helper host Info.plist updated', { infoPath });
 }
 
-async function isHelperStale(helperPath) {
+async function isHelperStale(helperPath, infoSource) {
   try {
+    const infoPath = infoSource || helperInfoPlist;
     const [helperStat, sourceStat, infoStat] = await Promise.all([
       fs.promises.stat(helperPath),
       fs.promises.stat(helperSource),
-      fs.promises.stat(helperInfoPlist),
+      fs.promises.stat(infoPath),
     ]);
     return (
       sourceStat.mtimeMs > helperStat.mtimeMs ||
@@ -141,12 +183,14 @@ async function ensureHelperBinary() {
   }
   const helperPath = resolveHelperPath();
   const infoPath = resolveHelperInfoPath();
+  const infoSource = resolveHelperInfoSource();
   const helperReady = (await pathExists(helperPath)) && (await fileExists(infoPath));
   if (app.isPackaged) {
     return helperReady ? { ok: true, helperPath, built: false } : { ok: false, reason: 'missing-helper' };
   }
   if (helperReady) {
-    const stale = await isHelperStale(helperPath);
+    await syncHelperInfoPlist(infoSource, infoPath);
+    const stale = await isHelperStale(helperPath, infoSource);
     if (!stale) {
       return { ok: true, helperPath, built: false };
     }
@@ -168,11 +212,11 @@ async function ensureHelperBinary() {
       helperPath,
     ]);
     await fs.promises.chmod(helperPath, 0o755);
-    if (!(await fileExists(helperInfoPlist))) {
+    if (!(await fileExists(infoSource))) {
       return { ok: false, reason: 'missing-infoplist' };
     }
     await fs.promises.mkdir(path.dirname(infoPath), { recursive: true });
-    await fs.promises.copyFile(helperInfoPlist, infoPath);
+    await fs.promises.copyFile(infoSource, infoPath);
     return { ok: true, helperPath, built: true };
   } catch (error) {
     logRuntime('warn', 'speech helper build failed', {
@@ -225,6 +269,7 @@ async function getVoiceCaptureSupport() {
   }
   const helperPath = resolveHelperPath();
   const infoPath = resolveHelperInfoPath();
+  const infoSource = resolveHelperInfoSource();
   const helperReady = (await pathExists(helperPath)) && (await fileExists(infoPath));
   if (app.isPackaged) {
     return { supported: helperReady, reason: helperReady ? null : 'missing-helper' };
@@ -233,7 +278,7 @@ async function getVoiceCaptureSupport() {
     warmupVoiceCapture({ source: 'support-check', reason: 'missing-helper' }).catch(() => {});
     return { supported: true, reason: 'build-on-demand' };
   }
-  const stale = await isHelperStale(helperPath);
+  const stale = await isHelperStale(helperPath, infoSource);
   if (stale) {
     warmupVoiceCapture({ source: 'support-check', reason: 'stale-helper' }).catch(() => {});
     return { supported: true, reason: 'rebuild-pending' };

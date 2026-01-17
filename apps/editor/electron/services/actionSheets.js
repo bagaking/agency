@@ -320,6 +320,51 @@ function runCommand(command, cwd, env) {
   });
 }
 
+function isRgMissing(stderr = '') {
+  return /command not found: rg|rg: command not found/.test(String(stderr));
+}
+
+function parseRgCommand(command) {
+  const trimmed = String(command || '').trim();
+  const match = trimmed.match(/^rg\s+-n\s+(['"])(.+?)\1\s+(.+)$/);
+  if (!match) {
+    return null;
+  }
+  let file = match[3].trim();
+  const quote = file[0];
+  if ((quote === '"' || quote === "'") && file.endsWith(quote)) {
+    file = file.slice(1, -1);
+  }
+  return { pattern: match[2], file };
+}
+
+async function runRgFallbackCheck(command, repoRoot) {
+  const parsed = parseRgCommand(command);
+  if (!parsed) {
+    return null;
+  }
+  const filePath = path.isAbsolute(parsed.file)
+    ? parsed.file
+    : path.join(repoRoot, parsed.file);
+  let contents = '';
+  try {
+    contents = await fsp.readFile(filePath, 'utf8');
+  } catch (error) {
+    return { passed: false, detail: `File not found: ${parsed.file}` };
+  }
+  let regex;
+  try {
+    regex = new RegExp(parsed.pattern);
+  } catch (error) {
+    return { passed: false, detail: `Invalid pattern: ${error?.message || 'regex parse failed'}` };
+  }
+  const passed = contents.split(/\r?\n/).some((line) => regex.test(line));
+  if (passed) {
+    return { passed: true, detail: '' };
+  }
+  return { passed: false, detail: `Pattern not found in ${parsed.file}` };
+}
+
 function formatCheckFailure({ command, code, stderr, stdout }) {
   const parts = [`Command failed (exit ${code}): ${command}`];
   const output = [stderr, stdout].filter(Boolean).join('\n').trim();
@@ -358,6 +403,18 @@ async function runActionSheetChecks({ worktreePath, id }) {
         ACTION_SHEET_ID: sheet.id,
         ACTION_SHEET_CHECK: check.id,
       });
+      if (result.code !== 0 && isRgMissing(result.stderr)) {
+        // eslint-disable-next-line no-await-in-loop
+        const fallback = await runRgFallbackCheck(command, repoRoot);
+        if (fallback) {
+          if (!fallback.passed) {
+            passed = false;
+            detail = fallback.detail;
+            break;
+          }
+          continue;
+        }
+      }
       if (result.code !== 0) {
         passed = false;
         detail = formatCheckFailure({

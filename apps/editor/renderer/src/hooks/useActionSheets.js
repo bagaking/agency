@@ -11,7 +11,7 @@ import {
   updateActionSheetChecks,
   runActionSheetChecks,
 } from '../services/agencyBridge.js';
-import { buildActionSheetPromptText } from '../utils/actionSheetPrompt.js';
+import { buildActionSheetDispatchText, buildActionSheetPromptText } from '../utils/actionSheetPrompt.js';
 
 const DEFAULT_CONDITIONAL = {
   enabled: true,
@@ -311,6 +311,7 @@ export function useActionSheets({
         const conditional = sheet.status?.conditional || DEFAULT_CONDITIONAL;
         const attempts = toNumber(sheet.status?.attempts, 0) + 1;
         const promptText = buildActionSheetPromptText(sheet.prompt);
+        const dispatchText = buildActionSheetDispatchText({ id: sheet.id, title: sheet.status?.title });
         await updateSheetStatus(id, {
           state: 'running',
           sessionId,
@@ -331,7 +332,7 @@ export function useActionSheets({
           onSelectSession(sessionId);
         }
         await dispatchSessionCommand({
-          command: promptText,
+          command: dispatchText || promptText,
           kind: 'dispatch',
           label: sheet.status?.title || 'Action Sheet',
           sessionId,
