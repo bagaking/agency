@@ -1447,7 +1447,9 @@ function App() {
         } else {
           setPromoteActionSheet(null);
         }
-        if (actionSheetStatus?.gateStatus === 'passed') {
+        const actionSheetCompleted = actionSheetStatus?.state === 'completed';
+        const actionSheetFailed = actionSheetStatus?.state === 'failed';
+        if (actionSheetStatus?.gateStatus === 'passed' || actionSheetCompleted) {
           if (nextDraft.meta?.promoted !== true || nextDraft.meta?.executionStatus !== 'complete') {
             const updated = await agencyUpdateHilItem({
               worktreePath: promoteWorktreePath,
@@ -1464,7 +1466,7 @@ function App() {
               nextDraft = updated;
             }
           }
-        } else if (actionSheetStatus?.state === 'failed' && nextDraft.meta?.executionStatus !== 'failed') {
+        } else if (actionSheetFailed && nextDraft.meta?.executionStatus !== 'failed') {
           const updated = await agencyUpdateHilItem({
             worktreePath: promoteWorktreePath,
             itemId: nextDraft.id,
@@ -1485,7 +1487,9 @@ function App() {
           setPromoteExecutionStatus(nextDraft.meta?.executionStatus || 'waiting');
         }
         const gateReady =
-          actionSheetStatus?.gateStatus === 'passed' || isDraftComplete(nextDraft);
+          actionSheetStatus?.gateStatus === 'passed' ||
+          actionSheetCompleted ||
+          isDraftComplete(nextDraft);
         setPromoteGateStatus(gateReady ? 'ready' : 'waiting');
       } catch (error) {
         if (canceled) {
