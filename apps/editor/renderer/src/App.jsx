@@ -1942,7 +1942,7 @@ function App() {
       setHierarchySection(target);
       setActiveView('hierarchy');
       if (target === 'actions') {
-        clearQuickActionsError();
+        clearTerminusError();
       }
       if (target === 'gates') {
         clearGatesError();
@@ -1951,15 +1951,15 @@ function App() {
         clearWorktreeLinksError();
       }
     },
-    [clearGatesError, clearQuickActionsError, clearWorktreeLinksError]
+    [clearGatesError, clearTerminusError, clearWorktreeLinksError]
   );
   const handleSelectActionsScope = useCallback(
     (scope) => {
       setHierarchySection('actions');
       setActionsScope(scope);
-      clearQuickActionsError();
+      clearTerminusError();
     },
-    [clearQuickActionsError]
+    [clearTerminusError]
   );
   const handleSelectGateScope = useCallback(
     (scope) => {
