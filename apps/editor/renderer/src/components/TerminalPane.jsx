@@ -265,6 +265,37 @@ function TerminalPane({
     };
     entry.terminal.attachCustomKeyEventHandler(handleCustomKeyEvent);
 
+    const handleWheel = (event) => {
+      if (!terminalRef.current) {
+        return;
+      }
+      if (event.ctrlKey) {
+        return;
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const delta = event.deltaY;
+      if (!delta) {
+        return;
+      }
+      const direction = delta > 0 ? 1 : -1;
+      let lines = 0;
+      if (event.deltaMode === 1) {
+        lines = delta;
+      } else {
+        const base = Math.round(Math.abs(delta) / 40);
+        lines = (base === 0 ? 1 : base) * direction;
+      }
+      if (lines) {
+        terminalRef.current.scrollLines(lines);
+      }
+    };
+
+    const wheelTargets = [entry.terminal.element, containerRef.current].filter(Boolean);
+    wheelTargets.forEach((target) => {
+      target.addEventListener('wheel', handleWheel, { passive: false, capture: true });
+    });
+
     const writeSelectionToClipboard = async (selection) => {
       if (!selection) {
         return false;
@@ -351,6 +382,9 @@ function TerminalPane({
       if (deferredResizeRef.current) {
         clearTimeout(deferredResizeRef.current);
       }
+      wheelTargets.forEach((target) => {
+        target.removeEventListener('wheel', handleWheel, { capture: true });
+      });
       contextMenuTargets.forEach((target) => {
         target.removeEventListener('contextmenu', handleContextMenu);
       });
