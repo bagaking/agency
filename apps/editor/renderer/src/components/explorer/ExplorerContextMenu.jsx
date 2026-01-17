@@ -11,7 +11,8 @@ import {
   Eye, 
   Trash2, 
   ChevronRight,
-  MessageSquarePlus 
+  MessageSquarePlus,
+  Link
 } from 'lucide-react';
 
 export function ExplorerContextMenu({
@@ -25,6 +26,8 @@ export function ExplorerContextMenu({
   onRename,
   onDuplicate,
   onCopy,
+  onCopyRelativePath,
+  onCopyAbsolutePath,
   onCut,
   onPaste,
   onPasteMarkdown,
@@ -104,6 +107,18 @@ export function ExplorerContextMenu({
           label="Copy" 
           shortcut="⌘C" 
           onClick={onCopy} 
+          disabled={!selectionTargets.length} 
+        />
+        <ContextMenuItem 
+          icon={Link} 
+          label="Copy Relative Path" 
+          onClick={onCopyRelativePath} 
+          disabled={!selectionTargets.length} 
+        />
+        <ContextMenuItem 
+          icon={Link} 
+          label="Copy Absolute Path" 
+          onClick={onCopyAbsolutePath} 
           disabled={!selectionTargets.length} 
         />
         <ContextMenuItem 

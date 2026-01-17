@@ -277,13 +277,40 @@ function ProjectExplorerSidebarContent({
     setRenameTarget(null);
   };
 
+  const writeClipboard = async (text) => {
+    if (!text) return;
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+  };
+
   const handleCopyPath = async (targets) => {
     const list = (Array.isArray(targets) ? targets : [targets]).filter(Boolean);
     if (!list.length) return;
     try {
       const base = rootPath || repoRoot || '';
-      const payload = list.map(it => (base ? `${base}/${it}` : it)).join('\n');
-      await navigator.clipboard.writeText(payload);
+      const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base;
+      const payload = list.map(it => (normalizedBase ? `${normalizedBase}/${it}` : it)).join('\n');
+      await writeClipboard(payload);
+    } catch (err) {}
+  };
+
+  const handleCopyRelativePath = async (targets) => {
+    const list = (Array.isArray(targets) ? targets : [targets]).filter(Boolean);
+    if (!list.length) return;
+    try {
+      const payload = list.join('\n');
+      await writeClipboard(payload);
     } catch (err) {}
   };
 
@@ -484,6 +511,8 @@ function ProjectExplorerSidebarContent({
           onNewFile={() => startDraft('file')} onNewFolder={() => startDraft('dir')}
           onRename={() => setRenameTarget({ path: selectionTargets[0], value: explorerPathUtils.basename(selectionTargets[0]) })}
           onDuplicate={() => handleDuplicate(selectionTargets[0])} onCopy={() => handleCopySelection('copy')}
+          onCopyRelativePath={() => handleCopyRelativePath(selectionTargets)}
+          onCopyAbsolutePath={() => handleCopyPath(selectionTargets)}
           onCut={() => handleCopySelection('cut')} onPaste={handlePasteSelection} onPasteMarkdown={handlePasteMarkdown}
           onReveal={() => handleReveal(selectionTargets)} onDelete={() => handleDelete(selectionTargets)}
           onAddComment={() => onAddComment?.(selectionTargets[0])}
