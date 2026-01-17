@@ -265,6 +265,50 @@ function TerminalPane({
     };
     entry.terminal.attachCustomKeyEventHandler(handleCustomKeyEvent);
 
+    const writeSelectionToClipboard = async (selection) => {
+      if (!selection) {
+        return false;
+      }
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(selection);
+        return true;
+      }
+      const textarea = document.createElement('textarea');
+      textarea.value = selection;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return copied;
+    };
+
+    const handleContextMenu = (event) => {
+      const selection = entry.terminal?.getSelection?.() || '';
+      if (!selection) {
+        return;
+      }
+      event.preventDefault();
+      writeSelectionToClipboard(selection).catch((error) => {
+        window.agency?.logRuntime?.({
+          level: 'warn',
+          message: 'terminal copy failed',
+          meta: {
+            cellId,
+            sessionId,
+            error: error?.message || String(error),
+          },
+        });
+      });
+    };
+
+    const contextMenuTargets = [entry.terminal.element, containerRef.current].filter(Boolean);
+    contextMenuTargets.forEach((target) => {
+      target.addEventListener('contextmenu', handleContextMenu);
+    });
+
     const unsubscribe = window.agency?.onTerminalData((payload) => {
       if (payload?.cellId === cellId && payload?.sessionId === sessionId) {
         lastOutputAtRef.current = Date.now();
@@ -307,6 +351,9 @@ function TerminalPane({
       if (deferredResizeRef.current) {
         clearTimeout(deferredResizeRef.current);
       }
+      contextMenuTargets.forEach((target) => {
+        target.removeEventListener('contextmenu', handleContextMenu);
+      });
       if (unsubscribe) {
         unsubscribe();
       }
