@@ -89,6 +89,12 @@ function ProjectExplorerSidebarContent({
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [clipboard, setClipboard] = useState(null);
+  const explorerStateKey = useMemo(() => {
+    const base = scopeRootPath || rootPath || repoRoot;
+    if (!base) return '';
+    return `agency:explorer:${base}`;
+  }, [scopeRootPath, rootPath, repoRoot]);
+  const hasRestoredStateRef = useRef(false);
 
   const statusFilterSet = useMemo(() => new Set(statusFilters), [statusFilters]);
   const isSearchActive = searchQuery.trim().length > 0;
@@ -108,6 +114,59 @@ function ProjectExplorerSidebarContent({
     new Set(Object.entries(workbenchMeta || {}).filter(([, m]) => m?.dirty).map(([p]) => p)), 
     [workbenchMeta]
   );
+
+  useEffect(() => {
+    hasRestoredStateRef.current = false;
+  }, [explorerStateKey]);
+
+  useEffect(() => {
+    if (!explorerStateKey || hasRestoredStateRef.current) return;
+    hasRestoredStateRef.current = true;
+    try {
+      const raw = window.sessionStorage?.getItem(explorerStateKey);
+      if (!raw) return;
+      const payload = JSON.parse(raw);
+      const expanded = Array.isArray(payload?.expandedPaths) ? payload.expandedPaths : [];
+      const selected = Array.isArray(payload?.selectedPaths) ? payload.selectedPaths : [];
+      const focused = typeof payload?.focusedPath === 'string' ? payload.focusedPath : '';
+      const storedScrollTop = typeof payload?.scrollTop === 'number' ? payload.scrollTop : null;
+      (async () => {
+        const uniqueExpanded = new Set(expanded.filter(Boolean));
+        uniqueExpanded.add('');
+        for (const entry of uniqueExpanded) {
+          await expandPath(entry);
+        }
+        if (selected.length) {
+          setSelectedPaths(selected);
+          setFocusedPath(focused || selected[0]);
+        } else if (focused) {
+          setFocusedPath(focused);
+        }
+        if (storedScrollTop != null) {
+          requestAnimationFrame(() => {
+            if (listRef.current) listRef.current.scrollTop = storedScrollTop;
+          });
+        }
+      })();
+    } catch (err) {
+      // Ignore invalid persisted state.
+    }
+  }, [expandPath, explorerStateKey, setSelectedPaths]);
+
+  useEffect(() => {
+    if (!explorerStateKey) return;
+    try {
+      const payload = {
+        expandedPaths: Array.from(expandedPaths || []),
+        selectedPaths,
+        focusedPath,
+        scrollTop,
+      };
+      window.sessionStorage?.setItem(explorerStateKey, JSON.stringify(payload));
+    } catch (err) {
+      // Ignore persistence errors (quota/disabled storage).
+    }
+  }, [expandedPaths, explorerStateKey, focusedPath, scrollTop, selectedPaths]);
 
   const getScopedEntry = useCallback((entry, type) => {
     if (!entry || !selectedCellId || !entry.cells?.[selectedCellId]) return entry;
@@ -272,6 +331,10 @@ function ProjectExplorerSidebarContent({
     if (!renameTarget?.path || !renameTarget?.value) { setRenameTarget(null); return; }
     const parent = explorerPathUtils.dirname(renameTarget.path);
     const nextPath = [parent, renameTarget.value].filter(Boolean).join('/');
+    if (nextPath === renameTarget.path) {
+      setRenameTarget(null);
+      return;
+    }
     try { await renameEntry({ sourcePath: renameTarget.path, targetPath: nextPath }); clearError(); } 
     catch (err) { setErrorMessage('Rename failed.'); }
     setRenameTarget(null);
@@ -365,6 +428,10 @@ function ProjectExplorerSidebarContent({
 
   const toggleStatusFilter = (s) => setStatusFilters(curr => curr.includes(s) ? curr.filter(it => it !== s) : [...curr, s]);
   const buildDragPayload = (p) => selectionSet.has(p) ? Array.from(selectionSet) : [p];
+  const requestRename = useCallback((path) => {
+    if (!path) return;
+    setRenameTarget({ path, value: explorerPathUtils.basename(path) });
+  }, []);
 
   const renderNodeRow = (item) => {
     if (item.draft) {
@@ -374,6 +441,7 @@ function ProjectExplorerSidebarContent({
     if (!node) return null;
     const isDir = node.type === 'dir';
     const entry = getScopedEntry(isDir ? folderStatusByPath[item.path] : statusByPath[item.path], isDir ? 'dir' : 'file');
+    const isRenaming = renameTarget?.path === item.path;
     const sorted = Object.values(entry?.cells || {}).sort((a, b) => (b.added + b.deleted) - (a.added + a.deleted));
     const cellBadges = sorted.length > 0 && (
         <div className="flex items-center gap-1 opacity-[0.15] group-hover:opacity-60 transition-opacity pr-1">
@@ -390,12 +458,13 @@ function ProjectExplorerSidebarContent({
         commentCount={!isDir ? (commentCountsByPath?.[item.path] || 0) : 0}
         onJumpToComments={onJumpToComments}
         cellBadges={cellBadges} depth={item.depth} onToggle={() => togglePath(item.path)}
-        onClick={(e) => { handleSelectPath(item.path, e); setFocusedPath(item.path); listRef.current?.focus(); if (!isDir && !e.metaKey && !e.ctrlKey && !e.shiftKey) onOpenFile?.({ path: item.path, mode: 'preview' }); }}
-        onDoubleClick={(e) => { if (!isDir) { e.stopPropagation(); onOpenFile?.({ path: item.path, mode: 'pinned' }); } }}
-        onContextMenu={(e) => { e.preventDefault(); handleSelectPath(item.path, e); setFocusedPath(item.path); setContextMenu({ x: e.clientX, y: e.clientY, path: item.path }); }}
-        onDragStart={(e) => { const p = buildDragPayload(item.path); e.dataTransfer.setData('application/agency-paths', JSON.stringify(p)); e.dataTransfer.effectAllowed = 'move'; }}
+        onClick={isRenaming ? undefined : (e) => { handleSelectPath(item.path, e); setFocusedPath(item.path); listRef.current?.focus(); if (!isDir && !e.metaKey && !e.ctrlKey && !e.shiftKey) onOpenFile?.({ path: item.path, mode: 'preview' }); }}
+        onDoubleClick={isRenaming ? undefined : (e) => { if (!isDir) { e.stopPropagation(); onOpenFile?.({ path: item.path, mode: 'pinned' }); } }}
+        onContextMenu={isRenaming ? undefined : (e) => { e.preventDefault(); handleSelectPath(item.path, e); setFocusedPath(item.path); setContextMenu({ x: e.clientX, y: e.clientY, path: item.path }); }}
+        onDragStart={isRenaming ? undefined : (e) => { const p = buildDragPayload(item.path); e.dataTransfer.setData('application/agency-paths', JSON.stringify(p)); e.dataTransfer.effectAllowed = 'move'; }}
         onDragOver={(e) => { if (isDir) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
         onDrop={async (e) => { if (!isDir) return; e.preventDefault(); const p = e.dataTransfer.getData('application/agency-paths'); if (p) await handleMove(JSON.parse(p), item.path); }}
+        onRequestRename={requestRename}
         renameTarget={renameTarget?.path === item.path ? renameTarget : null} handleRenameSubmit={handleRenameSubmit} setRenameTarget={setRenameTarget}
       />
     );
@@ -431,7 +500,7 @@ function ProjectExplorerSidebarContent({
     if (event.key === 'ArrowRight') { event.preventDefault(); if (tree.nodes[focusedPath]?.type === 'dir') { if (!expandedPaths.has(focusedPath)) togglePath(focusedPath); else { const first = (tree.children[focusedPath] || [])[0]; if (first) { handleSelectPath(first, { shiftKey: event.shiftKey }); setFocusedPath(first); scrollToPath(first); } } } } 
     if (event.key === 'ArrowLeft') { event.preventDefault(); if (tree.nodes[focusedPath]?.type === 'dir' && expandedPaths.has(focusedPath)) togglePath(focusedPath); else { const p = explorerPathUtils.dirname(focusedPath); if (p !== focusedPath && p !== undefined) { handleSelectPath(p, { shiftKey: event.shiftKey }); setFocusedPath(p); scrollToPath(p); } } }
     if (event.key === 'Enter') { event.preventDefault(); if (tree.nodes[focusedPath]?.type === 'dir') togglePath(focusedPath); else if (focusedPath) onOpenFile?.({ path: focusedPath, mode: 'pinned' }); }
-    if (event.key === 'F2' && focusedPath) { event.preventDefault(); setRenameTarget({ path: focusedPath, value: explorerPathUtils.basename(focusedPath) }); }
+    if (event.key === 'F2' && focusedPath) { event.preventDefault(); requestRename(focusedPath); }
     if ((event.key === 'Delete' || event.key === 'Backspace') && selectionTargets.length) { event.preventDefault(); handleDelete(selectionTargets); }
   };
 

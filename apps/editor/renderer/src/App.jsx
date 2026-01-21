@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import 'xterm/css/xterm.css';
+import '@xterm/xterm/css/xterm.css';
 import { StatusBar } from './components/StatusBar.jsx';
 import { AppLayout } from './components/AppLayout.jsx';
 import { CreateCellModal } from './components/modals/CreateCellModal.jsx';

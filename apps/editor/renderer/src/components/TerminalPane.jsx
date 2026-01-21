@@ -247,36 +247,78 @@ function TerminalPane({
     };
     containerRef.current.addEventListener('mousedown', handleFocus);
 
-    const handleCustomKeyEvent = (event) => {
-      const index = bindingIndexRef.current;
-      if (!index || index.size === 0) {
-        return true;
+    const sendExtendedKey = (data) => {
+      if (!cellId || !sessionId || !window.agency?.writeTerminal) {
+        return;
       }
-      const binding = matchShortcutBinding(event, index);
-      if (!binding) {
-        return true;
+      window.agency.writeTerminal({ cellId, sessionId, data });
+      if (onActivity) {
+        onActivity({ cellId, sessionId });
+      }
+    };
+
+    const resolveShiftEnterPayload = () => {
+      const terminal = terminalRef.current;
+      if (terminal?.modes?.bracketedPasteMode) {
+        return '\x1b[200~\n\x1b[201~';
+      }
+      return '\x1b[13;2u';
+    };
+
+    const handleExtendedEnter = (event) => {
+      if (
+        event.key !== 'Enter' ||
+        !event.shiftKey ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey
+      ) {
+        return false;
       }
       if (event.type === 'keydown') {
-        dispatchRef.current?.(binding.action || {});
+        sendExtendedKey(resolveShiftEnterPayload());
       }
-      event.preventDefault();
-      event.stopPropagation();
+      if (event.type === 'keydown' || event.type === 'keypress' || event.type === 'keyup') {
+        event.preventDefault();
+        event.stopPropagation();
+        return true;
+      }
       return false;
+    };
+
+    const handleCustomKeyEvent = (event) => {
+      const index = bindingIndexRef.current;
+      const binding = index && index.size > 0 ? matchShortcutBinding(event, index) : null;
+      if (binding) {
+        if (event.type === 'keydown') {
+          dispatchRef.current?.(binding.action || {});
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        return false;
+      }
+      if (handleExtendedEnter(event)) {
+        return false;
+      }
+      return true;
     };
     entry.terminal.attachCustomKeyEventHandler(handleCustomKeyEvent);
 
-    const handleWheel = (event) => {
-      if (!terminalRef.current) {
-        return;
+    const handleWheelEvent = (event) => {
+      const terminal = terminalRef.current;
+      if (!terminal) {
+        return true;
       }
       if (event.ctrlKey) {
-        return;
+        return false;
       }
-      event.preventDefault();
-      event.stopImmediatePropagation();
+      const mouseMode = terminal.modes?.mouseTrackingMode || 'none';
+      if (mouseMode !== 'none' && event.altKey) {
+        return true;
+      }
       const delta = event.deltaY;
       if (!delta) {
-        return;
+        return false;
       }
       const direction = delta > 0 ? 1 : -1;
       let lines = 0;
@@ -287,14 +329,13 @@ function TerminalPane({
         lines = (base === 0 ? 1 : base) * direction;
       }
       if (lines) {
-        terminalRef.current.scrollLines(lines);
+        terminal.scrollLines(lines);
       }
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
     };
-
-    const wheelTargets = [entry.terminal.element, containerRef.current].filter(Boolean);
-    wheelTargets.forEach((target) => {
-      target.addEventListener('wheel', handleWheel, { passive: false, capture: true });
-    });
+    entry.terminal.attachCustomWheelEventHandler(handleWheelEvent);
 
     const writeSelectionToClipboard = async (selection) => {
       if (!selection) {
@@ -382,9 +423,6 @@ function TerminalPane({
       if (deferredResizeRef.current) {
         clearTimeout(deferredResizeRef.current);
       }
-      wheelTargets.forEach((target) => {
-        target.removeEventListener('wheel', handleWheel, { capture: true });
-      });
       contextMenuTargets.forEach((target) => {
         target.removeEventListener('contextmenu', handleContextMenu);
       });

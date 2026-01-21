@@ -39,6 +39,7 @@ export function ExplorerItem({
   onDragStart,
   onDragOver,
   onDrop,
+  onRequestRename,
   renameTarget,
   handleRenameSubmit,
   setRenameTarget,
@@ -64,14 +65,16 @@ export function ExplorerItem({
         <span className="text-xs text-muted-foreground">
           {item.type === 'dir' ? <FolderPlus size={12} strokeWidth={1.5} /> : <FilePlus2 size={12} strokeWidth={1.5} />}
         </span>
-        <input
+      <input
           autoFocus
-          className="flex-1 rounded border border-border bg-transparent px-1 text-xs text-foreground focus:outline-none"
+          className="flex-1 rounded border border-border bg-transparent px-1 text-xs text-foreground focus:outline-none select-text"
           placeholder={item.type === 'dir' ? 'New folder' : 'New file'}
           onBlur={item.onBlur}
           onKeyDown={item.onKeyDown}
           onChange={item.onChange}
           value={item.value}
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
         />
       </div>
     );
@@ -87,7 +90,7 @@ export function ExplorerItem({
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
-      draggable
+      draggable={!renameTarget}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
@@ -131,7 +134,7 @@ export function ExplorerItem({
       {renameTarget ? (
         <input
           autoFocus
-          className="flex-1 rounded border border-border bg-transparent px-1 text-xs text-foreground focus:outline-none"
+          className="flex-1 rounded border border-border bg-transparent px-1 text-xs text-foreground focus:outline-none select-text"
           value={renameTarget.value}
           onChange={(e) => setRenameTarget(prev => ({ ...prev, value: e.target.value }))}
           onBlur={handleRenameSubmit}
@@ -139,10 +142,18 @@ export function ExplorerItem({
             if (e.key === 'Enter') handleRenameSubmit();
             if (e.key === 'Escape') setRenameTarget(null);
           }}
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
         />
       ) : (
         <div className="flex flex-1 items-center gap-2 min-w-0">
-          <span className={`truncate ${isIgnored ? 'text-muted-foreground/30 line-through decoration-muted-foreground/10' : ''}`}>
+          <span
+            className={`truncate ${isIgnored ? 'text-muted-foreground/30 line-through decoration-muted-foreground/10' : ''}`}
+            onDoubleClick={(event) => {
+              event.stopPropagation();
+              onRequestRename?.(item.path);
+            }}
+          >
             {node.name}
           </span>
           {isOpen && <span className="h-1 w-1 rounded-full bg-sky-400/60" title="Open" />}

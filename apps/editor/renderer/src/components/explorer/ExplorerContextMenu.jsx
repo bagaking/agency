@@ -36,6 +36,10 @@ export function ExplorerContextMenu({
   onAddComment,
 }) {
   const menuRef = useRef(null);
+  const wrapAction = (action) => () => {
+    action?.();
+    onClose?.();
+  };
 
   useEffect(() => {
     const menu = menuRef.current;
@@ -69,6 +73,17 @@ export function ExplorerContextMenu({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      const menu = menuRef.current;
+      if (!menu) return;
+      if (menu.contains(event.target)) return;
+      onClose();
+    };
+    window.addEventListener('mousedown', handlePointerDown);
+    return () => window.removeEventListener('mousedown', handlePointerDown);
+  }, [onClose]);
+
   return createPortal(
     <div
       ref={menuRef}
@@ -81,8 +96,8 @@ export function ExplorerContextMenu({
       </div>
 
       <div className="px-1.5 space-y-0.5">
-        <ContextMenuItem icon={FilePlus2} label="New File" onClick={onNewFile} />
-        <ContextMenuItem icon={FolderPlus} label="New Folder" onClick={onNewFolder} />
+        <ContextMenuItem icon={FilePlus2} label="New File" onClick={wrapAction(onNewFile)} />
+        <ContextMenuItem icon={FolderPlus} label="New Folder" onClick={wrapAction(onNewFolder)} />
 
         <div className="h-px bg-white/5 my-1.5 mx-2" />
 
@@ -90,13 +105,13 @@ export function ExplorerContextMenu({
           icon={Pencil}
           label="Rename"
           shortcut="F2"
-          onClick={onRename}
+          onClick={wrapAction(onRename)}
           disabled={selectionTargets.length !== 1}
         />
         <ContextMenuItem 
           icon={Copy} 
           label="Duplicate" 
-          onClick={onDuplicate} 
+          onClick={wrapAction(onDuplicate)} 
           disabled={selectionTargets.length !== 1} 
         />
 
@@ -106,39 +121,39 @@ export function ExplorerContextMenu({
           icon={Copy} 
           label="Copy" 
           shortcut="⌘C" 
-          onClick={onCopy} 
+          onClick={wrapAction(onCopy)} 
           disabled={!selectionTargets.length} 
         />
         <ContextMenuItem 
           icon={Link} 
           label="Copy Relative Path" 
-          onClick={onCopyRelativePath} 
+          onClick={wrapAction(onCopyRelativePath)} 
           disabled={!selectionTargets.length} 
         />
         <ContextMenuItem 
           icon={Link} 
           label="Copy Absolute Path" 
-          onClick={onCopyAbsolutePath} 
+          onClick={wrapAction(onCopyAbsolutePath)} 
           disabled={!selectionTargets.length} 
         />
         <ContextMenuItem 
           icon={Scissors} 
           label="Cut" 
           shortcut="⌘X" 
-          onClick={onCut} 
+          onClick={wrapAction(onCut)} 
           disabled={!selectionTargets.length} 
         />
         <ContextMenuItem 
           icon={ClipboardPaste} 
           label="Paste" 
           shortcut="⌘V" 
-          onClick={onPaste} 
+          onClick={wrapAction(onPaste)} 
           disabled={!canPaste} 
         />
         <ContextMenuItem 
           icon={FileText} 
           label="Paste as MD" 
-          onClick={onPasteMarkdown} 
+          onClick={wrapAction(onPasteMarkdown)} 
         />
 
         <div className="h-px bg-white/5 my-1.5 mx-2" />
@@ -146,20 +161,20 @@ export function ExplorerContextMenu({
         <ContextMenuItem 
           icon={Eye} 
           label="Reveal" 
-          onClick={onReveal} 
+          onClick={wrapAction(onReveal)} 
           disabled={!selectionTargets.length} 
         />
         <ContextMenuItem
             icon={MessageSquarePlus}
             label="Add Comment"
-            onClick={onAddComment}
+            onClick={wrapAction(onAddComment)}
             disabled={selectionTargets.length !== 1}
         />
         <ContextMenuItem
           icon={Trash2}
           label={selectionTargets.length > 1 ? `Delete ${selectionTargets.length} Items` : 'Delete Object'}
           shortcut="⌫"
-          onClick={onDelete}
+          onClick={wrapAction(onDelete)}
           disabled={!selectionTargets.length}
           variant="destructive"
         />

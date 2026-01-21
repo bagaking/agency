@@ -706,16 +706,24 @@ Sections that accept user input SHALL provide inline input controls at the top o
 ### Requirement: Memo Capture Modes
 The Memo view SHALL provide capture actions for Flash note, Excerpt, and Screenshot.
 Captured items SHALL be stored as HIL `memo` entries with `meta.noteType` set to the capture type.
+Excerpt capture SHALL accept URL input and fetch remote content for extraction.
+Excerpt capture SHALL enforce size/time limits and surface failures without creating a memo item.
 Screenshot capture SHALL open an in-app capture UI for region selection and annotation, followed by a routing panel.
 
 #### Scenario: Capture a flash note
 - **WHEN** a user selects Flash and submits text
 - **THEN** the editor creates a `memo` item with `meta.noteType: flash`
 
-#### Scenario: Capture an excerpt
-- **WHEN** a user selects Excerpt from a file selection
-- **THEN** the editor creates a `memo` item with `meta.noteType: excerpt`
-- **AND** stores the excerpt source metadata
+#### Scenario: Capture an excerpt from URL
+- **WHEN** a user enters a valid URL and starts Excerpt capture
+- **THEN** the editor fetches and extracts readable content
+- **AND** the editor creates a `memo` item with `meta.noteType: excerpt`
+- **AND** the memo metadata includes source URL, title, extracted excerpt summary, word/char counts, and fetch timestamp
+
+#### Scenario: Excerpt fetch fails
+- **WHEN** the URL is invalid or fetch/parse fails
+- **THEN** the editor reports the error
+- **AND** no Excerpt memo is created
 
 #### Scenario: Capture a screenshot via UI
 - **WHEN** a user clicks Capture in the Screenshot section
@@ -803,16 +811,17 @@ The dock SHALL list a Comment Inbox (Input Box) entry and Draft entries for all 
 
 ### Requirement: Draft Lifecycle Actions
 The Memo draft detail view SHALL allow archiving and deleting drafts.
-Deleting a draft SHALL remove it from the HIL index and local draft artifacts.
+Destructive actions SHALL require confirmation via the modal system.
 
-#### Scenario: Archive a draft
-- **WHEN** a user archives a draft
-- **THEN** the draft status updates to archived
+#### Scenario: Confirm Draft archive
+- **WHEN** a user archives a Draft
+- **THEN** the modal system asks for confirmation
+- **AND** the Draft status updates only after confirmation
 
-#### Scenario: Delete a draft
-- **WHEN** a user confirms delete on a draft
-- **THEN** the draft is removed from `.agency/hil/<worktree>/drafts/`
-- **AND** the draft no longer appears in the dock
+#### Scenario: Confirm Draft delete
+- **WHEN** a user deletes a Draft
+- **THEN** the modal system asks for confirmation
+- **AND** the Draft is removed only after confirmation
 
 ### Requirement: Activity Bar Home Shortcut
 The editor SHALL treat the activity bar logo as a home shortcut that opens the Agent Cells view.
@@ -1146,3 +1155,64 @@ When an embedded Action Sheet reference no longer exists, the UI SHALL hide the 
 #### Scenario: Linked Action Sheet is deleted
 - **WHEN** a linked Action Sheet is deleted
 - **THEN** embedded Action Sheet panels disappear instead of showing stale data
+
+### Requirement: Create Action Sheet from Draft
+The Draft detail view SHALL allow users to create an Action Sheet when none is linked.
+The editor SHALL store the created Action Sheet id on the Draft metadata.
+
+#### Scenario: Create Action Sheet from Draft detail
+- **WHEN** a user selects Create Action Sheet in Draft detail with no linked sheet
+- **THEN** the editor creates an Action Sheet for the Draft
+- **AND** stores the Action Sheet id in the Draft metadata
+- **AND** the Draft detail shows the Action Sheet status panel
+
+### Requirement: Contextual HIL Drawer Panels
+The editor SHALL adjust the right-side HIL drawer content based on the active view.
+
+#### Scenario: Agent Cells default Drafts
+- **WHEN** the user is in Agent Cells and opens the HIL drawer
+- **THEN** Drafts is the default panel
+- **AND** Comments remains available for selection
+
+#### Scenario: Action Sheets and Explorer default Comments
+- **WHEN** the user is in Action Sheets or Explorer and opens the HIL drawer
+- **THEN** Comments is the default panel
+- **AND** Drafts remains available for selection
+
+#### Scenario: Memo view shows Inbox shortcuts
+- **WHEN** the user is in Memo and opens the HIL drawer
+- **THEN** the drawer hides the Comments and Drafts tabs
+- **AND** the drawer shows Inbox shortcuts for Flash notes and Screenshot capture
+- **AND** the drawer provides an Open Inbox entry
+- **AND** the Memo main Inbox sections remain available in the main pane
+
+### Requirement: Promote Default Session Selection
+The editor SHALL default the Promote session selection to the active session when Promote is opened from Agent Cells.
+
+#### Scenario: Promote uses active session
+- **WHEN** the user opens Promote from Agent Cells with an active session
+- **THEN** the Promote modal selects that session by default
+
+### Requirement: Drafts Drawer Action Sheet Status
+The editor SHALL surface Action Sheet execution status for drafts in the HIL drawer.
+
+#### Scenario: Draft Action Sheet running
+- **WHEN** a draft has a linked Action Sheet that is running or waiting for a gate in a session
+- **THEN** the draft row shows the running state and session label
+- **AND** selecting the draft jumps to that session
+
+#### Scenario: Draft Action Sheet idle
+- **WHEN** a draft has no linked Action Sheet or its Action Sheet is not running
+- **THEN** the draft row indicates no active session
+- **AND** selecting the draft opens Memo with that draft selected
+- **AND** the drawer offers a run-in-active-session control for that draft
+
+#### Scenario: Quick run in active session
+- **WHEN** the user triggers run in active session for a draft
+- **THEN** the system creates a default Action Sheet if none is linked
+- **AND** the Action Sheet dispatches immediately to the active session without additional confirmation
+
+#### Scenario: No active session available
+- **WHEN** there is no active session
+- **THEN** the run-in-active-session control is disabled and indicates a session is required
+
