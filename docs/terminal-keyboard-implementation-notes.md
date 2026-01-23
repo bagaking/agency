@@ -30,8 +30,8 @@ Shift+Enter was previously emitted as plain Enter (`\r`) due to xterm's default 
 ## Debugging Flow (E2E/Playwright)
 This workflow is not documented elsewhere yet; keep it up to date when better techniques are discovered.
 1. Start the renderer: `pnpm -C apps/editor dev:renderer`.
-2. Wait for the renderer port: `pnpm -C apps/editor exec wait-on tcp:5173`.
-3. Run Electron E2E: `pnpm -C apps/editor test:e2e`.
+2. Read the renderer URL from the port file (default: `/tmp/agency-editor-renderer.json`).
+3. Run Electron E2E with the URL: `ELECTRON_RENDERER_URL="http://localhost:<port>" pnpm -C apps/editor exec playwright test`.
 
 ## Caveats
 - Some CLI tools may not parse CSI-u sequences; in those cases Shift+Enter may be ignored or treated as an unknown escape sequence.

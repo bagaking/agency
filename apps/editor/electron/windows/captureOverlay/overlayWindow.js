@@ -1,12 +1,11 @@
 const { BrowserWindow } = require('electron');
 const path = require('path');
 const { pathToFileURL } = require('url');
-
-const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
+const { resolveRendererUrl } = require('../../services/rendererUrl');
 
 function buildOverlayUrl(requestId, displayId) {
-  const rendererUrl = process.env.ELECTRON_RENDERER_URL;
-  if (isDev && rendererUrl) {
+  const rendererUrl = resolveRendererUrl().url;
+  if (rendererUrl) {
     const url = new URL(rendererUrl);
     url.searchParams.set('capture', '1');
     url.searchParams.set('requestId', requestId);

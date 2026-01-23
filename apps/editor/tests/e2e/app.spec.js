@@ -1,9 +1,38 @@
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { execSync } = require('child_process');
 const { test, expect, _electron: electron } = require('@playwright/test');
 
 const TEST_REPO = '/tmp/agency/test-cell';
+const PORT_FILE = process.env.AGENCY_RENDERER_PORT_FILE
+  || path.join(os.tmpdir(), 'agency-editor-renderer.json');
+
+const resolveRendererUrl = () => {
+  const envUrl = process.env.ELECTRON_RENDERER_URL || process.env.AGENCY_RENDERER_URL;
+  if (envUrl) {
+    return envUrl;
+  }
+  try {
+    if (fs.existsSync(PORT_FILE)) {
+      const raw = fs.readFileSync(PORT_FILE, 'utf8');
+      const payload = JSON.parse(raw);
+      if (payload?.url) {
+        return payload.url;
+      }
+      if (payload?.port) {
+        return `http://localhost:${payload.port}`;
+      }
+    }
+  } catch (error) {
+    // Ignore and fall through to error.
+  }
+  throw new Error(
+    'Missing renderer URL. Run pnpm run test:e2e or set ELECTRON_RENDERER_URL.'
+  );
+};
+
+const RENDERER_URL = resolveRendererUrl();
 
 const setupTestRepo = () => {
   fs.rmSync(TEST_REPO, { recursive: true, force: true });
@@ -30,7 +59,7 @@ test('renders the Agency shell', async () => {
     args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
     env: {
       ...process.env,
-      ELECTRON_RENDERER_URL: 'http://localhost:5173',
+      ELECTRON_RENDERER_URL: RENDERER_URL,
       AGENCY_TEST_MODE: '1',
       AGENCY_CLI_STUB: '1',
       AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
@@ -58,7 +87,7 @@ test('shows project selection empty state', async () => {
     args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
     env: {
       ...process.env,
-      ELECTRON_RENDERER_URL: 'http://localhost:5173',
+      ELECTRON_RENDERER_URL: RENDERER_URL,
       AGENCY_TEST_MODE: '1',
       AGENCY_CLI_STUB: '1',
       AGENCY_TEST_EMPTY_STATE: '1',
@@ -80,7 +109,7 @@ test('project settings open action populates recent projects', async () => {
     args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
     env: {
       ...process.env,
-      ELECTRON_RENDERER_URL: 'http://localhost:5173',
+      ELECTRON_RENDERER_URL: RENDERER_URL,
       AGENCY_TEST_MODE: '1',
       AGENCY_CLI_STUB: '1',
       AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
@@ -111,7 +140,7 @@ test('settings dashboard shows navigation cards and home shortcut', async () => 
     args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
     env: {
       ...process.env,
-      ELECTRON_RENDERER_URL: 'http://localhost:5173',
+      ELECTRON_RENDERER_URL: RENDERER_URL,
       AGENCY_TEST_MODE: '1',
       AGENCY_CLI_STUB: '1',
       AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
@@ -141,7 +170,7 @@ test('keeps the active session stable while switching tabs', async () => {
     args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
     env: {
       ...process.env,
-      ELECTRON_RENDERER_URL: 'http://localhost:5173',
+      ELECTRON_RENDERER_URL: RENDERER_URL,
       AGENCY_TEST_MODE: '1',
       AGENCY_CLI_STUB: '1',
       AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
@@ -181,7 +210,7 @@ test('explorer filters and keyboard navigation', async () => {
     args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
     env: {
       ...process.env,
-      ELECTRON_RENDERER_URL: 'http://localhost:5173',
+      ELECTRON_RENDERER_URL: RENDERER_URL,
       AGENCY_TEST_MODE: '1',
       AGENCY_CLI_STUB: '1',
       AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
@@ -224,7 +253,7 @@ test('explorer drag and drop moves files', async () => {
     args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
     env: {
       ...process.env,
-      ELECTRON_RENDERER_URL: 'http://localhost:5173',
+      ELECTRON_RENDERER_URL: RENDERER_URL,
       AGENCY_TEST_MODE: '1',
       AGENCY_CLI_STUB: '1',
       AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
@@ -254,7 +283,7 @@ test('explorer copy and paste duplicates entries', async () => {
     args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
     env: {
       ...process.env,
-      ELECTRON_RENDERER_URL: 'http://localhost:5173',
+      ELECTRON_RENDERER_URL: RENDERER_URL,
       AGENCY_TEST_MODE: '1',
       AGENCY_CLI_STUB: '1',
       AGENCY_TEST_PROJECT_ROOT: TEST_REPO,

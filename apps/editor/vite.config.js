@@ -2,6 +2,8 @@ const path = require('path');
 const { defineConfig } = require('vite');
 const react = require('@vitejs/plugin-react');
 
+const DEFAULT_RENDERER_PORT = Number(process.env.AGENCY_RENDERER_PORT) || 5183;
+
 module.exports = defineConfig(({ command }) => ({
   root: path.join(__dirname, 'renderer'),
   base: command === 'serve' ? '/' : './',
@@ -11,7 +13,7 @@ module.exports = defineConfig(({ command }) => ({
     emptyOutDir: true,
   },
   server: {
-    port: 5173,
-    strictPort: true,
+    port: DEFAULT_RENDERER_PORT,
+    strictPort: false,
   },
 }));

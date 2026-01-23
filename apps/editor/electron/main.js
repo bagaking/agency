@@ -25,6 +25,7 @@ const { setupActionSheetsHandlers } = require('./ipc/handlers/actionSheets');
 const { setupVoiceCaptureHandlers } = require('./ipc/handlers/voiceCapture');
 const { setupSystemHandlers } = require('./ipc/handlers/system');
 const captureManager = require('./services/screenshotCapture/captureManager');
+const { resolveRendererUrl } = require('./services/rendererUrl');
 const { warmupVoiceCapture } = require('./services/voiceCapture');
 const {
   selectProjectRoot,
@@ -38,7 +39,6 @@ const {
   getRuntimeLogInfo,
 } = require('./services/runtimeLog');
 
-const isDev = !app.isPackaged && Boolean(process.env.ELECTRON_RENDERER_URL);
 let mainWindow;
 
 app.setName('Agency');
@@ -151,12 +151,14 @@ function createWindow({ startEmpty = false } = {}) {
   });
   recordStartup('window-created', { id: win.id });
 
-  const rendererUrl = process.env.ELECTRON_RENDERER_URL;
-  if (isDev && rendererUrl) {
-    recordStartup('renderer-load-start', { url: rendererUrl });
+  const rendererInfo = resolveRendererUrl();
+  const rendererUrl = rendererInfo.url;
+  const useDevRenderer = Boolean(rendererUrl);
+  if (useDevRenderer) {
+    recordStartup('renderer-load-start', { url: rendererUrl, source: rendererInfo.source });
     win.loadURL(rendererUrl);
     // Open DevTools only if NOT in test mode to avoid confusing Playwright
-    if (!process.env.AGENCY_TEST_MODE) {
+    if (!process.env.AGENCY_TEST_MODE && !app.isPackaged) {
       win.webContents.openDevTools({ mode: 'detach' });
     }
   } else {
@@ -175,7 +177,7 @@ function createWindow({ startEmpty = false } = {}) {
       errorDescription,
       validatedURL,
     });
-    if (!app.isPackaged && rendererUrl) {
+    if (!app.isPackaged && useDevRenderer) {
       return;
     }
     win.loadFile(path.join(__dirname, '../dist/renderer/index.html'));
@@ -336,7 +338,8 @@ app.whenReady().then(async () => {
       } else {
         logRuntime('warn', 'dock icon missing');
       }
-      if (isDev) {
+      const rendererInfo = resolveRendererUrl();
+      if (rendererInfo.url && !app.isPackaged) {
         app.dock.setBadge('DEV');
       }
     } catch (error) {

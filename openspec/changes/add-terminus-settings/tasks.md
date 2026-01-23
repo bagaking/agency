@@ -9,7 +9,7 @@
 - [x] 2.3 Support scope overrides (Global -> Project -> Agent) for shortcuts.
 
 ## 3. Terminal Input Pipeline
-- [ ] 3.1 Remove default keyboard interception unless a binding is configured.
+- [x] 3.1 Remove default keyboard interception unless a binding is configured.
 - [x] 3.2 Route configured shortcuts through an input-action dispatcher.
 - [x] 3.3 Align scroll behavior with VSCode: scrollback in normal buffer, pass through in alternate buffer.
 

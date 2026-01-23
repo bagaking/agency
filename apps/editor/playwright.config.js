@@ -11,10 +11,4 @@ module.exports = defineConfig({
     headless: true,
     viewport: { width: 1280, height: 720 },
   },
-  webServer: {
-    command: 'npm run dev:renderer',
-    cwd: __dirname,
-    port: 5173,
-    reuseExistingServer: !process.env.CI,
-  },
 });

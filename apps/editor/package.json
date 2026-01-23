@@ -8,15 +8,15 @@
   "packageManager": "pnpm@9.15.1",
   "main": "electron/main.js",
   "scripts": {
-    "dev:renderer": "vite --port 5173",
-    "dev:main": "wait-on tcp:5173 && cross-env ELECTRON_RENDERER_URL=http://localhost:5173 electron electron/main.js",
+    "dev:renderer": "node scripts/dev-renderer.js",
+    "dev:main": "node scripts/dev-main.js",
     "dev": "concurrently \"npm:dev:renderer\" \"npm:dev:main\"",
     "build:renderer": "vite build",
     "build:speech-helper": "node scripts/build-speech-helper.js",
     "package": "pnpm run build:renderer && pnpm run build:speech-helper && PNPM_BIN_DIR=$(pnpm bin -g) && PATH=\"$PNPM_BIN_DIR:$PATH\" PNPM_HOME=\"$PNPM_BIN_DIR\" TMPDIR=/tmp electron-builder --mac",
     "package:dir": "pnpm run build:renderer && pnpm run build:speech-helper && PNPM_BIN_DIR=$(pnpm bin -g) && PATH=\"$PNPM_BIN_DIR:$PATH\" PNPM_HOME=\"$PNPM_BIN_DIR\" TMPDIR=/tmp electron-builder --mac --dir",
     "preview": "vite preview",
-    "test:e2e": "playwright test",
+    "test:e2e": "node scripts/run-e2e.js",
     "postinstall": "node scripts/postinstall.js"
   },
   "build": {

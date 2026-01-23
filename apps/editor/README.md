@@ -149,6 +149,9 @@ make editor-dev
 - `AGENCY_CLI_STUB=1` use the CLI stub script
 - `AGENCY_TEST_MODE=1` use stubbed cells/worktrees
 - `AGENCY_RUNTIME_LOG_MAX_BYTES=5242880` override runtime log chunk size
+- `AGENCY_RENDERER_URL="http://localhost:<port>"` (or `ELECTRON_RENDERER_URL`) load the renderer from a dev server (works for packaged builds too)
+- `AGENCY_RENDERER_PORT=5183` override the preferred dev server port before fallback
+- `AGENCY_RENDERER_PORT_FILE="/tmp/agency-editor-renderer.json"` override the dev server port file path
 
 ## Manual Verification
 
