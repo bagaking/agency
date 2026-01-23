@@ -11,7 +11,7 @@ Shift+Enter was previously emitted as plain Enter (`\r`) due to xterm's default 
 - Custom key handler intercepts Shift+Enter and sends the bracketed-paste newline when enabled (`\x1b[200~\n\x1b[201~`), falling back to CSI-u (`\x1b[13;2u`).
 - User shortcut bindings take priority; Shift+Enter handling only runs when no binding matches.
 - Shift+Enter suppression covers keydown/keypress/keyup to avoid leaking a plain Enter after the custom sequence.
-- Wheel handling defaults to terminal scrollback; hold `Alt` to allow mouse-tracked apps to handle the wheel.
+- Wheel handling defaults to terminal scrollback; when mouse tracking is enabled, wheel events pass through to the app (hold `Alt` to force scrollback).
 
 ## Manual Verification
 1. Open a terminal session in Agency.

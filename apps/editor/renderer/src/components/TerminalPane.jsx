@@ -313,7 +313,7 @@ function TerminalPane({
         return false;
       }
       const mouseMode = terminal.modes?.mouseTrackingMode || 'none';
-      if (mouseMode !== 'none' && event.altKey) {
+      if (mouseMode !== 'none' && !event.altKey) {
         return true;
       }
       const delta = event.deltaY;
