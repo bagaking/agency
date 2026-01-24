@@ -31,7 +31,7 @@ export function ExcerptCaptureCard({
             type="button"
             onClick={onFetch}
             disabled={fetching || !canFetch}
-            className="rounded-md border border-primary/40 bg-primary/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary transition-all hover:bg-primary/10 disabled:opacity-50"
+            className="inline-flex h-7 items-center rounded-md border border-primary/40 bg-primary/5 px-3 text-[10px] font-semibold uppercase tracking-widest text-primary transition-all hover:bg-primary/10 disabled:opacity-50"
           >
             {fetching ? 'Fetching...' : 'Fetch'}
           </button>
@@ -39,7 +39,7 @@ export function ExcerptCaptureCard({
             type="button"
             onClick={onSave}
             disabled={loading || fetching || !hasPreview}
-            className="rounded-md bg-primary px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
+            className="inline-flex h-7 items-center rounded-md bg-primary px-3 text-[10px] font-semibold uppercase tracking-widest text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
           >
             {loading ? 'Saving...' : 'Save Excerpt'}
           </button>

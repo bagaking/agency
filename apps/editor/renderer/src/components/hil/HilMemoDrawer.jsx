@@ -1,8 +1,9 @@
 import React from 'react';
-import { StickyNote, Camera, Inbox, Quote, ArrowUpRight } from 'lucide-react';
+import { StickyNote, Camera, Inbox, Quote, ArrowLeft, ArrowUpRight } from 'lucide-react';
 import { FlashCaptureCard } from './memo/FlashCaptureCard.jsx';
 import { ExcerptCaptureCard } from './memo/ExcerptCaptureCard.jsx';
 import { ScreenshotCaptureCard } from './memo/ScreenshotCaptureCard.jsx';
+import { Tooltip } from '../ui/Tooltip.jsx';
 
 export function HilMemoDrawer({
   activeInboxId,
@@ -33,15 +34,16 @@ export function HilMemoDrawer({
   const focusRingClass =
     'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
   const renderViewRecordsButton = (targetId) => (
-    <button
-      type="button"
-      onClick={() => onSelectInbox?.(targetId)}
-      aria-label="Jump to records"
-      title="Jump to records page"
-      className={`rounded-full border border-border/30 bg-background/40 p-1.5 text-muted-foreground/60 transition hover:text-foreground hover:border-primary/40 hover:bg-primary/10 ${focusRingClass}`}
-    >
-      <ArrowUpRight size={12} />
-    </button>
+    <Tooltip label="Jump to records page" side="left">
+      <button
+        type="button"
+        onClick={() => onSelectInbox?.(targetId)}
+        aria-label="Jump to records"
+        className={`rounded-full border border-border/30 bg-background/40 p-1.5 text-muted-foreground/60 transition hover:text-foreground hover:border-primary/40 hover:bg-primary/10 ${focusRingClass}`}
+      >
+        <ArrowUpRight size={12} />
+      </button>
+    </Tooltip>
   );
 
   return (
@@ -148,12 +150,18 @@ function MemoShortcutCard({
     'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
   return (
     <div
-      className={`rounded-2xl transition-all duration-300 ring-1 ring-inset ${
+      className={`relative rounded-2xl transition-all duration-300 ring-1 ring-inset ${
         active
           ? 'ring-primary/35 bg-card/60 shadow-[0_12px_30px_rgba(15,23,42,0.35)]'
           : 'ring-border/20 bg-card/40 hover:ring-primary/25 hover:bg-card/55'
       }`}
     >
+      {active ? (
+        <span
+          aria-hidden="true"
+          className="absolute left-1 top-3 bottom-3 w-0.5 rounded-full bg-primary/50 shadow-[0_0_8px_rgba(59,130,246,0.35)]"
+        />
+      ) : null}
       <div
         role={active ? 'button' : undefined}
         tabIndex={active ? 0 : -1}
@@ -189,8 +197,9 @@ function MemoShortcutCard({
         </span>
         <span className="flex items-center gap-2">
           {active ? (
-            <span className="rounded-full border border-primary/40 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-primary">
-              Active
+            <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-primary">
+              <ArrowLeft size={10} />
+              In Inbox
             </span>
           ) : null}
           {actions}
