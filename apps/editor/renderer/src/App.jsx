@@ -1940,19 +1940,29 @@ function App() {
       if (!actionId) {
         return;
       }
-      handleSwitchView('memo');
-      setHilDrawerOpen(true);
+      if (actionId === 'view.agents') {
+        handleSwitchView('agent-cells');
+        return;
+      }
+      if (actionId === 'view.explorer') {
+        handleSwitchView('explorer');
+        return;
+      }
       if (actionId === 'capture.screenshot') {
+        handleSwitchView('memo');
+        setHilDrawerOpen(true);
         handleOpenMemoInbox('screenshot');
         handleCaptureScreenshot?.();
         return;
       }
       if (actionId === 'memo.voice') {
+        handleSwitchView('memo');
+        setHilDrawerOpen(true);
         handleOpenMemoInbox('flash');
         flashVoice?.start?.();
       }
     },
-    [flashVoice, handleCaptureScreenshot, handleOpenMemoInbox, handleSwitchView]
+    [flashVoice, handleCaptureScreenshot, handleOpenMemoInbox, handleSwitchView, setHilDrawerOpen]
   );
   useEffect(() => {
     const unsubscribe = subscribeAppShortcutTriggered?.(handleAppShortcutTriggered);

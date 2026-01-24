@@ -17,6 +17,16 @@ const APP_SHORTCUT_CATALOG = [
     defaultEnabled: false,
     defaultShortcut: '',
   },
+  {
+    id: 'view.agents',
+    defaultEnabled: true,
+    defaultShortcut: 'CmdOrCtrl+Shift+A',
+  },
+  {
+    id: 'view.explorer',
+    defaultEnabled: true,
+    defaultShortcut: 'CmdOrCtrl+Shift+E',
+  },
 ];
 
 const PROJECT_FILENAMES = ['app-shortcuts.yaml', 'app-shortcuts.yml'];

@@ -15,6 +15,22 @@ export const APP_SHORTCUTS_CATALOG = [
     defaultEnabled: false,
     category: 'Memo',
   },
+  {
+    id: 'view.agents',
+    label: 'Agents View',
+    description: 'Jump to the Agents workspace.',
+    defaultShortcut: 'CmdOrCtrl+Shift+A',
+    defaultEnabled: true,
+    category: 'Navigation',
+  },
+  {
+    id: 'view.explorer',
+    label: 'Explorer View',
+    description: 'Jump to the Explorer workspace.',
+    defaultShortcut: 'CmdOrCtrl+Shift+E',
+    defaultEnabled: true,
+    category: 'Navigation',
+  },
 ];
 
 const normalizeId = (value, fallback) => {

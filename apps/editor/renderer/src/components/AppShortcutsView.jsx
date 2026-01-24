@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Camera, Mic, Command, RotateCcw, Check } from 'lucide-react';
+import { AlertCircle, Camera, Mic, Command, RotateCcw, Check, Users, FolderOpen } from 'lucide-react';
 
 const scopeLabels = {
   global: 'Global',
@@ -10,6 +10,8 @@ const scopeLabels = {
 const ACTION_ICONS = {
   'capture.screenshot': Camera,
   'memo.voice': Mic,
+  'view.agents': Users,
+  'view.explorer': FolderOpen,
 };
 
 const focusRingClass =
