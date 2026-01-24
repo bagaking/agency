@@ -1,5 +1,7 @@
 import React from 'react';
+import { Check, Loader2 } from 'lucide-react';
 import { VoiceCaptureControl } from './VoiceCaptureControl.jsx';
+import { Tooltip } from '../../ui/Tooltip.jsx';
 
 export function FlashCaptureCard({
   value,
@@ -10,7 +12,10 @@ export function FlashCaptureCard({
   voiceSegments,
   inputRef,
 }) {
+  const focusRingClass =
+    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
   const audio = voice?.audio;
+  const saveLabel = loading ? 'Saving…' : 'Save flash memo';
   return (
     <div className="flex flex-col gap-3">
       {voice ? <VoiceCaptureControl voice={voice} segments={voiceSegments} /> : null}
@@ -39,14 +44,17 @@ export function FlashCaptureCard({
       />
       <div className="flex items-center justify-between text-[10px] text-muted-foreground/50">
         <span>{value.trim() ? 'Ready to save.' : 'Keep it short and direct.'}</span>
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={loading || !value.trim()}
-          className="rounded-md bg-primary px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
-        >
-          {loading ? 'Saving...' : 'Save Flash'}
-        </button>
+        <Tooltip label={saveLabel} side="left">
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={loading || !value.trim()}
+            aria-label={saveLabel}
+            className={`inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50 ${focusRingClass}`}
+          >
+            {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+          </button>
+        </Tooltip>
       </div>
     </div>
   );

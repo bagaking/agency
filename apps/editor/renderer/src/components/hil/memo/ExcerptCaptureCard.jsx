@@ -1,4 +1,6 @@
 import React from 'react';
+import { Check, ArrowDownToLine, Loader2 } from 'lucide-react';
+import { Tooltip } from '../../ui/Tooltip.jsx';
 
 export function ExcerptCaptureCard({
   url,
@@ -15,6 +17,10 @@ export function ExcerptCaptureCard({
 }) {
   const hasPreview = Boolean(preview?.summary || preview?.excerpt || preview?.title || preview?.text);
   const canFetch = Boolean(url?.trim());
+  const focusRingClass =
+    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
+  const fetchLabel = fetching ? 'Fetching…' : 'Fetch preview';
+  const saveLabel = loading ? 'Saving…' : 'Save excerpt';
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-start justify-between gap-4">
@@ -27,22 +33,28 @@ export function ExcerptCaptureCard({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onFetch}
-            disabled={fetching || !canFetch}
-            className="inline-flex h-7 items-center rounded-md border border-primary/40 bg-primary/5 px-3 text-[10px] font-semibold uppercase tracking-widest text-primary transition-all hover:bg-primary/10 disabled:opacity-50"
-          >
-            {fetching ? 'Fetching...' : 'Fetch'}
-          </button>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={loading || fetching || !hasPreview}
-            className="inline-flex h-7 items-center rounded-md bg-primary px-3 text-[10px] font-semibold uppercase tracking-widest text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
-          >
-            {loading ? 'Saving...' : 'Save Excerpt'}
-          </button>
+          <Tooltip label={fetchLabel} side="left">
+            <button
+              type="button"
+              onClick={onFetch}
+              disabled={fetching || !canFetch}
+              aria-label={fetchLabel}
+              className={`inline-flex h-7 w-7 items-center justify-center rounded-md border border-primary/40 bg-primary/5 text-primary transition-all hover:bg-primary/10 disabled:opacity-50 ${focusRingClass}`}
+            >
+              {fetching ? <Loader2 size={14} className="animate-spin" /> : <ArrowDownToLine size={14} />}
+            </button>
+          </Tooltip>
+          <Tooltip label={saveLabel} side="left">
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={loading || fetching || !hasPreview}
+              aria-label={saveLabel}
+              className={`inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50 ${focusRingClass}`}
+            >
+              {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+            </button>
+          </Tooltip>
         </div>
       </div>
       <input
