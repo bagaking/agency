@@ -48,29 +48,38 @@ export function HilMemoSidebar({
             </div>
           </div>
           <Tooltip label="Refresh repository">
-            <button 
-              onClick={refresh} 
-              className="shrink-0 p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground/40 hover:text-foreground transition-all"
+            <button
+              type="button"
+              onClick={refresh}
+              aria-label="Refresh repository"
+              className="shrink-0 p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground/40 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar"
             >
-              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
             </button>
           </Tooltip>
         </div>
 
         <div className="relative group">
-          <Search size={12} strokeWidth={2} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
-          <input 
+          <Search size={12} strokeWidth={2} aria-hidden="true" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
+          <input
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search repository..."
-            className="w-full rounded-full border border-border/40 bg-muted/10 px-8 py-1.5 text-[11px] text-foreground transition-all placeholder:text-muted-foreground/30 focus:bg-background focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
+            type="search"
+            name="hil-search"
+            autoComplete="off"
+            spellCheck={false}
+            aria-label="Search repository"
+            placeholder="Search repository…"
+            className="w-full rounded-full border border-border/40 bg-muted/10 px-8 py-1.5 text-[11px] text-foreground transition-colors placeholder:text-muted-foreground/30 focus:bg-background focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
           />
           {searchQuery && (
-            <button 
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-foreground" 
+            <button
+              type="button"
+              aria-label="Clear search"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar rounded"
               onClick={() => onSearchChange('')}
             >
-              <X size={12} strokeWidth={1.5} />
+              <X size={12} strokeWidth={1.5} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -112,14 +121,14 @@ export function HilMemoSidebar({
                 key={section.id}
                 type="button"
                 onClick={() => onDockSelectionChange({ type: 'inbox', inboxType: section.id, draftId: null })}
-                className={`flex w-full items-center justify-between px-4 py-1.5 text-left text-[11px] transition-all border-l-2 ${
+                className={`flex w-full items-center justify-between px-4 py-1.5 text-left text-[11px] transition-colors border-l-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar ${
                   active
                     ? 'bg-sidebar-accent text-primary border-primary font-medium shadow-[inset_0_0_10px_rgba(59,130,246,0.02)]'
                     : 'text-muted-foreground/70 hover:text-foreground border-transparent hover:bg-sidebar-accent/30'
                 }`}
               >
                 <span className="flex items-center gap-2.5 truncate">
-                  <Icon size={12} className={active ? 'text-primary' : 'text-muted-foreground/40'} />
+                  <Icon size={12} aria-hidden="true" className={active ? 'text-primary' : 'text-muted-foreground/40'} />
                   <span className="truncate">{section.label}</span>
                 </span>
                 <span className="text-[9px] font-mono opacity-30 shrink-0">
@@ -147,7 +156,7 @@ export function HilMemoSidebar({
                 key={item.id}
                 type="button"
                 onClick={() => onDockSelectionChange({ type: 'draft', draftId: item.id })}
-                className={`flex w-full flex-col gap-0.5 px-4 py-2.5 text-left transition-all border-l-2 ${
+                className={`flex w-full flex-col gap-0.5 px-4 py-2.5 text-left transition-colors border-l-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar ${
                   dockSelection.type === 'draft' && dockSelection.draftId === item.id
                     ? 'bg-sidebar-accent text-primary border-primary shadow-[inset_0_0_10px_rgba(59,130,246,0.02)]'
                     : 'text-muted-foreground/70 hover:text-foreground border-transparent hover:bg-sidebar-accent/30'
@@ -160,7 +169,7 @@ export function HilMemoSidebar({
                   <span className="text-[9px] uppercase tracking-wider opacity-40 truncate font-medium">
                       {item.status}
                   </span>
-                  <Layers size={10} className="opacity-10 shrink-0" />
+                  <Layers size={10} aria-hidden="true" className="opacity-10 shrink-0" />
                 </div>
               </button>
             ))
@@ -177,11 +186,12 @@ export function HilMemoSidebar({
   );
 }
 
-function FilterChip({ label, value, options, onChange, align = 'left' }) {
+  function FilterChip({ label, value, options, onChange, align = 'left' }) {
     const [open, setOpen] = useState(false);
     const containerRef = useRef(null);
     const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
     const activeLabel = options.find(o => o.value === value)?.label || value;
+    const menuId = `filter-${label.replace(/\s+/g, '-').toLowerCase()}`;
 
     useEffect(() => {
         if (!open) return;
@@ -220,7 +230,10 @@ function FilterChip({ label, value, options, onChange, align = 'left' }) {
             <button
                 type="button"
                 onClick={() => setOpen(!open)}
-                className={`flex items-center gap-1.5 px-2 py-1 rounded-md border transition-all text-[10px] ${
+                aria-haspopup="listbox"
+                aria-expanded={open}
+                aria-controls={open ? menuId : undefined}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors transition-shadow text-[10px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar ${
                     open 
                     ? 'bg-background border-primary/40 text-foreground shadow-sm' 
                     : 'bg-muted/10 border-border/40 text-muted-foreground/60 hover:border-border hover:text-foreground'
@@ -228,7 +241,7 @@ function FilterChip({ label, value, options, onChange, align = 'left' }) {
             >
                 <span className="opacity-40 font-bold uppercase tracking-tighter text-[8px]">{label}</span>
                 <span className="font-medium truncate max-w-[60px]">{activeLabel}</span>
-                <ChevronDown size={8} className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+                <ChevronDown size={8} aria-hidden="true" className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
             </button>
 
             {open && createPortal(
@@ -240,6 +253,9 @@ function FilterChip({ label, value, options, onChange, align = 'left' }) {
                         width: dropdownPos.width,
                         zIndex: 9999
                     }}
+                    id={menuId}
+                    role="listbox"
+                    aria-label={`${label} filter`}
                     className={`bg-popover border border-border rounded-lg shadow-2xl py-1 overflow-hidden backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-100 ${align === 'right' ? 'origin-top-right' : 'origin-top-left'}`}
                 >
                     {options.map((opt) => (
@@ -250,12 +266,14 @@ function FilterChip({ label, value, options, onChange, align = 'left' }) {
                                 onChange(opt.value);
                                 setOpen(false);
                             }}
+                            role="option"
+                            aria-selected={value === opt.value}
                             className={`flex w-full items-center justify-between px-3 py-1.5 text-[11px] hover:bg-primary/10 transition-colors ${
                                 value === opt.value ? 'text-primary bg-primary/5 font-medium' : 'text-muted-foreground'
                             }`}
                         >
                             <span>{opt.label}</span>
-                            {value === opt.value && <Check size={10} />}
+                            {value === opt.value && <Check size={10} aria-hidden="true" />}
                         </button>
                     ))}
                 </div>,
