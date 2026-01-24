@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plus, RefreshCw, FolderOpen, Archive } from 'lucide-react';
 import { stateBadge, formatTime } from './actionSheetUi.js';
+import { Tooltip } from '../ui/Tooltip.jsx';
 
 export function ActionSheetsSidebar({
   projectReady,
@@ -15,6 +16,8 @@ export function ActionSheetsSidebar({
 }) {
   const hasRunning = sheets.some((sheet) => sheet.state === 'running' || sheet.state === 'waiting_gate');
   const archivedCount = sheets.filter((sheet) => sheet.archived).length;
+  const focusRingClass =
+    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
 
   if (!projectReady) {
     return (
@@ -37,38 +40,52 @@ export function ActionSheetsSidebar({
             {sheets.length} total
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onCreateSheet}
-          className="rounded-md border border-sidebar-border px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all"
-        >
-          <Plus size={12} />
-        </button>
+        <Tooltip label="Create action sheet" side="left">
+          <button
+            type="button"
+            onClick={onCreateSheet}
+            aria-label="Create action sheet"
+            className={`inline-flex h-7 w-7 items-center justify-center rounded-md border border-sidebar-border text-muted-foreground transition-colors hover:text-foreground hover:border-primary/40 ${focusRingClass}`}
+          >
+            <Plus size={12} aria-hidden="true" />
+          </button>
+        </Tooltip>
       </div>
 
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-sidebar-border/50 bg-sidebar/50">
-        <button
-          type="button"
-          onClick={onRefreshList}
-          className="flex items-center gap-1 text-[10px] text-muted-foreground/60 hover:text-foreground transition-colors"
-        >
-          <RefreshCw size={10} className={loading ? 'animate-spin' : ''} />
-          Refresh
-        </button>
-        <button
-          type="button"
-          onClick={onToggleArchived}
-          className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[9px] uppercase tracking-[0.2em] transition-colors ${
+        <Tooltip label="Refresh list" side="bottom">
+          <button
+            type="button"
+            onClick={onRefreshList}
+            aria-label="Refresh list"
+            className={`inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:text-foreground ${focusRingClass}`}
+          >
+            <RefreshCw size={10} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
+          </button>
+        </Tooltip>
+        <Tooltip
+          label={
             showArchived
-              ? 'border-primary/40 text-primary'
-              : 'border-transparent text-muted-foreground/60 hover:text-foreground'
-          }`}
+              ? `Hide archived${archivedCount ? ` (${archivedCount})` : ''}`
+              : `Show archived${archivedCount ? ` (${archivedCount})` : ''}`
+          }
+          side="bottom"
         >
-          <Archive size={10} />
-          {showArchived ? 'Hide archived' : 'Show archived'}
-          {showArchived && archivedCount ? ` (${archivedCount})` : ''}
-        </button>
+          <button
+            type="button"
+            onClick={onToggleArchived}
+            aria-pressed={showArchived}
+            aria-label={showArchived ? 'Hide archived' : 'Show archived'}
+            className={`inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors ${focusRingClass} ${
+              showArchived
+                ? 'border-primary/40 text-primary'
+                : 'border-transparent text-muted-foreground/60 hover:text-foreground hover:border-sidebar-border'
+            }`}
+          >
+            <Archive size={10} aria-hidden="true" />
+          </button>
+        </Tooltip>
         {hasRunning && (
           <div className="flex items-center gap-1.5">
             <span className="relative flex h-1.5 w-1.5">
