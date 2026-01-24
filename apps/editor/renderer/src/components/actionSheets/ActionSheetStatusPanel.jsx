@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { stateBadge, gateBadge, formatTime, resolveActionSheetLabel } from './actionSheetUi.js';
 import { useModal } from '../modals/ModalSystem.jsx';
+import { Tooltip } from '../ui/Tooltip.jsx';
 
 const resolveDispatchLabel = (state) => {
   if (state === 'failed' || state === 'completed' || state === 'canceled') {
@@ -52,6 +53,8 @@ export function ActionSheetStatusPanel({
   const title = resolveActionSheetLabel(sheet);
   const isArchived = Boolean(sheet.archived);
   const modal = useModal();
+  const focusRingClass =
+    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
 
   const handleDelete = async () => {
     if (!sheet.id || !onDeleteSheet) {
@@ -88,14 +91,16 @@ export function ActionSheetStatusPanel({
           </div>
         </div>
         {onOpenPanel ? (
-          <button
-            type="button"
-            onClick={() => onOpenPanel?.(sheet.id)}
-            className="rounded-md border border-border/30 px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground"
-          >
-            <ExternalLink size={12} className="inline mr-1" />
-            Open
-          </button>
+          <Tooltip label="Open action sheet panel" side="left">
+            <button
+              type="button"
+              onClick={() => onOpenPanel?.(sheet.id)}
+              aria-label="Open action sheet panel"
+              className={`inline-flex h-7 w-7 items-center justify-center rounded-md border border-border/30 text-muted-foreground transition-colors hover:text-foreground hover:border-primary/40 ${focusRingClass}`}
+            >
+              <ExternalLink size={12} aria-hidden="true" />
+            </button>
+          </Tooltip>
         ) : null}
       </div>
 
@@ -127,7 +132,7 @@ export function ActionSheetStatusPanel({
           <select
             value={currentSessionId}
             onChange={(event) => onSelectSession?.(event.target.value)}
-            className="flex-1 rounded-md border border-border/20 bg-background px-2 py-1.5 text-[11px] text-foreground focus:border-primary/40 focus:outline-none"
+            className={`flex-1 rounded-md border border-border/20 bg-background px-2 py-1.5 text-[11px] text-foreground transition-colors hover:border-border/40 focus:border-primary/40 focus:outline-none ${focusRingClass}`}
           >
             <option value="">Select session...</option>
             {availableSessions.map((session) => (
@@ -136,90 +141,110 @@ export function ActionSheetStatusPanel({
               </option>
             ))}
           </select>
-          <button
-            type="button"
-            onClick={() => onDispatchSheet?.(sheet.id, currentSessionId)}
-            disabled={!canDispatch}
-            className="rounded-md bg-primary px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-60"
-          >
-            <Play size={12} className="inline mr-1" />
-            {dispatchLabel}
-          </button>
-          <button
-            type="button"
-            onClick={() => onViewSession?.(currentSessionId)}
-            disabled={!currentSessionId}
-            className="rounded-md border border-border/30 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground disabled:opacity-50"
-          >
-            <Terminal size={12} className="inline mr-1" />
-            View
-          </button>
-        </div>
-      ) : (
-        <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground/70">
-          <div className="flex items-center gap-2">
-            <Terminal size={12} />
-            <span>{currentSessionId || 'No session bound'}</span>
-          </div>
-          <div className="flex items-center gap-2">
+          <Tooltip label={`${dispatchLabel} action sheet`} side="bottom">
             <button
               type="button"
               onClick={() => onDispatchSheet?.(sheet.id, currentSessionId)}
               disabled={!canDispatch}
-              className="rounded-md bg-primary px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-60"
+              aria-label={`${dispatchLabel} action sheet`}
+              className={`inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60 ${focusRingClass}`}
             >
-              <Play size={12} className="inline mr-1" />
-              {dispatchLabel}
+              <Play size={12} aria-hidden="true" />
             </button>
+          </Tooltip>
+          <Tooltip label="View session" side="bottom">
             <button
               type="button"
               onClick={() => onViewSession?.(currentSessionId)}
               disabled={!currentSessionId}
-              className="rounded-md border border-border/30 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground disabled:opacity-50"
+              aria-label="View session"
+              className={`inline-flex h-7 w-7 items-center justify-center rounded-md border border-border/30 text-muted-foreground transition-colors hover:text-foreground hover:border-primary/40 disabled:opacity-50 ${focusRingClass}`}
             >
-              <Terminal size={12} className="inline mr-1" />
-              View
+              <Terminal size={12} aria-hidden="true" />
             </button>
+          </Tooltip>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground/70">
+          <div className="flex items-center gap-2">
+            <Terminal size={12} aria-hidden="true" />
+            <span>{currentSessionId || 'No session bound'}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Tooltip label={`${dispatchLabel} action sheet`} side="bottom">
+              <button
+                type="button"
+                onClick={() => onDispatchSheet?.(sheet.id, currentSessionId)}
+                disabled={!canDispatch}
+                aria-label={`${dispatchLabel} action sheet`}
+                className={`inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60 ${focusRingClass}`}
+              >
+                <Play size={12} aria-hidden="true" />
+              </button>
+            </Tooltip>
+            <Tooltip label="View session" side="bottom">
+              <button
+                type="button"
+                onClick={() => onViewSession?.(currentSessionId)}
+                disabled={!currentSessionId}
+                aria-label="View session"
+                className={`inline-flex h-7 w-7 items-center justify-center rounded-md border border-border/30 text-muted-foreground transition-colors hover:text-foreground hover:border-primary/40 disabled:opacity-50 ${focusRingClass}`}
+              >
+                <Terminal size={12} aria-hidden="true" />
+              </button>
+            </Tooltip>
           </div>
         </div>
       )}
 
       <div className="flex items-center gap-2">
         {onRefreshChecks ? (
+          <Tooltip label="Refresh checks" side="bottom">
+            <button
+              type="button"
+              onClick={() => onRefreshChecks?.(sheet.id)}
+              aria-label="Refresh checks"
+              className={`inline-flex h-7 w-7 items-center justify-center rounded-md border border-border/30 text-muted-foreground transition-colors hover:text-foreground hover:border-primary/40 ${focusRingClass}`}
+            >
+              <RefreshCw size={12} aria-hidden="true" />
+            </button>
+          </Tooltip>
+        ) : null}
+        <Tooltip label="Cancel dispatch" side="bottom">
           <button
             type="button"
-            onClick={() => onRefreshChecks?.(sheet.id)}
-            className="rounded-md border border-border/30 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground"
+            onClick={() => onCancelSheet?.(sheet.id)}
+            disabled={!canCancel}
+            aria-label="Cancel dispatch"
+            className={`inline-flex h-7 w-7 items-center justify-center rounded-md border border-border/30 text-muted-foreground transition-colors hover:text-foreground hover:border-primary/40 disabled:opacity-50 ${focusRingClass}`}
           >
-            <RefreshCw size={12} />
+            <PauseCircle size={12} aria-hidden="true" />
           </button>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => onCancelSheet?.(sheet.id)}
-          disabled={!canCancel}
-          className="rounded-md border border-border/30 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground disabled:opacity-50"
-        >
-          <PauseCircle size={12} />
-        </button>
+        </Tooltip>
         {showManagement ? (
           <>
-            <button
-              type="button"
-              onClick={() => onArchiveSheet?.(sheet.id)}
-              disabled={isArchived || !onArchiveSheet}
-              className="rounded-md border border-border/30 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground disabled:opacity-50"
-            >
-              <Archive size={12} />
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={!onDeleteSheet}
-              className="rounded-md border border-rose-500/40 px-2 py-1 text-[10px] text-rose-300 hover:text-rose-200 disabled:opacity-50"
-            >
-              <Trash2 size={12} />
-            </button>
+            <Tooltip label={isArchived ? 'Already archived' : 'Archive action sheet'} side="bottom">
+              <button
+                type="button"
+                onClick={() => onArchiveSheet?.(sheet.id)}
+                disabled={isArchived || !onArchiveSheet}
+                aria-label="Archive action sheet"
+                className={`inline-flex h-7 w-7 items-center justify-center rounded-md border border-border/30 text-muted-foreground transition-colors hover:text-foreground hover:border-primary/40 disabled:opacity-50 ${focusRingClass}`}
+              >
+                <Archive size={12} aria-hidden="true" />
+              </button>
+            </Tooltip>
+            <Tooltip label="Delete action sheet" side="bottom">
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={!onDeleteSheet}
+                aria-label="Delete action sheet"
+                className={`inline-flex h-7 w-7 items-center justify-center rounded-md border border-rose-500/40 text-rose-300 transition-colors hover:text-rose-200 hover:border-rose-500/60 disabled:opacity-50 ${focusRingClass}`}
+              >
+                <Trash2 size={12} aria-hidden="true" />
+              </button>
+            </Tooltip>
           </>
         ) : null}
       </div>
