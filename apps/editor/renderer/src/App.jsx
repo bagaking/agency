@@ -397,6 +397,7 @@ function App() {
     clearError: clearTerminusError,
   } = useTerminusSettings({ selectedCell: scopedCell, terminusScope: actionsScope });
   const {
+    resolvedActions: appShortcutResolvedActions,
     actionRows: appShortcutRows,
     scopeDisabled: appShortcutsScopeDisabled,
     projectSettingsPath: appShortcutsProjectPath,
@@ -416,6 +417,10 @@ function App() {
     appShortcutsScope,
     userDataPath,
   });
+  const memoVoiceShortcut = useMemo(() => {
+    const action = (appShortcutResolvedActions || []).find((entry) => entry.id === 'memo.voice');
+    return action?.shortcut || '';
+  }, [appShortcutResolvedActions]);
   const {
     gateRows,
     gateScopeDisabled,
@@ -1998,6 +2003,7 @@ function App() {
     onSaveFlash: memoCapture.handleCreateFlash,
     flashVoice: memoCapture.flashVoice,
     flashVoiceSegments: memoCapture.flashVoiceSegments,
+    flashVoiceShortcut: memoVoiceShortcut,
     excerptUrl: memoCapture.excerptUrl,
     onExcerptUrlChange: memoCapture.setExcerptUrl,
     onFetchExcerpt: memoCapture.handleFetchExcerpt,

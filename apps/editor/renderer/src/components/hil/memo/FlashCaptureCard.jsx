@@ -11,6 +11,7 @@ export function FlashCaptureCard({
   voice,
   voiceSegments,
   inputRef,
+  voiceShortcut,
 }) {
   const focusRingClass =
     'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
@@ -18,7 +19,9 @@ export function FlashCaptureCard({
   const saveLabel = loading ? 'Saving…' : 'Save flash memo';
   return (
     <div className="flex flex-col gap-3">
-      {voice ? <VoiceCaptureControl voice={voice} segments={voiceSegments} /> : null}
+      {voice ? (
+        <VoiceCaptureControl voice={voice} segments={voiceSegments} shortcut={voiceShortcut} />
+      ) : null}
       {audio?.previewUrl ? (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-border/20 bg-muted/10 px-3 py-2">
           <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">

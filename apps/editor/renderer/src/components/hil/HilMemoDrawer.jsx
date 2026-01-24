@@ -14,6 +14,7 @@ export function HilMemoDrawer({
   onSaveFlash,
   flashVoice,
   flashVoiceSegments,
+  flashVoiceShortcut,
   excerptUrl,
   onExcerptUrlChange,
   onFetchExcerpt,
@@ -73,6 +74,7 @@ export function HilMemoDrawer({
             onSave={onSaveFlash}
             voice={flashVoice}
             voiceSegments={flashVoiceSegments}
+            voiceShortcut={flashVoiceShortcut}
             loading={captureLoading}
           />
         </MemoShortcutCard>

@@ -75,6 +75,7 @@
 - VoiceCaptureControl 采用独立卡片式布局，顶部一行展示状态与控制，减少纵向占用。
 - 语言选择与 Start/Stop 控制同一行靠右，状态信息单行截断。
 - 实时转写区域作为可滚动的子卡片，避免占用过多空间。
+- 语音输入标识使用图标 + tooltip，Start/Stop hover 展示当前快捷键。
 - 错误提示使用弱化背景，并保留“Open System Settings”入口。
 
 ## 常见坑 / 原因 / 解决 / 预防
