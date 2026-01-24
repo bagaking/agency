@@ -71,6 +71,12 @@
 - 交互 UI：`apps/editor/renderer/src/components/hil/memo/VoiceCaptureControl.jsx`
 - Memo 组装逻辑：`apps/editor/renderer/src/hooks/useHilMemoCaptureState.js`
 
+## UI 交互约定（Memo Voice Input）
+- VoiceCaptureControl 采用独立卡片式布局，顶部一行展示状态与控制，减少纵向占用。
+- 语言选择与 Start/Stop 控制同一行靠右，状态信息单行截断。
+- 实时转写区域作为可滚动的子卡片，避免占用过多空间。
+- 错误提示使用弱化背景，并保留“Open System Settings”入口。
+
 ## 常见坑 / 原因 / 解决 / 预防
 1) Rescore 中断实时识别
 - 原因：同进程并行识别任务互相打断。
