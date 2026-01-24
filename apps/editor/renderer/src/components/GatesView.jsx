@@ -11,6 +11,7 @@ import {
   AlertCircle,
   Info,
 } from 'lucide-react';
+import { Tooltip } from './ui/Tooltip.jsx';
 
 const scopeLabels = {
   global: 'Global',
@@ -60,6 +61,8 @@ export function GatesView({
   onSaveGates,
 }) {
   const [expandedId, setExpandedId] = useState(null);
+  const focusRingClass =
+    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
 
   const scopeLabel = formatScope(scope);
   const scopeHint =
@@ -99,24 +102,28 @@ export function GatesView({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onAddGate}
-            disabled={scopeDisabled}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-primary/60 hover:text-primary transition-all disabled:opacity-50"
-          >
-            <Plus size={14} />
-            New
-          </button>
-          <button
-            type="button"
-            onClick={onSaveGates}
-            disabled={saving || scopeDisabled}
-            className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-all shadow-sm shadow-primary/20 disabled:opacity-50"
-          >
-            <Save size={14} />
-            {saving ? 'Saving...' : 'Save'}
-          </button>
+          <Tooltip label="New gate" side="left">
+            <button
+              type="button"
+              onClick={onAddGate}
+              disabled={scopeDisabled}
+              aria-label="New gate"
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary disabled:opacity-50 ${focusRingClass}`}
+            >
+              <Plus size={14} aria-hidden="true" />
+            </button>
+          </Tooltip>
+          <Tooltip label={saving ? 'Saving gates…' : 'Save gates'} side="left">
+            <button
+              type="button"
+              onClick={onSaveGates}
+              disabled={saving || scopeDisabled}
+              aria-label={saving ? 'Saving gates' : 'Save gates'}
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 shadow-sm shadow-primary/20 disabled:opacity-50 ${focusRingClass}`}
+            >
+              <Save size={14} aria-hidden="true" />
+            </button>
+          </Tooltip>
         </div>
       </header>
 
@@ -164,6 +171,10 @@ export function GatesView({
               const parentScope = meta.parentScope ? formatScope(meta.parentScope) : '';
 
               const resetLabel = meta.hasParent && scope !== 'global' ? 'Reset' : 'Remove';
+              const resetTooltip =
+                meta.hasParent && scope !== 'global'
+                  ? `Reset to ${parentScope || 'parent scope'}`
+                  : 'Remove gate';
               const commandsText = Array.isArray(gate.commands) ? gate.commands.join('\n') : '';
 
               return (
@@ -233,36 +244,40 @@ export function GatesView({
                         </div>
                         <div className="flex items-end justify-end pb-0.5">
                           {!isLocal ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onOverrideGate?.(gate.id);
-                              }}
-                              disabled={scopeDisabled}
-                              className="inline-flex items-center gap-1.5 rounded border border-primary/30 px-3 py-1.5 text-[11px] font-bold text-primary hover:bg-primary/5 transition-all disabled:opacity-50"
-                            >
-                              <CopyPlus size={14} />
-                              Override to {scopeLabel}
-                            </button>
+                            <Tooltip label={`Override to ${scopeLabel}`} side="left">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onOverrideGate?.(gate.id);
+                                }}
+                                disabled={scopeDisabled}
+                                aria-label={`Override to ${scopeLabel}`}
+                                className={`inline-flex h-8 w-8 items-center justify-center rounded-md border border-primary/30 text-primary transition-colors hover:bg-primary/5 disabled:opacity-50 ${focusRingClass}`}
+                              >
+                                <CopyPlus size={14} aria-hidden="true" />
+                              </button>
+                            </Tooltip>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                meta.hasParent && scope !== 'global'
-                                  ? onResetGate?.(gate.id)
-                                  : onRemoveGate?.(gate.id);
-                              }}
-                              className="inline-flex items-center gap-1.5 rounded border border-rose-500/30 px-3 py-1.5 text-[11px] font-bold text-rose-400 hover:bg-rose-500/5 transition-all"
-                            >
-                              {meta.hasParent && scope !== 'global' ? (
-                                <RotateCcw size={14} />
-                              ) : (
-                                <Trash2 size={14} />
-                              )}
-                              {resetLabel}
-                            </button>
+                            <Tooltip label={resetTooltip} side="left">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  meta.hasParent && scope !== 'global'
+                                    ? onResetGate?.(gate.id)
+                                    : onRemoveGate?.(gate.id);
+                                }}
+                                aria-label={resetTooltip}
+                                className={`inline-flex h-8 w-8 items-center justify-center rounded-md border border-rose-500/30 text-rose-400 transition-colors hover:bg-rose-500/5 ${focusRingClass}`}
+                              >
+                                {meta.hasParent && scope !== 'global' ? (
+                                  <RotateCcw size={14} aria-hidden="true" />
+                                ) : (
+                                  <Trash2 size={14} aria-hidden="true" />
+                                )}
+                              </button>
+                            </Tooltip>
                           )}
                         </div>
                       </div>
