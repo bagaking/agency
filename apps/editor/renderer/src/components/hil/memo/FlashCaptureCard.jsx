@@ -31,7 +31,7 @@ export function FlashCaptureCard({
           <button
             type="button"
             onClick={() => voice?.clearAudio?.()}
-            className="rounded-md border border-border/30 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/70 hover:border-primary/40 hover:text-foreground"
+            className={`rounded-md border border-border/30 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/70 hover:border-primary/40 hover:text-foreground ${focusRingClass}`}
           >
             Clear
           </button>
@@ -42,8 +42,11 @@ export function FlashCaptureCard({
         value={value}
         onChange={(event) => onChange?.(event.target.value)}
         rows={3}
-        placeholder="Write a flash memo..."
-        className="w-full resize-none rounded-lg border border-border/20 bg-background px-3 py-2.5 text-[12px] text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-all"
+        placeholder="Write a flash memo…"
+        aria-label="Flash memo"
+        name="flash-memo"
+        autoComplete="off"
+        className="w-full resize-none rounded-lg border border-border/20 bg-background px-3 py-2.5 text-[12px] text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-colors"
       />
       <div className="flex items-center justify-between text-[10px] text-muted-foreground/50">
         <span>{value.trim() ? 'Ready to save.' : 'Keep it short and direct.'}</span>

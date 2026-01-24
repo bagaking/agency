@@ -60,9 +60,14 @@ export function ExcerptCaptureCard({
       <input
         ref={urlInputRef}
         value={url || ''}
+        type="url"
+        inputMode="url"
         onChange={(event) => onUrlChange?.(event.target.value)}
         placeholder="https://example.com/article"
-        className="h-9 rounded-md border border-border/20 bg-background px-3 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary/30 focus:outline-none transition-all"
+        aria-label="Excerpt source URL"
+        name="excerpt-url"
+        autoComplete="off"
+        className="h-9 rounded-md border border-border/20 bg-background px-3 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary/30 focus:outline-none transition-colors"
       />
       <div className="rounded-lg border border-border/10 bg-background/60 p-3 text-[11px] text-muted-foreground/70 whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar">
         {hasPreview ? (
@@ -86,8 +91,11 @@ export function ExcerptCaptureCard({
         ref={noteInputRef}
         value={note || ''}
         onChange={(event) => onNoteChange?.(event.target.value)}
-        placeholder="Optional note about this excerpt..."
-        className="h-9 rounded-md border border-border/20 bg-background px-3 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary/30 focus:outline-none transition-all"
+        placeholder="Optional note about this excerpt…"
+        aria-label="Excerpt note"
+        name="excerpt-note"
+        autoComplete="off"
+        className="h-9 rounded-md border border-border/20 bg-background px-3 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary/30 focus:outline-none transition-colors"
       />
     </div>
   );

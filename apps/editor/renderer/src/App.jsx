@@ -421,6 +421,10 @@ function App() {
     const action = (appShortcutResolvedActions || []).find((entry) => entry.id === 'memo.voice');
     return action?.shortcut || '';
   }, [appShortcutResolvedActions]);
+  const screenshotShortcut = useMemo(() => {
+    const action = (appShortcutResolvedActions || []).find((entry) => entry.id === 'capture.screenshot');
+    return action?.shortcut || '';
+  }, [appShortcutResolvedActions]);
   const {
     gateRows,
     gateScopeDisabled,
@@ -2019,6 +2023,7 @@ function App() {
     onCaptureScreenshot: memoCapture.handleCaptureScreenshot,
     onOpenRouting: memoCapture.handleOpenRouting,
     captureLoading: memoCapture.captureLoading,
+    screenshotShortcut,
   };
   const handleOpenExplorerForCell = useCallback(
     (cellId) => {
@@ -2277,6 +2282,8 @@ function App() {
         memoPaneProps={{
           ...hilMemo,
           ...memoCapture,
+          flashVoiceShortcut: memoVoiceShortcut,
+          screenshotShortcut,
           worktreePath: selectedCell?.worktreePath || projectRoot || '',
           projectReady,
           projectError,

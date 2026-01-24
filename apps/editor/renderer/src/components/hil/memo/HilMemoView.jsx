@@ -69,6 +69,7 @@ export function HilMemoView({
   setFlashText,
   flashVoice,
   flashVoiceSegments,
+  flashVoiceShortcut,
   excerptUrl,
   setExcerptUrl,
   excerptPreview,
@@ -109,6 +110,7 @@ export function HilMemoView({
   resolveBody,
   focusInboxInputId,
   onFocusInboxInputHandled,
+  screenshotShortcut,
 }) {
   const [mutationError, setMutationError] = useState('');
   const modal = useModal();
@@ -362,6 +364,7 @@ export function HilMemoView({
                 onSaveFlash={handleCreateFlash}
                 flashVoice={flashVoice}
                 flashVoiceSegments={flashVoiceSegments}
+                flashVoiceShortcut={flashVoiceShortcut}
                 flashInputRef={flashInputRef}
                 excerptUrl={excerptUrl}
                 onExcerptUrlChange={setExcerptUrl}
@@ -379,6 +382,7 @@ export function HilMemoView({
                 onScreenshotNoteChange={setScreenshotNote}
                 onCaptureScreenshot={handleCaptureScreenshot}
                 onOpenRouting={handleOpenRouting}
+                screenshotShortcut={screenshotShortcut}
                 captureLoading={captureLoading}
                 captureError={captureError}
                 screenshotNoteInputRef={screenshotNoteInputRef}

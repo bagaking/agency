@@ -31,6 +31,7 @@ export function HilMemoDrawer({
   onOpenRouting,
   captureLoading,
   onFocusInboxInput,
+  screenshotShortcut,
 }) {
   const focusRingClass =
     'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
@@ -118,6 +119,7 @@ export function HilMemoDrawer({
             onCapture={onCaptureScreenshot}
             onOpenRouting={onOpenRouting}
             loading={captureLoading}
+            captureShortcut={screenshotShortcut}
           />
         </MemoShortcutCard>
       </div>

@@ -11,6 +11,7 @@ export function InboxSection({
   onSaveFlash,
   flashVoice,
   flashVoiceSegments,
+  flashVoiceShortcut,
   flashInputRef,
   excerptUrl,
   onExcerptUrlChange,
@@ -28,6 +29,7 @@ export function InboxSection({
   onScreenshotNoteChange,
   onCaptureScreenshot,
   onOpenRouting,
+  screenshotShortcut,
   captureLoading,
   captureError,
   screenshotNoteInputRef,
@@ -68,6 +70,7 @@ export function InboxSection({
             voiceSegments={flashVoiceSegments}
             loading={captureLoading}
             inputRef={flashInputRef}
+            voiceShortcut={flashVoiceShortcut}
           />
         ) : null}
 
@@ -97,6 +100,7 @@ export function InboxSection({
             onOpenRouting={onOpenRouting}
             loading={captureLoading}
             noteInputRef={screenshotNoteInputRef}
+            captureShortcut={screenshotShortcut}
           />
         ) : null}
 
