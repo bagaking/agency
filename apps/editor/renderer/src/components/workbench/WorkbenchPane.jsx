@@ -26,6 +26,7 @@ import { VectorWorkbenchView } from './VectorWorkbenchView.jsx';
 import { QuickOpenModal } from './QuickOpenModal.jsx';
 import { ProjectEmptyState } from '../ProjectEmptyState.jsx';
 import { Logo } from '../Logo.jsx';
+import { Tooltip } from '../ui/Tooltip.jsx';
 
 const languageFromPath = (filePath) => {
   const ext = (filePath.split('.').pop() || '').toLowerCase();
@@ -126,6 +127,8 @@ function WorkbenchPaneContent({
   onCursorPositionChange,
   onSelectionChange,
 }) {
+  const focusRingClass =
+    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-[#0b0d11]';
   const { 
     tabs, 
     activeTab, 
@@ -482,18 +485,20 @@ function WorkbenchPaneContent({
             <div className="flex items-center gap-1">
                 <ToolButton loading={activeState.loading} onClick={handleReload} icon={RefreshCw} title="Sync from Disk" />
                 
-                <button
-                    onClick={handleSave}
-                    disabled={!activeState.isDirty}
-                    className={`flex items-center gap-2 px-3 py-1 rounded-md text-[9px] font-black uppercase tracking-[0.1em] transition-all border ${
-                        activeState.isDirty 
-                            ? 'bg-primary text-white border-primary shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:scale-105' 
-                            : 'border-white/5 text-white/5 pointer-events-none'
-                    }`}
-                >
-                    <Save size={11} strokeWidth={3} />
-                    {activeState.saving ? 'Saving' : 'Commit'}
-                </button>
+                <Tooltip label={activeState.saving ? 'Saving changes' : 'Commit changes'} side="bottom">
+                  <button
+                      onClick={handleSave}
+                      disabled={!activeState.isDirty}
+                      aria-label={activeState.saving ? 'Saving changes' : 'Commit changes'}
+                      className={`inline-flex h-7 w-7 items-center justify-center rounded-md text-[9px] font-black uppercase tracking-[0.1em] border transition-colors transition-transform ${focusRingClass} ${
+                          activeState.isDirty 
+                              ? 'bg-primary text-white border-primary shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:scale-105' 
+                              : 'border-white/5 text-white/5 pointer-events-none'
+                      }`}
+                  >
+                      <Save size={11} strokeWidth={3} aria-hidden="true" />
+                  </button>
+                </Tooltip>
 
                 <ToolButton 
                     active={!activeTab.isPreview} 
