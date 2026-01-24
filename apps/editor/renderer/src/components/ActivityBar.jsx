@@ -10,7 +10,7 @@ export function ActivityBar({ activeView, onSwitchView }) {
     renderIcon: ({ active }) => (
       <Logo
         size={24}
-        className={`transition-all duration-500 ${
+        className={`transition-opacity transition-transform duration-500 ${
           active
             ? 'drop-shadow-[0_0_8px_rgba(59,130,246,0.5)] scale-110'
             : 'opacity-50 grayscale hover:opacity-100 hover:grayscale-0'
@@ -68,6 +68,8 @@ export function ActivityBar({ activeView, onSwitchView }) {
 }
 
 function ActivityItem({ icon: Icon, label, active, onClick, renderIcon, testId }) {
+  const focusRingClass =
+    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
   return (
     <div className="relative group">
         <button
@@ -75,7 +77,9 @@ function ActivityItem({ icon: Icon, label, active, onClick, renderIcon, testId }
             onClick={onClick}
             title={label}
             data-testid={testId}
-            className={`relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-300 ${
+            aria-label={label}
+            aria-pressed={active}
+            className={`relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors duration-300 ${focusRingClass} ${
                 active
                 ? 'text-primary bg-primary/5 shadow-[inset_0_0_10px_rgba(59,130,246,0.05)]'
                 : 'text-muted-foreground/50 hover:text-foreground hover:bg-white/5'
@@ -87,6 +91,7 @@ function ActivityItem({ icon: Icon, label, active, onClick, renderIcon, testId }
                   <Icon
                     size={20}
                     strokeWidth={active ? 2 : 1.5}
+                    aria-hidden="true"
                     className={`transition-transform duration-300 ${
                       active ? 'scale-110' : 'group-hover:scale-105'
                     }`}

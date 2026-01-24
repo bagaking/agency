@@ -37,6 +37,8 @@ export function ExplorerFooter({
   const [showManifest, setShowManifest] = useState(false);
   const isComposingRef = useRef(false);
   const activeSessions = (sessions || []).filter((s) => s.status !== 'closed');
+  const focusRingClass =
+    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
 
   const handleDispatch = async () => {
     const current = activeSessions.find(s => s.id === activeSessionId) || activeSessions[0];
@@ -132,14 +134,19 @@ export function ExplorerFooter({
       {selectionCount > 0 && (
         <div className="flex h-8 items-center px-3 gap-3 animate-tab-in bg-muted/10 border-b border-border/10">
             <div 
-                className="flex items-center gap-1.5 shrink-0 cursor-help group/trigger h-full px-1"
+                className={`flex items-center gap-1.5 shrink-0 cursor-help group/trigger h-full px-1 ${focusRingClass}`}
                 onMouseEnter={() => setShowManifest(true)}
                 onMouseLeave={() => setShowManifest(false)}
+                onFocus={() => setShowManifest(true)}
+                onBlur={() => setShowManifest(false)}
+                tabIndex={0}
+                role="button"
+                aria-label="Show selection hierarchy"
             >
                 <span className="text-[10px] text-primary tracking-tight font-medium opacity-80 group-hover/trigger:opacity-100 transition-opacity">
                     {selectionCount} items
                 </span>
-                <div className="h-1 w-1 rounded-full bg-primary/20 group-hover/trigger:bg-primary transition-colors" />
+                <div className="h-1 w-1 rounded-full bg-primary/20 group-hover/trigger:bg-primary transition-colors" aria-hidden="true" />
             </div>
             
             <div className="h-3 w-[1px] bg-border/20" />
@@ -147,6 +154,7 @@ export function ExplorerFooter({
             <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
+                aria-label="Selection instruction"
                 onCompositionStart={() => { isComposingRef.current = true; }}
                 onCompositionEnd={() => { isComposingRef.current = false; }}
                 onKeyDown={(event) => {
@@ -166,16 +174,22 @@ export function ExplorerFooter({
             <div className="flex items-center gap-1">
                 <Tooltip label="Dispatch to session">
                   <button 
+                      type="button"
                       onClick={handleDispatch}
-                      className={`p-1 transition-all ${comment.trim() ? 'text-primary hover:scale-110' : 'text-muted-foreground/40 pointer-events-none'}`}
+                      className={`p-1 transition-colors transition-transform ${focusRingClass} ${comment.trim() ? 'text-primary hover:scale-110' : 'text-muted-foreground/40 pointer-events-none'}`}
                       aria-label="Dispatch to session"
                   >
-                      <Send size={12} strokeWidth={2} />
+                      <Send size={12} strokeWidth={2} aria-hidden="true" />
                   </button>
                 </Tooltip>
                 <Tooltip label="Clear selection">
-                  <button onClick={onClearSelection} className="p-1 text-muted-foreground/40 hover:text-foreground/80" aria-label="Clear selection">
-                      <X size={12} strokeWidth={2} />
+                  <button
+                      type="button"
+                      onClick={onClearSelection}
+                      className={`p-1 text-muted-foreground/40 transition-colors hover:text-foreground/80 ${focusRingClass}`}
+                      aria-label="Clear selection"
+                  >
+                      <X size={12} strokeWidth={2} aria-hidden="true" />
                   </button>
                 </Tooltip>
             </div>
@@ -186,7 +200,7 @@ export function ExplorerFooter({
       <div className="h-7 flex items-center justify-between px-3">
         <div className="flex items-center gap-4 overflow-hidden flex-1">
             <div className="flex items-center gap-1.5 text-[9px] font-medium text-muted-foreground/40 uppercase tracking-widest shrink-0">
-                <Terminal size={10} strokeWidth={1.5} />
+                <Terminal size={10} strokeWidth={1.5} aria-hidden="true" />
                 Pipes
             </div>
             
@@ -200,10 +214,15 @@ export function ExplorerFooter({
                     return (
                         <button
                             key={s.id}
+                            type="button"
                             onClick={() => onSelectSession?.(s.id)}
-                            className={`flex items-center gap-2 px-2 h-5 rounded transition-all whitespace-nowrap group ${isActive ? 'text-primary' : 'text-muted-foreground/30 hover:text-muted-foreground/60'}`}
+                            aria-pressed={isActive}
+                            className={`flex items-center gap-2 px-2 h-5 rounded transition-colors whitespace-nowrap group ${focusRingClass} ${isActive ? 'text-primary' : 'text-muted-foreground/30 hover:text-muted-foreground/60'}`}
                         >
-                            <div className={`h-1 w-1 rounded-full transition-all ${isActive ? 'bg-primary shadow-[0_0_5px_rgba(59,130,246,0.5)]' : 'bg-foreground/10 group-hover:bg-foreground/20'}`} />
+                            <div
+                              className={`h-1 w-1 rounded-full transition-colors ${isActive ? 'bg-primary shadow-[0_0_5px_rgba(59,130,246,0.5)]' : 'bg-foreground/10 group-hover:bg-foreground/20'}`}
+                              aria-hidden="true"
+                            />
                             <span className="text-[10px] font-medium tracking-tight">{s.name || s.id}</span>
                             {!isActive && (
                                 <span className="text-[8px] opacity-40 font-mono italic">{formatIdle(idleMs)}</span>
@@ -218,7 +237,7 @@ export function ExplorerFooter({
             <div className="text-[9px] font-medium text-muted-foreground/30 tracking-widest uppercase truncate max-w-[80px]">
                 {activeCell?.name || 'Ready'}
             </div>
-            {activeCell && <CheckCircle2 size={10} className="text-muted-foreground/30" />}
+            {activeCell && <CheckCircle2 size={10} className="text-muted-foreground/30" aria-hidden="true" />}
         </div>
       </div>
     </footer>
@@ -241,7 +260,7 @@ function ManifestNode({ node, depth }) {
                 className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] transition-colors ${colorClass}`}
                 style={{ paddingLeft: `${depth * 8 + 8}px` }}
             >
-                <Icon size={8} className={node.isSelected ? iconInfo.color : 'opacity-40'} />
+                <Icon size={8} className={node.isSelected ? iconInfo.color : 'opacity-40'} aria-hidden="true" />
                 <span className={`truncate ${node.isSelected ? 'font-semibold' : 'font-normal'}`}>
                     {node.name}
                 </span>

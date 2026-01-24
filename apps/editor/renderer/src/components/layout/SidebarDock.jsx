@@ -76,20 +76,21 @@ export function SidebarDock({
         {/* The Toggle Trigger: A slim, elegant vertical handle */}
         {!collapsed && (
           <div 
-            className={`absolute top-1/2 -translate-y-1/2 -left-1 flex flex-col items-center gap-4 transition-all duration-300 ${
+            className={`absolute top-1/2 -translate-y-1/2 -left-1 flex flex-col items-center gap-4 transition-opacity transition-transform duration-300 ${
               isHoveringBorder ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-1'
             }`}
           >
             <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onToggleCollapse(); }}
-                className="group/btn flex h-16 w-3 items-center justify-center rounded-full bg-primary/80 text-white shadow-lg backdrop-blur-md hover:bg-primary hover:w-4 transition-all"
+                className="group/btn flex h-16 w-3 items-center justify-center rounded-full bg-primary/80 text-white shadow-lg backdrop-blur-md hover:bg-primary hover:w-4 transition-colors transition-[width] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar"
                 title="Collapse sidebar"
+                aria-label="Collapse sidebar"
             >
-                <ChevronLeft size={10} strokeWidth={3} className="group-hover/btn:scale-125 transition-transform" />
+                <ChevronLeft size={10} strokeWidth={3} className="group-hover/btn:scale-125 transition-transform" aria-hidden="true" />
             </button>
             <div className="h-8 w-[2px] bg-primary/20 rounded-full" />
-            <GripVertical size={12} className="text-primary/40" />
+            <GripVertical size={12} className="text-primary/40" aria-hidden="true" />
           </div>
         )}
       </div>
@@ -97,12 +98,21 @@ export function SidebarDock({
       {/* Expand Trigger when collapsed: An ultra-slim floating line at the edge */}
       {collapsed && (
         <div 
-            className="absolute top-0 left-0 z-[60] h-full w-1.5 group cursor-pointer"
+            className="absolute top-0 left-0 z-[60] h-full w-1.5 group cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar"
             onClick={onToggleCollapse}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onToggleCollapse?.();
+              }
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label="Expand sidebar"
         >
             <div className="absolute inset-y-0 left-0 w-[2px] bg-primary/0 group-hover:bg-primary/40 transition-colors" />
-            <div className="absolute top-1/2 -translate-y-1/2 left-0 h-24 w-[4px] rounded-r-full bg-primary/0 group-hover:bg-primary/80 transition-all flex items-center justify-center overflow-hidden">
-                <ChevronRight size={10} strokeWidth={3} className="text-white opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
+            <div className="absolute top-1/2 -translate-y-1/2 left-0 h-24 w-[4px] rounded-r-full bg-primary/0 group-hover:bg-primary/80 transition-colors flex items-center justify-center overflow-hidden">
+                <ChevronRight size={10} strokeWidth={3} className="text-white opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-opacity transition-transform" aria-hidden="true" />
             </div>
         </div>
       )}

@@ -34,6 +34,8 @@ export function ExplorerHeader({
   onDeleteSelection,
   onClearSelection,
 }) {
+  const focusRingClass =
+    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
   return (
     <header data-testid="explorer-header" className="shrink-0 space-y-3 px-4 py-3 border-b border-border/40 bg-sidebar text-sidebar-foreground">
       <div className="flex items-center justify-between">
@@ -60,7 +62,8 @@ export function ExplorerHeader({
       {hasCells && (
         <div className="group relative">
           <select
-            className="w-full appearance-none rounded border border-border/40 bg-muted/10 px-2 py-1.5 text-[11px] font-medium text-foreground transition-all focus:border-primary/50 focus:outline-none hover:border-border/80 cursor-pointer"
+            aria-label="Active agent cell"
+            className={`w-full appearance-none rounded border border-border/40 bg-muted/10 px-2 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:border-border/80 cursor-pointer ${focusRingClass}`}
             value={selectedId || ''}
             onChange={(e) => onSelectCell?.(e.target.value)}
           >
@@ -68,40 +71,48 @@ export function ExplorerHeader({
               <option key={cell.id} value={cell.id} className="bg-popover text-foreground">Agent: {cell.name}</option>
             ))}
           </select>
-          <ChevronDown size={10} className="absolute right-2 top-2.5 text-muted-foreground/40 pointer-events-none group-hover:text-muted-foreground transition-colors" />
+          <ChevronDown size={10} aria-hidden="true" className="absolute right-2 top-2.5 text-muted-foreground/40 pointer-events-none group-hover:text-muted-foreground transition-colors" />
         </div>
       )}
 
       <div className="flex items-center gap-1.5">
         <div className="relative flex-1 group">
-          <Search size={12} strokeWidth={2} className="absolute left-2.5 top-2 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
+          <Search size={12} strokeWidth={2} aria-hidden="true" className="absolute left-2.5 top-2 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
           <input
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search files..."
-            className="w-full rounded-full border border-border/40 bg-muted/10 px-8 py-1.5 text-[11px] text-foreground transition-all placeholder:text-muted-foreground/30 focus:bg-background focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
+            aria-label="Search files"
+            className={`w-full rounded-full border border-border/40 bg-muted/10 px-8 py-1.5 text-[11px] text-foreground transition-colors placeholder:text-muted-foreground/30 focus:bg-background focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20 ${focusRingClass}`}
           />
           {searchQuery && (
-            <button className="absolute right-2.5 top-1.5 text-muted-foreground/40 hover:text-foreground" onClick={onClearSearch}>
-              <X size={12} strokeWidth={1.5} />
+            <button
+              type="button"
+              className={`absolute right-2.5 top-1.5 text-muted-foreground/40 transition-colors hover:text-foreground ${focusRingClass}`}
+              onClick={onClearSearch}
+              aria-label="Clear search"
+            >
+              <X size={12} strokeWidth={1.5} aria-hidden="true" />
             </button>
           )}
         </div>
         <Tooltip label="Explorer filters">
           <button
-            className={`flex h-7 w-7 items-center justify-center rounded-full border transition-all ${
+            type="button"
+            aria-pressed={hasActiveFilters}
+            className={`flex h-7 w-7 items-center justify-center rounded-full border transition-colors ${focusRingClass} ${
               hasActiveFilters ? 'border-primary/40 bg-primary/10 text-primary active-tab-glow' : 'border-border/40 text-muted-foreground/50 hover:border-border hover:text-foreground'
             }`}
             onClick={onToggleFilterMenu}
           >
-            <Filter size={12} strokeWidth={1.5} />
+            <Filter size={12} strokeWidth={1.5} aria-hidden="true" />
           </button>
         </Tooltip>
       </div>
 
       {searchTruncated && (
         <div className="flex items-center gap-1.5 px-1 text-[10px] text-amber-400/70 italic">
-          <Info size={10} /> Search results truncated
+          <Info size={10} aria-hidden="true" /> Search results truncated
         </div>
       )}
     </header>
@@ -113,11 +124,11 @@ function HeaderButton({ icon: Icon, onClick, title, className = "" }) {
     <Tooltip label={title}>
       <button
         type="button"
-        className={`p-1 text-muted-foreground/60 hover:text-foreground transition-colors rounded hover:bg-muted/30 ${className}`}
+        className={`p-1 text-muted-foreground/60 hover:text-foreground transition-colors rounded hover:bg-muted/30 ${className} focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background`}
         onClick={onClick}
         aria-label={title}
       >
-        <Icon size={14} strokeWidth={1.5} />
+        <Icon size={14} strokeWidth={1.5} aria-hidden="true" />
       </button>
     </Tooltip>
   );
@@ -127,7 +138,7 @@ function SelectionAction({ children, onClick, variant }) {
   return (
     <button
       type="button"
-      className={`rounded border px-2 py-0.5 text-[10px] transition-colors ${
+      className={`rounded border px-2 py-0.5 text-[10px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background ${
         variant === 'destructive' 
           ? 'border-rose-500/40 text-rose-300 hover:text-rose-200 hover:bg-rose-500/10' 
           : 'border-border/60 hover:text-foreground hover:bg-white/5'
