@@ -389,12 +389,20 @@ export function HilMemoView({
               />
 
               {mutationError && (
-                <div className="mx-6 mt-4 p-4 bg-rose-500/5 rounded-2xl border border-rose-500/10 text-rose-400 text-[11px] font-medium animate-slide-down">
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="mx-6 mt-4 p-4 bg-rose-500/5 rounded-2xl border border-rose-500/10 text-rose-400 text-[11px] font-medium animate-slide-down"
+                >
                   <Activity size={14} className="inline mr-2" /> {mutationError}
                 </div>
               )}
               {error && (
-                <div className="mx-6 mt-4 p-4 bg-rose-500/5 rounded-2xl border border-rose-500/10 text-rose-400 text-[11px] font-medium animate-slide-down">
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="mx-6 mt-4 p-4 bg-rose-500/5 rounded-2xl border border-rose-500/10 text-rose-400 text-[11px] font-medium animate-slide-down"
+                >
                   <Activity size={14} className="inline mr-2" /> {error}
                 </div>
               )}
@@ -492,7 +500,7 @@ function MemoRow({ item, index, worktreePath, onUpdateStatus, resolveBody, onOpe
                 onOpenDetail?.(item);
               }
             }}
-            className={`group flex flex-col gap-1 px-4 py-3 transition-all duration-500 rounded-xl focus:outline-none ${
+            className={`group flex flex-col gap-1 px-4 py-3 rounded-xl transition-colors duration-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:ring-offset-1 focus-visible:ring-offset-background ${
                 isResolved ? 'opacity-40 grayscale' : 'hover:bg-muted/5'
             }`}
         >
@@ -500,7 +508,7 @@ function MemoRow({ item, index, worktreePath, onUpdateStatus, resolveBody, onOpe
                 {/* Index & Status Dot */}
                 <div className="w-8 flex items-center gap-3 shrink-0 pt-0.5">
                     <span className="text-[9px] font-mono text-muted-foreground/30 font-black">{String(index + 1).padStart(2, '0')}</span>
-                    <div className={`h-1.5 w-1.5 rounded-full transition-all duration-700 ${item.status === 'open' ? 'bg-primary shadow-[0_0_10px_rgba(59,130,246,0.4)]' : 'bg-muted-foreground/30'}`} />
+                    <div className={`h-1.5 w-1.5 rounded-full transition-colors transition-shadow duration-700 ${item.status === 'open' ? 'bg-primary shadow-[0_0_10px_rgba(59,130,246,0.4)]' : 'bg-muted-foreground/30'}`} />
                 </div>
 
                 {/* Content Summary */}
@@ -532,7 +540,7 @@ function MemoRow({ item, index, worktreePath, onUpdateStatus, resolveBody, onOpe
                 </div>
 
                 {/* Inline Hover Actions: Zen Style */}
-                <div className="mt-0.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
+                <div className="mt-0.5 flex items-center gap-1 opacity-0 translate-x-2 transition-opacity transition-transform group-hover:opacity-100 group-hover:translate-x-0 group-focus-within:opacity-100 group-focus-within:translate-x-0">
                     {item.status === 'open' ? (
                         <RowAction icon={CheckCircle2} title="Resolve" onClick={() => onUpdateStatus(item, 'resolved')} color="hover:text-emerald-500 hover:bg-emerald-500/10" />
                     ) : (
@@ -621,7 +629,7 @@ function MemoAudioButton({ voiceAsset, worktreePath }) {
       <button
         type="button"
         onClick={handleToggle}
-        className="flex items-center gap-1 rounded-md border border-border/20 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60 hover:border-primary/40 hover:text-foreground"
+        className="flex items-center gap-1 rounded-md border border-border/20 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60 transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
       >
         {playing ? <Pause size={10} /> : <Play size={10} />}
         {playing ? 'Pause' : 'Play'}
@@ -723,7 +731,11 @@ function DraftDetail({
                 </div>
             </header>
             {mutationError ? (
-                <div className="mx-6 mt-4 rounded-2xl border border-rose-500/10 bg-rose-500/5 px-4 py-3 text-[11px] font-medium text-rose-400 animate-slide-down">
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="mx-6 mt-4 rounded-2xl border border-rose-500/10 bg-rose-500/5 px-4 py-3 text-[11px] font-medium text-rose-400 animate-slide-down"
+                >
                     <Activity size={14} className="inline mr-2" /> {mutationError}
                 </div>
             ) : null}
@@ -868,12 +880,14 @@ function DraftDetail({
 
 function RowAction({ icon: Icon, onClick, title, color = "hover:text-foreground hover:bg-muted/10" }) {
     return (
-        <button 
+        <button
+            type="button"
             onClick={(e) => { e.stopPropagation(); onClick(); }}
-            className={`p-1.5 rounded-lg transition-all text-muted-foreground/40 ${color}`}
+            aria-label={title}
+            className={`p-1.5 rounded-lg transition-colors text-muted-foreground/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background ${color}`}
             title={title}
         >
-            <Icon size={14} strokeWidth={2} />
+            <Icon size={14} strokeWidth={2} aria-hidden="true" />
         </button>
     )
 }

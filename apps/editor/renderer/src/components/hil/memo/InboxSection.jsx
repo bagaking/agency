@@ -105,7 +105,11 @@ export function InboxSection({
         ) : null}
 
         {captureError ? (
-          <div className="mt-3 text-[10px] font-medium text-rose-400 bg-rose-500/5 p-2 rounded border border-rose-500/10">
+          <div
+            role="status"
+            aria-live="polite"
+            className="mt-3 text-[10px] font-medium text-rose-400 bg-rose-500/5 p-2 rounded border border-rose-500/10"
+          >
             {captureError}
           </div>
         ) : null}
