@@ -39,9 +39,13 @@ export function ExcerptCaptureCard({
               onClick={onFetch}
               disabled={fetching || !canFetch}
               aria-label={fetchLabel}
-              className={`inline-flex h-7 w-7 items-center justify-center rounded-md border border-primary/40 bg-primary/5 text-primary transition-all hover:bg-primary/10 disabled:opacity-50 ${focusRingClass}`}
+              className={`inline-flex h-7 w-7 items-center justify-center rounded-md border border-primary/40 bg-primary/5 text-primary transition-colors hover:bg-primary/10 disabled:opacity-50 ${focusRingClass}`}
             >
-              {fetching ? <Loader2 size={14} className="animate-spin" /> : <ArrowDownToLine size={14} />}
+              {fetching ? (
+                <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+              ) : (
+                <ArrowDownToLine size={14} aria-hidden="true" />
+              )}
             </button>
           </Tooltip>
           <Tooltip label={saveLabel} side="left">
@@ -50,9 +54,13 @@ export function ExcerptCaptureCard({
               onClick={onSave}
               disabled={loading || fetching || !hasPreview}
               aria-label={saveLabel}
-              className={`inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50 ${focusRingClass}`}
+              className={`inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 ${focusRingClass}`}
             >
-              {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+              {loading ? (
+                <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+              ) : (
+                <Check size={14} aria-hidden="true" />
+              )}
             </button>
           </Tooltip>
         </div>

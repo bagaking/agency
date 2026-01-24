@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Layers, Play, Terminal } from 'lucide-react';
+import { Tooltip } from '../ui/Tooltip.jsx';
 
 export function HilDraftsPanel({
   drafts = [],
@@ -29,6 +30,8 @@ export function HilDraftsPanel({
     });
     return map;
   }, [sessions]);
+  const focusRingClass =
+    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
 
   return (
     <div className="flex flex-col gap-3 py-1 select-none">
@@ -76,7 +79,7 @@ export function HilDraftsPanel({
                     }
                   }
                 }}
-                className={`group flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition focus:outline-none ${
+                className={`group flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors cursor-pointer ${focusRingClass} ${
                   isRunning
                     ? 'border-primary/30 bg-primary/5 hover:bg-primary/10'
                     : 'border-border/10 bg-muted/5 hover:border-primary/30 hover:bg-muted/10'
@@ -89,7 +92,7 @@ export function HilDraftsPanel({
                       : 'border-border/20 text-muted-foreground/60 group-hover:text-primary/70'
                   }`}
                 >
-                  <Layers size={14} />
+                  <Layers size={14} aria-hidden="true" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="text-[12px] font-semibold text-foreground/80 truncate group-hover:text-foreground">
@@ -100,7 +103,7 @@ export function HilDraftsPanel({
                     {actionSheetId ? <span className="text-muted-foreground/30">· AS</span> : null}
                     {isRunning ? (
                       <span className="inline-flex items-center gap-1 text-primary/70">
-                        <Terminal size={10} />
+                        <Terminal size={10} aria-hidden="true" />
                         {sessionLabel || 'Session'}
                       </span>
                     ) : (
@@ -109,19 +112,20 @@ export function HilDraftsPanel({
                   </div>
                 </div>
                 {!isRunning ? (
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onRunDraft?.(draft);
-                    }}
-                    disabled={!canRun}
-                    className="rounded-md border border-primary/40 bg-primary/5 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-widest text-primary transition hover:bg-primary/10 disabled:opacity-40"
-                    title={canRun ? 'Run in active session' : 'Select a session to run'}
-                  >
-                    <Play size={11} className="inline -mt-0.5 mr-1" />
-                    Run
-                  </button>
+                  <Tooltip label={canRun ? 'Run in active session' : 'Select a session to run'} side="left">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onRunDraft?.(draft);
+                      }}
+                      disabled={!canRun}
+                      className={`inline-flex h-7 items-center gap-1 rounded-md border border-primary/40 bg-primary/5 px-2.5 text-[9px] font-semibold uppercase tracking-widest text-primary transition-colors hover:bg-primary/10 disabled:opacity-40 ${focusRingClass}`}
+                    >
+                      <Play size={11} aria-hidden="true" />
+                      Run
+                    </button>
+                  </Tooltip>
                 ) : null}
               </div>
             );

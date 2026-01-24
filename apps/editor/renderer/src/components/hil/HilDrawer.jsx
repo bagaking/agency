@@ -18,6 +18,7 @@ export function HilDrawer({
   panels = defaultPanels,
 }) {
   const drawerOpen = Boolean(open);
+  const contentId = 'hil-drawer-content';
   const handleToggle = () => {
     if (typeof onToggle === 'function') {
       onToggle(!drawerOpen);
@@ -26,7 +27,7 @@ export function HilDrawer({
 
   return (
     <aside
-      className={`relative flex h-full flex-shrink-0 flex-col border-l border-border/20 bg-muted/5 backdrop-blur-2xl transition-all duration-300 ${
+      className={`relative flex h-full flex-shrink-0 flex-col border-l border-border/20 bg-muted/5 backdrop-blur-2xl transition-[width] duration-300 ${
         drawerOpen ? 'w-[360px]' : 'w-6'
       }`}
     >
@@ -38,10 +39,13 @@ export function HilDrawer({
         <button
           type="button"
           onClick={handleToggle}
-          className="flex h-6 w-6 items-center justify-center rounded-full border border-border/30 bg-background/60 text-muted-foreground/60 shadow-sm hover:text-foreground hover:border-primary/30"
+          aria-label={drawerOpen ? 'Collapse HIL drawer' : 'Expand HIL drawer'}
+          aria-expanded={drawerOpen}
+          aria-controls={contentId}
+          className="flex h-6 w-6 items-center justify-center rounded-full border border-border/30 bg-background/60 text-muted-foreground/60 shadow-sm transition-colors hover:text-foreground hover:border-primary/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
           title={drawerOpen ? 'Collapse HIL drawer' : 'Expand HIL drawer'}
         >
-          {drawerOpen ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          {drawerOpen ? <ChevronRight size={14} aria-hidden="true" /> : <ChevronLeft size={14} aria-hidden="true" />}
         </button>
         {drawerOpen ? (
           <div className="flex min-w-0 flex-1 flex-col">
@@ -59,16 +63,19 @@ export function HilDrawer({
           <button
             type="button"
             onClick={onOpenPromote}
-            className="ml-auto flex items-center gap-1 rounded-full border border-border/30 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60 hover:text-foreground hover:border-primary/30"
+            className="ml-auto flex items-center gap-1 rounded-full border border-border/30 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60 transition-colors hover:text-foreground hover:border-primary/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             title="Promote items to draft"
           >
-            <Target size={12} />
+            <Target size={12} aria-hidden="true" />
             Promote
           </button>
         ) : null}
       </header>
 
-      <div className={`flex h-full flex-col ${drawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} transition-opacity duration-200`}>
+      <div
+        id={contentId}
+        className={`flex h-full flex-col ${drawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} transition-opacity duration-200`}
+      >
         {panels.length ? (
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border/10">
             {panels.map((panel) => (
@@ -77,7 +84,8 @@ export function HilDrawer({
                 type="button"
                 disabled={panel.disabled}
                 onClick={() => onSelectPanel?.(panel.id)}
-                className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-widest transition ${
+                aria-pressed={activePanel === panel.id}
+                className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background ${
                   panel.disabled
                     ? 'text-muted-foreground/30 cursor-not-allowed'
                     : activePanel === panel.id

@@ -41,9 +41,9 @@ export function HilMemoDrawer({
         type="button"
         onClick={() => onSelectInbox?.(targetId)}
         aria-label="Jump to records"
-        className={`rounded-full border border-border/30 bg-background/40 p-1.5 text-muted-foreground/60 transition hover:text-foreground hover:border-primary/40 hover:bg-primary/10 ${focusRingClass}`}
+        className={`rounded-full border border-border/30 bg-background/40 p-1.5 text-muted-foreground/60 transition-colors hover:text-foreground hover:border-primary/40 hover:bg-primary/10 ${focusRingClass}`}
       >
-        <ArrowUpRight size={12} />
+        <ArrowUpRight size={12} aria-hidden="true" />
       </button>
     </Tooltip>
   );
@@ -127,10 +127,10 @@ export function HilMemoDrawer({
       <button
         type="button"
         onClick={() => onOpenInbox?.()}
-        className={`flex items-center justify-between rounded-xl bg-card/40 px-3 py-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60 ring-1 ring-inset ring-border/20 transition hover:text-foreground hover:ring-primary/30 hover:bg-card/60 ${focusRingClass}`}
+        className={`flex items-center justify-between rounded-xl bg-card/40 px-3 py-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60 ring-1 ring-inset ring-border/20 transition-colors hover:text-foreground hover:ring-primary/30 hover:bg-card/60 ${focusRingClass}`}
       >
         <span className="flex items-center gap-2">
-          <Inbox size={12} />
+          <Inbox size={12} aria-hidden="true" />
           Open Inbox
         </span>
         <span className="text-[9px] font-medium text-muted-foreground/40">Comments</span>
@@ -154,7 +154,7 @@ function MemoShortcutCard({
     'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
   return (
     <div
-      className={`relative rounded-2xl transition-all duration-300 ring-1 ring-inset ${
+      className={`relative rounded-2xl transition-colors transition-shadow duration-300 ring-1 ring-inset ${
         active
           ? 'ring-primary/35 bg-card/60 shadow-[0_12px_30px_rgba(15,23,42,0.35)]'
           : 'ring-border/20 bg-card/40 hover:ring-primary/25 hover:bg-card/55'
@@ -192,7 +192,7 @@ function MemoShortcutCard({
               ? 'ring-primary/40 bg-primary/10 text-primary'
               : 'ring-border/20 bg-background/40 text-muted-foreground/60'
           }`}>
-            <Icon size={14} />
+            <Icon size={14} aria-hidden="true" />
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-[12px] font-semibold text-foreground/80">{label}</span>
@@ -202,7 +202,7 @@ function MemoShortcutCard({
         <span className="flex items-center gap-2">
           {active ? (
             <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-primary">
-              <ArrowLeft size={10} />
+              <ArrowLeft size={10} aria-hidden="true" />
               In Inbox
             </span>
           ) : null}
@@ -210,11 +210,11 @@ function MemoShortcutCard({
         </span>
       </div>
       <div
-        className={`px-3 pb-3 overflow-hidden transition-all duration-300 ${
+        className={`px-3 pb-3 overflow-hidden transition-[max-height,opacity] duration-300 ${
           expanded ? 'max-h-[520px] opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
-        <div className={`transition-all duration-300 ${expanded ? 'translate-y-0' : '-translate-y-1'}`}>
+        <div className={`transition-transform duration-300 ${expanded ? 'translate-y-0' : '-translate-y-1'}`}>
           {children}
         </div>
       </div>

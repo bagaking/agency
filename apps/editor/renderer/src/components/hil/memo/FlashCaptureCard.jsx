@@ -31,7 +31,7 @@ export function FlashCaptureCard({
           <button
             type="button"
             onClick={() => voice?.clearAudio?.()}
-            className={`rounded-md border border-border/30 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/70 hover:border-primary/40 hover:text-foreground ${focusRingClass}`}
+            className={`rounded-md border border-border/30 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/70 transition-colors hover:border-primary/40 hover:text-foreground ${focusRingClass}`}
           >
             Clear
           </button>
@@ -56,9 +56,13 @@ export function FlashCaptureCard({
             onClick={onSave}
             disabled={loading || !value.trim()}
             aria-label={saveLabel}
-            className={`inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50 ${focusRingClass}`}
+            className={`inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 ${focusRingClass}`}
           >
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+            {loading ? (
+              <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+            ) : (
+              <Check size={14} aria-hidden="true" />
+            )}
           </button>
         </Tooltip>
       </div>

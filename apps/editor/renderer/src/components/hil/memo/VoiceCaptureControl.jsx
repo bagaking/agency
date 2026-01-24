@@ -80,15 +80,19 @@ export function VoiceCaptureControl({ voice, segments = [], shortcut }) {
     <div className="flex flex-col gap-2 rounded-xl border border-border/20 bg-card/50 px-3 py-2.5 shadow-[0_10px_24px_rgba(15,23,42,0.18)]">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <span className={`h-2 w-2 rounded-full ${statusDotClass}`} />
+          <span className={`h-2 w-2 rounded-full ${statusDotClass}`} aria-hidden="true" />
           <Tooltip label="Voice input" side="bottom">
             <span className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border/20 bg-background/70 text-muted-foreground/70">
-              <Mic size={12} />
+              <Mic size={12} aria-hidden="true" />
               <span className="sr-only">Voice input</span>
             </span>
           </Tooltip>
           <span className="h-3 w-px bg-border/30" />
-          <span className="min-w-0 truncate text-[9px] text-muted-foreground/60" title={statusText}>
+          <span
+            className="min-w-0 truncate text-[9px] text-muted-foreground/60"
+            title={statusText}
+            aria-live="polite"
+          >
             {statusText}
           </span>
         </div>
@@ -100,7 +104,7 @@ export function VoiceCaptureControl({ voice, segments = [], shortcut }) {
                 onChange={handleLanguageChange}
                 disabled={languageDisabled}
                 aria-label="Voice input language"
-                className={`h-7 appearance-none rounded-full border px-2.5 pr-7 text-[9px] font-semibold transition-all ${focusRingClass} ${
+                className={`h-7 appearance-none rounded-full border px-2.5 pr-7 text-[9px] font-semibold transition-colors ${focusRingClass} ${
                   languageDisabled
                     ? 'border-border/10 bg-muted/20 text-muted-foreground/40'
                     : 'border-border/30 bg-background/80 text-foreground hover:border-primary/40'
@@ -114,6 +118,7 @@ export function VoiceCaptureControl({ voice, segments = [], shortcut }) {
               </select>
               <ChevronDown
                 size={12}
+                aria-hidden="true"
                 className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/60"
               />
             </div>
@@ -123,7 +128,7 @@ export function VoiceCaptureControl({ voice, segments = [], shortcut }) {
               type="button"
               onClick={handleClick}
               disabled={disabled}
-              className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[9px] font-semibold uppercase tracking-widest transition-all ${focusRingClass} ${
+              className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[9px] font-semibold uppercase tracking-widest transition-colors ${focusRingClass} ${
                 disabled
                   ? 'border-border/10 text-muted-foreground/40'
                   : isRecording
@@ -133,11 +138,11 @@ export function VoiceCaptureControl({ voice, segments = [], shortcut }) {
               aria-label={startLabel}
             >
               {isStarting ? (
-                <Loader2 size={10} className="animate-spin" />
+                <Loader2 size={10} className="animate-spin" aria-hidden="true" />
               ) : isRecording ? (
-                <Square size={10} />
+                <Square size={10} aria-hidden="true" />
               ) : (
-                <Mic size={10} />
+                <Mic size={10} aria-hidden="true" />
               )}
               {isRecording ? 'Stop' : 'Start'}
             </button>
@@ -165,13 +170,17 @@ export function VoiceCaptureControl({ voice, segments = [], shortcut }) {
         </div>
       ) : null}
       {error ? (
-        <div className="flex items-center justify-between gap-2 rounded-md border border-rose-400/30 bg-rose-500/5 px-2 py-1 text-[10px] font-medium text-rose-300">
+        <div
+          className="flex items-center justify-between gap-2 rounded-md border border-rose-400/30 bg-rose-500/5 px-2 py-1 text-[10px] font-medium text-rose-300"
+          role="status"
+          aria-live="polite"
+        >
           <span>{error}</span>
           {showPermissionsHint ? (
             <button
               type="button"
               onClick={() => openSystemPermissions?.({ kind: permissionKind })}
-              className={`rounded border border-rose-400/40 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-rose-300 transition-all hover:border-rose-400/70 hover:text-rose-200 ${focusRingClass}`}
+              className={`rounded border border-rose-400/40 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-rose-300 transition-colors hover:border-rose-400/70 hover:text-rose-200 ${focusRingClass}`}
             >
               Open System Settings
             </button>

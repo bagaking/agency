@@ -39,14 +39,18 @@ export function ScreenshotCaptureCard({
             aria-label={captureLabel}
             className={`inline-flex h-7 w-7 items-center justify-center rounded-md border border-primary/40 bg-primary/5 text-primary transition-colors hover:bg-primary/10 disabled:opacity-50 ${focusRingClass}`}
           >
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+            {loading ? (
+              <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+            ) : (
+              <Camera size={14} aria-hidden="true" />
+            )}
           </button>
         </Tooltip>
       </div>
       {pending ? (
         <div className="rounded-xl border border-border/10 bg-background/70 p-3 flex flex-col gap-2">
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
-            <ImageIcon size={12} />
+            <ImageIcon size={12} aria-hidden="true" />
             <span className="min-w-0 truncate font-mono" title="Pending capture">
               Pending capture
             </span>
@@ -76,7 +80,7 @@ export function ScreenshotCaptureCard({
                 aria-label={routeLabel}
                 className={`inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 ${focusRingClass}`}
               >
-                <ArrowUpRight size={14} />
+                <ArrowUpRight size={14} aria-hidden="true" />
               </button>
             </Tooltip>
           </div>
@@ -86,7 +90,7 @@ export function ScreenshotCaptureCard({
       {asset ? (
         <div className="rounded-xl border border-border/10 bg-background/70 p-3 flex flex-col gap-2">
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
-            <ImageIcon size={12} />
+            <ImageIcon size={12} aria-hidden="true" />
             <span className="min-w-0 truncate font-mono" title={asset.path}>
               {asset.path}
             </span>
