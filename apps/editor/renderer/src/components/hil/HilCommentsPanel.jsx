@@ -149,9 +149,9 @@ export function HilCommentsPanel({
                   column: cursorPosition?.column || 1,
                 })
               }
-              className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-muted/10 transition-all active:scale-95"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-muted/10 transition-colors transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             >
-              <MessageSquarePlus size={13} strokeWidth={1.5} />
+              <MessageSquarePlus size={13} strokeWidth={1.5} aria-hidden="true" />
             </button>
           ) : null}
         </div>
@@ -166,10 +166,11 @@ export function HilCommentsPanel({
             </div>
             <button
               type="button"
+              aria-label="Close comment editor"
               onClick={onCloseComment}
-              className="rounded-md p-0.5 text-muted-foreground/50 hover:text-foreground hover:bg-muted/10 transition-all"
+              className="rounded-md p-0.5 text-muted-foreground/50 hover:text-foreground hover:bg-muted/10 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             >
-              <X size={13} />
+              <X size={13} aria-hidden="true" />
             </button>
           </div>
           
@@ -180,10 +181,10 @@ export function HilCommentsPanel({
 
             {commentSnippetLoading ? (
                 <div className="px-1 py-2 flex items-center gap-2 text-[10px] text-muted-foreground/40 italic">
-                    <RefreshCw size={10} className="animate-spin" /> Retrieving context...
+                    <RefreshCw size={10} className="animate-spin" aria-hidden="true" /> Retrieving context…
                 </div>
             ) : commentSnippetError ? (
-                <div className="mx-0.5 mt-0.5 text-[10px] text-rose-400 bg-rose-500/5 px-2 py-1 rounded border border-rose-500/10">
+                <div role="status" aria-live="polite" className="mx-0.5 mt-0.5 text-[10px] text-rose-400 bg-rose-500/5 px-2 py-1 rounded border border-rose-500/10">
                     {commentSnippetError}
                 </div>
             ) : null}
@@ -208,8 +209,11 @@ export function HilCommentsPanel({
             value={commentMessage}
             onChange={(event) => onCommentMessageChange?.(event.target.value)}
             rows={3}
-            className="mt-2 w-full resize-none rounded-lg border border-border/20 bg-background px-2.5 py-2 text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-all"
-            placeholder="Write a note..."
+            name="comment-message"
+            autoComplete="off"
+            aria-label="Comment message"
+            className="mt-2 w-full resize-none rounded-lg border border-border/20 bg-background px-2.5 py-2 text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-colors"
+            placeholder="Write a note…"
           />
 
           <div className="mt-2.5 flex items-center justify-between">
@@ -218,7 +222,7 @@ export function HilCommentsPanel({
                 type="checkbox"
                 checked={Boolean(commentTodo)}
                 onChange={(event) => onCommentTodoChange?.(event.target.checked)}
-                className="h-3 w-3 rounded border-border/60 bg-transparent text-primary focus:ring-offset-0 focus:ring-1 focus:ring-primary/20 transition-all"
+                className="h-3 w-3 rounded border-border/60 bg-transparent text-primary focus:ring-offset-0 focus:ring-1 focus:ring-primary/20 transition-colors"
               />
               <span className="group-hover:text-foreground transition-colors">TODO</span>
             </label>
@@ -226,7 +230,7 @@ export function HilCommentsPanel({
               <button
                 type="button"
                 onClick={onCloseComment}
-                className="rounded-md px-2.5 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-all"
+                className="rounded-md px-2.5 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
               >
                 Cancel
               </button>
@@ -234,14 +238,14 @@ export function HilCommentsPanel({
                 type="button"
                 onClick={onSubmitComment}
                 disabled={commentSaving}
-                className="rounded-md bg-primary hover:bg-primary/90 px-3 py-1 text-[10px] font-semibold text-primary-foreground shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                className="rounded-md bg-primary hover:bg-primary/90 px-3 py-1 text-[10px] font-semibold text-primary-foreground shadow-sm transition-colors transition-transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
               >
-                {commentSaving ? 'Saving...' : 'Submit'}
+                {commentSaving ? 'Saving…' : 'Submit'}
               </button>
             </div>
           </div>
           {commentError ? (
-            <div className="mt-2 text-[10px] font-medium text-rose-400 bg-rose-500/5 p-1.5 rounded border border-rose-500/10">
+            <div role="status" aria-live="polite" className="mt-2 text-[10px] font-medium text-rose-400 bg-rose-500/5 p-1.5 rounded border border-rose-500/10">
                 {commentError}
             </div>
           ) : null}
@@ -249,15 +253,15 @@ export function HilCommentsPanel({
       ) : null}
 
       {error ? (
-        <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-[10px] text-rose-300">
+        <div role="status" aria-live="polite" className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-[10px] text-rose-300">
           {error}
         </div>
       ) : null}
 
       {loading ? (
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground/50">
-          <RefreshCw size={12} className="animate-spin" />
-          Loading comments...
+          <RefreshCw size={12} className="animate-spin" aria-hidden="true" />
+          Loading comments…
         </div>
       ) : comments && comments.length > 0 ? (
         comments.map((comment, i) => (
@@ -285,16 +289,16 @@ function CommentItem({ comment, onUpdateStatus, worktreePath }) {
     const Icon = kindIcons[comment.kind] || Terminal;
     
     return (
-        <div className={`group relative flex flex-col rounded-lg transition-all duration-300 ${isResolved ? 'opacity-40 grayscale' : 'hover:bg-muted/5'}`}>
+        <div className={`group relative flex flex-col rounded-lg transition-colors duration-300 ${isResolved ? 'opacity-40 grayscale' : 'hover:bg-muted/5'}`}>
             {/* Type Indicator with Tooltip */}
             <div className="absolute -left-2 -top-1.5 z-10">
-                <div 
+                <div
                     title={`Type: ${kindLabel}`}
-                    className={`flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border shadow-sm transition-all ${
+                    className={`flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border shadow-sm transition-colors transition-shadow ${
                         isResolved ? 'bg-muted border-border text-muted-foreground' : 'bg-popover border-border/40 text-primary'
                     }`}
                 >
-                    <Icon size={8} strokeWidth={2.5} />
+                    <Icon size={8} strokeWidth={2.5} aria-hidden="true" />
                 </div>
             </div>
 
@@ -329,12 +333,14 @@ function CommentItem({ comment, onUpdateStatus, worktreePath }) {
                     {comment.body || comment.message}
                 </div>
 
-                <footer className="flex items-center justify-end opacity-0 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0 h-3.5">
-                    <button 
+                <footer className="flex items-center justify-end opacity-0 translate-y-1 transition-opacity transition-transform group-hover:opacity-100 group-hover:translate-y-0 h-3.5">
+                    <button
+                        type="button"
                         onClick={() => onUpdateStatus?.(comment, isResolved ? 'open' : 'resolved')}
-                        className="flex items-center gap-1 text-[9px] font-bold text-emerald-500/60 hover:text-emerald-400 transition-all"
+                        aria-label={isResolved ? 'Reopen comment' : 'Resolve comment'}
+                        className="flex items-center gap-1 text-[9px] font-bold text-emerald-500/60 hover:text-emerald-400 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
                     >
-                        <CheckCircle2 size={9} />
+                        <CheckCircle2 size={9} aria-hidden="true" />
                         {isResolved ? 'Reopen' : 'Resolve'}
                     </button>
                 </footer>
@@ -445,7 +451,7 @@ function ContextTooltip({ x, y, snippet, loading, commentBody, fileName }) {
                         </div>
                     ) : (
                         <div className="h-24 flex items-center justify-center italic text-[10px] text-muted-foreground/20 uppercase tracking-widest">
-                            {loading ? 'Retrieving Matrix...' : 'Snippet Unavailable'}
+                          {loading ? 'Retrieving Matrix…' : 'Snippet Unavailable'}
                         </div>
                     )}
                 </div>
@@ -533,9 +539,10 @@ export function PromoteModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-muted-foreground/50 hover:text-foreground hover:bg-muted/10 transition-all"
+            aria-label="Close promote dialog"
+            className="rounded-md p-1 text-muted-foreground/50 hover:text-foreground hover:bg-muted/10 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
           >
-            <X size={14} />
+            <X size={14} aria-hidden="true" />
           </button>
         </div>
 
@@ -546,8 +553,11 @@ export function PromoteModal({
               onChange={(event) => onChangeDescription?.(event.target.value)}
               rows={4}
               disabled={isWaiting}
-              className="w-full resize-none rounded-lg border border-border/20 bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-all disabled:opacity-60"
-              placeholder="Describe the draft you want to create from selected items..."
+              name="promote-description"
+              autoComplete="off"
+              aria-label="Draft description"
+              className="w-full resize-none rounded-lg border border-border/20 bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-colors disabled:opacity-60"
+              placeholder="Describe the draft you want to create from selected items…"
             />
 
             <div className="rounded-xl border border-border/10 bg-muted/5 px-3 py-3">
@@ -561,7 +571,7 @@ export function PromoteModal({
                   disabled={isWaiting}
                   className="flex-1 rounded-md border border-border/20 bg-background px-2 py-1.5 text-[11px] text-foreground focus:border-primary/40 focus:outline-none disabled:opacity-60"
                 >
-                  <option value="">Select session...</option>
+                  <option value="">Select session…</option>
                   {availableSessions.map((session) => (
                     <option key={session.id} value={session.id}>
                       {session.name || session.id} · {session.status}
@@ -572,7 +582,7 @@ export function PromoteModal({
                   type="button"
                   onClick={onCreateSession}
                   disabled={isWaiting}
-                  className="rounded-md border border-border/20 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all disabled:opacity-60"
+                  className="rounded-md border border-border/20 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:opacity-60"
                 >
                   New
                 </button>
@@ -580,7 +590,7 @@ export function PromoteModal({
                   type="button"
                   onClick={onFocusSession}
                   disabled={!activeSession}
-                  className="rounded-md border border-border/20 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all disabled:opacity-40"
+                  className="rounded-md border border-border/20 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:opacity-40"
                 >
                   View
                 </button>
@@ -705,7 +715,7 @@ export function PromoteModal({
                               return (
                                 <div
                                   key={item.id}
-                                  className="rounded-md border border-border/10 bg-muted/5 px-3 py-2 transition-all hover:bg-muted/10 group/item select-none"
+                                  className="rounded-md border border-border/10 bg-muted/5 px-3 py-2 transition-colors hover:bg-muted/10 group/item select-none"
                                   onMouseEnter={() => onPreviewItem?.(item)}
                                 >
                                   <label className="flex items-start gap-3 cursor-pointer">
@@ -714,7 +724,7 @@ export function PromoteModal({
                                       checked={checked}
                                       onChange={() => onToggleItem?.(item.id)}
                                       disabled={isWaiting}
-                                      className="mt-0.5 h-3.5 w-3.5 rounded border-border/60 bg-transparent text-primary focus:ring-offset-0 focus:ring-1 focus:ring-primary/20 transition-all disabled:opacity-60"
+                                      className="mt-0.5 h-3.5 w-3.5 rounded border-border/60 bg-transparent text-primary focus:ring-offset-0 focus:ring-1 focus:ring-primary/20 transition-colors disabled:opacity-60"
                                     />
                                     <div className="flex flex-1 flex-col gap-1 min-w-0">
                                       <div className="flex items-center justify-between">
@@ -764,7 +774,7 @@ export function PromoteModal({
         </div>
 
         {error ? (
-          <div className="mt-3 text-[11px] font-medium text-rose-400 bg-rose-500/5 p-2 rounded border border-rose-500/10">
+          <div role="status" aria-live="polite" className="mt-3 text-[11px] font-medium text-rose-400 bg-rose-500/5 p-2 rounded border border-rose-500/10">
             {error}
           </div>
         ) : null}
@@ -773,7 +783,7 @@ export function PromoteModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-all"
+            className="rounded-md px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
           >
             Cancel
           </button>
@@ -782,18 +792,18 @@ export function PromoteModal({
               type="button"
               onClick={onConfirm}
               disabled={!gateReady || loading}
-              className="rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-all active:scale-95 disabled:opacity-50"
+              className="rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-colors transition-transform active:scale-95 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             >
-              {loading ? 'Confirming...' : 'Confirm Draft'}
+              {loading ? 'Confirming…' : 'Confirm Draft'}
             </button>
           ) : (
             <button
               type="button"
               onClick={onDispatch}
               disabled={loading}
-              className="rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-all active:scale-95 disabled:opacity-50"
+              className="rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-colors transition-transform active:scale-95 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             >
-              {loading ? 'Dispatching...' : 'Dispatch Promote'}
+              {loading ? 'Dispatching…' : 'Dispatch Promote'}
             </button>
           )}
         </div>
@@ -920,7 +930,7 @@ function TreeCheckbox({ state, disabled, onChange }) {
       disabled={disabled}
       checked={state === 'all'}
       onChange={onChange}
-      className="h-3.5 w-3.5 rounded border-border/60 bg-transparent text-primary focus:ring-offset-0 focus:ring-1 focus:ring-primary/20 transition-all disabled:opacity-60"
+      className="h-3.5 w-3.5 rounded border-border/60 bg-transparent text-primary focus:ring-offset-0 focus:ring-1 focus:ring-primary/20 transition-colors disabled:opacity-60"
     />
   );
 }
