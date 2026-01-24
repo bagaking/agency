@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { StickyNote, Camera, Inbox, Quote } from 'lucide-react';
+import React from 'react';
+import { StickyNote, Camera, Inbox, Quote, ArrowUpRight } from 'lucide-react';
 import { FlashCaptureCard } from './memo/FlashCaptureCard.jsx';
 import { ExcerptCaptureCard } from './memo/ExcerptCaptureCard.jsx';
 import { ScreenshotCaptureCard } from './memo/ScreenshotCaptureCard.jsx';
@@ -28,15 +28,19 @@ export function HilMemoDrawer({
   onCaptureScreenshot,
   onOpenRouting,
   captureLoading,
+  onFocusInboxInput,
 }) {
-  const [focusedId, setFocusedId] = useState('');
+  const focusRingClass =
+    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
   const renderViewRecordsButton = (targetId) => (
     <button
       type="button"
       onClick={() => onSelectInbox?.(targetId)}
-      className="rounded-md border border-border/20 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60 hover:text-foreground hover:border-primary/30"
+      aria-label="Jump to records"
+      title="Jump to records page"
+      className={`rounded-full border border-border/30 bg-background/40 p-1.5 text-muted-foreground/60 transition hover:text-foreground hover:border-primary/40 hover:bg-primary/10 ${focusRingClass}`}
     >
-      View Records
+      <ArrowUpRight size={12} />
     </button>
   );
 
@@ -58,10 +62,8 @@ export function HilMemoDrawer({
           description="Quick note capture"
           icon={StickyNote}
           active={activeInboxId === 'flash'}
-          focusedId={focusedId}
-          onFocus={setFocusedId}
-          onBlur={() => setFocusedId('')}
           actions={renderViewRecordsButton('flash')}
+          onActivate={() => onFocusInboxInput?.('flash')}
         >
           <FlashCaptureCard
             value={flashValue}
@@ -79,10 +81,8 @@ export function HilMemoDrawer({
           description="Capture a source URL"
           icon={Quote}
           active={activeInboxId === 'excerpt'}
-          focusedId={focusedId}
-          onFocus={setFocusedId}
-          onBlur={() => setFocusedId('')}
           actions={renderViewRecordsButton('excerpt')}
+          onActivate={() => onFocusInboxInput?.('excerpt')}
         >
           <ExcerptCaptureCard
             url={excerptUrl}
@@ -103,10 +103,8 @@ export function HilMemoDrawer({
           description="Capture and annotate"
           icon={Camera}
           active={activeInboxId === 'screenshot'}
-          focusedId={focusedId}
-          onFocus={setFocusedId}
-          onBlur={() => setFocusedId('')}
           actions={renderViewRecordsButton('screenshot')}
+          onActivate={() => onFocusInboxInput?.('screenshot')}
         >
           <ScreenshotCaptureCard
             asset={screenshotAsset}
@@ -123,7 +121,7 @@ export function HilMemoDrawer({
       <button
         type="button"
         onClick={() => onOpenInbox?.()}
-        className="flex items-center justify-between rounded-xl border border-border/10 bg-muted/5 px-3 py-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60 transition hover:text-foreground hover:border-primary/30"
+        className={`flex items-center justify-between rounded-xl bg-card/40 px-3 py-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60 ring-1 ring-inset ring-border/20 transition hover:text-foreground hover:ring-primary/30 hover:bg-card/60 ${focusRingClass}`}
       >
         <span className="flex items-center gap-2">
           <Inbox size={12} />
@@ -141,45 +139,46 @@ function MemoShortcutCard({
   description,
   icon: Icon,
   active,
-  focusedId,
-  onFocus,
-  onBlur,
   actions,
+  onActivate,
   children,
 }) {
-  const expanded = !active || focusedId === id;
+  const expanded = !active;
+  const focusRingClass =
+    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
   return (
     <div
-      onFocusCapture={() => {
-        onFocus?.(id);
-      }}
-      onBlurCapture={(event) => {
-        if (event.currentTarget.contains(event.relatedTarget)) {
-          return;
-        }
-        onBlur?.();
-      }}
-      className={`rounded-2xl border transition-all duration-300 ${
+      className={`rounded-2xl transition-all duration-300 ring-1 ring-inset ${
         active
-          ? 'border-primary/40 bg-primary/5 shadow-[0_0_20px_rgba(59,130,246,0.08)]'
-          : 'border-border/10 bg-muted/5 hover:border-primary/30'
+          ? 'ring-primary/35 bg-card/60 shadow-[0_12px_30px_rgba(15,23,42,0.35)]'
+          : 'ring-border/20 bg-card/40 hover:ring-primary/25 hover:bg-card/55'
       }`}
     >
       <div
-        role="button"
-        tabIndex={0}
-        onClick={() => onFocus?.(id)}
+        role={active ? 'button' : undefined}
+        tabIndex={active ? 0 : -1}
+        onClick={() => {
+          if (active) {
+            onActivate?.();
+          }
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
-            onFocus?.(id);
+            if (active) {
+              onActivate?.();
+            }
           }
         }}
-        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
+        className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left ${focusRingClass} ${
+          active ? 'cursor-pointer' : 'cursor-default'
+        }`}
       >
         <span className="flex items-center gap-3">
-          <span className={`flex h-8 w-8 items-center justify-center rounded-lg border ${
-            active ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/20 bg-background/60 text-muted-foreground/60'
+          <span className={`flex h-8 w-8 items-center justify-center rounded-lg ring-1 ring-inset ${
+            active
+              ? 'ring-primary/40 bg-primary/10 text-primary'
+              : 'ring-border/20 bg-background/40 text-muted-foreground/60'
           }`}>
             <Icon size={14} />
           </span>

@@ -10,6 +10,8 @@ export function ExcerptCaptureCard({
   onNoteChange,
   onSave,
   loading,
+  urlInputRef,
+  noteInputRef,
 }) {
   const hasPreview = Boolean(preview?.summary || preview?.excerpt || preview?.title || preview?.text);
   const canFetch = Boolean(url?.trim());
@@ -44,6 +46,7 @@ export function ExcerptCaptureCard({
         </div>
       </div>
       <input
+        ref={urlInputRef}
         value={url || ''}
         onChange={(event) => onUrlChange?.(event.target.value)}
         placeholder="https://example.com/article"
@@ -68,6 +71,7 @@ export function ExcerptCaptureCard({
         )}
       </div>
       <input
+        ref={noteInputRef}
         value={note || ''}
         onChange={(event) => onNoteChange?.(event.target.value)}
         placeholder="Optional note about this excerpt..."

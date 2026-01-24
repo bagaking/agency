@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useEffect, useState } from 'react';
+import React, { useMemo, useCallback, useEffect, useRef, useState } from 'react';
 import { 
   RefreshCw, 
   CheckCircle2, 
@@ -107,9 +107,21 @@ export function HilMemoView({
   visibleInboxItems,
   summarizeBody,
   resolveBody,
+  focusInboxInputId,
+  onFocusInboxInputHandled,
 }) {
   const [mutationError, setMutationError] = useState('');
   const modal = useModal();
+  const flashInputRef = useRef(null);
+  const excerptUrlInputRef = useRef(null);
+  const excerptNoteInputRef = useRef(null);
+  const screenshotNoteInputRef = useRef(null);
+  const prefersReducedMotion = useMemo(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) {
+      return false;
+    }
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }, []);
   const handleFlashChange = useCallback(
     (value) => {
       if (onFlashChange) {
@@ -120,6 +132,39 @@ export function HilMemoView({
     },
     [onFlashChange, setFlashText]
   );
+
+  useEffect(() => {
+    if (!focusInboxInputId) {
+      return;
+    }
+    if (!activeInboxSection || activeInboxSection.id !== focusInboxInputId) {
+      return;
+    }
+    const targetRef =
+      focusInboxInputId === 'flash'
+        ? flashInputRef
+        : focusInboxInputId === 'excerpt'
+          ? excerptUrlInputRef
+          : focusInboxInputId === 'screenshot'
+            ? screenshotNoteInputRef
+            : null;
+    const node = targetRef?.current;
+    if (node && typeof node.focus === 'function') {
+      node.focus();
+      if (typeof node.scrollIntoView === 'function') {
+        node.scrollIntoView({
+          behavior: prefersReducedMotion ? 'auto' : 'smooth',
+          block: 'center',
+        });
+      }
+    }
+    onFocusInboxInputHandled?.();
+  }, [
+    activeInboxSection,
+    focusInboxInputId,
+    onFocusInboxInputHandled,
+    prefersReducedMotion,
+  ]);
 
   const sessionsById = useMemo(() => {
     const map = new Map();
@@ -317,6 +362,7 @@ export function HilMemoView({
                 onSaveFlash={handleCreateFlash}
                 flashVoice={flashVoice}
                 flashVoiceSegments={flashVoiceSegments}
+                flashInputRef={flashInputRef}
                 excerptUrl={excerptUrl}
                 onExcerptUrlChange={setExcerptUrl}
                 onFetchExcerpt={handleFetchExcerpt}
@@ -325,6 +371,8 @@ export function HilMemoView({
                 excerptNote={excerptNote}
                 onExcerptNoteChange={setExcerptNote}
                 onSaveExcerpt={handleCreateExcerpt}
+                excerptUrlInputRef={excerptUrlInputRef}
+                excerptNoteInputRef={excerptNoteInputRef}
                 screenshotAsset={screenshotAsset}
                 pendingCapture={captureResult}
                 screenshotNote={screenshotNote}
@@ -333,6 +381,7 @@ export function HilMemoView({
                 onOpenRouting={handleOpenRouting}
                 captureLoading={captureLoading}
                 captureError={captureError}
+                screenshotNoteInputRef={screenshotNoteInputRef}
               />
 
               {mutationError && (

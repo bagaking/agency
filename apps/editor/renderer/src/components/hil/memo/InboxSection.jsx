@@ -11,6 +11,7 @@ export function InboxSection({
   onSaveFlash,
   flashVoice,
   flashVoiceSegments,
+  flashInputRef,
   excerptUrl,
   onExcerptUrlChange,
   onFetchExcerpt,
@@ -19,6 +20,8 @@ export function InboxSection({
   excerptNote,
   onExcerptNoteChange,
   onSaveExcerpt,
+  excerptUrlInputRef,
+  excerptNoteInputRef,
   screenshotAsset,
   pendingCapture,
   screenshotNote,
@@ -27,6 +30,7 @@ export function InboxSection({
   onOpenRouting,
   captureLoading,
   captureError,
+  screenshotNoteInputRef,
 }) {
   const highlightClass = activeSection?.id && activeSection.id !== 'comments'
     ? 'ring-1 ring-primary/20 shadow-[0_0_20px_rgba(59,130,246,0.08)]'
@@ -63,6 +67,7 @@ export function InboxSection({
             voice={flashVoice}
             voiceSegments={flashVoiceSegments}
             loading={captureLoading}
+            inputRef={flashInputRef}
           />
         ) : null}
 
@@ -77,6 +82,8 @@ export function InboxSection({
             onNoteChange={onExcerptNoteChange}
             onSave={onSaveExcerpt}
             loading={captureLoading}
+            urlInputRef={excerptUrlInputRef}
+            noteInputRef={excerptNoteInputRef}
           />
         ) : null}
 
@@ -89,6 +96,7 @@ export function InboxSection({
             onCapture={onCaptureScreenshot}
             onOpenRouting={onOpenRouting}
             loading={captureLoading}
+            noteInputRef={screenshotNoteInputRef}
           />
         ) : null}
 

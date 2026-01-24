@@ -88,6 +88,7 @@ function App() {
   const [appShortcutsScope, setAppShortcutsScope] = useState('global');
   const [gateScope, setGateScope] = useState('global');
   const [gateStage, setGateStage] = useState('active');
+  const [memoFocusTarget, setMemoFocusTarget] = useState('');
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [terminalMode, setTerminalMode] = useState('shell');
   const [tmuxStatus, setTmuxStatus] = useState({ available: true });
@@ -1909,6 +1910,15 @@ function App() {
     onDeleteActionSheet: handleDeleteActionSheet,
     onOpenActionSheets: handleOpenActionSheets,
   };
+  const handleFocusInboxInput = useCallback((targetId) => {
+    if (!targetId) {
+      return;
+    }
+    setMemoFocusTarget(targetId);
+  }, []);
+  const handleFocusInboxInputHandled = useCallback(() => {
+    setMemoFocusTarget('');
+  }, []);
   const handleOpenMemoInbox = useCallback(
     (inboxType = 'comments') => {
       handleSwitchView('memo');
@@ -1982,6 +1992,7 @@ function App() {
     activeInboxId: hilMemo.activeInboxSection?.id || 'comments',
     onSelectInbox: handleOpenMemoInbox,
     onOpenInbox: () => handleOpenMemoInbox('comments'),
+    onFocusInboxInput: handleFocusInboxInput,
     flashValue: memoCapture.flashText,
     onFlashChange: memoCapture.onFlashChange,
     onSaveFlash: memoCapture.handleCreateFlash,
@@ -2273,6 +2284,8 @@ function App() {
           onDeleteActionSheet: handleDeleteActionSheet,
           onOpenActionSheets: handleOpenActionSheets,
           onCreateActionSheet: handleCreateDraftActionSheet,
+          focusInboxInputId: memoFocusTarget,
+          onFocusInboxInputHandled: handleFocusInboxInputHandled,
         }}
         memoSidebarProps={{
           ...hilMemo,

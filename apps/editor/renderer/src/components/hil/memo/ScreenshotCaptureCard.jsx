@@ -9,6 +9,7 @@ export function ScreenshotCaptureCard({
   onCapture,
   onOpenRouting,
   loading,
+  noteInputRef,
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -72,6 +73,7 @@ export function ScreenshotCaptureCard({
         </div>
       ) : null}
       <input
+        ref={noteInputRef}
         value={note}
         onChange={(event) => onNoteChange?.(event.target.value)}
         placeholder="Optional note for the screenshot..."
