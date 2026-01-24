@@ -21,15 +21,17 @@ export function ExcerptCaptureCard({
     'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
   const fetchLabel = fetching ? 'Fetching…' : 'Fetch preview';
   const saveLabel = loading ? 'Saving…' : 'Save excerpt';
+  const statusLabel = fetching ? 'Fetching…' : hasPreview ? 'Preview ready' : canFetch ? 'Ready to fetch' : 'Waiting for URL';
+  const statusClass = fetching ? 'text-amber-300' : hasPreview ? 'text-emerald-300' : 'text-muted-foreground/50';
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-1 text-[10px] text-muted-foreground/60">
-          <span className="uppercase tracking-[0.2em] font-bold text-muted-foreground/40">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <span className="uppercase tracking-[0.2em] font-bold text-[10px] text-muted-foreground/40">
             Source URL
           </span>
-          <span className="italic text-muted-foreground/40">
-            Paste a link to fetch and analyze.
+          <span className={`text-[9px] font-semibold uppercase tracking-widest ${statusClass}`} aria-live="polite">
+            {statusLabel}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -75,9 +77,9 @@ export function ExcerptCaptureCard({
         aria-label="Excerpt source URL"
         name="excerpt-url"
         autoComplete="off"
-        className="h-9 rounded-md border border-border/20 bg-background px-3 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary/30 focus:outline-none transition-colors"
+        className="h-9 rounded-lg border border-border/20 bg-background/80 px-3 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary/30 focus:outline-none transition-colors"
       />
-      <div className="rounded-lg border border-border/10 bg-background/60 p-3 text-[11px] text-muted-foreground/70 whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar">
+      <div className="rounded-lg border border-border/10 bg-muted/10 p-3 text-[11px] text-muted-foreground/70 whitespace-pre-wrap max-h-40 min-h-[120px] overflow-y-auto custom-scrollbar">
         {hasPreview ? (
           <div className="flex flex-col gap-2">
             <div className="text-[12px] font-semibold text-foreground/80">
@@ -103,7 +105,7 @@ export function ExcerptCaptureCard({
         aria-label="Excerpt note"
         name="excerpt-note"
         autoComplete="off"
-        className="h-9 rounded-md border border-border/20 bg-background px-3 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary/30 focus:outline-none transition-colors"
+        className="h-9 rounded-lg border border-border/20 bg-background/80 px-3 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary/30 focus:outline-none transition-colors"
       />
     </div>
   );

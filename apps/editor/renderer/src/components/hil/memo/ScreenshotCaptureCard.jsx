@@ -20,15 +20,17 @@ export function ScreenshotCaptureCard({
   const captureLabel = loading ? 'Capturing…' : 'Capture screenshot';
   const captureTooltip = loading ? 'Capturing…' : `${captureLabel} · ${shortcutHint}`;
   const routeLabel = 'Route capture';
+  const statusLabel = loading ? 'Capturing…' : pending ? 'Pending capture' : asset ? 'Captured' : 'Ready';
+  const statusClass = loading || pending ? 'text-amber-300' : asset ? 'text-emerald-300' : 'text-muted-foreground/50';
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex flex-col gap-1 text-[10px] text-muted-foreground/60">
-          <span className="uppercase tracking-[0.2em] font-bold text-muted-foreground/40">
+        <div className="flex items-center gap-2">
+          <span className="uppercase tracking-[0.2em] font-bold text-[10px] text-muted-foreground/40">
             Screenshot
           </span>
-          <span className="italic text-muted-foreground/40">
-            Capture a region from your screen.
+          <span className={`text-[9px] font-semibold uppercase tracking-widest ${statusClass}`} aria-live="polite">
+            {statusLabel}
           </span>
         </div>
         <Tooltip label={captureTooltip} side="left">
@@ -48,7 +50,7 @@ export function ScreenshotCaptureCard({
         </Tooltip>
       </div>
       {pending ? (
-        <div className="rounded-xl border border-border/10 bg-background/70 p-3 flex flex-col gap-2">
+        <div className="rounded-xl border border-border/10 bg-muted/10 p-3 flex flex-col gap-2">
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
             <ImageIcon size={12} aria-hidden="true" />
             <span className="min-w-0 truncate font-mono" title="Pending capture">
@@ -88,7 +90,7 @@ export function ScreenshotCaptureCard({
       ) : null}
 
       {asset ? (
-        <div className="rounded-xl border border-border/10 bg-background/70 p-3 flex flex-col gap-2">
+        <div className="rounded-xl border border-border/10 bg-muted/10 p-3 flex flex-col gap-2">
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
             <ImageIcon size={12} aria-hidden="true" />
             <span className="min-w-0 truncate font-mono" title={asset.path}>
@@ -122,7 +124,7 @@ export function ScreenshotCaptureCard({
         aria-label="Screenshot note"
         name="screenshot-note"
         autoComplete="off"
-        className="h-9 rounded-md border border-border/20 bg-background px-3 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary/30 focus:outline-none transition-colors"
+        className="h-9 rounded-lg border border-border/20 bg-background/80 px-3 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary/30 focus:outline-none transition-colors"
       />
     </div>
   );
