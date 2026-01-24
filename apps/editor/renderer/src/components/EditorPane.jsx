@@ -460,6 +460,7 @@ export function EditorPane({
                                     command: action.startCommand || '',
                                     kind: 'start',
                                     label: action.label || action.id,
+                                    profileId: action.id,
                                     appendEnter: true,
                                   })}
                                 className="px-2 py-0.5 rounded border border-border/40 bg-muted/20 text-[10px] text-muted-foreground hover:border-primary/50 hover:text-primary transition-all whitespace-nowrap active:scale-95"

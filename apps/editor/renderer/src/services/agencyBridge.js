@@ -47,6 +47,30 @@ export const setUiState = async (payload) => {
   return api.setUiState(payload);
 };
 
+export const getAppShortcuts = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.getAppShortcuts) {
+    return null;
+  }
+  return api.getAppShortcuts(payload);
+};
+
+export const setAppShortcuts = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.setAppShortcuts) {
+    return null;
+  }
+  return api.setAppShortcuts(payload);
+};
+
+export const applyAppShortcuts = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.applyAppShortcuts) {
+    return null;
+  }
+  return api.applyAppShortcuts(payload);
+};
+
 export const getQuickActions = async (payload) => {
   const api = getAgencyApi();
   if (!api?.getQuickActions) {
@@ -77,6 +101,14 @@ export const setTerminusSettings = async (payload) => {
     return null;
   }
   return api.setTerminusSettings(payload);
+};
+
+export const onAppShortcutTriggered = (handler) => {
+  const api = getAgencyApi();
+  if (!api?.onAppShortcutTriggered) {
+    return null;
+  }
+  return api.onAppShortcutTriggered(handler);
 };
 
 export const onCellsUpdated = (handler) => {

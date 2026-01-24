@@ -9,6 +9,7 @@ const { setupTerminalHandlers } = require('./ipc/handlers/terminal');
 const { setupSessionHandlers } = require('./ipc/handlers/sessions');
 const { setupUiStateHandlers } = require('./ipc/handlers/uiState');
 const { setupQuickActionsHandlers } = require('./ipc/handlers/quickActions');
+const { setupAppShortcutsHandlers } = require('./ipc/handlers/appShortcuts');
 const { setupTerminusSettingsHandlers } = require('./ipc/handlers/terminusSettings');
 const { setupGatesHandlers } = require('./ipc/handlers/gates');
 const { setupTmuxHandlers } = require('./ipc/handlers/tmux');
@@ -24,7 +25,11 @@ const { setupCaptureHandlers } = require('./ipc/handlers/capture');
 const { setupActionSheetsHandlers } = require('./ipc/handlers/actionSheets');
 const { setupVoiceCaptureHandlers } = require('./ipc/handlers/voiceCapture');
 const { setupSystemHandlers } = require('./ipc/handlers/system');
-const captureManager = require('./services/screenshotCapture/captureManager');
+const {
+  getAppShortcuts,
+  applyAppShortcuts,
+  clearRegisteredShortcuts,
+} = require('./services/appShortcuts');
 const { resolveRendererUrl } = require('./services/rendererUrl');
 const { warmupVoiceCapture } = require('./services/voiceCapture');
 const {
@@ -311,6 +316,7 @@ app.whenReady().then(async () => {
   setupSessionHandlers();
   setupUiStateHandlers();
   setupQuickActionsHandlers();
+  setupAppShortcutsHandlers();
   setupTerminusSettingsHandlers();
   setupGatesHandlers();
   setupTmuxHandlers();
@@ -365,8 +371,14 @@ app.whenReady().then(async () => {
         error: error?.message || String(error),
       });
     });
-  captureManager.registerGlobalShortcut();
-  recordStartup('global-shortcuts-registered');
+  getAppShortcuts({ scope: 'global' })
+    .then((actions) => applyAppShortcuts({ actions }))
+    .then(() => recordStartup('app-shortcuts-registered'))
+    .catch((error) => {
+      logRuntime('warn', 'app shortcuts register failed', {
+        error: error?.message || String(error),
+      });
+    });
 
   logRuntime('info', 'main window created');
 
@@ -386,7 +398,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  captureManager.unregisterGlobalShortcut();
+  clearRegisteredShortcuts();
   closeRuntimeLogger();
 });
 

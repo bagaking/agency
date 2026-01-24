@@ -16,6 +16,9 @@ const DEFAULT_PROFILES = [
     resumeCommand: '',
     locked: true,
     kind: 'shell',
+    shortcuts: {
+      bindings: [],
+    },
   },
   {
     id: 'codex',
@@ -23,6 +26,9 @@ const DEFAULT_PROFILES = [
     startCommand: 'codex',
     resumeCommand: '',
     kind: 'cli',
+    shortcuts: {
+      bindings: [],
+    },
   },
   {
     id: 'gemini',
@@ -30,6 +36,9 @@ const DEFAULT_PROFILES = [
     startCommand: 'gemini',
     resumeCommand: '',
     kind: 'cli',
+    shortcuts: {
+      bindings: [],
+    },
   },
   {
     id: 'claude',
@@ -37,21 +46,18 @@ const DEFAULT_PROFILES = [
     startCommand: 'claude',
     resumeCommand: '',
     kind: 'cli',
+    shortcuts: {
+      bindings: [],
+    },
   },
 ];
 
 const DEFAULT_SETTINGS = {
   profiles: DEFAULT_PROFILES,
-  shortcuts: {
-    bindings: [],
-  },
 };
 
 const EMPTY_SETTINGS = {
   profiles: [],
-  shortcuts: {
-    bindings: [],
-  },
 };
 
 const PROJECT_FILENAME = 'terminus-settings.yaml';
@@ -86,6 +92,8 @@ function getAgentSettingsPath(worktreePath) {
 
 function normalizeProfile(profile = {}) {
   const id = profile.id || generateId('profile');
+  const rawBindings = profile.shortcuts?.bindings;
+  const bindings = Array.isArray(rawBindings) ? rawBindings.map(normalizeBinding) : [];
   return {
     id,
     label: String(profile.label || ''),
@@ -93,6 +101,9 @@ function normalizeProfile(profile = {}) {
     resumeCommand: String(profile.resumeCommand || ''),
     locked: Boolean(profile.locked),
     kind: profile.kind ? String(profile.kind) : undefined,
+    shortcuts: {
+      bindings,
+    },
   };
 }
 
@@ -130,20 +141,11 @@ function ensureBaselineProfile(profiles = []) {
 
 function normalizeSettings(settings = {}, { includeDefaults } = {}) {
   const rawProfiles = Array.isArray(settings.profiles) ? settings.profiles : [];
-  const rawBindings = settings.shortcuts?.bindings;
   const profiles = includeDefaults
     ? ensureBaselineProfile(rawProfiles.length ? rawProfiles : DEFAULT_PROFILES)
     : rawProfiles.map(normalizeProfile);
-  const bindings = Array.isArray(rawBindings) ? rawBindings.map(normalizeBinding) : [];
-  if (includeDefaults) {
-    return {
-      profiles,
-      shortcuts: { bindings },
-    };
-  }
   return {
     profiles,
-    shortcuts: { bindings },
   };
 }
 

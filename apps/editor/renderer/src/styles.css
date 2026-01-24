@@ -102,6 +102,15 @@ body {
   animation: glow 3s ease-in-out infinite;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-tab-in,
+  .animate-slide-down,
+  .active-tab-glow,
+  .animate-spin-slow {
+    animation: none !important;
+  }
+}
+
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {

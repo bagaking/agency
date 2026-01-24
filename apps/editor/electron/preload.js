@@ -119,6 +119,9 @@ contextBridge.exposeInMainWorld('agency', {
   renameSession: (payload) => ipcRenderer.invoke('sessions:rename', payload),
   getUiState: () => ipcRenderer.invoke('ui-state:get'),
   setUiState: (payload) => ipcRenderer.invoke('ui-state:set', payload),
+  getAppShortcuts: (payload) => ipcRenderer.invoke('app-shortcuts:get', payload),
+  setAppShortcuts: (payload) => ipcRenderer.invoke('app-shortcuts:set', payload),
+  applyAppShortcuts: (payload) => ipcRenderer.invoke('app-shortcuts:apply', payload),
   getQuickActions: (payload) => ipcRenderer.invoke('quick-actions:get', payload),
   setQuickActions: (payload) => ipcRenderer.invoke('quick-actions:set', payload),
   getTerminusSettings: (payload) => ipcRenderer.invoke('terminus-settings:get', payload),
@@ -192,6 +195,11 @@ contextBridge.exposeInMainWorld('agency', {
     const wrapped = (_event, payload) => handler(payload);
     ipcRenderer.on('voice:capture:event', wrapped);
     return () => ipcRenderer.removeListener('voice:capture:event', wrapped);
+  },
+  onAppShortcutTriggered: (handler) => {
+    const wrapped = (_event, payload) => handler(payload);
+    ipcRenderer.on('app-shortcuts:trigger', wrapped);
+    return () => ipcRenderer.removeListener('app-shortcuts:trigger', wrapped);
   },
   createCell: (payload) => ipcRenderer.invoke('cells:create', payload),
   updateCellState: (payload) => ipcRenderer.invoke('cells:updateState', payload),

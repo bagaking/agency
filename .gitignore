@@ -55,6 +55,13 @@ logs
 # !.codex/prompts/
 # !.codex/prompts/*.md
 .claude
+.agent
+.agents
+.kiro
+.opencode
+.gemini
+.cursor
+.windsurf
 .bagakit
 
 # Node/Electron

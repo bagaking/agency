@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { disposeTerminalEntry } from '../terminal/terminalManager.js';
+import { BASELINE_PROFILE_ID } from '../utils/terminusSettings.js';
 
 const DEFAULT_FONT_SIZE = 13;
 const MIN_FONT_SIZE = 10;
@@ -95,6 +96,7 @@ export function useSessions({
             worktreePath: cell.worktreePath,
             name: 'Default',
             sessionId: 'default',
+            profileId: BASELINE_PROFILE_ID,
           });
           nextSessions = created ? [created] : nextSessions;
         }
@@ -230,12 +232,13 @@ export function useSessions({
       setSessionLoading(true);
       setSessionError('');
       try {
-        const { name, sessionId } = options || {};
+        const { name, sessionId, profileId } = options || {};
         const created = await window.agency.createSession({
           cellId: selectedCell.id,
           worktreePath: selectedCell.worktreePath,
           name: name || undefined,
           sessionId: sessionId || undefined,
+          profileId: profileId || BASELINE_PROFILE_ID,
         });
         setSessionsByCellId((current) => {
           const currentSessions = current[selectedCell.id] || [];
@@ -375,7 +378,7 @@ export function useSessions({
   }, [activeSessionId, selectedCell, updateFontSizeForSession]);
 
   const dispatchSessionCommand = useCallback(
-    async ({ command, kind, label, sessionId, appendEnter, doubleEnter }) => {
+    async ({ command, kind, label, sessionId, appendEnter, doubleEnter, profileId }) => {
       if (!selectedCell || !command) {
         return;
       }
@@ -397,6 +400,7 @@ export function useSessions({
             cellId: selectedCell.id,
             worktreePath: selectedCell.worktreePath,
             name: label ? `CLI - ${label}` : 'CLI',
+            profileId: profileId || BASELINE_PROFILE_ID,
           });
           if (created?.id) {
             setSessionsByCellId((current) => ({

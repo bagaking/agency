@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   BASELINE_PROFILE,
   BASELINE_PROFILE_ID,
-  buildBindingRows,
+  buildBindingRowsByProfile,
   buildProfileRows,
-  mergeBindings,
+  mergeProfileBindings,
   mergeProfiles,
 } from '../utils/terminusSettings.js';
 import { getTerminusSettings, isAgencyAvailable, setTerminusSettings } from '../services/agencyBridge.js';
@@ -13,16 +13,10 @@ const pathBaseName = (value) => value.split('/').filter(Boolean).pop() || value;
 
 const DEFAULT_SETTINGS = {
   profiles: [BASELINE_PROFILE],
-  shortcuts: {
-    bindings: [],
-  },
 };
 
 const EMPTY_SETTINGS = {
   profiles: [],
-  shortcuts: {
-    bindings: [],
-  },
 };
 
 const generateId = (prefix) => {
@@ -112,17 +106,20 @@ export function useTerminusSettings({ selectedCell, terminusScope }) {
     [globalSettings.profiles, projectSettings.profiles, agentSettings.profiles]
   );
 
-  const resolvedBindings = useMemo(
-    () => mergeBindings(
-      globalSettings.shortcuts?.bindings,
-      projectSettings.shortcuts?.bindings,
-      agentSettings.shortcuts?.bindings
-    ),
-    [
-      globalSettings.shortcuts?.bindings,
-      projectSettings.shortcuts?.bindings,
-      agentSettings.shortcuts?.bindings,
-    ]
+  const profileIds = useMemo(
+    () => (resolvedProfiles || []).map((profile) => profile.id),
+    [resolvedProfiles]
+  );
+
+  const resolvedBindingsByProfile = useMemo(
+    () =>
+      mergeProfileBindings({
+        profileIds,
+        globalProfiles: globalSettings.profiles,
+        projectProfiles: projectSettings.profiles,
+        agentProfiles: agentSettings.profiles,
+      }),
+    [profileIds, globalSettings.profiles, projectSettings.profiles, agentSettings.profiles]
   );
 
   const profileRows = useMemo(
@@ -136,20 +133,16 @@ export function useTerminusSettings({ selectedCell, terminusScope }) {
     [terminusScope, globalSettings.profiles, projectSettings.profiles, agentSettings.profiles]
   );
 
-  const bindingRows = useMemo(
+  const bindingRowsByProfile = useMemo(
     () =>
-      buildBindingRows({
+      buildBindingRowsByProfile({
         scope: terminusScope,
-        globalBindings: globalSettings.shortcuts?.bindings || [],
-        projectBindings: projectSettings.shortcuts?.bindings || [],
-        agentBindings: agentSettings.shortcuts?.bindings || [],
+        profileIds,
+        globalProfiles: globalSettings.profiles,
+        projectProfiles: projectSettings.profiles,
+        agentProfiles: agentSettings.profiles,
       }),
-    [
-      terminusScope,
-      globalSettings.shortcuts?.bindings,
-      projectSettings.shortcuts?.bindings,
-      agentSettings.shortcuts?.bindings,
-    ]
+    [terminusScope, profileIds, globalSettings.profiles, projectSettings.profiles, agentSettings.profiles]
   );
 
   const scopeSettings =
@@ -188,14 +181,49 @@ export function useTerminusSettings({ selectedCell, terminusScope }) {
     markDirty(terminusScope);
   };
 
-  const updateBindings = (updater) => {
-    updateScopedSettings((current) => ({
-      ...current,
-      shortcuts: {
-        ...(current.shortcuts || {}),
-        bindings: updater(current.shortcuts?.bindings || []),
+  const ensureScopedProfile = (profiles, profileId) => {
+    if (profiles.some((profile) => profile.id === profileId)) {
+      return profiles;
+    }
+    const source = profileRows.find((profile) => profile.id === profileId);
+    if (!source) {
+      return profiles;
+    }
+    const { meta, ...payload } = source;
+    return [
+      ...profiles,
+      {
+        ...payload,
+        shortcuts: { bindings: [] },
       },
-    }));
+    ];
+  };
+
+  const updateBindings = (profileId, updater) => {
+    if (!profileId) {
+      return;
+    }
+    updateScopedSettings((current) => {
+      const profiles = ensureScopedProfile(current.profiles || [], profileId);
+      return {
+        ...current,
+        profiles: profiles.map((profile) => {
+          if (profile.id !== profileId) {
+            return profile;
+          }
+          const existing = Array.isArray(profile.shortcuts?.bindings)
+            ? profile.shortcuts.bindings
+            : [];
+          return {
+            ...profile,
+            shortcuts: {
+              ...(profile.shortcuts || {}),
+              bindings: updater(existing),
+            },
+          };
+        }),
+      };
+    });
     markDirty(terminusScope);
   };
 
@@ -211,6 +239,7 @@ export function useTerminusSettings({ selectedCell, terminusScope }) {
         label: 'New Terminus',
         startCommand: '',
         resumeCommand: '',
+        shortcuts: { bindings: [] },
       },
     ]);
   };
@@ -226,12 +255,12 @@ export function useTerminusSettings({ selectedCell, terminusScope }) {
     if (!source) {
       return;
     }
-    const { meta, ...payload } = source;
+    const { meta, shortcuts, ...payload } = source;
     updateProfiles((current) => {
       if (current.some((profile) => profile.id === id)) {
         return current;
       }
-      return [...current, payload];
+      return [...current, { ...payload, shortcuts: { bindings: [] } }];
     });
   };
 
@@ -246,12 +275,15 @@ export function useTerminusSettings({ selectedCell, terminusScope }) {
     updateProfiles((current) => current.filter((profile) => profile.id !== id));
   };
 
-  const addBinding = () => {
+  const addBinding = (profileId) => {
     if (scopeDisabled) {
       setError('Select a Cell to edit project or agent Terminus.');
       return;
     }
-    updateBindings((current) => [
+    if (!profileId) {
+      return;
+    }
+    updateBindings(profileId, (current) => [
       ...current,
       {
         id: generateId('binding'),
@@ -265,19 +297,20 @@ export function useTerminusSettings({ selectedCell, terminusScope }) {
     ]);
   };
 
-  const updateBinding = (id, patch) => {
-    updateBindings((current) =>
+  const updateBinding = (profileId, id, patch) => {
+    updateBindings(profileId, (current) =>
       current.map((binding) => (binding.id === id ? { ...binding, ...patch } : binding))
     );
   };
 
-  const overrideBinding = (id) => {
-    const source = bindingRows.find((binding) => binding.id === id);
+  const overrideBinding = (profileId, id) => {
+    const bindings = bindingRowsByProfile.get(profileId) || [];
+    const source = bindings.find((binding) => binding.id === id);
     if (!source) {
       return;
     }
     const { meta, ...payload } = source;
-    updateBindings((current) => {
+    updateBindings(profileId, (current) => {
       if (current.some((binding) => binding.id === id)) {
         return current;
       }
@@ -285,12 +318,12 @@ export function useTerminusSettings({ selectedCell, terminusScope }) {
     });
   };
 
-  const removeBinding = (id) => {
-    updateBindings((current) => current.filter((binding) => binding.id !== id));
+  const removeBinding = (profileId, id) => {
+    updateBindings(profileId, (current) => current.filter((binding) => binding.id !== id));
   };
 
-  const resetBinding = (id) => {
-    updateBindings((current) => current.filter((binding) => binding.id !== id));
+  const resetBinding = (profileId, id) => {
+    updateBindings(profileId, (current) => current.filter((binding) => binding.id !== id));
   };
 
   const saveSettings = async () => {
@@ -340,9 +373,9 @@ export function useTerminusSettings({ selectedCell, terminusScope }) {
 
   return {
     resolvedProfiles,
-    resolvedBindings,
+    resolvedBindingsByProfile,
     profileRows,
-    bindingRows,
+    bindingRowsByProfile,
     scopeSettings,
     scopeDisabled,
     projectSettingsPath,

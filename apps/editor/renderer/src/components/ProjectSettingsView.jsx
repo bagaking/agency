@@ -1,5 +1,5 @@
 import React from 'react';
-import { FolderOpen, RefreshCw, ShieldCheck, SquareTerminal, Link2, Box, Cpu, HardDrive, AlertCircle, ArrowRight } from 'lucide-react';
+import { FolderOpen, RefreshCw, ShieldCheck, SquareTerminal, Link2, Box, Cpu, HardDrive, AlertCircle, ArrowRight, Command } from 'lucide-react';
 import { RecentProjectsList } from './RecentProjectsList.jsx';
 
 const basename = (value) => value.split('/').filter(Boolean).pop() || value;
@@ -13,6 +13,7 @@ export function ProjectSettingsView({
   onOpenProject,
   onOpenRecent,
   onOpenActions,
+  onOpenAppShortcuts,
   onOpenGates,
   onOpenSoftlinks,
 }) {
@@ -31,6 +32,16 @@ export function ProjectSettingsView({
       disabled: false,
       color: 'text-blue-400',
       bg: 'group-hover:bg-blue-500/10'
+    },
+    {
+      id: 'app-shortcuts',
+      title: 'App Shortcuts',
+      description: 'Configure global shortcuts for capture and memo actions.',
+      icon: Command,
+      onClick: onOpenAppShortcuts,
+      disabled: false,
+      color: 'text-indigo-400',
+      bg: 'group-hover:bg-indigo-500/10'
     },
     {
       id: 'gates',

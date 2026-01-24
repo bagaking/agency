@@ -6,6 +6,7 @@ import { ProjectExplorerSidebar } from './explorer/ProjectExplorerSidebar.jsx';
 import { WorkbenchPane } from './workbench/WorkbenchPane.jsx';
 import { EditorPane } from './EditorPane.jsx';
 import { QuickActionsView } from './QuickActionsView.jsx';
+import { AppShortcutsView } from './AppShortcutsView.jsx';
 import { GatesView } from './GatesView.jsx';
 import { WorktreeLinksView } from './WorktreeLinksView.jsx';
 import { SidebarDock } from './layout/SidebarDock.jsx';
@@ -23,6 +24,7 @@ export function AppLayout({
   activeView,
   onSwitchView,
   hierarchySection,
+  appShortcutsScope,
   onSelectHierarchySection,
   cells,
   selectedId,
@@ -39,14 +41,29 @@ export function AppLayout({
   onSelectProject,
   onOpenRecentProject,
   onOpenActions,
+  onOpenAppShortcuts,
   onOpenGates,
   onOpenSoftlinks,
   actionsScope,
   onSelectActionsScope,
+  onSelectAppShortcutsScope,
   actionsScopeDisabled,
   actionSummary,
+  activeProfileId,
+  appShortcutsScopeDisabled,
+  appShortcutsSummary,
+  appShortcutRows,
+  appShortcutsPaths,
+  appShortcutsError,
+  appShortcutsSaving,
+  appShortcutsDirty,
+  onUpdateAppShortcut,
+  onOverrideAppShortcut,
+  onResetAppShortcut,
+  onSaveAppShortcuts,
+  onClearAppShortcutsError,
   actionsRows,
-  bindingsRows,
+  bindingsByProfile,
   projectActionsPath,
   agentActionsPath,
   quickActionsError,
@@ -163,13 +180,16 @@ export function AppLayout({
       <HierarchySidebar
         section={hierarchySection}
         actionsScope={actionsScope}
+        appShortcutsScope={appShortcutsScope}
         gateScope={gateScope}
         onSelectActionsScope={onSelectActionsScope}
+        onSelectAppShortcutsScope={onSelectAppShortcutsScope}
         onSelectGateScope={onSelectGateScope}
         onSelectSoftlinks={() => onSelectHierarchySection('softlinks')}
         canUseProjectScope={canUseProjectScope}
         canUseAgentScope={canUseAgentScope}
         actionSummary={actionSummary}
+        appShortcutsSummary={appShortcutsSummary}
         gateSummary={gateSummary}
       />
     ) : activeView === 'action-sheets' ? (
@@ -225,7 +245,8 @@ export function AppLayout({
             <div className="absolute inset-0">
               <QuickActionsView
                 actions={actionsRows}
-                bindings={bindingsRows}
+                bindingsByProfile={bindingsByProfile}
+                activeProfileId={activeProfileId}
                 scope={actionsScope}
                 scopeDisabled={actionsScopeDisabled}
                 scopePaths={{
@@ -247,6 +268,25 @@ export function AppLayout({
                 onResetBinding={onResetBinding}
                 onUpdateBinding={onUpdateBinding}
                 onClearError={onClearTerminusError}
+              />
+            </div>
+          ) : null}
+
+          {activeView === 'hierarchy' && hierarchySection === 'app-shortcuts' ? (
+            <div className="absolute inset-0">
+              <AppShortcutsView
+                actions={appShortcutRows}
+                scope={appShortcutsScope}
+                scopeDisabled={appShortcutsScopeDisabled}
+                scopePaths={appShortcutsPaths}
+                error={appShortcutsError}
+                dirty={appShortcutsDirty}
+                saving={appShortcutsSaving}
+                onUpdateAction={onUpdateAppShortcut}
+                onOverrideAction={onOverrideAppShortcut}
+                onResetAction={onResetAppShortcut}
+                onSave={onSaveAppShortcuts}
+                onClearError={onClearAppShortcutsError}
               />
             </div>
           ) : null}
@@ -319,6 +359,7 @@ export function AppLayout({
                 onOpenProject={onSelectProject}
                 onOpenRecent={onOpenRecentProject}
                 onOpenActions={onOpenActions}
+                onOpenAppShortcuts={onOpenAppShortcuts}
                 onOpenGates={onOpenGates}
                 onOpenSoftlinks={onOpenSoftlinks}
               />

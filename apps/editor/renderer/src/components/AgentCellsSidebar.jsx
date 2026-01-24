@@ -4,6 +4,7 @@ import {
   GitBranch,
   Circle,
   SquareTerminal,
+  Command,
   Link2,
   ShieldCheck,
   ArrowUpRight,
@@ -53,6 +54,12 @@ export function AgentCellsSidebar({
             icon={SquareTerminal}
             label="Terminus"
             onClick={() => onJump?.('actions')}
+            disabled={!projectReady}
+          />
+          <NavItem
+            icon={Command}
+            label="App Shortcuts"
+            onClick={() => onJump?.('app-shortcuts')}
             disabled={!projectReady}
           />
           <NavItem

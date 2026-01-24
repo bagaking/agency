@@ -7,6 +7,9 @@ export const BASELINE_PROFILE = {
   resumeCommand: '',
   locked: true,
   kind: 'shell',
+  shortcuts: {
+    bindings: [],
+  },
 };
 
 const normalizeId = (value, fallback) => {
@@ -41,6 +44,14 @@ const indexById = (items) => {
     }
   });
   return map;
+};
+
+const getProfileBindings = (profiles, profileId) => {
+  if (!profileId) {
+    return [];
+  }
+  const match = (profiles || []).find((profile) => profile?.id === profileId);
+  return Array.isArray(match?.shortcuts?.bindings) ? match.shortcuts.bindings : [];
 };
 
 const ensureBaseline = (profiles) => {
@@ -190,4 +201,37 @@ export const buildBindingRows = ({ scope, globalBindings, projectBindings, agent
       },
     };
   });
+};
+
+export const mergeProfileBindings = ({ profileIds, globalProfiles, projectProfiles, agentProfiles }) => {
+  const map = new Map();
+  (profileIds || []).forEach((profileId) => {
+    const globalBindings = getProfileBindings(globalProfiles, profileId);
+    const projectBindings = getProfileBindings(projectProfiles, profileId);
+    const agentBindings = getProfileBindings(agentProfiles, profileId);
+    map.set(profileId, mergeBindings(globalBindings, projectBindings, agentBindings));
+  });
+  return map;
+};
+
+export const buildBindingRowsByProfile = ({
+  scope,
+  profileIds,
+  globalProfiles,
+  projectProfiles,
+  agentProfiles,
+}) => {
+  const rows = new Map();
+  (profileIds || []).forEach((profileId) => {
+    rows.set(
+      profileId,
+      buildBindingRows({
+        scope,
+        globalBindings: getProfileBindings(globalProfiles, profileId),
+        projectBindings: getProfileBindings(projectProfiles, profileId),
+        agentBindings: getProfileBindings(agentProfiles, profileId),
+      })
+    );
+  });
+  return rows;
 };

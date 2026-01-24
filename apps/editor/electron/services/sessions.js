@@ -15,6 +15,7 @@ const SESSION_STATUSES = {
   detached: 'detached',
   closed: 'closed',
 };
+const DEFAULT_PROFILE_ID = 'shell';
 
 function normalizeId(value) {
   return String(value || '')
@@ -77,7 +78,7 @@ async function listSessions({ worktreePath }) {
   return sessions;
 }
 
-async function createNewSession({ cellId, worktreePath, name, sessionId: providedId }) {
+async function createNewSession({ cellId, worktreePath, name, sessionId: providedId, profileId }) {
   ensureWorktreePath(worktreePath);
   await ensureTmuxAvailable();
   const registry = await readRegistry(worktreePath);
@@ -95,6 +96,7 @@ async function createNewSession({ cellId, worktreePath, name, sessionId: provide
       name: name || `Session ${registry.sessions.length + 1}`,
       tmuxSession,
       status: SESSION_STATUSES.active,
+      profileId: profileId || DEFAULT_PROFILE_ID,
       createdAt,
       updatedAt: createdAt,
       lastAttachedAt: createdAt,
@@ -111,6 +113,7 @@ async function createNewSession({ cellId, worktreePath, name, sessionId: provide
     name: name || `Session ${registry.sessions.length + 1}`,
     tmuxSession,
     status: SESSION_STATUSES.active,
+    profileId: profileId || DEFAULT_PROFILE_ID,
     createdAt,
     updatedAt: createdAt,
   };
@@ -126,7 +129,13 @@ async function ensureDefaultSession({ cellId, worktreePath }) {
   if (existing) {
     return existing;
   }
-  return createNewSession({ cellId, worktreePath, name: 'Default', sessionId: 'default' });
+  return createNewSession({
+    cellId,
+    worktreePath,
+    name: 'Default',
+    sessionId: 'default',
+    profileId: DEFAULT_PROFILE_ID,
+  });
 }
 
 async function recreateSession({ cellId, worktreePath, sessionId }) {
@@ -141,6 +150,7 @@ async function recreateSession({ cellId, worktreePath, sessionId }) {
     worktreePath,
     name: existing?.name,
     sessionId,
+    profileId: existing?.profileId || DEFAULT_PROFILE_ID,
   });
 }
 

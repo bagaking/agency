@@ -6,6 +6,7 @@ import { CreateCellModal } from './components/modals/CreateCellModal.jsx';
 import { LifecycleConfirmModal } from './components/modals/LifecycleConfirmModal.jsx';
 import { ModalProvider } from './components/modals/ModalSystem.jsx';
 import { useTerminusSettings } from './hooks/useTerminusSettings.js';
+import { useAppShortcuts } from './hooks/useAppShortcuts.js';
 import { useGates } from './hooks/useGates.js';
 import { useWorktreeLinks } from './hooks/useWorktreeLinks.js';
 import { useSessions } from './hooks/useSessions.js';
@@ -29,6 +30,7 @@ import {
   onRecentProjectsUpdated as subscribeRecentProjectsUpdated,
   readActionSheet as agencyReadActionSheet,
   readWorkbenchEntry as agencyReadWorkbenchEntry,
+  onAppShortcutTriggered as subscribeAppShortcutTriggered,
   selectProjectRoot as agencySelectProjectRoot,
   setProjectRoot as agencySetProjectRoot,
   setUiState as agencySetUiState,
@@ -38,6 +40,7 @@ import {
 } from './services/agencyBridge.js';
 import { buildPromotePromptBundle, buildPromotePromptText, buildPromoteActionSheetPrompt } from './utils/hilPromotePrompt.js';
 import { buildActionSheetCompletion, buildActionSheetPlan } from './utils/actionSheetCompletion.js';
+import { BASELINE_PROFILE_ID } from './utils/terminusSettings.js';
 const defaultCells = [
   {
     id: 'sample-cell',
@@ -82,6 +85,7 @@ function App() {
   const [workbenchSelectionByCellId, setWorkbenchSelectionByCellId] = useState({});
   const [hierarchySection, setHierarchySection] = useState('actions');
   const [actionsScope, setActionsScope] = useState('global');
+  const [appShortcutsScope, setAppShortcutsScope] = useState('global');
   const [gateScope, setGateScope] = useState('global');
   const [gateStage, setGateStage] = useState('active');
   const [terminalOpen, setTerminalOpen] = useState(false);
@@ -105,6 +109,7 @@ function App() {
   const [commentSnippetError, setCommentSnippetError] = useState('');
   const [hilCommentCounts, setHilCommentCounts] = useState({});
   const [hilCommentRefreshToken, setHilCommentRefreshToken] = useState(0);
+  const [userDataPath, setUserDataPath] = useState('');
   const [promoteModalOpen, setPromoteModalOpen] = useState(false);
   const [promoteStep, setPromoteStep] = useState('setup');
   const [promoteDescription, setPromoteDescription] = useState('');
@@ -210,7 +215,9 @@ function App() {
       const resolvedProjectRoot = context?.projectRoot || '';
       setProjectRoot(resolvedProjectRoot);
       setRecentProjects(Array.isArray(context?.recentProjects) ? context.recentProjects : []);
-      setFallbackTerminalRoot(context?.userDataPath || '');
+      const resolvedUserDataPath = context?.userDataPath || '';
+      setFallbackTerminalRoot(resolvedUserDataPath);
+      setUserDataPath(resolvedUserDataPath);
       if (context?.storedRoot && !context?.valid) {
         setProjectError('Stored project path is no longer available. Select a new project.');
       } else {
@@ -365,9 +372,9 @@ function App() {
   } = useWorktreeLinks({ selectedCell: scopedCell, cells, projectRoot });
   const {
     resolvedProfiles,
-    resolvedBindings,
+    resolvedBindingsByProfile,
     profileRows,
-    bindingRows,
+    bindingRowsByProfile,
     scopeDisabled: terminusScopeDisabled,
     projectSettingsPath,
     agentSettingsPath,
@@ -388,6 +395,26 @@ function App() {
     saveSettings: saveTerminusSettings,
     clearError: clearTerminusError,
   } = useTerminusSettings({ selectedCell: scopedCell, terminusScope: actionsScope });
+  const {
+    actionRows: appShortcutRows,
+    scopeDisabled: appShortcutsScopeDisabled,
+    projectSettingsPath: appShortcutsProjectPath,
+    agentSettingsPath: appShortcutsAgentPath,
+    globalSettingsPath: appShortcutsGlobalPath,
+    error: appShortcutsError,
+    saving: appShortcutsSaving,
+    dirty: appShortcutsDirty,
+    summary: appShortcutsSummary,
+    updateAction: updateAppShortcut,
+    overrideAction: overrideAppShortcut,
+    resetAction: resetAppShortcut,
+    saveAppShortcuts,
+    clearError: clearAppShortcutsError,
+  } = useAppShortcuts({
+    selectedCell: scopedCell,
+    appShortcutsScope,
+    userDataPath,
+  });
   const {
     gateRows,
     gateScopeDisabled,
@@ -1702,10 +1729,29 @@ function App() {
   }, [loadCells, saveGates]);
   const canUseScopedConfig = Boolean(scopedCell?.worktreePath);
   const resolvedRepoRoot = projectRoot || worktreeLinksRepoRoot;
+  const appShortcutsPaths = {
+    global: appShortcutsGlobalPath,
+    project: appShortcutsProjectPath,
+    agent: appShortcutsAgentPath,
+  };
   const terminusProfiles = useMemo(
     () => (resolvedProfiles || []).filter((profile) => String(profile.startCommand || '').trim()),
     [resolvedProfiles]
   );
+  const activeSession = useMemo(
+    () => sessions?.find((session) => session.id === activeSessionId) || null,
+    [sessions, activeSessionId]
+  );
+  const activeProfileId = activeSession?.profileId || BASELINE_PROFILE_ID;
+  const activeProfileBindings = useMemo(() => {
+    if (!resolvedBindingsByProfile) {
+      return [];
+    }
+    if (typeof resolvedBindingsByProfile.get === 'function') {
+      return resolvedBindingsByProfile.get(activeProfileId) || [];
+    }
+    return resolvedBindingsByProfile[activeProfileId] || [];
+  }, [activeProfileId, resolvedBindingsByProfile]);
 
   const editorPaneProps = {
     cell: selectedCell,
@@ -1718,7 +1764,7 @@ function App() {
     sessionLoading,
     sessionError,
     terminusProfiles,
-    terminusBindings: resolvedBindings,
+    terminusBindings: activeProfileBindings,
     tmuxStatus,
     gateResultsByStage,
     gatesCheckingByStage,
@@ -1887,6 +1933,31 @@ function App() {
     },
     [handleSwitchView, hilMemo.setDockSelection]
   );
+  const { handleCaptureScreenshot, flashVoice } = memoCapture;
+  const handleAppShortcutTriggered = useCallback(
+    (payload) => {
+      const actionId = payload?.id;
+      if (!actionId) {
+        return;
+      }
+      handleSwitchView('memo');
+      setHilDrawerOpen(true);
+      if (actionId === 'capture.screenshot') {
+        handleOpenMemoInbox('screenshot');
+        handleCaptureScreenshot?.();
+        return;
+      }
+      if (actionId === 'memo.voice') {
+        handleOpenMemoInbox('flash');
+        flashVoice?.start?.();
+      }
+    },
+    [flashVoice, handleCaptureScreenshot, handleOpenMemoInbox, handleSwitchView]
+  );
+  useEffect(() => {
+    const unsubscribe = subscribeAppShortcutTriggered?.(handleAppShortcutTriggered);
+    return () => unsubscribe?.();
+  }, [handleAppShortcutTriggered]);
   const hilDraftsProps = {
     drafts: hilMemo.draftItems,
     summarizeBody: hilMemo.summarizeBody,
@@ -1948,6 +2019,9 @@ function App() {
       if (target === 'actions') {
         clearTerminusError();
       }
+      if (target === 'app-shortcuts') {
+        clearAppShortcutsError();
+      }
       if (target === 'gates') {
         clearGatesError();
       }
@@ -1964,6 +2038,14 @@ function App() {
       clearTerminusError();
     },
     [clearTerminusError]
+  );
+  const handleSelectAppShortcutsScope = useCallback(
+    (scope) => {
+      setHierarchySection('app-shortcuts');
+      setAppShortcutsScope(scope);
+      clearAppShortcutsError();
+    },
+    [clearAppShortcutsError]
   );
   const handleSelectGateScope = useCallback(
     (scope) => {
@@ -2011,13 +2093,29 @@ function App() {
         onSelectProject={handleSelectProjectRoot}
         onOpenRecentProject={handleOpenRecentProject}
         onOpenActions={() => handleHierarchyJump('actions')}
+        onOpenAppShortcuts={() => handleHierarchyJump('app-shortcuts')}
         onOpenGates={() => handleHierarchyJump('gates')}
         onOpenSoftlinks={() => handleHierarchyJump('softlinks')}
         actionsScope={actionsScope}
         onSelectActionsScope={handleSelectActionsScope}
+        appShortcutsScope={appShortcutsScope}
+        onSelectAppShortcutsScope={handleSelectAppShortcutsScope}
         actionsScopeDisabled={terminusScopeDisabled}
         actionSummary={terminusSummary}
+        appShortcutsScopeDisabled={appShortcutsScopeDisabled}
+        appShortcutsSummary={appShortcutsSummary}
+        appShortcutRows={appShortcutRows}
+        appShortcutsPaths={appShortcutsPaths}
+        appShortcutsError={appShortcutsError}
+        appShortcutsSaving={appShortcutsSaving}
+        appShortcutsDirty={appShortcutsDirty}
+        onUpdateAppShortcut={updateAppShortcut}
+        onOverrideAppShortcut={overrideAppShortcut}
+        onResetAppShortcut={resetAppShortcut}
+        onSaveAppShortcuts={saveAppShortcuts}
+        onClearAppShortcutsError={clearAppShortcutsError}
         actionsRows={profileRows}
+        activeProfileId={activeProfileId}
         projectActionsPath={projectSettingsPath}
         agentActionsPath={agentSettingsPath}
         quickActionsError={terminusError}
@@ -2029,7 +2127,7 @@ function App() {
         onResetAction={resetProfile}
         onUpdateAction={updateProfile}
         onSaveActions={saveTerminusSettings}
-        bindingsRows={bindingRows}
+        bindingsByProfile={bindingRowsByProfile}
         onAddBinding={addBinding}
         onRemoveBinding={removeBinding}
         onOverrideBinding={overrideBinding}

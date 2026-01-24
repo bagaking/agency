@@ -1,16 +1,19 @@
 import React from 'react';
-import { SquareTerminal, FolderClosed, User, Link2, ShieldCheck } from 'lucide-react';
+import { SquareTerminal, FolderClosed, User, Link2, ShieldCheck, Command } from 'lucide-react';
 
 export function HierarchySidebar({
   section,
   actionsScope,
+  appShortcutsScope,
   gateScope,
   onSelectActionsScope,
+  onSelectAppShortcutsScope,
   onSelectGateScope,
   onSelectSoftlinks,
   canUseProjectScope,
   canUseAgentScope,
   actionSummary,
+  appShortcutsSummary,
   gateSummary,
 }) {
   return (
@@ -47,6 +50,33 @@ export function HierarchySidebar({
             selected={section === 'actions' && actionsScope === 'agent'}
             disabled={!canUseAgentScope}
             onClick={() => onSelectActionsScope?.('agent')}
+          />
+        </div>
+
+        <div className="mb-2 mt-6 px-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">APP SHORTCUTS</div>
+        <div className="space-y-0.5">
+          <ScopeItem
+            icon={Command}
+            label="Global User"
+            meta={appShortcutsSummary?.globalOverrides ? 'Overrides' : 'Base'}
+            selected={section === 'app-shortcuts' && appShortcutsScope === 'global'}
+            onClick={() => onSelectAppShortcutsScope?.('global')}
+          />
+          <ScopeItem
+            icon={FolderClosed}
+            label="Project Local"
+            meta={appShortcutsSummary?.projectOverrides ? 'Custom' : 'Inherit'}
+            selected={section === 'app-shortcuts' && appShortcutsScope === 'project'}
+            disabled={!canUseProjectScope}
+            onClick={() => onSelectAppShortcutsScope?.('project')}
+          />
+          <ScopeItem
+            icon={User}
+            label={`Agent - ${appShortcutsSummary?.agentLabel || 'Select Cell'}`}
+            meta={appShortcutsSummary?.agentOverrides ? 'Custom' : 'Inherit'}
+            selected={section === 'app-shortcuts' && appShortcutsScope === 'agent'}
+            disabled={!canUseAgentScope}
+            onClick={() => onSelectAppShortcutsScope?.('agent')}
           />
         </div>
 
