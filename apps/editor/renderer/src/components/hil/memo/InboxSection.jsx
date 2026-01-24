@@ -48,7 +48,7 @@ export function InboxSection({
         </div>
       </div>
 
-      <div className={`mt-3 rounded-2xl border border-border/10 bg-muted/5 p-4 transition-all duration-300 ${highlightClass}`}>
+      <div className={`mt-3 rounded-2xl border border-border/10 bg-muted/5 p-4 transition-colors duration-300 ${highlightClass}`}>
         {activeSection?.id === 'comments' ? (
           <div className="flex flex-col gap-2 text-[11px] text-muted-foreground/60">
             <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50">
