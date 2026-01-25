@@ -84,7 +84,7 @@ sop:
 - 语言选择与 Start/Stop 控制同一行靠右，状态信息单行截断。
 - 实时转写区域作为可滚动的子卡片，避免占用过多空间。
 - 语音输入标识使用图标 + tooltip，Start/Stop hover 展示当前快捷键。
-- 错误提示使用弱化背景，并保留“Open System Settings”入口。
+- 错误提示使用弱化背景，并保留“Open System Settings”入口（权限项名称为 AgencySpeechHelper）。
 
 ## 常见坑 / 原因 / 解决 / 预防
 1) Rescore 中断实时识别
@@ -124,7 +124,7 @@ sop:
 
 8) 权限弹窗从未出现（系统列表无条目）
 - 原因：speech helper 未签名，TCC 不创建权限条目。
-- 解决：在打包流程中对 SpeechHelper.app 进行 codesign，并明确显示名为 “Agency Speech Helper”；开发模式下对 helper 执行 ad-hoc codesign 以触发 TCC 条目。
+- 解决：在打包流程中对 AgencySpeechHelper.app 进行 codesign；开发模式下对 helper 执行 ad-hoc codesign 以触发 TCC 条目。
 - 预防：afterPack 钩子签名 helper，保持与主应用同一签名链路；macOS Hardened Runtime 下补充 `com.apple.security.device.audio-input` entitlement。
 
 9) Dev/Release 权限条目难区分

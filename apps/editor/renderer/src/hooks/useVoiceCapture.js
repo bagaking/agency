@@ -268,6 +268,8 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
           setStatusSafe('starting');
         } else if (payload.status === 'stopping') {
           setStatusSafe('stopping');
+        } else if (payload.status === 'rescoring') {
+          setStatusSafe('rescoring');
         } else if (payload.status === 'stopped') {
           nativeActiveRef.current = false;
           nativeCaptureIdRef.current = '';
@@ -801,7 +803,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
     if (status === 'recording') {
       return 'Listening...';
     }
-    if (status === 'stopping') {
+    if (status === 'stopping' || status === 'rescoring') {
       return 'Stopping...';
     }
     if (status === 'error') {

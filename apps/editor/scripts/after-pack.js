@@ -51,7 +51,7 @@ async function signHelperApp({ appOutDir, appName }) {
     'Contents',
     'Resources',
     'speech-helper',
-    'SpeechHelper.app'
+    'AgencySpeechHelper.app'
   );
   if (!fs.existsSync(helperPath)) {
     return;

@@ -9,7 +9,7 @@ const helperRoot = path.join(__dirname, '..', 'native', 'speech-helper');
 const helperSource = path.join(helperRoot, 'SpeechHelper.swift');
 const helperInfoPlist = path.join(helperRoot, 'Info.plist');
 const helperInfoPlistDev = path.join(helperRoot, 'Info.dev.plist');
-const helperBundleName = 'SpeechHelper.app';
+const helperBundleName = 'AgencySpeechHelper.app';
 const devHelperBundle = path.join(helperRoot, 'bin', helperBundleName);
 const devHelperBin = path.join(devHelperBundle, 'Contents', 'MacOS', 'speech-helper');
 const VOICE_EVENT_TYPES = {
@@ -443,6 +443,9 @@ function finalizeRescoreJob(job, { fallback, locale, error, textOverride } = {})
   rescoreState.inFlight = null;
   startNextRescoreJob();
   if (!hasPendingRescore()) {
+    if (activeCapture?.ended && (!job.captureId || activeCapture.id === job.captureId)) {
+      sendEvent({ type: 'status', status: 'stopped' });
+    }
     maybeClearActiveCapture();
   }
 }
@@ -671,6 +674,10 @@ async function startVoiceCapture({ language } = {}, sender) {
             });
             continue;
           }
+          if (event.type === 'status' && event.status === 'stopped' && hasPendingRescore()) {
+            sendEvent({ type: 'status', status: 'rescoring' });
+            continue;
+          }
           if (event.type === VOICE_EVENT_TYPES.AUDIO) {
             logRuntime('info', 'speech helper audio ready', {
               captureId,
@@ -704,7 +711,6 @@ async function startVoiceCapture({ language } = {}, sender) {
         sendError('Speech helper exited unexpectedly.');
       }
     }
-    sendEvent({ type: 'status', status: 'stopped', code, signal });
     logRuntime('warn', 'speech helper exited', {
       captureId,
       code,
@@ -713,6 +719,9 @@ async function startVoiceCapture({ language } = {}, sender) {
     });
     if (activeCapture) {
       activeCapture.ended = true;
+    }
+    if (!hasPendingRescore()) {
+      sendEvent({ type: 'status', status: 'stopped', code, signal });
     }
     const captureSnapshot = activeCapture;
     setTimeout(() => {
