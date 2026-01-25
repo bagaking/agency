@@ -51,6 +51,10 @@
 - `docs/voice-input-implementation-notes.md`
   - 冷启动路径、多进程模型、常见坑与规避策略。
 
+### UI 组件复用与规范
+- `docs/ui-components-guidelines.md`
+  - UI primitives、focus ring、IconButton 与 Tooltip 的复用准则。
+
 ### 手工测试清单
 - `apps/editor/docs/manual-test.md`
   - UI 与关键功能验证流程。
@@ -95,4 +99,3 @@
 
 ## 运行可观测性
 - 运行日志：`logs/runtime/`（保留最新 20 份，历史自动归档）。
-

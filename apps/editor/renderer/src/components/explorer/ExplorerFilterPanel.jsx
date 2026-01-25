@@ -1,5 +1,8 @@
 import React from 'react';
 import { STATUS_FILTERS, statusBadgeStyles, statusColors, statusBadges, statusLabels } from './explorerUtils.jsx';
+import { focusRing } from '../ui/focusRing.js';
+
+const focusRingClass = focusRing.default;
 
 export function ExplorerFilterPanel({
   showHidden,
@@ -13,8 +16,6 @@ export function ExplorerFilterPanel({
   clearStatusFilters,
   statusFiltersCount,
 }) {
-  const focusRingClass =
-    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
   return (
     <div
       data-explorer-filter-menu
@@ -74,7 +75,7 @@ function FilterToggle({ label, active, onClick }) {
     <button
       type="button"
       aria-pressed={active}
-      className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background ${
+      className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-white/5 ${focusRingClass} ${
         active ? 'text-foreground font-medium' : 'text-muted-foreground/60'
       }`}
       onClick={onClick}

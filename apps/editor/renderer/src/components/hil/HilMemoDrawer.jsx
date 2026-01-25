@@ -4,6 +4,7 @@ import { FlashCaptureCard } from './memo/FlashCaptureCard.jsx';
 import { ExcerptCaptureCard } from './memo/ExcerptCaptureCard.jsx';
 import { ScreenshotCaptureCard } from './memo/ScreenshotCaptureCard.jsx';
 import { Tooltip } from '../ui/Tooltip.jsx';
+import { focusRing } from '../ui/focusRing.js';
 
 export function HilMemoDrawer({
   activeInboxId,
@@ -33,8 +34,7 @@ export function HilMemoDrawer({
   onFocusInboxInput,
   screenshotShortcut,
 }) {
-  const focusRingClass =
-    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
+  const focusRingClass = focusRing.strong;
   const renderViewRecordsButton = (targetId) => (
     <Tooltip label="Jump to records page" side="left">
       <button
@@ -150,8 +150,7 @@ function MemoShortcutCard({
   children,
 }) {
   const expanded = !active;
-  const focusRingClass =
-    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
+  const focusRingClass = focusRing.strong;
   return (
     <div
       className={`relative rounded-2xl transition-colors transition-shadow duration-300 ring-1 ring-inset ${

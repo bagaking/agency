@@ -11,7 +11,7 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
-import { Tooltip } from '../ui/Tooltip.jsx';
+import { IconButton } from '../ui/IconButton.jsx';
 
 const tools = [
   { id: 'select', label: 'Select', icon: Crop },
@@ -31,80 +31,79 @@ export function CaptureToolbar({
   includeAgencyWindows,
   onToggleInclude,
 }) {
-  const focusRingClass =
-    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30 focus-visible:ring-offset-1 focus-visible:ring-offset-black';
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-3 py-2 text-white shadow-xl backdrop-blur">
       <div className="flex items-center gap-1">
         {tools.map(({ id, label, icon: Icon }) => (
-          <Tooltip key={id} label={`${label}${tool === id ? ' (active)' : ''}`} side="bottom">
-            <button
-              type="button"
-              onClick={() => onToolChange?.(id)}
-              aria-label={label}
-              aria-pressed={tool === id}
-              className={`inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors ${focusRingClass} ${
-                tool === id ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white'
-              }`}
-            >
-              <Icon size={12} aria-hidden="true" />
-            </button>
-          </Tooltip>
+          <IconButton
+            key={id}
+            label={label}
+            tooltip={`${label}${tool === id ? ' (active)' : ''}`}
+            side="bottom"
+            focusRing="inverse"
+            onClick={() => onToolChange?.(id)}
+            aria-pressed={tool === id}
+            className={`h-7 w-7 rounded-full transition-colors ${
+              tool === id ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white'
+            }`}
+          >
+            <Icon size={12} aria-hidden="true" />
+          </IconButton>
         ))}
       </div>
 
       <div className="h-4 w-px bg-white/10" />
 
-      <Tooltip label="Undo" side="bottom">
-        <button
-          type="button"
-          onClick={onUndo}
-          aria-label="Undo"
-          className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-white/60 transition-colors hover:text-white ${focusRingClass}`}
-        >
-          <Undo2 size={12} aria-hidden="true" />
-        </button>
-      </Tooltip>
+      <IconButton
+        label="Undo"
+        tooltip="Undo"
+        side="bottom"
+        focusRing="inverse"
+        onClick={onUndo}
+        className="h-7 w-7 rounded-full text-white/60 transition-colors hover:text-white"
+      >
+        <Undo2 size={12} aria-hidden="true" />
+      </IconButton>
 
-      <Tooltip label={includeAgencyWindows ? 'Include app windows' : 'Hide app windows'} side="bottom">
-        <button
-          type="button"
-          onClick={onToggleInclude}
-          aria-pressed={includeAgencyWindows}
-          aria-label={includeAgencyWindows ? 'Include app windows' : 'Hide app windows'}
-          className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-white/60 transition-colors hover:text-white ${focusRingClass}`}
-        >
-          {includeAgencyWindows ? (
-            <Eye size={12} aria-hidden="true" />
-          ) : (
-            <EyeOff size={12} aria-hidden="true" />
-          )}
-        </button>
-      </Tooltip>
+      <IconButton
+        label={includeAgencyWindows ? 'Include app windows' : 'Hide app windows'}
+        tooltip={includeAgencyWindows ? 'Include app windows' : 'Hide app windows'}
+        side="bottom"
+        focusRing="inverse"
+        onClick={onToggleInclude}
+        aria-pressed={includeAgencyWindows}
+        className="h-7 w-7 rounded-full text-white/60 transition-colors hover:text-white"
+      >
+        {includeAgencyWindows ? (
+          <Eye size={12} aria-hidden="true" />
+        ) : (
+          <EyeOff size={12} aria-hidden="true" />
+        )}
+      </IconButton>
 
       <div className="h-4 w-px bg-white/10" />
 
-      <Tooltip label="Cancel capture" side="bottom">
-        <button
-          type="button"
-          onClick={onCancel}
-          aria-label="Cancel capture"
-          className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-white/60 transition-colors hover:text-white ${focusRingClass}`}
-        >
-          <X size={12} aria-hidden="true" />
-        </button>
-      </Tooltip>
-      <Tooltip label="Capture screenshot" side="bottom">
-        <button
-          type="button"
-          onClick={onConfirm}
-          disabled={!canConfirm}
-          aria-label="Capture screenshot"
-          className={`inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/80 text-white transition-colors hover:bg-primary disabled:opacity-40 ${focusRingClass}`}
-        >
-          <Check size={12} aria-hidden="true" />
-        </button>
-      </Tooltip>
+      <IconButton
+        label="Cancel capture"
+        tooltip="Cancel capture"
+        side="bottom"
+        focusRing="inverse"
+        onClick={onCancel}
+        className="h-7 w-7 rounded-full text-white/60 transition-colors hover:text-white"
+      >
+        <X size={12} aria-hidden="true" />
+      </IconButton>
+      <IconButton
+        label="Capture screenshot"
+        tooltip="Capture screenshot"
+        side="bottom"
+        focusRing="inverse"
+        onClick={onConfirm}
+        disabled={!canConfirm}
+        className="h-7 w-7 rounded-full bg-primary/80 text-white transition-colors hover:bg-primary disabled:opacity-40"
+      >
+        <Check size={12} aria-hidden="true" />
+      </IconButton>
     </div>
   );
 }

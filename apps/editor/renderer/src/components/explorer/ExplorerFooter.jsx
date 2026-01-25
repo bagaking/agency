@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { statusColors, getFileIcon } from './explorerUtils.jsx';
 import { Tooltip } from '../ui/Tooltip.jsx';
+import { focusRing } from '../ui/focusRing.js';
 
 const formatIdle = (ms) => {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -37,8 +38,7 @@ export function ExplorerFooter({
   const [showManifest, setShowManifest] = useState(false);
   const isComposingRef = useRef(false);
   const activeSessions = (sessions || []).filter((s) => s.status !== 'closed');
-  const focusRingClass =
-    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
+  const focusRingClass = focusRing.default;
 
   const handleDispatch = async () => {
     const current = activeSessions.find(s => s.id === activeSessionId) || activeSessions[0];

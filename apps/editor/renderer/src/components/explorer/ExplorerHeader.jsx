@@ -10,7 +10,10 @@ import {
   ChevronDown, 
   Info 
 } from 'lucide-react';
-import { Tooltip } from '../ui/Tooltip.jsx';
+import { IconButton } from '../ui/IconButton.jsx';
+import { focusRing } from '../ui/focusRing.js';
+
+const focusRingClass = focusRing.default;
 
 export function ExplorerHeader({
   activeRootLabel,
@@ -34,8 +37,6 @@ export function ExplorerHeader({
   onDeleteSelection,
   onClearSelection,
 }) {
-  const focusRingClass =
-    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
   return (
     <header data-testid="explorer-header" className="shrink-0 space-y-3 px-4 py-3 border-b border-border/40 bg-sidebar text-sidebar-foreground">
       <div className="flex items-center justify-between">
@@ -96,18 +97,16 @@ export function ExplorerHeader({
             </button>
           )}
         </div>
-        <Tooltip label="Explorer filters">
-          <button
-            type="button"
-            aria-pressed={hasActiveFilters}
-            className={`flex h-7 w-7 items-center justify-center rounded-full border transition-colors ${focusRingClass} ${
-              hasActiveFilters ? 'border-primary/40 bg-primary/10 text-primary active-tab-glow' : 'border-border/40 text-muted-foreground/50 hover:border-border hover:text-foreground'
-            }`}
-            onClick={onToggleFilterMenu}
-          >
-            <Filter size={12} strokeWidth={1.5} aria-hidden="true" />
-          </button>
-        </Tooltip>
+        <IconButton
+          label="Explorer filters"
+          onClick={onToggleFilterMenu}
+          aria-pressed={hasActiveFilters}
+          className={`h-7 w-7 rounded-full border transition-colors ${
+            hasActiveFilters ? 'border-primary/40 bg-primary/10 text-primary active-tab-glow' : 'border-border/40 text-muted-foreground/50 hover:border-border hover:text-foreground'
+          }`}
+        >
+          <Filter size={12} strokeWidth={1.5} aria-hidden="true" />
+        </IconButton>
       </div>
 
       {searchTruncated && (
@@ -121,16 +120,13 @@ export function ExplorerHeader({
 
 function HeaderButton({ icon: Icon, onClick, title, className = "" }) {
   return (
-    <Tooltip label={title}>
-      <button
-        type="button"
-        className={`p-1 text-muted-foreground/60 hover:text-foreground transition-colors rounded hover:bg-muted/30 ${className} focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background`}
-        onClick={onClick}
-        aria-label={title}
-      >
-        <Icon size={14} strokeWidth={1.5} aria-hidden="true" />
-      </button>
-    </Tooltip>
+    <IconButton
+      label={title}
+      onClick={onClick}
+      className={`p-1 text-muted-foreground/60 hover:text-foreground transition-colors rounded hover:bg-muted/30 ${className}`}
+    >
+      <Icon size={14} strokeWidth={1.5} aria-hidden="true" />
+    </IconButton>
   );
 }
 
@@ -138,7 +134,7 @@ function SelectionAction({ children, onClick, variant }) {
   return (
     <button
       type="button"
-      className={`rounded border px-2 py-0.5 text-[10px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background ${
+      className={`rounded border px-2 py-0.5 text-[10px] transition-colors ${focusRingClass} ${
         variant === 'destructive' 
           ? 'border-rose-500/40 text-rose-300 hover:text-rose-200 hover:bg-rose-500/10' 
           : 'border-border/60 hover:text-foreground hover:bg-white/5'

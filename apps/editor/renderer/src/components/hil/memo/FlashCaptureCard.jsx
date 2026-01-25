@@ -2,6 +2,7 @@ import React from 'react';
 import { Check, Loader2 } from 'lucide-react';
 import { VoiceCaptureControl } from './VoiceCaptureControl.jsx';
 import { Tooltip } from '../../ui/Tooltip.jsx';
+import { focusRing } from '../../ui/focusRing.js';
 
 export function FlashCaptureCard({
   value,
@@ -13,8 +14,7 @@ export function FlashCaptureCard({
   inputRef,
   voiceShortcut,
 }) {
-  const focusRingClass =
-    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
+  const focusRingClass = focusRing.strong;
   const audio = voice?.audio;
   const saveLabel = loading ? 'Saving…' : 'Save flash memo';
   return (

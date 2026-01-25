@@ -1,5 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
+import { IconButton } from '../ui/IconButton.jsx';
+import { focusRing } from '../ui/focusRing.js';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -16,6 +18,7 @@ export function SidebarDock({
   const dragStateRef = useRef(null);
   const [isHoveringBorder, setIsHoveringBorder] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const focusRingClass = focusRing.sidebar;
 
   const handlePointerMove = (event) => {
     const state = dragStateRef.current;
@@ -80,15 +83,14 @@ export function SidebarDock({
               isHoveringBorder ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-1'
             }`}
           >
-            <button
-                type="button"
+            <IconButton
+                label="Collapse sidebar"
                 onClick={(e) => { e.stopPropagation(); onToggleCollapse(); }}
-                className="group/btn flex h-16 w-3 items-center justify-center rounded-full bg-primary/80 text-white shadow-lg backdrop-blur-md hover:bg-primary hover:w-4 transition-colors transition-[width] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar"
-                title="Collapse sidebar"
-                aria-label="Collapse sidebar"
+                focusRing="sidebar"
+                className="group/btn h-16 w-3 rounded-full bg-primary/80 text-white shadow-lg backdrop-blur-md hover:bg-primary hover:w-4 transition-colors transition-[width]"
             >
                 <ChevronLeft size={10} strokeWidth={3} className="group-hover/btn:scale-125 transition-transform" aria-hidden="true" />
-            </button>
+            </IconButton>
             <div className="h-8 w-[2px] bg-primary/20 rounded-full" />
             <GripVertical size={12} className="text-primary/40" aria-hidden="true" />
           </div>
@@ -98,7 +100,7 @@ export function SidebarDock({
       {/* Expand Trigger when collapsed: An ultra-slim floating line at the edge */}
       {collapsed && (
         <div 
-            className="absolute top-0 left-0 z-[60] h-full w-1.5 group cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar"
+            className={`absolute top-0 left-0 z-[60] h-full w-1.5 group cursor-pointer ${focusRingClass}`}
             onClick={onToggleCollapse}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {

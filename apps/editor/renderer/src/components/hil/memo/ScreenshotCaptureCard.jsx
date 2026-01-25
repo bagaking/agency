@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowUpRight, Camera, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { Tooltip } from '../../ui/Tooltip.jsx';
+import { focusRing } from '../../ui/focusRing.js';
 
 export function ScreenshotCaptureCard({
   asset,
@@ -13,8 +14,7 @@ export function ScreenshotCaptureCard({
   captureShortcut,
   noteInputRef,
 }) {
-  const focusRingClass =
-    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
+  const focusRingClass = focusRing.strong;
   const normalizedShortcut = String(captureShortcut || '').trim();
   const shortcutHint = normalizedShortcut ? `Shortcut: ${normalizedShortcut}` : 'Shortcut: unassigned';
   const captureLabel = loading ? 'Capturing…' : 'Capture screenshot';

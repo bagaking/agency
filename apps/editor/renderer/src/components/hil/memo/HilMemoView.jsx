@@ -21,6 +21,8 @@ import { InboxSection } from './InboxSection.jsx';
 import { CaptureRoutingSheet } from '../../capture/CaptureRoutingSheet.jsx';
 import { ActionSheetStatusPanel } from '../../actionSheets/ActionSheetStatusPanel.jsx';
 import { useModal } from '../../modals/ModalSystem.jsx';
+import { IconButton } from '../../ui/IconButton.jsx';
+import { focusRing } from '../../ui/focusRing.js';
 import {
   updateHilItem as agencyUpdateHilItem,
   deleteHilItem as agencyDeleteHilItem,
@@ -32,6 +34,8 @@ const kindIcons = {
     memo: StickyNote,
     draft: Layers
 };
+
+const focusRingClass = focusRing.default;
 
 const isDraftComplete = (draft) => {
   if (!draft) {
@@ -500,7 +504,7 @@ function MemoRow({ item, index, worktreePath, onUpdateStatus, resolveBody, onOpe
                 onOpenDetail?.(item);
               }
             }}
-            className={`group flex flex-col gap-1 px-4 py-3 rounded-xl transition-colors duration-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:ring-offset-1 focus-visible:ring-offset-background ${
+            className={`group flex flex-col gap-1 px-4 py-3 rounded-xl transition-colors duration-300 ${focusRingClass} focus-visible:ring-primary/30 ${
                 isResolved ? 'opacity-40 grayscale' : 'hover:bg-muted/5'
             }`}
         >
@@ -629,7 +633,7 @@ function MemoAudioButton({ voiceAsset, worktreePath }) {
       <button
         type="button"
         onClick={handleToggle}
-        className="flex items-center gap-1 rounded-md border border-border/20 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60 transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+        className={`flex items-center gap-1 rounded-md border border-border/20 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60 transition-colors hover:border-primary/40 hover:text-foreground ${focusRingClass}`}
       >
         {playing ? <Pause size={10} /> : <Play size={10} />}
         {playing ? 'Pause' : 'Play'}
@@ -879,15 +883,18 @@ function DraftDetail({
 }
 
 function RowAction({ icon: Icon, onClick, title, color = "hover:text-foreground hover:bg-muted/10" }) {
+    const handleClick = (event) => {
+        event.stopPropagation();
+        onClick?.();
+    };
+
     return (
-        <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onClick(); }}
-            aria-label={title}
-            className={`p-1.5 rounded-lg transition-colors text-muted-foreground/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background ${color}`}
-            title={title}
+        <IconButton
+            label={title}
+            onClick={handleClick}
+            className={`p-1.5 rounded-lg transition-colors text-muted-foreground/40 ${color}`}
         >
             <Icon size={14} strokeWidth={2} aria-hidden="true" />
-        </button>
-    )
+        </IconButton>
+    );
 }

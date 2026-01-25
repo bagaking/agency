@@ -1,6 +1,7 @@
 import React from 'react';
 import { Settings, ListTree, Folder, Brain, ClipboardList } from 'lucide-react';
 import { Logo } from './Logo.jsx';
+import { focusRing } from './ui/focusRing.js';
 
 export function ActivityBar({ activeView, onSwitchView }) {
   const primaryItem = {
@@ -68,8 +69,7 @@ export function ActivityBar({ activeView, onSwitchView }) {
 }
 
 function ActivityItem({ icon: Icon, label, active, onClick, renderIcon, testId }) {
-  const focusRingClass =
-    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
+  const focusRingClass = focusRing.default;
   return (
     <div className="relative group">
         <button

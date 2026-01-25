@@ -12,7 +12,8 @@ import {
   Check,
   X
 } from 'lucide-react';
-import { Tooltip } from '../../ui/Tooltip.jsx';
+import { IconButton } from '../../ui/IconButton.jsx';
+import { focusRing } from '../../ui/focusRing.js';
 
 export function HilMemoSidebar({
   loading,
@@ -31,6 +32,7 @@ export function HilMemoSidebar({
   draftCount,
   summarizeBody,
 }) {
+  const focusRingClass = focusRing.sidebar;
   return (
     <aside className="flex flex-col h-full bg-sidebar overflow-hidden select-none">
       {/* Header Section */}
@@ -47,16 +49,14 @@ export function HilMemoSidebar({
               <div className="h-1 w-1 rounded-full bg-primary/80" />
             </div>
           </div>
-          <Tooltip label="Refresh repository">
-            <button
-              type="button"
-              onClick={refresh}
-              aria-label="Refresh repository"
-              className="shrink-0 p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground/40 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar"
-            >
-              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
-            </button>
-          </Tooltip>
+          <IconButton
+            label="Refresh repository"
+            onClick={refresh}
+            focusRing="sidebar"
+            className="shrink-0 p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground/40 hover:text-foreground transition-colors"
+          >
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
+          </IconButton>
         </div>
 
         <div className="relative group">
@@ -76,7 +76,7 @@ export function HilMemoSidebar({
             <button
               type="button"
               aria-label="Clear search"
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar rounded"
+              className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-foreground rounded ${focusRingClass}`}
               onClick={() => onSearchChange('')}
             >
               <X size={12} strokeWidth={1.5} aria-hidden="true" />
@@ -121,7 +121,7 @@ export function HilMemoSidebar({
                 key={section.id}
                 type="button"
                 onClick={() => onDockSelectionChange({ type: 'inbox', inboxType: section.id, draftId: null })}
-                className={`flex w-full items-center justify-between px-4 py-1.5 text-left text-[11px] transition-colors border-l-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar ${
+                className={`flex w-full items-center justify-between px-4 py-1.5 text-left text-[11px] transition-colors border-l-2 ${focusRingClass} focus-visible:ring-primary/30 ${
                   active
                     ? 'bg-sidebar-accent text-primary border-primary font-medium shadow-[inset_0_0_10px_rgba(59,130,246,0.02)]'
                     : 'text-muted-foreground/70 hover:text-foreground border-transparent hover:bg-sidebar-accent/30'
@@ -156,7 +156,7 @@ export function HilMemoSidebar({
                 key={item.id}
                 type="button"
                 onClick={() => onDockSelectionChange({ type: 'draft', draftId: item.id })}
-                className={`flex w-full flex-col gap-0.5 px-4 py-2.5 text-left transition-colors border-l-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar ${
+                className={`flex w-full flex-col gap-0.5 px-4 py-2.5 text-left transition-colors border-l-2 ${focusRingClass} focus-visible:ring-primary/30 ${
                   dockSelection.type === 'draft' && dockSelection.draftId === item.id
                     ? 'bg-sidebar-accent text-primary border-primary shadow-[inset_0_0_10px_rgba(59,130,246,0.02)]'
                     : 'text-muted-foreground/70 hover:text-foreground border-transparent hover:bg-sidebar-accent/30'
@@ -233,7 +233,7 @@ export function HilMemoSidebar({
                 aria-haspopup="listbox"
                 aria-expanded={open}
                 aria-controls={open ? menuId : undefined}
-                className={`flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors transition-shadow text-[10px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar ${
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors transition-shadow text-[10px] ${focusRingClass} ${
                     open 
                     ? 'bg-background border-primary/40 text-foreground shadow-sm' 
                     : 'bg-muted/10 border-border/40 text-muted-foreground/60 hover:border-border hover:text-foreground'

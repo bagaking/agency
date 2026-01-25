@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Layers, Play, Terminal } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip.jsx';
+import { focusRing } from '../ui/focusRing.js';
 
 export function HilDraftsPanel({
   drafts = [],
@@ -30,8 +31,7 @@ export function HilDraftsPanel({
     });
     return map;
   }, [sessions]);
-  const focusRingClass =
-    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
+  const focusRingClass = focusRing.default;
 
   return (
     <div className="flex flex-col gap-3 py-1 select-none">

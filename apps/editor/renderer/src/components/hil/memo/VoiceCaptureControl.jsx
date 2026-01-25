@@ -2,6 +2,7 @@ import React from 'react';
 import { ChevronDown, Loader2, Mic, Square } from 'lucide-react';
 import { openSystemPermissions } from '../../../services/agencyBridge.js';
 import { Tooltip } from '../../ui/Tooltip.jsx';
+import { focusRing } from '../../ui/focusRing.js';
 
 export function VoiceCaptureControl({ voice, segments = [], shortcut }) {
   if (!voice) {
@@ -54,8 +55,7 @@ export function VoiceCaptureControl({ voice, segments = [], shortcut }) {
     errorText.includes('not-allowed');
   const liveSegments = Array.isArray(segments) ? segments : [];
   const hasLiveTranscript = liveSegments.length > 0 || Boolean(interimText);
-  const focusRingClass =
-    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
+  const focusRingClass = focusRing.default;
   const statusText =
     statusMessage ||
     (disabled

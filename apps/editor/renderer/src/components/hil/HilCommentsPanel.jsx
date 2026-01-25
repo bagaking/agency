@@ -14,6 +14,8 @@ import {
   X
 } from 'lucide-react';
 import { ActionSheetStatusPanel } from '../actionSheets/ActionSheetStatusPanel.jsx';
+import { IconButton } from '../ui/IconButton.jsx';
+import { focusRing } from '../ui/focusRing.js';
 
 const kindIcons = {
     comment: Terminal,
@@ -26,6 +28,8 @@ const memoTypeMeta = {
   excerpt: { label: 'Excerpt', icon: Quote },
   screenshot: { label: 'Screenshot', icon: Camera },
 };
+
+const focusRingClass = focusRing.default;
 
 const toTitle = (value) =>
   value ? value.slice(0, 1).toUpperCase() + value.slice(1) : '';
@@ -139,20 +143,18 @@ export function HilCommentsPanel({
         </div>
         <div className="flex items-center gap-0.5">
           {activeFile ? (
-            <button
-              type="button"
-              aria-label="Add comment"
-              title="Add comment"
+            <IconButton
+              label="Add comment"
               onClick={() =>
                 onOpenComment?.({
                   line: cursorPosition?.line || 1,
                   column: cursorPosition?.column || 1,
                 })
               }
-              className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-muted/10 transition-colors transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+              className="h-6 w-6 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-muted/10 transition-colors transition-transform active:scale-95"
             >
               <MessageSquarePlus size={13} strokeWidth={1.5} aria-hidden="true" />
-            </button>
+            </IconButton>
           ) : null}
         </div>
       </div>
@@ -164,14 +166,13 @@ export function HilCommentsPanel({
               <MessageSquarePlus size={13} className="text-primary" strokeWidth={2} />
               Add Comment
             </div>
-            <button
-              type="button"
-              aria-label="Close comment editor"
+            <IconButton
+              label="Close comment editor"
               onClick={onCloseComment}
-              className="rounded-md p-0.5 text-muted-foreground/50 hover:text-foreground hover:bg-muted/10 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+              className="rounded-md p-0.5 text-muted-foreground/50 hover:text-foreground hover:bg-muted/10 transition-colors"
             >
               <X size={13} aria-hidden="true" />
-            </button>
+            </IconButton>
           </div>
           
           <div className="flex flex-col gap-1.5">
@@ -230,7 +231,7 @@ export function HilCommentsPanel({
               <button
                 type="button"
                 onClick={onCloseComment}
-                className="rounded-md px-2.5 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+                className={`rounded-md px-2.5 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-colors ${focusRingClass}`}
               >
                 Cancel
               </button>
@@ -238,7 +239,7 @@ export function HilCommentsPanel({
                 type="button"
                 onClick={onSubmitComment}
                 disabled={commentSaving}
-                className="rounded-md bg-primary hover:bg-primary/90 px-3 py-1 text-[10px] font-semibold text-primary-foreground shadow-sm transition-colors transition-transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+                className={`rounded-md bg-primary hover:bg-primary/90 px-3 py-1 text-[10px] font-semibold text-primary-foreground shadow-sm transition-colors transition-transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none ${focusRingClass}`}
               >
                 {commentSaving ? 'Saving…' : 'Submit'}
               </button>
@@ -338,7 +339,7 @@ function CommentItem({ comment, onUpdateStatus, worktreePath }) {
                         type="button"
                         onClick={() => onUpdateStatus?.(comment, isResolved ? 'open' : 'resolved')}
                         aria-label={isResolved ? 'Reopen comment' : 'Resolve comment'}
-                        className="flex items-center gap-1 text-[9px] font-bold text-emerald-500/60 hover:text-emerald-400 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+                        className={`flex items-center gap-1 text-[9px] font-bold text-emerald-500/60 hover:text-emerald-400 transition-colors ${focusRingClass} focus-visible:ring-emerald-400/50`}
                     >
                         <CheckCircle2 size={9} aria-hidden="true" />
                         {isResolved ? 'Reopen' : 'Resolve'}
@@ -536,14 +537,13 @@ export function PromoteModal({
               Convert selected items into a draft and wait for completion.
             </div>
           </div>
-          <button
-            type="button"
+          <IconButton
+            label="Close promote dialog"
             onClick={onClose}
-            aria-label="Close promote dialog"
-            className="rounded-md p-1 text-muted-foreground/50 hover:text-foreground hover:bg-muted/10 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+            className="rounded-md p-1 text-muted-foreground/50 hover:text-foreground hover:bg-muted/10 transition-colors"
           >
             <X size={14} aria-hidden="true" />
-          </button>
+          </IconButton>
         </div>
 
         <div className="mt-4 grid grid-cols-[1.3fr_1fr] gap-4">
@@ -582,7 +582,7 @@ export function PromoteModal({
                   type="button"
                   onClick={onCreateSession}
                   disabled={isWaiting}
-                  className="rounded-md border border-border/20 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:opacity-60"
+                  className={`rounded-md border border-border/20 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors disabled:opacity-60 ${focusRingClass}`}
                 >
                   New
                 </button>
@@ -590,7 +590,7 @@ export function PromoteModal({
                   type="button"
                   onClick={onFocusSession}
                   disabled={!activeSession}
-                  className="rounded-md border border-border/20 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:opacity-40"
+                  className={`rounded-md border border-border/20 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors disabled:opacity-40 ${focusRingClass}`}
                 >
                   View
                 </button>
@@ -783,7 +783,7 @@ export function PromoteModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+            className={`rounded-md px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/10 transition-colors ${focusRingClass}`}
           >
             Cancel
           </button>
@@ -792,7 +792,7 @@ export function PromoteModal({
               type="button"
               onClick={onConfirm}
               disabled={!gateReady || loading}
-              className="rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-colors transition-transform active:scale-95 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+              className={`rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-colors transition-transform active:scale-95 disabled:opacity-50 ${focusRingClass}`}
             >
               {loading ? 'Confirming…' : 'Confirm Draft'}
             </button>
@@ -801,7 +801,7 @@ export function PromoteModal({
               type="button"
               onClick={onDispatch}
               disabled={loading}
-              className="rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-colors transition-transform active:scale-95 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+              className={`rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-colors transition-transform active:scale-95 disabled:opacity-50 ${focusRingClass}`}
             >
               {loading ? 'Dispatching…' : 'Dispatch Promote'}
             </button>

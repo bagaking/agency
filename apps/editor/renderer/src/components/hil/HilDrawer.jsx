@@ -1,5 +1,7 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight, Target } from 'lucide-react';
+import { IconButton } from '../ui/IconButton.jsx';
+import { focusRing } from '../ui/focusRing.js';
 
 const defaultPanels = [
   { id: 'comments', label: 'Comments' },
@@ -19,6 +21,7 @@ export function HilDrawer({
 }) {
   const drawerOpen = Boolean(open);
   const contentId = 'hil-drawer-content';
+  const focusRingClass = focusRing.default;
   const handleToggle = () => {
     if (typeof onToggle === 'function') {
       onToggle(!drawerOpen);
@@ -36,17 +39,15 @@ export function HilDrawer({
           drawerOpen ? 'px-2 gap-2' : 'px-0 justify-center'
         }`}
       >
-        <button
-          type="button"
+        <IconButton
+          label={drawerOpen ? 'Collapse HIL drawer' : 'Expand HIL drawer'}
           onClick={handleToggle}
-          aria-label={drawerOpen ? 'Collapse HIL drawer' : 'Expand HIL drawer'}
           aria-expanded={drawerOpen}
           aria-controls={contentId}
-          className="flex h-6 w-6 items-center justify-center rounded-full border border-border/30 bg-background/60 text-muted-foreground/60 shadow-sm transition-colors hover:text-foreground hover:border-primary/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
-          title={drawerOpen ? 'Collapse HIL drawer' : 'Expand HIL drawer'}
+          className="h-6 w-6 rounded-full border border-border/30 bg-background/60 text-muted-foreground/60 shadow-sm transition-colors hover:text-foreground hover:border-primary/30"
         >
           {drawerOpen ? <ChevronRight size={14} aria-hidden="true" /> : <ChevronLeft size={14} aria-hidden="true" />}
-        </button>
+        </IconButton>
         {drawerOpen ? (
           <div className="flex min-w-0 flex-1 flex-col">
             <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80 truncate">
@@ -63,7 +64,7 @@ export function HilDrawer({
           <button
             type="button"
             onClick={onOpenPromote}
-            className="ml-auto flex items-center gap-1 rounded-full border border-border/30 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60 transition-colors hover:text-foreground hover:border-primary/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+            className={`ml-auto flex items-center gap-1 rounded-full border border-border/30 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60 transition-colors hover:text-foreground hover:border-primary/30 ${focusRingClass}`}
             title="Promote items to draft"
           >
             <Target size={12} aria-hidden="true" />
@@ -85,7 +86,7 @@ export function HilDrawer({
                 disabled={panel.disabled}
                 onClick={() => onSelectPanel?.(panel.id)}
                 aria-pressed={activePanel === panel.id}
-                className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background ${
+                className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-widest transition-colors ${focusRingClass} ${
                   panel.disabled
                     ? 'text-muted-foreground/30 cursor-not-allowed'
                     : activePanel === panel.id

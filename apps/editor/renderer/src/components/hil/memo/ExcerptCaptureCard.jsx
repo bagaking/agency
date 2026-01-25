@@ -1,6 +1,7 @@
 import React from 'react';
 import { Check, ArrowDownToLine, Loader2 } from 'lucide-react';
 import { Tooltip } from '../../ui/Tooltip.jsx';
+import { focusRing } from '../../ui/focusRing.js';
 
 export function ExcerptCaptureCard({
   url,
@@ -17,8 +18,7 @@ export function ExcerptCaptureCard({
 }) {
   const hasPreview = Boolean(preview?.summary || preview?.excerpt || preview?.title || preview?.text);
   const canFetch = Boolean(url?.trim());
-  const focusRingClass =
-    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
+  const focusRingClass = focusRing.strong;
   const fetchLabel = fetching ? 'Fetching…' : 'Fetch preview';
   const saveLabel = loading ? 'Saving…' : 'Save excerpt';
   const statusLabel = fetching ? 'Fetching…' : hasPreview ? 'Preview ready' : canFetch ? 'Ready to fetch' : 'Waiting for URL';

@@ -14,6 +14,7 @@ import {
   Clipboard,
   Type,
 } from 'lucide-react';
+import { focusRing } from './ui/focusRing.js';
 
 const scopeLabels = {
   global: 'Global',
@@ -143,8 +144,7 @@ const buildActionSummary = (action) => {
   return text ? `Send Text - ${text}` : 'Send Text';
 };
 
-const focusRingClass =
-  'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
+const focusRingClass = focusRing.strong;
 
 const getBindingsForProfile = (bindingsByProfile, profileId) => {
   if (!bindingsByProfile || !profileId) {

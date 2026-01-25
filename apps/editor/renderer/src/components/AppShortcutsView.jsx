@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Camera, Mic, Command, RotateCcw, Check, Users, FolderOpen } from 'lucide-react';
+import { focusRing } from './ui/focusRing.js';
 
 const scopeLabels = {
   global: 'Global',
@@ -14,8 +15,7 @@ const ACTION_ICONS = {
   'view.explorer': FolderOpen,
 };
 
-const focusRingClass =
-  'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
+const focusRingClass = focusRing.strong;
 
 const KEY_LABELS = {
   ' ': 'Space',
