@@ -51,6 +51,54 @@ function execFileAsync(command, args) {
   });
 }
 
+function resolveHelperBundlePath(helperPath) {
+  if (!helperPath) {
+    return '';
+  }
+  return path.resolve(path.dirname(helperPath), '..', '..');
+}
+
+async function ensureHelperSignature(helperPath) {
+  if (process.platform !== 'darwin' || app.isPackaged) {
+    return;
+  }
+  const bundlePath = resolveHelperBundlePath(helperPath);
+  if (!bundlePath.endsWith('.app')) {
+    return;
+  }
+  try {
+    await execFileAsync('/usr/bin/codesign', [
+      '--verify',
+      '--deep',
+      '--strict',
+      '--verbose=2',
+      bundlePath,
+    ]);
+    return;
+  } catch (error) {
+    logRuntime('info', 'speech helper codesign verify failed', {
+      bundlePath,
+      error: error?.stderr || error?.message || String(error),
+    });
+  }
+  try {
+    await execFileAsync('/usr/bin/codesign', [
+      '--force',
+      '--deep',
+      '--sign',
+      '-',
+      '--timestamp=none',
+      bundlePath,
+    ]);
+    logRuntime('info', 'speech helper codesigned', { bundlePath });
+  } catch (error) {
+    logRuntime('warn', 'speech helper codesign failed', {
+      bundlePath,
+      error: error?.stderr || error?.message || String(error),
+    });
+  }
+}
+
 function resolveHelperPath() {
   if (app.isPackaged) {
     return path.join(
@@ -192,6 +240,7 @@ async function ensureHelperBinary() {
     await syncHelperInfoPlist(infoSource, infoPath);
     const stale = await isHelperStale(helperPath, infoSource);
     if (!stale) {
+      await ensureHelperSignature(helperPath);
       return { ok: true, helperPath, built: false };
     }
     logRuntime('info', 'speech helper rebuild required', { helperPath });
@@ -217,6 +266,7 @@ async function ensureHelperBinary() {
     }
     await fs.promises.mkdir(path.dirname(infoPath), { recursive: true });
     await fs.promises.copyFile(infoSource, infoPath);
+    await ensureHelperSignature(helperPath);
     return { ok: true, helperPath, built: true };
   } catch (error) {
     logRuntime('warn', 'speech helper build failed', {

@@ -37,6 +37,50 @@ struct JsonEmitter {
   }
 }
 
+func requestSpeechAuthorization() -> SFSpeechRecognizerAuthorizationStatus {
+  var status = SFSpeechRecognizer.authorizationStatus()
+  if status != .notDetermined {
+    return status
+  }
+  let semaphore = DispatchSemaphore(value: 0)
+  SFSpeechRecognizer.requestAuthorization { auth in
+    status = auth
+    semaphore.signal()
+  }
+  semaphore.wait()
+  return status
+}
+
+func requestMicrophoneAuthorization() -> AVAuthorizationStatus {
+  var status = AVCaptureDevice.authorizationStatus(for: .audio)
+  if status != .notDetermined {
+    return status
+  }
+  let semaphore = DispatchSemaphore(value: 0)
+  AVCaptureDevice.requestAccess(for: .audio) { granted in
+    status = granted ? .authorized : .denied
+    semaphore.signal()
+  }
+  semaphore.wait()
+  return status
+}
+
+func ensurePermissions(requiresMicrophone: Bool) -> Bool {
+  let speechStatus = requestSpeechAuthorization()
+  if speechStatus != .authorized {
+    JsonEmitter.error("Speech recognition permission denied.")
+    return false
+  }
+  if requiresMicrophone {
+    let micStatus = requestMicrophoneAuthorization()
+    if micStatus != .authorized {
+      JsonEmitter.error("Microphone permission denied.")
+      return false
+    }
+  }
+  return true
+}
+
 func parseLanguage() -> (value: String, isAuto: Bool) {
   let args = CommandLine.arguments
   guard let index = args.firstIndex(of: "--lang"), index + 1 < args.count else {
@@ -224,6 +268,10 @@ func nextSegmentId() -> String {
 }
 
 let languageInput = parseLanguage()
+let mode = parseMode()
+if !ensurePermissions(requiresMicrophone: mode != "rescore") {
+  exit(1)
+}
 let autoDetectLanguage = languageInput.isAuto
 var currentLocaleId = resolveSupportedLocaleId(languageInput.value)
 guard var recognizer = createRecognizer(localeId: currentLocaleId) else {
@@ -1126,7 +1174,6 @@ func runRescore() {
   RunLoop.current.run()
 }
 
-let mode = parseMode()
 if mode == "rescore" {
   runRescore()
 } else {

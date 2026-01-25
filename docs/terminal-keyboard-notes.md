@@ -1,3 +1,11 @@
+---
+title: Terminal Keyboard Notes
+required: false
+sop:
+  - When changing terminal keyboard sequences, update this doc and regenerate docs/sop.md.
+  - Validate Shift+Enter behavior using the manual verification checklist in this doc.
+---
+
 # Terminal Keyboard Protocol Notes
 
 ## Summary

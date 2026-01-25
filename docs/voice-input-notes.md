@@ -1,3 +1,11 @@
+---
+title: Voice Input Notes
+required: false
+sop:
+  - When modifying voice input, rescore, or language handling, update this doc and regenerate docs/sop.md.
+  - Keep permission flow, warmup, and fallback behavior aligned with this doc.
+---
+
 # Memo 语音输入冷启动实现经验总结
 
 ## 面向无上下文读者的定位
@@ -116,7 +124,7 @@
 
 8) 权限弹窗从未出现（系统列表无条目）
 - 原因：speech helper 未签名，TCC 不创建权限条目。
-- 解决：在打包流程中对 SpeechHelper.app 进行 codesign，并明确显示名为 “Agency Speech Helper”。
+- 解决：在打包流程中对 SpeechHelper.app 进行 codesign，并明确显示名为 “Agency Speech Helper”；开发模式下对 helper 执行 ad-hoc codesign 以触发 TCC 条目。
 - 预防：afterPack 钩子签名 helper，保持与主应用同一签名链路；macOS Hardened Runtime 下补充 `com.apple.security.device.audio-input` entitlement。
 
 9) Dev/Release 权限条目难区分

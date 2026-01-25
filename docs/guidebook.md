@@ -44,11 +44,11 @@
 ## 主题深挖（按需阅读）
 
 ### 终端与键盘输入
-- `docs/terminal-keyboard-implementation-notes.md`
+- `docs/terminal-keyboard-notes.md`
   - Shift+Enter、CSI-u、bracketed paste 与兼容性说明。
 
 ### 语音输入与 rescore
-- `docs/voice-input-implementation-notes.md`
+- `docs/voice-input-notes.md`
   - 冷启动路径、多进程模型、常见坑与规避策略。
 
 ### UI 组件复用与规范
@@ -64,6 +64,14 @@
 ### 手工测试清单
 - `apps/editor/docs/manual-test.md`
   - UI 与关键功能验证流程。
+
+## Docs 维护规范
+
+- `docs/guidebook.md` 只做索引与阅读路径，不承载细则；新增或重命名文档需同步更新此处索引。
+- `docs/sop.md` 是从 docs frontmatter 汇总生成的自检 SOP，不要手改；更新规范文档后运行 `node scripts/generate-sop.mjs`。
+- `docs` 下所有非 `guidebook.md/sop.md` 的文档必须包含 frontmatter, frontmatter 中要有 `sop` 列表；sop 要说明什么情况下需要阅读或者维护这篇文档.
+- 命名规范：小写 kebab-case，使用类型后缀（如 `*-notes.md`、`*-guidelines.md`、`*-norms.md`），避免“implementation-notes”这种过长命名。
+- 重命名文档前先用 `rg` 找到所有引用并更新，避免索引与 SOP 漂移。
 
 ## 代码结构地图（优先阅读位置）
 
@@ -87,9 +95,9 @@
   - 生命周期、sessions、actions、gates、comments、HIL 资产等。
 
 ## 心智模型（快速定位）
-- 一个 Cell = 一个 worktree + 一个 branch（严格 1:1）+ 生命周期状态。
-- Sessions 是 tmux 支撑的终端会话，按 Cell 持久化。
-- Actions / Gates / Softlinks 的解析顺序：Global -> Project -> Agent。
+- 一个 Cell = 一个 worktree + 一个 branch（严格 1:1）+ 生命周期状态。一个 Cell 中可包含多个 Sessions。
+- Sessions 是 tmux 支撑的终端会话，按 Cell 持久化。Terminus 可执行会话的模型定义，Session 是 Terminus 的实体。
+- Actions / Gates / Softlinks / App Shortcuts 等配置的默认解析顺序：Global -> Project -> Agent。
 - Renderer 不直接访问 Node：必须通过 preload 与 `agencyBridge`。
 
 ## 为什么这份 guidebook 不会过期
@@ -101,7 +109,7 @@
 ## 修改代码时的最低规范
 - 新能力或架构调整必须走 OpenSpec 变更提案流程。
 - Renderer IPC 只能通过 `apps/editor/renderer/src/services/agencyBridge.js`。
-- 涉及语音输入修改时，同步更新 `docs/voice-input-implementation-notes.md`。
+- 涉及语音输入修改时，同步更新 `docs/voice-input-notes.md`。
 - 交付说明中标注本次参考的 guidebook 原则或章节。
 - 更新含 sop frontmatter 的文档后，运行 `node scripts/generate-sop.mjs` 并提交 `docs/sop.md`。
 

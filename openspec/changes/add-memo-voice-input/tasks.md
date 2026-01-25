@@ -25,6 +25,8 @@
 - [x] 1.24 Warm up the native speech helper after app ready and log warmup timing.
 - [x] 1.25 Add fast-path permission checks in the speech helper to reduce start latency.
 - [x] 1.26 Emit timing diagnostics for voice initialization stages (permissions, audio engine).
+- [x] 1.27 Request speech + microphone permissions in the helper before starting capture.
+- [x] 1.28 Ad-hoc codesign the dev speech helper bundle so TCC creates a permission entry.
 
 ## 2. Validation
 - [x] 2.1 Manual: start/stop voice capture and verify transcript appends to Flash text.
@@ -36,3 +38,4 @@
 - [x] 2.7 Manual: save a Flash memo with voice audio and verify playback.
 - [x] 2.8 Manual: verify rescore runs without interrupting live capture.
 - [x] 2.9 Manual: verify Flash input is only updated after rescore completes.
+- [ ] 2.10 Manual (dev): starting voice capture prompts for permission and shows the helper entry in System Settings.
