@@ -5,6 +5,7 @@ sop:
   - Use focusRing for focus-visible styles instead of inline classes.
   - Use IconButton for icon-only actions and set label for accessibility.
   - Use Tooltip for icon-only controls or truncated labels.
+  - When extracting shared UI components, update this doc and regenerate docs/sop.md.
 ---
 
 # UI Component Reuse Guidelines
@@ -40,3 +41,11 @@ This document describes how to keep UI components DRY and consistent in the rend
 - If the same layout and classes appear in 2+ components, extract a helper component.
 - If a component mixes layout, behavior, and styling, consider splitting for reuse.
 - Keep primitives small and composable; avoid over-abstracting.
+
+## Shared Component Maintenance
+- Extraction trigger: reuse in 2+ screens, or 3+ variants of the same pattern.
+- Placement rule: UI-only goes under `components/ui`; feature-coupled stays in feature folders.
+- API stability: new props require defaults and clear naming; avoid implicit dependencies.
+- State coverage: define hover/active/disabled/loading/focus styles consistently.
+- Usage guidance: add a minimal usage example where the component is introduced.
+- Deprecation: when superseded, migrate usages first, then remove the old component.

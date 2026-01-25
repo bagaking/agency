@@ -29,6 +29,7 @@ Source: `docs/ui-components-guidelines.md`
 - Use focusRing for focus-visible styles instead of inline classes.
 - Use IconButton for icon-only actions and set label for accessibility.
 - Use Tooltip for icon-only controls or truncated labels.
+- When extracting shared UI components, update this doc and regenerate docs/sop.md.
 
 ### Voice Input Notes
 Source: `docs/voice-input-notes.md`

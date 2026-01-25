@@ -70,7 +70,12 @@
 - `docs/guidebook.md` 只做索引与阅读路径，不承载细则；新增或重命名文档需同步更新此处索引。
 - `docs/sop.md` 是从 docs frontmatter 汇总生成的自检 SOP，不要手改；更新规范文档后运行 `node scripts/generate-sop.mjs`。
 - `docs` 下所有非 `guidebook.md/sop.md` 的文档必须包含 frontmatter, frontmatter 中要有 `sop` 列表；sop 要说明什么情况下需要阅读或者维护这篇文档.
-- 命名规范：小写 kebab-case，使用类型后缀（如 `*-notes.md`、`*-guidelines.md`、`*-norms.md`），避免“implementation-notes”这种过长命名。
+- 命名规范：小写 kebab-case，按类型区分并使用后缀：
+  - 规范级：`*-norms.md`
+  - 架构级：`*-architecture.md`
+  - 实现级：`*-notes.md`
+  - 约束/风格：`*-guidelines.md`
+- 文档索引排序：先规范/架构，再 guidelines，再 notes；同类型按领域归类。
 - 重命名文档前先用 `rg` 找到所有引用并更新，避免索引与 SOP 漂移。
 
 ## 代码结构地图（优先阅读位置）
