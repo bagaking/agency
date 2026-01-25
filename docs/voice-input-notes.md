@@ -128,9 +128,9 @@ sop:
 - 预防：afterPack 钩子签名 helper，保持与主应用同一签名链路；macOS Hardened Runtime 下补充 `com.apple.security.device.audio-input` entitlement。
 
 9) Dev/Release 权限条目难区分
-- 原因：两者使用同一 helper bundle id 与显示名，TCC 列表难区分或不刷新名称。
-- 解决：dev helper 使用独立的 bundle id 与显示名 “AgencySpeechHelper (Dev)”，release helper 改为独立的 bundle id 强制刷新名称。
-- 预防：dev 只替换 helper 的 Info.plist 来源，不影响正式包内容。
+- 原因：macOS TCC 可能缓存旧显示名；不同 bundle id 也可能不在列表中出现。
+- 解决：dev 默认复用 release helper bundle id，保证权限条目可复用；如需区分，设置 `AGENCY_HELPER_DEV_ID=1` 使用 dev Info.plist。
+- 预防：改动 helper 标识后先清理 TCC，再触发一次录音请求刷新条目。
 
 10) 只看到 Agency 权限条目（dev 没看到 Agency (DEV)）
 - 原因：macOS TCC 可能将权限归属到“responsible”进程（Agency），dev 运行时宿主是 Electron。

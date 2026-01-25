@@ -10,6 +10,7 @@ const helperSource = path.join(helperRoot, 'SpeechHelper.swift');
 const helperInfoPlist = path.join(helperRoot, 'Info.plist');
 const helperInfoPlistDev = path.join(helperRoot, 'Info.dev.plist');
 const helperBundleName = 'AgencySpeechHelper.app';
+const useDevHelperIdentity = process.env.AGENCY_HELPER_DEV_ID === '1';
 const devHelperBundle = path.join(helperRoot, 'bin', helperBundleName);
 const devHelperBin = path.join(devHelperBundle, 'Contents', 'MacOS', 'speech-helper');
 const VOICE_EVENT_TYPES = {
@@ -127,7 +128,7 @@ function resolveHelperInfoSource() {
   if (app.isPackaged) {
     return helperInfoPlist;
   }
-  if (fs.existsSync(helperInfoPlistDev)) {
+  if (useDevHelperIdentity && fs.existsSync(helperInfoPlistDev)) {
     return helperInfoPlistDev;
   }
   return helperInfoPlist;
