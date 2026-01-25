@@ -132,6 +132,11 @@ sop:
 - 解决：dev helper 使用独立的 bundle id 与显示名 “AgencySpeechHelper (Dev)”，release helper 改为独立的 bundle id 强制刷新名称。
 - 预防：dev 只替换 helper 的 Info.plist 来源，不影响正式包内容。
 
+10) 只看到 Agency 权限条目
+- 原因：macOS TCC 可能将权限归属到“responsible”进程（Agency），即使实际调用来自 helper。
+- 解决：在系统设置里开启 Agency 或 AgencySpeechHelper 任一条目即可。
+- 预防：UI 错误提示中同时提示 Agency 与 AgencySpeechHelper。
+
 ## 验收清单（最低可行）
 - 连续说 1/2/3 句，不互相覆盖。
 - rescore 期间继续说话，实时转写持续更新。

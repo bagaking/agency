@@ -327,11 +327,11 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
         const rawMessage = payload.message || 'Voice input failed.';
         const permissionKind = resolvePermissionKind(rawMessage);
         if (permissionKind === 'microphone') {
-          setError('Microphone permission denied. Enable AgencySpeechHelper in System Settings.');
+          setError('Microphone permission denied. Enable Agency or AgencySpeechHelper in System Settings.');
           maybeOpenPermissions(rawMessage, 'microphone');
         } else if (permissionKind === 'speech') {
           setError(
-            'Speech recognition permission denied. Enable AgencySpeechHelper in System Settings.'
+            'Speech recognition permission denied. Enable Agency or AgencySpeechHelper in System Settings.'
           );
           maybeOpenPermissions(rawMessage, 'speech');
         } else {
