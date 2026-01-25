@@ -19,27 +19,8 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 Use pnpm for workspace Node dependencies and keep `pnpm-lock.yaml` committed.
 Read `docs/guidebook.md` before working.
+Follow `docs/sop.md` (generated from docs frontmatter). If SOP sources change, regenerate via `node scripts/generate-sop.mjs`.
+See `docs/dev-norms.md` for detailed engineering norms.
 At the end of every response, include a single line:
 - `[[Agency]] 本次修改参考了 doc/guidebook.md 中的 xxx 原则`
 - If none apply, use: `[[Agency]] 本次修改无需引用 doc/guidebook.md`
-
-## Docs Hygiene
-- When changing voice input, rescore behavior, or language handling, update `docs/voice-input-implementation-notes.md` accordingly so new contributors can follow the latest flow.
-
-## Development Norms
-
-### Quality
-
-合理设计代码架构, 注重 DRY 和 SOLID 原则, 出现单个文件超过 800 时主动重构
-
-### Electron IPC/Preload Health
-
-- Treat `preload` + IPC injection as a required runtime dependency.
-- Always verify `window.agency` is available before invoking IPC from the renderer.
-- If IPC/preload is missing or fails, surface a minimal status bar indicator (e.g. red state + short label) and log the failure for debugging. Avoid hard-blocking user flows unless required.
-- When adding new renderer actions, ensure a safe fallback path or a clear error message in logs.
-
-### Renderer IPC Access
-
-- Centralize renderer↔main IPC calls in `apps/editor/renderer/src/services/agencyBridge.js`.
-- Avoid direct `window.agency` usage in React components; route through the bridge for consistency and easier testing.

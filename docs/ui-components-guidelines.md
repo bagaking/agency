@@ -1,3 +1,12 @@
+---
+title: UI Component Reuse Guidelines
+required: false
+sop:
+  - Use focusRing for focus-visible styles instead of inline classes.
+  - Use IconButton for icon-only actions and set label for accessibility.
+  - Use Tooltip for icon-only controls or truncated labels.
+---
+
 # UI Component Reuse Guidelines
 
 This document describes how to keep UI components DRY and consistent in the renderer.

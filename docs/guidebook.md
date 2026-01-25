@@ -55,6 +55,12 @@
 - `docs/ui-components-guidelines.md`
   - UI primitives、focus ring、IconButton 与 Tooltip 的复用准则。
 
+### 工程规范与 SOP
+- `docs/dev-norms.md`
+  - 开发规范与必须遵守的工程约束。
+- `docs/sop.md`
+  - 从规范文档汇总出的自检 SOP 清单。
+
 ### 手工测试清单
 - `apps/editor/docs/manual-test.md`
   - UI 与关键功能验证流程。
@@ -97,6 +103,7 @@
 - Renderer IPC 只能通过 `apps/editor/renderer/src/services/agencyBridge.js`。
 - 涉及语音输入修改时，同步更新 `docs/voice-input-implementation-notes.md`。
 - 交付说明中标注本次参考的 guidebook 原则或章节。
+- 更新含 sop frontmatter 的文档后，运行 `node scripts/generate-sop.mjs` 并提交 `docs/sop.md`。
 
 ## 运行可观测性
 - 运行日志：`logs/runtime/`（保留最新 20 份，历史自动归档）。
