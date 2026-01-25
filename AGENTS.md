@@ -18,6 +18,10 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 <!-- OPENSPEC:END -->
 
 Use pnpm for workspace Node dependencies and keep `pnpm-lock.yaml` committed.
+Read `docs/guidebook.md` before working.
+At the end of every response, include a single line:
+- `[[Agency]] 本次修改参考了 doc/guidebook.md 中的 xxx 原则`
+- If none apply, use: `[[Agency]] 本次修改无需引用 doc/guidebook.md`
 
 ## Docs Hygiene
 - When changing voice input, rescore behavior, or language handling, update `docs/voice-input-implementation-notes.md` accordingly so new contributors can follow the latest flow.

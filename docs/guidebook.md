@@ -96,6 +96,7 @@
 - 新能力或架构调整必须走 OpenSpec 变更提案流程。
 - Renderer IPC 只能通过 `apps/editor/renderer/src/services/agencyBridge.js`。
 - 涉及语音输入修改时，同步更新 `docs/voice-input-implementation-notes.md`。
+- 交付说明中标注本次参考的 guidebook 原则或章节。
 
 ## 运行可观测性
 - 运行日志：`logs/runtime/`（保留最新 20 份，历史自动归档）。
