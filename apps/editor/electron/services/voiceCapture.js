@@ -1,4 +1,4 @@
-const { app } = require('electron');
+const { app, systemPreferences } = require('electron');
 const { execFile, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -27,6 +27,11 @@ const hostUsageDescriptions = {
     'Voice input needs microphone access to capture speech for memos.',
   NSSpeechRecognitionUsageDescription:
     'Voice input uses speech recognition to transcribe memos.',
+};
+const devHostIdentity = {
+  CFBundleDisplayName: 'Agency',
+  CFBundleName: 'Agency',
+  CFBundleIdentifier: 'com.agency.editor',
 };
 
 let activeCapture = null;
@@ -193,7 +198,10 @@ async function ensureHostUsageDescriptions() {
     logRuntime('warn', 'speech helper host Info.plist missing', { infoPath });
     return;
   }
-  const updates = Object.entries(hostUsageDescriptions);
+  const updates = Object.entries({
+    ...hostUsageDescriptions,
+    ...devHostIdentity,
+  });
   for (const [key, value] of updates) {
     try {
       await execFileAsync('/usr/bin/plutil', ['-replace', key, '-string', value, infoPath]);
@@ -206,6 +214,21 @@ async function ensureHostUsageDescriptions() {
   }
   hostUsagePatched = true;
   logRuntime('info', 'speech helper host Info.plist updated', { infoPath });
+}
+
+async function ensureDevMicrophoneAccess() {
+  if (process.platform !== 'darwin' || app.isPackaged) {
+    return;
+  }
+  if (!systemPreferences?.getMediaAccessStatus || !systemPreferences?.askForMediaAccess) {
+    return;
+  }
+  const status = systemPreferences.getMediaAccessStatus('microphone');
+  logRuntime('info', 'speech helper dev mic access status', { status });
+  if (status === 'not-determined') {
+    const granted = await systemPreferences.askForMediaAccess('microphone');
+    logRuntime('info', 'speech helper dev mic access requested', { granted });
+  }
 }
 
 async function isHelperStale(helperPath, infoSource) {
@@ -597,6 +620,7 @@ async function startVoiceCapture({ language } = {}, sender) {
     return { supported: false, reason: 'unsupported-platform' };
   }
   await ensureHostUsageDescriptions();
+  await ensureDevMicrophoneAccess();
   if (helperWarmupPromise) {
     await helperWarmupPromise;
   }
