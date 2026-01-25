@@ -192,6 +192,7 @@ export function HilMemoSidebar({
     const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
     const activeLabel = options.find(o => o.value === value)?.label || value;
     const menuId = `filter-${label.replace(/\s+/g, '-').toLowerCase()}`;
+    const focusRingClass = focusRing.sidebar;
 
     useEffect(() => {
         if (!open) return;
