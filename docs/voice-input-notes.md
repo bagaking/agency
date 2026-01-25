@@ -129,7 +129,7 @@ sop:
 
 9) Dev/Release 权限条目难区分
 - 原因：两者使用同一 helper bundle id 与显示名，TCC 列表难区分或不刷新名称。
-- 解决：dev helper 使用独立的 bundle id 与显示名 “Agency Speech Helper (Dev)”，release helper 改为独立的 bundle id 强制刷新名称。
+- 解决：dev helper 使用独立的 bundle id 与显示名 “AgencySpeechHelper (Dev)”，release helper 改为独立的 bundle id 强制刷新名称。
 - 预防：dev 只替换 helper 的 Info.plist 来源，不影响正式包内容。
 
 ## 验收清单（最低可行）
