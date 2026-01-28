@@ -2,11 +2,11 @@
 title: Development Norms
 required: true
 sop:
-  - Read docs/guidebook.md before working.
+  - Read docs/must-guidebook.md before working.
   - Use pnpm for workspace dependencies and keep pnpm-lock.yaml committed.
   - Renderer IPC must go through apps/editor/renderer/src/services/agencyBridge.js.
   - Avoid direct window.agency usage in React components.
-  - When changing voice input, rescore behavior, or language handling, update docs/voice-input-notes.md.
+  - When changing voice input, rescore behavior, or language handling, update docs/notes-voice-input.md.
   - Keep code DRY and SOLID; refactor files over 800 lines.
   - Verify preload and IPC injection health; surface a minimal status indicator if missing.
 ---
@@ -16,7 +16,7 @@ sop:
 This document collects core engineering norms that must stay aligned with project behavior.
 
 ## Docs Hygiene
-- When changing voice input, rescore behavior, or language handling, update `docs/voice-input-notes.md` accordingly so new contributors can follow the latest flow.
+- When changing voice input, rescore behavior, or language handling, update `docs/notes-voice-input.md` accordingly so new contributors can follow the latest flow.
 
 ## Quality
 - Keep the architecture clean and favor DRY and SOLID; refactor when a file exceeds 800 lines.

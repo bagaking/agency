@@ -47,6 +47,7 @@ const run = async () => {
   const env = {
     ...process.env,
     ELECTRON_RENDERER_URL: rendererUrl,
+    AGENCY_HELPER_IDENTITY: process.env.AGENCY_HELPER_IDENTITY || 'release',
   };
   const child = spawn(electronPath, [mainPath], {
     stdio: 'inherit',

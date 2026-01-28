@@ -9,6 +9,12 @@
 
 ## 快速阅读顺序（Fast Path）
 
+### 0）系统文档（文档体系与 SOP）
+- `docs/must-docs-taxonomy.md`
+  - 文档分类、命名规则与 frontmatter 模板。
+- `docs/must-sop.md`
+  - 从规范文档汇总出的自检 SOP 清单。
+
 ### 1）项目意图与约束（最稳定的事实）
 - `openspec/project.md`
   - 目的、原则、非目标、技术栈、架构规则、关键约束。
@@ -44,22 +50,25 @@
 ## 主题深挖（按需阅读）
 
 ### 终端与键盘输入
-- `docs/terminal-keyboard-notes.md`
+- `docs/notes-terminal-keyboard.md`
   - Shift+Enter、CSI-u、bracketed paste 与兼容性说明。
 
 ### 语音输入与 rescore
-- `docs/voice-input-notes.md`
+- `docs/notes-voice-input.md`
   - 冷启动路径、多进程模型、常见坑与规避策略。
 
 ### UI 组件复用与规范
-- `docs/ui-components-guidelines.md`
+- `docs/guidelines-ui-components.md`
   - UI primitives、focus ring、IconButton 与 Tooltip 的复用准则。
 
 ### 工程规范与 SOP
-- `docs/dev-norms.md`
+- `docs/norms-dev.md`
   - 开发规范与必须遵守的工程约束。
-- `docs/sop.md`
+- `docs/must-sop.md`
   - 从规范文档汇总出的自检 SOP 清单。
+### 文档体系与命名规范
+- `docs/must-docs-taxonomy.md`
+  - 文档分类、命名规则与 frontmatter 模板。
 
 ### 手工测试清单
 - `apps/editor/docs/manual-test.md`
@@ -67,14 +76,10 @@
 
 ## Docs 维护规范
 
-- `docs/guidebook.md` 只做索引与阅读路径，不承载细则；新增或重命名文档需同步更新此处索引。
-- `docs/sop.md` 是从 docs frontmatter 汇总生成的自检 SOP，不要手改；更新规范文档后运行 `node scripts/generate-sop.mjs`。
-- `docs` 下所有非 `guidebook.md/sop.md` 的文档必须包含 frontmatter, frontmatter 中要有 `sop` 列表；sop 要说明什么情况下需要阅读或者维护这篇文档.
-- 命名规范：小写 kebab-case，按类型区分并使用后缀：
-  - 规范级：`*-norms.md`
-  - 架构级：`*-architecture.md`
-  - 实现级：`*-notes.md`
-  - 约束/风格：`*-guidelines.md`
+- `docs/must-guidebook.md` 只做索引与阅读路径，不承载细则；新增或重命名文档需同步更新此处索引。
+- `docs/must-docs-taxonomy.md` 定义 docs 分类、命名与 frontmatter 模板；新增类别或命名规则变更需先更新该文档。
+- `docs/must-sop.md` 是从 docs frontmatter 汇总生成的自检 SOP，不要手改；更新规范文档后运行 `node scripts/generate-sop.mjs`。
+- `docs/` 下所有非 `must-` 前缀文档必须包含 frontmatter，且包含 `sop` 列表说明何时阅读或维护该文档。
 - 文档索引排序：先规范/架构，再 guidelines，再 notes；同类型按领域归类。
 - 重命名文档前先用 `rg` 找到所有引用并更新，避免索引与 SOP 漂移。
 
@@ -114,9 +119,10 @@
 ## 修改代码时的最低规范
 - 新能力或架构调整必须走 OpenSpec 变更提案流程。
 - Renderer IPC 只能通过 `apps/editor/renderer/src/services/agencyBridge.js`。
-- 涉及语音输入修改时，同步更新 `docs/voice-input-notes.md`。
+- 涉及语音输入修改时，同步更新 `docs/notes-voice-input.md`。
 - 交付说明中标注本次参考的 guidebook 原则或章节。
-- 更新含 sop frontmatter 的文档后，运行 `node scripts/generate-sop.mjs` 并提交 `docs/sop.md`。
+- 每次完成任务后在响应末尾添加 `[[Bagakit.LivingDoc]] ...`。
+- 更新含 sop frontmatter 的文档后，运行 `node scripts/generate-sop.mjs` 并提交 `docs/must-sop.md`。
 
 ## 运行可观测性
 - 运行日志：`logs/runtime/`（保留最新 20 份，历史自动归档）。
