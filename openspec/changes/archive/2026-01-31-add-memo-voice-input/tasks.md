@@ -33,9 +33,9 @@
 - [x] 2.2 Manual: confirm fallback state when Web Speech API is unavailable.
 - [x] 2.3 Manual: change recognition language and verify it applies to subsequent captures.
 - [x] 2.4 Manual (macOS): start/stop native speech capture and verify transcript streaming.
-- [ ] 2.5 Manual (macOS): remove helper or simulate failure and confirm Web Speech fallback.
+- [x] 2.5 Manual (macOS): remove helper or simulate failure and confirm Web Speech fallback.
 - [x] 2.6 Manual: verify auto language detection + rescore before text appends.
 - [x] 2.7 Manual: save a Flash memo with voice audio and verify playback.
 - [x] 2.8 Manual: verify rescore runs without interrupting live capture.
 - [x] 2.9 Manual: verify Flash input is only updated after rescore completes.
-- [ ] 2.10 Manual (dev): starting voice capture prompts for permission and shows the helper entry in System Settings.
+- [x] 2.10 Manual (dev): starting voice capture prompts for permission and shows the helper entry in System Settings.
