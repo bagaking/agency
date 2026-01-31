@@ -2,6 +2,8 @@ const { execFile } = require('child_process');
 const { promisify } = require('util');
 
 const execFileAsync = promisify(execFile);
+const PREVIEW_MIN_LINES = 20;
+const PREVIEW_MAX_LINES = 400;
 
 async function ensureTmuxAvailable() {
   if (process.env.AGENCY_TEST_MODE === '1') {
@@ -84,6 +86,22 @@ async function killSession(sessionName) {
   await execFileAsync('tmux', ['kill-session', '-t', sessionName]);
 }
 
+async function capturePane(sessionName, { lines = 160 } = {}) {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    return '';
+  }
+  if (!sessionName) {
+    throw new Error('Session name is required.');
+  }
+  const parsedLines = Number(lines);
+  const clamped = Number.isFinite(parsedLines)
+    ? Math.max(PREVIEW_MIN_LINES, Math.min(PREVIEW_MAX_LINES, parsedLines))
+    : 160;
+  const args = ['capture-pane', '-pt', sessionName, '-e', '-S', ];
+  const result = await execFileAsync('tmux', args);
+  return result.stdout || '';
+}
+
 module.exports = {
   ensureTmuxAvailable,
   hasSession,
@@ -91,4 +109,5 @@ module.exports = {
   setMouse,
   killSession,
   getTmuxStatus,
+  capturePane,
 };

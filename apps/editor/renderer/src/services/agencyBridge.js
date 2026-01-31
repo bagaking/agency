@@ -63,6 +63,14 @@ export const setSessionMap = async (payload) => {
   return api.setSessionMap(payload);
 };
 
+export const getSessionMapPreview = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.getSessionMapPreview) {
+    return null;
+  }
+  return api.getSessionMapPreview(payload);
+};
+
 export const startTerminal = async (payload) => {
   const api = getAgencyApi();
   if (!api?.startTerminal) {

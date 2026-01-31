@@ -254,6 +254,24 @@ async function resolveSessionForAttach({ worktreePath, sessionId }) {
   return nextRegistry.sessions.find((session) => session.id === sessionId);
 }
 
+async function resolveSessionForPreview({ worktreePath, sessionId }) {
+  ensureWorktreePath(worktreePath);
+  await ensureTmuxAvailable();
+  const registry = await readRegistry(worktreePath);
+  const existing = registry.sessions.find((session) => session.id === sessionId);
+  if (!existing) {
+    throw new Error('Session not found.');
+  }
+  if (existing.status === SESSION_STATUSES.closed) {
+    throw new Error('Session is closed.');
+  }
+  const isAlive = await hasSession(existing.tmuxSession);
+  if (!isAlive) {
+    throw new Error('Session is stale.');
+  }
+  return existing;
+}
+
 module.exports = {
   listSessions,
   createNewSession,
@@ -263,6 +281,7 @@ module.exports = {
   detachSessionById,
   renameSessionById,
   resolveSessionForAttach,
+  resolveSessionForPreview,
   buildTmuxSessionName,
   SESSION_STATUSES,
 };
