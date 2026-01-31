@@ -28,6 +28,7 @@ const CARD_GAP = 10;
 const CARD_MARGIN = 12;
 const HOVER_OPEN_DELAY = 140;
 const HOVER_CLOSE_DELAY = 120;
+const ROW_TOP_TOLERANCE = 6;
 
 const formatRelativeTime = (timestamp) => {
   if (!timestamp) {
@@ -126,6 +127,7 @@ export function SessionMapToggle({ open, stats, onToggle, disabled }) {
         aria-pressed={open}
         aria-label={open ? 'Close session map' : 'Open session map'}
         disabled={disabled}
+        data-session-map-toggle="true"
       >
         <MapIcon size={14} />
         <span>Session Map</span>
@@ -155,6 +157,7 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
   const fitRef = useRef(null);
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
+  const startedKeyRef = useRef('');
 
   useEffect(() => {
     if (!containerRef.current || terminalRef.current) {
@@ -190,6 +193,7 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
       return;
     }
     terminalRef.current.reset();
+    startedKeyRef.current = '';
   }, [ready, session?.id]);
 
   useEffect(() => {
@@ -202,17 +206,21 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
     }
     let active = true;
     setError('');
-    startTerminal({
+    const sessionKey = `${cell.id}:${session.id}`;
+    if (startedKeyRef.current !== sessionKey) {
+      startedKeyRef.current = sessionKey;
+      startTerminal({
         cellId: cell.id,
         sessionId: session.id,
         worktreePath: cell.worktreePath,
         mode: 'shell',
       })
-      .catch((err) => {
-        if (active) {
-          setError(err?.message || 'Preview unavailable.');
-        }
-      });
+        .catch((err) => {
+          if (active) {
+            setError(err?.message || 'Preview unavailable.');
+          }
+        });
+    }
     const unsubscribe = onTerminalData?.((payload) => {
       if (payload?.cellId === cell.id && payload?.sessionId === session.id) {
         terminalRef.current?.write(payload.data);
@@ -272,15 +280,23 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
   );
 }
 
-function SessionMapHoverCard({ anchorRect, data, onEnter, onLeave, onSelectSession }) {
-  const cardRef = useRef(null);
+function SessionMapHoverCard({
+  anchorRect,
+  data,
+  onEnter,
+  onLeave,
+  onSelectSession,
+  cardRef,
+}) {
+  const localRef = useRef(null);
+  const resolvedRef = cardRef || localRef;
   const [style, setStyle] = useState(null);
 
   useLayoutEffect(() => {
-    if (!anchorRect || !cardRef.current) {
+    if (!anchorRect || !resolvedRef.current) {
       return;
     }
-    const tooltipRect = cardRef.current.getBoundingClientRect();
+    const tooltipRect = resolvedRef.current.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     const fits = {
@@ -338,7 +354,8 @@ function SessionMapHoverCard({ anchorRect, data, onEnter, onLeave, onSelectSessi
 
   const content = (
     <div
-      ref={cardRef}
+      ref={resolvedRef}
+      data-session-map-hover-card="true"
       style={style || { left: -9999, top: -9999 }}
       className="fixed z-[999] w-[360px] rounded-xl border border-border/60 bg-popover/95 p-3 text-foreground shadow-xl backdrop-blur"
       onMouseEnter={onEnter}
@@ -403,6 +420,8 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
   const hoverLockRef = useRef(false);
   const clearTimerRef = useRef(null);
   const openTimerRef = useRef(null);
+  const overlayRef = useRef(null);
+  const hoverCardRef = useRef(null);
 
   const clearHover = useCallback(() => {
     if (clearTimerRef.current) {
@@ -481,9 +500,120 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
     if (!open || !onClose) {
       return undefined;
     }
+    const handlePointerDown = (event) => {
+      const target = event.target;
+      if (overlayRef.current?.contains(target)) {
+        return;
+      }
+      if (hoverCardRef.current?.contains(target)) {
+        return;
+      }
+      if (target?.closest?.('[data-session-map-toggle="true"]')) {
+        return;
+      }
+      onClose();
+    };
+    window.addEventListener('pointerdown', handlePointerDown);
+    return () => window.removeEventListener('pointerdown', handlePointerDown);
+  }, [onClose, open]);
+
+  useEffect(() => {
+    if (!open || !onClose) {
+      return undefined;
+    }
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         onClose();
+        return;
+      }
+      if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
+        return;
+      }
+      const container = overlayRef.current;
+      if (!container) {
+        return;
+      }
+      const tokens = Array.from(container.querySelectorAll('[data-session-token="true"]'));
+      if (!tokens.length) {
+        return;
+      }
+      const activeIndex = tokens.indexOf(document.activeElement);
+      if (event.key === 'Home') {
+        event.preventDefault();
+        tokens[0]?.focus();
+        return;
+      }
+      if (event.key === 'End') {
+        event.preventDefault();
+        tokens[tokens.length - 1]?.focus();
+        return;
+      }
+      const resolvedIndex = activeIndex === -1 ? 0 : activeIndex;
+      const rects = tokens.map((node) => ({
+        node,
+        rect: node.getBoundingClientRect(),
+      }));
+      const rows = [];
+      rects.forEach((item) => {
+        const top = Math.round(item.rect.top);
+        const existing = rows.find((row) => Math.abs(row.top - top) <= ROW_TOP_TOLERANCE);
+        if (existing) {
+          existing.items.push(item);
+        } else {
+          rows.push({ top, items: [item] });
+        }
+      });
+      rows.sort((a, b) => a.top - b.top);
+      rows.forEach((row) => row.items.sort((a, b) => a.rect.left - b.rect.left));
+
+      const activeNode = tokens[resolvedIndex];
+      const activeRect = rects[resolvedIndex]?.rect;
+      const rowIndex = rows.findIndex((row) => row.items.some((item) => item.node === activeNode));
+      const currentRow = rowIndex >= 0 ? rows[rowIndex] : null;
+
+      const focusNode = (node) => {
+        if (node?.focus) {
+          node.focus();
+        }
+      };
+
+      const moveHorizontal = (delta) => {
+        const nextIndex = Math.max(0, Math.min(tokens.length - 1, resolvedIndex + delta));
+        focusNode(tokens[nextIndex]);
+      };
+
+      const moveVertical = (deltaRow) => {
+        if (!currentRow || !activeRect) {
+          moveHorizontal(deltaRow > 0 ? 1 : -1);
+          return;
+        }
+        const targetRow = rows[rowIndex + deltaRow];
+        if (!targetRow) {
+          return;
+        }
+        const targetX = activeRect.left + activeRect.width / 2;
+        let closest = targetRow.items[0];
+        let minDelta = Math.abs(closest.rect.left + closest.rect.width / 2 - targetX);
+        targetRow.items.forEach((item) => {
+          const center = item.rect.left + item.rect.width / 2;
+          const delta = Math.abs(center - targetX);
+          if (delta < minDelta) {
+            minDelta = delta;
+            closest = item;
+          }
+        });
+        focusNode(closest?.node);
+      };
+
+      event.preventDefault();
+      if (event.key === 'ArrowLeft') {
+        moveHorizontal(-1);
+      } else if (event.key === 'ArrowRight') {
+        moveHorizontal(1);
+      } else if (event.key === 'ArrowUp') {
+        moveVertical(-1);
+      } else if (event.key === 'ArrowDown') {
+        moveVertical(1);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -500,7 +630,10 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
       role="dialog"
       aria-label="Session map"
     >
-      <div className="pointer-events-auto rounded-2xl border border-border/60 bg-popover/90 px-4 py-3 shadow-2xl backdrop-blur">
+      <div
+        ref={overlayRef}
+        className="pointer-events-auto rounded-2xl border border-border/60 bg-popover/90 px-4 py-3 shadow-2xl backdrop-blur"
+      >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <MapIcon size={14} />
@@ -515,8 +648,19 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
               <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
               Offline {model.stats.offline}
             </span>
+            <span className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              Active
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+              Detached
+            </span>
             <span>Cells {model.stats.cells}</span>
             <span>Sessions {model.stats.sessions}</span>
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+              Esc to close
+            </span>
           </div>
           {onClose ? (
             <button
@@ -565,29 +709,30 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
                                 : 'border-border/60 bg-black/20 hover:border-primary/50'
                             } ${session.isOffline ? 'opacity-60' : ''}`}
                             onClick={() => onSelectSession(cluster.cell.id, session.id)}
-                          onMouseEnter={(event) =>
-                            handleTokenEnter(event, {
-                              cell: cluster.cell,
-                              session,
-                              color: cluster.color,
-                              typeLabel: cluster.typeLabel,
-                            })
-                          }
-                          onMouseLeave={handleTokenLeave}
-                          onFocus={(event) =>
-                            handleTokenEnter(
-                              event,
-                              {
+                            onMouseEnter={(event) =>
+                              handleTokenEnter(event, {
                                 cell: cluster.cell,
                                 session,
                                 color: cluster.color,
                                 typeLabel: cluster.typeLabel,
-                              },
-                              { immediate: true }
-                            )
-                          }
+                              })
+                            }
+                            onMouseLeave={handleTokenLeave}
+                            onFocus={(event) =>
+                              handleTokenEnter(
+                                event,
+                                {
+                                  cell: cluster.cell,
+                                  session,
+                                  color: cluster.color,
+                                  typeLabel: cluster.typeLabel,
+                                },
+                                { immediate: true }
+                              )
+                            }
                             onBlur={handleTokenLeave}
                             aria-label={`Session ${session.name || session.id}`}
+                            data-session-token="true"
                           >
                             <Terminal size={14} className="text-current" />
                             <span
@@ -621,6 +766,7 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
           onEnter={handleCardEnter}
           onLeave={handleCardLeave}
           onSelectSession={onSelectSession}
+          cardRef={hoverCardRef}
         />
       ) : null}
     </div>
