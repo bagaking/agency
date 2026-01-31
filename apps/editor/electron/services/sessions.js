@@ -7,7 +7,7 @@ const {
   upsertSession,
   removeSession,
 } = require('./sessionRegistry');
-const { ensureTmuxAvailable, hasSession, createSession, killSession } = require('./tmux');
+const { ensureTmuxAvailable, hasSession, createSession, setMouse, killSession } = require('./tmux');
 
 const SESSION_STATUSES = {
   active: 'active',
@@ -91,6 +91,7 @@ async function createNewSession({ cellId, worktreePath, name, sessionId: provide
 
   const isAlive = await hasSession(tmuxSession);
   if (isAlive) {
+    await setMouse(tmuxSession, true);
     const session = {
       id: sessionId,
       name: name || `Session ${registry.sessions.length + 1}`,
@@ -107,6 +108,7 @@ async function createNewSession({ cellId, worktreePath, name, sessionId: provide
   }
 
   await createSession(tmuxSession, worktreePath);
+  await setMouse(tmuxSession, true);
 
   const session = {
     id: sessionId,

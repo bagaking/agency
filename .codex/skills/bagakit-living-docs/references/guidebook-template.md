@@ -11,6 +11,7 @@ This guidebook is a reading map. Keep it stable and index-style; do not duplicat
 1) System docs
 - `must-docs-taxonomy.md`
 - `must-sop.md`
+- `must-memory.md`
 
 2) Project intent and constraints
 - Link to the most authoritative spec or README.
@@ -20,6 +21,17 @@ This guidebook is a reading map. Keep it stable and index-style; do not duplicat
 
 4) Build/run entrypoints
 - Link to the primary entrypoints and scripts.
+
+## Memory (Project Knowledge Base)
+- Curated: `docs/.bagakit/memory/**/*.md`
+- Inbox: `docs/.bagakit/inbox/**/*.md`
+
+Use memory for:
+- Reusable facts and decisions you want the agent/team to recall quickly.
+- Gotchas and “this bit me before” notes with pointers to code/PRs/issues.
+
+Promotion rule:
+- Inbox → curated memory for durable items; curated memory → `docs/*.md` when it becomes a stable policy or deep guide.
 
 ## Deep Dives
 - Add domain-specific docs by category (norms, guidelines, notes).

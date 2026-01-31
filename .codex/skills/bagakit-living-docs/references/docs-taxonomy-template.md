@@ -11,6 +11,25 @@ This document defines the `docs/` taxonomy: categories, naming rules, and frontm
 - Runbook (optional): `runbook-*.md`
 - Manual test (optional): `manual-test-*.md`
 
+## Memory (Project Knowledge Base)
+Keep a lightweight, searchable "project memory" under `docs/.bagakit/` (Bagakit-internal), so projects don't need extra top-level directories:
+- Curated memory: `docs/.bagakit/memory/**/*.md`
+- Inbox (unreviewed): `docs/.bagakit/inbox/**/*.md`
+
+Rules:
+- Use `docs/.bagakit/memory/` for durable, reusable knowledge (decisions, preferences, gotchas, glossaries).
+- Use `docs/.bagakit/inbox/` for raw candidates (from tasks/PRs/incidents). Promote to `docs/.bagakit/memory/` or a `docs/*.md` doc after review.
+- Avoid duplicating long explanations: prefer a short memory entry + links to code/PR/issues/docs.
+
+### Memory Naming Rules
+Use type-first naming: `<kind>-<topic>.md`.
+Allowed kinds:
+- `decision-*.md`
+- `preference-*.md`
+- `gotcha-*.md`
+- `glossary-*.md`
+- `howto-*.md`
+
 ## System Docs
 All system-level docs use the `must-` prefix to signal mandatory reading and prevent naming conflicts.
 
@@ -18,6 +37,7 @@ Required system docs:
 - `must-guidebook.md`: reading map and doc index
 - `must-sop.md`: generated SOP output (do not hand-edit)
 - `must-docs-taxonomy.md`: this file
+- `must-memory.md`: memory conventions (how to write, search, and promote memory)
 
 ## Naming Rules (Non-System Docs)
 Use lowercase kebab-case filenames with the category first: `<type>-<topic>.md`.
@@ -95,6 +115,24 @@ sop:
   - Run this checklist before release or when related features change.
   - Update this doc when verification steps change.
   - Regenerate must-sop.md after updating this doc.
+---
+```
+
+## Memory Frontmatter (Recommended)
+Memory entries are allowed to be short and iterative. Frontmatter is recommended to keep them searchable and reviewable.
+
+```
+---
+title: <Short memory title>
+kind: decision|preference|gotcha|glossary|howto
+confidence: low|medium|high
+tags:
+  - <tag>
+sources:
+  - <path/to/file>
+  - <link/to/pr-or-issue>
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
 ---
 ```
 

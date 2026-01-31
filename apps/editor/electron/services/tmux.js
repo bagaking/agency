@@ -63,6 +63,20 @@ async function createSession(sessionName, cwd) {
   }
 }
 
+async function setMouse(sessionName, enabled = true) {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    return;
+  }
+  if (!sessionName) {
+    return;
+  }
+  try {
+    await execFileAsync('tmux', ['set', '-t', sessionName, 'mouse', enabled ? 'on' : 'off']);
+  } catch (_error) {
+    // Non-fatal: tmux may reject the option or session may be gone.
+  }
+}
+
 async function killSession(sessionName) {
   if (process.env.AGENCY_TEST_MODE === '1') {
     return;
@@ -74,6 +88,7 @@ module.exports = {
   ensureTmuxAvailable,
   hasSession,
   createSession,
+  setMouse,
   killSession,
   getTmuxStatus,
 };

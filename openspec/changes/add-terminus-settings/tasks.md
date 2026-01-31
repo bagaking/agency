@@ -28,9 +28,9 @@
 - [x] 5.4 Match shortcut bindings only from the active profile.
 
 ## 6. Validation
-- [ ] 6.1 Manual: App Shortcuts render as fixed action list + right panel config.
-- [ ] 6.2 Manual: App Shortcut override resolves by scope.
-- [ ] 6.3 Manual: Terminus profile-specific shortcut fires only for active profile.
-- [ ] 6.4 Manual: Codex Shift+Enter behaves like native terminal without configured binding.
-- [ ] 6.5 Manual: TUI scroll works in alternate buffer; scrollback works in normal buffer.
-- [ ] 6.6 Manual: configured shortcut fires and sends expected key sequence.
+- [x] 6.1 Manual: App Shortcuts render as fixed action list + right panel config.
+- [x] 6.2 Manual: App Shortcut override resolves by scope.
+- [x] 6.3 Manual: Terminus profile-specific shortcut fires only for active profile.
+- [x] 6.4 Manual: Codex Shift+Enter behaves like native terminal without configured binding.
+- [x] 6.5 Manual: TUI scroll works in alternate buffer; scrollback works in normal buffer.
+- [x] 6.6 Manual: configured shortcut fires and sends expected key sequence.

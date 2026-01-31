@@ -23,6 +23,9 @@ Recommended pattern for Shift+Enter:
 - Return `false` to prevent the default Enter (`\r`) from being emitted.
 - Respect user shortcuts first (only apply when no binding matches).
 
+Clarification:
+- “Intercept” means calling `preventDefault`/`stopPropagation` so the plain Enter (`\r`) never reaches the terminal.
+
 Notes:
 - xterm default mapping does not differentiate Shift+Enter; it emits `\r`.
 - Avoid applying custom handling when user-defined shortcut bindings already match.
@@ -33,6 +36,14 @@ Notes:
 - Do not change `convertEol` for tmux sessions unless explicitly required.
 - Preserve existing resize/fit logic to avoid tmux redraw issues.
 
+### 4. tmux Native Scroll Consistency
+- Agency terminals are tmux-backed; for native-feeling scrollback, tmux must own wheel events via copy-mode.
+- Always set tmux mouse per-session (do not rely on user `~/.tmux.conf`):
+  - `apps/editor/electron/services/tmux.js` -> `tmux set -t <session> mouse on`
+  - Call from session creation/reuse in `apps/editor/electron/services/sessions.js`.
+- If mouse is off, scroll can appear to move the input area or do nothing (deviates from native terminal).
+- Keep xterm wheel handler passthrough when mouse tracking is enabled; use `Alt/Option+wheel` only as a fallback to force scrollback.
+
 ## Workflow Checklist
 1. Confirm xterm package and CSS import paths:
    - `@xterm/xterm` in `apps/editor/package.json`.
@@ -40,4 +51,5 @@ Notes:
 2. Update terminal initialization options (if needed) in `terminalManager.js`.
 3. Implement modifier-aware key sequences in `TerminalPane.jsx` (custom key handler).
 4. Verify shortcuts, paste, and key handling in a live terminal session.
-5. Document behavior in the terminal experience note.
+5. Verify tmux scrollback on trackpad/wheel (copy-mode should engage).
+6. Document behavior in the terminal experience note.

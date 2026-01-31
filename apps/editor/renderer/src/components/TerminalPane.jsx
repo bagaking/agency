@@ -313,6 +313,8 @@ function TerminalPane({
         return false;
       }
       const mouseMode = terminal.modes?.mouseTrackingMode || 'none';
+      const activeBuffer = terminal.buffer?.active;
+      const isAlternate = activeBuffer?.type === 'alternate';
       if (mouseMode !== 'none' && !event.altKey) {
         return true;
       }
@@ -328,12 +330,23 @@ function TerminalPane({
         const base = Math.round(Math.abs(delta) / 40);
         lines = (base === 0 ? 1 : base) * direction;
       }
-      if (lines) {
-        terminal.scrollLines(lines);
+      if (isAlternate) {
+        const stepCount = Math.min(3, Math.max(1, Math.abs(lines || 1)));
+        const sequence = direction < 0 ? '\x1b[5~' : '\x1b[6~';
+        sendExtendedKey(sequence.repeat(stepCount));
+        event.preventDefault();
+        event.stopPropagation();
+        return false;
       }
-      event.preventDefault();
-      event.stopPropagation();
-      return false;
+      if (mouseMode !== 'none' && event.altKey) {
+        if (lines) {
+          terminal.scrollLines(lines);
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        return false;
+      }
+      return true;
     };
     entry.terminal.attachCustomWheelEventHandler(handleWheelEvent);
 

@@ -13,6 +13,9 @@ fi
 project_root="$1"
 docs_dir="${project_root}/docs"
 agents_file="${project_root}/AGENTS.md"
+bagakit_dir="${docs_dir}/.bagakit"
+memory_dir="${bagakit_dir}/memory"
+inbox_dir="${bagakit_dir}/inbox"
 errors=0
 warnings=0
 
@@ -30,7 +33,7 @@ check_frontmatter() {
   local file="$1"
   awk '
     BEGIN {
-      in = 0
+      in_fm = 0
       has_title = 0
       has_required = 0
       has_sop = 0
@@ -40,17 +43,17 @@ check_frontmatter() {
       if ($0 != "---") {
         exit 2
       }
-      in = 1
+      in_fm = 1
       next
     }
-    in == 1 && $0 == "---" {
-      in = 0
+    in_fm == 1 && $0 == "---" {
+      in_fm = 0
       if (has_title && has_required && has_sop && has_sop_item) {
         exit 0
       }
       exit 3
     }
-    in == 1 {
+    in_fm == 1 {
       if ($0 ~ /^title:[[:space:]]+/) {
         has_title = 1
       }
@@ -65,7 +68,7 @@ check_frontmatter() {
       }
     }
     END {
-      if (in == 1) {
+      if (in_fm == 1) {
         exit 2
       }
       if (!(has_title && has_required && has_sop && has_sop_item)) {
@@ -78,11 +81,16 @@ check_frontmatter() {
 if [[ ! -d "$docs_dir" ]]; then
   fail "missing docs directory: ${docs_dir}"
 else
-  for must_file in must-docs-taxonomy.md must-guidebook.md must-sop.md; do
+  for must_file in must-docs-taxonomy.md must-guidebook.md must-sop.md must-memory.md; do
     if [[ ! -f "${docs_dir}/${must_file}" ]]; then
       fail "missing required system doc: ${docs_dir}/${must_file}"
     fi
   done
+  if [[ -f "${docs_dir}/must-sop.md" ]]; then
+    if grep -q "<Doc Title>" "${docs_dir}/must-sop.md" 2>/dev/null; then
+      warn "docs/must-sop.md looks like a template; regenerate with: sh scripts/bagakit_generate_sop.sh ."
+    fi
+  fi
 fi
 
 if [[ -f "$agents_file" ]]; then
@@ -117,8 +125,10 @@ if [[ -f "$taxonomy_file" ]]; then
 fi
 
 allowed_types="norms architecture guidelines notes runbook manual-test"
-shopt -s nullglob
-for file in "$docs_dir"/*.md; do
+
+# Allow docs organization into subdirectories. Still enforce type-first naming by basename.
+# Exclude Bagakit internal dirs under docs/.bagakit/.
+while IFS= read -r file; do
   base="$(basename "$file")"
   if [[ "$base" == must-* ]]; then
     continue
@@ -141,8 +151,55 @@ for file in "$docs_dir"/*.md; do
     3) fail "frontmatter missing title/required/sop or sop items in ${base}" ;;
     *) fail "frontmatter parse failed for ${base}" ;;
   esac
-done
-shopt -u nullglob
+done < <(find "$docs_dir" -type d -name ".bagakit" -prune -o -type f -name "*.md" -print 2>/dev/null | LC_ALL=C sort)
+
+check_memory_frontmatter() {
+  local file="$1"
+  awk '
+    BEGIN { in_fm=0; has_title=0; has_kind=0 }
+    NR==1 { if ($0!="---") exit 2; in_fm=1; next }
+    in_fm==1 && $0=="---" { in_fm=0; if (has_title && has_kind) exit 0; exit 3 }
+    in_fm==1 {
+      if ($0 ~ /^title:[[:space:]]+/) has_title=1
+      if ($0 ~ /^kind:[[:space:]]+/) has_kind=1
+    }
+    END { if (in_fm==1) exit 2; if (!(has_title && has_kind)) exit 3 }
+  ' "$file"
+}
+
+memory_kinds="decision preference gotcha glossary howto"
+if [[ ! -d "$memory_dir" ]]; then
+  fail "missing memory directory: ${memory_dir} (expected: docs/.bagakit/memory/)"
+else
+  while IFS= read -r file; do
+    base="$(basename "$file")"
+    if [[ "$base" == "README.md" ]]; then
+      continue
+    fi
+    if [[ ! "$base" =~ ^([a-z0-9]+)-.+\.md$ ]]; then
+      fail "memory name must be kind-first (<kind>-<topic>.md): ${base}"
+      continue
+    fi
+    kind="${BASH_REMATCH[1]}"
+    if [[ " ${memory_kinds} " != *" ${kind} "* ]]; then
+      fail "unknown memory kind '${kind}' in ${base}"
+    fi
+    check_memory_frontmatter "$file"
+    case "$?" in
+      0) ;;
+      2) warn "memory missing frontmatter: ${file}" ;;
+      3) warn "memory frontmatter missing title/kind: ${file}" ;;
+      *) warn "memory frontmatter parse failed: ${file}" ;;
+    esac
+  done < <(find "$memory_dir" -type f -name "*.md" 2>/dev/null | LC_ALL=C sort)
+fi
+
+if [[ ! -d "$inbox_dir" ]]; then
+  fail "missing inbox directory: ${inbox_dir} (expected: docs/.bagakit/inbox/)"
+else
+  # README.md is allowed as directory guidance.
+  :
+fi
 
 if [[ $errors -gt 0 ]]; then
   echo "validation failed: ${errors} error(s), ${warnings} warning(s)" >&2
