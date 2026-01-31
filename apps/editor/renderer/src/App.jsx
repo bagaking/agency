@@ -10,6 +10,7 @@ import { useAppShortcuts } from './hooks/useAppShortcuts.js';
 import { useGates } from './hooks/useGates.js';
 import { useWorktreeLinks } from './hooks/useWorktreeLinks.js';
 import { useSessions } from './hooks/useSessions.js';
+import { useSessionMap } from './hooks/useSessionMap.js';
 import { useActionSheets } from './hooks/useActionSheets.js';
 import { useWorkbench } from './hooks/useWorkbench.js';
 import { useHilMemoState } from './hooks/useHilMemoState.js';
@@ -41,6 +42,8 @@ import {
 import { buildPromotePromptBundle, buildPromotePromptText, buildPromoteActionSheetPrompt } from './utils/hilPromotePrompt.js';
 import { buildActionSheetCompletion, buildActionSheetPlan } from './utils/actionSheetCompletion.js';
 import { BASELINE_PROFILE_ID } from './utils/terminusSettings.js';
+import { SessionMapOverlay, SessionMapToggle } from './components/sessionMap/SessionMapOverlay.jsx';
+import { buildSessionMapModel } from './utils/sessionMapModel.js';
 const defaultCells = [
   {
     id: 'sample-cell',
@@ -93,6 +96,7 @@ function App() {
   const [terminalMode, setTerminalMode] = useState('shell');
   const [tmuxStatus, setTmuxStatus] = useState({ available: true });
   const [ipcAvailable, setIpcAvailable] = useState(true);
+  const [sessionMapOpen, setSessionMapOpen] = useState(false);
   const [initialActiveSessions, setInitialActiveSessions] = useState({});
   const [initialWorkbenchTabs, setInitialWorkbenchTabs] = useState({});
   const [initialWorkbenchActiveTabs, setInitialWorkbenchActiveTabs] = useState({});
@@ -449,7 +453,13 @@ function App() {
     setTerminalOpen(true);
   }, []);
   const {
+    config: sessionMapConfig,
+    updateConfig: updateSessionMapConfig,
+    hasLoaded: sessionMapLoaded,
+  } = useSessionMap({ projectRoot });
+  const {
     sessions,
+    sessionsByCellId,
     activeSessionId,
     activeFontSize,
     lastActivityAt,
@@ -459,6 +469,7 @@ function App() {
     pendingCommand,
     activeSessionByCellId,
     refreshSessions,
+    refreshSessionsForCells,
     createSession,
     closeSession,
     detachSession,
@@ -478,6 +489,19 @@ function App() {
     onOpenTerminal: handleOpenTerminal,
     initialActiveSessions,
   });
+  useEffect(() => {
+    setSessionMapOpen(false);
+  }, [projectRoot]);
+  useEffect(() => {
+    if (!projectReady || !sessionMapLoaded) {
+      return;
+    }
+    if (sessionMapConfig?.autoOpenSeen) {
+      return;
+    }
+    setSessionMapOpen(true);
+    updateSessionMapConfig({ autoOpenSeen: true });
+  }, [projectReady, sessionMapConfig?.autoOpenSeen, sessionMapLoaded, updateSessionMapConfig]);
   const actionSheetsRoot = projectRoot || selectedCell?.worktreePath || '';
   const hilWorktreePath = selectedCell?.worktreePath || projectRoot || '';
   const {
@@ -532,6 +556,51 @@ function App() {
     }
     setActionSheetSessionId(linked);
   }, [actionSheetDetail?.status?.sessionId, actionSheetSessionId]);
+  const mapCells = useMemo(() => (projectReady ? cells : []), [projectReady, cells]);
+  const sessionMapModel = useMemo(
+    () =>
+      buildSessionMapModel({
+        cells: mapCells,
+        sessionsByCellId,
+        activeSessionByCellId,
+        sessionActivityByKey,
+        config: sessionMapConfig,
+      }),
+    [mapCells, sessionsByCellId, activeSessionByCellId, sessionActivityByKey, sessionMapConfig]
+  );
+  const sessionMapEnabled = projectReady && mapCells.length > 0;
+  useEffect(() => {
+    if (!sessionMapOpen || !sessionMapEnabled) {
+      return;
+    }
+    refreshSessionsForCells(mapCells, { silent: true });
+  }, [mapCells, refreshSessionsForCells, sessionMapEnabled, sessionMapOpen]);
+  const handleToggleSessionMap = useCallback(() => {
+    setSessionMapOpen((value) => !value);
+  }, []);
+  const handleSelectSessionFromMap = useCallback(
+    (cellId, sessionId) => {
+      if (!cellId || !sessionId) {
+        return;
+      }
+      const targetCell = mapCells.find((cell) => cell.id === cellId);
+      if (!targetCell) {
+        return;
+      }
+      setSelectedId(cellId);
+      selectSession(sessionId, cellId);
+      refreshSessionsForCells([targetCell], { silent: true });
+    },
+    [mapCells, refreshSessionsForCells, selectSession]
+  );
+  const sessionMapCenterSlot = (
+    <SessionMapToggle
+      open={sessionMapOpen}
+      stats={sessionMapEnabled ? sessionMapModel.stats : null}
+      onToggle={handleToggleSessionMap}
+      disabled={!sessionMapEnabled}
+    />
+  );
   const activeTab = workbench.activeTab;
   const canComment = Boolean(activeTab && activeTab.kind === 'code');
   const commentRootPath = activeTab?.rootPath || '';
@@ -2098,7 +2167,7 @@ function App() {
   );
   return (
     <ModalProvider>
-      <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
+      <div className="relative flex h-screen flex-col bg-background text-foreground overflow-hidden">
       <AppLayout
         activeView={activeView}
         onSwitchView={handleSwitchView}
@@ -2311,6 +2380,14 @@ function App() {
         onRefresh={loadCells}
         tmuxStatus={tmuxStatus}
         ipcAvailable={ipcAvailable}
+        centerSlot={sessionMapCenterSlot}
+      />
+
+      <SessionMapOverlay
+        open={sessionMapOpen}
+        model={sessionMapModel}
+        onSelectSession={handleSelectSessionFromMap}
+        onClose={handleToggleSessionMap}
       />
 
       {showCreate ? (

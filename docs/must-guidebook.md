@@ -53,6 +53,10 @@
 - `docs/notes-terminal-keyboard.md`
   - Shift+Enter、CSI-u、bracketed paste 与兼容性说明。
 
+### Session Map（多会话总览）
+- `docs/notes-session-map.md`
+  - SLG 总览地图、Session 访问器与配置说明。
+
 ### 语音输入与 rescore
 - `docs/notes-voice-input.md`
   - 冷启动路径、多进程模型、常见坑与规避策略。

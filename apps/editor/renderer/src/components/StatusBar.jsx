@@ -2,7 +2,14 @@ import React from 'react';
 import { RefreshCw } from 'lucide-react';
 import { RiveAnimation } from './RiveAnimation.jsx';
 
-export function StatusBar({ loading, message, onRefresh, tmuxStatus, ipcAvailable }) {
+export function StatusBar({
+  loading,
+  message,
+  onRefresh,
+  tmuxStatus,
+  ipcAvailable,
+  centerSlot,
+}) {
   const assetBase = import.meta.env.BASE_URL || '/';
   const tmuxLabel = tmuxStatus?.available ? (tmuxStatus.version || 'tmux') : 'tmux missing';
   const tmuxColor = tmuxStatus?.available ? 'text-emerald-300' : 'text-amber-300';
@@ -10,7 +17,7 @@ export function StatusBar({ loading, message, onRefresh, tmuxStatus, ipcAvailabl
   const ipcColor = ipcAvailable ? 'text-emerald-300' : 'text-rose-300';
 
   return (
-    <footer className="flex h-6 w-full items-center justify-between bg-status-bar px-3 text-xs text-status-bar-foreground select-none overflow-hidden">
+    <footer className="relative flex h-6 w-full items-center justify-between bg-status-bar px-3 text-xs text-status-bar-foreground select-none overflow-hidden">
       <div className="flex items-center gap-3">
         <button 
             onClick={onRefresh} 
@@ -29,7 +36,13 @@ export function StatusBar({ loading, message, onRefresh, tmuxStatus, ipcAvailabl
         </span>
         {message && <span className="opacity-80 border-l border-status-bar-foreground/20 pl-3">Process: {message}</span>}
       </div>
-      
+
+      {centerSlot ? (
+        <div className="absolute left-1/2 -translate-x-1/2">
+          {centerSlot}
+        </div>
+      ) : null}
+
       <div className="flex items-center gap-4 opacity-90">
         <span>UTF-8</span>
         <span>Javascript</span>

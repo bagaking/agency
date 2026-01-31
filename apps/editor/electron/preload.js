@@ -119,6 +119,8 @@ contextBridge.exposeInMainWorld('agency', {
   renameSession: (payload) => ipcRenderer.invoke('sessions:rename', payload),
   getUiState: () => ipcRenderer.invoke('ui-state:get'),
   setUiState: (payload) => ipcRenderer.invoke('ui-state:set', payload),
+  getSessionMap: (payload) => ipcRenderer.invoke('session-map:get', payload),
+  setSessionMap: (payload) => ipcRenderer.invoke('session-map:set', payload),
   getAppShortcuts: (payload) => ipcRenderer.invoke('app-shortcuts:get', payload),
   setAppShortcuts: (payload) => ipcRenderer.invoke('app-shortcuts:set', payload),
   applyAppShortcuts: (payload) => ipcRenderer.invoke('app-shortcuts:apply', payload),

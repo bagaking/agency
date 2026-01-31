@@ -26,6 +26,12 @@ Source: `docs/norms-dev.md` (required)
 - Keep code DRY and SOLID; refactor files over 800 lines.
 - Verify preload and IPC injection health; surface a minimal status indicator if missing.
 
+### Session Map (SLG Overview)
+Source: `docs/notes-session-map.md`
+- Read this doc when working on the session map overlay or multi-session navigation.
+- Update this doc when map layout, config, or hover preview behavior changes.
+- Regenerate docs/must-sop.md after updating this doc.
+
 ### Terminal Keyboard Notes
 Source: `docs/notes-terminal-keyboard.md`
 - When changing terminal keyboard sequences, update this doc and regenerate docs/must-sop.md.

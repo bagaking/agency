@@ -163,6 +163,19 @@ export function useSessions({
     [tmuxStatus?.available, tmuxStatus?.error]
   );
 
+  const refreshSessionsForCells = useCallback(
+    async (cellsList, { silent = true } = {}) => {
+      const list = Array.isArray(cellsList) ? cellsList : [];
+      if (list.length === 0) {
+        return;
+      }
+      await Promise.all(
+        list.map((cell) => loadSessionsForCell(cell, { silent }))
+      );
+    },
+    [loadSessionsForCell]
+  );
+
   useEffect(() => {
     if (!selectedCell) {
       return;
@@ -202,22 +215,23 @@ export function useSessions({
   }, []);
 
   const selectSession = useCallback(
-    (sessionId) => {
-      if (!selectedCell) {
+    (sessionId, cellIdOverride) => {
+      const cellId = cellIdOverride || selectedCell?.id;
+      if (!cellId) {
         return;
       }
       selectionVersionRef.current += 1;
       activeSessionByCellIdRef.current = {
         ...activeSessionByCellIdRef.current,
-        [selectedCell.id]: sessionId,
+        [cellId]: sessionId,
       };
       setActiveSessionByCellId((current) => ({
         ...current,
-        [selectedCell.id]: sessionId,
+        [cellId]: sessionId,
       }));
-      updateSessionActivity({ cellId: selectedCell.id, sessionId });
+      updateSessionActivity({ cellId, sessionId });
     },
-    [selectedCell, updateSessionActivity]
+    [selectedCell?.id, updateSessionActivity]
   );
 
   const createSession = useCallback(
@@ -469,6 +483,7 @@ export function useSessions({
 
   return {
     sessions,
+    sessionsByCellId,
     activeSessionId,
     activeSessionKey,
     activeFontSize,
@@ -481,6 +496,7 @@ export function useSessions({
     setActiveSessionByCellId,
     loadSessionsForCell,
     refreshSessions,
+    refreshSessionsForCells,
     createSession,
     closeSession,
     detachSession,

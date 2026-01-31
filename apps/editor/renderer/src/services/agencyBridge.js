@@ -47,6 +47,22 @@ export const setUiState = async (payload) => {
   return api.setUiState(payload);
 };
 
+export const getSessionMap = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.getSessionMap) {
+    return null;
+  }
+  return api.getSessionMap(payload);
+};
+
+export const setSessionMap = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.setSessionMap) {
+    return null;
+  }
+  return api.setSessionMap(payload);
+};
+
 export const getAppShortcuts = async (payload) => {
   const api = getAgencyApi();
   if (!api?.getAppShortcuts) {

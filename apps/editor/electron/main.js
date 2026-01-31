@@ -25,6 +25,7 @@ const { setupCaptureHandlers } = require('./ipc/handlers/capture');
 const { setupActionSheetsHandlers } = require('./ipc/handlers/actionSheets');
 const { setupVoiceCaptureHandlers } = require('./ipc/handlers/voiceCapture');
 const { setupSystemHandlers } = require('./ipc/handlers/system');
+const { setupSessionMapHandlers } = require('./ipc/handlers/sessionMap');
 const {
   getAppShortcuts,
   applyAppShortcuts,
@@ -332,6 +333,7 @@ app.whenReady().then(async () => {
   setupActionSheetsHandlers();
   setupVoiceCaptureHandlers();
   setupSystemHandlers();
+  setupSessionMapHandlers();
   recordStartup('ipc-handlers-ready');
   recordStartup('asset-protocol-setup');
   setupAssetProtocol();
