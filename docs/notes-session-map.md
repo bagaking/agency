@@ -31,7 +31,7 @@ sop:
 ## 数据来源
 - Cells 来自 Cell 列表。
 - Sessions 来自每个 Cell 的 session registry。
-- 预览使用 `terminal:data` 订阅流，必要时通过 `startTerminal` 触发订阅（只读、无输入）。
+- 预览通过 tmux `capture-pane` 周期性抓取输出快照（只读、无输入），保持轻量且不会启动额外 PTY。
 
 ## 配置（项目级）
 配置文件路径：`<repoRoot>/.agency/session-map.yaml`

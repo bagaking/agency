@@ -11,12 +11,7 @@ import {
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { Tooltip } from '../ui/Tooltip.jsx';
-import {
-  isAgencyAvailable,
-  onTerminalData,
-  onTerminalError,
-  startTerminal,
-} from '../../services/agencyBridge.js';
+import { getSessionMapPreview, isAgencyAvailable } from '../../services/agencyBridge.js';
 
 const PREVIEW_FONT_STACK =
   'Menlo, Monaco, "SF Mono", "Hiragino Sans GB", "PingFang SC", "Noto Sans CJK SC", "Courier New", monospace';
@@ -24,6 +19,8 @@ const PREVIEW_FONT_SIZE = 10;
 const PREVIEW_SCROLLBACK = 800;
 const PREVIEW_BG = '#0b0d12';
 const PREVIEW_FG = '#e2e8f0';
+const PREVIEW_LINES = 160;
+const PREVIEW_REFRESH_MS = 900;
 const CARD_GAP = 10;
 const CARD_MARGIN = 12;
 const HOVER_OPEN_DELAY = 140;
@@ -157,7 +154,7 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
   const fitRef = useRef(null);
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
-  const startedKeyRef = useRef('');
+  const lastSnapshotRef = useRef('');
 
   useEffect(() => {
     if (!containerRef.current || terminalRef.current) {
@@ -193,7 +190,7 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
       return;
     }
     terminalRef.current.reset();
-    startedKeyRef.current = '';
+    lastSnapshotRef.current = '';
   }, [ready, session?.id]);
 
   useEffect(() => {
@@ -206,39 +203,37 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
     }
     let active = true;
     setError('');
-    const sessionKey = `${cell.id}:${session.id}`;
-    if (startedKeyRef.current !== sessionKey) {
-      startedKeyRef.current = sessionKey;
-      startTerminal({
-        cellId: cell.id,
-        sessionId: session.id,
-        worktreePath: cell.worktreePath,
-        mode: 'shell',
-      })
-        .catch((err) => {
-          if (active) {
-            setError(err?.message || 'Preview unavailable.');
-          }
+    const refreshPreview = async () => {
+      try {
+        const result = await getSessionMapPreview({
+          worktreePath: cell.worktreePath,
+          sessionId: session.id,
+          lines: PREVIEW_LINES,
         });
-    }
-    const unsubscribe = onTerminalData?.((payload) => {
-      if (payload?.cellId === cell.id && payload?.sessionId === session.id) {
-        terminalRef.current?.write(payload.data);
+        if (!active) {
+          return;
+        }
+        const nextData = result?.data || '';
+        if (!nextData) {
+          return;
+        }
+        if (lastSnapshotRef.current === nextData) {
+          return;
+        }
+        lastSnapshotRef.current = nextData;
+        terminalRef.current?.reset();
+        terminalRef.current?.write(nextData);
+      } catch (err) {
+        if (active) {
+          setError(err?.message || 'Preview unavailable.');
+        }
       }
-    });
-    const unsubscribeError = onTerminalError?.((payload) => {
-      if (payload?.cellId === cell.id && payload?.sessionId === session.id) {
-        setError(payload.message || 'Preview unavailable.');
-      }
-    });
+    };
+    refreshPreview();
+    const interval = setInterval(refreshPreview, PREVIEW_REFRESH_MS);
     return () => {
       active = false;
-      if (unsubscribe) {
-        unsubscribe();
-      }
-      if (unsubscribeError) {
-        unsubscribeError();
-      }
+      clearInterval(interval);
     };
   }, [ready, cell?.id, cell?.worktreePath, isOffline, session?.id]);
 
@@ -527,6 +522,13 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
         return;
       }
       if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
+        return;
+      }
+      const activeElement = document.activeElement;
+      if (
+        !overlayRef.current?.contains(activeElement) &&
+        !hoverCardRef.current?.contains(activeElement)
+      ) {
         return;
       }
       const container = overlayRef.current;
