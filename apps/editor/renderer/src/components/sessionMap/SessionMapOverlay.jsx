@@ -26,6 +26,8 @@ const PREVIEW_BG = '#0b0d12';
 const PREVIEW_FG = '#e2e8f0';
 const CARD_GAP = 10;
 const CARD_MARGIN = 12;
+const HOVER_OPEN_DELAY = 140;
+const HOVER_CLOSE_DELAY = 120;
 
 const formatRelativeTime = (timestamp) => {
   if (!timestamp) {
@@ -84,6 +86,25 @@ const resolveFactionFill = (color, alpha = 0.18) => {
     }
   }
   return color;
+};
+
+const resolveOfflineReason = (session, cell) => {
+  if (cell?.state === 'archived') {
+    return 'Cell archived';
+  }
+  if (cell?.state === 'closed') {
+    return 'Cell closed';
+  }
+  if (session?.status === 'closed') {
+    return 'Session closed';
+  }
+  if (session?.status === 'stale') {
+    return 'Session stale';
+  }
+  if (session?.status === 'archived') {
+    return 'Session archived';
+  }
+  return 'Offline';
 };
 
 export function SessionMapToggle({ open, stats, onToggle, disabled }) {
@@ -313,6 +334,7 @@ function SessionMapHoverCard({ anchorRect, data, onEnter, onLeave, onSelectSessi
   const isOffline = session.isOffline;
   const statusLabel = session.status || 'unknown';
   const activityLabel = session.lastActivityAt ? formatRelativeTime(session.lastActivityAt) : '—';
+  const offlineReason = isOffline ? resolveOfflineReason(session, cell) : '';
 
   const content = (
     <div
@@ -351,6 +373,11 @@ function SessionMapHoverCard({ anchorRect, data, onEnter, onLeave, onSelectSessi
         <Activity size={12} />
         <span>Last activity: {activityLabel}</span>
       </div>
+      {offlineReason ? (
+        <div className="mt-1 text-[11px] text-amber-200/80">
+          {offlineReason}
+        </div>
+      ) : null}
       <button
         type="button"
         className="mt-3 w-full cursor-pointer rounded-lg border border-border/50 bg-background/60 p-2 text-left transition-colors hover:border-primary/40"
@@ -375,12 +402,17 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
   const [hovered, setHovered] = useState(null);
   const hoverLockRef = useRef(false);
   const clearTimerRef = useRef(null);
+  const openTimerRef = useRef(null);
 
   const clearHover = useCallback(() => {
     if (clearTimerRef.current) {
       clearTimeout(clearTimerRef.current);
     }
+    if (openTimerRef.current) {
+      clearTimeout(openTimerRef.current);
+    }
     clearTimerRef.current = null;
+    openTimerRef.current = null;
     setHovered(null);
   }, []);
 
@@ -388,16 +420,20 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
     if (clearTimerRef.current) {
       clearTimeout(clearTimerRef.current);
     }
+    if (openTimerRef.current) {
+      clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+    }
     clearTimerRef.current = setTimeout(() => {
       if (!hoverLockRef.current) {
         setHovered(null);
       }
-    }, 100);
+    }, HOVER_CLOSE_DELAY);
   }, []);
 
   useEffect(() => () => clearHover(), [clearHover]);
 
-  const handleTokenEnter = useCallback((event, payload) => {
+  const handleTokenEnter = useCallback((event, payload, { immediate = false } = {}) => {
     if (!event?.currentTarget) {
       return;
     }
@@ -405,10 +441,25 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
     if (clearTimerRef.current) {
       clearTimeout(clearTimerRef.current);
     }
-    setHovered({ ...payload, anchorRect: rect });
+    if (openTimerRef.current) {
+      clearTimeout(openTimerRef.current);
+    }
+    const next = { ...payload, anchorRect: rect };
+    if (immediate) {
+      setHovered(next);
+      return;
+    }
+    openTimerRef.current = setTimeout(() => {
+      setHovered(next);
+      openTimerRef.current = null;
+    }, HOVER_OPEN_DELAY);
   }, []);
 
   const handleTokenLeave = useCallback(() => {
+    if (openTimerRef.current) {
+      clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+    }
     if (!hoverLockRef.current) {
       scheduleClear();
     }
@@ -426,12 +477,29 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
     clearHover();
   }, [clearHover]);
 
+  useEffect(() => {
+    if (!open || !onClose) {
+      return undefined;
+    }
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, open]);
+
   if (!open || !model) {
     return null;
   }
 
   return (
-    <div className="pointer-events-none absolute bottom-6 left-1/2 z-40 w-[min(980px,92vw)] -translate-x-1/2">
+    <div
+      className="pointer-events-none absolute bottom-6 left-1/2 z-40 w-[min(980px,92vw)] -translate-x-1/2"
+      role="dialog"
+      aria-label="Session map"
+    >
       <div className="pointer-events-auto rounded-2xl border border-border/60 bg-popover/90 px-4 py-3 shadow-2xl backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm font-semibold">
@@ -497,23 +565,27 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
                                 : 'border-border/60 bg-black/20 hover:border-primary/50'
                             } ${session.isOffline ? 'opacity-60' : ''}`}
                             onClick={() => onSelectSession(cluster.cell.id, session.id)}
-                            onMouseEnter={(event) =>
-                              handleTokenEnter(event, {
+                          onMouseEnter={(event) =>
+                            handleTokenEnter(event, {
+                              cell: cluster.cell,
+                              session,
+                              color: cluster.color,
+                              typeLabel: cluster.typeLabel,
+                            })
+                          }
+                          onMouseLeave={handleTokenLeave}
+                          onFocus={(event) =>
+                            handleTokenEnter(
+                              event,
+                              {
                                 cell: cluster.cell,
                                 session,
                                 color: cluster.color,
                                 typeLabel: cluster.typeLabel,
-                              })
-                            }
-                            onMouseLeave={handleTokenLeave}
-                            onFocus={(event) =>
-                              handleTokenEnter(event, {
-                                cell: cluster.cell,
-                                session,
-                                color: cluster.color,
-                                typeLabel: cluster.typeLabel,
-                              })
-                            }
+                              },
+                              { immediate: true }
+                            )
+                          }
                             onBlur={handleTokenLeave}
                             aria-label={`Session ${session.name || session.id}`}
                           >

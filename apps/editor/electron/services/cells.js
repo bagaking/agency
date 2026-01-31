@@ -123,6 +123,7 @@ async function hydrateCell(repoRoot, worktree) {
     branch: worktree.branch || 'detached',
     worktreePath: worktree.path,
     state,
+    createdAt: lifecycle.createdAt || null,
     lifecycleFile: lifecyclePath,
     gates: [],
     validation: {

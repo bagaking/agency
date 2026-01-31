@@ -9,9 +9,25 @@ const TYPE_PALETTES = {
   default: ['#f472b6', '#a78bfa', '#f59e0b', '#22d3ee'],
 };
 
+const CELL_STATE_ORDER = ['active', 'draft', 'archived', 'closed'];
+const SESSION_STATUS_ORDER = ['active', 'detached', 'stale', 'closed', 'archived'];
+
 const normalizeTypeKey = (value) => {
   const key = String(value || '').trim().toLowerCase();
   return key || 'default';
+};
+
+const resolveOrderIndex = (value, order) => {
+  const index = order.indexOf(value);
+  return index === -1 ? order.length : index;
+};
+
+const parseTimestamp = (value) => {
+  if (!value) {
+    return 0;
+  }
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
 };
 
 const resolveTypePalette = (typeKey) =>
@@ -63,20 +79,51 @@ export function buildSessionMapModel({
   sessionActivityByKey = {},
   config = {},
 } = {}) {
+  const sortedCells = [...cells].sort((a, b) => {
+    const aType = normalizeTypeKey(a?.state);
+    const bType = normalizeTypeKey(b?.state);
+    const typeDelta =
+      resolveOrderIndex(aType, CELL_STATE_ORDER) - resolveOrderIndex(bType, CELL_STATE_ORDER);
+    if (typeDelta !== 0) {
+      return typeDelta;
+    }
+    const aCreated = parseTimestamp(a?.createdAt);
+    const bCreated = parseTimestamp(b?.createdAt);
+    if (aCreated !== bCreated) {
+      return aCreated - bCreated;
+    }
+    return String(a?.name || '').localeCompare(String(b?.name || ''));
+  });
+
   const stats = {
-    cells: cells.length,
+    cells: sortedCells.length,
     sessions: 0,
     online: 0,
     offline: 0,
   };
   const typeIndexByKey = new Map();
 
-  const clusters = cells.map((cell) => {
+  const clusters = sortedCells.map((cell) => {
     const typeKey = normalizeTypeKey(cell?.state);
     const typeIndex = typeIndexByKey.get(typeKey) || 0;
     typeIndexByKey.set(typeKey, typeIndex + 1);
     const color = resolveFactionColor({ cell, typeKey, typeIndex, config });
-    const sessions = (sessionsByCellId[cell.id] || []).map((session) => {
+    const sessions = [...(sessionsByCellId[cell.id] || [])]
+      .sort((a, b) => {
+        const statusDelta =
+          resolveOrderIndex(a?.status, SESSION_STATUS_ORDER) -
+          resolveOrderIndex(b?.status, SESSION_STATUS_ORDER);
+        if (statusDelta !== 0) {
+          return statusDelta;
+        }
+        const aCreated = parseTimestamp(a?.createdAt);
+        const bCreated = parseTimestamp(b?.createdAt);
+        if (aCreated !== bCreated) {
+          return aCreated - bCreated;
+        }
+        return String(a?.name || '').localeCompare(String(b?.name || ''));
+      })
+      .map((session) => {
       const offline = isSessionOffline(session, cell);
       stats.sessions += 1;
       if (offline) {
