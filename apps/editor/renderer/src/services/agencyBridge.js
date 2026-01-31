@@ -63,6 +63,30 @@ export const setSessionMap = async (payload) => {
   return api.setSessionMap(payload);
 };
 
+export const startTerminal = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.startTerminal) {
+    return null;
+  }
+  return api.startTerminal(payload);
+};
+
+export const onTerminalData = (handler) => {
+  const api = getAgencyApi();
+  if (!api?.onTerminalData) {
+    return null;
+  }
+  return api.onTerminalData(handler);
+};
+
+export const onTerminalError = (handler) => {
+  const api = getAgencyApi();
+  if (!api?.onTerminalError) {
+    return null;
+  }
+  return api.onTerminalError(handler);
+};
+
 export const getAppShortcuts = async (payload) => {
   const api = getAgencyApi();
   if (!api?.getAppShortcuts) {

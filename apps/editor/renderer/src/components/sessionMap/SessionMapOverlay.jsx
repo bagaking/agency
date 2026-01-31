@@ -11,6 +11,12 @@ import {
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { Tooltip } from '../ui/Tooltip.jsx';
+import {
+  isAgencyAvailable,
+  onTerminalData,
+  onTerminalError,
+  startTerminal,
+} from '../../services/agencyBridge.js';
 
 const PREVIEW_FONT_STACK =
   'Menlo, Monaco, "SF Mono", "Hiragino Sans GB", "PingFang SC", "Noto Sans CJK SC", "Courier New", monospace';
@@ -169,14 +175,13 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
     if (!ready || !cell || !session || isOffline) {
       return undefined;
     }
-    if (!window.agency?.startTerminal) {
+    if (!isAgencyAvailable()) {
       setError('Preview unavailable (IPC missing).');
       return undefined;
     }
     let active = true;
     setError('');
-    window.agency
-      .startTerminal({
+    startTerminal({
         cellId: cell.id,
         sessionId: session.id,
         worktreePath: cell.worktreePath,
@@ -187,12 +192,12 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
           setError(err?.message || 'Preview unavailable.');
         }
       });
-    const unsubscribe = window.agency?.onTerminalData?.((payload) => {
+    const unsubscribe = onTerminalData?.((payload) => {
       if (payload?.cellId === cell.id && payload?.sessionId === session.id) {
         terminalRef.current?.write(payload.data);
       }
     });
-    const unsubscribeError = window.agency?.onTerminalError?.((payload) => {
+    const unsubscribeError = onTerminalError?.((payload) => {
       if (payload?.cellId === cell.id && payload?.sessionId === session.id) {
         setError(payload.message || 'Preview unavailable.');
       }
