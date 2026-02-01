@@ -16,3 +16,5 @@ created: YYYY-MM-DD
 ## Promote To
 - `docs/.bagakit/memory/<kind>-<topic>.md` (curated), or
 - `docs/<type>-<topic>.md` (normative/deep guide)
+
+Note: if the curated target already exists, merge into it instead of creating duplicates.

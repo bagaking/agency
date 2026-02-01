@@ -100,6 +100,7 @@ copy_script "${skill_root}/scripts/bagakit_inbox.sh" "${project_scripts_dir}/bag
 copy_script "${skill_root}/scripts/bagakit_doctor.sh" "${project_scripts_dir}/bagakit_doctor.sh"
 copy_script "${skill_root}/scripts/bagakit_learning.sh" "${project_scripts_dir}/bagakit_learning.sh"
 copy_script "${skill_root}/scripts/bagakit_learning.py" "${project_scripts_dir}/bagakit_learning.py"
+copy_script "${skill_root}/scripts/validate-docs.sh" "${project_scripts_dir}/validate-docs.sh"
 
 # Ignore generated artifacts locally without touching the project's root .gitignore.
 # Keep this file committed so any repo that uses the layout stays clean by default.

@@ -251,6 +251,7 @@ async function resolveSessionForAttach({ worktreePath, sessionId }) {
     lastAttachedAt: updatedAt,
   });
   await writeRegistry(worktreePath, nextRegistry);
+  await setMouse(existing.tmuxSession, true);
   return nextRegistry.sessions.find((session) => session.id === sessionId);
 }
 

@@ -5,6 +5,7 @@ const pty = require('node-pty');
 const { logRuntime } = require('./runtimeLog');
 
 const sessions = new Map();
+const sessionSizesByTmux = new Map();
 const MIN_BACKEND_COLS = 2;
 const MIN_BACKEND_ROWS = 2;
 
@@ -237,6 +238,9 @@ function resizeSession(cellId, sessionId, cols, rows) {
   }
   try {
     session.ptyProcess.resize(nextCols, nextRows);
+    if (session.tmuxSession) {
+      sessionSizesByTmux.set(session.tmuxSession, { cols: nextCols, rows: nextRows });
+    }
   } catch (error) {
     logRuntime('error', 'terminal resize failed', {
       cellId,
@@ -257,10 +261,18 @@ function disposeSession(cellId, sessionId) {
   sessions.delete(buildSessionKey(cellId, sessionId));
 }
 
+function getSessionSize(tmuxSession) {
+  if (!tmuxSession) {
+    return null;
+  }
+  return sessionSizesByTmux.get(tmuxSession) || null;
+}
+
 module.exports = {
   startSession,
   writeSession,
   resizeSession,
   disposeSession,
   buildSessionKey,
+  getSessionSize,
 };

@@ -462,6 +462,7 @@ function App() {
     sessionsByCellId,
     activeSessionId,
     activeFontSize,
+    sessionFontSizeByKey,
     lastActivityAt,
     sessionActivityByKey,
     sessionLoading,
@@ -578,6 +579,16 @@ function App() {
   const handleToggleSessionMap = useCallback(() => {
     setSessionMapOpen((value) => !value);
   }, []);
+  const resolveSessionMapFontSize = useCallback(
+    (cellId, sessionId) => {
+      if (!cellId || !sessionId) {
+        return activeFontSize || 13;
+      }
+      const key = `${cellId}:${sessionId}`;
+      return sessionFontSizeByKey?.[key] || activeFontSize || 13;
+    },
+    [activeFontSize, sessionFontSizeByKey]
+  );
   const handleSelectSessionFromMap = useCallback(
     (cellId, sessionId) => {
       if (!cellId || !sessionId) {
@@ -2389,6 +2400,7 @@ function App() {
         model={sessionMapModel}
         onSelectSession={handleSelectSessionFromMap}
         onClose={handleToggleSessionMap}
+        resolveFontSize={resolveSessionMapFontSize}
       />
 
       {showCreate ? (

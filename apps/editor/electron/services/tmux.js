@@ -86,7 +86,7 @@ async function killSession(sessionName) {
   await execFileAsync('tmux', ['kill-session', '-t', sessionName]);
 }
 
-async function capturePane(sessionName, { lines = 160 } = {}) {
+async function capturePane(sessionName, { lines = 160, joinWrapped = false } = {}) {
   if (process.env.AGENCY_TEST_MODE === '1') {
     return '';
   }
@@ -98,8 +98,35 @@ async function capturePane(sessionName, { lines = 160 } = {}) {
     ? Math.max(PREVIEW_MIN_LINES, Math.min(PREVIEW_MAX_LINES, parsedLines))
     : 160;
   const args = ['capture-pane', '-pt', sessionName, '-e', '-S', `-${clamped}`];
+  if (joinWrapped) {
+    args.push('-J');
+  }
   const result = await execFileAsync('tmux', args);
   return result.stdout || '';
+}
+
+async function getPaneSize(sessionName) {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    return { cols: null, rows: null };
+  }
+  if (!sessionName) {
+    throw new Error('Session name is required.');
+  }
+  const result = await execFileAsync('tmux', [
+    'display-message',
+    '-p',
+    '-t',
+    sessionName,
+    '#{pane_width} #{pane_height}',
+  ]);
+  const [cols, rows] = String(result.stdout || '')
+    .trim()
+    .split(/\s+/)
+    .map((value) => Number(value));
+  return {
+    cols: Number.isFinite(cols) ? cols : null,
+    rows: Number.isFinite(rows) ? rows : null,
+  };
 }
 
 module.exports = {
@@ -110,4 +137,5 @@ module.exports = {
   killSession,
   getTmuxStatus,
   capturePane,
+  getPaneSize,
 };

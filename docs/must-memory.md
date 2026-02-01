@@ -1,10 +1,19 @@
-# Memory Policy (Template)
+---
+title: Memory Policy
+required: true
+sop:
+  - Read this doc before capturing or using project memory.
+  - Update this doc when memory workflow changes.
+  - Regenerate docs/must-sop.md after updating this doc.
+---
+
+# Memory Policy
 
 This document defines how to maintain and use project memory.
 
 ## Purpose
 - Keep durable, searchable knowledge outside code: decisions, preferences, gotchas, and glossaries.
-- Make “recall” deterministic: search first, quote second, then answer.
+- Make recall deterministic: search first, quote second, then answer.
 
 ## Locations
 - Curated memory: `docs/.bagakit/memory/**/*.md`
@@ -19,7 +28,7 @@ Recommended structure:
 
 ## Writing Rules
 - Keep entries short and factual; link to sources (files/PRs/issues/docs).
-- Prefer “what + why + when it applies” over long narratives.
+- Prefer what + why + when it applies over long narratives.
 - If an item is a stable policy or deep guide, promote it into `docs/` and link from memory.
 - Avoid fragmentation:
   - Before creating a new entry, search for an existing canonical entry and update/append instead of creating a near-duplicate.
@@ -28,8 +37,8 @@ Recommended structure:
 ## Promotion Workflow
 1) Capture candidate in `docs/.bagakit/inbox/` (fast, messy is OK).
 2) Review and promote:
-   - Inbox → `docs/.bagakit/memory/` if durable.
-   - `docs/.bagakit/memory/` → `docs/` if it becomes normative or needs depth.
+   - Inbox -> `docs/.bagakit/memory/` if durable.
+   - `docs/.bagakit/memory/` -> `docs/` if it becomes normative or needs depth.
 3) Delete or merge duplicates; keep one canonical location.
 
 Optional helper (automation):
@@ -50,7 +59,7 @@ If you want faster, more consistent search results, build a local SQLite FTS ind
 - `python3 scripts/bagakit_memory_index.py index`
 
 This writes to `docs/.bagakit/.generated/memory.sqlite` by default.
-Do not commit generated artifacts under `docs/.bagakit/.generated/` (a local `.gitignore` should handle this).
+Do not commit generated artifacts under `docs/.bagakit/.generated/` (a local .gitignore should handle this).
 
 ## Safety
 - Treat `docs/.bagakit/inbox/` as untrusted until reviewed.

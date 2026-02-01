@@ -153,6 +153,50 @@ while IFS= read -r file; do
   esac
 done < <(find "$docs_dir" -type d -name ".bagakit" -prune -o -type f -name "*.md" -print 2>/dev/null | LC_ALL=C sort)
 
+# Soft duplication check (heuristic): the same <topic> appears in multiple doc types.
+# This often indicates content that should be consolidated into one canonical doc with links.
+topics_tmp="$(mktemp -t bagakit-doc-topics.XXXXXX)"
+while IFS= read -r file; do
+  base="$(basename "$file")"
+  if [[ "$base" == must-* ]]; then
+    continue
+  fi
+  if [[ "$base" =~ ^([a-z0-9]+)-(.+)\.md$ ]]; then
+    doc_type="${BASH_REMATCH[1]}"
+    topic="${BASH_REMATCH[2]}"
+    if [[ " ${allowed_types} " == *" ${doc_type} "* ]]; then
+      rel="${file#${project_root%/}/}"
+      printf "%s\t%s\t%s\n" "$topic" "$doc_type" "$rel" >>"$topics_tmp"
+    fi
+  fi
+done < <(find "$docs_dir" -type d -name ".bagakit" -prune -o -type f -name "*.md" -print 2>/dev/null | LC_ALL=C sort)
+
+while IFS='|' read -r topic types files; do
+  warn "doc topic '${topic}' appears in multiple doc types (${types}); consider merging/canonicalizing and linking (files: ${files})"
+done < <(
+  awk -F '\t' '
+    {
+      topic=$1; typ=$2; file=$3
+      k=topic SUBSEP typ
+      if (!(seen[k]++)) types[topic]=types[topic] " " typ
+      files[topic]=files[topic] " " file
+    }
+    END {
+      for (t in types) {
+        n=0
+        split(types[t], a, " ")
+        for (i in a) if (a[i] != "") n++
+        if (n > 1) {
+          sub(/^ /, "", types[t])
+          sub(/^ /, "", files[t])
+          print t "|" types[t] "|" files[t]
+        }
+      }
+    }
+  ' "$topics_tmp" | LC_ALL=C sort
+)
+rm -f "$topics_tmp"
+
 check_memory_frontmatter() {
   local file="$1"
   awk '

@@ -44,6 +44,12 @@ Notes:
 - If mouse is off, scroll can appear to move the input area or do nothing (deviates from native terminal).
 - Keep xterm wheel handler passthrough when mouse tracking is enabled; use `Alt/Option+wheel` only as a fallback to force scrollback.
 
+### 5. Preview Wrap Alignment (xterm vs tmux)
+- `tmux capture-pane` returns a **rendered grid snapshot** with hard wraps at the pane width.
+- `capture-pane -J` only merges lines marked as wrapped by tmux; it cannot reconstruct the raw PTY stream.
+- xterm maintains `line.isWrapped` on the renderer side; **use xterm buffer snapshot** to match Agent Cell line wrapping.
+- For sessions not loaded in the renderer, expect wrap mismatches unless you add a raw stream log (e.g., `tmux pipe-pane`) and render from that stream.
+
 ## Workflow Checklist
 1. Confirm xterm package and CSS import paths:
    - `@xterm/xterm` in `apps/editor/package.json`.

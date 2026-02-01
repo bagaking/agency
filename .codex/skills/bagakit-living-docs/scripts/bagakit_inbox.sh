@@ -6,7 +6,7 @@ usage() {
 Usage:
   sh scripts/bagakit_inbox.sh list [--root <dir>]
   sh scripts/bagakit_inbox.sh new <kind> <topic> [--root <dir>] [--title <title>]
-  sh scripts/bagakit_inbox.sh promote <inbox-path> [--root <dir>] [--topic <topic>] [--keep]
+  sh scripts/bagakit_inbox.sh promote <inbox-path> [--root <dir>] [--topic <topic>] [--keep] [--merge]
 
 Kinds:
   decision | preference | gotcha | glossary | howto
@@ -28,6 +28,7 @@ root="."
 title=""
 topic_override=""
 keep=0
+merge=0
 
 today() {
   date +%F
@@ -81,6 +82,47 @@ get_fm_value() {
 ensure_dir_kind() {
   # Keep name for backward compatibility within this script; now it just ensures base dirs.
   mkdir -p "$root/docs/.bagakit/inbox" "$root/docs/.bagakit/memory"
+}
+
+strip_frontmatter() {
+  # If the file starts with a '---' frontmatter block, drop it (including both delimiters).
+  # This is intentionally minimal and deterministic.
+  awk '
+    NR==1 {
+      if ($0=="---") { in_fm=1; next }
+    }
+    in_fm==1 && $0=="---" { in_fm=0; next }
+    in_fm==1 { next }
+    { print }
+  ' "$1"
+}
+
+upsert_updated_field() {
+  # Ensure frontmatter has an "updated:" field and set it to today.
+  # If frontmatter is missing, does nothing.
+  file=$1
+  today=$2
+  tmp="$file.tmp.$$"
+  awk -v today="$today" '
+    BEGIN { in_fm=0; done=0; has_updated=0 }
+    NR==1 {
+      if ($0=="---") { in_fm=1; print; next }
+    }
+    in_fm==1 && $0=="---" {
+      if (!has_updated) print "updated: " today
+      in_fm=0
+      done=1
+      print
+      next
+    }
+    in_fm==1 {
+      if ($0 ~ /^updated:[[:space:]]+/) { print "updated: " today; has_updated=1; next }
+      print
+      next
+    }
+    { print }
+  ' "$file" >"$tmp"
+  mv "$tmp" "$file"
 }
 
 case "$cmd" in
@@ -183,6 +225,9 @@ EOF
         --keep)
           keep=1
           ;;
+        --merge)
+          merge=1
+          ;;
         -h|--help)
           usage
           ;;
@@ -225,12 +270,31 @@ EOF
     dest_rel="docs/.bagakit/memory/$kind-$topic.md"
     dest="$root/$dest_rel"
     if [ -e "$dest" ]; then
-      echo "error: destination exists: $dest_rel" >&2
-      exit 2
+      if [ "$merge" -eq 0 ]; then
+        echo "error: destination exists: $dest_rel (hint: pass --merge to append into existing file)" >&2
+        exit 2
+      fi
     fi
 
     tmp="$dest.tmp.$$"
     d=$(today)
+    if [ -e "$dest" ] && [ "$merge" -eq 1 ]; then
+      # Merge into existing curated file: update "updated:" and append body from inbox.
+      upsert_updated_field "$dest" "$d"
+      {
+        printf "\n\n## Merged From Inbox\n\n"
+        printf "- source: \`%s\`\n" "$src_rel"
+        printf "- merged: %s\n\n" "$d"
+        strip_frontmatter "$src"
+        printf "\n"
+      } >>"$dest"
+      if [ "$keep" -eq 0 ]; then
+        rm -f "$src"
+      fi
+      echo "merge: $src_rel -> $dest_rel"
+      exit 0
+    fi
+
     awk -v today="$d" '
       BEGIN { in_fm=0; has_updated=0; has_conf=0 }
       NR==1 {

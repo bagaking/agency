@@ -487,6 +487,7 @@ export function useSessions({
     activeSessionId,
     activeSessionKey,
     activeFontSize,
+    sessionFontSizeByKey,
     lastActivityAt,
     sessionActivityByKey,
     sessionLoading,

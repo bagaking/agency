@@ -330,19 +330,45 @@ def build_inbox_markdown(
     lines.append("")
     return "\n".join(lines)
 
+FM_BLOCK_RE = re.compile(r"(?s)\A---\n.*?\n---\n")
 
-def next_available_path(base: Path) -> Path:
-    if not base.exists():
-        return base
-    stem = base.stem
-    suffix = base.suffix
-    parent = base.parent
-    i = 2
-    while True:
-        p = parent / f"{stem}-{i}{suffix}"
-        if not p.exists():
-            return p
-        i += 1
+
+def strip_frontmatter(md: str) -> str:
+    return FM_BLOCK_RE.sub("", md, count=1).lstrip()
+
+
+def upsert_frontmatter_updated(md: str, updated: str) -> str:
+    """
+    Tiny frontmatter updater (not full YAML):
+    - If frontmatter exists and has 'updated:', replace it.
+    - Else if frontmatter exists, insert 'updated:' before the closing '---'.
+    - Else return md unchanged.
+    """
+    if not md.startswith("---\n"):
+        return md
+    lines = md.splitlines()
+    end = None
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            end = i
+            break
+    if end is None:
+        return md
+    for i in range(1, end):
+        if lines[i].startswith("updated:"):
+            lines[i] = f"updated: {updated}"
+            return "\n".join(lines) + ("\n" if md.endswith("\n") else "")
+    lines.insert(end, f"updated: {updated}")
+    return "\n".join(lines) + ("\n" if md.endswith("\n") else "")
+
+
+def append_session_section(existing: str, session_md: str, updated: str) -> str:
+    existing2 = upsert_frontmatter_updated(existing, updated)
+    if not existing2.endswith("\n"):
+        existing2 += "\n"
+    if not existing2.endswith("\n\n"):
+        existing2 += "\n"
+    return existing2 + session_md.rstrip() + "\n"
 
 
 def cmd_sessions(args: argparse.Namespace) -> int:
@@ -390,15 +416,18 @@ def cmd_extract(args: argparse.Namespace) -> int:
 
     created = today_yyyy_mm_dd()
     sid_short = meta.session_id[:8] if meta.session_id else "unknown"
-    topic = args.topic or f"session-{created.replace('-', '')}-{sid_short}"
-    topic = slugify(topic) or f"session-{created.replace('-', '')}-{sid_short}"
+    if args.topic:
+        topic = slugify(args.topic) or "learning"
+    else:
+        # Default to a stable daily topic to avoid fragmenting into many files.
+        topic = f"learning-{created.replace('-', '')}"
 
-    title = args.title or f"Session learnings ({created})"
+    title = args.title or f"Daily learnings ({created})"
     sources: List[str] = [str(session_path)]
     if meta.cwd:
         sources.append(f"cwd: {meta.cwd}")
 
-    md = build_inbox_markdown(
+    full_md = build_inbox_markdown(
         kind=kind,
         topic=topic,
         title=title,
@@ -413,13 +442,26 @@ def cmd_extract(args: argparse.Namespace) -> int:
     )
 
     out_path = inbox_dir / f"{kind}-{topic}.md"
-    out_path = next_available_path(out_path)
+    updated = created
+
+    # Append a session section to an existing daily file, or create the file.
+    session_body = strip_frontmatter(full_md).strip()
+    session_section = f"## Session {sid_short} ({updated})\n\n{session_body}\n"
 
     if args.dry_run:
-        print(md)
+        if out_path.exists():
+            existing = out_path.read_text(encoding="utf-8", errors="replace")
+            print(append_session_section(existing, session_section, updated))
+        else:
+            print(upsert_frontmatter_updated(full_md, updated))
         return 0
 
-    out_path.write_text(md, encoding="utf-8")
+    if out_path.exists():
+        existing = out_path.read_text(encoding="utf-8", errors="replace")
+        merged = append_session_section(existing, session_section, updated)
+        out_path.write_text(merged, encoding="utf-8")
+    else:
+        out_path.write_text(upsert_frontmatter_updated(full_md, updated), encoding="utf-8")
     print(str(out_path.relative_to(root)))
     return 0
 
@@ -439,8 +481,8 @@ def main(argv: List[str]) -> int:
     p_extract.add_argument("--last", action="store_true", help="Use the most recent session under --codex-home.")
     p_extract.add_argument("--codex-home", default=str(guess_codex_home()), help="Codex home dir (default: $CODEX_HOME or ~/.codex)")
     p_extract.add_argument("--kind", default=None, help="Memory kind (decision|preference|gotcha|glossary|howto). Default: heuristic.")
-    p_extract.add_argument("--topic", default=None, help="Topic slug for filename. Default: derived from date+session id.")
-    p_extract.add_argument("--title", default=None, help="Frontmatter title. Default: 'Session learnings (YYYY-MM-DD)'.")
+    p_extract.add_argument("--topic", default=None, help="Topic slug for filename. Default: learning-YYYYMMDD (daily upsert).")
+    p_extract.add_argument("--title", default=None, help="Frontmatter title. Default: 'Daily learnings (YYYY-MM-DD)'.")
     p_extract.add_argument("--max-items", type=int, default=6, help="Max notable failure items to include.")
     p_extract.add_argument("--dry-run", action="store_true", help="Print markdown instead of writing a file.")
     p_extract.set_defaults(func=cmd_extract)
@@ -451,4 +493,3 @@ def main(argv: List[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
-

@@ -33,12 +33,14 @@ docs_dir="$root/docs"
 scripts_dir="$root/scripts"
 agents_file="$root/AGENTS.md"
 bagakit_dir="$docs_dir/.bagakit"
+default_codex_home="${CODEX_HOME:-$HOME/.codex}"
+apply_hint="sh \"${default_codex_home}/skills/bagakit-living-docs/scripts/apply-living-docs.sh\" ."
 
 if [ -d "$docs_dir" ]; then
   say_ok "docs directory present (docs/)"
 else
   say_warn "missing docs directory: $docs_dir"
-  say_suggest "run: ./scripts/apply-living-docs.sh ."
+  say_suggest "scaffold docs/memory by running Bagakit apply from the installed skill dir (example): ${apply_hint}"
 fi
 
 for f in must-docs-taxonomy.md must-guidebook.md must-memory.md must-sop.md; do
@@ -46,7 +48,7 @@ for f in must-docs-taxonomy.md must-guidebook.md must-memory.md must-sop.md; do
     say_ok "system doc present: docs/$f"
   else
     say_warn "missing system doc: docs/$f"
-    say_suggest "run: ./scripts/apply-living-docs.sh ."
+    say_suggest "scaffold missing system docs (example): ${apply_hint}"
   fi
 done
 
@@ -56,17 +58,17 @@ if [ -f "$agents_file" ]; then
     say_ok "AGENTS.md managed block present"
   else
     say_warn "AGENTS.md missing managed block markers"
-    say_suggest "run: ./scripts/apply-living-docs.sh ."
+    say_suggest "inject managed AGENTS.md block (example): ${apply_hint}"
   fi
   if grep -q "\\[\\[Bagakit\\.LivingDoc\\]\\]" "$agents_file"; then
     say_ok "AGENTS.md requires response footer [[Bagakit.LivingDoc]]"
   else
     say_warn "AGENTS.md missing [[Bagakit.LivingDoc]] requirement"
-    say_suggest "run: ./scripts/apply-living-docs.sh ."
+    say_suggest "inject missing footer requirement (example): ${apply_hint}"
   fi
 else
   say_warn "missing AGENTS.md: $agents_file"
-  say_suggest "run: ./scripts/apply-living-docs.sh ."
+  say_suggest "create AGENTS.md with managed block (example): ${apply_hint}"
 fi
 
 # Helper scripts presence.
@@ -75,14 +77,14 @@ for s in bagakit_generate_sop.sh bagakit_memory.sh bagakit_inbox.sh; do
     say_ok "helper script present: scripts/$s"
   else
     say_warn "missing helper script: scripts/$s"
-    say_suggest "run: ./scripts/apply-living-docs.sh ."
+    say_suggest "install helper scripts (example): ${apply_hint}"
   fi
 done
 
 if [ -f "$scripts_dir/bagakit_memory_index.py" ]; then
   say_ok "optional index helper present: scripts/bagakit_memory_index.py"
 else
-  say_suggest "optional: install scripts/bagakit_memory_index.py for faster search (run apply-living-docs)"
+  say_suggest "optional: install scripts/bagakit_memory_index.py for faster search (example): ${apply_hint}"
 fi
 
 # SOP freshness: compare generated SOP with current file when possible.
@@ -110,7 +112,7 @@ if [ -d "$bagakit_dir/memory" ]; then
   say_ok "memory directory present (docs/.bagakit/memory/)"
 else
   say_warn "missing memory directory: $bagakit_dir/memory"
-  say_suggest "run: ./scripts/apply-living-docs.sh ."
+  say_suggest "scaffold docs/.bagakit/memory (example): ${apply_hint}"
 fi
 if [ -d "$bagakit_dir/inbox" ]; then
   say_ok "inbox directory present (docs/.bagakit/inbox/)"
@@ -121,7 +123,7 @@ if [ -d "$bagakit_dir/inbox" ]; then
   fi
 else
   say_warn "missing inbox directory: $bagakit_dir/inbox"
-  say_suggest "run: ./scripts/apply-living-docs.sh ."
+  say_suggest "scaffold docs/.bagakit/inbox (example): ${apply_hint}"
 fi
 
 # No legacy layout support: only docs/.bagakit/{memory,inbox}/ is supported.

@@ -9,12 +9,24 @@ This SOP is generated from docs frontmatter. Do not edit manually.
 
 ## SOP Items
 
+### Design Docs Index
+Source: `docs/architecture-design-index.md`
+- Read this doc to find the authoritative design sources for Agency Editor.
+- Update this doc when design source locations change.
+- Regenerate docs/must-sop.md after updating this doc.
+
 ### UI Component Reuse Guidelines
 Source: `docs/guidelines-ui-components.md`
 - Use focusRing for focus-visible styles instead of inline classes.
 - Use IconButton for icon-only actions and set label for accessibility.
 - Use Tooltip for icon-only controls or truncated labels.
 - When extracting shared UI components, update this doc and regenerate docs/must-sop.md.
+
+### Memory Policy
+Source: `docs/must-memory.md` (required)
+- Read this doc before capturing or using project memory.
+- Update this doc when memory workflow changes.
+- Regenerate docs/must-sop.md after updating this doc.
 
 ### Development Norms
 Source: `docs/norms-dev.md` (required)

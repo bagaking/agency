@@ -4,8 +4,9 @@ This guidebook is a reading map. Keep it stable and index-style; do not duplicat
 
 ## How to Use
 - First-time: read in order.
-- Afterward: jump to the relevant section.
-- When in doubt: follow system docs first.
+- Every work session: re-open the system docs below (do not rely on memory).
+- When in doubt: follow system docs first; prefer updating an existing canonical doc/memory entry over creating duplicates.
+- When answering “what did we decide/why/todos”: follow the recall workflow in `must-memory.md` (search → quote → answer).
 
 ## Fast Path
 1) System docs
@@ -29,6 +30,9 @@ This guidebook is a reading map. Keep it stable and index-style; do not duplicat
 Use memory for:
 - Reusable facts and decisions you want the agent/team to recall quickly.
 - Gotchas and “this bit me before” notes with pointers to code/PRs/issues.
+
+Continuous learning:
+- Follow `must-sop.md` (and `docs/notes-continuous-learning.md` if present) to capture session learnings into `docs/.bagakit/inbox/` and promote them into curated memory.
 
 Promotion rule:
 - Inbox → curated memory for durable items; curated memory → `docs/*.md` when it becomes a stable policy or deep guide.

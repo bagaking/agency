@@ -85,6 +85,8 @@ fi
 
 # Validate the applied project.
 "$root/scripts/validate-docs.sh" "$tmp" >/dev/null
+# The applied project should have its own validator installed too.
+"$tmp/scripts/validate-docs.sh" "$tmp" >/dev/null
 
 # Doctor should run (non-destructive).
 sh "$tmp/scripts/bagakit_doctor.sh" "$tmp" >/dev/null

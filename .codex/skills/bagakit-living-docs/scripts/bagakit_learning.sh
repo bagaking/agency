@@ -10,6 +10,7 @@ Usage:
 
 Notes:
 - No new directories: outputs draft entries into docs/.bagakit/inbox/.
+- Default behavior is *daily upsert*: if today's file exists, append a new "Session ..." section instead of creating duplicates.
 - Use SOP (docs/must-sop.md) to decide *when* to run extraction since Codex has no hooks.
 EOF
   exit 1
@@ -29,4 +30,3 @@ if [ ! -f "$py_file" ]; then
 fi
 
 exec "$py" "$py_file" "$cmd" "$@"
-

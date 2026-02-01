@@ -12,6 +12,8 @@
 ### 0）系统文档（文档体系与 SOP）
 - `docs/must-docs-taxonomy.md`
   - 文档分类、命名规则与 frontmatter 模板。
+- `docs/must-memory.md`
+  - 记忆系统与检索/提升流程。
 - `docs/must-sop.md`
   - 从规范文档汇总出的自检 SOP 清单。
 
@@ -22,6 +24,10 @@
 ### 2）产品级需求（必须满足的事情）
 - `openspec/specs/agency-editor/spec.md`
   - Cells / Session / Gates / Actions 等核心能力的需求与场景。
+
+### 2.5）设计文档索引（权威来源导航）
+- `docs/architecture-design-index.md`
+  - 设计主文档与变更提案的统一入口。
 
 ### 3）当前变更提案（即将变化的部分）
 - `openspec/changes/` 与 `openspec list`

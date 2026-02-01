@@ -30,6 +30,12 @@ Shift+Enter was previously emitted as plain Enter (`\r`) due to xterm's default 
 - 若 mouse 未开启，滚轮可能只影响输入区或没有历史滚动，体验会显著偏离原生终端。
 - `Alt/Option + 滚轮` 作为兜底强制走 xterm scrollback（在需要时可用）。
 
+## 折行与预览对齐经验（xterm vs tmux）
+- `tmux capture-pane` 返回的是 **已渲染的网格快照**，文本已被硬折行，且折行宽度取决于 tmux 当时的 pane 宽度。
+- 即便加 `-J`（join wrapped），也只能合并 tmux 标记为软折行的行；对 CJK 宽字符或某些 TUI 输出，wrap 标记可能不可靠，仍会出现“硬折行”。
+- Agent Cell 之所以对齐，是因为渲染层直接消费 PTY 流并由 xterm 维护 `isWrapped` 标记；**要与 Agent Cell 预览一致，优先使用 xterm buffer snapshot**（按 `isWrapped` 合并）。
+- 如果 session 没有在渲染层打开，只能退化使用 `capture-pane`；要彻底一致需要引入 tmux `pipe-pane` 或其它“原始输出流”记录。
+
 ## Manual Verification
 1. Open a terminal session in Agency.
 2. Run `cat -v` to visualize control sequences.

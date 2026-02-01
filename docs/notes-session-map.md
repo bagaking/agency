@@ -16,10 +16,11 @@ sop:
 - **非目标**：拖拽摆放、缩放、迷雾、路径规划（v1 不做）。
 
 ## 视觉与语义
-- **Cell = 城邦 / 阵营**：以“阵营色 + 城邦卡片”表示；默认色基于 `Cell.state` + 创建顺序。
+ - **Cell = 城邦 / 阵营**：以“阵营色 + 城邦卡片 + 角色头像”表示；默认色基于 `Cell.state` + 创建顺序。
 - **Session = 角色**：以圆形角色 token + 状态点表示（active/detached/closed/stale）。
 - **离线状态**：Session 为 `closed / stale / archived` 或 Cell 为 `archived / closed` 时标记为离线。
-- **Hover 预览**：以“缩略图为主 + 一行毛玻璃信息条”为主视觉。
+- **Hover 预览**：以“缩略图为主 + 一行毛玻璃信息条”为主视觉；缩略图按当前 session 字号与 tmux pane cols/rows 渲染，再缩放填充为封面图（必要时裁切）。
+- **角色头像**：Cell 创建时分配 `avatar`（存于 lifecycle 文件），为内置卡通 SVG id（如 `fox/cat/owl/robot`）；若缺失则按 Cell 名称/ID 回退计算。支持在编辑器头部菜单中自定义头像。
 
 ## 交互规则
 - **点击 Session token**：仅切换 Cell + Session，不切换当前主界面视图。
@@ -33,7 +34,8 @@ sop:
 ## 数据来源
 - Cells 来自 Cell 列表。
 - Sessions 来自每个 Cell 的 session registry。
-- 预览通过 tmux `capture-pane` 周期性抓取输出快照（只读、无输入），保持轻量且不会启动额外 PTY。
+- 预览优先使用渲染层的 xterm buffer（有 wrap 标记）生成缩略图，确保与 Agent Cell 的折行一致；若渲染层无该 session，才退化为 tmux `capture-pane` 快照（只读、无输入），并启用 join wrapped。
+- 原因说明：`capture-pane` 返回的是 tmux 的“已渲染网格”，文本已被硬折行；即便 `-J` 也无法完全恢复原始流，尤其是 CJK 宽字符或 TUI 输出场景。
 
 ## 配置（项目级）
 配置文件路径：`<repoRoot>/.agency/session-map.yaml`

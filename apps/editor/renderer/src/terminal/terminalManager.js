@@ -60,6 +60,39 @@ export const ensureTerminalEntry = ({ cellId, sessionId, fontSize }) => {
   return entry;
 };
 
+export const getTerminalSnapshot = ({ cellId, sessionId, lines = 120 }) => {
+  if (!cellId || !sessionId) {
+    return null;
+  }
+  const entry = terminals.get(buildKey(cellId, sessionId));
+  const terminal = entry?.terminal;
+  const buffer = terminal?.buffer?.active;
+  if (!terminal || !buffer) {
+    return null;
+  }
+  const maxLines = Number.isFinite(lines) ? Math.max(1, Math.floor(lines)) : 120;
+  const start = Math.max(0, buffer.length - maxLines);
+  const output = [];
+  for (let i = start; i < buffer.length; i += 1) {
+    const line = buffer.getLine(i);
+    if (!line) {
+      output.push('');
+      continue;
+    }
+    const text = line.translateToString(true);
+    if (line.isWrapped && output.length) {
+      output[output.length - 1] += text;
+    } else {
+      output.push(text);
+    }
+  }
+  return {
+    cols: terminal.cols,
+    rows: terminal.rows,
+    data: output.join('\r\n'),
+  };
+};
+
 export const attachTerminal = ({ entry, container }) => {
   if (!entry || !container) {
     return false;

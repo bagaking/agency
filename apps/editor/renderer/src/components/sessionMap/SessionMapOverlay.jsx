@@ -2,13 +2,17 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { createPortal } from 'react-dom';
 import { CircleOff, Landmark, Map as MapIcon, MoreHorizontal, Terminal, X } from 'lucide-react';
 import { Terminal as XTerm } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
 import { Tooltip } from '../ui/Tooltip.jsx';
 import { getSessionMapPreview, isAgencyAvailable } from '../../services/agencyBridge.js';
+import { getTerminalSnapshot } from '../../terminal/terminalManager.js';
 
 const PREVIEW_FONT_STACK =
   'Menlo, Monaco, "SF Mono", "Hiragino Sans GB", "PingFang SC", "Noto Sans CJK SC", "Courier New", monospace';
-const PREVIEW_FONT_SIZE = 9;
+const PREVIEW_FONT_SIZE = 13;
+const PREVIEW_COLS = 120;
+const PREVIEW_ROWS = 30;
+const PREVIEW_TARGET_WIDTH = 280;
+const PREVIEW_TARGET_HEIGHT = 150;
 const PREVIEW_SCROLLBACK = 800;
 const PREVIEW_BG = '#0b0d12';
 const PREVIEW_FG = '#e2e8f0';
@@ -141,13 +145,59 @@ export function SessionMapToggle({ open, stats, onToggle, disabled }) {
   );
 }
 
-function SessionMapTerminalPreview({ cell, session, isOffline }) {
+function SessionMapTerminalPreview({ cell, session, isOffline, fontSize }) {
   const containerRef = useRef(null);
   const terminalRef = useRef(null);
-  const fitRef = useRef(null);
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
+  const [scale, setScale] = useState(1);
   const lastSnapshotRef = useRef('');
+  const lastSizeRef = useRef({ cols: PREVIEW_COLS, rows: PREVIEW_ROWS });
+
+  const measureScale = useCallback(() => {
+    if (!containerRef.current) {
+      return;
+    }
+    const screen = containerRef.current.querySelector('.xterm-screen');
+    if (!screen) {
+      return;
+    }
+    const width = screen.offsetWidth;
+    const height = screen.offsetHeight;
+    if (!width || !height) {
+      return;
+    }
+    const nextScale = Math.min(
+      1,
+      Math.max(PREVIEW_TARGET_WIDTH / width, PREVIEW_TARGET_HEIGHT / height)
+    );
+    setScale(Number.isFinite(nextScale) && nextScale > 0 ? nextScale : 1);
+  }, []);
+
+  const applyPreviewSize = useCallback(
+    (cols, rows) => {
+      if (!terminalRef.current) {
+        return;
+      }
+      const nextCols = Number(cols);
+      const nextRows = Number(rows);
+      if (!Number.isFinite(nextCols) || !Number.isFinite(nextRows)) {
+        return;
+      }
+      const clampedCols = Math.max(2, Math.floor(nextCols));
+      const clampedRows = Math.max(2, Math.floor(nextRows));
+      const current = lastSizeRef.current;
+      if (current.cols === clampedCols && current.rows === clampedRows) {
+        return;
+      }
+      lastSizeRef.current = { cols: clampedCols, rows: clampedRows };
+      terminalRef.current.resize(clampedCols, clampedRows);
+      requestAnimationFrame(() => {
+        measureScale();
+      });
+    },
+    [measureScale]
+  );
 
   useEffect(() => {
     if (!containerRef.current || terminalRef.current) {
@@ -155,36 +205,88 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
     }
     const terminal = new XTerm({
       fontFamily: PREVIEW_FONT_STACK,
-      fontSize: PREVIEW_FONT_SIZE,
+      fontSize: Number.isFinite(fontSize) && fontSize > 0 ? fontSize : PREVIEW_FONT_SIZE,
       disableStdin: true,
       scrollback: PREVIEW_SCROLLBACK,
       cursorBlink: false,
+      cols: lastSizeRef.current.cols,
+      rows: lastSizeRef.current.rows,
       theme: {
         background: PREVIEW_BG,
         foreground: PREVIEW_FG,
       },
     });
-    const fitAddon = new FitAddon();
-    terminal.loadAddon(fitAddon);
     terminal.open(containerRef.current);
-    fitAddon.fit();
+    terminal.resize(lastSizeRef.current.cols, lastSizeRef.current.rows);
     terminalRef.current = terminal;
-    fitRef.current = fitAddon;
     setReady(true);
+    requestAnimationFrame(() => {
+      measureScale();
+    });
     return () => {
       terminal.dispose();
       terminalRef.current = null;
-      fitRef.current = null;
     };
-  }, []);
+  }, [measureScale]);
+
+  const handleWheel = useCallback(
+    (event) => {
+      const terminal = terminalRef.current;
+      if (!terminal) {
+        return;
+      }
+      if (event.ctrlKey) {
+        return;
+      }
+      const delta = event.deltaY;
+      if (!delta) {
+        return;
+      }
+      const direction = delta > 0 ? 1 : -1;
+      let lines = 0;
+      if (event.deltaMode === 1) {
+        lines = delta;
+      } else {
+        const base = Math.round(Math.abs(delta) / 40);
+        lines = (base === 0 ? 1 : base) * direction;
+      }
+      if (!lines) {
+        return;
+      }
+      terminal.scrollLines(lines);
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    []
+  );
 
   useEffect(() => {
     if (!ready || !terminalRef.current) {
       return;
     }
+    const nextFontSize =
+      Number.isFinite(fontSize) && fontSize > 0 ? fontSize : PREVIEW_FONT_SIZE;
+    if (terminalRef.current.options.fontSize !== nextFontSize) {
+      terminalRef.current.options.fontSize = nextFontSize;
+      terminalRef.current.refresh(0, terminalRef.current.rows - 1);
+      requestAnimationFrame(() => {
+        measureScale();
+      });
+    }
+  }, [fontSize, measureScale, ready]);
+
+  useEffect(() => {
+    if (!ready || !terminalRef.current) {
+      return;
+    }
+    lastSizeRef.current = { cols: PREVIEW_COLS, rows: PREVIEW_ROWS };
+    terminalRef.current.resize(PREVIEW_COLS, PREVIEW_ROWS);
+    requestAnimationFrame(() => {
+      measureScale();
+    });
     terminalRef.current.reset();
     lastSnapshotRef.current = '';
-  }, [ready, session?.id]);
+  }, [measureScale, ready, session?.id]);
 
   useEffect(() => {
     if (!ready || !cell || !session || isOffline) {
@@ -198,6 +300,20 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
     setError('');
     const refreshPreview = async () => {
       try {
+        const localSnapshot = getTerminalSnapshot({
+          cellId: cell.id,
+          sessionId: session.id,
+          lines: PREVIEW_LINES,
+        });
+        if (localSnapshot?.data) {
+          applyPreviewSize(localSnapshot.cols, localSnapshot.rows);
+          if (lastSnapshotRef.current !== localSnapshot.data) {
+            lastSnapshotRef.current = localSnapshot.data;
+            terminalRef.current?.reset();
+            terminalRef.current?.write(localSnapshot.data);
+          }
+          return;
+        }
         const result = await getSessionMapPreview({
           worktreePath: cell.worktreePath,
           sessionId: session.id,
@@ -206,6 +322,7 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
         if (!active) {
           return;
         }
+        applyPreviewSize(result?.cols, result?.rows);
         const nextData = result?.data || '';
         if (!nextData) {
           return;
@@ -228,25 +345,20 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
       active = false;
       clearInterval(interval);
     };
-  }, [ready, cell?.id, cell?.worktreePath, isOffline, session?.id]);
+  }, [applyPreviewSize, ready, cell?.id, cell?.worktreePath, isOffline, session?.id]);
 
   useEffect(() => {
-    if (!ready || !containerRef.current || !fitRef.current) {
+    if (!ready) {
       return undefined;
     }
-    if (typeof ResizeObserver === 'undefined') {
-      return undefined;
-    }
-    const observer = new ResizeObserver(() => {
-      fitRef.current?.fit();
-    });
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, [ready]);
+    const handle = () => measureScale();
+    window.addEventListener('resize', handle);
+    return () => window.removeEventListener('resize', handle);
+  }, [measureScale, ready]);
 
   if (isOffline) {
     return (
-      <div className="flex h-28 items-center justify-center rounded-lg bg-black/40 text-[10px] text-muted-foreground">
+      <div className="flex h-[150px] w-[280px] items-center justify-center bg-black/40 text-[10px] text-muted-foreground">
         Offline session (closed / stale / archived)
       </div>
     );
@@ -254,7 +366,7 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
 
   if (error) {
     return (
-      <div className="flex h-28 items-center justify-center rounded-lg bg-black/40 text-[10px] text-rose-300">
+      <div className="flex h-[150px] w-[280px] items-center justify-center bg-black/40 text-[10px] text-rose-300">
         {error}
       </div>
     );
@@ -262,9 +374,16 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
 
   return (
     <div
-      ref={containerRef}
-      className="h-28 w-full rounded-lg bg-black/60"
-    />
+      className="relative h-[150px] w-[280px] overflow-hidden bg-black/60"
+      onWheel={handleWheel}
+    >
+      <div
+        className="absolute left-0 top-0 origin-top-left"
+        style={{ transform: `scale(${scale})` }}
+      >
+        <div ref={containerRef} />
+      </div>
+    </div>
   );
 }
 
@@ -275,6 +394,7 @@ function SessionMapHoverCard({
   onLeave,
   onSelectSession,
   cardRef,
+  resolveFontSize,
 }) {
   const localRef = useRef(null);
   const resolvedRef = cardRef || localRef;
@@ -346,7 +466,7 @@ function SessionMapHoverCard({
       ref={resolvedRef}
       data-session-map-hover-card="true"
       style={style || { left: -9999, top: -9999 }}
-      className="fixed z-[999] w-[300px] rounded-xl border border-border/60 bg-popover/95 p-1 text-foreground shadow-xl backdrop-blur"
+      className="fixed z-[999] w-[280px] overflow-hidden rounded-xl border border-border/60 bg-popover/95 text-foreground shadow-xl backdrop-blur"
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
       onFocus={onEnter}
@@ -354,11 +474,16 @@ function SessionMapHoverCard({
     >
       <button
         type="button"
-        className="relative w-full cursor-pointer overflow-hidden rounded-lg bg-background/60 text-left transition-colors hover:ring-1 hover:ring-primary/40"
+        className="relative flex w-full cursor-pointer overflow-hidden bg-transparent text-left transition-colors hover:ring-1 hover:ring-primary/40"
         onClick={() => onSelectSession(cell.id, session.id)}
       >
-        <SessionMapTerminalPreview cell={cell} session={session} isOffline={isOffline} />
-        <div className="absolute inset-x-1 bottom-1 rounded-md bg-black/55 px-2 py-1 text-[9px] text-slate-100 backdrop-blur">
+        <SessionMapTerminalPreview
+          cell={cell}
+          session={session}
+          isOffline={isOffline}
+          fontSize={resolveFontSize ? resolveFontSize(cell.id, session.id) : undefined}
+        />
+        <div className="absolute inset-x-0 bottom-0 border-t border-white/10 bg-black/55 px-2 py-1 text-[9px] text-slate-100 backdrop-blur">
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
             <span className="truncate">{session.name || session.id}</span>
@@ -411,7 +536,7 @@ function SessionMapOfflineMenu({ isOpen, position, containerRef, sessions, cellI
   );
 }
 
-export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
+export function SessionMapOverlay({ open, model, onSelectSession, onClose, resolveFontSize }) {
   const [hovered, setHovered] = useState(null);
   const [offlineMenu, setOfflineMenu] = useState(null);
   const hoverLockRef = useRef(false);
@@ -854,6 +979,7 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
           onLeave={handleCardLeave}
           onSelectSession={handleSelectAndClose}
           cardRef={hoverCardRef}
+          resolveFontSize={resolveFontSize}
         />
       ) : null}
     </div>

@@ -43,6 +43,11 @@ Required system docs:
 Use lowercase kebab-case filenames with the category first: `<type>-<topic>.md`.
 Example: `norms-dev.md`, `notes-voice-input.md`, `guidelines-ui-components.md`.
 
+## Canonicalization (Avoid Duplicate Docs)
+- Before creating a new `docs/<type>-<topic>.md`, search for an existing doc or memory entry that already covers the topic and update it instead of creating a near-duplicate.
+- Prefer one canonical doc per topic, and link from other docs instead of duplicating explanations.
+- Avoid splitting the same `<topic>` across multiple doc types (e.g. both `notes-foo.md` and `guidelines-foo.md`) unless there is a clear reason and cross-links.
+
 ## Frontmatter Templates
 All non-system docs must include frontmatter with `title`, `required`, and `sop` fields.
 
