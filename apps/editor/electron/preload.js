@@ -206,6 +206,7 @@ contextBridge.exposeInMainWorld('agency', {
   },
   createCell: (payload) => ipcRenderer.invoke('cells:create', payload),
   updateCellState: (payload) => ipcRenderer.invoke('cells:updateState', payload),
+  updateCellMeta: (payload) => ipcRenderer.invoke('cells:updateMeta', payload),
   logRuntime: (payload) => ipcRenderer.send('runtime-log:write', payload),
   startTerminal: (payload) => ipcRenderer.invoke('terminal:start', payload),
   writeTerminal: (payload) => ipcRenderer.send('terminal:write', payload),

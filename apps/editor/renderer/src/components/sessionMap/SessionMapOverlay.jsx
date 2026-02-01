@@ -1,18 +1,20 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CircleOff, Landmark, Map as MapIcon, MoreHorizontal, Terminal, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, CircleOff, Landmark, Map as MapIcon, MoreHorizontal, X } from 'lucide-react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { Tooltip } from '../ui/Tooltip.jsx';
 import { getSessionMapPreview, isAgencyAvailable } from '../../services/agencyBridge.js';
 import { getTerminalSnapshot } from '../../terminal/terminalManager.js';
+import { AgentAvatar, resolveAvatarId } from '../ui/AgentAvatar.jsx';
 
 const PREVIEW_FONT_STACK =
   'Menlo, Monaco, "SF Mono", "Hiragino Sans GB", "PingFang SC", "Noto Sans CJK SC", "Courier New", monospace';
 const PREVIEW_FONT_SIZE = 13;
 const PREVIEW_COLS = 120;
 const PREVIEW_ROWS = 30;
-const PREVIEW_TARGET_WIDTH = 280;
-const PREVIEW_TARGET_HEIGHT = 150;
+const PREVIEW_TARGET_WIDTH = 320;
+const PREVIEW_MAX_HEIGHT = Math.round(PREVIEW_TARGET_WIDTH * 1.618);
+const PREVIEW_MIN_HEIGHT = Math.round(PREVIEW_TARGET_WIDTH * 0.55);
 const PREVIEW_SCROLLBACK = 800;
 const PREVIEW_BG = '#0b0d12';
 const PREVIEW_FG = '#e2e8f0';
@@ -102,6 +104,7 @@ const resolveOfflineReason = (session, cell) => {
   return 'Offline';
 };
 
+
 export function SessionMapToggle({ open, stats, onToggle, disabled }) {
   const summary = stats
     ? `Cells ${stats.cells} · Sessions ${stats.sessions} · Online ${stats.online} · Offline ${stats.offline}`
@@ -151,8 +154,10 @@ function SessionMapTerminalPreview({ cell, session, isOffline, fontSize }) {
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
   const [scale, setScale] = useState(1);
+  const [previewHeight, setPreviewHeight] = useState(PREVIEW_MAX_HEIGHT);
   const lastSnapshotRef = useRef('');
   const lastSizeRef = useRef({ cols: PREVIEW_COLS, rows: PREVIEW_ROWS });
+  const lastUserScrollRef = useRef(0);
 
   const measureScale = useCallback(() => {
     if (!containerRef.current) {
@@ -169,9 +174,12 @@ function SessionMapTerminalPreview({ cell, session, isOffline, fontSize }) {
     }
     const nextScale = Math.min(
       1,
-      Math.max(PREVIEW_TARGET_WIDTH / width, PREVIEW_TARGET_HEIGHT / height)
+      Math.max(PREVIEW_TARGET_WIDTH / width, PREVIEW_MAX_HEIGHT / height)
     );
     setScale(Number.isFinite(nextScale) && nextScale > 0 ? nextScale : 1);
+    const measuredHeight = Math.round(height * nextScale);
+    const nextHeight = Math.min(PREVIEW_MAX_HEIGHT, Math.max(PREVIEW_MIN_HEIGHT, measuredHeight));
+    setPreviewHeight(nextHeight);
   }, []);
 
   const applyPreviewSize = useCallback(
@@ -254,6 +262,7 @@ function SessionMapTerminalPreview({ cell, session, isOffline, fontSize }) {
         return;
       }
       terminal.scrollLines(lines);
+      lastUserScrollRef.current = Date.now();
       event.preventDefault();
       event.stopPropagation();
     },
@@ -300,6 +309,15 @@ function SessionMapTerminalPreview({ cell, session, isOffline, fontSize }) {
     setError('');
     const refreshPreview = async () => {
       try {
+        const terminalInstance = terminalRef.current;
+        const buffer = terminalInstance?.buffer?.active;
+        const isScrolled =
+          buffer && Number.isFinite(buffer.viewportY) && Number.isFinite(buffer.baseY)
+            ? buffer.viewportY < buffer.baseY
+            : false;
+        if (isScrolled || Date.now() - lastUserScrollRef.current < 1200) {
+          return;
+        }
         const localSnapshot = getTerminalSnapshot({
           cellId: cell.id,
           sessionId: session.id,
@@ -358,7 +376,10 @@ function SessionMapTerminalPreview({ cell, session, isOffline, fontSize }) {
 
   if (isOffline) {
     return (
-      <div className="flex h-[150px] w-[280px] items-center justify-center bg-black/40 text-[10px] text-muted-foreground">
+      <div
+        className="flex items-center justify-center bg-black/40 text-[10px] text-muted-foreground"
+        style={{ width: PREVIEW_TARGET_WIDTH, height: previewHeight }}
+      >
         Offline session (closed / stale / archived)
       </div>
     );
@@ -366,7 +387,10 @@ function SessionMapTerminalPreview({ cell, session, isOffline, fontSize }) {
 
   if (error) {
     return (
-      <div className="flex h-[150px] w-[280px] items-center justify-center bg-black/40 text-[10px] text-rose-300">
+      <div
+        className="flex items-center justify-center bg-black/40 text-[10px] text-rose-300"
+        style={{ width: PREVIEW_TARGET_WIDTH, height: previewHeight }}
+      >
         {error}
       </div>
     );
@@ -374,8 +398,9 @@ function SessionMapTerminalPreview({ cell, session, isOffline, fontSize }) {
 
   return (
     <div
-      className="relative h-[150px] w-[280px] overflow-hidden bg-black/60"
+      className="relative overflow-hidden bg-black/60"
       onWheel={handleWheel}
+      style={{ width: PREVIEW_TARGET_WIDTH, height: previewHeight }}
     >
       <div
         className="absolute left-0 top-0 origin-top-left"
@@ -399,6 +424,8 @@ function SessionMapHoverCard({
   const localRef = useRef(null);
   const resolvedRef = cardRef || localRef;
   const [style, setStyle] = useState(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const [hint, setHint] = useState({ x: 0, y: 0, visible: false });
 
   useLayoutEffect(() => {
     if (!anchorRect || !resolvedRef.current) {
@@ -465,17 +492,42 @@ function SessionMapHoverCard({
     <div
       ref={resolvedRef}
       data-session-map-hover-card="true"
-      style={style || { left: -9999, top: -9999 }}
-      className="fixed z-[999] w-[280px] overflow-hidden rounded-xl border border-border/60 bg-popover/95 text-foreground shadow-xl backdrop-blur"
-      onMouseEnter={onEnter}
-      onMouseLeave={onLeave}
-      onFocus={onEnter}
-      onBlur={onLeave}
+      style={{ ...(style || { left: -9999, top: -9999 }), width: PREVIEW_TARGET_WIDTH }}
+      className={`fixed z-[999] overflow-hidden rounded-xl border bg-popover/95 text-foreground shadow-xl backdrop-blur transition-shadow ${
+        isHovered ? 'border-primary/60 shadow-[0_0_0_1px_rgba(59,130,246,0.35),0_12px_40px_rgba(15,23,42,0.5)]' : 'border-border/60'
+      }`}
+      onMouseEnter={(event) => {
+        setIsHovered(true);
+        onEnter?.(event);
+      }}
+      onMouseLeave={(event) => {
+        setIsHovered(false);
+        setHint((current) => ({ ...current, visible: false }));
+        onLeave?.(event);
+      }}
+      onFocus={(event) => {
+        setIsHovered(true);
+        onEnter?.(event);
+      }}
+      onBlur={(event) => {
+        setIsHovered(false);
+        setHint((current) => ({ ...current, visible: false }));
+        onLeave?.(event);
+      }}
     >
       <button
         type="button"
         className="relative flex w-full cursor-pointer overflow-hidden bg-transparent text-left transition-colors hover:ring-1 hover:ring-primary/40"
         onClick={() => onSelectSession(cell.id, session.id)}
+        onMouseMove={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          setHint({
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top,
+            visible: true,
+          });
+        }}
+        onMouseLeave={() => setHint((current) => ({ ...current, visible: false }))}
       >
         <SessionMapTerminalPreview
           cell={cell}
@@ -483,6 +535,14 @@ function SessionMapHoverCard({
           isOffline={isOffline}
           fontSize={resolveFontSize ? resolveFontSize(cell.id, session.id) : undefined}
         />
+        {hint.visible ? (
+          <div
+            className="pointer-events-none absolute z-10 rounded-full border border-white/20 bg-black/70 px-2 py-0.5 text-[9px] text-white shadow"
+            style={{ left: Math.min(hint.x + 12, PREVIEW_TARGET_WIDTH - 80), top: Math.max(8, hint.y - 18) }}
+          >
+            点击访问
+          </div>
+        ) : null}
         <div className="absolute inset-x-0 bottom-0 border-t border-white/10 bg-black/55 px-2 py-1 text-[9px] text-slate-100 backdrop-blur">
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
@@ -536,15 +596,24 @@ function SessionMapOfflineMenu({ isOpen, position, containerRef, sessions, cellI
   );
 }
 
-export function SessionMapOverlay({ open, model, onSelectSession, onClose, resolveFontSize }) {
+export function SessionMapOverlay({
+  open,
+  model,
+  onSelectSession,
+  onClose,
+  resolveFontSize,
+  mode = 'popover',
+}) {
   const [hovered, setHovered] = useState(null);
   const [offlineMenu, setOfflineMenu] = useState(null);
+  const [dockExpanded, setDockExpanded] = useState(false);
   const hoverLockRef = useRef(false);
   const clearTimerRef = useRef(null);
   const openTimerRef = useRef(null);
   const overlayRef = useRef(null);
   const hoverCardRef = useRef(null);
   const offlineMenuRef = useRef(null);
+  const isDocked = mode === 'dock';
 
   const clearHover = useCallback(() => {
     if (clearTimerRef.current) {
@@ -577,6 +646,7 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose, resol
   useEffect(() => {
     if (!open) {
       setOfflineMenu(null);
+      setDockExpanded(false);
     }
   }, [open]);
 
@@ -650,7 +720,7 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose, resol
   );
 
   useEffect(() => {
-    if (!open || !onClose) {
+    if (!open || !onClose || isDocked) {
       return undefined;
     }
     const handlePointerDown = (event) => {
@@ -668,7 +738,7 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose, resol
     };
     window.addEventListener('pointerdown', handlePointerDown);
     return () => window.removeEventListener('pointerdown', handlePointerDown);
-  }, [onClose, open]);
+  }, [isDocked, onClose, open]);
 
   useEffect(() => {
     if (!open || !onClose) {
@@ -784,15 +854,30 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose, resol
     return null;
   }
 
+  const dockHeightStyle = isDocked
+    ? {
+        height: dockExpanded ? 'calc(100vh - 24px)' : '42vh',
+        minHeight: dockExpanded ? '480px' : '280px',
+        maxHeight: dockExpanded ? 'calc(100vh - 24px)' : '520px',
+      }
+    : undefined;
+
   return (
     <div
-      className="pointer-events-none absolute bottom-6 left-1/2 z-40 w-[min(980px,92vw)] -translate-x-1/2"
+      className={`${
+        isDocked
+          ? 'relative z-40 w-full'
+          : 'pointer-events-none absolute bottom-6 left-1/2 z-40 w-[min(980px,92vw)] -translate-x-1/2'
+      }`}
+      style={dockHeightStyle}
       role="dialog"
       aria-label="Session map"
     >
       <div
         ref={overlayRef}
-        className="pointer-events-auto rounded-2xl border border-border/60 bg-popover/90 px-4 py-3 shadow-2xl backdrop-blur"
+        className={`pointer-events-auto border border-border/60 bg-popover/90 px-4 py-3 shadow-2xl backdrop-blur ${
+          isDocked ? 'flex h-full flex-col rounded-none border-x-0 border-b-0' : 'rounded-2xl'
+        }`}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm font-semibold">
@@ -822,19 +907,37 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose, resol
               Esc to close
             </span>
           </div>
-          {onClose ? (
-            <button
-              type="button"
-              className="flex h-6 w-6 items-center justify-center rounded-full border border-border/50 text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
-              aria-label="Close session map"
-              onClick={onClose}
-            >
-              <X size={12} />
-            </button>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {isDocked ? (
+              <button
+                type="button"
+                className="flex h-6 items-center gap-1 rounded-full border border-border/50 px-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                onClick={() => setDockExpanded((value) => !value)}
+                aria-pressed={dockExpanded}
+                aria-label={dockExpanded ? 'Collapse session map' : 'Expand session map'}
+              >
+                {dockExpanded ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+                <span>{dockExpanded ? 'Collapse' : 'Expand'}</span>
+              </button>
+            ) : null}
+            {onClose ? (
+              <button
+                type="button"
+                className="flex h-6 w-6 items-center justify-center rounded-full border border-border/50 text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                aria-label="Close session map"
+                onClick={onClose}
+              >
+                <X size={12} />
+              </button>
+            ) : null}
+          </div>
         </div>
 
-        <div className="mt-3 grid max-h-[260px] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
+        <div
+          className={`mt-3 grid gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3 ${
+            isDocked ? 'flex-1 min-h-0' : 'max-h-[260px]'
+          }`}
+        >
           {model.clusters.length ? (
             model.clusters.map((cluster) => {
               const headerFill = resolveFactionFill(cluster.color);
@@ -866,6 +969,7 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose, resol
                             {hasActive ? (
                               activeSessions.map((session) => {
                                 const statusColor = resolveStatusColor(session.status, session.isOffline);
+                                const avatarId = resolveAvatarId(cluster.cell);
                                 return (
                                   <button
                                     key={session.id}
@@ -901,7 +1005,7 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose, resol
                                     aria-label={`Session ${session.name || session.id}`}
                                     data-session-token="true"
                                   >
-                                    <Terminal size={14} className="text-current" />
+                                    <AgentAvatar avatarId={avatarId} size={18} />
                                     <span
                                       className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-popover ${statusColor}`}
                                     />

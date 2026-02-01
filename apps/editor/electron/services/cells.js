@@ -15,6 +15,7 @@ const { checkGates } = require('./gates');
 const LIFECYCLE_DIR = '.agency';
 const LIFECYCLE_PREFIX = 'cell-';
 const LIFECYCLE_EXTS = ['.yaml', '.yml', '.md'];
+const AGENT_AVATAR_POOL = ['fox', 'cat', 'owl', 'robot', 'frog', 'panda', 'whale', 'bear'];
 
 
 async function ensureWorktreeDir(repoRoot) {
@@ -85,6 +86,23 @@ function normalizeName(input) {
   return input.replace(/[^a-zA-Z0-9-_]/g, '-');
 }
 
+function hashString(input) {
+  const text = String(input || '');
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash * 31 + text.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function resolveAvatarSymbol(seed) {
+  if (!AGENT_AVATAR_POOL.length) {
+    return 'A';
+  }
+  const index = hashString(seed) % AGENT_AVATAR_POOL.length;
+  return AGENT_AVATAR_POOL[index];
+}
+
 function validationWarnings(repoRoot, worktree, lifecyclePath) {
   const warnings = [];
   if (!worktree.branch) {
@@ -124,6 +142,7 @@ async function hydrateCell(repoRoot, worktree) {
     worktreePath: worktree.path,
     state,
     createdAt: lifecycle.createdAt || null,
+    avatar: lifecycle.avatar || resolveAvatarSymbol(lifecycle.id || name),
     lifecycleFile: lifecyclePath,
     gates: [],
     validation: {
@@ -189,6 +208,7 @@ async function createCell({ name, branch, reusePath, rootPath }) {
       state: lifecycle.state || 'draft',
       createdAt: lifecycle.createdAt || now,
       updatedAt: now,
+      avatar: lifecycle.avatar || resolveAvatarSymbol(lifecycle.id || safeName),
     });
     await maybeAutoLinkWorktree(repoRoot, target.path);
     return hydrateCell(repoRoot, {
@@ -222,6 +242,7 @@ async function createCell({ name, branch, reusePath, rootPath }) {
     state: 'draft',
     createdAt: now,
     updatedAt: now,
+    avatar: resolveAvatarSymbol(safeName),
   });
   await maybeAutoLinkWorktree(repoRoot, worktreePath);
 
@@ -287,10 +308,43 @@ async function updateCellState({ id, state, worktreePath }) {
   return hydrateCell(repoRoot, target);
 }
 
+async function updateCellMeta({ id, worktreePath, avatar }) {
+  const repoRoot = worktreePath
+    ? await getRepoRoot(worktreePath)
+    : await resolveProjectRoot();
+  if (!repoRoot) {
+    throw new Error('Project root is not configured.');
+  }
+  const worktrees = await listWorktrees(repoRoot);
+  const target = worktrees.find((worktree) => {
+    if (worktreePath) {
+      return path.resolve(worktree.path) === path.resolve(worktreePath);
+    }
+    return worktree.branch === id || worktree.path.includes(id);
+  });
+  if (!target) {
+    throw new Error('Cell not found.');
+  }
+  const lifecyclePath = await findLifecycleFile(target.path);
+  if (!lifecyclePath) {
+    throw new Error('Lifecycle file missing.');
+  }
+  const lifecycle = await readLifecycleFile(lifecyclePath);
+  if (avatar === null || avatar === undefined || String(avatar).trim() === '') {
+    delete lifecycle.avatar;
+  } else {
+    lifecycle.avatar = String(avatar).trim();
+  }
+  lifecycle.updatedAt = new Date().toISOString();
+  await writeLifecycleFile(lifecyclePath, lifecycle);
+  return hydrateCell(repoRoot, target);
+}
+
 module.exports = {
   listCells,
   createCell,
   updateCellState,
+  updateCellMeta,
   ensureWorktreeDir,
   buildLifecycleFilePath,
   normalizeName,

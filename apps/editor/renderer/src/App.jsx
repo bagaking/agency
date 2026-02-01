@@ -37,6 +37,7 @@ import {
   setUiState as agencySetUiState,
   submitComment as agencySubmitComment,
   updateCellState as agencyUpdateCellState,
+  updateCellMeta as agencyUpdateCellMeta,
   updateHilItem as agencyUpdateHilItem,
 } from './services/agencyBridge.js';
 import { buildPromotePromptBundle, buildPromotePromptText, buildPromoteActionSheetPrompt } from './utils/hilPromotePrompt.js';
@@ -1783,6 +1784,20 @@ function App() {
     },
     [cells, checkGatesForCell, projectRoot, scopedCell]
   );
+  const handleUpdateCellAvatar = useCallback(
+    async (avatar) => {
+      if (!selectedCell) {
+        return;
+      }
+      await agencyUpdateCellMeta({
+        id: selectedCell.id,
+        worktreePath: selectedCell.worktreePath,
+        avatar,
+      });
+      await loadCells();
+    },
+    [loadCells, selectedCell]
+  );
   const handleCreate = useCallback(
     async ({ name, branch, reusePath }) => {
       if (!projectReady) {
@@ -1880,6 +1895,7 @@ function App() {
     onSessionActivity: updateSessionActivity,
     onSessionAttached: handleSessionAttached,
     terminalFontSize: activeFontSize,
+    onUpdateCellAvatar: handleUpdateCellAvatar,
   };
   const handleSwitchView = useCallback(
     (view) => {
@@ -2387,20 +2403,21 @@ function App() {
         }}
       />
 
-      <StatusBar
-        loading={loading}
-        onRefresh={loadCells}
-        tmuxStatus={tmuxStatus}
-        ipcAvailable={ipcAvailable}
-        centerSlot={sessionMapCenterSlot}
-      />
-
       <SessionMapOverlay
         open={sessionMapOpen}
         model={sessionMapModel}
         onSelectSession={handleSelectSessionFromMap}
         onClose={handleToggleSessionMap}
         resolveFontSize={resolveSessionMapFontSize}
+        mode="dock"
+      />
+
+      <StatusBar
+        loading={loading}
+        onRefresh={loadCells}
+        tmuxStatus={tmuxStatus}
+        ipcAvailable={ipcAvailable}
+        centerSlot={sessionMapCenterSlot}
       />
 
       {showCreate ? (

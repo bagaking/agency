@@ -463,6 +463,14 @@ export const updateCellState = async (payload) => {
   return api.updateCellState(payload);
 };
 
+export const updateCellMeta = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.updateCellMeta) {
+    return null;
+  }
+  return api.updateCellMeta(payload);
+};
+
 export const createCell = async (payload) => {
   const api = getAgencyApi();
   if (!api?.createCell) {

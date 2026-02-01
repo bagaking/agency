@@ -1,6 +1,6 @@
 const { ipcMain } = require('electron');
 const fs = require('fs');
-const { listCells, createCell, updateCellState } = require('../../services/cells');
+const { listCells, createCell, updateCellState, updateCellMeta } = require('../../services/cells');
 
 function buildTestCell() {
   return {
@@ -69,6 +69,19 @@ function setupCellHandlers({ getMainWindow }) {
       return buildTestCell();
     }
     const cell = await updateCellState(payload);
+    watchLifecycleFile(cell.lifecycleFile);
+    const win = getMainWindow();
+    if (win) {
+      win.webContents.send('cells:updated', { type: 'updated', cell });
+    }
+    return cell;
+  });
+
+  ipcMain.handle('cells:updateMeta', async (_event, payload) => {
+    if (isTestMode) {
+      return buildTestCell();
+    }
+    const cell = await updateCellMeta(payload || {});
     watchLifecycleFile(cell.lifecycleFile);
     const win = getMainWindow();
     if (win) {
