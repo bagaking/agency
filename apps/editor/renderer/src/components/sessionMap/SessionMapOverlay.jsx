@@ -1,14 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  Activity,
-  CircleOff,
-  Landmark,
-  Map as MapIcon,
-  MoreHorizontal,
-  Terminal,
-  X,
-} from 'lucide-react';
+import { CircleOff, Landmark, Map as MapIcon, MoreHorizontal, Terminal, X } from 'lucide-react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { Tooltip } from '../ui/Tooltip.jsx';
@@ -16,11 +8,11 @@ import { getSessionMapPreview, isAgencyAvailable } from '../../services/agencyBr
 
 const PREVIEW_FONT_STACK =
   'Menlo, Monaco, "SF Mono", "Hiragino Sans GB", "PingFang SC", "Noto Sans CJK SC", "Courier New", monospace';
-const PREVIEW_FONT_SIZE = 11;
+const PREVIEW_FONT_SIZE = 9;
 const PREVIEW_SCROLLBACK = 800;
 const PREVIEW_BG = '#0b0d12';
 const PREVIEW_FG = '#e2e8f0';
-const PREVIEW_LINES = 180;
+const PREVIEW_LINES = 90;
 const PREVIEW_REFRESH_MS = 900;
 const CARD_GAP = 10;
 const CARD_MARGIN = 12;
@@ -254,7 +246,7 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
 
   if (isOffline) {
     return (
-      <div className="flex h-36 items-center justify-center rounded-md border border-border/40 bg-black/40 text-[11px] text-muted-foreground">
+      <div className="flex h-28 items-center justify-center rounded-lg bg-black/40 text-[10px] text-muted-foreground">
         Offline session (closed / stale / archived)
       </div>
     );
@@ -262,7 +254,7 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
 
   if (error) {
     return (
-      <div className="flex h-36 items-center justify-center rounded-md border border-border/40 bg-black/40 text-[11px] text-rose-300">
+      <div className="flex h-28 items-center justify-center rounded-lg bg-black/40 text-[10px] text-rose-300">
         {error}
       </div>
     );
@@ -271,7 +263,7 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
   return (
     <div
       ref={containerRef}
-      className="h-36 w-full rounded-md border border-border/40 bg-black/60"
+      className="h-28 w-full rounded-lg bg-black/60"
     />
   );
 }
@@ -347,60 +339,37 @@ function SessionMapHoverCard({
   const statusLabel = session.status || 'unknown';
   const activityLabel = session.lastActivityAt ? formatRelativeTime(session.lastActivityAt) : '—';
   const offlineReason = isOffline ? resolveOfflineReason(session, cell) : '';
+  const infoLabel = isOffline ? offlineReason : statusLabel.toUpperCase();
 
   const content = (
     <div
       ref={resolvedRef}
       data-session-map-hover-card="true"
       style={style || { left: -9999, top: -9999 }}
-      className="fixed z-[999] w-[420px] rounded-xl border border-border/60 bg-popover/95 p-3 text-foreground shadow-xl backdrop-blur"
+      className="fixed z-[999] w-[300px] rounded-xl border border-border/60 bg-popover/95 p-1 text-foreground shadow-xl backdrop-blur"
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
       onFocus={onEnter}
       onBlur={onLeave}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <span
-            className="h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: color }}
-          />
-          <span className="truncate text-[13px] font-semibold">
-            {session.name || session.id}
-          </span>
-        </div>
-        <span
-          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-            isOffline ? 'bg-slate-500/20 text-slate-200' : 'bg-emerald-500/15 text-emerald-200'
-          }`}
-        >
-          {statusLabel}
-        </span>
-      </div>
-      <div className="mt-0.5 text-[10px] text-muted-foreground">
-        {cell.name} · {data.typeLabel}
-      </div>
       <button
         type="button"
-        className="mt-2 w-full cursor-pointer overflow-hidden rounded-lg border border-border/50 bg-background/60 text-left transition-colors hover:border-primary/40"
+        className="relative w-full cursor-pointer overflow-hidden rounded-lg bg-background/60 text-left transition-colors hover:ring-1 hover:ring-primary/40"
         onClick={() => onSelectSession(cell.id, session.id)}
       >
-        <div className="relative">
-          <SessionMapTerminalPreview cell={cell} session={session} isOffline={isOffline} />
-          {offlineReason ? (
-            <div className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
-              {offlineReason}
-            </div>
-          ) : null}
+        <SessionMapTerminalPreview cell={cell} session={session} isOffline={isOffline} />
+        <div className="absolute inset-x-1 bottom-1 rounded-md bg-black/55 px-2 py-1 text-[9px] text-slate-100 backdrop-blur">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+            <span className="truncate">{session.name || session.id}</span>
+            <span className="text-slate-300">·</span>
+            <span className="uppercase tracking-wide text-slate-200">{infoLabel}</span>
+            <span className="ml-auto whitespace-nowrap text-slate-300">
+              {activityLabel}
+            </span>
+          </div>
         </div>
       </button>
-      <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <Activity size={12} />
-          Last activity {activityLabel}
-        </span>
-        <span>Click thumbnail to jump</span>
-      </div>
     </div>
   );
 

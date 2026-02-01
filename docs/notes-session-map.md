@@ -19,6 +19,7 @@ sop:
 - **Cell = 城邦 / 阵营**：以“阵营色 + 城邦卡片”表示；默认色基于 `Cell.state` + 创建顺序。
 - **Session = 角色**：以圆形角色 token + 状态点表示（active/detached/closed/stale）。
 - **离线状态**：Session 为 `closed / stale / archived` 或 Cell 为 `archived / closed` 时标记为离线。
+- **Hover 预览**：以“缩略图为主 + 一行毛玻璃信息条”为主视觉。
 
 ## 交互规则
 - **点击 Session token**：仅切换 Cell + Session，不切换当前主界面视图。

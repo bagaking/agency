@@ -589,6 +589,7 @@ function App() {
       }
       setSelectedId(cellId);
       selectSession(sessionId, cellId);
+      setTerminalOpen(true);
       refreshSessionsForCells([targetCell], { silent: true });
     },
     [mapCells, refreshSessionsForCells, selectSession]
