@@ -13,9 +13,9 @@ const PREVIEW_FONT_STACK =
 const PREVIEW_FONT_SIZE = 13;
 const PREVIEW_COLS = 120;
 const PREVIEW_ROWS = 30;
-const PREVIEW_TARGET_WIDTH = 320;
-const PREVIEW_MAX_HEIGHT = Math.round(PREVIEW_TARGET_WIDTH * 1.618);
-const PREVIEW_MIN_HEIGHT = Math.round(PREVIEW_TARGET_WIDTH * 0.55);
+const PREVIEW_TARGET_WIDTH = 300;
+const PREVIEW_MAX_HEIGHT = Math.round(PREVIEW_TARGET_WIDTH * 1.55);
+const PREVIEW_MIN_HEIGHT = Math.round(PREVIEW_TARGET_WIDTH * 0.5);
 const PREVIEW_SCROLLBACK = 800;
 const PREVIEW_BG = '#0b0d12';
 const PREVIEW_FG = '#e2e8f0';
@@ -857,9 +857,9 @@ export function SessionMapOverlay({
 
   const dockHeightStyle = isDocked
     ? {
-        height: dockExpanded ? '80vh' : '40vh',
-        minHeight: dockExpanded ? '420px' : '240px',
-        maxHeight: dockExpanded ? '80vh' : '460px',
+        height: dockExpanded ? '70vh' : '34vh',
+        minHeight: dockExpanded ? '380px' : '220px',
+        maxHeight: dockExpanded ? '70vh' : '380px',
       }
     : undefined;
 
