@@ -7,6 +7,7 @@ import { getSessionMapPreview, isAgencyAvailable } from '../../services/agencyBr
 import { getTerminalSnapshot } from '../../terminal/terminalManager.js';
 import { AgentAvatar } from '../ui/AgentAvatar.jsx';
 import { resolveAvatarId } from '../../utils/agentAvatar.js';
+import { BASELINE_PROFILE_ID } from '../../utils/terminusSettings.js';
 
 const PREVIEW_FONT_STACK =
   'Menlo, Monaco, "SF Mono", "Hiragino Sans GB", "PingFang SC", "Noto Sans CJK SC", "Courier New", monospace';
@@ -17,9 +18,10 @@ const PREVIEW_TARGET_WIDTH = 300;
 const PREVIEW_MAX_HEIGHT = Math.round(PREVIEW_TARGET_WIDTH * 1.55);
 const PREVIEW_MIN_HEIGHT = Math.round(PREVIEW_TARGET_WIDTH * 0.5);
 const HUD_ROW_COUNT = 3;
-const HUD_TOKEN_SIZE = 34;
-const HUD_TOKEN_GAP = 6;
-const HUD_GRID_HEIGHT = HUD_ROW_COUNT * HUD_TOKEN_SIZE + (HUD_ROW_COUNT - 1) * HUD_TOKEN_GAP;
+const HUD_TOKEN_SIZE = 30;
+const HUD_TILE_HEIGHT = 46;
+const HUD_TILE_GAP = 6;
+const HUD_GRID_HEIGHT = HUD_ROW_COUNT * HUD_TILE_HEIGHT + (HUD_ROW_COUNT - 1) * HUD_TILE_GAP;
 const HUD_HEADER_HEIGHT = 32;
 const HUD_COLLAPSED_HEIGHT = HUD_HEADER_HEIGHT + HUD_GRID_HEIGHT + 40;
 const PREVIEW_SCROLLBACK = 800;
@@ -121,9 +123,18 @@ const resolveOfflineReason = (session, cell) => {
 };
 
 
-export function SessionMapToggle({ open, stats, onToggle, disabled, focusCell }) {
+export function SessionMapToggle({ open, stats, onToggle, disabled, focusCell, focusSession }) {
+  const sessionLabel = focusSession?.name || focusSession?.id || '';
+  const isDefaultSession =
+    focusSession?.id === 'default' || focusSession?.profileId === BASELINE_PROFILE_ID;
   const summary = stats
-    ? `Cells ${stats.cells} · Sessions ${stats.sessions} · Online ${stats.online} · Offline ${stats.offline}`
+    ? `Cells ${stats.cells} · Sessions ${stats.sessions} · Online ${stats.online} · Offline ${stats.offline}${
+        focusCell && sessionLabel
+          ? ` · 当前通信: ${focusCell.name || focusCell.id} / ${sessionLabel}${
+              isDefaultSession ? ' (默认通信 Session)' : ''
+            }`
+          : ''
+      }`
     : 'Session map';
   const focusName = focusCell?.name || '';
   const focusState = String(focusCell?.state || '').toLowerCase();
@@ -156,7 +167,15 @@ export function SessionMapToggle({ open, stats, onToggle, disabled, focusCell })
           <span className="flex items-center gap-1 rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-[10px] font-medium text-status-bar-foreground/80">
             <AgentAvatar avatarId={resolveAvatarId(focusCell)} size={14} />
             <span className="max-w-[80px] truncate">{focusName}</span>
+            {sessionLabel ? (
+              <span className="max-w-[90px] truncate text-status-bar-foreground/70">· {sessionLabel}</span>
+            ) : null}
             <span className={`ml-1 h-1.5 w-1.5 rounded-full ${focusColor}`} />
+            {isDefaultSession ? (
+              <span className="ml-1 rounded-full border border-white/10 px-1 text-[8px] uppercase tracking-wide text-status-bar-foreground/70">
+                Default
+              </span>
+            ) : null}
           </span>
         ) : null}
         {stats ? (
@@ -935,6 +954,7 @@ export function SessionMapOverlay({
         height: dockExpanded ? '60vh' : `${HUD_COLLAPSED_HEIGHT}px`,
         minHeight: dockExpanded ? '360px' : `${HUD_COLLAPSED_HEIGHT}px`,
         maxHeight: dockExpanded ? '60vh' : `${HUD_COLLAPSED_HEIGHT}px`,
+        marginBottom: isDocked ? '24px' : undefined,
       }
     : undefined;
 
@@ -1041,63 +1061,116 @@ export function SessionMapOverlay({
                 <span className="text-[9px]">Rows {HUD_ROW_COUNT}</span>
               </div>
               <div
-                className="mt-2 grid gap-1.5 overflow-y-auto pr-1"
+                className="mt-2 grid gap-2 overflow-y-auto pr-1"
                 style={{
                   height: `${HUD_GRID_HEIGHT}px`,
                   maxHeight: `${HUD_GRID_HEIGHT}px`,
-                  gridAutoRows: `${HUD_TOKEN_SIZE}px`,
-                  gridTemplateColumns: `repeat(auto-fill, minmax(${HUD_TOKEN_SIZE}px, 1fr))`,
+                  gridAutoRows: `${HUD_TILE_HEIGHT}px`,
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
                 }}
               >
-                {hudTokens.length ? (
-                  hudTokens.map((item) => {
-                    const statusColor = resolveStatusColor(item.session.status, item.session.isOffline);
-                    const avatarId = resolveAvatarId({
-                      avatar: item.session.avatar || item.cell.avatar,
-                      id: item.session.id,
-                      name: item.session.name,
-                    });
+                {model.clusters.length ? (
+                  model.clusters.map((cluster) => {
+                    const activeSessions = cluster.sessions.filter((session) => !session.isOffline);
+                    const offlineSessions = cluster.sessions.filter((session) => session.isOffline);
+                    const headerFill = resolveFactionFill(cluster.color, 0.12);
                     return (
-                      <button
-                        key={`${item.cell.id}:${item.session.id}`}
-                        type="button"
-                        className={`group relative flex w-full items-center justify-center rounded-md border text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
-                          item.session.isActive
-                            ? 'border-primary/80 bg-primary/15'
-                            : 'border-border/60 bg-black/20 hover:border-primary/50'
-                        } ${item.session.isOffline ? 'opacity-60' : ''}`}
-                        style={{ borderColor: item.color, height: `${HUD_TOKEN_SIZE}px` }}
-                        onClick={() => handleSelectAndClose(item.cell.id, item.session.id)}
-                        onMouseEnter={(event) =>
-                          handleTokenEnter(event, {
-                            cell: item.cell,
-                            session: item.session,
-                            color: item.color,
-                            typeLabel: item.typeLabel,
-                          })
-                        }
-                        onMouseLeave={handleTokenLeave}
-                        onFocus={(event) =>
-                          handleTokenEnter(
-                            event,
-                            {
-                              cell: item.cell,
-                              session: item.session,
-                              color: item.color,
-                              typeLabel: item.typeLabel,
-                            },
-                            { immediate: true }
-                          )
-                        }
-                        onBlur={handleTokenLeave}
-                        aria-label={`Session ${item.session.name || item.session.id}`}
-                        data-session-token="true"
+                      <div
+                        key={cluster.cell.id}
+                        className="flex flex-col justify-between rounded-lg border border-border/60 bg-black/30 px-2 py-1"
+                        style={{ borderColor: cluster.color, backgroundColor: headerFill || undefined }}
                       >
-                        <AgentAvatar avatarId={avatarId} size={18} />
-                        <span
-                          className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-popover ${statusColor}`}
-                        />
-                      </button>
+                        <div className="flex items-center justify-between text-[9px] font-semibold text-foreground">
+                          <span className="flex items-center gap-1">
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: cluster.color }} />
+                            <span className="max-w-[100px] truncate">{cluster.cell.name}</span>
+                          </span>
+                          <span className="text-[8px] uppercase text-muted-foreground">{cluster.typeLabel}</span>
+                        </div>
+                        <div className="mt-1 flex items-center gap-1 overflow-x-auto no-scrollbar">
+                          {activeSessions.length ? (
+                            activeSessions.map((session) => {
+                              const statusColor = resolveStatusColor(session.status, session.isOffline);
+                              const avatarId = resolveAvatarId({
+                                avatar: session.avatar || cluster.cell.avatar,
+                                id: session.id,
+                                name: session.name,
+                              });
+                              return (
+                                <button
+                                  key={session.id}
+                                  type="button"
+                                  className={`group relative flex items-center justify-center rounded-md border text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
+                                    session.isActive
+                                      ? 'border-primary/80 bg-primary/15'
+                                      : 'border-border/60 bg-black/20 hover:border-primary/50'
+                                  }`}
+                                  style={{ width: `${HUD_TOKEN_SIZE}px`, height: `${HUD_TOKEN_SIZE}px` }}
+                                  onClick={() => handleSelectAndClose(cluster.cell.id, session.id)}
+                                  onMouseEnter={(event) =>
+                                    handleTokenEnter(event, {
+                                      cell: cluster.cell,
+                                      session,
+                                      color: cluster.color,
+                                      typeLabel: cluster.typeLabel,
+                                    })
+                                  }
+                                  onMouseLeave={handleTokenLeave}
+                                  onFocus={(event) =>
+                                    handleTokenEnter(
+                                      event,
+                                      {
+                                        cell: cluster.cell,
+                                        session,
+                                        color: cluster.color,
+                                        typeLabel: cluster.typeLabel,
+                                      },
+                                      { immediate: true }
+                                    )
+                                  }
+                                  onBlur={handleTokenLeave}
+                                  aria-label={`Session ${session.name || session.id}`}
+                                  data-session-token="true"
+                                >
+                                  <AgentAvatar avatarId={avatarId} size={14} />
+                                  <span
+                                    className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-popover ${statusColor}`}
+                                  />
+                                </button>
+                              );
+                            })
+                          ) : (
+                            <div className="flex items-center gap-1 text-[9px] text-muted-foreground">
+                              <CircleOff size={10} />
+                              <span>0</span>
+                            </div>
+                          )}
+                          {offlineSessions.length ? (
+                            <button
+                              type="button"
+                              data-session-map-offline-trigger="true"
+                              className="flex items-center justify-center rounded-md border border-dashed border-border/60 bg-black/20 px-1 text-[9px] text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground"
+                              style={{ height: `${HUD_TOKEN_SIZE}px`, width: `${HUD_TOKEN_SIZE}px` }}
+                              onClick={(event) => {
+                                const rect = event.currentTarget.getBoundingClientRect();
+                                setOfflineMenu((current) =>
+                                  current?.cellId === cluster.cell.id
+                                    ? null
+                                    : {
+                                        cellId: cluster.cell.id,
+                                        sessions: offlineSessions,
+                                        x: rect.left,
+                                        y: rect.bottom + 6,
+                                      }
+                                );
+                              }}
+                              aria-label={`Show ${offlineSessions.length} offline sessions`}
+                            >
+                              <MoreHorizontal size={12} />
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
                     );
                   })
                 ) : (

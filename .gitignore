@@ -74,3 +74,4 @@ apps/**/test-results
 apps/**/package-lock.json
 .worktrees
 .agency
+.gemini-*

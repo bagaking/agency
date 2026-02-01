@@ -606,6 +606,10 @@ function App() {
     },
     [mapCells, refreshSessionsForCells, selectSession]
   );
+  const focusSession = useMemo(
+    () => sessions.find((session) => session.id === activeSessionId),
+    [activeSessionId, sessions]
+  );
   const sessionMapCenterSlot = (
     <SessionMapToggle
       open={sessionMapOpen}
@@ -613,6 +617,7 @@ function App() {
       onToggle={handleToggleSessionMap}
       disabled={!sessionMapEnabled}
       focusCell={selectedCell}
+      focusSession={focusSession}
     />
   );
   const activeTab = workbench.activeTab;
