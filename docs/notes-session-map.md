@@ -21,6 +21,7 @@ sop:
 - **离线状态**：Session 为 `closed / stale / archived` 或 Cell 为 `archived / closed` 时标记为离线。
 - **Hover 预览**：以“缩略图为主 + 一行毛玻璃信息条”为主视觉；缩略图按当前 session 字号与 tmux pane cols/rows 渲染，再缩放填充为封面图（必要时裁切）。
 - **角色头像**：Cell 创建时分配 `avatar`（存于 lifecycle 文件），为内置卡通 SVG id（如 `fox/cat/owl/robot`）；若缺失则按 Cell 名称/ID 回退计算。Session 创建时优先选择活跃会话中“未占用或占用最少”的头像，支持在编辑器头部菜单中自定义 Cell 头像。
+- **HUD 分区（Dock 模式）**：左侧 Radar、中央 Command Center、右侧 Focus（头像/状态）；Dock 默认高度只容纳 3 行 token，额外内容在中央区内滚动。
 
 ## 交互规则
 - **点击 Session token**：仅切换 Cell + Session，不切换当前主界面视图。

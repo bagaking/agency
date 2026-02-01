@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronUp, CircleOff, Landmark, Map as MapIcon, MoreHorizontal, X } from 'lucide-react';
 import { Terminal as XTerm } from '@xterm/xterm';
@@ -16,6 +16,12 @@ const PREVIEW_ROWS = 30;
 const PREVIEW_TARGET_WIDTH = 300;
 const PREVIEW_MAX_HEIGHT = Math.round(PREVIEW_TARGET_WIDTH * 1.55);
 const PREVIEW_MIN_HEIGHT = Math.round(PREVIEW_TARGET_WIDTH * 0.5);
+const HUD_ROW_COUNT = 3;
+const HUD_TOKEN_SIZE = 34;
+const HUD_TOKEN_GAP = 6;
+const HUD_GRID_HEIGHT = HUD_ROW_COUNT * HUD_TOKEN_SIZE + (HUD_ROW_COUNT - 1) * HUD_TOKEN_GAP;
+const HUD_HEADER_HEIGHT = 32;
+const HUD_COLLAPSED_HEIGHT = HUD_HEADER_HEIGHT + HUD_GRID_HEIGHT + 40;
 const PREVIEW_SCROLLBACK = 800;
 const PREVIEW_BG = '#0b0d12';
 const PREVIEW_FG = '#e2e8f0';
@@ -84,6 +90,15 @@ const resolveFactionFill = (color, alpha = 0.18) => {
     }
   }
   return color;
+};
+
+const hashSeed = (input) => {
+  const text = String(input || '');
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash * 31 + text.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
 };
 
 const resolveOfflineReason = (session, cell) => {
@@ -397,6 +412,8 @@ function SessionMapTerminalPreview({ cell, session, isOffline, fontSize }) {
     );
   }
 
+  const focusData = hovered || defaultFocus;
+
   return (
     <div
       className="relative overflow-hidden bg-black/60"
@@ -615,6 +632,50 @@ export function SessionMapOverlay({
   const hoverCardRef = useRef(null);
   const offlineMenuRef = useRef(null);
   const isDocked = mode === 'dock';
+  const hudTokens = useMemo(() => {
+    if (!model?.clusters?.length) {
+      return [];
+    }
+    const tokens = [];
+    model.clusters.forEach((cluster) => {
+      cluster.sessions.forEach((session) => {
+        tokens.push({
+          cell: cluster.cell,
+          session,
+          color: cluster.color,
+          typeLabel: cluster.typeLabel,
+        });
+      });
+    });
+    return tokens;
+  }, [model]);
+  const defaultFocus = useMemo(() => {
+    if (!hudTokens.length) {
+      return null;
+    }
+    const active = hudTokens.find((item) => item.session?.isActive);
+    if (active) {
+      return active;
+    }
+    const online = hudTokens.find((item) => !item.session?.isOffline);
+    return online || hudTokens[0];
+  }, [hudTokens]);
+  const radarPoints = useMemo(() => {
+    if (!model?.clusters?.length) {
+      return [];
+    }
+    return model.clusters.map((cluster, index) => {
+      const seed = hashSeed(cluster.cell?.id || cluster.cell?.name || index);
+      const x = 8 + (seed % 84);
+      const y = 8 + ((seed >> 3) % 84);
+      return {
+        id: cluster.cell?.id || String(index),
+        x,
+        y,
+        color: cluster.color,
+      };
+    });
+  }, [model]);
 
   const clearHover = useCallback(() => {
     if (clearTimerRef.current) {
@@ -857,9 +918,9 @@ export function SessionMapOverlay({
 
   const dockHeightStyle = isDocked
     ? {
-        height: dockExpanded ? '70vh' : '34vh',
-        minHeight: dockExpanded ? '380px' : '220px',
-        maxHeight: dockExpanded ? '70vh' : '380px',
+        height: dockExpanded ? '60vh' : `${HUD_COLLAPSED_HEIGHT}px`,
+        minHeight: dockExpanded ? '360px' : `${HUD_COLLAPSED_HEIGHT}px`,
+        maxHeight: dockExpanded ? '60vh' : `${HUD_COLLAPSED_HEIGHT}px`,
       }
     : undefined;
 
@@ -934,138 +995,288 @@ export function SessionMapOverlay({
           </div>
         </div>
 
-        <div
-          className={`mt-2 grid gap-2 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3 ${
-            isDocked ? 'flex-1 min-h-0' : 'max-h-[260px]'
-          }`}
-        >
-          {model.clusters.length ? (
-            model.clusters.map((cluster) => {
-              const headerFill = resolveFactionFill(cluster.color);
-              return (
-                <div
-                  key={cluster.cell.id}
-                  className={`rounded-xl border border-border/60 bg-card/40 p-2 ${
-                    cluster.isOffline ? 'opacity-70' : ''
-                  }`}
-                  style={{ borderColor: cluster.color, backgroundColor: headerFill || undefined }}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-[12px] font-semibold">
-                      <Landmark size={14} />
-                      <span className="truncate">{cluster.cell.name}</span>
-                    </div>
-                    <span className="rounded-full bg-black/30 px-2 py-0.5 text-[9px] text-muted-foreground">
-                      {cluster.typeLabel}
-                    </span>
+        {isDocked ? (
+          <div className="mt-2 grid flex-1 min-h-0 grid-cols-[160px_minmax(0,1fr)_200px] gap-2">
+            <div className="flex h-full flex-col rounded-lg border border-border/60 bg-black/30 p-2">
+              <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <span>Radar</span>
+                <span className="text-[9px]">{model.stats.cells}C</span>
+              </div>
+              <div className="relative mt-2 flex-1 overflow-hidden rounded-md border border-border/60 bg-black/50">
+                <div className="absolute inset-0 opacity-60" style={{
+                  backgroundImage:
+                    'repeating-linear-gradient(0deg, rgba(148,163,184,0.12) 0, rgba(148,163,184,0.12) 1px, transparent 1px, transparent 10px), repeating-linear-gradient(90deg, rgba(148,163,184,0.12) 0, rgba(148,163,184,0.12) 1px, transparent 1px, transparent 10px)',
+                }} />
+                {radarPoints.map((point) => (
+                  <span
+                    key={point.id}
+                    className="absolute h-2 w-2 rounded-full border border-black/40 shadow-[0_0_6px_rgba(59,130,246,0.35)]"
+                    style={{ left: `${point.x}%`, top: `${point.y}%`, backgroundColor: point.color }}
+                  />
+                ))}
+              </div>
+              <div className="mt-2 flex items-center justify-between text-[9px] text-muted-foreground">
+                <span>Online {model.stats.online}</span>
+                <span>Offline {model.stats.offline}</span>
+              </div>
+            </div>
+
+            <div className="flex h-full flex-col rounded-lg border border-border/60 bg-black/25 px-2 py-2">
+              <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <span>Command Center</span>
+                <span className="text-[9px]">Rows {HUD_ROW_COUNT}</span>
+              </div>
+              <div
+                className="mt-2 grid gap-1.5 overflow-y-auto pr-1"
+                style={{
+                  height: `${HUD_GRID_HEIGHT}px`,
+                  maxHeight: `${HUD_GRID_HEIGHT}px`,
+                  gridAutoRows: `${HUD_TOKEN_SIZE}px`,
+                  gridTemplateColumns: `repeat(auto-fill, minmax(${HUD_TOKEN_SIZE}px, 1fr))`,
+                }}
+              >
+                {hudTokens.length ? (
+                  hudTokens.map((item) => {
+                    const statusColor = resolveStatusColor(item.session.status, item.session.isOffline);
+                    const avatarId = resolveAvatarId({
+                      avatar: item.session.avatar || item.cell.avatar,
+                      id: item.session.id,
+                      name: item.session.name,
+                    });
+                    return (
+                      <button
+                        key={`${item.cell.id}:${item.session.id}`}
+                        type="button"
+                        className={`group relative flex w-full items-center justify-center rounded-md border text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
+                          item.session.isActive
+                            ? 'border-primary/80 bg-primary/15'
+                            : 'border-border/60 bg-black/20 hover:border-primary/50'
+                        } ${item.session.isOffline ? 'opacity-60' : ''}`}
+                        style={{ borderColor: item.color, height: `${HUD_TOKEN_SIZE}px` }}
+                        onClick={() => handleSelectAndClose(item.cell.id, item.session.id)}
+                        onMouseEnter={(event) =>
+                          handleTokenEnter(event, {
+                            cell: item.cell,
+                            session: item.session,
+                            color: item.color,
+                            typeLabel: item.typeLabel,
+                          })
+                        }
+                        onMouseLeave={handleTokenLeave}
+                        onFocus={(event) =>
+                          handleTokenEnter(
+                            event,
+                            {
+                              cell: item.cell,
+                              session: item.session,
+                              color: item.color,
+                              typeLabel: item.typeLabel,
+                            },
+                            { immediate: true }
+                          )
+                        }
+                        onBlur={handleTokenLeave}
+                        aria-label={`Session ${item.session.name || item.session.id}`}
+                        data-session-token="true"
+                      >
+                        <AgentAvatar avatarId={avatarId} size={18} />
+                        <span
+                          className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-popover ${statusColor}`}
+                        />
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="col-span-full flex h-full items-center justify-center text-[11px] text-muted-foreground">
+                    <CircleOff size={12} />
+                    <span className="ml-2">No sessions yet</span>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {cluster.sessions.length ? (
-                      (() => {
-                        const activeSessions = cluster.sessions.filter((session) => !session.isOffline);
-                        const offlineSessions = cluster.sessions.filter((session) => session.isOffline);
-                        const hasActive = activeSessions.length > 0;
-                        return (
-                          <>
-                            {hasActive ? (
-                              activeSessions.map((session) => {
-                                const statusColor = resolveStatusColor(session.status, session.isOffline);
-                                const avatarId = resolveAvatarId({
-                                  avatar: session.avatar || cluster.cell.avatar,
-                                  id: session.id,
-                                  name: session.name,
-                                });
-                                return (
-                                  <button
-                                    key={session.id}
-                                    type="button"
-                                    className={`group relative flex h-10 w-10 items-center justify-center rounded-full border text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
-                                      session.isActive
-                                        ? 'border-primary/80 bg-primary/15'
-                                        : 'border-border/60 bg-black/20 hover:border-primary/50'
-                                    } ${session.isOffline ? 'opacity-60' : ''}`}
-                            onClick={() => handleSelectAndClose(cluster.cell.id, session.id)}
-                                    onMouseEnter={(event) =>
-                                      handleTokenEnter(event, {
-                                        cell: cluster.cell,
-                                        session,
-                                        color: cluster.color,
-                                        typeLabel: cluster.typeLabel,
-                                      })
-                                    }
-                                    onMouseLeave={handleTokenLeave}
-                                    onFocus={(event) =>
-                                      handleTokenEnter(
-                                        event,
-                                        {
+                )}
+              </div>
+              <div className="mt-2 flex items-center justify-between text-[9px] text-muted-foreground">
+                <span>Cells {model.stats.cells}</span>
+                <span>Sessions {model.stats.sessions}</span>
+              </div>
+            </div>
+
+            <div className="flex h-full flex-col rounded-lg border border-border/60 bg-black/30 p-2">
+              <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <span>Focus</span>
+                <span className="text-[9px]">Active</span>
+              </div>
+              {focusData ? (
+                <>
+                  <div className="mt-2 flex items-center gap-2">
+                    <AgentAvatar
+                      avatarId={resolveAvatarId({
+                        avatar: focusData.session?.avatar || focusData.cell?.avatar,
+                        id: focusData.session?.id,
+                        name: focusData.session?.name,
+                      })}
+                      size={32}
+                    />
+                    <div className="min-w-0">
+                      <div className="truncate text-[11px] font-semibold text-foreground">
+                        {focusData.session?.name || focusData.session?.id || 'Session'}
+                      </div>
+                      <div className="truncate text-[9px] text-muted-foreground">
+                        {focusData.cell?.name || 'Cell'} · {focusData.typeLabel}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-[9px] text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <span className={`h-1.5 w-1.5 rounded-full ${resolveStatusColor(
+                        focusData.session?.status,
+                        focusData.session?.isOffline
+                      )}`} />
+                      {focusData.session?.isOffline ? 'Offline' : focusData.session?.status || 'Unknown'}
+                    </span>
+                    <span>Last {focusData.session?.lastActivityAt ? formatRelativeTime(focusData.session.lastActivityAt) : '—'}</span>
+                  </div>
+                  <div className="mt-auto text-[9px] text-muted-foreground/70">
+                    Hover preview or click token to jump.
+                  </div>
+                </>
+              ) : (
+                <div className="mt-3 text-[10px] text-muted-foreground">No focus</div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div
+            className={`mt-2 grid gap-2 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3 ${
+              isDocked ? 'flex-1 min-h-0' : 'max-h-[260px]'
+            }`}
+          >
+            {model.clusters.length ? (
+              model.clusters.map((cluster) => {
+                const headerFill = resolveFactionFill(cluster.color);
+                return (
+                  <div
+                    key={cluster.cell.id}
+                    className={`rounded-xl border border-border/60 bg-card/40 p-2 ${
+                      cluster.isOffline ? 'opacity-70' : ''
+                    }`}
+                    style={{ borderColor: cluster.color, backgroundColor: headerFill || undefined }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-[12px] font-semibold">
+                        <Landmark size={14} />
+                        <span className="truncate">{cluster.cell.name}</span>
+                      </div>
+                      <span className="rounded-full bg-black/30 px-2 py-0.5 text-[9px] text-muted-foreground">
+                        {cluster.typeLabel}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {cluster.sessions.length ? (
+                        (() => {
+                          const activeSessions = cluster.sessions.filter((session) => !session.isOffline);
+                          const offlineSessions = cluster.sessions.filter((session) => session.isOffline);
+                          const hasActive = activeSessions.length > 0;
+                          return (
+                            <>
+                              {hasActive ? (
+                                activeSessions.map((session) => {
+                                  const statusColor = resolveStatusColor(session.status, session.isOffline);
+                                  const avatarId = resolveAvatarId({
+                                    avatar: session.avatar || cluster.cell.avatar,
+                                    id: session.id,
+                                    name: session.name,
+                                  });
+                                  return (
+                                    <button
+                                      key={session.id}
+                                      type="button"
+                                      className={`group relative flex h-10 w-10 items-center justify-center rounded-full border text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
+                                        session.isActive
+                                          ? 'border-primary/80 bg-primary/15'
+                                          : 'border-border/60 bg-black/20 hover:border-primary/50'
+                                      } ${session.isOffline ? 'opacity-60' : ''}`}
+                                      onClick={() => handleSelectAndClose(cluster.cell.id, session.id)}
+                                      onMouseEnter={(event) =>
+                                        handleTokenEnter(event, {
                                           cell: cluster.cell,
                                           session,
                                           color: cluster.color,
                                           typeLabel: cluster.typeLabel,
-                                        },
-                                        { immediate: true }
-                                      )
-                                    }
-                                    onBlur={handleTokenLeave}
-                                    aria-label={`Session ${session.name || session.id}`}
-                                    data-session-token="true"
-                                  >
-                                    <AgentAvatar avatarId={avatarId} size={18} />
-                                    <span
-                                      className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-popover ${statusColor}`}
-                                    />
-                                  </button>
-                                );
-                              })
-                            ) : (
-                              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                                <CircleOff size={12} />
-                                <span>No active sessions</span>
-                              </div>
-                            )}
-                            {offlineSessions.length ? (
-                              <button
-                                type="button"
-                                data-session-map-offline-trigger="true"
-                                className="flex h-10 items-center gap-1 rounded-full border border-dashed border-border/60 bg-black/20 px-2 text-[10px] text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground"
-                                onClick={(event) => {
-                                  const rect = event.currentTarget.getBoundingClientRect();
-                                  setOfflineMenu((current) =>
-                                    current?.cellId === cluster.cell.id
-                                      ? null
-                                      : {
-                                          cellId: cluster.cell.id,
-                                          sessions: offlineSessions,
-                                          x: rect.left,
-                                          y: rect.bottom + 6,
-                                        }
+                                        })
+                                      }
+                                      onMouseLeave={handleTokenLeave}
+                                      onFocus={(event) =>
+                                        handleTokenEnter(
+                                          event,
+                                          {
+                                            cell: cluster.cell,
+                                            session,
+                                            color: cluster.color,
+                                            typeLabel: cluster.typeLabel,
+                                          },
+                                          { immediate: true }
+                                        )
+                                      }
+                                      onBlur={handleTokenLeave}
+                                      aria-label={`Session ${session.name || session.id}`}
+                                      data-session-token="true"
+                                    >
+                                      <AgentAvatar avatarId={avatarId} size={18} />
+                                      <span
+                                        className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-popover ${statusColor}`}
+                                      />
+                                    </button>
                                   );
-                                }}
-                                aria-label={`Show ${offlineSessions.length} offline sessions`}
-                              >
-                                <MoreHorizontal size={12} />
-                                <span>{offlineSessions.length}</span>
-                              </button>
-                            ) : null}
-                          </>
-                        );
-                      })()
-                    ) : (
-                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <CircleOff size={12} />
-                        <span>No sessions yet</span>
-                      </div>
-                    )}
+                                })
+                              ) : (
+                                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                                  <CircleOff size={12} />
+                                  <span>No active sessions</span>
+                                </div>
+                              )}
+                              {offlineSessions.length ? (
+                                <button
+                                  type="button"
+                                  data-session-map-offline-trigger="true"
+                                  className="flex h-10 items-center gap-1 rounded-full border border-dashed border-border/60 bg-black/20 px-2 text-[10px] text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground"
+                                  onClick={(event) => {
+                                    const rect = event.currentTarget.getBoundingClientRect();
+                                    setOfflineMenu((current) =>
+                                      current?.cellId === cluster.cell.id
+                                        ? null
+                                        : {
+                                            cellId: cluster.cell.id,
+                                            sessions: offlineSessions,
+                                            x: rect.left,
+                                            y: rect.bottom + 6,
+                                          }
+                                    );
+                                  }}
+                                  aria-label={`Show ${offlineSessions.length} offline sessions`}
+                                >
+                                  <MoreHorizontal size={12} />
+                                  <span>{offlineSessions.length}</span>
+                                </button>
+                              ) : null}
+                            </>
+                          );
+                        })()
+                      ) : (
+                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                          <CircleOff size={12} />
+                          <span>No sessions yet</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="col-span-full rounded-xl border border-dashed border-border/60 bg-card/20 p-6 text-center text-sm text-muted-foreground">
-              No cells available yet. Create a Cell to populate the session map.
-            </div>
-          )}
-        </div>
+                );
+              })
+            ) : (
+              <div className="col-span-full rounded-xl border border-dashed border-border/60 bg-card/20 p-6 text-center text-sm text-muted-foreground">
+                No cells available yet. Create a Cell to populate the session map.
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <SessionMapOfflineMenu
