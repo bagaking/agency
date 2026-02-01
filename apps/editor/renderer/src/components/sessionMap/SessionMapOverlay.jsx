@@ -121,10 +121,18 @@ const resolveOfflineReason = (session, cell) => {
 };
 
 
-export function SessionMapToggle({ open, stats, onToggle, disabled }) {
+export function SessionMapToggle({ open, stats, onToggle, disabled, focusCell }) {
   const summary = stats
     ? `Cells ${stats.cells} · Sessions ${stats.sessions} · Online ${stats.online} · Offline ${stats.offline}`
     : 'Session map';
+  const focusName = focusCell?.name || '';
+  const focusState = String(focusCell?.state || '').toLowerCase();
+  const focusColor =
+    focusState === 'active'
+      ? 'bg-emerald-400'
+      : focusState === 'draft'
+        ? 'bg-sky-400'
+        : 'bg-slate-400';
   return (
     <Tooltip label={summary} side="top">
       <button
@@ -144,6 +152,13 @@ export function SessionMapToggle({ open, stats, onToggle, disabled }) {
       >
         <MapIcon size={14} />
         <span>Session Map</span>
+        {focusCell ? (
+          <span className="flex items-center gap-1 rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-[10px] font-medium text-status-bar-foreground/80">
+            <AgentAvatar avatarId={resolveAvatarId(focusCell)} size={14} />
+            <span className="max-w-[80px] truncate">{focusName}</span>
+            <span className={`ml-1 h-1.5 w-1.5 rounded-full ${focusColor}`} />
+          </span>
+        ) : null}
         {stats ? (
           <span className="flex items-center gap-1 text-[10px] font-medium text-status-bar-foreground/80">
             <span>{stats.cells}C</span>
@@ -412,8 +427,6 @@ function SessionMapTerminalPreview({ cell, session, isOffline, fontSize }) {
     );
   }
 
-  const focusData = hovered || defaultFocus;
-
   return (
     <div
       className="relative overflow-hidden bg-black/60"
@@ -676,6 +689,7 @@ export function SessionMapOverlay({
       };
     });
   }, [model]);
+  const focusData = hovered || defaultFocus;
 
   const clearHover = useCallback(() => {
     if (clearTimerRef.current) {

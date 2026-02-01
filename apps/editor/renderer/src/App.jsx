@@ -612,6 +612,7 @@ function App() {
       stats={sessionMapEnabled ? sessionMapModel.stats : null}
       onToggle={handleToggleSessionMap}
       disabled={!sessionMapEnabled}
+      focusCell={selectedCell}
     />
   );
   const activeTab = workbench.activeTab;
