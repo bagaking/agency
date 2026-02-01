@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { disposeTerminalEntry } from '../terminal/terminalManager.js';
+import { pickSessionAvatarId } from '../utils/agentAvatar.js';
 import { BASELINE_PROFILE_ID } from '../utils/terminusSettings.js';
 
 const DEFAULT_FONT_SIZE = 13;
@@ -239,6 +240,7 @@ export function useSessions({
       if (!selectedCell || !window.agency?.createSession) {
         return;
       }
+      onOpenTerminal?.();
       if (tmuxStatus?.available === false) {
         setSessionError(tmuxStatus.error || 'tmux is required. Install tmux and try again.');
         return;
@@ -246,13 +248,15 @@ export function useSessions({
       setSessionLoading(true);
       setSessionError('');
       try {
-        const { name, sessionId, profileId } = options || {};
+        const { name, sessionId, profileId, avatar } = options || {};
+        const preferredAvatar = avatar || pickSessionAvatarId(sessionsByCellId[selectedCell.id] || []);
         const created = await window.agency.createSession({
           cellId: selectedCell.id,
           worktreePath: selectedCell.worktreePath,
           name: name || undefined,
           sessionId: sessionId || undefined,
           profileId: profileId || BASELINE_PROFILE_ID,
+          avatar: preferredAvatar,
         });
         setSessionsByCellId((current) => {
           const currentSessions = current[selectedCell.id] || [];
@@ -278,7 +282,7 @@ export function useSessions({
         setSessionLoading(false);
       }
     },
-    [selectedCell, tmuxStatus?.available, tmuxStatus?.error]
+    [onOpenTerminal, selectedCell, sessionsByCellId, tmuxStatus?.available, tmuxStatus?.error]
   );
 
   const refreshSessions = useCallback(() => {
@@ -410,11 +414,13 @@ export function useSessions({
         setSessionLoading(true);
         setSessionError('');
         try {
+          const preferredAvatar = pickSessionAvatarId(sessionsByCellId[selectedCell.id] || []);
           const created = await window.agency.createSession({
             cellId: selectedCell.id,
             worktreePath: selectedCell.worktreePath,
             name: label ? `CLI - ${label}` : 'CLI',
             profileId: profileId || BASELINE_PROFILE_ID,
+            avatar: preferredAvatar,
           });
           if (created?.id) {
             setSessionsByCellId((current) => ({
@@ -448,7 +454,7 @@ export function useSessions({
         doubleEnter: shouldDoubleEnter,
       });
     },
-    [onOpenTerminal, selectedCell, tmuxStatus?.available, tmuxStatus?.error]
+    [onOpenTerminal, selectedCell, sessionsByCellId, tmuxStatus?.available, tmuxStatus?.error]
   );
 
   const acknowledgeCommandSent = useCallback((payload) => {

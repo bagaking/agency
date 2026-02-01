@@ -5,7 +5,8 @@ import { Terminal as XTerm } from '@xterm/xterm';
 import { Tooltip } from '../ui/Tooltip.jsx';
 import { getSessionMapPreview, isAgencyAvailable } from '../../services/agencyBridge.js';
 import { getTerminalSnapshot } from '../../terminal/terminalManager.js';
-import { AgentAvatar, resolveAvatarId } from '../ui/AgentAvatar.jsx';
+import { AgentAvatar } from '../ui/AgentAvatar.jsx';
+import { resolveAvatarId } from '../../utils/agentAvatar.js';
 
 const PREVIEW_FONT_STACK =
   'Menlo, Monaco, "SF Mono", "Hiragino Sans GB", "PingFang SC", "Noto Sans CJK SC", "Courier New", monospace';
@@ -856,9 +857,9 @@ export function SessionMapOverlay({
 
   const dockHeightStyle = isDocked
     ? {
-        height: dockExpanded ? 'calc(100vh - 24px)' : '42vh',
-        minHeight: dockExpanded ? '480px' : '280px',
-        maxHeight: dockExpanded ? 'calc(100vh - 24px)' : '520px',
+        height: dockExpanded ? 'calc(100vh - 24px)' : '40vh',
+        minHeight: dockExpanded ? '480px' : '240px',
+        maxHeight: dockExpanded ? 'calc(100vh - 24px)' : '460px',
       }
     : undefined;
 
@@ -875,16 +876,16 @@ export function SessionMapOverlay({
     >
       <div
         ref={overlayRef}
-        className={`pointer-events-auto border border-border/60 bg-popover/90 px-4 py-3 shadow-2xl backdrop-blur ${
+        className={`pointer-events-auto border border-border/60 bg-popover/90 px-3 py-2 shadow-2xl backdrop-blur ${
           isDocked ? 'flex h-full flex-col rounded-none border-x-0 border-b-0' : 'rounded-2xl'
         }`}
       >
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <MapIcon size={14} />
             <span>Agent Session Map</span>
           </div>
-          <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
             <span className="flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
               Online {model.stats.online}
@@ -903,7 +904,7 @@ export function SessionMapOverlay({
             </span>
             <span>Cells {model.stats.cells}</span>
             <span>Sessions {model.stats.sessions}</span>
-            <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+            <span className="text-[9px] uppercase tracking-wide text-muted-foreground/70">
               Esc to close
             </span>
           </div>
@@ -934,7 +935,7 @@ export function SessionMapOverlay({
         </div>
 
         <div
-          className={`mt-3 grid gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3 ${
+          className={`mt-2 grid gap-2 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3 ${
             isDocked ? 'flex-1 min-h-0' : 'max-h-[260px]'
           }`}
         >
@@ -944,17 +945,17 @@ export function SessionMapOverlay({
               return (
                 <div
                   key={cluster.cell.id}
-                  className={`rounded-xl border border-border/60 bg-card/40 p-3 ${
+                  className={`rounded-xl border border-border/60 bg-card/40 p-2 ${
                     cluster.isOffline ? 'opacity-70' : ''
                   }`}
                   style={{ borderColor: cluster.color, backgroundColor: headerFill || undefined }}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-sm font-semibold">
+                    <div className="flex items-center gap-2 text-[12px] font-semibold">
                       <Landmark size={14} />
                       <span className="truncate">{cluster.cell.name}</span>
                     </div>
-                    <span className="rounded-full bg-black/30 px-2 py-0.5 text-[10px] text-muted-foreground">
+                    <span className="rounded-full bg-black/30 px-2 py-0.5 text-[9px] text-muted-foreground">
                       {cluster.typeLabel}
                     </span>
                   </div>
@@ -969,7 +970,11 @@ export function SessionMapOverlay({
                             {hasActive ? (
                               activeSessions.map((session) => {
                                 const statusColor = resolveStatusColor(session.status, session.isOffline);
-                                const avatarId = resolveAvatarId(cluster.cell);
+                                const avatarId = resolveAvatarId({
+                                  avatar: session.avatar || cluster.cell.avatar,
+                                  id: session.id,
+                                  name: session.name,
+                                });
                                 return (
                                   <button
                                     key={session.id}

@@ -78,7 +78,14 @@ async function listSessions({ worktreePath }) {
   return sessions;
 }
 
-async function createNewSession({ cellId, worktreePath, name, sessionId: providedId, profileId }) {
+async function createNewSession({
+  cellId,
+  worktreePath,
+  name,
+  sessionId: providedId,
+  profileId,
+  avatar,
+}) {
   ensureWorktreePath(worktreePath);
   await ensureTmuxAvailable();
   const registry = await readRegistry(worktreePath);
@@ -98,6 +105,7 @@ async function createNewSession({ cellId, worktreePath, name, sessionId: provide
       tmuxSession,
       status: SESSION_STATUSES.active,
       profileId: profileId || DEFAULT_PROFILE_ID,
+      avatar: avatar || undefined,
       createdAt,
       updatedAt: createdAt,
       lastAttachedAt: createdAt,
@@ -116,6 +124,7 @@ async function createNewSession({ cellId, worktreePath, name, sessionId: provide
     tmuxSession,
     status: SESSION_STATUSES.active,
     profileId: profileId || DEFAULT_PROFILE_ID,
+    avatar: avatar || undefined,
     createdAt,
     updatedAt: createdAt,
   };

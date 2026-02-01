@@ -87,3 +87,53 @@ export function SessionContextMenu({
     </div>
   );
 }
+
+export function SessionCreateMenu({
+  isOpen,
+  position,
+  containerRef,
+  profiles,
+  onCreateBase,
+  onCreateProfile,
+}) {
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="fixed z-[60] w-60 rounded-md border border-border bg-popover py-1 text-[11px] shadow-xl"
+      style={{ top: position.y, left: position.x }}
+    >
+      <div className="px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground">
+        New Session
+      </div>
+      <button
+        type="button"
+        onClick={onCreateBase}
+        className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate transition-colors"
+      >
+        Blank Session
+      </button>
+      {profiles && profiles.length ? (
+        <>
+          <div className="px-2 pt-2 pb-1 text-[10px] uppercase font-bold text-muted-foreground">
+            Terminus Profiles
+          </div>
+          {profiles.map((profile) => (
+            <button
+              key={profile.id}
+              type="button"
+              onClick={() => onCreateProfile(profile)}
+              title={profile.startCommand || profile.label || profile.id}
+              className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate transition-colors"
+            >
+              {profile.label || profile.id}
+            </button>
+          ))}
+        </>
+      ) : null}
+    </div>
+  );
+}
