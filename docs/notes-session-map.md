@@ -27,6 +27,7 @@ sop:
 - **Esc**：关闭 Session Map。
 - **键盘**：方向键在 token 间移动焦点，Enter/点击跳转。
 - **点击空白**：关闭 Session Map。
+- **点击跳转反馈**：点击 token 或缩略图后关闭 Map，便于立即进入目标会话。
 
 ## 数据来源
 - Cells 来自 Cell 列表。

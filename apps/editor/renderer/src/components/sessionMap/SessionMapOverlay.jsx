@@ -5,6 +5,7 @@ import {
   CircleOff,
   Landmark,
   Map as MapIcon,
+  MoreHorizontal,
   Terminal,
   X,
 } from 'lucide-react';
@@ -15,11 +16,11 @@ import { getSessionMapPreview, isAgencyAvailable } from '../../services/agencyBr
 
 const PREVIEW_FONT_STACK =
   'Menlo, Monaco, "SF Mono", "Hiragino Sans GB", "PingFang SC", "Noto Sans CJK SC", "Courier New", monospace';
-const PREVIEW_FONT_SIZE = 10;
+const PREVIEW_FONT_SIZE = 11;
 const PREVIEW_SCROLLBACK = 800;
 const PREVIEW_BG = '#0b0d12';
 const PREVIEW_FG = '#e2e8f0';
-const PREVIEW_LINES = 160;
+const PREVIEW_LINES = 180;
 const PREVIEW_REFRESH_MS = 900;
 const CARD_GAP = 10;
 const CARD_MARGIN = 12;
@@ -253,7 +254,7 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
 
   if (isOffline) {
     return (
-      <div className="flex h-24 items-center justify-center rounded-md border border-border/40 bg-black/40 text-[11px] text-muted-foreground">
+      <div className="flex h-36 items-center justify-center rounded-md border border-border/40 bg-black/40 text-[11px] text-muted-foreground">
         Offline session (closed / stale / archived)
       </div>
     );
@@ -261,7 +262,7 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
 
   if (error) {
     return (
-      <div className="flex h-24 items-center justify-center rounded-md border border-border/40 bg-black/40 text-[11px] text-rose-300">
+      <div className="flex h-36 items-center justify-center rounded-md border border-border/40 bg-black/40 text-[11px] text-rose-300">
         {error}
       </div>
     );
@@ -270,7 +271,7 @@ function SessionMapTerminalPreview({ cell, session, isOffline }) {
   return (
     <div
       ref={containerRef}
-      className="h-24 w-full rounded-md border border-border/40 bg-black/60"
+      className="h-36 w-full rounded-md border border-border/40 bg-black/60"
     />
   );
 }
@@ -352,26 +353,21 @@ function SessionMapHoverCard({
       ref={resolvedRef}
       data-session-map-hover-card="true"
       style={style || { left: -9999, top: -9999 }}
-      className="fixed z-[999] w-[360px] rounded-xl border border-border/60 bg-popover/95 p-3 text-foreground shadow-xl backdrop-blur"
+      className="fixed z-[999] w-[420px] rounded-xl border border-border/60 bg-popover/95 p-3 text-foreground shadow-xl backdrop-blur"
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
       onFocus={onEnter}
       onBlur={onLeave}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: color }}
-            />
-            <span className="text-sm font-semibold">
-              {session.name || session.id}
-            </span>
-          </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">
-            {cell.name} · {data.typeLabel}
-          </div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            className="h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: color }}
+          />
+          <span className="truncate text-[13px] font-semibold">
+            {session.name || session.id}
+          </span>
         </div>
         <span
           className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
@@ -381,24 +377,29 @@ function SessionMapHoverCard({
           {statusLabel}
         </span>
       </div>
-      <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
-        <Activity size={12} />
-        <span>Last activity: {activityLabel}</span>
+      <div className="mt-0.5 text-[10px] text-muted-foreground">
+        {cell.name} · {data.typeLabel}
       </div>
-      {offlineReason ? (
-        <div className="mt-1 text-[11px] text-amber-200/80">
-          {offlineReason}
-        </div>
-      ) : null}
       <button
         type="button"
-        className="mt-3 w-full cursor-pointer rounded-lg border border-border/50 bg-background/60 p-2 text-left transition-colors hover:border-primary/40"
+        className="mt-2 w-full cursor-pointer overflow-hidden rounded-lg border border-border/50 bg-background/60 text-left transition-colors hover:border-primary/40"
         onClick={() => onSelectSession(cell.id, session.id)}
       >
-        <SessionMapTerminalPreview cell={cell} session={session} isOffline={isOffline} />
+        <div className="relative">
+          <SessionMapTerminalPreview cell={cell} session={session} isOffline={isOffline} />
+          {offlineReason ? (
+            <div className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
+              {offlineReason}
+            </div>
+          ) : null}
+        </div>
       </button>
-      <div className="mt-2 text-[10px] text-muted-foreground">
-        Click preview to jump to this session.
+      <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <Activity size={12} />
+          Last activity {activityLabel}
+        </span>
+        <span>Click thumbnail to jump</span>
       </div>
     </div>
   );
@@ -410,13 +411,46 @@ function SessionMapHoverCard({
   return createPortal(content, document.body);
 }
 
+function SessionMapOfflineMenu({ isOpen, position, containerRef, sessions, cellId, onSelectSession }) {
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="fixed z-[70] w-56 rounded-lg border border-border bg-popover py-1 text-[11px] shadow-xl pointer-events-auto"
+      style={{ top: position.y, left: position.x }}
+    >
+      <div className="px-2 py-1 text-[10px] font-bold uppercase text-muted-foreground">
+        Offline Sessions
+      </div>
+      {sessions.map((session) => (
+        <button
+          key={session.id}
+          type="button"
+          onClick={() => onSelectSession(cellId, session.id)}
+          className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <span className="truncate">{session.name || session.id}</span>
+          <span className="text-[10px] uppercase text-muted-foreground/70">
+            {session.status || 'offline'}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
   const [hovered, setHovered] = useState(null);
+  const [offlineMenu, setOfflineMenu] = useState(null);
   const hoverLockRef = useRef(false);
   const clearTimerRef = useRef(null);
   const openTimerRef = useRef(null);
   const overlayRef = useRef(null);
   const hoverCardRef = useRef(null);
+  const offlineMenuRef = useRef(null);
 
   const clearHover = useCallback(() => {
     if (clearTimerRef.current) {
@@ -446,6 +480,28 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
   }, []);
 
   useEffect(() => () => clearHover(), [clearHover]);
+  useEffect(() => {
+    if (!open) {
+      setOfflineMenu(null);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!offlineMenu) {
+      return undefined;
+    }
+    const handlePointerDown = (event) => {
+      if (offlineMenuRef.current?.contains(event.target)) {
+        return;
+      }
+      if (event.target.closest?.('[data-session-map-offline-trigger="true"]')) {
+        return;
+      }
+      setOfflineMenu(null);
+    };
+    window.addEventListener('mousedown', handlePointerDown);
+    return () => window.removeEventListener('mousedown', handlePointerDown);
+  }, [offlineMenu]);
 
   const handleTokenEnter = useCallback((event, payload, { immediate = false } = {}) => {
     if (!event?.currentTarget) {
@@ -490,6 +546,14 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
     hoverLockRef.current = false;
     clearHover();
   }, [clearHover]);
+
+  const handleSelectAndClose = useCallback(
+    (cellId, sessionId) => {
+      onSelectSession?.(cellId, sessionId);
+      onClose?.();
+    },
+    [onClose, onSelectSession]
+  );
 
   useEffect(() => {
     if (!open || !onClose) {
@@ -699,50 +763,90 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {cluster.sessions.length ? (
-                      cluster.sessions.map((session) => {
-                        const statusColor = resolveStatusColor(session.status, session.isOffline);
+                      (() => {
+                        const activeSessions = cluster.sessions.filter((session) => !session.isOffline);
+                        const offlineSessions = cluster.sessions.filter((session) => session.isOffline);
+                        const hasActive = activeSessions.length > 0;
                         return (
-                          <button
-                            key={session.id}
-                            type="button"
-                            className={`group relative flex h-10 w-10 items-center justify-center rounded-full border text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
-                              session.isActive
-                                ? 'border-primary/80 bg-primary/15'
-                                : 'border-border/60 bg-black/20 hover:border-primary/50'
-                            } ${session.isOffline ? 'opacity-60' : ''}`}
-                            onClick={() => onSelectSession(cluster.cell.id, session.id)}
-                            onMouseEnter={(event) =>
-                              handleTokenEnter(event, {
-                                cell: cluster.cell,
-                                session,
-                                color: cluster.color,
-                                typeLabel: cluster.typeLabel,
+                          <>
+                            {hasActive ? (
+                              activeSessions.map((session) => {
+                                const statusColor = resolveStatusColor(session.status, session.isOffline);
+                                return (
+                                  <button
+                                    key={session.id}
+                                    type="button"
+                                    className={`group relative flex h-10 w-10 items-center justify-center rounded-full border text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
+                                      session.isActive
+                                        ? 'border-primary/80 bg-primary/15'
+                                        : 'border-border/60 bg-black/20 hover:border-primary/50'
+                                    } ${session.isOffline ? 'opacity-60' : ''}`}
+                            onClick={() => handleSelectAndClose(cluster.cell.id, session.id)}
+                                    onMouseEnter={(event) =>
+                                      handleTokenEnter(event, {
+                                        cell: cluster.cell,
+                                        session,
+                                        color: cluster.color,
+                                        typeLabel: cluster.typeLabel,
+                                      })
+                                    }
+                                    onMouseLeave={handleTokenLeave}
+                                    onFocus={(event) =>
+                                      handleTokenEnter(
+                                        event,
+                                        {
+                                          cell: cluster.cell,
+                                          session,
+                                          color: cluster.color,
+                                          typeLabel: cluster.typeLabel,
+                                        },
+                                        { immediate: true }
+                                      )
+                                    }
+                                    onBlur={handleTokenLeave}
+                                    aria-label={`Session ${session.name || session.id}`}
+                                    data-session-token="true"
+                                  >
+                                    <Terminal size={14} className="text-current" />
+                                    <span
+                                      className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-popover ${statusColor}`}
+                                    />
+                                  </button>
+                                );
                               })
-                            }
-                            onMouseLeave={handleTokenLeave}
-                            onFocus={(event) =>
-                              handleTokenEnter(
-                                event,
-                                {
-                                  cell: cluster.cell,
-                                  session,
-                                  color: cluster.color,
-                                  typeLabel: cluster.typeLabel,
-                                },
-                                { immediate: true }
-                              )
-                            }
-                            onBlur={handleTokenLeave}
-                            aria-label={`Session ${session.name || session.id}`}
-                            data-session-token="true"
-                          >
-                            <Terminal size={14} className="text-current" />
-                            <span
-                              className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-popover ${statusColor}`}
-                            />
-                          </button>
+                            ) : (
+                              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                                <CircleOff size={12} />
+                                <span>No active sessions</span>
+                              </div>
+                            )}
+                            {offlineSessions.length ? (
+                              <button
+                                type="button"
+                                data-session-map-offline-trigger="true"
+                                className="flex h-10 items-center gap-1 rounded-full border border-dashed border-border/60 bg-black/20 px-2 text-[10px] text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground"
+                                onClick={(event) => {
+                                  const rect = event.currentTarget.getBoundingClientRect();
+                                  setOfflineMenu((current) =>
+                                    current?.cellId === cluster.cell.id
+                                      ? null
+                                      : {
+                                          cellId: cluster.cell.id,
+                                          sessions: offlineSessions,
+                                          x: rect.left,
+                                          y: rect.bottom + 6,
+                                        }
+                                  );
+                                }}
+                                aria-label={`Show ${offlineSessions.length} offline sessions`}
+                              >
+                                <MoreHorizontal size={12} />
+                                <span>{offlineSessions.length}</span>
+                              </button>
+                            ) : null}
+                          </>
                         );
-                      })
+                      })()
                     ) : (
                       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                         <CircleOff size={12} />
@@ -761,13 +865,25 @@ export function SessionMapOverlay({ open, model, onSelectSession, onClose }) {
         </div>
       </div>
 
+      <SessionMapOfflineMenu
+        isOpen={Boolean(offlineMenu)}
+        position={offlineMenu ? { x: offlineMenu.x, y: offlineMenu.y } : { x: 0, y: 0 }}
+        containerRef={offlineMenuRef}
+        sessions={offlineMenu?.sessions || []}
+        cellId={offlineMenu?.cellId}
+        onSelectSession={(cellId, sessionId) => {
+          setOfflineMenu(null);
+          handleSelectAndClose(cellId, sessionId);
+        }}
+      />
+
       {hovered ? (
         <SessionMapHoverCard
           anchorRect={hovered.anchorRect}
           data={hovered}
           onEnter={handleCardEnter}
           onLeave={handleCardLeave}
-          onSelectSession={onSelectSession}
+          onSelectSession={handleSelectAndClose}
           cardRef={hoverCardRef}
         />
       ) : null}

@@ -97,7 +97,7 @@ async function capturePane(sessionName, { lines = 160 } = {}) {
   const clamped = Number.isFinite(parsedLines)
     ? Math.max(PREVIEW_MIN_LINES, Math.min(PREVIEW_MAX_LINES, parsedLines))
     : 160;
-  const args = ['capture-pane', '-pt', sessionName, '-e', '-S', ];
+  const args = ['capture-pane', '-pt', sessionName, '-e', '-S', `-${clamped}`];
   const result = await execFileAsync('tmux', args);
   return result.stdout || '';
 }
