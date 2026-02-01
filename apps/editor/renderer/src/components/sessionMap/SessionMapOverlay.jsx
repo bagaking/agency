@@ -857,9 +857,9 @@ export function SessionMapOverlay({
 
   const dockHeightStyle = isDocked
     ? {
-        height: dockExpanded ? 'calc(100vh - 24px)' : '40vh',
-        minHeight: dockExpanded ? '480px' : '240px',
-        maxHeight: dockExpanded ? 'calc(100vh - 24px)' : '460px',
+        height: dockExpanded ? '80vh' : '40vh',
+        minHeight: dockExpanded ? '420px' : '240px',
+        maxHeight: dockExpanded ? '80vh' : '460px',
       }
     : undefined;
 

@@ -326,17 +326,30 @@ async function updateCellMeta({ id, worktreePath, avatar }) {
     throw new Error('Cell not found.');
   }
   const lifecyclePath = await findLifecycleFile(target.path);
-  if (!lifecyclePath) {
-    throw new Error('Lifecycle file missing.');
+  const now = new Date().toISOString();
+  const resolvedLifecyclePath = lifecyclePath || buildLifecycleFilePath(target.path, path.basename(target.path));
+  let lifecycle = {};
+  if (lifecyclePath) {
+    lifecycle = await readLifecycleFile(lifecyclePath);
+  } else {
+    const fallbackName = id || target.branch || path.basename(target.path);
+    lifecycle = {
+      version: 1,
+      id: normalizeName(fallbackName),
+      name: fallbackName,
+      branch: target.branch || 'detached',
+      worktreePath: target.path,
+      state: 'draft',
+      createdAt: now,
+    };
   }
-  const lifecycle = await readLifecycleFile(lifecyclePath);
   if (avatar === null || avatar === undefined || String(avatar).trim() === '') {
     delete lifecycle.avatar;
   } else {
     lifecycle.avatar = String(avatar).trim();
   }
-  lifecycle.updatedAt = new Date().toISOString();
-  await writeLifecycleFile(lifecyclePath, lifecycle);
+  lifecycle.updatedAt = now;
+  await writeLifecycleFile(resolvedLifecyclePath, lifecycle);
   return hydrateCell(repoRoot, target);
 }
 
