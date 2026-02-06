@@ -183,18 +183,18 @@ The editor SHALL create a new terminal session when a start action is executed.
 - **THEN** the editor creates a new session, selects it, and executes the start command in that session
 
 ### Requirement: Session Tabs
-The editor SHALL render sessions as horizontal tabs and highlight the active session.
+The editor SHALL render sessions as nested list items under their parent Cell in the Agent Cells sidebar and highlight the active session.
 
-#### Scenario: Switch session via tab
-- **WHEN** a user clicks a session tab
-- **THEN** the editor activates that session
+#### Scenario: Switch session via session list
+- **WHEN** a user clicks a session entry under a Cell
+- **THEN** the editor activates that session and selects the parent Cell
 
 ### Requirement: Closed Sessions Overflow
-The editor SHALL display closed sessions in an overflow menu rather than the main tab row.
+The editor SHALL display detached and closed sessions in an overflow menu associated with the Cell's session list rather than the main session list.
 
 #### Scenario: View closed sessions
-- **WHEN** a user opens the sessions overflow menu
-- **THEN** the editor lists closed sessions and allows selecting them
+- **WHEN** a user opens the sessions overflow menu on a Cell
+- **THEN** the editor lists detached/closed sessions and allows selecting/restoring them
 
 ### Requirement: Worktree Link Configuration
 The editor SHALL store a project-level worktree link configuration for ignored or untracked directories.
@@ -1497,4 +1497,190 @@ The editor SHALL allow creating sessions from within a Cell group in the session
 #### Scenario: Create session from map
 - **WHEN** a user chooses a profile from the map cell menu
 - **THEN** a new session is created for that Cell using the selected profile
+
+### Requirement: Session Auto Naming Rules
+The editor SHALL allow configuring an auto-naming rule for new sessions using placeholder tokens.
+The editor SHALL resolve session naming rules by Global -> Project -> Agent scope, with Agent overrides winning.
+When a new session is created without an explicit name, the editor SHALL generate a name using the resolved rule.
+The editor SHALL support time/date placeholders and sequence counters with optional zero-padding.
+The editor SHALL support name lists for template substitution and allow user-defined lists in settings.
+If the generated name conflicts with an existing session name in the same Cell, the editor SHALL append a numeric suffix until the name is unique.
+
+#### Scenario: Generate name from rule
+- **WHEN** a user creates a new session without providing a name
+- **AND** the resolved rule is `"Session {seq:absolute:02} · {time:HHmm}"`
+- **THEN** the editor creates a name like `"Session 03 · 1425"`
+
+#### Scenario: Scope overrides
+- **WHEN** Global and Project rules are configured
+- **AND** the Project rule differs from Global
+- **THEN** new sessions use the Project rule
+
+#### Scenario: Name list substitution
+- **WHEN** the resolved rule contains `{name:myth:absolute}`
+- **THEN** the editor selects the myth name based on the absolute sequence index (wrapping as needed)
+
+### Requirement: Terminal Selection Actions
+The terminal view SHALL allow users to select text and keep the selection after mouse release.
+When a selection exists, the editor SHALL allow copying the selection via `Cmd+C` on macOS.
+When a selection exists, the editor SHALL show a floating action bar with Copy and Send-to-Session actions.
+Send-to-Session SHALL dispatch the selected text to a user-chosen session without closing the current view.
+
+#### Scenario: Selection persists
+- **WHEN** a user drags to select terminal text and releases the mouse
+- **THEN** the selection remains visible until cleared or replaced
+
+#### Scenario: Copy selection
+- **WHEN** a selection exists in the terminal
+- **AND** the user presses `Cmd+C`
+- **THEN** the selected text is copied to the system clipboard
+
+#### Scenario: Send selection to another session
+- **WHEN** a selection exists and the user chooses Send-to-Session
+- **THEN** the selected text is sent to the chosen session
+
+### Requirement: Cmd+Click path navigation
+The editor SHALL allow users to Cmd+Click file paths in terminal output to open the file.
+The editor SHALL support absolute and worktree-relative paths with optional `:line[:column]` suffixes.
+The editor SHALL ignore trailing punctuation characters when resolving the path.
+
+#### Scenario: Open file with line number
+- **WHEN** a terminal line contains `docs/notes-terminal-keyboard.md:11`
+- **AND** the user Cmd+Clicks the path
+- **THEN** the editor opens `docs/notes-terminal-keyboard.md` at line 11
+
+#### Scenario: Ignore punctuation
+- **WHEN** a terminal line contains `行为说明。docs/notes-terminal-keyboard.md:11` 
+- **THEN** the resolved path is `docs/notes-terminal-keyboard.md` (excluding `行为说明。`)
+
+### Requirement: Session Reply Relay
+The editor SHALL provide a session-side Reply panel for creating reply memos.
+The editor SHALL store replies as memo kind `reply` and isolate reply threads per session.
+The editor SHALL NOT allow editing reply memos inside the main Memo view.
+
+#### Scenario: Reply panel default
+- **WHEN** a user opens a session
+- **THEN** the right-side panel defaults to Reply
+
+### Requirement: Reply editor and actions
+The editor SHALL provide a rich markdown editor for reply input.
+The editor SHALL support `Record`, `Send to Current`, and `Send to Other` actions.
+
+#### Scenario: Record reply
+- **WHEN** a user submits a reply with `Record`
+- **THEN** the reply is saved as a memo without sending terminal input
+
+#### Scenario: Send reply to current session
+- **WHEN** a user submits a reply with `Send to Current`
+- **THEN** the reply is saved as a memo and sent to the active session
+
+### Requirement: Reply metadata
+The editor SHALL record source site and query for replies in metadata.
+The editor SHALL record selection time (or a fixed tag when no selection) instead of line numbers.
+The editor SHALL record the authoring cell/session and timestamp.
+
+#### Scenario: Reply metadata recorded
+- **WHEN** a reply is created
+- **THEN** its memo metadata includes source, selection time tag, and session identifiers
+
+### Requirement: Send-result cards
+The editor SHALL display send-result cards in the Reply panel.
+Each card SHALL show the target avatar and provide a jump link to the destination.
+Record-only cards SHALL show a memo icon and jump link to the stored memo.
+
+#### Scenario: Send-result card
+- **WHEN** a reply is sent to another session
+- **THEN** a card shows the target avatar and a navigation link
+
+### Requirement: Session List Order Preservation
+The editor SHALL preserve the session ordering as stored in the cell/session registry and not apply additional sorting in the Agent Cells list.
+
+#### Scenario: Keep registry order
+- **WHEN** multiple sessions are listed under a Cell
+- **THEN** the ordering matches the registry without active/idle reordering
+
+### Requirement: Session Idle Indicators in List
+The editor SHALL display each session's idle duration directly in the session list item.
+
+#### Scenario: Idle visible per session
+- **WHEN** the session list is shown
+- **THEN** each session entry shows its idle time (or a placeholder if unknown)
+
+### Requirement: Activity Ring Fades with Idle
+The editor SHALL render the avatar ring as green when active and gradually fade it toward the inactive color as idle time increases, reaching the most inactive color at 15 minutes.
+
+#### Scenario: Ring reflects idle progression
+- **WHEN** a session has been idle for increasing durations
+- **THEN** the avatar ring color interpolates from active green toward the inactive color
+
+### Requirement: Unified Avatar Badge
+The editor SHALL render agent/session avatars through a shared badge component to keep idle rings and closed-state styling consistent across views.
+
+#### Scenario: Consistent avatar styling
+- **WHEN** avatars are rendered in the sidebar, editor header, session map, explorer footer, or picker
+- **THEN** they use the same badge component and ring logic
+
+### Requirement: Per-Cell Session Creation Entry
+The editor SHALL provide a new session action on each Cell entry in the Agent Cells view.
+
+#### Scenario: Create session from Cell node
+- **WHEN** a user opens the new-session menu on a Cell
+- **THEN** the editor creates a session for that Cell (blank or profile)
+
+### Requirement: Collapsible Session Lists
+The editor SHALL allow each Cell's session list to be collapsed or expanded.
+
+#### Scenario: Collapse sessions under a Cell
+- **WHEN** a user toggles the collapse control on a Cell
+- **THEN** the session list for that Cell is hidden or revealed
+
+### Requirement: Pre-Attach Terminal Preview
+The editor SHALL show cached session preview data and a connecting indicator before tmux attach completes, and disable terminal input until attach succeeds.
+
+#### Scenario: Preview before attach
+- **WHEN** a session is selected and tmux attach is still in progress
+- **THEN** the terminal view shows the last cached preview with a connecting indicator
+- **AND THEN** terminal input is disabled until attach succeeds
+
+### Requirement: Detached Session Activity Polling
+The editor SHALL periodically refresh detached sessions so idle indicators can reflect new output activity.
+
+#### Scenario: Detached session receives new output
+- **WHEN** a session is detached and new output arrives in tmux
+- **THEN** the session idle time updates after the next refresh interval
+
+### Requirement: Idle Updates Require Output Diff
+The editor SHALL only update session activity timestamps when captured output differs from the previously cached content.
+
+#### Scenario: Refresh without output changes
+- **WHEN** the session list refreshes without any output diff
+- **THEN** the session idle time does not reset
+
+### Requirement: Workflow-focused selection actions
+The editor SHALL show an advanced floating selection action menu that prioritizes workflow actions.
+The menu SHALL include Send-to-Session and Create Memo actions.
+The floating menu SHALL NOT include a Copy action.
+
+#### Scenario: Selection actions available
+- **WHEN** a user selects terminal text
+- **THEN** the floating menu offers Send-to-Session and Create Memo
+- **AND** Copy is not shown in the menu
+
+### Requirement: Create memo from selection
+The editor SHALL allow creating a memo from selected terminal text.
+
+#### Scenario: Create memo
+- **WHEN** a user selects terminal text and chooses Create Memo
+- **THEN** a memo is created with the selected text
+
+### Requirement: Idle based on output change threshold
+The editor SHALL update a session's idle activity timestamp only when output changes exceed a character threshold.
+
+#### Scenario: Ignore tiny changes
+- **WHEN** a session output changes by fewer characters than the threshold
+- **THEN** the session idle timestamp is not refreshed
+
+#### Scenario: Record meaningful changes
+- **WHEN** a session output changes by more characters than the threshold
+- **THEN** the session idle timestamp is refreshed
 
