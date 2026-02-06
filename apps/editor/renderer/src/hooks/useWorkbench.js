@@ -78,9 +78,19 @@ const normalizeTabsByCellId = (tabsByCellId, fallbackRoot) => {
 export function useWorkbench({
   selectedCell,
   repoRoot,
+  cells,
   initialTabsByCellId,
   initialActiveTabByCellId,
 }) {
+  const cellRootById = useMemo(() => {
+    const map = new Map();
+    (cells || []).forEach((cell) => {
+      if (cell?.id && cell?.worktreePath) {
+        map.set(cell.id, cell.worktreePath);
+      }
+    });
+    return map;
+  }, [cells]);
   const [tabsByCellId, setTabsByCellId] = useState(
     normalizeTabsByCellId(initialTabsByCellId, repoRoot)
   );
@@ -133,12 +143,17 @@ export function useWorkbench({
   }, [activeTabByCellId, cellKey, tabsByCellId]);
 
   const openFile = useCallback(
-    ({ path, mode = 'preview', rootPath }) => {
+    ({ path, mode = 'preview', rootPath, cellId: targetCellId }) => {
       if (!path) {
         return;
       }
-      const resolvedRoot = rootPath || selectedCell?.worktreePath || repoRoot || '';
-      const id = buildTabId(cellKey, resolvedRoot, path);
+      const resolvedRoot =
+        rootPath ||
+        (targetCellId
+          ? cellRootById.get(targetCellId) || repoRoot || ''
+          : selectedCell?.worktreePath || repoRoot || '');
+      const activeCellKey = targetCellId || cellKey;
+      const id = buildTabId(activeCellKey, resolvedRoot, path);
       const nextTab = {
         id,
         path,
@@ -149,7 +164,7 @@ export function useWorkbench({
       };
 
       setTabsByCellId((current) => {
-        const currentTabs = current[cellKey] || [];
+        const currentTabs = current[activeCellKey] || [];
         const existingIndex = currentTabs.findIndex((tab) => tab.id === id);
         let nextTabs = [...currentTabs];
 
@@ -173,16 +188,16 @@ export function useWorkbench({
 
         return {
           ...current,
-          [cellKey]: nextTabs,
+          [activeCellKey]: nextTabs,
         };
       });
 
       setActiveTabByCellId((current) => ({
         ...current,
-        [cellKey]: id,
+        [activeCellKey]: id,
       }));
     },
-    [cellKey, repoRoot, selectedCell]
+    [cellKey, cellRootById, repoRoot, selectedCell]
   );
 
   const closeTab = useCallback(

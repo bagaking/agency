@@ -1,15 +1,5 @@
 import React from 'react';
-
-const formatIdle = (ms) => {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  if (minutes <= 0) return `${seconds}s`;
-  const hours = Math.floor(minutes / 60);
-  const remMinutes = minutes % 60;
-  if (hours <= 0) return `${remMinutes}m`;
-  return `${hours}h ${remMinutes}m`;
-};
+import { formatIdleShort } from '../../utils/timeFormat.js';
 
 export function ExplorerSessions({
   selectedCell,
@@ -31,28 +21,24 @@ export function ExplorerSessions({
         {activeSessions.map((session) => {
           const key = `${selectedCell.id}:${session.id}`;
           const lastActivity = sessionActivityByKey?.[key];
-          const fallbackTime = session.updatedAt ? new Date(session.updatedAt).getTime() : now;
-          const idleMs = now - (lastActivity || fallbackTime);
+          const idleMs = lastActivity ? now - lastActivity : null;
           const isActive = session.id === activeSessionId;
           
           const statusLabel =
             session.status === 'detached'
-              ? 'Detached'
+              ? `Detached · Idle ${idleMs ? formatIdleShort(idleMs) : '—'}`
               : session.status === 'stale'
-                ? 'Stale'
-                : isActive
-                  ? 'Active'
-                  : `Idle ${formatIdle(idleMs)}`;
+                ? `Stale · Idle ${idleMs ? formatIdleShort(idleMs) : '—'}`
+                : `Idle ${idleMs ? formatIdleShort(idleMs) : '—'}`;
 
           return (
             <div key={session.id} className="flex items-center justify-between gap-2 group cursor-default">
               <div className="flex items-center gap-2 min-w-0">
-                <div className={`h-1 w-1 rounded-full ${isActive ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]' : 'bg-muted-foreground/20'}`} />
                 <span className={`text-[11px] truncate transition-colors ${isActive ? 'text-foreground font-semibold' : 'text-muted-foreground/60'}`}>
-                    {session.name || session.id}
+                  {session.name || session.id}
                 </span>
               </div>
-              <span className={`text-[9px] font-bold uppercase tracking-tighter transition-opacity ${isActive ? 'text-emerald-400/80' : 'text-muted-foreground/20 opacity-0 group-hover:opacity-100'}`}>
+              <span className={`text-[9px] font-bold uppercase tracking-tighter transition-opacity ${isActive ? 'text-foreground/80' : 'text-muted-foreground/20 opacity-0 group-hover:opacity-100'}`}>
                 {statusLabel}
               </span>
             </div>

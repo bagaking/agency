@@ -71,12 +71,28 @@ export const getSessionMapPreview = async (payload) => {
   return api.getSessionMapPreview(payload);
 };
 
+export const getSessionMapSnapshot = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.getSessionMapSnapshot) {
+    return null;
+  }
+  return api.getSessionMapSnapshot(payload);
+};
+
 export const startTerminal = async (payload) => {
   const api = getAgencyApi();
   if (!api?.startTerminal) {
     return null;
   }
   return api.startTerminal(payload);
+};
+
+export const setSessionInteractive = (payload) => {
+  const api = getAgencyApi();
+  if (!api?.setSessionInteractive) {
+    return null;
+  }
+  return api.setSessionInteractive(payload);
 };
 
 export const onTerminalData = (handler) => {
@@ -93,6 +109,14 @@ export const onTerminalError = (handler) => {
     return null;
   }
   return api.onTerminalError(handler);
+};
+
+export const onTerminalDetached = (handler) => {
+  const api = getAgencyApi();
+  if (!api?.onTerminalDetached) {
+    return null;
+  }
+  return api.onTerminalDetached(handler);
 };
 
 export const getAppShortcuts = async (payload) => {
@@ -149,6 +173,22 @@ export const setTerminusSettings = async (payload) => {
     return null;
   }
   return api.setTerminusSettings(payload);
+};
+
+export const getSessionNamingSettings = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.getSessionNamingSettings) {
+    return null;
+  }
+  return api.getSessionNamingSettings(payload);
+};
+
+export const setSessionNamingSettings = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.setSessionNamingSettings) {
+    return null;
+  }
+  return api.setSessionNamingSettings(payload);
 };
 
 export const onAppShortcutTriggered = (handler) => {
@@ -469,6 +509,22 @@ export const updateCellMeta = async (payload) => {
     return null;
   }
   return api.updateCellMeta(payload);
+};
+
+export const updateSessionMeta = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.updateSessionMeta) {
+    return null;
+  }
+  return api.updateSessionMeta(payload);
+};
+
+export const setSessionMouse = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.setSessionMouse) {
+    return null;
+  }
+  return api.setSessionMouse(payload);
 };
 
 export const createCell = async (payload) => {

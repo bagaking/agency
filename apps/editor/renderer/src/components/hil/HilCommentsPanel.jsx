@@ -523,7 +523,7 @@ export function PromoteModal({
   const lastActivity = activityKey ? sessionActivityByKey[activityKey] : null;
   const lastActivityLabel = lastActivity
     ? new Date(lastActivity).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
-    : 'idle';
+    : '—';
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const promoteTree = useMemo(() => buildPromoteTree(items), [items]);
 
@@ -597,7 +597,7 @@ export function PromoteModal({
               </div>
               <div className="mt-2 text-[10px] text-muted-foreground/50">
                 {activeSession
-                  ? `Using ${activeSession.name || activeSession.id} · ${activeSession.status} · last active ${lastActivityLabel}`
+                  ? `Using ${activeSession.name || activeSession.id} · ${activeSession.status} · idle at ${lastActivityLabel}`
                   : 'No session selected yet.'}
               </div>
             </div>

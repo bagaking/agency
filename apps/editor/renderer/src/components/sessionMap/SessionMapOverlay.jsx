@@ -1,650 +1,21 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronUp, CircleOff, Landmark, Map as MapIcon, MoreHorizontal, X } from 'lucide-react';
-import { Terminal as XTerm } from '@xterm/xterm';
-import { Tooltip } from '../ui/Tooltip.jsx';
-import { getSessionMapPreview, isAgencyAvailable } from '../../services/agencyBridge.js';
-import { getTerminalSnapshot } from '../../terminal/terminalManager.js';
-import { AgentAvatar } from '../ui/AgentAvatar.jsx';
-import { resolveAvatarId } from '../../utils/agentAvatar.js';
-import { BASELINE_PROFILE_ID } from '../../utils/terminusSettings.js';
-
-const PREVIEW_FONT_STACK =
-  'Menlo, Monaco, "SF Mono", "Hiragino Sans GB", "PingFang SC", "Noto Sans CJK SC", "Courier New", monospace';
-const PREVIEW_FONT_SIZE = 13;
-const PREVIEW_COLS = 120;
-const PREVIEW_ROWS = 30;
-const PREVIEW_TARGET_WIDTH = 300;
-const PREVIEW_MAX_HEIGHT = Math.round(PREVIEW_TARGET_WIDTH * 1.55);
-const PREVIEW_MIN_HEIGHT = Math.round(PREVIEW_TARGET_WIDTH * 0.5);
-const HUD_ROW_COUNT = 3;
-const HUD_TOKEN_SIZE = 30;
-const HUD_TILE_HEIGHT = 46;
-const HUD_TILE_GAP = 6;
-const HUD_GRID_HEIGHT = HUD_ROW_COUNT * HUD_TILE_HEIGHT + (HUD_ROW_COUNT - 1) * HUD_TILE_GAP;
-const HUD_HEADER_HEIGHT = 32;
-const HUD_COLLAPSED_HEIGHT = HUD_HEADER_HEIGHT + HUD_GRID_HEIGHT + 40;
-const PREVIEW_SCROLLBACK = 800;
-const PREVIEW_BG = '#0b0d12';
-const PREVIEW_FG = '#e2e8f0';
-const PREVIEW_LINES = 90;
-const PREVIEW_REFRESH_MS = 900;
-const CARD_GAP = 10;
-const CARD_MARGIN = 12;
-const HOVER_OPEN_DELAY = 140;
-const HOVER_CLOSE_DELAY = 120;
-const ROW_TOP_TOLERANCE = 6;
-
-const formatRelativeTime = (timestamp) => {
-  if (!timestamp) {
-    return '—';
-  }
-  const delta = Date.now() - timestamp;
-  if (delta < 0) {
-    return 'just now';
-  }
-  const seconds = Math.floor(delta / 1000);
-  if (seconds < 60) {
-    return `${seconds}s ago`;
-  }
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) {
-    return `${hours}h ago`;
-  }
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-};
-
-const resolveStatusColor = (status, offline) => {
-  if (offline) {
-    return 'bg-slate-400';
-  }
-  if (status === 'active') {
-    return 'bg-emerald-400';
-  }
-  if (status === 'detached') {
-    return 'bg-amber-400';
-  }
-  return 'bg-slate-400';
-};
-
-const resolveFactionFill = (color, alpha = 0.18) => {
-  if (!color) {
-    return '';
-  }
-  if (color.startsWith('#') && (color.length === 7 || color.length === 4)) {
-    const hex = color.length === 4
-      ? color
-          .slice(1)
-          .split('')
-          .map((char) => char + char)
-          .join('')
-      : color.slice(1);
-    const r = Number.parseInt(hex.slice(0, 2), 16);
-    const g = Number.parseInt(hex.slice(2, 4), 16);
-    const b = Number.parseInt(hex.slice(4, 6), 16);
-    if ([r, g, b].every((value) => Number.isFinite(value))) {
-      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-    }
-  }
-  return color;
-};
-
-const hashSeed = (input) => {
-  const text = String(input || '');
-  let hash = 0;
-  for (let i = 0; i < text.length; i += 1) {
-    hash = (hash * 31 + text.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash);
-};
-
-const resolveOfflineReason = (session, cell) => {
-  if (cell?.state === 'archived') {
-    return 'Cell archived';
-  }
-  if (cell?.state === 'closed') {
-    return 'Cell closed';
-  }
-  if (session?.status === 'closed') {
-    return 'Session closed';
-  }
-  if (session?.status === 'stale') {
-    return 'Session stale';
-  }
-  if (session?.status === 'archived') {
-    return 'Session archived';
-  }
-  return 'Offline';
-};
-
-
-export function SessionMapToggle({ open, stats, onToggle, disabled, focusCell, focusSession }) {
-  const sessionLabel = focusSession?.name || focusSession?.id || '';
-  const isDefaultSession =
-    focusSession?.id === 'default' || focusSession?.profileId === BASELINE_PROFILE_ID;
-  const summary = stats
-    ? `Cells ${stats.cells} · Sessions ${stats.sessions} · Online ${stats.online} · Offline ${stats.offline}${
-        focusCell && sessionLabel
-          ? ` · 当前通信: ${focusCell.name || focusCell.id} / ${sessionLabel}${
-              isDefaultSession ? ' (默认通信 Session)' : ''
-            }`
-          : ''
-      }`
-    : 'Session map';
-  const focusName = focusCell?.name || '';
-  const focusState = String(focusCell?.state || '').toLowerCase();
-  const focusColor =
-    focusState === 'active'
-      ? 'bg-emerald-400'
-      : focusState === 'draft'
-        ? 'bg-sky-400'
-        : 'bg-slate-400';
-  return (
-    <Tooltip label={summary} side="top">
-      <button
-        type="button"
-        className={`flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
-          disabled
-            ? 'cursor-not-allowed opacity-50'
-            : open
-              ? 'bg-primary/20 text-primary'
-              : 'bg-white/5 text-status-bar-foreground hover:bg-white/10'
-        }`}
-        onClick={disabled ? undefined : onToggle}
-        aria-pressed={open}
-        aria-label={open ? 'Close session map' : 'Open session map'}
-        disabled={disabled}
-        data-session-map-toggle="true"
-      >
-        <MapIcon size={14} />
-        <span>Session Map</span>
-        {focusCell ? (
-          <span className="flex items-center gap-1 rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-[10px] font-medium text-status-bar-foreground/80">
-            <AgentAvatar avatarId={resolveAvatarId(focusCell)} size={14} />
-            <span className="max-w-[80px] truncate">{focusName}</span>
-            {sessionLabel ? (
-              <span className="max-w-[90px] truncate text-status-bar-foreground/70">· {sessionLabel}</span>
-            ) : null}
-            <span className={`ml-1 h-1.5 w-1.5 rounded-full ${focusColor}`} />
-            {isDefaultSession ? (
-              <span className="ml-1 rounded-full border border-white/10 px-1 text-[8px] uppercase tracking-wide text-status-bar-foreground/70">
-                Default
-              </span>
-            ) : null}
-          </span>
-        ) : null}
-        {stats ? (
-          <span className="flex items-center gap-1 text-[10px] font-medium text-status-bar-foreground/80">
-            <span>{stats.cells}C</span>
-            <span>•</span>
-            <span>{stats.sessions}S</span>
-            <span className="flex items-center gap-1 pl-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              <span>{stats.online}</span>
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-              <span>{stats.offline}</span>
-            </span>
-          </span>
-        ) : null}
-      </button>
-    </Tooltip>
-  );
-}
-
-function SessionMapTerminalPreview({ cell, session, isOffline, fontSize }) {
-  const containerRef = useRef(null);
-  const terminalRef = useRef(null);
-  const [error, setError] = useState('');
-  const [ready, setReady] = useState(false);
-  const [scale, setScale] = useState(1);
-  const [previewHeight, setPreviewHeight] = useState(PREVIEW_MAX_HEIGHT);
-  const lastSnapshotRef = useRef('');
-  const lastSizeRef = useRef({ cols: PREVIEW_COLS, rows: PREVIEW_ROWS });
-  const lastUserScrollRef = useRef(0);
-
-  const measureScale = useCallback(() => {
-    if (!containerRef.current) {
-      return;
-    }
-    const screen = containerRef.current.querySelector('.xterm-screen');
-    if (!screen) {
-      return;
-    }
-    const width = screen.offsetWidth;
-    const height = screen.offsetHeight;
-    if (!width || !height) {
-      return;
-    }
-    const nextScale = Math.min(
-      1,
-      Math.max(PREVIEW_TARGET_WIDTH / width, PREVIEW_MAX_HEIGHT / height)
-    );
-    setScale(Number.isFinite(nextScale) && nextScale > 0 ? nextScale : 1);
-    const measuredHeight = Math.round(height * nextScale);
-    const nextHeight = Math.min(PREVIEW_MAX_HEIGHT, Math.max(PREVIEW_MIN_HEIGHT, measuredHeight));
-    setPreviewHeight(nextHeight);
-  }, []);
-
-  const applyPreviewSize = useCallback(
-    (cols, rows) => {
-      if (!terminalRef.current) {
-        return;
-      }
-      const nextCols = Number(cols);
-      const nextRows = Number(rows);
-      if (!Number.isFinite(nextCols) || !Number.isFinite(nextRows)) {
-        return;
-      }
-      const clampedCols = Math.max(2, Math.floor(nextCols));
-      const clampedRows = Math.max(2, Math.floor(nextRows));
-      const current = lastSizeRef.current;
-      if (current.cols === clampedCols && current.rows === clampedRows) {
-        return;
-      }
-      lastSizeRef.current = { cols: clampedCols, rows: clampedRows };
-      terminalRef.current.resize(clampedCols, clampedRows);
-      requestAnimationFrame(() => {
-        measureScale();
-      });
-    },
-    [measureScale]
-  );
-
-  useEffect(() => {
-    if (!containerRef.current || terminalRef.current) {
-      return undefined;
-    }
-    const terminal = new XTerm({
-      fontFamily: PREVIEW_FONT_STACK,
-      fontSize: Number.isFinite(fontSize) && fontSize > 0 ? fontSize : PREVIEW_FONT_SIZE,
-      disableStdin: true,
-      scrollback: PREVIEW_SCROLLBACK,
-      cursorBlink: false,
-      cols: lastSizeRef.current.cols,
-      rows: lastSizeRef.current.rows,
-      theme: {
-        background: PREVIEW_BG,
-        foreground: PREVIEW_FG,
-      },
-    });
-    terminal.open(containerRef.current);
-    terminal.resize(lastSizeRef.current.cols, lastSizeRef.current.rows);
-    terminalRef.current = terminal;
-    setReady(true);
-    requestAnimationFrame(() => {
-      measureScale();
-    });
-    return () => {
-      terminal.dispose();
-      terminalRef.current = null;
-    };
-  }, [measureScale]);
-
-  const handleWheel = useCallback(
-    (event) => {
-      const terminal = terminalRef.current;
-      if (!terminal) {
-        return;
-      }
-      if (event.ctrlKey) {
-        return;
-      }
-      const delta = event.deltaY;
-      if (!delta) {
-        return;
-      }
-      const direction = delta > 0 ? 1 : -1;
-      let lines = 0;
-      if (event.deltaMode === 1) {
-        lines = delta;
-      } else {
-        const base = Math.round(Math.abs(delta) / 40);
-        lines = (base === 0 ? 1 : base) * direction;
-      }
-      if (!lines) {
-        return;
-      }
-      terminal.scrollLines(lines);
-      lastUserScrollRef.current = Date.now();
-      event.preventDefault();
-      event.stopPropagation();
-    },
-    []
-  );
-
-  useEffect(() => {
-    if (!ready || !terminalRef.current) {
-      return;
-    }
-    const nextFontSize =
-      Number.isFinite(fontSize) && fontSize > 0 ? fontSize : PREVIEW_FONT_SIZE;
-    if (terminalRef.current.options.fontSize !== nextFontSize) {
-      terminalRef.current.options.fontSize = nextFontSize;
-      terminalRef.current.refresh(0, terminalRef.current.rows - 1);
-      requestAnimationFrame(() => {
-        measureScale();
-      });
-    }
-  }, [fontSize, measureScale, ready]);
-
-  useEffect(() => {
-    if (!ready || !terminalRef.current) {
-      return;
-    }
-    lastSizeRef.current = { cols: PREVIEW_COLS, rows: PREVIEW_ROWS };
-    terminalRef.current.resize(PREVIEW_COLS, PREVIEW_ROWS);
-    requestAnimationFrame(() => {
-      measureScale();
-    });
-    terminalRef.current.reset();
-    lastSnapshotRef.current = '';
-  }, [measureScale, ready, session?.id]);
-
-  useEffect(() => {
-    if (!ready || !cell || !session || isOffline) {
-      return undefined;
-    }
-    if (!isAgencyAvailable()) {
-      setError('Preview unavailable (IPC missing).');
-      return undefined;
-    }
-    let active = true;
-    setError('');
-    const refreshPreview = async () => {
-      try {
-        const terminalInstance = terminalRef.current;
-        const buffer = terminalInstance?.buffer?.active;
-        const isScrolled =
-          buffer && Number.isFinite(buffer.viewportY) && Number.isFinite(buffer.baseY)
-            ? buffer.viewportY < buffer.baseY
-            : false;
-        if (isScrolled || Date.now() - lastUserScrollRef.current < 1200) {
-          return;
-        }
-        const localSnapshot = getTerminalSnapshot({
-          cellId: cell.id,
-          sessionId: session.id,
-          lines: PREVIEW_LINES,
-        });
-        if (localSnapshot?.data) {
-          applyPreviewSize(localSnapshot.cols, localSnapshot.rows);
-          if (lastSnapshotRef.current !== localSnapshot.data) {
-            lastSnapshotRef.current = localSnapshot.data;
-            terminalRef.current?.reset();
-            terminalRef.current?.write(localSnapshot.data);
-          }
-          return;
-        }
-        const result = await getSessionMapPreview({
-          worktreePath: cell.worktreePath,
-          sessionId: session.id,
-          lines: PREVIEW_LINES,
-        });
-        if (!active) {
-          return;
-        }
-        applyPreviewSize(result?.cols, result?.rows);
-        const nextData = result?.data || '';
-        if (!nextData) {
-          return;
-        }
-        if (lastSnapshotRef.current === nextData) {
-          return;
-        }
-        lastSnapshotRef.current = nextData;
-        terminalRef.current?.reset();
-        terminalRef.current?.write(nextData);
-      } catch (err) {
-        if (active) {
-          setError(err?.message || 'Preview unavailable.');
-        }
-      }
-    };
-    refreshPreview();
-    const interval = setInterval(refreshPreview, PREVIEW_REFRESH_MS);
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
-  }, [applyPreviewSize, ready, cell?.id, cell?.worktreePath, isOffline, session?.id]);
-
-  useEffect(() => {
-    if (!ready) {
-      return undefined;
-    }
-    const handle = () => measureScale();
-    window.addEventListener('resize', handle);
-    return () => window.removeEventListener('resize', handle);
-  }, [measureScale, ready]);
-
-  if (isOffline) {
-    return (
-      <div
-        className="flex items-center justify-center bg-black/40 text-[10px] text-muted-foreground"
-        style={{ width: PREVIEW_TARGET_WIDTH, height: previewHeight }}
-      >
-        Offline session (closed / stale / archived)
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div
-        className="flex items-center justify-center bg-black/40 text-[10px] text-rose-300"
-        style={{ width: PREVIEW_TARGET_WIDTH, height: previewHeight }}
-      >
-        {error}
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="relative overflow-hidden bg-black/60"
-      onWheel={handleWheel}
-      style={{ width: PREVIEW_TARGET_WIDTH, height: previewHeight }}
-    >
-      <div
-        className="absolute left-0 top-0 origin-top-left"
-        style={{ transform: `scale(${scale})` }}
-      >
-        <div ref={containerRef} />
-      </div>
-    </div>
-  );
-}
-
-function SessionMapHoverCard({
-  anchorRect,
-  data,
-  onEnter,
-  onLeave,
-  onSelectSession,
-  cardRef,
-  resolveFontSize,
-}) {
-  const localRef = useRef(null);
-  const resolvedRef = cardRef || localRef;
-  const [style, setStyle] = useState(null);
-  const [isHovered, setIsHovered] = useState(false);
-  const [hint, setHint] = useState({ x: 0, y: 0, visible: false });
-
-  useLayoutEffect(() => {
-    if (!anchorRect || !resolvedRef.current) {
-      return;
-    }
-    const tooltipRect = resolvedRef.current.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const fits = {
-      top: anchorRect.top >= tooltipRect.height + CARD_GAP,
-      bottom: viewportHeight - anchorRect.bottom >= tooltipRect.height + CARD_GAP,
-      right: viewportWidth - anchorRect.right >= tooltipRect.width + CARD_GAP,
-      left: anchorRect.left >= tooltipRect.width + CARD_GAP,
-    };
-    const order = ['top', 'bottom', 'right', 'left'];
-    const placement = order.find((candidate) => fits[candidate]) || 'bottom';
-
-    let left = anchorRect.left + anchorRect.width / 2 - tooltipRect.width / 2;
-    let top = anchorRect.bottom + CARD_GAP;
-    if (placement === 'top') {
-      top = anchorRect.top - tooltipRect.height - CARD_GAP;
-    } else if (placement === 'right') {
-      left = anchorRect.right + CARD_GAP;
-      top = anchorRect.top + anchorRect.height / 2 - tooltipRect.height / 2;
-    } else if (placement === 'left') {
-      left = anchorRect.left - tooltipRect.width - CARD_GAP;
-      top = anchorRect.top + anchorRect.height / 2 - tooltipRect.height / 2;
-    }
-
-    const boundedLeft = Math.max(CARD_MARGIN, Math.min(left, viewportWidth - tooltipRect.width - CARD_MARGIN));
-    const boundedTop = Math.max(CARD_MARGIN, Math.min(top, viewportHeight - tooltipRect.height - CARD_MARGIN));
-    setStyle({ left: boundedLeft, top: boundedTop });
-  }, [anchorRect, data?.session?.id]);
-
-  useEffect(() => {
-    if (!anchorRect) {
-      return undefined;
-    }
-    const handle = () => {
-      if (cardRef.current) {
-        setStyle(null);
-      }
-    };
-    window.addEventListener('resize', handle);
-    window.addEventListener('scroll', handle, true);
-    return () => {
-      window.removeEventListener('resize', handle);
-      window.removeEventListener('scroll', handle, true);
-    };
-  }, [anchorRect]);
-
-  if (!data || !anchorRect) {
-    return null;
-  }
-
-  const { cell, session, color } = data;
-  const isOffline = session.isOffline;
-  const statusLabel = session.status || 'unknown';
-  const activityLabel = session.lastActivityAt ? formatRelativeTime(session.lastActivityAt) : '—';
-  const offlineReason = isOffline ? resolveOfflineReason(session, cell) : '';
-  const infoLabel = isOffline ? offlineReason : statusLabel.toUpperCase();
-
-  const content = (
-    <div
-      ref={resolvedRef}
-      data-session-map-hover-card="true"
-      style={{ ...(style || { left: -9999, top: -9999 }), width: PREVIEW_TARGET_WIDTH }}
-      className={`fixed z-[999] overflow-hidden rounded-xl border bg-popover/95 text-foreground shadow-xl backdrop-blur transition-shadow ${
-        isHovered ? 'border-primary/60 shadow-[0_0_0_1px_rgba(59,130,246,0.35),0_12px_40px_rgba(15,23,42,0.5)]' : 'border-border/60'
-      }`}
-      onMouseEnter={(event) => {
-        setIsHovered(true);
-        onEnter?.(event);
-      }}
-      onMouseLeave={(event) => {
-        setIsHovered(false);
-        setHint((current) => ({ ...current, visible: false }));
-        onLeave?.(event);
-      }}
-      onFocus={(event) => {
-        setIsHovered(true);
-        onEnter?.(event);
-      }}
-      onBlur={(event) => {
-        setIsHovered(false);
-        setHint((current) => ({ ...current, visible: false }));
-        onLeave?.(event);
-      }}
-    >
-      <button
-        type="button"
-        className="relative flex w-full cursor-pointer overflow-hidden bg-transparent text-left transition-colors hover:ring-1 hover:ring-primary/40"
-        onClick={() => onSelectSession(cell.id, session.id)}
-        onMouseMove={(event) => {
-          const rect = event.currentTarget.getBoundingClientRect();
-          setHint({
-            x: event.clientX - rect.left,
-            y: event.clientY - rect.top,
-            visible: true,
-          });
-        }}
-        onMouseLeave={() => setHint((current) => ({ ...current, visible: false }))}
-      >
-        <SessionMapTerminalPreview
-          cell={cell}
-          session={session}
-          isOffline={isOffline}
-          fontSize={resolveFontSize ? resolveFontSize(cell.id, session.id) : undefined}
-        />
-        {hint.visible ? (
-          <div
-            className="pointer-events-none absolute z-10 rounded-full border border-white/20 bg-black/70 px-2 py-0.5 text-[9px] text-white shadow"
-            style={{ left: Math.min(hint.x + 12, PREVIEW_TARGET_WIDTH - 80), top: Math.max(8, hint.y - 18) }}
-          >
-            点击访问
-          </div>
-        ) : null}
-        <div className="absolute inset-x-0 bottom-0 border-t border-white/10 bg-black/55 px-2 py-1 text-[9px] text-slate-100 backdrop-blur">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
-            <span className="truncate">{session.name || session.id}</span>
-            <span className="text-slate-300">·</span>
-            <span className="uppercase tracking-wide text-slate-200">{infoLabel}</span>
-            <span className="ml-auto whitespace-nowrap text-slate-300">
-              {activityLabel}
-            </span>
-          </div>
-        </div>
-      </button>
-    </div>
-  );
-
-  if (typeof document === 'undefined') {
-    return null;
-  }
-
-  return createPortal(content, document.body);
-}
-
-function SessionMapOfflineMenu({ isOpen, position, containerRef, sessions, cellId, onSelectSession }) {
-  if (!isOpen) {
-    return null;
-  }
-
-  return (
-    <div
-      ref={containerRef}
-      className="fixed z-[70] w-56 rounded-lg border border-border bg-popover py-1 text-[11px] shadow-xl pointer-events-auto"
-      style={{ top: position.y, left: position.x }}
-    >
-      <div className="px-2 py-1 text-[10px] font-bold uppercase text-muted-foreground">
-        Offline Sessions
-      </div>
-      {sessions.map((session) => (
-        <button
-          key={session.id}
-          type="button"
-          onClick={() => onSelectSession(cellId, session.id)}
-          className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <span className="truncate">{session.name || session.id}</span>
-          <span className="text-[10px] uppercase text-muted-foreground/70">
-            {session.status || 'offline'}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-}
+import { Map as MapIcon, X } from 'lucide-react';
+import { SessionCreateMenu } from '../SessionMenus.jsx';
+import { AvatarPickerMenu } from '../ui/AvatarPickerMenu.jsx';
+import { resolveSessionAvatarId } from '../../utils/agentAvatar.js';
+import { DEBUG_FLAGS, getDebugFlag } from '../../utils/debugFlags.js';
+import { SessionMapDockLayout } from './SessionMapDockLayout.jsx';
+import { SessionMapGridLayout } from './SessionMapGridLayout.jsx';
+import { SessionMapHoverCard } from './SessionMapHoverCard.jsx';
+import { SessionMapOfflineMenu } from './SessionMapOfflineMenu.jsx';
+import {
+  HUD_FIXED_HEIGHT,
+  HOVER_CLOSE_DELAY,
+  HOVER_OPEN_DELAY,
+  ROW_TOP_TOLERANCE,
+} from './sessionMapConstants.js';
+import { hashSeed } from './sessionMapUtils.js';
 
 export function SessionMapOverlay({
   open,
@@ -652,18 +23,64 @@ export function SessionMapOverlay({
   onSelectSession,
   onClose,
   resolveFontSize,
+  terminusProfiles,
+  onCreateSession,
+  onDispatchCommand,
+  onRenameSession,
+  onUpdateSessionAvatar,
   mode = 'popover',
 }) {
   const [hovered, setHovered] = useState(null);
+  const [hoveredCellId, setHoveredCellId] = useState(null);
+  const lastHoveredRef = useRef(null);
   const [offlineMenu, setOfflineMenu] = useState(null);
-  const [dockExpanded, setDockExpanded] = useState(false);
+  const [createMenu, setCreateMenu] = useState(null);
+  const [avatarMenu, setAvatarMenu] = useState(null);
   const hoverLockRef = useRef(false);
   const clearTimerRef = useRef(null);
   const openTimerRef = useRef(null);
   const overlayRef = useRef(null);
   const hoverCardRef = useRef(null);
+  const clusterRefs = useRef({});
   const offlineMenuRef = useRef(null);
+  const createMenuRef = useRef(null);
+  const avatarMenuRef = useRef(null);
   const isDocked = mode === 'dock';
+  const isDebugEnabled = useCallback(() => getDebugFlag(DEBUG_FLAGS.sessionMapPreview), []);
+  const logDebug = useCallback(
+    (label, payload = {}) => {
+      if (!isDebugEnabled()) {
+        return;
+      }
+      console.log(`[SessionMapHover] ${label}`, payload);
+      window.agency?.logRuntime?.({
+        level: 'info',
+        message: `SessionMapHover:${label}`,
+        meta: payload,
+      });
+    },
+    [isDebugEnabled]
+  );
+
+  const activeAvatarIds = useMemo(() => {
+    const ids = new Set();
+    if (!model?.clusters?.length) {
+      return ids;
+    }
+    model.clusters.forEach((cluster) => {
+      cluster.sessions.forEach((session) => {
+        if (!session || !['active', 'detached'].includes(session.status)) {
+          return;
+        }
+        const resolved = resolveSessionAvatarId(session, cluster.cell);
+        if (resolved) {
+          ids.add(resolved);
+        }
+      });
+    });
+    return ids;
+  }, [model]);
+
   const hudTokens = useMemo(() => {
     if (!model?.clusters?.length) {
       return [];
@@ -681,6 +98,7 @@ export function SessionMapOverlay({
     });
     return tokens;
   }, [model]);
+
   const defaultFocus = useMemo(() => {
     if (!hudTokens.length) {
       return null;
@@ -692,14 +110,17 @@ export function SessionMapOverlay({
     const online = hudTokens.find((item) => !item.session?.isOffline);
     return online || hudTokens[0];
   }, [hudTokens]);
+
   const radarPoints = useMemo(() => {
     if (!model?.clusters?.length) {
       return [];
     }
     return model.clusters.map((cluster, index) => {
       const seed = hashSeed(cluster.cell?.id || cluster.cell?.name || index);
-      const x = 8 + (seed % 84);
-      const y = 8 + ((seed >> 3) % 84);
+      const angle = (seed % 360) * (Math.PI / 180);
+      const radius = 10 + (seed % 38);
+      const x = 50 + radius * Math.cos(angle);
+      const y = 50 + radius * Math.sin(angle);
       return {
         id: cluster.cell?.id || String(index),
         x,
@@ -708,7 +129,59 @@ export function SessionMapOverlay({
       };
     });
   }, [model]);
+
   const focusData = hovered || defaultFocus;
+  const canCreateSession = Boolean(
+    onCreateSession || (onDispatchCommand && (terminusProfiles || []).length > 0)
+  );
+
+  const registerClusterRef = useCallback((clusterId, node) => {
+    if (!clusterId) {
+      return;
+    }
+    if (node) {
+      clusterRefs.current[clusterId] = node;
+    } else {
+      delete clusterRefs.current[clusterId];
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hovered || !model?.clusters?.length) {
+      return;
+    }
+    const cellId = hovered.cell?.id;
+    const sessionId = hovered.session?.id;
+    if (!cellId || !sessionId) {
+      return;
+    }
+    const cluster = model.clusters.find((item) => item.cell?.id === cellId);
+    const nextSession = cluster?.sessions?.find((item) => item.id === sessionId);
+    if (!cluster || !nextSession) {
+      return;
+    }
+    const needsRefresh =
+      hovered.session?.name !== nextSession.name ||
+      hovered.session?.status !== nextSession.status ||
+      hovered.session?.avatar !== nextSession.avatar ||
+      hovered.session?.isOffline !== nextSession.isOffline ||
+      hovered.session?.lastActivityAt !== nextSession.lastActivityAt ||
+      hovered.session?.lastVisitedAt !== nextSession.lastVisitedAt ||
+      hovered.cell?.name !== cluster.cell?.name;
+    if (!needsRefresh) {
+      return;
+    }
+    setHovered((current) => {
+      if (!current) {
+        return current;
+      }
+      return {
+        ...current,
+        cell: cluster.cell,
+        session: nextSession,
+      };
+    });
+  }, [hovered, model]);
 
   const clearHover = useCallback(() => {
     if (clearTimerRef.current) {
@@ -722,6 +195,17 @@ export function SessionMapOverlay({
     setHovered(null);
   }, []);
 
+  const focusClusterCard = useCallback((clusterId) => {
+    if (!clusterId) {
+      return;
+    }
+    setHoveredCellId(clusterId);
+    const target = clusterRefs.current?.[clusterId];
+    if (target?.scrollIntoView) {
+      target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    }
+  }, []);
+
   const scheduleClear = useCallback(() => {
     if (clearTimerRef.current) {
       clearTimeout(clearTimerRef.current);
@@ -730,18 +214,77 @@ export function SessionMapOverlay({
       clearTimeout(openTimerRef.current);
       openTimerRef.current = null;
     }
+    logDebug('schedule-clear', {
+      cellId: hovered?.cell?.id,
+      sessionId: hovered?.session?.id,
+    });
     clearTimerRef.current = setTimeout(() => {
       if (!hoverLockRef.current) {
+        logDebug('clear-timeout', {
+          cellId: hovered?.cell?.id,
+          sessionId: hovered?.session?.id,
+        });
         setHovered(null);
       }
     }, HOVER_CLOSE_DELAY);
-  }, []);
+  }, [hovered, logDebug]);
 
   useEffect(() => () => clearHover(), [clearHover]);
+
+  useEffect(() => {
+    if (open) {
+      return;
+    }
+    setHovered(null);
+    setAvatarMenu(null);
+    setCreateMenu(null);
+    setOfflineMenu(null);
+  }, [open]);
+
+  useEffect(() => {
+    if (!createMenu) {
+      return undefined;
+    }
+    const handlePointer = (event) => {
+      if (createMenuRef.current?.contains(event.target)) {
+        return;
+      }
+      if (event.target?.closest?.('[data-session-create-anchor="true"]')) {
+        return;
+      }
+      setCreateMenu(null);
+    };
+    window.addEventListener('mousedown', handlePointer);
+    return () => window.removeEventListener('mousedown', handlePointer);
+  }, [createMenu]);
+
+  useEffect(() => {
+    if (!avatarMenu) {
+      return undefined;
+    }
+    const handlePointer = (event) => {
+      if (avatarMenuRef.current?.contains(event.target)) {
+        return;
+      }
+      if (event.target?.closest?.('[data-session-avatar-anchor="true"]')) {
+        return;
+      }
+      setAvatarMenu(null);
+    };
+    window.addEventListener('mousedown', handlePointer);
+    return () => window.removeEventListener('mousedown', handlePointer);
+  }, [avatarMenu]);
+
+  useEffect(() => {
+    if (!avatarMenu) {
+      hoverLockRef.current = false;
+    }
+  }, [avatarMenu]);
+
   useEffect(() => {
     if (!open) {
       setOfflineMenu(null);
-      setDockExpanded(false);
+      setHoveredCellId(null);
     }
   }, [open]);
 
@@ -773,16 +316,24 @@ export function SessionMapOverlay({
     if (openTimerRef.current) {
       clearTimeout(openTimerRef.current);
     }
-    const next = { ...payload, anchorRect: rect };
+    const next = { ...payload, anchorRect: rect, anchorEl: event.currentTarget };
     if (immediate) {
+      logDebug('enter-immediate', {
+        cellId: payload?.cell?.id,
+        sessionId: payload?.session?.id,
+      });
       setHovered(next);
       return;
     }
     openTimerRef.current = setTimeout(() => {
+      logDebug('enter-delayed', {
+        cellId: payload?.cell?.id,
+        sessionId: payload?.session?.id,
+      });
       setHovered(next);
       openTimerRef.current = null;
     }, HOVER_OPEN_DELAY);
-  }, []);
+  }, [logDebug]);
 
   const handleTokenLeave = useCallback(() => {
     if (openTimerRef.current) {
@@ -790,29 +341,92 @@ export function SessionMapOverlay({
       openTimerRef.current = null;
     }
     if (!hoverLockRef.current) {
+      logDebug('leave', {
+        cellId: hovered?.cell?.id,
+        sessionId: hovered?.session?.id,
+      });
       scheduleClear();
     }
-  }, [scheduleClear]);
+  }, [hovered, logDebug, scheduleClear]);
 
   const handleCardEnter = useCallback(() => {
     hoverLockRef.current = true;
     if (clearTimerRef.current) {
       clearTimeout(clearTimerRef.current);
     }
-  }, []);
+    logDebug('card-enter', {
+      cellId: hovered?.cell?.id,
+      sessionId: hovered?.session?.id,
+    });
+  }, [hovered, logDebug]);
 
   const handleCardLeave = useCallback(() => {
+    if (avatarMenu) {
+      return;
+    }
     hoverLockRef.current = false;
+    logDebug('card-leave', {
+      cellId: hovered?.cell?.id,
+      sessionId: hovered?.session?.id,
+    });
     clearHover();
-  }, [clearHover]);
+  }, [avatarMenu, clearHover, hovered, logDebug]);
 
   const handleSelectAndClose = useCallback(
     (cellId, sessionId) => {
-      onSelectSession?.(cellId, sessionId);
+      onSelectSession?.(cellId, sessionId, { focusView: true });
       onClose?.();
     },
     [onClose, onSelectSession]
   );
+
+  const handleSelectSession = useCallback(
+    (cellId, sessionId) => {
+      onSelectSession?.(cellId, sessionId);
+    },
+    [onSelectSession]
+  );
+
+  const handleOpenAvatarMenu = useCallback((anchor, cell, session) => {
+    if (!anchor || !cell || !session) {
+      return;
+    }
+    hoverLockRef.current = true;
+    const rect = anchor.getBoundingClientRect();
+    setAvatarMenu({
+      x: rect.left,
+      y: rect.bottom + 6,
+      cell,
+      session,
+    });
+  }, []);
+
+  const handleOpenCreateMenu = useCallback((anchor, cell) => {
+    if (!anchor || !cell) {
+      return;
+    }
+    const rect = anchor.getBoundingClientRect();
+    setCreateMenu({
+      x: rect.left,
+      y: rect.bottom + 6,
+      cell,
+    });
+  }, []);
+
+  const handleOpenOfflineMenu = useCallback((anchor, cell, sessions) => {
+    if (!anchor || !cell || !sessions?.length) {
+      return;
+    }
+    const rect = anchor.getBoundingClientRect();
+    setOfflineMenu({
+      cellId: cell.id,
+      cell,
+      sessions,
+      anchorRect: rect,
+      x: rect.left,
+      y: rect.bottom + 4,
+    });
+  }, []);
 
   useEffect(() => {
     if (!open || !onClose || isDocked) {
@@ -851,6 +465,14 @@ export function SessionMapOverlay({
       if (
         !overlayRef.current?.contains(activeElement) &&
         !hoverCardRef.current?.contains(activeElement)
+      ) {
+        return;
+      }
+      if (
+        activeElement &&
+        (activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.isContentEditable)
       ) {
         return;
       }
@@ -951,18 +573,38 @@ export function SessionMapOverlay({
 
   const dockHeightStyle = isDocked
     ? {
-        height: dockExpanded ? '60vh' : `${HUD_COLLAPSED_HEIGHT}px`,
-        minHeight: dockExpanded ? '360px' : `${HUD_COLLAPSED_HEIGHT}px`,
-        maxHeight: dockExpanded ? '60vh' : `${HUD_COLLAPSED_HEIGHT}px`,
+        height: `${HUD_FIXED_HEIGHT}px`,
+        minHeight: `${HUD_FIXED_HEIGHT}px`,
+        maxHeight: `${HUD_FIXED_HEIGHT}px`,
         marginBottom: isDocked ? '24px' : undefined,
       }
     : undefined;
+
+  if (hovered) {
+    lastHoveredRef.current = hovered;
+  }
+
+  const hoverCard = lastHoveredRef.current ? (
+    <SessionMapHoverCard
+      anchorRect={lastHoveredRef.current.anchorRect}
+      anchorEl={lastHoveredRef.current.anchorEl}
+      data={lastHoveredRef.current}
+      isOpen={Boolean(hovered)}
+      onEnter={handleCardEnter}
+      onLeave={handleCardLeave}
+      onSelectSession={handleSelectAndClose}
+      onRenameSession={onRenameSession}
+      onOpenAvatarMenu={onUpdateSessionAvatar ? handleOpenAvatarMenu : null}
+      cardRef={hoverCardRef}
+      resolveFontSize={resolveFontSize}
+    />
+  ) : null;
 
   return (
     <div
       className={`${
         isDocked
-          ? 'relative z-40 w-full'
+          ? 'relative z-40 w-full flex-shrink-0'
           : 'pointer-events-none absolute bottom-6 left-1/2 z-40 w-[min(980px,92vw)] -translate-x-1/2'
       }`}
       style={dockHeightStyle}
@@ -971,56 +613,39 @@ export function SessionMapOverlay({
     >
       <div
         ref={overlayRef}
-        className={`pointer-events-auto border border-border/60 bg-popover/90 px-3 py-2 shadow-2xl backdrop-blur ${
+        className={`pointer-events-auto relative border border-white/20 bg-[#161b22]/95 px-3 py-2 shadow-2xl backdrop-blur-md overflow-hidden ${
           isDocked ? 'flex h-full flex-col rounded-none border-x-0 border-b-0' : 'rounded-2xl'
         }`}
       >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <MapIcon size={14} />
-            <span>Agent Session Map</span>
+        <div
+          className="pointer-events-none absolute inset-0 z-[100] opacity-[0.04]"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.05) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.04))',
+            backgroundSize: '100% 2px, 3px 100%',
+          }}
+        />
+
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-1.5">
+          <div className="flex items-center gap-2 text-xs font-bold tracking-tighter text-white">
+            <div className="flex h-5 w-5 items-center justify-center rounded-sm bg-primary/30 text-primary-foreground shadow-[0_0_8px_rgba(59,130,246,0.3)]">
+              <MapIcon size={12} />
+            </div>
+            <span className="uppercase">Tactical Session Interface</span>
+            <div className="ml-2 h-1 w-1 animate-pulse rounded-full bg-primary shadow-[0_0_4px_#3b82f6]" />
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              Online {model.stats.online}
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-              Offline {model.stats.offline}
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              Active
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-              Detached
-            </span>
-            <span>Cells {model.stats.cells}</span>
-            <span>Sessions {model.stats.sessions}</span>
-            <span className="text-[9px] uppercase tracking-wide text-muted-foreground/70">
-              Esc to close
-            </span>
+          <div className="flex flex-wrap items-center gap-3 text-[9px] font-mono text-white/70">
+            <span className="font-bold text-emerald-300/90">ONLINE:{model.stats.online}</span>
+            <span className="text-white/60">OFFLINE:{model.stats.offline}</span>
+            <span className="text-white/20">|</span>
+            <span>CELLS:{model.stats.cells}</span>
+            <span>SESSIONS:{model.stats.sessions}</span>
           </div>
           <div className="flex items-center gap-2">
-            {isDocked ? (
-              <button
-                type="button"
-                className="flex h-6 items-center gap-1 rounded-full border border-border/50 px-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
-                onClick={() => setDockExpanded((value) => !value)}
-                aria-pressed={dockExpanded}
-                aria-label={dockExpanded ? 'Collapse session map' : 'Expand session map'}
-              >
-                {dockExpanded ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
-                <span>{dockExpanded ? 'Collapse' : 'Expand'}</span>
-              </button>
-            ) : null}
             {onClose ? (
               <button
                 type="button"
-                className="flex h-6 w-6 items-center justify-center rounded-full border border-border/50 text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
-                aria-label="Close session map"
+                className="flex h-5 w-5 items-center justify-center rounded border border-white/20 bg-white/10 text-white/60 transition-colors hover:bg-rose-500/30 hover:text-rose-300"
                 onClick={onClose}
               >
                 <X size={12} />
@@ -1030,365 +655,101 @@ export function SessionMapOverlay({
         </div>
 
         {isDocked ? (
-          <div className="mt-2 grid flex-1 min-h-0 grid-cols-[160px_minmax(0,1fr)_200px] gap-2">
-            <div className="flex h-full flex-col rounded-lg border border-border/60 bg-black/30 p-2">
-              <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                <span>Radar</span>
-                <span className="text-[9px]">{model.stats.cells}C</span>
-              </div>
-              <div className="relative mt-2 flex-1 overflow-hidden rounded-md border border-border/60 bg-black/50">
-                <div className="absolute inset-0 opacity-60" style={{
-                  backgroundImage:
-                    'repeating-linear-gradient(0deg, rgba(148,163,184,0.12) 0, rgba(148,163,184,0.12) 1px, transparent 1px, transparent 10px), repeating-linear-gradient(90deg, rgba(148,163,184,0.12) 0, rgba(148,163,184,0.12) 1px, transparent 1px, transparent 10px)',
-                }} />
-                {radarPoints.map((point) => (
-                  <span
-                    key={point.id}
-                    className="absolute h-2 w-2 rounded-full border border-black/40 shadow-[0_0_6px_rgba(59,130,246,0.35)]"
-                    style={{ left: `${point.x}%`, top: `${point.y}%`, backgroundColor: point.color }}
-                  />
-                ))}
-              </div>
-              <div className="mt-2 flex items-center justify-between text-[9px] text-muted-foreground">
-                <span>Online {model.stats.online}</span>
-                <span>Offline {model.stats.offline}</span>
-              </div>
-            </div>
-
-            <div className="flex h-full flex-col rounded-lg border border-border/60 bg-black/25 px-2 py-2">
-              <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                <span>Command Center</span>
-                <span className="text-[9px]">Rows {HUD_ROW_COUNT}</span>
-              </div>
-              <div
-                className="mt-2 grid gap-2 overflow-y-auto pr-1"
-                style={{
-                  height: `${HUD_GRID_HEIGHT}px`,
-                  maxHeight: `${HUD_GRID_HEIGHT}px`,
-                  gridAutoRows: `${HUD_TILE_HEIGHT}px`,
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-                }}
-              >
-                {model.clusters.length ? (
-                  model.clusters.map((cluster) => {
-                    const activeSessions = cluster.sessions.filter((session) => !session.isOffline);
-                    const offlineSessions = cluster.sessions.filter((session) => session.isOffline);
-                    const headerFill = resolveFactionFill(cluster.color, 0.12);
-                    return (
-                      <div
-                        key={cluster.cell.id}
-                        className="flex flex-col justify-between rounded-lg border border-border/60 bg-black/30 px-2 py-1"
-                        style={{ borderColor: cluster.color, backgroundColor: headerFill || undefined }}
-                      >
-                        <div className="flex items-center justify-between text-[9px] font-semibold text-foreground">
-                          <span className="flex items-center gap-1">
-                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: cluster.color }} />
-                            <span className="max-w-[100px] truncate">{cluster.cell.name}</span>
-                          </span>
-                          <span className="text-[8px] uppercase text-muted-foreground">{cluster.typeLabel}</span>
-                        </div>
-                        <div className="mt-1 flex items-center gap-1 overflow-x-auto no-scrollbar">
-                          {activeSessions.length ? (
-                            activeSessions.map((session) => {
-                              const statusColor = resolveStatusColor(session.status, session.isOffline);
-                              const avatarId = resolveAvatarId({
-                                avatar: session.avatar || cluster.cell.avatar,
-                                id: session.id,
-                                name: session.name,
-                              });
-                              return (
-                                <button
-                                  key={session.id}
-                                  type="button"
-                                  className={`group relative flex items-center justify-center rounded-md border text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
-                                    session.isActive
-                                      ? 'border-primary/80 bg-primary/15'
-                                      : 'border-border/60 bg-black/20 hover:border-primary/50'
-                                  }`}
-                                  style={{ width: `${HUD_TOKEN_SIZE}px`, height: `${HUD_TOKEN_SIZE}px` }}
-                                  onClick={() => handleSelectAndClose(cluster.cell.id, session.id)}
-                                  onMouseEnter={(event) =>
-                                    handleTokenEnter(event, {
-                                      cell: cluster.cell,
-                                      session,
-                                      color: cluster.color,
-                                      typeLabel: cluster.typeLabel,
-                                    })
-                                  }
-                                  onMouseLeave={handleTokenLeave}
-                                  onFocus={(event) =>
-                                    handleTokenEnter(
-                                      event,
-                                      {
-                                        cell: cluster.cell,
-                                        session,
-                                        color: cluster.color,
-                                        typeLabel: cluster.typeLabel,
-                                      },
-                                      { immediate: true }
-                                    )
-                                  }
-                                  onBlur={handleTokenLeave}
-                                  aria-label={`Session ${session.name || session.id}`}
-                                  data-session-token="true"
-                                >
-                                  <AgentAvatar avatarId={avatarId} size={14} />
-                                  <span
-                                    className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-popover ${statusColor}`}
-                                  />
-                                </button>
-                              );
-                            })
-                          ) : (
-                            <div className="flex items-center gap-1 text-[9px] text-muted-foreground">
-                              <CircleOff size={10} />
-                              <span>0</span>
-                            </div>
-                          )}
-                          {offlineSessions.length ? (
-                            <button
-                              type="button"
-                              data-session-map-offline-trigger="true"
-                              className="flex items-center justify-center rounded-md border border-dashed border-border/60 bg-black/20 px-1 text-[9px] text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground"
-                              style={{ height: `${HUD_TOKEN_SIZE}px`, width: `${HUD_TOKEN_SIZE}px` }}
-                              onClick={(event) => {
-                                const rect = event.currentTarget.getBoundingClientRect();
-                                setOfflineMenu((current) =>
-                                  current?.cellId === cluster.cell.id
-                                    ? null
-                                    : {
-                                        cellId: cluster.cell.id,
-                                        sessions: offlineSessions,
-                                        x: rect.left,
-                                        y: rect.bottom + 6,
-                                      }
-                                );
-                              }}
-                              aria-label={`Show ${offlineSessions.length} offline sessions`}
-                            >
-                              <MoreHorizontal size={12} />
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="col-span-full flex h-full items-center justify-center text-[11px] text-muted-foreground">
-                    <CircleOff size={12} />
-                    <span className="ml-2">No sessions yet</span>
-                  </div>
-                )}
-              </div>
-              <div className="mt-2 flex items-center justify-between text-[9px] text-muted-foreground">
-                <span>Cells {model.stats.cells}</span>
-                <span>Sessions {model.stats.sessions}</span>
-              </div>
-            </div>
-
-            <div className="flex h-full flex-col rounded-lg border border-border/60 bg-black/30 p-2">
-              <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                <span>Focus</span>
-                <span className="text-[9px]">Active</span>
-              </div>
-              {focusData ? (
-                <>
-                  <div className="mt-2 flex items-center gap-2">
-                    <AgentAvatar
-                      avatarId={resolveAvatarId({
-                        avatar: focusData.session?.avatar || focusData.cell?.avatar,
-                        id: focusData.session?.id,
-                        name: focusData.session?.name,
-                      })}
-                      size={32}
-                    />
-                    <div className="min-w-0">
-                      <div className="truncate text-[11px] font-semibold text-foreground">
-                        {focusData.session?.name || focusData.session?.id || 'Session'}
-                      </div>
-                      <div className="truncate text-[9px] text-muted-foreground">
-                        {focusData.cell?.name || 'Cell'} · {focusData.typeLabel}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-2 text-[9px] text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <span className={`h-1.5 w-1.5 rounded-full ${resolveStatusColor(
-                        focusData.session?.status,
-                        focusData.session?.isOffline
-                      )}`} />
-                      {focusData.session?.isOffline ? 'Offline' : focusData.session?.status || 'Unknown'}
-                    </span>
-                    <span>Last {focusData.session?.lastActivityAt ? formatRelativeTime(focusData.session.lastActivityAt) : '—'}</span>
-                  </div>
-                  <div className="mt-auto text-[9px] text-muted-foreground/70">
-                    Hover preview or click token to jump.
-                  </div>
-                </>
-              ) : (
-                <div className="mt-3 text-[10px] text-muted-foreground">No focus</div>
-              )}
-            </div>
-          </div>
+          <SessionMapDockLayout
+            model={model}
+            radarPoints={radarPoints}
+            hoveredCellId={hoveredCellId}
+            setHoveredCellId={setHoveredCellId}
+            focusClusterCard={focusClusterCard}
+            focusData={focusData}
+            onTokenEnter={handleTokenEnter}
+            onTokenLeave={handleTokenLeave}
+            onSelectSession={handleSelectSession}
+            onOpenCreateMenu={handleOpenCreateMenu}
+            onOpenOfflineMenu={handleOpenOfflineMenu}
+            registerClusterRef={registerClusterRef}
+            canCreateSession={canCreateSession}
+          />
         ) : (
-          <div
-            className={`mt-2 grid gap-2 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3 ${
-              isDocked ? 'flex-1 min-h-0' : 'max-h-[260px]'
-            }`}
-          >
-            {model.clusters.length ? (
-              model.clusters.map((cluster) => {
-                const headerFill = resolveFactionFill(cluster.color);
-                return (
-                  <div
-                    key={cluster.cell.id}
-                    className={`rounded-xl border border-border/60 bg-card/40 p-2 ${
-                      cluster.isOffline ? 'opacity-70' : ''
-                    }`}
-                    style={{ borderColor: cluster.color, backgroundColor: headerFill || undefined }}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 text-[12px] font-semibold">
-                        <Landmark size={14} />
-                        <span className="truncate">{cluster.cell.name}</span>
-                      </div>
-                      <span className="rounded-full bg-black/30 px-2 py-0.5 text-[9px] text-muted-foreground">
-                        {cluster.typeLabel}
-                      </span>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {cluster.sessions.length ? (
-                        (() => {
-                          const activeSessions = cluster.sessions.filter((session) => !session.isOffline);
-                          const offlineSessions = cluster.sessions.filter((session) => session.isOffline);
-                          const hasActive = activeSessions.length > 0;
-                          return (
-                            <>
-                              {hasActive ? (
-                                activeSessions.map((session) => {
-                                  const statusColor = resolveStatusColor(session.status, session.isOffline);
-                                  const avatarId = resolveAvatarId({
-                                    avatar: session.avatar || cluster.cell.avatar,
-                                    id: session.id,
-                                    name: session.name,
-                                  });
-                                  return (
-                                    <button
-                                      key={session.id}
-                                      type="button"
-                                      className={`group relative flex h-10 w-10 items-center justify-center rounded-full border text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
-                                        session.isActive
-                                          ? 'border-primary/80 bg-primary/15'
-                                          : 'border-border/60 bg-black/20 hover:border-primary/50'
-                                      } ${session.isOffline ? 'opacity-60' : ''}`}
-                                      onClick={() => handleSelectAndClose(cluster.cell.id, session.id)}
-                                      onMouseEnter={(event) =>
-                                        handleTokenEnter(event, {
-                                          cell: cluster.cell,
-                                          session,
-                                          color: cluster.color,
-                                          typeLabel: cluster.typeLabel,
-                                        })
-                                      }
-                                      onMouseLeave={handleTokenLeave}
-                                      onFocus={(event) =>
-                                        handleTokenEnter(
-                                          event,
-                                          {
-                                            cell: cluster.cell,
-                                            session,
-                                            color: cluster.color,
-                                            typeLabel: cluster.typeLabel,
-                                          },
-                                          { immediate: true }
-                                        )
-                                      }
-                                      onBlur={handleTokenLeave}
-                                      aria-label={`Session ${session.name || session.id}`}
-                                      data-session-token="true"
-                                    >
-                                      <AgentAvatar avatarId={avatarId} size={18} />
-                                      <span
-                                        className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-popover ${statusColor}`}
-                                      />
-                                    </button>
-                                  );
-                                })
-                              ) : (
-                                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                                  <CircleOff size={12} />
-                                  <span>No active sessions</span>
-                                </div>
-                              )}
-                              {offlineSessions.length ? (
-                                <button
-                                  type="button"
-                                  data-session-map-offline-trigger="true"
-                                  className="flex h-10 items-center gap-1 rounded-full border border-dashed border-border/60 bg-black/20 px-2 text-[10px] text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground"
-                                  onClick={(event) => {
-                                    const rect = event.currentTarget.getBoundingClientRect();
-                                    setOfflineMenu((current) =>
-                                      current?.cellId === cluster.cell.id
-                                        ? null
-                                        : {
-                                            cellId: cluster.cell.id,
-                                            sessions: offlineSessions,
-                                            x: rect.left,
-                                            y: rect.bottom + 6,
-                                          }
-                                    );
-                                  }}
-                                  aria-label={`Show ${offlineSessions.length} offline sessions`}
-                                >
-                                  <MoreHorizontal size={12} />
-                                  <span>{offlineSessions.length}</span>
-                                </button>
-                              ) : null}
-                            </>
-                          );
-                        })()
-                      ) : (
-                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                          <CircleOff size={12} />
-                          <span>No sessions yet</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="col-span-full rounded-xl border border-dashed border-border/60 bg-card/20 p-6 text-center text-sm text-muted-foreground">
-                No cells available yet. Create a Cell to populate the session map.
-              </div>
-            )}
-          </div>
+          <SessionMapGridLayout
+            model={model}
+            hoveredCellId={hoveredCellId}
+            setHoveredCellId={setHoveredCellId}
+            registerClusterRef={registerClusterRef}
+            onTokenEnter={handleTokenEnter}
+            onTokenLeave={handleTokenLeave}
+            onSelectSession={handleSelectSession}
+            onOpenOfflineMenu={handleOpenOfflineMenu}
+            onOpenCreateMenu={handleOpenCreateMenu}
+            canCreateSession={canCreateSession}
+          />
         )}
       </div>
 
       <SessionMapOfflineMenu
         isOpen={Boolean(offlineMenu)}
         position={offlineMenu ? { x: offlineMenu.x, y: offlineMenu.y } : { x: 0, y: 0 }}
+        anchorRect={offlineMenu?.anchorRect || null}
         containerRef={offlineMenuRef}
         sessions={offlineMenu?.sessions || []}
         cellId={offlineMenu?.cellId}
+        cell={offlineMenu?.cell || null}
         onSelectSession={(cellId, sessionId) => {
           setOfflineMenu(null);
-          handleSelectAndClose(cellId, sessionId);
+          handleSelectSession(cellId, sessionId);
         }}
       />
 
-      {hovered ? (
-        <SessionMapHoverCard
-          anchorRect={hovered.anchorRect}
-          data={hovered}
-          onEnter={handleCardEnter}
-          onLeave={handleCardLeave}
-          onSelectSession={handleSelectAndClose}
-          cardRef={hoverCardRef}
-          resolveFontSize={resolveFontSize}
-        />
-      ) : null}
+      <SessionCreateMenu
+        isOpen={Boolean(createMenu)}
+        position={createMenu || { x: 0, y: 0 }}
+        containerRef={createMenuRef}
+        profiles={terminusProfiles || []}
+        onCreateBase={async () => {
+          if (!createMenu?.cell) {
+            return;
+          }
+          setCreateMenu(null);
+          await onCreateSession?.(createMenu.cell);
+        }}
+        onCreateProfile={(profile) => {
+          if (!createMenu?.cell || !profile?.startCommand) {
+            setCreateMenu(null);
+            return;
+          }
+          setCreateMenu(null);
+          onDispatchCommand?.({
+            command: profile.startCommand,
+            kind: 'start',
+            label: profile.label || profile.id,
+            profileId: profile.id,
+            appendEnter: true,
+            cellId: createMenu.cell.id,
+            worktreePath: createMenu.cell.worktreePath,
+          });
+        }}
+      />
+
+      <AvatarPickerMenu
+        isOpen={Boolean(avatarMenu)}
+        position={avatarMenu || { x: 0, y: 0 }}
+        containerRef={avatarMenuRef}
+        selectedId={resolveSessionAvatarId(avatarMenu?.session, avatarMenu?.cell)}
+        activeAvatarIds={activeAvatarIds}
+        title="Select Session Avatar"
+        onSelect={(id) => {
+          if (!avatarMenu?.session || !avatarMenu?.cell) {
+            setAvatarMenu(null);
+            return;
+          }
+          onUpdateSessionAvatar?.(avatarMenu.session.id, id, avatarMenu.cell.id);
+          setAvatarMenu(null);
+        }}
+      />
+
+      {lastHoveredRef.current && typeof document !== 'undefined'
+        ? createPortal(hoverCard, document.body)
+        : null}
     </div>
   );
 }

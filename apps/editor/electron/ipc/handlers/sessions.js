@@ -5,6 +5,8 @@ const {
   closeSessionById,
   detachSessionById,
   renameSessionById,
+  updateSessionMeta,
+  setSessionMouse,
 } = require('../../services/sessions');
 
 function setupSessionHandlers() {
@@ -17,11 +19,29 @@ function setupSessionHandlers() {
   });
 
   ipcMain.handle('sessions:create', async (_event, payload) => {
-    const { cellId, worktreePath, name, sessionId, profileId, avatar } = payload || {};
+    const {
+      cellId,
+      worktreePath,
+      name,
+      sessionId,
+      profileId,
+      avatar,
+      cellName,
+      cellBranch,
+    } = payload || {};
     if (!cellId || !worktreePath) {
       throw new Error('cellId and worktreePath are required.');
     }
-    return createNewSession({ cellId, worktreePath, name, sessionId, profileId, avatar });
+    return createNewSession({
+      cellId,
+      worktreePath,
+      name,
+      sessionId,
+      profileId,
+      avatar,
+      cellName,
+      cellBranch,
+    });
   });
 
   ipcMain.handle('sessions:close', async (_event, payload) => {
@@ -46,6 +66,22 @@ function setupSessionHandlers() {
       throw new Error('worktreePath, sessionId, and name are required.');
     }
     return renameSessionById({ worktreePath, sessionId, name });
+  });
+
+  ipcMain.handle('sessions:updateMeta', async (_event, payload) => {
+    const { worktreePath, sessionId, avatar } = payload || {};
+    if (!worktreePath || !sessionId) {
+      throw new Error('worktreePath and sessionId are required.');
+    }
+    return updateSessionMeta({ worktreePath, sessionId, avatar });
+  });
+
+  ipcMain.handle('sessions:setMouse', async (_event, payload) => {
+    const { worktreePath, sessionId, enabled } = payload || {};
+    if (!worktreePath || !sessionId) {
+      throw new Error('worktreePath and sessionId are required.');
+    }
+    return setSessionMouse({ worktreePath, sessionId, enabled });
   });
 }
 

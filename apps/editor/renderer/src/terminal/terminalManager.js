@@ -19,6 +19,7 @@ const createEntry = ({ cellId, sessionId, fontSize }) => {
     fontFamily: TERMINAL_FONT_STACK,
     fontSize: resolveFontSize(fontSize),
     cursorBlink: true,
+    macOptionClickForcesSelection: true,
     scrollback: 5000,
     scrollOnUserInput: true,
     theme: {

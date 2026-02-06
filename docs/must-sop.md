@@ -22,12 +22,6 @@ Source: `docs/guidelines-ui-components.md`
 - Use Tooltip for icon-only controls or truncated labels.
 - When extracting shared UI components, update this doc and regenerate docs/must-sop.md.
 
-### Memory Policy
-Source: `docs/must-memory.md` (required)
-- Read this doc before capturing or using project memory.
-- Update this doc when memory workflow changes.
-- Regenerate docs/must-sop.md after updating this doc.
-
 ### Development Norms
 Source: `docs/norms-dev.md` (required)
 - Read docs/must-guidebook.md before working.
@@ -38,10 +32,40 @@ Source: `docs/norms-dev.md` (required)
 - Keep code DRY and SOLID; refactor files over 800 lines.
 - Verify preload and IPC injection health; surface a minimal status indicator if missing.
 
-### Session Map (SLG Overview)
-Source: `docs/notes-session-map.md`
-- Read this doc when working on the session map overlay or multi-session navigation.
-- Update this doc when map layout, config, or hover preview behavior changes.
+### Maintaining Reusable Items (可复用项维护)
+Source: `docs/norms-maintaining-reusable-items.md` (required)
+- At the start of each iteration, check whether the project needs a new reusable-items catalog for an active domain (coding/design/writing/knowledge) and create/update it.
+- When introducing or updating a reusable item (component/library/mechanism/token/style pattern/index; including API/behavior/ownership/deprecation), verify the relevant catalog entry is correct and update it in the same change.
+- When SOP/frontmatter changes in these docs, regenerate `docs/must-sop.md` with `sh scripts/bagakit_generate_sop.sh .`.
+
+### Continuous Learning (Default)
+Source: `docs/notes-continuous-learning.md`
+- At the end of a Codex work session, capture a draft learning note into `docs/.bagakit/inbox/` (manual or via `sh scripts/bagakit_learning.sh extract --last`). The default extractor upserts into a daily file to avoid fragmentation.
+- Weekly (or before major releases), review `docs/.bagakit/inbox/` and promote durable items into `docs/.bagakit/memory/`.
+- When promoting, keep entries short and source-linked; prefer `decision-*`/`preference-*`/`gotcha-*`/`howto-*` over long narratives. If the curated target already exists, merge instead of creating duplicates.
+
+### Reusable Items - Coding (Catalog)
+Source: `docs/notes-reusable-items-coding.md`
+- Update this list when you introduce or adopt a new reusable component/library/mechanism.
+- When you remove or deprecate something, update this list and point to the replacement or migration.
+- Regenerate `docs/must-sop.md` after SOP/frontmatter changes.
+
+### Reusable Items - Design (Catalog)
+Source: `docs/notes-reusable-items-design.md`
+- Update this list when you introduce a new token/palette/component pattern or a new design artifact workflow.
+- Keep links to the source of truth (design files, token definitions, component library docs).
+- Regenerate `docs/must-sop.md` after SOP/frontmatter changes.
+
+### Session Management (Map + Attach Lifecycle)
+Source: `docs/notes-session-management.md`
+- Read this doc when working on session management (attach, idle, preview cache) or the session map overlay.
+- Update this doc when attach/idle/preview behavior or map layout/config changes.
+- Regenerate docs/must-sop.md after updating this doc.
+
+### Terminal Interaction Requirements
+Source: `docs/notes-terminal-interaction-requirements.md`
+- Read this doc when changing terminal mouse/selection/scroll behavior.
+- Update this doc when interaction requirements or competitive research changes.
 - Regenerate docs/must-sop.md after updating this doc.
 
 ### Terminal Keyboard Notes

@@ -15,7 +15,13 @@ const { checkGates } = require('./gates');
 const LIFECYCLE_DIR = '.agency';
 const LIFECYCLE_PREFIX = 'cell-';
 const LIFECYCLE_EXTS = ['.yaml', '.yml', '.md'];
-const AGENT_AVATAR_POOL = ['fox', 'cat', 'owl', 'robot', 'frog', 'panda', 'whale', 'bear'];
+let AGENT_AVATAR_POOL = [];
+try {
+  const avatarBatch = require('@bagakit/open-agent-avatars/20260202/index.cjs');
+  AGENT_AVATAR_POOL = Object.keys(avatarBatch || {});
+} catch (error) {
+  AGENT_AVATAR_POOL = [];
+}
 
 
 async function ensureWorktreeDir(repoRoot) {
@@ -97,7 +103,7 @@ function hashString(input) {
 
 function resolveAvatarSymbol(seed) {
   if (!AGENT_AVATAR_POOL.length) {
-    return 'A';
+    return '';
   }
   const index = hashString(seed) % AGENT_AVATAR_POOL.length;
   return AGENT_AVATAR_POOL[index];

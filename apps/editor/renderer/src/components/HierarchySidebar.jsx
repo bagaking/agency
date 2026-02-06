@@ -1,19 +1,22 @@
 import React from 'react';
-import { SquareTerminal, FolderClosed, User, Link2, ShieldCheck, Command } from 'lucide-react';
+import { SquareTerminal, FolderClosed, User, Link2, ShieldCheck, Command, Tag } from 'lucide-react';
 
 export function HierarchySidebar({
   section,
   actionsScope,
   appShortcutsScope,
+  sessionNamingScope,
   gateScope,
   onSelectActionsScope,
   onSelectAppShortcutsScope,
+  onSelectSessionNamingScope,
   onSelectGateScope,
   onSelectSoftlinks,
   canUseProjectScope,
   canUseAgentScope,
   actionSummary,
   appShortcutsSummary,
+  sessionNamingSummary,
   gateSummary,
 }) {
   return (
@@ -77,6 +80,33 @@ export function HierarchySidebar({
             selected={section === 'app-shortcuts' && appShortcutsScope === 'agent'}
             disabled={!canUseAgentScope}
             onClick={() => onSelectAppShortcutsScope?.('agent')}
+          />
+        </div>
+
+        <div className="mb-2 mt-6 px-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">SESSION NAMING</div>
+        <div className="space-y-0.5">
+          <ScopeItem
+            icon={Tag}
+            label="Global User"
+            meta={sessionNamingSummary?.globalOverrides ? 'Overrides' : 'Base'}
+            selected={section === 'session-naming' && sessionNamingScope === 'global'}
+            onClick={() => onSelectSessionNamingScope?.('global')}
+          />
+          <ScopeItem
+            icon={FolderClosed}
+            label="Project Local"
+            meta={sessionNamingSummary?.projectOverrides ? 'Custom' : 'Inherit'}
+            selected={section === 'session-naming' && sessionNamingScope === 'project'}
+            disabled={!canUseProjectScope}
+            onClick={() => onSelectSessionNamingScope?.('project')}
+          />
+          <ScopeItem
+            icon={User}
+            label={`Agent - ${sessionNamingSummary?.agentLabel || 'Select Cell'}`}
+            meta={sessionNamingSummary?.agentOverrides ? 'Custom' : 'Inherit'}
+            selected={section === 'session-naming' && sessionNamingScope === 'agent'}
+            disabled={!canUseAgentScope}
+            onClick={() => onSelectSessionNamingScope?.('agent')}
           />
         </div>
 

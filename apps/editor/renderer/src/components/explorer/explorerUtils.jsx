@@ -150,7 +150,7 @@ export const statusColors = {
   renamed: 'text-sky-400',
   copied: 'text-sky-400',
   untracked: 'text-lime-300',
-  ignored: 'text-slate-400',
+  ignored: 'text-slate-300',
   conflict: 'text-rose-500',
 };
 
@@ -185,7 +185,7 @@ export const statusBadgeStyles = {
   renamed: 'border-sky-400/40 bg-sky-400/10',
   copied: 'border-sky-400/40 bg-sky-400/10',
   untracked: 'border-lime-500/40 bg-lime-500/10',
-  ignored: 'border-slate-400/40 bg-slate-400/10',
+  ignored: 'border-slate-300/50 bg-slate-300/10',
   conflict: 'border-rose-500/50 bg-rose-500/15',
 };
 

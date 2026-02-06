@@ -1,5 +1,5 @@
 import React from 'react';
-import { Terminal } from 'lucide-react';
+import { MessageSquareText, Terminal } from 'lucide-react';
 import { FlashCaptureCard } from './FlashCaptureCard.jsx';
 import { ExcerptCaptureCard } from './ExcerptCaptureCard.jsx';
 import { ScreenshotCaptureCard } from './ScreenshotCaptureCard.jsx';
@@ -34,7 +34,8 @@ export function InboxSection({
   captureError,
   screenshotNoteInputRef,
 }) {
-  const highlightClass = activeSection?.id && activeSection.id !== 'comments'
+  const highlightClass =
+    activeSection?.id && !['comments', 'reply'].includes(activeSection.id)
     ? 'ring-1 ring-primary/20 shadow-[0_0_20px_rgba(59,130,246,0.08)]'
     : '';
   return (
@@ -57,6 +58,18 @@ export function InboxSection({
             </div>
             <p className="leading-relaxed">
               Add comments directly inside the editor. Use line comments to capture context-rich feedback.
+            </p>
+          </div>
+        ) : null}
+
+        {activeSection?.id === 'reply' ? (
+          <div className="flex flex-col gap-2 text-[11px] text-muted-foreground/60">
+            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50">
+              <MessageSquareText size={12} />
+              Reply Capture
+            </div>
+            <p className="leading-relaxed">
+              Create replies from the Session Reply panel. Reply memos are read-only in the inbox.
             </p>
           </div>
         ) : null}

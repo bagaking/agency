@@ -8,6 +8,10 @@ module.exports = defineConfig(({ command }) => ({
   root: path.join(__dirname, 'renderer'),
   base: command === 'serve' ? '/' : './',
   plugins: [react()],
+  assetsInclude: ['**/*.svg'],
+  optimizeDeps: {
+    exclude: ['@bagakit/open-agent-avatars'],
+  },
   build: {
     outDir: path.join(__dirname, 'dist/renderer'),
     emptyOutDir: true,

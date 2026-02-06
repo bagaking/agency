@@ -18,6 +18,8 @@ export function HilDrawer({
   title,
   subtitle,
   panels = defaultPanels,
+  contentClassName = '',
+  contentScrollable = true,
 }) {
   const drawerOpen = Boolean(open);
   const contentId = 'hil-drawer-content';
@@ -35,8 +37,8 @@ export function HilDrawer({
       }`}
     >
       <header
-        className={`shrink-0 h-11 flex items-center border-b border-border/10 bg-muted/10 ${
-          drawerOpen ? 'px-2 gap-2' : 'px-0 justify-center'
+        className={`shrink-0 h-9 flex items-center border-b border-border/10 bg-muted/10 ${
+          drawerOpen ? 'px-2 gap-1.5' : 'px-0 justify-center'
         }`}
       >
         <IconButton
@@ -44,17 +46,17 @@ export function HilDrawer({
           onClick={handleToggle}
           aria-expanded={drawerOpen}
           aria-controls={contentId}
-          className="h-6 w-6 rounded-full border border-border/30 bg-background/60 text-muted-foreground/60 shadow-sm transition-colors hover:text-foreground hover:border-primary/30"
+          className="h-5 w-5 rounded-full border border-border/30 bg-background/60 text-muted-foreground/60 shadow-sm transition-colors hover:text-foreground hover:border-primary/30"
         >
-          {drawerOpen ? <ChevronRight size={14} aria-hidden="true" /> : <ChevronLeft size={14} aria-hidden="true" />}
+          {drawerOpen ? <ChevronRight size={12} aria-hidden="true" /> : <ChevronLeft size={12} aria-hidden="true" />}
         </IconButton>
         {drawerOpen ? (
           <div className="flex min-w-0 flex-1 flex-col">
-            <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80 truncate">
+            <h2 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/70 truncate">
               {title || 'HIL'}
             </h2>
             {subtitle ? (
-              <span className="text-[9px] font-medium text-muted-foreground/50 truncate uppercase tracking-tighter">
+              <span className="text-[8px] font-medium text-muted-foreground/40 truncate uppercase tracking-tight leading-none">
                 {subtitle}
               </span>
             ) : null}
@@ -64,10 +66,10 @@ export function HilDrawer({
           <button
             type="button"
             onClick={onOpenPromote}
-            className={`ml-auto flex items-center gap-1 rounded-full border border-border/30 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60 transition-colors hover:text-foreground hover:border-primary/30 ${focusRingClass}`}
+            className={`ml-auto flex items-center gap-1 rounded-md border border-border/20 bg-background/40 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-widest text-muted-foreground/60 transition-colors hover:text-foreground hover:border-primary/30 ${focusRingClass}`}
             title="Promote items to draft"
           >
-            <Target size={12} aria-hidden="true" />
+            <Target size={10} aria-hidden="true" />
             Promote
           </button>
         ) : null}
@@ -78,7 +80,7 @@ export function HilDrawer({
         className={`flex h-full flex-col ${drawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} transition-opacity duration-200`}
       >
         {panels.length ? (
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-border/10">
+          <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-border/10">
             {panels.map((panel) => (
               <button
                 key={panel.id}
@@ -86,12 +88,12 @@ export function HilDrawer({
                 disabled={panel.disabled}
                 onClick={() => onSelectPanel?.(panel.id)}
                 aria-pressed={activePanel === panel.id}
-                className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-widest transition-colors ${focusRingClass} ${
+                className={`rounded-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider transition-colors ${focusRingClass} ${
                   panel.disabled
                     ? 'text-muted-foreground/30 cursor-not-allowed'
                     : activePanel === panel.id
                       ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground/60 hover:text-foreground'
+                      : 'text-muted-foreground/50 hover:text-foreground'
                 }`}
               >
                 {panel.label}
@@ -100,7 +102,11 @@ export function HilDrawer({
           </div>
         ) : null}
 
-        <div className="flex-1 overflow-y-auto px-4 py-3">{children}</div>
+        <div
+          className={`flex-1 ${contentScrollable ? 'overflow-y-auto' : 'overflow-hidden'} px-2 py-2 ${contentClassName}`}
+        >
+          {children}
+        </div>
       </div>
     </aside>
   );

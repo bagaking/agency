@@ -32,6 +32,7 @@ Allowed kinds:
 
 ## System Docs
 All system-level docs use the `must-` prefix to signal mandatory reading and prevent naming conflicts.
+Treat all `docs/must-*.md` docs as mandatory reading (projects may add more `must-*` docs over time).
 
 Required system docs:
 - `must-guidebook.md`: reading map and doc index
@@ -43,6 +44,16 @@ Required system docs:
 Use lowercase kebab-case filenames with the category first: `<type>-<topic>.md`.
 Example: `norms-dev.md`, `notes-voice-input.md`, `guidelines-ui-components.md`.
 
+### Reusable Items Catalogs (Topic Convention)
+If you maintain "reusable items" catalogs, encode it in the topic (do not add a new doc type):
+- `notes-reusable-items-<domain>.md`
+
+Examples:
+- `notes-reusable-items-coding.md`
+- `notes-reusable-items-design.md`
+- `notes-reusable-items-writing.md`
+- `notes-reusable-items-knowledge.md`
+
 ## Canonicalization (Avoid Duplicate Docs)
 - Before creating a new `docs/<type>-<topic>.md`, search for an existing doc or memory entry that already covers the topic and update it instead of creating a near-duplicate.
 - Prefer one canonical doc per topic, and link from other docs instead of duplicating explanations.
@@ -50,6 +61,19 @@ Example: `norms-dev.md`, `notes-voice-input.md`, `guidelines-ui-components.md`.
 
 ## Frontmatter Templates
 All non-system docs must include frontmatter with `title`, `required`, and `sop` fields.
+
+### Optional: Response Directives (Driver Statements)
+Docs may optionally define response directives to guide agent output when a condition applies (e.g., debugging).
+
+Frontmatter shape:
+```
+directives:
+  - DEBUG: When debugging, include a final-response attempt summary, using `<problem> (try-<n>): <one-line approach>`.
+```
+
+Notes:
+- `directives` are optional and do not replace `sop`.
+- The response footer format is standardized under `[[BAGAKIT]]` (see AGENTS.md / must-guidebook.md).
 
 ### Norms
 ```

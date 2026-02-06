@@ -1,18 +1,38 @@
 const { ipcMain } = require('electron');
-const {
-  startSession,
-  writeSession,
-  resizeSession,
-  disposeSession,
-} = require('../../services/terminal');
+const { writeSession, resizeSession, disposeSession } = require('../../services/terminal');
 const { logRuntime } = require('../../services/runtimeLog');
 const {
   ensureDefaultSession,
   resolveSessionForAttach,
   recreateSession,
 } = require('../../services/sessions');
+const {
+  ensureInteractiveAttach,
+  markInteractive,
+  noteTerminalDisposed,
+  setDetachNotifier,
+} = require('../../services/sessionAttachManager');
 
 function setupTerminalHandlers({ getMainWindow }) {
+  setDetachNotifier(({ cellId, sessionId }) => {
+    const win = getMainWindow();
+    if (!win) {
+      return;
+    }
+    win.webContents.send('terminal:detached', { cellId, sessionId });
+  });
+
+  ipcMain.on('session:interactive', (_event, payload) => {
+    if (!payload) {
+      return;
+    }
+    const { cellId, sessionId, worktreePath, active } = payload;
+    if (!cellId || !sessionId || !worktreePath) {
+      return;
+    }
+    markInteractive({ cellId, sessionId, worktreePath, active });
+  });
+
   ipcMain.handle('terminal:start', async (_event, payload) => {
     const { cellId, worktreePath, mode, sessionId } = payload || {};
     if (!cellId || !worktreePath) {
@@ -44,13 +64,17 @@ function setupTerminalHandlers({ getMainWindow }) {
         resolvedSession = await ensureDefaultSession({ cellId, worktreePath });
       }
       resolvedSessionId = resolvedSession.id;
-      const session = startSession({
+      const record = await ensureInteractiveAttach({
         cellId,
         sessionId: resolvedSession.id,
-        tmuxSession: resolvedSession.tmuxSession,
-        cwd: worktreePath,
+        worktreePath,
         mode: mode || 'shell',
+        resolvedSession,
       });
+      const session = record?.terminalSession;
+      if (!session) {
+        throw new Error('Terminal session failed to start.');
+      }
 
       if (!session.subscribed) {
         session.subscribed = true;
@@ -105,6 +129,7 @@ function setupTerminalHandlers({ getMainWindow }) {
       return;
     }
     disposeSession(payload.cellId, payload.sessionId);
+    noteTerminalDisposed({ cellId: payload.cellId, sessionId: payload.sessionId });
   });
 }
 

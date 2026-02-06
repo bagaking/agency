@@ -15,6 +15,7 @@ import {
   Clock,
   Play,
   Pause,
+  MessageSquareText,
 } from 'lucide-react';
 import { ProjectEmptyState } from '../../ProjectEmptyState.jsx';
 import { InboxSection } from './InboxSection.jsx';
@@ -32,7 +33,8 @@ import {
 const kindIcons = {
     comment: Terminal,
     memo: StickyNote,
-    draft: Layers
+    draft: Layers,
+    reply: MessageSquareText,
 };
 
 const focusRingClass = focusRing.default;
@@ -487,11 +489,13 @@ function MemoRow({ item, index, worktreePath, onUpdateStatus, resolveBody, onOpe
     const isResolved = item.status === 'resolved' || item.status === 'archived';
     const isProcessed = item.kind === 'comment' && item.meta?.processed === true;
     const isMemoProcessed = item.kind === 'memo' && item.meta?.processed === true;
+    const isReplyProcessed = item.kind === 'reply' && item.meta?.processed === true;
     const Icon = kindIcons[item.kind] || FileText;
     const bodySummary = resolveBody(item);
     const noteType = item.kind === 'memo' ? item.meta?.noteType : null;
     const noteLabel = noteType ? String(noteType).toUpperCase() : null;
     const voiceAsset = item.kind === 'memo' ? item.meta?.voice?.asset : null;
+    const replyTimeTag = item.kind === 'reply' ? item.meta?.selection?.timeTag || 'Nature' : '';
     
     return (
         <div
@@ -527,7 +531,7 @@ function MemoRow({ item, index, worktreePath, onUpdateStatus, resolveBody, onOpe
                                 {noteLabel}
                             </span>
                         ) : null}
-                        {isProcessed || isMemoProcessed ? (
+                        {isProcessed || isMemoProcessed || isReplyProcessed ? (
                             <span className="rounded-full border border-emerald-500/30 px-1.5 py-0 text-[8px] font-bold uppercase tracking-widest text-emerald-400/70">
                                 Done
                             </span>
@@ -556,7 +560,12 @@ function MemoRow({ item, index, worktreePath, onUpdateStatus, resolveBody, onOpe
 
             {/* Context & Temporal */}
             <div className="ml-12 flex items-center justify-between gap-3 text-[10px] text-muted-foreground/40">
-                {item.anchor?.file ? (
+                {item.kind === 'reply' ? (
+                    <div className="flex items-center gap-2 font-mono italic truncate max-w-[220px] group-hover:text-muted-foreground/60 transition-colors">
+                        <Clock size={10} className="shrink-0" />
+                        {replyTimeTag}
+                    </div>
+                ) : item.anchor?.file ? (
                     <div className="flex items-center gap-2 font-mono italic truncate max-w-[220px] group-hover:text-muted-foreground/60 transition-colors">
                         <Target size={10} className="shrink-0" />
                         {item.anchor.file.split('/').pop()}

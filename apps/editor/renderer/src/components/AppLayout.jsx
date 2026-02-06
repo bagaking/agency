@@ -7,6 +7,7 @@ import { WorkbenchPane } from './workbench/WorkbenchPane.jsx';
 import { EditorPane } from './EditorPane.jsx';
 import { QuickActionsView } from './QuickActionsView.jsx';
 import { AppShortcutsView } from './AppShortcutsView.jsx';
+import { SessionNamingView } from './SessionNamingView.jsx';
 import { GatesView } from './GatesView.jsx';
 import { WorktreeLinksView } from './WorktreeLinksView.jsx';
 import { SidebarDock } from './layout/SidebarDock.jsx';
@@ -17,6 +18,7 @@ import { HilDraftsPanel } from './hil/HilDraftsPanel.jsx';
 import { HilMemoDrawer } from './hil/HilMemoDrawer.jsx';
 import { HilMemoView } from './hil/memo/HilMemoView.jsx';
 import { HilMemoSidebar } from './hil/memo/HilMemoSidebar.jsx';
+import { SessionReplyPanel } from './SessionReplyPanel.jsx';
 import { ActionSheetsView } from './actionSheets/ActionSheetsView.jsx';
 import { ActionSheetsSidebar } from './actionSheets/ActionSheetsSidebar.jsx';
 
@@ -25,6 +27,7 @@ export function AppLayout({
   onSwitchView,
   hierarchySection,
   appShortcutsScope,
+  sessionNamingScope,
   onSelectHierarchySection,
   cells,
   selectedId,
@@ -33,6 +36,17 @@ export function AppLayout({
   onCreateCell,
   onJumpToHierarchy,
   onOpenExplorerForCell,
+  sessionsByCellId,
+  activeSessionByCellId,
+  sessionActivityByKey,
+  terminusProfiles,
+  onSelectSession,
+  onCreateSession,
+  onDispatchSessionCommand,
+  onCloseSession,
+  onDetachSession,
+  onRenameSession,
+  onUpdateSessionAvatar,
   projectReady,
   projectError,
   projectRoot,
@@ -47,6 +61,7 @@ export function AppLayout({
   actionsScope,
   onSelectActionsScope,
   onSelectAppShortcutsScope,
+  onSelectSessionNamingScope,
   actionsScopeDisabled,
   actionSummary,
   activeProfileId,
@@ -62,6 +77,22 @@ export function AppLayout({
   onResetAppShortcut,
   onSaveAppShortcuts,
   onClearAppShortcutsError,
+  sessionNamingScopeDisabled,
+  sessionNamingSummary,
+  sessionNamingSettings,
+  resolvedSessionNaming,
+  sessionNamingPaths,
+  sessionNamingError,
+  sessionNamingSaving,
+  sessionNamingDirty,
+  sessionNamingPreviewContext,
+  onUpdateSessionNamingRule,
+  onUpdateSessionNamingList,
+  onRenameSessionNamingList,
+  onRemoveSessionNamingList,
+  onAddSessionNamingList,
+  onSaveSessionNaming,
+  onClearSessionNamingError,
   actionsRows,
   bindingsByProfile,
   projectActionsPath,
@@ -135,23 +166,35 @@ export function AppLayout({
   onOpenHilPromote,
   hilCommentsProps,
   hilDraftsProps,
+  hilReplyProps,
   memoDrawerProps,
   actionSheetsProps,
 }) {
   const hilSubtitle = explorerPaneProps?.activeRootLabel || explorerSidebarProps?.rootLabel || '';
   const isMemoView = activeView === 'memo';
+  const isAgentCellsView = activeView === 'agent-cells';
   const hilDrawerPanels = isMemoView
     ? []
-    : [
-        { id: 'comments', label: 'Comments' },
-        { id: 'drafts', label: 'Drafts' },
-      ];
+    : isAgentCellsView
+      ? [{ id: 'reply', label: 'Reply' }]
+      : [
+          { id: 'comments', label: 'Comments' },
+          { id: 'drafts', label: 'Drafts' },
+        ];
   const hilDrawerTitle = isMemoView
     ? 'Memo Inbox'
-    : hilDrawerPanel === 'drafts'
-      ? 'HIL Drafts'
-      : 'Neural Comments';
-  const hilDrawerSubtitle = isMemoView ? 'Shortcuts' : hilSubtitle;
+    : hilDrawerPanel === 'reply'
+      ? 'Session Reply Relay'
+      : hilDrawerPanel === 'drafts'
+        ? 'HIL Drafts'
+        : 'Neural Comments';
+  const hilDrawerSubtitle = isMemoView
+    ? 'Shortcuts'
+    : hilDrawerPanel === 'reply'
+      ? hilReplyProps?.session?.name || hilReplyProps?.session?.id || ''
+      : hilSubtitle;
+  const hilDrawerScrollable = !(isAgentCellsView && hilDrawerPanel === 'reply');
+  const hilDrawerContentClass = isAgentCellsView && hilDrawerPanel === 'reply' ? 'p-0' : '';
   const activeSidebar =
     activeView === 'explorer' ? (
       <ProjectExplorerSidebar
@@ -175,21 +218,35 @@ export function AppLayout({
         onSelectProject={onSelectProject}
         recentProjects={recentProjects}
         onOpenRecentProject={onOpenRecentProject}
+        sessionsByCellId={sessionsByCellId}
+        activeSessionByCellId={activeSessionByCellId}
+        sessionActivityByKey={sessionActivityByKey}
+        terminusProfiles={terminusProfiles}
+        onSelectSession={onSelectSession}
+        onCreateSession={onCreateSession}
+        onDispatchCommand={onDispatchSessionCommand}
+        onCloseSession={onCloseSession}
+        onDetachSession={onDetachSession}
+        onRenameSession={onRenameSession}
+        onUpdateSessionAvatar={onUpdateSessionAvatar}
       />
     ) : activeView === 'hierarchy' ? (
       <HierarchySidebar
         section={hierarchySection}
         actionsScope={actionsScope}
         appShortcutsScope={appShortcutsScope}
+        sessionNamingScope={sessionNamingScope}
         gateScope={gateScope}
         onSelectActionsScope={onSelectActionsScope}
         onSelectAppShortcutsScope={onSelectAppShortcutsScope}
+        onSelectSessionNamingScope={onSelectSessionNamingScope}
         onSelectGateScope={onSelectGateScope}
         onSelectSoftlinks={() => onSelectHierarchySection('softlinks')}
         canUseProjectScope={canUseProjectScope}
         canUseAgentScope={canUseAgentScope}
         actionSummary={actionSummary}
         appShortcutsSummary={appShortcutsSummary}
+        sessionNamingSummary={sessionNamingSummary}
         gateSummary={gateSummary}
       />
     ) : activeView === 'action-sheets' ? (
@@ -291,6 +348,29 @@ export function AppLayout({
             </div>
           ) : null}
 
+          {activeView === 'hierarchy' && hierarchySection === 'session-naming' ? (
+            <div className="absolute inset-0">
+              <SessionNamingView
+                scope={sessionNamingScope}
+                scopeDisabled={sessionNamingScopeDisabled}
+                scopePaths={sessionNamingPaths}
+                settings={sessionNamingSettings}
+                resolvedSettings={resolvedSessionNaming}
+                error={sessionNamingError}
+                dirty={sessionNamingDirty}
+                saving={sessionNamingSaving}
+                previewContext={sessionNamingPreviewContext}
+                onUpdateRule={onUpdateSessionNamingRule}
+                onUpdateList={onUpdateSessionNamingList}
+                onRenameList={onRenameSessionNamingList}
+                onRemoveList={onRemoveSessionNamingList}
+                onAddList={onAddSessionNamingList}
+                onSave={onSaveSessionNaming}
+                onClearError={onClearSessionNamingError}
+              />
+            </div>
+          ) : null}
+
           {activeView === 'hierarchy' && hierarchySection === 'gates' ? (
             <div className="absolute inset-0">
               <GatesView
@@ -376,9 +456,13 @@ export function AppLayout({
           panels={hilDrawerPanels}
           title={hilDrawerTitle}
           subtitle={hilDrawerSubtitle}
+          contentScrollable={hilDrawerScrollable}
+          contentClassName={hilDrawerContentClass}
         >
           {isMemoView ? (
             <HilMemoDrawer {...memoDrawerProps} />
+          ) : isAgentCellsView && hilDrawerPanel === 'reply' ? (
+            <SessionReplyPanel {...hilReplyProps} />
           ) : hilDrawerPanel === 'comments' ? (
             <HilCommentsPanel {...hilCommentsProps} />
           ) : hilDrawerPanel === 'drafts' ? (

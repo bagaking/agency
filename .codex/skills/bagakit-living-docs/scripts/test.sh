@@ -11,12 +11,39 @@ trap cleanup EXIT
 
 echo "tmp=$tmp"
 
+# Make the scratch project look like a coding + UI repo so checklist scaffolding is exercised.
+cat >"$tmp/package.json" <<'EOF'
+{}
+EOF
+mkdir -p "$tmp/src/components"
+touch "$tmp/tailwind.config.js"
+
 # Apply skill scaffolding to a scratch project.
 "$root/scripts/apply-living-docs.sh" "$tmp" --force >/dev/null
+
+# The applied project should have the update wrapper.
+if [ ! -f "$tmp/scripts/bagakit_update.sh" ]; then
+  echo "error: missing update wrapper: scripts/bagakit_update.sh" >&2
+  exit 1
+fi
 
 # Default learning SOP doc should be present (non-system).
 if [ ! -f "$tmp/docs/notes-continuous-learning.md" ]; then
   echo "error: missing default learning SOP doc: docs/notes-continuous-learning.md" >&2
+  exit 1
+fi
+
+# Reusable items governance + starter catalogs should be present.
+if [ ! -f "$tmp/docs/norms-maintaining-reusable-items.md" ]; then
+  echo "error: missing reusable items governance doc: docs/norms-maintaining-reusable-items.md" >&2
+  exit 1
+fi
+if [ ! -f "$tmp/docs/notes-reusable-items-coding.md" ]; then
+  echo "error: missing coding reusable-items catalog: docs/notes-reusable-items-coding.md" >&2
+  exit 1
+fi
+if [ ! -f "$tmp/docs/notes-reusable-items-design.md" ]; then
+  echo "error: missing design reusable-items catalog: docs/notes-reusable-items-design.md" >&2
   exit 1
 fi
 
@@ -28,6 +55,8 @@ required: true
 sop:
   - Read this doc before changing sample behavior.
   - Update this doc when sample rules change.
+directives:
+  - DEBUG: When debugging, include a final-response attempt summary, using `<problem> (try-<n>): <one-line approach>`.
 ---
 
 # Sample Norms
@@ -40,6 +69,14 @@ sh "$tmp/scripts/bagakit_generate_sop.sh" "$tmp"
 
 if ! grep -q "### Sample Norms" "$tmp/docs/must-sop.md"; then
   echo "error: SOP did not include expected section" >&2
+  exit 1
+fi
+if ! grep -q "Directives:" "$tmp/docs/must-sop.md"; then
+  echo "error: SOP did not include expected directives marker" >&2
+  exit 1
+fi
+if ! grep -q "DEBUG: When debugging" "$tmp/docs/must-sop.md"; then
+  echo "error: SOP did not include expected directive item" >&2
   exit 1
 fi
 if ! grep -q "### Continuous Learning (Default)" "$tmp/docs/must-sop.md"; then
@@ -88,8 +125,15 @@ fi
 # The applied project should have its own validator installed too.
 "$tmp/scripts/validate-docs.sh" "$tmp" >/dev/null
 
+# Reusable-items query helper should work (Python path).
+python3 "$tmp/scripts/bagakit_reusable_items.py" list --root "$tmp" >/dev/null
+python3 "$tmp/scripts/bagakit_reusable_items.py" search "name" --root "$tmp" --max-results 3 >/dev/null || true
+
 # Doctor should run (non-destructive).
 sh "$tmp/scripts/bagakit_doctor.sh" "$tmp" >/dev/null
+
+# Update wrapper should be able to re-apply when given an explicit skill dir.
+sh "$tmp/scripts/bagakit_update.sh" apply --root "$tmp" --skill-dir "$root" --overwrite >/dev/null
 
 # Learning helper: extract a minimal session JSONL into inbox.
 cat >"$tmp/session.jsonl" <<'EOF'

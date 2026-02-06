@@ -92,10 +92,12 @@ tmp="${out_abs}.tmp.$$"
           rel = relpath(file_path)
           in_fm = 0
           in_sop = 0
+          in_dir = 0
           sop_count = 0
+          dir_count = 0
         }
         FNR == 1 && $0 == "---" { in_fm = 1; next }
-        in_fm == 1 && $0 == "---" { in_fm = 0; in_sop = 0; next }
+        in_fm == 1 && $0 == "---" { in_fm = 0; in_sop = 0; in_dir = 0; next }
         in_fm == 1 {
           if ($0 ~ /^title:[[:space:]]*/) {
             sub(/^title:[[:space:]]*/, "", $0)
@@ -108,17 +110,31 @@ tmp="${out_abs}.tmp.$$"
               in_sop = 0
             }
           }
+          if ($0 ~ /^directives:[[:space:]]*$/) { in_dir = 1; next }
+          if (in_dir == 1) {
+            if ($0 ~ /^[A-Za-z0-9_-]+:[[:space:]]*/ && $0 !~ /^[[:space:]]+/) {
+              in_dir = 0
+            }
+          }
           if (in_sop == 1 && $0 ~ /^[[:space:]]*-[[:space:]]+/) {
             sub(/^[[:space:]]*-[[:space:]]+/, "", $0)
             sop[++sop_count] = $0
           }
+          if (in_dir == 1 && $0 ~ /^[[:space:]]*-[[:space:]]+/) {
+            sub(/^[[:space:]]*-[[:space:]]+/, "", $0)
+            dir[++dir_count] = $0
+          }
         }
         END {
-          if (sop_count <= 0) exit 0
+          if (sop_count <= 0 && dir_count <= 0) exit 0
           if (title == "") title = rel
           print "### " title
           print "Source: `" rel "`"
           for (i = 1; i <= sop_count; i++) print "- " sop[i]
+          if (dir_count > 0) {
+            print "- Directives:"
+            for (j = 1; j <= dir_count; j++) print "  - " dir[j]
+          }
           print ""
         }
         ' "$file"

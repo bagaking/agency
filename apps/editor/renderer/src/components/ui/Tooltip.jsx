@@ -78,13 +78,6 @@ export function Tooltip({ label, side = 'top', children }) {
     };
   }, [open, updatePosition]);
 
-  if (!label) {
-    return children;
-  }
-  if (typeof document === 'undefined') {
-    return children;
-  }
-
   const tooltipStyle = style || { left: -9999, top: -9999 };
 
   return (
@@ -97,7 +90,7 @@ export function Tooltip({ label, side = 'top', children }) {
       onBlur={() => setOpen(false)}
     >
       {children}
-      {open
+      {open && label && typeof document !== 'undefined'
         ? createPortal(
             <span
               ref={tooltipRef}

@@ -77,7 +77,9 @@ export function buildSessionMapModel({
   sessionsByCellId = {},
   activeSessionByCellId = {},
   sessionActivityByKey = {},
+  sessionVisitedByKey = {},
   config = {},
+  profilesById = null,
 } = {}) {
   const sortedCells = [...cells].sort((a, b) => {
     const aType = normalizeTypeKey(a?.state);
@@ -136,6 +138,10 @@ export function buildSessionMapModel({
         isOffline: offline,
         isActive: activeSessionByCellId[cell.id] === session.id,
         lastActivityAt: sessionActivityByKey[`${cell.id}:${session.id}`] || null,
+        lastVisitedAt: sessionVisitedByKey[`${cell.id}:${session.id}`] || null,
+        startCommand: profilesById?.get
+          ? profilesById.get(session.profileId || 'shell')?.startCommand || ''
+          : '',
       };
     });
     return {

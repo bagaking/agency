@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '@xterm/xterm/css/xterm.css';
 import { StatusBar } from './components/StatusBar.jsx';
 import { AppLayout } from './components/AppLayout.jsx';
@@ -7,6 +7,7 @@ import { LifecycleConfirmModal } from './components/modals/LifecycleConfirmModal
 import { ModalProvider } from './components/modals/ModalSystem.jsx';
 import { useTerminusSettings } from './hooks/useTerminusSettings.js';
 import { useAppShortcuts } from './hooks/useAppShortcuts.js';
+import { useSessionNamingSettings } from './hooks/useSessionNamingSettings.js';
 import { useGates } from './hooks/useGates.js';
 import { useWorktreeLinks } from './hooks/useWorktreeLinks.js';
 import { useSessions } from './hooks/useSessions.js';
@@ -40,10 +41,13 @@ import {
   updateCellMeta as agencyUpdateCellMeta,
   updateHilItem as agencyUpdateHilItem,
 } from './services/agencyBridge.js';
+import { warmSessionMapPreviewCache } from './services/sessionMapPreviewCache.js';
 import { buildPromotePromptBundle, buildPromotePromptText, buildPromoteActionSheetPrompt } from './utils/hilPromotePrompt.js';
 import { buildActionSheetCompletion, buildActionSheetPlan } from './utils/actionSheetCompletion.js';
 import { BASELINE_PROFILE_ID } from './utils/terminusSettings.js';
-import { SessionMapOverlay, SessionMapToggle } from './components/sessionMap/SessionMapOverlay.jsx';
+import { SessionMapOverlay } from './components/sessionMap/SessionMapOverlay.jsx';
+import { SessionMapToggle } from './components/sessionMap/SessionMapToggle.jsx';
+import { PREVIEW_WARMUP_DELAY_MS } from './components/sessionMap/sessionMapConstants.js';
 import { buildSessionMapModel } from './utils/sessionMapModel.js';
 const defaultCells = [
   {
@@ -59,7 +63,7 @@ const defaultCells = [
 ];
 
 const HIL_DRAWER_DEFAULTS = {
-  'agent-cells': 'drafts',
+  'agent-cells': 'reply',
   'action-sheets': 'comments',
   explorer: 'comments',
 };
@@ -87,9 +91,14 @@ function App() {
   const [hilDrawerPanelByView, setHilDrawerPanelByView] = useState({});
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
   const [workbenchSelectionByCellId, setWorkbenchSelectionByCellId] = useState({});
+  const [replySelectionByKey, setReplySelectionByKey] = useState({});
+  const [replyFocusToken, setReplyFocusToken] = useState(0);
+  const [pendingWorkbenchJump, setPendingWorkbenchJump] = useState(null);
+  const [pendingExplorerReveal, setPendingExplorerReveal] = useState(null);
   const [hierarchySection, setHierarchySection] = useState('actions');
   const [actionsScope, setActionsScope] = useState('global');
   const [appShortcutsScope, setAppShortcutsScope] = useState('global');
+  const [sessionNamingScope, setSessionNamingScope] = useState('global');
   const [gateScope, setGateScope] = useState('global');
   const [gateStage, setGateStage] = useState('active');
   const [memoFocusTarget, setMemoFocusTarget] = useState('');
@@ -422,6 +431,29 @@ function App() {
     appShortcutsScope,
     userDataPath,
   });
+  const {
+    scopeSettings: sessionNamingSettings,
+    resolvedSettings: resolvedSessionNaming,
+    scopeDisabled: sessionNamingScopeDisabled,
+    projectSettingsPath: sessionNamingProjectPath,
+    agentSettingsPath: sessionNamingAgentPath,
+    globalSettingsPath: sessionNamingGlobalPath,
+    error: sessionNamingError,
+    saving: sessionNamingSaving,
+    dirty: sessionNamingDirty,
+    summary: sessionNamingSummary,
+    updateRule: updateSessionNamingRule,
+    updateNameList: updateSessionNamingList,
+    removeNameList: removeSessionNamingList,
+    renameNameList: renameSessionNamingList,
+    addNameList: addSessionNamingList,
+    saveSettings: saveSessionNamingSettings,
+    clearError: clearSessionNamingError,
+  } = useSessionNamingSettings({
+    selectedCell: scopedCell,
+    sessionNamingScope,
+    userDataPath,
+  });
   const memoVoiceShortcut = useMemo(() => {
     const action = (appShortcutResolvedActions || []).find((entry) => entry.id === 'memo.voice');
     return action?.shortcut || '';
@@ -458,6 +490,13 @@ function App() {
     updateConfig: updateSessionMapConfig,
     hasLoaded: sessionMapLoaded,
   } = useSessionMap({ projectRoot });
+  const activityDiffThreshold = useMemo(() => {
+    const parsed = Number(sessionMapConfig?.activityDiffThreshold);
+    if (!Number.isFinite(parsed)) {
+      return 12;
+    }
+    return Math.max(1, Math.floor(parsed));
+  }, [sessionMapConfig?.activityDiffThreshold]);
   const {
     sessions,
     sessionsByCellId,
@@ -466,6 +505,7 @@ function App() {
     sessionFontSizeByKey,
     lastActivityAt,
     sessionActivityByKey,
+    sessionVisitedByKey,
     sessionLoading,
     sessionError,
     pendingCommand,
@@ -473,24 +513,48 @@ function App() {
     refreshSessions,
     refreshSessionsForCells,
     createSession,
+    createSessionForCell,
     closeSession,
     detachSession,
     renameSession,
+    updateSessionAvatar,
     selectSession,
     updateSessionActivity,
     zoomIn,
     zoomOut,
     zoomReset,
     dispatchSessionCommand,
+    sendSessionText,
     acknowledgeCommandSent,
     handleSessionAttached,
     resetSessions,
   } = useSessions({
     selectedCell,
+    cells,
     tmuxStatus,
     onOpenTerminal: handleOpenTerminal,
     initialActiveSessions,
   });
+  const sessionTargets = useMemo(() => {
+    const list = [];
+    (displayCells || []).forEach((cell) => {
+      const sessions = sessionsByCellId[cell.id] || [];
+      sessions.forEach((session) => {
+        if (!session || session.status === 'closed' || session.status === 'stale') {
+          return;
+        }
+        list.push({
+          cellId: cell.id,
+          cellName: cell.name || cell.id,
+          sessionId: session.id,
+          sessionName: session.name || session.id,
+          status: session.status,
+          avatar: session.avatar,
+        });
+      });
+    });
+    return list;
+  }, [displayCells, sessionsByCellId]);
   useEffect(() => {
     setSessionMapOpen(false);
   }, [projectRoot]);
@@ -539,6 +603,7 @@ function App() {
   const workbench = useWorkbench({
     selectedCell: scopedCell,
     repoRoot: projectRoot,
+    cells,
     initialTabsByCellId: initialWorkbenchTabs,
     initialActiveTabByCellId: initialWorkbenchActiveTabs,
   });
@@ -559,6 +624,12 @@ function App() {
     setActionSheetSessionId(linked);
   }, [actionSheetDetail?.status?.sessionId, actionSheetSessionId]);
   const mapCells = useMemo(() => (projectReady ? cells : []), [projectReady, cells]);
+  const profilesById = useMemo(() => {
+    if (!resolvedProfiles) {
+      return null;
+    }
+    return new Map(resolvedProfiles.map((profile) => [profile.id, profile]));
+  }, [resolvedProfiles]);
   const sessionMapModel = useMemo(
     () =>
       buildSessionMapModel({
@@ -566,17 +637,81 @@ function App() {
         sessionsByCellId,
         activeSessionByCellId,
         sessionActivityByKey,
+        sessionVisitedByKey,
         config: sessionMapConfig,
+        profilesById,
       }),
-    [mapCells, sessionsByCellId, activeSessionByCellId, sessionActivityByKey, sessionMapConfig]
+    [
+      mapCells,
+      sessionsByCellId,
+      activeSessionByCellId,
+      sessionActivityByKey,
+      sessionVisitedByKey,
+      sessionMapConfig,
+      profilesById,
+    ]
   );
+  const previewWarmKeyRef = useRef('');
+  const sessionMapPreviewSeeds = useMemo(() => {
+    if (!sessionMapModel?.clusters?.length) {
+      return [];
+    }
+    const seeds = [];
+    sessionMapModel.clusters.forEach((cluster) => {
+      const cell = cluster.cell;
+      if (!cell?.id || !cell?.worktreePath) {
+        return;
+      }
+      cluster.sessions.forEach((session) => {
+        if (!session?.id || session.isOffline) {
+          return;
+        }
+        seeds.push({
+          cellId: cell.id,
+          worktreePath: cell.worktreePath,
+          sessionId: session.id,
+        });
+      });
+    });
+    return seeds;
+  }, [sessionMapModel]);
   const sessionMapEnabled = projectReady && mapCells.length > 0;
+  useEffect(() => {
+    if (!sessionMapEnabled || sessionMapPreviewSeeds.length === 0) {
+      return;
+    }
+    const nextKey = sessionMapPreviewSeeds
+      .map((item) => `${item.cellId}:${item.sessionId}`)
+      .sort()
+      .join('|');
+    if (!nextKey || nextKey === previewWarmKeyRef.current) {
+      return;
+    }
+    previewWarmKeyRef.current = nextKey;
+    const scheduleWarmup = () => {
+      warmSessionMapPreviewCache({
+        sessions: sessionMapPreviewSeeds,
+      });
+    };
+    if (typeof window !== 'undefined' && window.requestIdleCallback) {
+      const handle = window.requestIdleCallback(scheduleWarmup, { timeout: 1200 });
+      return () => window.cancelIdleCallback?.(handle);
+    }
+    const handle = setTimeout(scheduleWarmup, PREVIEW_WARMUP_DELAY_MS);
+    return () => clearTimeout(handle);
+  }, [sessionMapEnabled, sessionMapPreviewSeeds]);
   useEffect(() => {
     if (!sessionMapOpen || !sessionMapEnabled) {
       return;
     }
     refreshSessionsForCells(mapCells, { silent: true });
   }, [mapCells, refreshSessionsForCells, sessionMapEnabled, sessionMapOpen]);
+  useEffect(() => {
+    if (activeView !== 'agent-cells' || !projectReady || displayCells.length === 0) {
+      return;
+    }
+    refreshSessionsForCells(displayCells, { silent: true });
+  }, [activeView, projectReady, displayCells, refreshSessionsForCells]);
   const handleToggleSessionMap = useCallback(() => {
     setSessionMapOpen((value) => !value);
   }, []);
@@ -591,11 +726,30 @@ function App() {
     [activeFontSize, sessionFontSizeByKey]
   );
   const handleSelectSessionFromMap = useCallback(
-    (cellId, sessionId) => {
+    (cellId, sessionId, options = {}) => {
       if (!cellId || !sessionId) {
         return;
       }
       const targetCell = mapCells.find((cell) => cell.id === cellId);
+      if (!targetCell) {
+        return;
+      }
+      if (options?.focusView) {
+        setActiveView('agent-cells');
+      }
+      setSelectedId(cellId);
+      selectSession(sessionId, cellId);
+      setTerminalOpen(true);
+      refreshSessionsForCells([targetCell], { silent: true });
+    },
+    [mapCells, refreshSessionsForCells, selectSession, setActiveView]
+  );
+  const handleSelectSessionFromSidebar = useCallback(
+    (cellId, sessionId) => {
+      if (!cellId || !sessionId) {
+        return;
+      }
+      const targetCell = displayCells.find((cell) => cell.id === cellId);
       if (!targetCell) {
         return;
       }
@@ -604,7 +758,7 @@ function App() {
       setTerminalOpen(true);
       refreshSessionsForCells([targetCell], { silent: true });
     },
-    [mapCells, refreshSessionsForCells, selectSession]
+    [displayCells, refreshSessionsForCells, selectSession]
   );
   const focusSession = useMemo(
     () => sessions.find((session) => session.id === activeSessionId),
@@ -643,6 +797,17 @@ function App() {
     const preferredPanel = hilDrawerPanelByView[activeView];
     setHilDrawerPanel(preferredPanel || resolveHilDrawerDefault(activeView));
   }, [activeView, commentModalOpen, hilDrawerPanelByView, promoteModalOpen]);
+  useEffect(() => {
+    if (activeView === 'agent-cells') {
+      setHilDrawerOpen(true);
+      setHilDrawerPanel('reply');
+    }
+  }, [activeView]);
+  useEffect(() => {
+    if (hilDrawerOpen && activeView === 'agent-cells' && hilDrawerPanel !== 'reply') {
+      setHilDrawerPanel('reply');
+    }
+  }, [hilDrawerOpen, activeView, hilDrawerPanel]);
   const openHilDrawer = useCallback((panel = 'comments') => {
     setHilDrawerPanel(panel);
     setHilDrawerOpen(true);
@@ -1017,6 +1182,36 @@ function App() {
     },
     [selectedCell?.id]
   );
+  const handleSelectionContext = useCallback((selection) => {
+    if (!selection?.cellId || !selection?.sessionId) {
+      return;
+    }
+    const key = `${selection.cellId}:${selection.sessionId}`;
+    setReplySelectionByKey((current) => ({
+      ...current,
+      [key]: selection,
+    }));
+  }, []);
+  const handleReplySelection = useCallback(
+    (selection) => {
+      if (!selection?.cellId || !selection?.sessionId) {
+        return;
+      }
+      const key = `${selection.cellId}:${selection.sessionId}`;
+      setReplySelectionByKey((current) => ({
+        ...current,
+        [key]: selection,
+      }));
+      setHilDrawerPanel('reply');
+      setHilDrawerOpen(true);
+      setHilDrawerPanelByView((current) => ({
+        ...current,
+        [activeView]: 'reply',
+      }));
+      setReplyFocusToken((token) => token + 1);
+    },
+    [activeView]
+  );
   const openCommentModal = useCallback(
     ({ line, column } = {}) => {
       if (!commentRootPath || !commentFilePath) {
@@ -1211,7 +1406,7 @@ function App() {
         return;
       }
       const pending = (Array.isArray(list) ? list : [])
-        .filter((item) => item && (item.kind === 'comment' || item.kind === 'memo'))
+        .filter((item) => item && (item.kind === 'comment' || item.kind === 'memo' || item.kind === 'reply'))
         .filter((item) => item.meta?.processed !== true)
         .sort((a, b) => {
           const fileA = a.anchor?.file || '';
@@ -1846,6 +2041,11 @@ function App() {
     project: appShortcutsProjectPath,
     agent: appShortcutsAgentPath,
   };
+  const sessionNamingPaths = {
+    global: sessionNamingGlobalPath,
+    project: sessionNamingProjectPath,
+    agent: sessionNamingAgentPath,
+  };
   const terminusProfiles = useMemo(
     () => (resolvedProfiles || []).filter((profile) => String(profile.startCommand || '').trim()),
     [resolvedProfiles]
@@ -1854,6 +2054,18 @@ function App() {
     () => sessions?.find((session) => session.id === activeSessionId) || null,
     [sessions, activeSessionId]
   );
+  const replySelectionKey = useMemo(() => {
+    if (!selectedCell?.id || !activeSessionId) {
+      return '';
+    }
+    return `${selectedCell.id}:${activeSessionId}`;
+  }, [activeSessionId, selectedCell?.id]);
+  const activeReplySelection = useMemo(() => {
+    if (!replySelectionKey) {
+      return null;
+    }
+    return replySelectionByKey[replySelectionKey] || null;
+  }, [replySelectionByKey, replySelectionKey]);
   const activeProfileId = activeSession?.profileId || BASELINE_PROFILE_ID;
   const activeProfileBindings = useMemo(() => {
     if (!resolvedBindingsByProfile) {
@@ -1864,6 +2076,94 @@ function App() {
     }
     return resolvedBindingsByProfile[activeProfileId] || [];
   }, [activeProfileId, resolvedBindingsByProfile]);
+  const sessionNamingPreviewContext = useMemo(() => {
+    const projectLabel = (projectRoot || '')
+      .split('/')
+      .filter(Boolean)
+      .pop();
+    return {
+      cell: selectedCell?.name || 'Agent',
+      profile: activeProfileId || 'shell',
+      project: projectLabel || '',
+      branch: selectedCell?.branch || '',
+      user: 'you',
+    };
+  }, [activeProfileId, projectRoot, selectedCell?.branch, selectedCell?.name]);
+
+  const handleOpenWorkbenchFile = useCallback(
+    ({ path, rootPath, line, column, focusView = true, cellId } = {}) => {
+      if (!path) {
+        return;
+      }
+      const resolvedRoot = rootPath || selectedCell?.worktreePath || projectRoot || '';
+      const targetCellId = cellId || selectedCell?.id || null;
+      if (cellId && cellId !== selectedCell?.id) {
+        setSelectedId(cellId);
+      }
+      workbench.openFile({
+        path,
+        mode: 'pinned',
+        rootPath: resolvedRoot,
+        cellId: targetCellId || undefined,
+      });
+      setPendingExplorerReveal({ path, rootPath: resolvedRoot, cellId: targetCellId || null });
+      if (focusView) {
+        setActiveView('explorer');
+        if (sidebarCollapsed) {
+          setSidebarCollapsed(false);
+        }
+      }
+      if (Number.isFinite(line)) {
+        setPendingWorkbenchJump({
+          path,
+          rootPath: resolvedRoot,
+          line: Math.max(1, Math.floor(line)),
+          column: Math.max(1, Math.floor(column || 1)),
+          cellId: targetCellId || null,
+        });
+      }
+    },
+    [
+      projectRoot,
+      selectedCell?.id,
+      selectedCell?.worktreePath,
+      sidebarCollapsed,
+      workbench,
+      setSelectedId,
+    ]
+  );
+
+  const handleJumpToSession = useCallback(
+    (cellId, sessionId) => {
+      handleSelectSessionFromMap(cellId, sessionId, { focusView: true });
+    },
+    [handleSelectSessionFromMap]
+  );
+
+  const handleJumpToReplyMemo = useCallback(() => {
+    setActiveView('memo');
+    if (sidebarCollapsed) {
+      setSidebarCollapsed(false);
+    }
+    hilMemo.setDockSelection({
+      type: 'inbox',
+      inboxType: 'reply',
+      draftId: null,
+    });
+  }, [hilMemo.setDockSelection, sidebarCollapsed]);
+  const handleClearReplySelection = useCallback(() => {
+    if (!replySelectionKey) {
+      return;
+    }
+    setReplySelectionByKey((current) => {
+      if (!current[replySelectionKey]) {
+        return current;
+      }
+      const next = { ...current };
+      delete next[replySelectionKey];
+      return next;
+    });
+  }, [replySelectionKey]);
 
   const editorPaneProps = {
     cell: selectedCell,
@@ -1872,10 +2172,10 @@ function App() {
     terminalMode,
     terminalOpen,
     sessionId: activeSessionId,
+    sessionTargets,
     sessions,
     sessionLoading,
     sessionError,
-    terminusProfiles,
     terminusBindings: activeProfileBindings,
     tmuxStatus,
     gateResultsByStage,
@@ -1883,25 +2183,26 @@ function App() {
     gateDisplayStage,
     idleSince: lastActivityAt,
     isVisible: activeView === 'agent-cells',
-    onCreateSession: createSession,
     onRefreshSessions: refreshSessions,
-    onSelectSession: selectSession,
-    onCloseSession: closeSession,
-    onDetachSession: detachSession,
-    onRenameSession: renameSession,
     onStateChange: handleStateChange,
     onOpenTerminal: handleOpenTerminal,
     onZoomIn: zoomIn,
     onZoomOut: zoomOut,
     onZoomReset: zoomReset,
     onSelectProject: handleSelectProjectRoot,
-    onDispatchCommand: dispatchSessionCommand,
     pendingCommand,
     onCommandSent: acknowledgeCommandSent,
     onSessionActivity: updateSessionActivity,
     onSessionAttached: handleSessionAttached,
+    onSendSessionText: sendSessionText,
     terminalFontSize: activeFontSize,
     onUpdateCellAvatar: handleUpdateCellAvatar,
+    onOpenWorkbenchFile: handleOpenWorkbenchFile,
+    onJumpToSession: handleJumpToSession,
+    onJumpToMemo: handleJumpToReplyMemo,
+    activityDiffThreshold,
+    onSelectionContext: handleSelectionContext,
+    onReplySelection: handleReplySelection,
   };
   const handleSwitchView = useCallback(
     (view) => {
@@ -1969,6 +2270,18 @@ function App() {
     handleOpenTerminal();
     selectSession(promoteSessionId);
   }, [handleOpenTerminal, promoteSessionId, selectSession]);
+  const hilReplyProps = {
+    cell: selectedCell,
+    session: activeSession,
+    worktreePath: selectedCell?.worktreePath || projectRoot || '',
+    selection: activeReplySelection,
+    focusToken: replyFocusToken,
+    sessionTargets,
+    onClearSelection: handleClearReplySelection,
+    onSendSessionText: sendSessionText,
+    onJumpToSession: handleJumpToSession,
+    onJumpToMemo: handleJumpToReplyMemo,
+  };
   const hilCommentsProps = {
     activeFile: activeTab?.path || '',
     cursorPosition,
@@ -2160,11 +2473,14 @@ function App() {
       if (target === 'gates') {
         clearGatesError();
       }
+      if (target === 'session-naming') {
+        clearSessionNamingError();
+      }
       if (target === 'softlinks') {
         clearWorktreeLinksError();
       }
     },
-    [clearGatesError, clearTerminusError, clearWorktreeLinksError]
+    [clearAppShortcutsError, clearGatesError, clearSessionNamingError, clearTerminusError, clearWorktreeLinksError]
   );
   const handleSelectActionsScope = useCallback(
     (scope) => {
@@ -2190,14 +2506,25 @@ function App() {
     },
     [clearGatesError]
   );
+  const handleSelectSessionNamingScope = useCallback(
+    (scope) => {
+      setHierarchySection('session-naming');
+      setSessionNamingScope(scope);
+      clearSessionNamingError();
+    },
+    [clearSessionNamingError]
+  );
   const handleSelectHierarchySection = useCallback(
     (section) => {
       setHierarchySection(section);
       if (section === 'softlinks') {
         clearWorktreeLinksError();
       }
+      if (section === 'session-naming') {
+        clearSessionNamingError();
+      }
     },
-    [clearWorktreeLinksError]
+    [clearSessionNamingError, clearWorktreeLinksError]
   );
   return (
     <ModalProvider>
@@ -2220,6 +2547,17 @@ function App() {
         }}
         onJumpToHierarchy={handleHierarchyJump}
         onOpenExplorerForCell={handleOpenExplorerForCell}
+        sessionsByCellId={sessionsByCellId}
+        activeSessionByCellId={activeSessionByCellId}
+        sessionActivityByKey={sessionActivityByKey}
+        terminusProfiles={terminusProfiles}
+        onSelectSession={handleSelectSessionFromSidebar}
+        onCreateSession={createSessionForCell}
+        onDispatchSessionCommand={dispatchSessionCommand}
+        onCloseSession={closeSession}
+        onDetachSession={detachSession}
+        onRenameSession={renameSession}
+        onUpdateSessionAvatar={updateSessionAvatar}
         projectReady={projectReady}
         projectError={projectError}
         projectRoot={projectRoot}
@@ -2235,6 +2573,8 @@ function App() {
         onSelectActionsScope={handleSelectActionsScope}
         appShortcutsScope={appShortcutsScope}
         onSelectAppShortcutsScope={handleSelectAppShortcutsScope}
+        sessionNamingScope={sessionNamingScope}
+        onSelectSessionNamingScope={handleSelectSessionNamingScope}
         actionsScopeDisabled={terminusScopeDisabled}
         actionSummary={terminusSummary}
         appShortcutsScopeDisabled={appShortcutsScopeDisabled}
@@ -2249,6 +2589,22 @@ function App() {
         onResetAppShortcut={resetAppShortcut}
         onSaveAppShortcuts={saveAppShortcuts}
         onClearAppShortcutsError={clearAppShortcutsError}
+        sessionNamingScopeDisabled={sessionNamingScopeDisabled}
+        sessionNamingSummary={sessionNamingSummary}
+        sessionNamingSettings={sessionNamingSettings}
+        resolvedSessionNaming={resolvedSessionNaming}
+        sessionNamingPaths={sessionNamingPaths}
+        sessionNamingError={sessionNamingError}
+        sessionNamingSaving={sessionNamingSaving}
+        sessionNamingDirty={sessionNamingDirty}
+        sessionNamingPreviewContext={sessionNamingPreviewContext}
+        onUpdateSessionNamingRule={updateSessionNamingRule}
+        onUpdateSessionNamingList={updateSessionNamingList}
+        onRenameSessionNamingList={renameSessionNamingList}
+        onRemoveSessionNamingList={removeSessionNamingList}
+        onAddSessionNamingList={addSessionNamingList}
+        onSaveSessionNaming={saveSessionNamingSettings}
+        onClearSessionNamingError={clearSessionNamingError}
         actionsRows={profileRows}
         activeProfileId={activeProfileId}
         projectActionsPath={projectSettingsPath}
@@ -2319,6 +2675,7 @@ function App() {
         onOpenHilPromote={openPromoteModal}
         hilCommentsProps={hilCommentsProps}
         hilDraftsProps={hilDraftsProps}
+        hilReplyProps={hilReplyProps}
         memoDrawerProps={memoDrawerProps}
         actionSheetsProps={{
           projectReady,
@@ -2359,8 +2716,11 @@ function App() {
           sessionActivityByKey,
           onJumpToAgents: () => handleSwitchView('agent-cells'),
           workbenchMeta: explorerMeta,
-          onSelectSession: selectSession,
           onDispatchFeed: handleDispatchExplorerFeed,
+          onToggleSessionMap: handleToggleSessionMap,
+          sessionMapOpen,
+          revealRequest: pendingExplorerReveal,
+          onRevealHandled: () => setPendingExplorerReveal(null),
           onOpenFile: ({ path, mode }) => {
             workbench.openFile({ path, mode, rootPath: explorerRootPath });
           },
@@ -2381,6 +2741,8 @@ function App() {
           onOpenComment: openCommentModal,
           onCursorPositionChange: setCursorPosition,
           onSelectionChange: handleWorkbenchSelectionChange,
+          pendingJump: pendingWorkbenchJump,
+          onJumpHandled: () => setPendingWorkbenchJump(null),
         }}
         memoPaneProps={{
           ...hilMemo,
@@ -2415,6 +2777,11 @@ function App() {
         onSelectSession={handleSelectSessionFromMap}
         onClose={handleToggleSessionMap}
         resolveFontSize={resolveSessionMapFontSize}
+        terminusProfiles={terminusProfiles}
+        onCreateSession={createSessionForCell}
+        onDispatchCommand={dispatchSessionCommand}
+        onRenameSession={renameSession}
+        onUpdateSessionAvatar={updateSessionAvatar}
         mode="dock"
       />
 

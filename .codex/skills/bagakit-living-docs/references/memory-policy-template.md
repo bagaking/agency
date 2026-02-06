@@ -18,12 +18,23 @@ Recommended structure:
 - `docs/.bagakit/inbox/<kind>-<topic>.md`
 
 ## Writing Rules
-- Keep entries short and factual; link to sources (files/PRs/issues/docs).
-- Prefer “what + why + when it applies” over long narratives.
+- Keep entries short, but **standalone**: include enough context and reasoning so someone can understand it without the original chat/incident.
+- Prefer “what + why + when it applies” over long narratives or raw transcripts.
 - If an item is a stable policy or deep guide, promote it into `docs/` and link from memory.
 - Avoid fragmentation:
   - Before creating a new entry, search for an existing canonical entry and update/append instead of creating a near-duplicate.
   - Prefer one canonical entry + links over multiple partial entries.
+
+### Standalone Context (Recommended)
+When writing memory entries, include minimal-but-sufficient context so the entry is readable in isolation:
+- **Context**: what problem/task triggered this memory (1-3 sentences).
+- **Decision/Preference/Gotcha**: the conclusion or rule (1-5 bullets).
+- **Rationale**: key reasoning/tradeoffs (3-6 bullets; summarize, don't paste the whole chat).
+- **Scope**: when it applies + explicit exceptions (if any).
+- **Sources**: links/paths to code/PRs/issues/docs; add dates when helpful.
+
+Optional:
+- **Update log**: for evolving topics (especially debugging), keep an append-only update log with dates and links. Keep the summary sections above accurate as the topic evolves.
 
 ## Promotion Workflow
 1) Capture candidate in `docs/.bagakit/inbox/` (fast, messy is OK).

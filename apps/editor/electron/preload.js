@@ -117,11 +117,14 @@ contextBridge.exposeInMainWorld('agency', {
   closeSession: (payload) => ipcRenderer.invoke('sessions:close', payload),
   detachSession: (payload) => ipcRenderer.invoke('sessions:detach', payload),
   renameSession: (payload) => ipcRenderer.invoke('sessions:rename', payload),
+  updateSessionMeta: (payload) => ipcRenderer.invoke('sessions:updateMeta', payload),
+  setSessionMouse: (payload) => ipcRenderer.invoke('sessions:setMouse', payload),
   getUiState: () => ipcRenderer.invoke('ui-state:get'),
   setUiState: (payload) => ipcRenderer.invoke('ui-state:set', payload),
   getSessionMap: (payload) => ipcRenderer.invoke('session-map:get', payload),
   setSessionMap: (payload) => ipcRenderer.invoke('session-map:set', payload),
   getSessionMapPreview: (payload) => ipcRenderer.invoke('session-map:preview', payload),
+  getSessionMapSnapshot: (payload) => ipcRenderer.invoke('session-map:snapshot', payload),
   getAppShortcuts: (payload) => ipcRenderer.invoke('app-shortcuts:get', payload),
   setAppShortcuts: (payload) => ipcRenderer.invoke('app-shortcuts:set', payload),
   applyAppShortcuts: (payload) => ipcRenderer.invoke('app-shortcuts:apply', payload),
@@ -129,6 +132,8 @@ contextBridge.exposeInMainWorld('agency', {
   setQuickActions: (payload) => ipcRenderer.invoke('quick-actions:set', payload),
   getTerminusSettings: (payload) => ipcRenderer.invoke('terminus-settings:get', payload),
   setTerminusSettings: (payload) => ipcRenderer.invoke('terminus-settings:set', payload),
+  getSessionNamingSettings: (payload) => ipcRenderer.invoke('session-naming:get', payload),
+  setSessionNamingSettings: (payload) => ipcRenderer.invoke('session-naming:set', payload),
   getGates: (payload) => ipcRenderer.invoke('gates:get', payload),
   setGates: (payload) => ipcRenderer.invoke('gates:set', payload),
   checkGates: (payload) => ipcRenderer.invoke('gates:check', payload),
@@ -212,6 +217,7 @@ contextBridge.exposeInMainWorld('agency', {
   writeTerminal: (payload) => ipcRenderer.send('terminal:write', payload),
   resizeTerminal: (payload) => ipcRenderer.send('terminal:resize', payload),
   disposeTerminal: (payload) => ipcRenderer.send('terminal:dispose', payload),
+  setSessionInteractive: (payload) => ipcRenderer.send('session:interactive', payload),
   onTerminalData: (handler) => {
     const wrapped = (_event, payload) => handler(payload);
     ipcRenderer.on('terminal:data', wrapped);
@@ -221,6 +227,11 @@ contextBridge.exposeInMainWorld('agency', {
     const wrapped = (_event, payload) => handler(payload);
     ipcRenderer.on('terminal:error', wrapped);
     return () => ipcRenderer.removeListener('terminal:error', wrapped);
+  },
+  onTerminalDetached: (handler) => {
+    const wrapped = (_event, payload) => handler(payload);
+    ipcRenderer.on('terminal:detached', wrapped);
+    return () => ipcRenderer.removeListener('terminal:detached', wrapped);
   },
   onCellsUpdated: (handler) => {
     const wrapped = (_event, payload) => handler(payload);

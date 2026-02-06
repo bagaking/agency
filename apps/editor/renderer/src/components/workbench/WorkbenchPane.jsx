@@ -90,6 +90,8 @@ export function WorkbenchPane({
   onOpenComment,
   onCursorPositionChange,
   onSelectionChange,
+  pendingJump,
+  onJumpHandled,
 }) {
   if (!projectReady) {
     return (
@@ -112,6 +114,8 @@ export function WorkbenchPane({
       onOpenComment={onOpenComment}
       onCursorPositionChange={onCursorPositionChange}
       onSelectionChange={onSelectionChange}
+      pendingJump={pendingJump}
+      onJumpHandled={onJumpHandled}
     />
   );
 }
@@ -126,6 +130,8 @@ function WorkbenchPaneContent({
   onOpenComment,
   onCursorPositionChange,
   onSelectionChange,
+  pendingJump,
+  onJumpHandled,
 }) {
   const { 
     tabs, 
@@ -143,6 +149,7 @@ function WorkbenchPaneContent({
   const [quickOpenVisible, setQuickOpenVisible] = useState(false);
   const [statusPosition, setStatusPosition] = useState({ line: 1, column: 1 });
   const [tabMenu, setTabMenu] = useState(null);
+  const [editorToken, setEditorToken] = useState(0);
   const dragSourceRef = useRef(null);
   const activeEditorRef = useRef(null);
 
@@ -275,6 +282,7 @@ function WorkbenchPaneContent({
 
   const registerActiveEditor = useCallback((editor) => {
     activeEditorRef.current = editor || null;
+    setEditorToken((value) => value + 1);
   }, []);
 
   const runEditorAction = useCallback((actionId) => {
@@ -377,6 +385,41 @@ function WorkbenchPaneContent({
   useEffect(() => {
     onSelectionChange?.(null);
   }, [activeTab?.id, onSelectionChange]);
+
+  useEffect(() => {
+    if (!pendingJump || !activeTab) {
+      return;
+    }
+    if (pendingJump.path !== activeTab.path || pendingJump.rootPath !== activeTab.rootPath) {
+      return;
+    }
+    if (activeState.loading) {
+      return;
+    }
+    if (activeState.kind !== 'code') {
+      onJumpHandled?.();
+      return;
+    }
+    const editor = activeEditorRef.current;
+    if (!editor) {
+      return;
+    }
+    const model = editor.getModel?.();
+    const maxLine = model?.getLineCount?.() || pendingJump.line || 1;
+    const line = Math.min(Math.max(1, Math.floor(pendingJump.line || 1)), maxLine);
+    const column = Math.max(1, Math.floor(pendingJump.column || 1));
+    editor.setPosition?.({ lineNumber: line, column });
+    editor.revealPositionInCenter?.({ lineNumber: line, column });
+    editor.focus?.();
+    onJumpHandled?.();
+  }, [
+    activeState.kind,
+    activeState.loading,
+    activeTab,
+    editorToken,
+    onJumpHandled,
+    pendingJump,
+  ]);
 
   const handleUnlock = async () => {
       if (!activeTab) return;

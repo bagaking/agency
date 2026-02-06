@@ -8,6 +8,10 @@ description: Create and maintain a living documentation + memory system for any 
 ## Overview
 Establish a self-updating documentation + memory system that stays accurate as the project evolves. This skill defines system docs, taxonomy rules, SOP generation, a project memory layer, and AGENTS.md injections.
 
+Key idea:
+- System-level rules live in `docs/must-*.md` (all `must-*` are mandatory reading in a target project).
+- Other mechanisms (e.g. reusable-items governance, directives) are optional: adopt/modify/disable per the target project's own norms.
+
 ## Workflow
 1) Confirm doc root and system prefix
 - Default doc root: `docs/`
@@ -37,34 +41,58 @@ Establish a self-updating documentation + memory system that stays accurate as t
   - `<!-- BAGAKIT:LIVEDOCS:START -->`
   - `<!-- BAGAKIT:LIVEDOCS:END -->`
 - Keep the block intact so automation can refresh it.
-- Mention the three system docs and when to open them.
-- Require a response footer (e.g., `[[Bagakit.LivingDoc]] ...`) after each task.
-- Reinforce the must-guidebook and update rules three times in the block.
+- Mention the system docs (`docs/must-*.md`) and when to open them.
+- Require a response footer block (e.g., `[[BAGAKIT]]` + `- LivingDoc: ...`) after each task.
+- Reinforce the must-guidebook and update rules three times in the block (repeat the key reminder; keep extra detail only once).
 
-6) Maintenance rules
+6) Default: Maintaining reusable items (可复用项维护)
+- Always scaffold the governance entrypoint: `docs/norms-maintaining-reusable-items.md`.
+- When the project shows signals for a domain, scaffold a starter reusable-items catalog (idempotent):
+  - Coding projects: `docs/notes-reusable-items-coding.md`
+  - UI projects: `docs/notes-reusable-items-design.md`
+- Keep catalogs project-local and iterated; the "reusable" part is the items/content, not the template itself.
+
+7) Maintenance rules
 - When adding/renaming docs, update `must-docs-taxonomy.md` and `must-guidebook.md`.
 - Keep naming prefixes consistent across docs (type-first).
 - Keep system docs short and index-style; put details in domain docs.
 
 ## Templates and references
-- Doc taxonomy template: `references/docs-taxonomy-template.md`
-- Guidebook template: `references/guidebook-template.md`
-- SOP output template: `references/sop-template.md`
-- Memory policy template: `references/memory-policy-template.md`
-- Default continuous-learning SOP doc template: `references/notes-continuous-learning-template.md`
-- Memory entry template: `references/memory-entry-template.md`
-- Memory inbox entry template: `references/memory-inbox-entry-template.md`
-- Memory dir README template: `references/memory-dir-readme-template.md`
-- Inbox dir README template: `references/inbox-dir-readme-template.md`
-- AGENTS managed block template: `references/agents-block-template.md`
+Templates live under `references/`.
+
+- System docs:
+  - `docs-taxonomy-template.md`
+  - `guidebook-template.md`
+  - `sop-template.md`
+  - `memory-policy-template.md`
+- Memory templates:
+  - `memory-entry-template.md`
+  - `memory-inbox-entry-template.md`
+  - `memory-dir-readme-template.md`
+  - `inbox-dir-readme-template.md`
+- AGENTS managed block:
+  - `agents-block-template.md`
+- Optional helper docs:
+  - `notes-continuous-learning-template.md`
+  - `notes-adopting-living-docs-template.md` (existing-docs repos)
+  - `notes-directives-examples-template.md`
+  - `guidelines-doc-coauthoring-template.md`
+  - `notes-project-charter-template.md` (suggested)
+- Reusable items templates (under `references/reusable-items/`):
+  - `norms-maintaining-reusable-items-template.md`
+  - `notes-reusable-items-<domain>-template.md` (domains: coding/design/writing/knowledge)
 
 ## Scripts
-- Apply templates, inject AGENTS block, and install helper tools: `scripts/apply-living-docs.sh`
-- Generate `docs/must-sop.md` from doc frontmatter: `scripts/bagakit_generate_sop.sh`
-- Search/get project memory + docs (POSIX sh): `scripts/bagakit_memory.sh`
-- Inbox helper (create/promote memory candidates): `scripts/bagakit_inbox.sh`
-- Session-to-inbox "learning" helper (Codex sessions -> draft inbox entry): `scripts/bagakit_learning.sh`
-- Doctor (diagnose docs/memory health and suggest improvements): `scripts/bagakit_doctor.sh`
-- Optional: build a local SQLite FTS index for faster search: `scripts/bagakit_memory_index.py index`
-- Validate docs + memory conventions: `scripts/validate-docs.sh`
-- Repo self-test: `scripts/test.sh`
+Scripts live under `scripts/`.
+
+- Apply templates + inject AGENTS block: `apply-living-docs.sh`
+- Generate `docs/must-sop.md` from doc frontmatter: `bagakit_generate_sop.sh`
+- Memory recall (search/get): `bagakit_memory.sh`
+- Inbox helper (new/promote): `bagakit_inbox.sh`
+- Session-to-inbox learning extractor: `bagakit_learning.sh` (uses `bagakit_learning.py`)
+- Update helper (check remote vs local skill; apply into project): `bagakit_update.sh`
+- Diagnostics (non-destructive): `bagakit_doctor.sh`
+- Reusable-items query: `bagakit_reusable_items.sh` (uses `bagakit_reusable_items.py`)
+- Optional: local SQLite FTS index: `bagakit_memory_index.py`
+- Validate docs + memory conventions: `validate-docs.sh`
+- Skill self-test: `test.sh`

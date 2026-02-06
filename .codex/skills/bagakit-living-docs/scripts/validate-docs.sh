@@ -100,8 +100,11 @@ if [[ -f "$agents_file" ]]; then
   if ! grep -q "<!-- BAGAKIT:LIVEDOCS:END -->" "$agents_file"; then
     fail "missing BAGAKIT managed block end in ${agents_file}"
   fi
-  if ! grep -q "\\[\\[Bagakit\\.LivingDoc\\]\\]" "$agents_file"; then
-    fail "missing [[Bagakit.LivingDoc]] requirement in ${agents_file}"
+  if ! grep -q "\\[\\[BAGAKIT\\]\\]" "$agents_file"; then
+    fail "missing [[BAGAKIT]] requirement in ${agents_file}"
+  fi
+  if ! grep -q "LivingDoc:" "$agents_file"; then
+    fail "missing LivingDoc footer requirement in ${agents_file}"
   fi
 else
   warn "missing AGENTS.md: ${agents_file}"

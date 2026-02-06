@@ -11,6 +11,24 @@ created: YYYY-MM-DD
 updated: YYYY-MM-DD
 ---
 
+## Context
+<What triggered this memory? Enough background to understand it without the original chat/incident.>
+
+## Decision / Preference / Gotcha
+- <The conclusion or rule. Keep it short.>
+
+## Rationale
+- <Key reasoning/tradeoffs. Summarize; do not paste long transcripts.>
+
+## Scope / Exceptions
+- Applies to: <...>
+- Exceptions: <...>
+
+## Update Log (Append-Only, Optional)
+Use this section when you need to accumulate related notes over time (e.g., debugging learnings).
+- YYYY-MM-DD: <one short update; link to PR/issue/logs if relevant>
+- YYYY-MM-DD: <...>
+
 ## Summary
 <One or two sentences. What should be remembered, and when it applies.>
 

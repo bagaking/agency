@@ -1,0 +1,36 @@
+## 1. Implementation
+- [x] 1.1 Add map overlay entrypoint in status bar (global across screens).
+- [x] 1.2 Aggregate Cells + Sessions into map model (status, offline/online, counts).
+- [x] 1.3 Render Cell clusters with faction coloring and labels.
+- [x] 1.4 Render Session role tokens with status indicators and tooltips.
+- [x] 1.5 Implement click-to-jump navigation to target session (keep current screen).
+- [x] 1.6 Add live terminal preview on hover and allow click-to-jump from preview.
+- [x] 1.7 Add compact stats header (total cells/sessions/online/offline).
+- [x] 1.8 Provide overflow handling (scroll container) for large counts.
+- [x] 1.9 Default-open the map on first entry per project and persist dismissal.
+- [x] 1.10 Add faction color defaults (Cell type + creation order) and config overrides.
+- [x] 1.11 Wire open-agent-avatars catalog + rotating avatar assignment for sessions.
+- [x] 1.12 Implement 7x7 avatar picker with recent row + hidden scrollbar.
+- [x] 1.13 Add hover preview info bar actions (rename + change avatar).
+- [x] 1.14 Add per-cell session creation entrypoint inside the map.
+- [x] 1.15 Tighten dock HUD height to 3-row layout and status-bar sync.
+- [x] 1.16 Add session-level attach manager (centralize attach/detach for terminal, preview, capture).
+- [x] 1.17 Implement idle-based attach GC (default 30 min, 1 min grace, non-interactive only).
+- [x] 1.18 Add preview cache (2-3 frames) and persist snapshots under `.agency/`.
+- [x] 1.19 Add snapshot API that guarantees attach-before-capture.
+- [x] 1.20 Wire config toggles for attach GC and preview cache sizing.
+
+## 2. Validation
+- [x] 2.1 Manual: map overlay visible on all main screens; toggles from status bar. (code-confirmed)
+- [x] 2.2 Manual: clicking a session jumps to that Cell + session. (code-confirmed)
+- [x] 2.3 Manual: archived/closed/stale sessions render as offline state. (code-confirmed)
+- [x] 2.4 Manual: tooltips show dynamic session details and live preview on hover. (code-confirmed)
+- [x] 2.5 Manual: clicking the hover preview jumps to the session. (code-confirmed)
+- [x] 2.6 Manual: large number of sessions remains usable (scroll + stats). (code-confirmed)
+- [x] 2.7 Manual: first entry auto-opens the map; subsequent entries respect toggle. (code-confirmed)
+- [x] 2.8 Manual: avatar picker uses 7x7 grid, shows recent row, scrolls without scrollbars, and updates session avatars. (code-confirmed)
+- [x] 2.9 Manual: hover info bar rename + avatar menu work without triggering jump. (code-confirmed)
+- [x] 2.10 Manual: map per-cell “create session” menu (base + terminus profiles) works. (code-confirmed)
+- [x] 2.11 Manual: preview shows immediately from cache and refreshes after hover. (code-confirmed)
+- [x] 2.12 Manual: idle-based attach GC detaches after threshold and reattaches on interaction without resetting idle. (code-confirmed)
+- [x] 2.13 Manual: snapshot API writes to `.agency/` and survives restart. (code-confirmed)

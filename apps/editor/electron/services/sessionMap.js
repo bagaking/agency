@@ -9,6 +9,11 @@ const CONFIG_FILE = 'session-map.yaml';
 const DEFAULT_CONFIG = {
   version: 1,
   autoOpenSeen: false,
+  previewCacheFrames: 3,
+  activityDiffThreshold: 12,
+  attachGcEnabled: true,
+  attachGcIdleMinutes: 30,
+  attachGcGraceSeconds: 60,
   typeColors: {},
   cellColors: {},
 };
@@ -43,9 +48,24 @@ function normalizeMap(config) {
     });
     return next;
   };
+  const activityDiffThreshold = Number.isFinite(Number(raw.activityDiffThreshold))
+    ? Math.max(1, Math.floor(Number(raw.activityDiffThreshold)))
+    : DEFAULT_CONFIG.activityDiffThreshold;
   return {
     version: 1,
     autoOpenSeen: Boolean(raw.autoOpenSeen),
+    previewCacheFrames: Number.isFinite(Number(raw.previewCacheFrames))
+      ? Math.max(1, Math.min(5, Math.floor(Number(raw.previewCacheFrames))))
+      : DEFAULT_CONFIG.previewCacheFrames,
+    activityDiffThreshold,
+    attachGcEnabled:
+      typeof raw.attachGcEnabled === 'boolean' ? raw.attachGcEnabled : DEFAULT_CONFIG.attachGcEnabled,
+    attachGcIdleMinutes: Number.isFinite(Number(raw.attachGcIdleMinutes))
+      ? Math.max(1, Math.floor(Number(raw.attachGcIdleMinutes)))
+      : DEFAULT_CONFIG.attachGcIdleMinutes,
+    attachGcGraceSeconds: Number.isFinite(Number(raw.attachGcGraceSeconds))
+      ? Math.max(10, Math.floor(Number(raw.attachGcGraceSeconds)))
+      : DEFAULT_CONFIG.attachGcGraceSeconds,
     typeColors: normalizePalette(typeColors),
     cellColors: normalizePalette(cellColors),
   };

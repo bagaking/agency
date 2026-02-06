@@ -1,4 +1,6 @@
 import React from 'react';
+import { AgentAvatarBadge } from './ui/AgentAvatarBadge.jsx';
+import { resolveSessionAvatarId } from '../utils/agentAvatar.js';
 
 export function SessionOverflowMenu({
   isOpen,
@@ -8,10 +10,28 @@ export function SessionOverflowMenu({
   closedSessions,
   onSelectDetached,
   onRestoreClosed,
+  cell,
 }) {
   if (!isOpen) {
     return null;
   }
+
+  const renderSessionRow = (session, { onClick, isClosed }) => (
+    <button
+      key={session.id}
+      onClick={onClick}
+      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate transition-colors"
+    >
+      <AgentAvatarBadge
+        avatarId={resolveSessionAvatarId(session, cell)}
+        size={16}
+        ringSize={20}
+        lastActivityAt={session?.lastActivityAt}
+        isClosed={isClosed}
+      />
+      <span className="min-w-0 flex-1 truncate">{session.name || session.id}</span>
+    </button>
+  );
 
   return (
     <div
@@ -24,15 +44,12 @@ export function SessionOverflowMenu({
           <div className="px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground">
             Detached Sessions
           </div>
-          {detachedSessions.map((session) => (
-            <button
-              key={session.id}
-              onClick={() => onSelectDetached(session)}
-              className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate transition-colors"
-            >
-              {session.name || session.id}
-            </button>
-          ))}
+          {detachedSessions.map((session) =>
+            renderSessionRow(session, {
+              onClick: () => onSelectDetached(session),
+              isClosed: false,
+            })
+          )}
         </>
       )}
       {closedSessions.length > 0 && (
@@ -40,15 +57,12 @@ export function SessionOverflowMenu({
           <div className="px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground">
             Closed Sessions
           </div>
-          {closedSessions.map((session) => (
-            <button
-              key={session.id}
-              onClick={() => onRestoreClosed(session)}
-              className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate transition-colors"
-            >
-              {session.name || session.id}
-            </button>
-          ))}
+          {closedSessions.map((session) =>
+            renderSessionRow(session, {
+              onClick: () => onRestoreClosed(session),
+              isClosed: true,
+            })
+          )}
         </>
       )}
     </div>

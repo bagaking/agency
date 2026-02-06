@@ -4,6 +4,7 @@ import { getSessionMap, isAgencyAvailable, setSessionMap } from '../services/age
 const DEFAULT_CONFIG = {
   version: 1,
   autoOpenSeen: false,
+  activityDiffThreshold: 12,
   typeColors: {},
   cellColors: {},
 };

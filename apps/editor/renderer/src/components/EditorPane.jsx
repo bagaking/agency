@@ -1,27 +1,24 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   MonitorPlay,
   ChevronRight,
   CheckCircle2,
-  Plus,
   RefreshCw,
-  X,
   RotateCcw,
-  MoreHorizontal,
   Layout,
   ChevronDown,
   ChevronUp,
   ZoomIn,
   ZoomOut,
   Clock,
-  Pencil,
 } from 'lucide-react';
 import { RiveAnimation } from './RiveAnimation.jsx';
 import { GateList } from './GateList.jsx';
 import { TerminalArea } from './TerminalArea.jsx';
-import { SessionContextMenu, SessionCreateMenu, SessionOverflowMenu } from './SessionMenus.jsx';
-import { AgentAvatar } from './ui/AgentAvatar.jsx';
-import { AVATAR_IDS, resolveAvatarId } from '../utils/agentAvatar.js';
+import { AgentAvatarBadge } from './ui/AgentAvatarBadge.jsx';
+import { AvatarPickerMenu } from './ui/AvatarPickerMenu.jsx';
+import { resolveAvatarId } from '../utils/agentAvatar.js';
+import { formatIdleClock } from '../utils/timeFormat.js';
 
 export function EditorPane({
   cell,
@@ -30,53 +27,43 @@ export function EditorPane({
   terminalMode,
   terminalOpen,
   sessionId,
+  sessionTargets,
   sessions,
   sessionLoading,
   sessionError,
-  terminusProfiles,
   terminusBindings,
-  tmuxStatus,
   gateResultsByStage,
   gatesCheckingByStage,
   gateDisplayStage,
   idleSince,
   terminalFontSize,
   isVisible,
-  onCreateSession,
   onRefreshSessions,
-  onSelectSession,
-  onCloseSession,
-  onDetachSession,
-  onRenameSession,
   onStateChange,
   onOpenTerminal,
   onZoomIn,
   onZoomOut,
   onZoomReset,
-  onDispatchCommand,
   pendingCommand,
   onCommandSent,
   onSessionActivity,
   onSessionAttached,
+  onSendSessionText,
   onSelectProject,
   onUpdateCellAvatar,
+  onOpenWorkbenchFile,
+  onJumpToSession,
+  onJumpToMemo,
+  activityDiffThreshold,
+  onSelectionContext,
+  onReplySelection,
 }) {
-  const [closedMenu, setClosedMenu] = useState(null);
   const [showGates, setShowGates] = useState(false);
-  const [editingSessionId, setEditingSessionId] = useState(null);
-  const [editingSessionName, setEditingSessionName] = useState('');
-  const closedMenuRef = useRef(null);
-  const closedMenuButtonRef = useRef(null);
-  const contextMenuRef = useRef(null);
-  const createMenuRef = useRef(null);
-  const createMenuButtonRef = useRef(null);
-  const [contextMenu, setContextMenu] = useState(null);
-  const [createMenu, setCreateMenu] = useState(null);
   const [idleNow, setIdleNow] = useState(Date.now());
   const [avatarMenu, setAvatarMenu] = useState(null);
   const avatarButtonRef = useRef(null);
   const avatarMenuRef = useRef(null);
-  
+  const avatarId = resolveAvatarId(cell);
   const openSessions = useMemo(
     () =>
       (sessions || []).filter((session) => {
@@ -90,15 +77,16 @@ export function EditorPane({
       }),
     [sessions, sessionId]
   );
-  const detachedSessions = useMemo(
-    () => (sessions || []).filter((session) => session.status === 'detached'),
-    [sessions]
+  const activeSession = useMemo(
+    () => openSessions.find((session) => session.id === sessionId) || null,
+    [openSessions, sessionId]
   );
-  const closedSessions = useMemo(
-    () => (sessions || []).filter((session) => session.status === 'closed'),
-    [sessions]
-  );
-  const avatarId = resolveAvatarId(cell);
+  const openAvatarMenu = (target, rect) => {
+    if (!rect) {
+      return;
+    }
+    setAvatarMenu({ ...target, x: rect.left, y: rect.bottom + 6 });
+  };
 
   useEffect(() => {
     if (!avatarMenu) {
@@ -108,7 +96,7 @@ export function EditorPane({
       if (avatarMenuRef.current?.contains(event.target)) {
         return;
       }
-      if (avatarButtonRef.current?.contains(event.target)) {
+      if (event.target?.closest?.('[data-avatar-picker-anchor="true"]')) {
         return;
       }
       setAvatarMenu(null);
@@ -116,75 +104,6 @@ export function EditorPane({
     window.addEventListener('mousedown', handlePointer);
     return () => window.removeEventListener('mousedown', handlePointer);
   }, [avatarMenu]);
-
-  useEffect(() => {
-    if (!closedMenu) {
-      return undefined;
-    }
-    const handleClick = (event) => {
-      if (!closedMenuRef.current || closedMenuRef.current.contains(event.target)) {
-        return;
-      }
-      setClosedMenu(null);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [closedMenu]);
-
-  useEffect(() => {
-    if (!contextMenu) {
-      return undefined;
-    }
-    const handleClick = (event) => {
-      if (!contextMenuRef.current || contextMenuRef.current.contains(event.target)) {
-        return;
-      }
-      setContextMenu(null);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [contextMenu]);
-
-  useEffect(() => {
-    if (!createMenu) {
-      return undefined;
-    }
-    const handleClick = (event) => {
-      if (createMenuRef.current?.contains(event.target)) {
-        return;
-      }
-      if (createMenuButtonRef.current?.contains(event.target)) {
-        return;
-      }
-      setCreateMenu(null);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [createMenu]);
-
-  const beginRenameSession = (session) => {
-    if (!session) {
-      return;
-    }
-    setEditingSessionId(session.id);
-    setEditingSessionName(session.name || session.id);
-  };
-
-  const cancelRenameSession = () => {
-    setEditingSessionId(null);
-    setEditingSessionName('');
-  };
-
-  const commitRenameSession = () => {
-    if (!editingSessionId) {
-      return;
-    }
-    const nextName = editingSessionName.trim();
-    if (nextName) {
-      onRenameSession?.(editingSessionId, nextName);
-    }
-    cancelRenameSession();
-  };
 
   useEffect(() => {
     if (!isVisible) {
@@ -244,10 +163,11 @@ export function EditorPane({
           </button>
         </header>
         <div className="flex-1 overflow-hidden">
-          <TerminalArea
+           <TerminalArea
             cell={cell}
             sessions={sessions}
             activeSessionId={sessionId}
+            sessionTargets={sessionTargets}
             terminalOpen={terminalOpen}
             terminalMode={terminalMode}
             pendingCommand={pendingCommand}
@@ -255,6 +175,11 @@ export function EditorPane({
             onSessionActivity={onSessionActivity}
             terminalFontSize={terminalFontSize}
             onSessionAttached={onSessionAttached}
+            onSendSessionText={onSendSessionText}
+            onOpenWorkbenchFile={onOpenWorkbenchFile}
+            onSelectionContext={onSelectionContext}
+            onReplySelection={onReplySelection}
+            activityDiffThreshold={activityDiffThreshold}
             isVisible={isVisible}
             sessionLoading={sessionLoading}
             sessionError={sessionError}
@@ -271,16 +196,12 @@ export function EditorPane({
   const hasGateStatus = gates.length > 0;
   const failedGatesCount = gates.filter((gate) => !gate.passed).length;
   const isGateChecking = Boolean(gatesCheckingByStage?.[activeStage]);
-  const idleMs = idleSince ? Math.max(0, idleNow - idleSince) : 0;
-  const idleSeconds = Math.floor(idleMs / 1000);
-  const idleHours = Math.floor(idleSeconds / 3600);
-  const idleMinutes = Math.floor((idleSeconds % 3600) / 60);
-  const idleRemaining = idleSeconds % 60;
-  const idleLabel = idleHours
-    ? `${idleHours}:${String(idleMinutes).padStart(2, '0')}:${String(idleRemaining).padStart(2, '0')}`
-    : `${String(idleMinutes).padStart(2, '0')}:${String(idleRemaining).padStart(2, '0')}`;
-  const contextTarget =
-    contextMenu && sessions?.find((session) => session.id === contextMenu.sessionId);
+  const idleMs = idleSince ? Math.max(0, idleNow - idleSince) : null;
+  const isClosed = ['archived', 'closed'].includes(cell.state);
+  const idleLabel = formatIdleClock(idleMs);
+  const avatarRingClass = onUpdateCellAvatar
+    ? 'bg-muted/30 hover:bg-muted/40'
+    : 'bg-muted/10';
 
   return (
     <main className="flex h-full flex-1 flex-col bg-background overflow-hidden">
@@ -295,21 +216,20 @@ export function EditorPane({
                             return;
                           }
                           const rect = avatarButtonRef.current?.getBoundingClientRect();
-                          if (!rect) {
-                            return;
-                          }
-                          setAvatarMenu((current) =>
-                            current ? null : { x: rect.left, y: rect.bottom + 6 }
-                          );
+                          openAvatarMenu({ type: 'cell' }, rect);
                         }}
-                        className={`flex h-7 w-7 items-center justify-center rounded-full border cursor-pointer ${
-                          onUpdateCellAvatar
-                            ? 'border-border/60 bg-muted/30 hover:border-primary/50 hover:bg-muted/40'
-                            : 'border-border/30 bg-muted/10'
-                        }`}
+                        className="flex h-7 w-7 items-center justify-center rounded-full cursor-pointer"
                         title={onUpdateCellAvatar ? 'Edit avatar' : 'Avatar'}
+                        data-avatar-picker-anchor="true"
                     >
-                    <AgentAvatar avatarId={avatarId} size={18} />
+                    <AgentAvatarBadge
+                      avatarId={cell}
+                      size={18}
+                      ringSize={28}
+                      idleMs={idleMs}
+                      isClosed={isClosed}
+                      className={avatarRingClass}
+                    />
                 </button>
                 <span className="text-primary font-bold tracking-tight">AGENCY</span>
                 <ChevronRight size={12} className="text-muted-foreground/50" />
@@ -451,154 +371,22 @@ export function EditorPane({
              </div>
 
              <div className="flex min-h-0 flex-1">
-                <div className="flex w-44 shrink-0 flex-col border-r border-border/60 bg-black/30">
-                    <div className="flex items-center justify-between gap-2 px-2 py-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                      <span>Sessions</span>
-                    <div className="flex items-center gap-1">
-                        {(detachedSessions.length > 0 || closedSessions.length > 0) && (
-                          <div className="relative">
-                            <button
-                                ref={closedMenuButtonRef}
-                                onClick={() => {
-                                    if (closedMenuButtonRef.current) {
-                                        const rect = closedMenuButtonRef.current.getBoundingClientRect();
-                                        setClosedMenu({
-                                            x: rect.left,
-                                            y: rect.bottom + 6,
-                                        });
-                                    } else {
-                                        setClosedMenu((current) => (current ? null : { x: 0, y: 0 }));
-                                    }
-                                }}
-                                className="p-1 text-muted-foreground hover:text-primary transition-colors"
-                                title="Detached/closed sessions"
-                            >
-                                <MoreHorizontal size={12} />
-                            </button>
-                          </div>
-                        )}
-                        <button
-                            ref={createMenuButtonRef}
-                            onClick={() => {
-                              const rect = createMenuButtonRef.current?.getBoundingClientRect();
-                              if (!rect) {
-                                return;
-                              }
-                              setCreateMenu((current) =>
-                                current ? null : { x: rect.left, y: rect.bottom + 6 }
-                              );
-                            }}
-                            className="p-1 text-muted-foreground hover:text-primary transition-all hover:scale-110 active:scale-95"
-                            title="New Session"
-                        >
-                            <Plus size={12} />
-                        </button>
-                      </div>
-                    </div>
-                    <div
-                      className={`grid flex-1 auto-rows-min gap-1 px-2 pb-2 overflow-y-auto no-scrollbar ${
-                        openSessions.length > 8 ? 'grid-cols-2' : 'grid-cols-1'
-                      }`}
-                    >
-                      {openSessions.map((session) => {
-                        const isActive = session.id === sessionId;
-                        const isEditing = editingSessionId === session.id;
-                        const statusColor = session.status === 'active' ? 'bg-emerald-400' : 'bg-amber-400';
-
-                        return (
-                          <button
-                            key={session.id}
-                            type="button"
-                            onClick={() => {
-                              onSelectSession?.(session.id);
-                              onOpenTerminal?.();
-                            }}
-                            onContextMenu={(event) => {
-                                event.preventDefault();
-                                setContextMenu({
-                                    sessionId: session.id,
-                                    x: event.clientX,
-                                    y: event.clientY,
-                                });
-                            }}
-                            className={`group flex min-w-0 items-center gap-2 rounded-md px-2 py-1 text-[11px] transition-all ${
-                                isActive
-                                    ? 'bg-black/50 text-foreground ring-1 ring-primary/40'
-                                    : 'bg-transparent text-muted-foreground hover:bg-muted/20 hover:text-foreground'
-                            }`}
-                            data-testid={`session-tab-${session.id}`}
-                            data-active={isActive ? 'true' : 'false'}
-                            title={session.name || session.id}
-                          >
-                            <AgentAvatar
-                              avatarId={resolveAvatarId({
-                                avatar: session.avatar || avatarId,
-                                id: session.id,
-                                name: session.name,
-                              })}
-                              size={14}
-                            />
-                            <div className={`h-1.5 w-1.5 rounded-full ${statusColor} ${isActive ? 'ring-2 ring-emerald-400/20' : ''}`} />
-                            {isEditing ? (
-                              <input
-                                  value={editingSessionName}
-                                  onChange={(event) => setEditingSessionName(event.target.value)}
-                                  onClick={(event) => event.stopPropagation()}
-                                  onBlur={() => commitRenameSession()}
-                                  onKeyDown={(event) => {
-                                      if (event.key === 'Enter') {
-                                          event.preventDefault();
-                                          event.stopPropagation();
-                                          commitRenameSession();
-                                      }
-                                      if (event.key === 'Escape') {
-                                          event.preventDefault();
-                                          event.stopPropagation();
-                                          cancelRenameSession();
-                                      }
-                                  }}
-                                  className="min-w-0 flex-1 rounded border border-border/40 bg-background/70 px-1 py-0.5 text-[11px] font-medium text-foreground focus:border-primary focus:outline-none"
-                                  autoFocus
-                              />
-                            ) : (
-                              <span className="min-w-0 flex-1 truncate font-medium">
-                                  {session.name || session.id}
-                              </span>
-                            )}
-                            {!isEditing && (
-                              <button
-                                  onClick={(e) => {
-                                      e.stopPropagation();
-                                      beginRenameSession(session);
-                                  }}
-                                  className="opacity-0 group-hover:opacity-100 hover:text-primary transition-all p-0.5 rounded-sm hover:bg-primary/10"
-                                  title="Rename Session"
-                              >
-                                  <Pencil size={10} />
-                              </button>
-                            )}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onCloseSession?.(session.id); }}
-                                className="opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-all p-0.5 rounded-sm hover:bg-rose-500/10"
-                                title="Terminate Session"
-                            >
-                                <X size={10} />
-                            </button>
-                          </button>
-                        );
-                      })}
-                    </div>
-                </div>
                 <div className="flex min-w-0 flex-1">
                   <TerminalArea
                     cell={cell}
                     sessions={openSessions}
                     activeSessionId={sessionId}
+                    sessionTargets={sessionTargets}
                     terminalOpen={terminalOpen}
                     terminalMode={terminalMode}
                     pendingCommand={pendingCommand}
                     onCommandSent={onCommandSent}
                     onSessionActivity={onSessionActivity}
+                    onSendSessionText={onSendSessionText}
+                    onOpenWorkbenchFile={onOpenWorkbenchFile}
+                    onSelectionContext={onSelectionContext}
+                    onReplySelection={onReplySelection}
+                    activityDiffThreshold={activityDiffThreshold}
                     terminalFontSize={terminalFontSize}
                     onSessionAttached={onSessionAttached}
                     isVisible={isVisible}
@@ -610,100 +398,18 @@ export function EditorPane({
                 </div>
              </div>
 
-             <SessionOverflowMenu
-                isOpen={Boolean(closedMenu)}
-                position={closedMenu}
-                containerRef={closedMenuRef}
-                detachedSessions={detachedSessions}
-                closedSessions={closedSessions}
-                onSelectDetached={(session) => {
-                  setClosedMenu(null);
-                  onSelectSession?.(session.id);
-                  onOpenTerminal?.();
-                }}
-                onRestoreClosed={(session) => {
-                  setClosedMenu(null);
-                  onCreateSession?.({ name: session.name || session.id });
-                }}
-             />
-
-             <SessionContextMenu
-                isOpen={Boolean(contextMenu && contextTarget)}
-                position={contextMenu}
-                containerRef={contextMenuRef}
-                onDetach={() => {
-                  setContextMenu(null);
-                  onDetachSession?.(contextTarget.id);
-                }}
-                onRename={() => {
-                  setContextMenu(null);
-                  beginRenameSession(contextTarget);
-                }}
-             />
-
-             <SessionCreateMenu
-                isOpen={Boolean(createMenu)}
-                position={createMenu || { x: 0, y: 0 }}
-                containerRef={createMenuRef}
-                profiles={terminusProfiles || []}
-                onCreateBase={async () => {
-                  setCreateMenu(null);
-                  await onCreateSession?.();
-                }}
-                onCreateProfile={(profile) => {
-                  setCreateMenu(null);
-                  if (!profile?.startCommand) {
-                    return;
-                  }
-                  onDispatchCommand?.({
-                    command: profile.startCommand,
-                    kind: 'start',
-                    label: profile.label || profile.id,
-                    profileId: profile.id,
-                    appendEnter: true,
-                  });
-                }}
-             />
-
              {avatarMenu ? (
-                <div
-                  ref={avatarMenuRef}
-                  className="fixed z-[120] rounded-xl border border-white/10 bg-[#1a1d23]/95 p-2 text-[11px] shadow-[0_25px_60px_rgba(0,0,0,0.6)] backdrop-blur-2xl"
-                  style={{ top: avatarMenu.y, left: avatarMenu.x }}
-                >
-                  <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                    Avatar
-                  </div>
-                  <div className="mt-1 grid grid-cols-4 gap-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAvatarMenu(null);
-                        onUpdateCellAvatar?.(null);
-                      }}
-                      className="flex h-8 w-8 items-center justify-center rounded-full border border-border/50 text-[10px] text-muted-foreground hover:border-primary/50 hover:text-primary"
-                    >
-                      Auto
-                    </button>
-                    {AVATAR_IDS.map((id) => (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => {
-                          setAvatarMenu(null);
-                          onUpdateCellAvatar?.(id);
-                        }}
-                        className={`flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
-                          avatarId === id
-                            ? 'border-primary/70 bg-primary/10'
-                            : 'border-border/50 hover:border-primary/50'
-                        }`}
-                      >
-                        <AgentAvatar avatarId={id} size={18} />
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <AvatarPickerMenu
+                  isOpen={Boolean(avatarMenu)}
+                  position={avatarMenu}
+                  containerRef={avatarMenuRef}
+                  selectedId={avatarId}
+                  title="Select Agent Avatar"
+                  onSelect={(id) => {
+                    onUpdateCellAvatar?.(id);
+                    setAvatarMenu(null);
+                  }}
+                />
              ) : null}
 
         </div>

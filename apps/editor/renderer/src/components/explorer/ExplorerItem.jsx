@@ -85,7 +85,7 @@ export function ExplorerItem({
       data-explorer-path={item.path}
       className={`group flex items-center gap-2 rounded px-2 py-1 text-xs transition-colors relative select-none ${
         isSelected ? 'bg-primary/20 text-foreground' : 'text-muted-foreground hover:text-foreground'
-      } ${isIgnored ? 'opacity-70' : ''} ${isFocused ? 'ring-1 ring-primary/30' : ''}`}
+      } ${isIgnored ? 'opacity-80' : ''} ${isFocused ? 'ring-1 ring-primary/30' : ''}`}
       style={{ paddingLeft }}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
@@ -114,7 +114,7 @@ export function ExplorerItem({
           strokeWidth={1.5}
           className={
             isIgnored
-              ? 'text-slate-400/40'
+              ? 'text-slate-300/70'
               : iconColor
           }
         />
@@ -148,7 +148,7 @@ export function ExplorerItem({
       ) : (
         <div className="flex flex-1 items-center gap-2 min-w-0">
           <span
-            className={`truncate ${isIgnored ? 'text-muted-foreground/30 line-through decoration-muted-foreground/10' : ''}`}
+            className={`truncate ${isIgnored ? 'text-muted-foreground/60 line-through decoration-muted-foreground/30' : ''}`}
             onDoubleClick={(event) => {
               event.stopPropagation();
               onRequestRename?.(item.path);
@@ -164,7 +164,7 @@ export function ExplorerItem({
             </span>
           )}
           {isIgnored && (
-              <span className="shrink-0 text-[8px] font-bold uppercase tracking-widest text-muted-foreground/20 italic">
+              <span className="shrink-0 text-[8px] font-bold uppercase tracking-widest text-muted-foreground/60 italic">
                   Ignored
               </span>
           )}

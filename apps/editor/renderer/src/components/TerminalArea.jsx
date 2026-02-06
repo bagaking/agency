@@ -7,11 +7,17 @@ export function TerminalArea({
   cell,
   sessions,
   activeSessionId,
+  sessionTargets,
   terminalOpen,
   terminalMode,
   pendingCommand,
   onCommandSent,
   onSessionActivity,
+  onSendSessionText,
+  onOpenWorkbenchFile,
+  onSelectionContext,
+  onReplySelection,
+  activityDiffThreshold,
   terminalFontSize,
   onSessionAttached,
   isVisible,
@@ -47,11 +53,17 @@ export function TerminalArea({
                     pendingCommand={pendingCommand}
                     onCommandSent={onCommandSent}
                     onActivity={onSessionActivity}
+                    onSendSessionText={onSendSessionText}
+                    onOpenWorkbenchFile={onOpenWorkbenchFile}
+                    onSelectionContext={onSelectionContext}
+                    onReplySelection={onReplySelection}
+                    activityDiffThreshold={activityDiffThreshold}
                     fontSize={terminalFontSize}
                     onSessionAttached={onSessionAttached}
                     isVisible={isVisible}
                     isActive={isActive}
                     shortcutBindings={shortcutBindings}
+                    sessionTargets={sessionTargets}
                   />
                 </div>
               );

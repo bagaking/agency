@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useHilItems } from './useHilItems.js';
-import { Terminal, StickyNote, Quote, Camera } from 'lucide-react';
+import { Terminal, StickyNote, Quote, Camera, MessageSquareText } from 'lucide-react';
 
 const resolveBody = (item) =>
   typeof item?.body === 'string' ? item.body : typeof item?.message === 'string' ? item.message : '';
@@ -39,7 +39,8 @@ export function useHilMemoState({ worktreePath }) {
     () =>
       items.filter(
         (item) =>
-          (item.kind === 'comment' || item.kind === 'memo') && item.meta?.processed !== true
+          (item.kind === 'comment' || item.kind === 'memo' || item.kind === 'reply') &&
+          item.meta?.processed !== true
       ),
     [items]
   );
@@ -52,6 +53,7 @@ export function useHilMemoState({ worktreePath }) {
   const inboxSections = useMemo(
     () => [
       { id: 'comments', label: 'Comments', kind: 'comment', noteType: null, icon: Terminal },
+      { id: 'reply', label: 'Reply', kind: 'reply', noteType: null, icon: MessageSquareText },
       { id: 'flash', label: 'Flash', kind: 'memo', noteType: 'flash', icon: StickyNote },
       { id: 'excerpt', label: 'Excerpt', kind: 'memo', noteType: 'excerpt', icon: Quote },
       { id: 'screenshot', label: 'Screenshot', kind: 'memo', noteType: 'screenshot', icon: Camera },
@@ -72,7 +74,7 @@ export function useHilMemoState({ worktreePath }) {
   }, [inboxItems, inboxSections]);
 
   const summary = useMemo(() => {
-    const counts = { comment: 0, memo: 0, draft: 0 };
+    const counts = { comment: 0, memo: 0, draft: 0, reply: 0 };
     items.forEach((item) => {
       if (counts[item.kind] !== undefined) counts[item.kind] += 1;
     });

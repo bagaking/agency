@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@bagakit/open-agent-avatars':
+        specifier: ^0.1.0
+        version: 0.1.0
       '@monaco-editor/react':
         specifier: ^4.7.0
         version: 4.7.0(monaco-editor@0.55.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -174,6 +177,9 @@ packages:
   '@babel/types@7.28.5':
     resolution: {integrity: sha512-qQ5m48eI/MFLQ5PxQj4PFaprjyCTLI37ElWMmNs0K8Lk3dVeOdNpB3ks8jc7yM5CDmVC73eMVk/trk3fgmrUpA==}
     engines: {node: '>=6.9.0'}
+
+  '@bagakit/open-agent-avatars@0.1.0':
+    resolution: {integrity: sha512-yZE84hn+0tH2e/mLICPp3Qh4rGS6uVH+bX1er1+dQin4MRnyH44xHF7BE0B+zWAbsUA2lrOobQLpLlnzmTqGTA==}
 
   '@develar/schema-utils@2.6.5':
     resolution: {integrity: sha512-0cp4PsWQ/9avqTVMCtZ+GirikIA36ikvjtHweU4/j8yLtgObI0+JUPhYFScgwlteveGB1rt3Cm8UhN04XayDig==}
@@ -2489,6 +2495,8 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@bagakit/open-agent-avatars@0.1.0': {}
 
   '@develar/schema-utils@2.6.5':
     dependencies:

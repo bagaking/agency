@@ -2,22 +2,16 @@ import React, { useMemo, useRef, useState } from 'react';
 import {
   X,
   Send,
-  Terminal,
-  Clock,
-  CheckCircle2,
+  Map,
   FolderClosed,
   FileText,
 } from 'lucide-react';
 import { statusColors, getFileIcon } from './explorerUtils.jsx';
 import { Tooltip } from '../ui/Tooltip.jsx';
 import { focusRing } from '../ui/focusRing.js';
-
-const formatIdle = (ms) => {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  if (totalSeconds < 60) return `${totalSeconds}s`;
-  const minutes = Math.floor(totalSeconds / 60);
-  return `${minutes}m`;
-};
+import { AgentAvatarBadge } from '../ui/AgentAvatarBadge.jsx';
+import { resolveSessionAvatarId } from '../../utils/agentAvatar.js';
+import { formatIdleShort } from '../../utils/timeFormat.js';
 
 export function ExplorerFooter({
   selectionCount,
@@ -30,18 +24,32 @@ export function ExplorerFooter({
   activeSessionId,
   sessionActivityByKey,
   now,
-  onSelectSession,
   onDispatchFeed,
   activeCell,
+  onToggleSessionMap,
+  sessionMapOpen,
 }) {
   const [comment, setComment] = useState('');
   const [showManifest, setShowManifest] = useState(false);
   const isComposingRef = useRef(false);
   const activeSessions = (sessions || []).filter((s) => s.status !== 'closed');
+  const focusSession =
+    activeSessions.find((session) => session.id === activeSessionId) || activeSessions[0];
   const focusRingClass = focusRing.default;
+  const focusSessionKey =
+    focusSession && activeCell ? `${activeCell.id}:${focusSession.id}` : null;
+  const focusActivityAt = focusSessionKey ? sessionActivityByKey?.[focusSessionKey] : null;
+  const focusIdleMs =
+    Number.isFinite(focusActivityAt) && Number.isFinite(now)
+      ? Math.max(0, now - focusActivityAt)
+      : null;
+  const focusSessionClosed =
+    activeCell?.state === 'archived' ||
+    activeCell?.state === 'closed' ||
+    ['closed', 'stale', 'archived'].includes(focusSession?.status);
 
   const handleDispatch = async () => {
-    const current = activeSessions.find(s => s.id === activeSessionId) || activeSessions[0];
+    const current = focusSession;
     const trimmedComment = comment.trim();
     if (!current || selectionCount === 0 || !trimmedComment) return;
     const buildTreeLines = (nodes, depth = 0) => {
@@ -196,49 +204,58 @@ export function ExplorerFooter({
         </div>
       )}
 
-      {/* 3. Pipeline Monitor */}
-      <div className="h-7 flex items-center justify-between px-3">
-        <div className="flex items-center gap-4 overflow-hidden flex-1">
-            <div className="flex items-center gap-1.5 text-[9px] font-medium text-muted-foreground/40 uppercase tracking-widest shrink-0">
-                <Terminal size={10} strokeWidth={1.5} aria-hidden="true" />
-                Pipes
+      {/* 3. Active Session Card */}
+      <div className="flex items-center px-3 py-2">
+        <button
+          type="button"
+          onClick={() => onToggleSessionMap?.()}
+          disabled={!focusSession}
+          className={`group flex w-full items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 text-left transition-colors ${focusRingClass} ${
+            focusSession ? 'hover:bg-white/10' : 'opacity-50 cursor-not-allowed'
+          } ${sessionMapOpen ? 'ring-1 ring-primary/50 bg-primary/10' : ''}`}
+          aria-label="Open session map"
+          title="Open session map"
+        >
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="relative flex items-center justify-center">
+              <AgentAvatarBadge
+                avatarId={resolveSessionAvatarId(focusSession, activeCell)}
+                size={24}
+                idleMs={focusIdleMs}
+                isClosed={focusSessionClosed}
+              />
             </div>
-            
-            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-                {activeSessions.map(s => {
-                    const isActive = s.id === activeSessionId;
-                    const key = `${activeCell?.id}:${s.id}`;
-                    const lastActivity = sessionActivityByKey?.[key];
-                    const idleMs = now - (lastActivity || (s.updatedAt ? new Date(s.updatedAt).getTime() : now));
-                    
-                    return (
-                        <button
-                            key={s.id}
-                            type="button"
-                            onClick={() => onSelectSession?.(s.id)}
-                            aria-pressed={isActive}
-                            className={`flex items-center gap-2 px-2 h-5 rounded transition-colors whitespace-nowrap group ${focusRingClass} ${isActive ? 'text-primary' : 'text-muted-foreground/30 hover:text-muted-foreground/60'}`}
-                        >
-                            <div
-                              className={`h-1 w-1 rounded-full transition-colors ${isActive ? 'bg-primary shadow-[0_0_5px_rgba(59,130,246,0.5)]' : 'bg-foreground/10 group-hover:bg-foreground/20'}`}
-                              aria-hidden="true"
-                            />
-                            <span className="text-[10px] font-medium tracking-tight">{s.name || s.id}</span>
-                            {!isActive && (
-                                <span className="text-[8px] opacity-40 font-mono italic">{formatIdle(idleMs)}</span>
-                            )}
-                        </button>
-                    );
-                })}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 text-[9px] uppercase tracking-widest text-muted-foreground/60">
+                <span className="shrink-0">Active</span>
+                <span className="h-1 w-1 rounded-full bg-muted-foreground/40" aria-hidden="true" />
+                <span className="min-w-0 truncate text-[11px] font-semibold normal-case tracking-normal text-foreground/90">
+                  {focusSession?.name || focusSession?.id || 'No session'}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 text-[9px] text-muted-foreground/60">
+                <span className="truncate">{activeCell?.name || 'No cell'}</span>
+                {focusSession ? (
+                  <>
+                    <span>·</span>
+                    <span className="font-mono">
+                      {(() => {
+                        if (!Number.isFinite(focusActivityAt)) {
+                          return 'Idle —';
+                        }
+                        return `Idle ${formatIdleShort(Math.max(0, now - focusActivityAt))}`;
+                      })()}
+                    </span>
+                  </>
+                ) : null}
+              </div>
             </div>
-        </div>
-
-        <div className="flex items-center gap-2 pl-4">
-            <div className="text-[9px] font-medium text-muted-foreground/30 tracking-widest uppercase truncate max-w-[80px]">
-                {activeCell?.name || 'Ready'}
-            </div>
-            {activeCell && <CheckCircle2 size={10} className="text-muted-foreground/30" aria-hidden="true" />}
-        </div>
+          </div>
+          <div className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+            <Map size={12} />
+            <span>Map</span>
+          </div>
+        </button>
       </div>
     </footer>
   );

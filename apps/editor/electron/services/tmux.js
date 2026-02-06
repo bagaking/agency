@@ -79,6 +79,26 @@ async function setMouse(sessionName, enabled = true) {
   }
 }
 
+async function setExtendedKeys(sessionName, enabled = true) {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    return;
+  }
+  if (!sessionName) {
+    return;
+  }
+  const value = enabled ? 'on' : 'off';
+  try {
+    await execFileAsync('tmux', ['set', '-t', sessionName, 'xterm-keys', value]);
+  } catch (_error) {
+    // Non-fatal: older tmux versions may not support xterm-keys.
+  }
+  try {
+    await execFileAsync('tmux', ['set', '-t', sessionName, 'extended-keys', value]);
+  } catch (_error) {
+    // Non-fatal: older tmux versions may not support extended-keys.
+  }
+}
+
 async function killSession(sessionName) {
   if (process.env.AGENCY_TEST_MODE === '1') {
     return;
@@ -86,23 +106,59 @@ async function killSession(sessionName) {
   await execFileAsync('tmux', ['kill-session', '-t', sessionName]);
 }
 
-async function capturePane(sessionName, { lines = 160, joinWrapped = false } = {}) {
+async function resolvePaneTarget(sessionName) {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    return sessionName;
+  }
+  if (!sessionName) {
+    return sessionName;
+  }
+  try {
+    const result = await execFileAsync('tmux', [
+      'list-panes',
+      '-t',
+      sessionName,
+      '-F',
+      '#{pane_id}',
+    ]);
+    const paneId = String(result.stdout || '')
+      .trim()
+      .split(/\s+/)
+      .find(Boolean);
+    return paneId || sessionName;
+  } catch (_error) {
+    return sessionName;
+  }
+}
+
+async function capturePane(
+  sessionName,
+  { lines = 160, joinWrapped = false, altScreen = false } = {}
+) {
   if (process.env.AGENCY_TEST_MODE === '1') {
     return '';
   }
   if (!sessionName) {
     throw new Error('Session name is required.');
   }
+  const target = await resolvePaneTarget(sessionName);
   const parsedLines = Number(lines);
   const clamped = Number.isFinite(parsedLines)
     ? Math.max(PREVIEW_MIN_LINES, Math.min(PREVIEW_MAX_LINES, parsedLines))
     : 160;
-  const args = ['capture-pane', '-pt', sessionName, '-e', '-S', `-${clamped}`];
+  const args = ['capture-pane', '-pt', target, '-e', '-S', `-${clamped}`];
+  if (altScreen) {
+    args.push('-a');
+  }
   if (joinWrapped) {
     args.push('-J');
   }
   const result = await execFileAsync('tmux', args);
-  return result.stdout || '';
+  const output = result.stdout || '';
+  if (!altScreen && String(output).trim().length === 0) {
+    return capturePane(sessionName, { lines: clamped, joinWrapped, altScreen: true });
+  }
+  return output;
 }
 
 async function getPaneSize(sessionName) {
@@ -112,11 +168,12 @@ async function getPaneSize(sessionName) {
   if (!sessionName) {
     throw new Error('Session name is required.');
   }
+  const target = await resolvePaneTarget(sessionName);
   const result = await execFileAsync('tmux', [
     'display-message',
     '-p',
     '-t',
-    sessionName,
+    target,
     '#{pane_width} #{pane_height}',
   ]);
   const [cols, rows] = String(result.stdout || '')
@@ -129,13 +186,72 @@ async function getPaneSize(sessionName) {
   };
 }
 
+async function getLastPaneActivity(sessionName) {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    return null;
+  }
+  if (!sessionName) {
+    return null;
+  }
+  try {
+    const result = await execFileAsync('tmux', [
+      'list-panes',
+      '-t',
+      sessionName,
+      '-F',
+      '#{pane_activity}',
+    ]);
+    const values = String(result.stdout || '')
+      .trim()
+      .split(/\s+/)
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value > 0);
+    if (!values.length) {
+      return null;
+    }
+    const maxValue = Math.max(...values);
+    return new Date(maxValue * 1000).toISOString();
+  } catch (_error) {
+    return null;
+  }
+}
+
+async function sendKeys(sessionName, keys = [], { enter = false } = {}) {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    return;
+  }
+  if (!sessionName) {
+    return;
+  }
+  const args = ['send-keys', '-t', sessionName];
+  if (Array.isArray(keys)) {
+    keys.forEach((key) => {
+      if (key !== undefined && key !== null && String(key) !== '') {
+        args.push(String(key));
+      }
+    });
+  } else if (keys) {
+    args.push(String(keys));
+  }
+  if (enter) {
+    args.push('Enter');
+  }
+  if (args.length <= 3) {
+    return;
+  }
+  await execFileAsync('tmux', args);
+}
+
 module.exports = {
   ensureTmuxAvailable,
   hasSession,
   createSession,
   setMouse,
+  setExtendedKeys,
   killSession,
   getTmuxStatus,
   capturePane,
   getPaneSize,
+  getLastPaneActivity,
+  sendKeys,
 };

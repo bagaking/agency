@@ -29,11 +29,14 @@ function ProjectExplorerSidebarContent({
   onOpenFile,
   onJumpToAgents,
   workbenchMeta,
-  onSelectSession,
   onDispatchFeed,
   onAddComment,
   commentCountsByPath,
   onJumpToComments,
+  onToggleSessionMap,
+  sessionMapOpen,
+  revealRequest,
+  onRevealHandled,
 }) {
   const listRef = useRef(null);
   const visiblePathsRef = useRef([]);
@@ -244,9 +247,71 @@ function ProjectExplorerSidebarContent({
     visibleItems.forEach((it, i) => { if (!it.draft) map.set(it.path, i); });
     return map;
   }, [visibleItems]);
+  const scrollToPath = useCallback((p) => {
+    const el = listRef.current;
+    const idx = rowIndexByPath.get(p);
+    if (!el || idx == null) return false;
+    const top = idx * ROW_HEIGHT;
+    if (top < el.scrollTop) el.scrollTop = top;
+    else if (top + ROW_HEIGHT > el.scrollTop + el.clientHeight) el.scrollTop = top + ROW_HEIGHT - el.clientHeight;
+    return true;
+  }, [rowIndexByPath]);
 
   useEffect(() => { visiblePathsRef.current = visiblePaths; }, [visiblePaths]);
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 5000); return () => clearInterval(i); }, []);
+
+  useEffect(() => {
+    if (!revealRequest?.path) {
+      return;
+    }
+    const normalizeRoot = (value) =>
+      String(value || '')
+        .replace(/\\/g, '/')
+        .replace(/\/+$/, '');
+    const requestedRoot = normalizeRoot(revealRequest.rootPath);
+    const currentRoot = normalizeRoot(scopeRootPath || rootPath || repoRoot);
+    if (requestedRoot && currentRoot && requestedRoot !== currentRoot) {
+      return;
+    }
+    const targetPath = explorerPathUtils.toRelativePath(revealRequest.path);
+    if (!targetPath) {
+      onRevealHandled?.();
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
+      const parts = targetPath.split('/').filter(Boolean);
+      let current = '';
+      for (let i = 0; i < parts.length - 1; i += 1) {
+        current = [current, parts[i]].filter(Boolean).join('/');
+        await expandPath(current);
+        if (cancelled) {
+          return;
+        }
+      }
+      handleSelectPath(targetPath);
+      setFocusedPath(targetPath);
+      requestAnimationFrame(() => {
+        if (!scrollToPath(targetPath)) {
+          requestAnimationFrame(() => scrollToPath(targetPath));
+        }
+      });
+      onRevealHandled?.();
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    expandPath,
+    handleSelectPath,
+    onRevealHandled,
+    repoRoot,
+    revealRequest,
+    rootPath,
+    scopeRootPath,
+    scrollToPath,
+  ]);
 
   // Handlers
   const closeContextMenu = () => setContextMenu(null);
@@ -485,14 +550,6 @@ function ProjectExplorerSidebarContent({
       if (key === 'x') { event.preventDefault(); handleCopySelection('cut'); return; }
       if (key === 'v') { event.preventDefault(); handlePasteSelection(); return; }
     }
-    const scrollToPath = (p) => {
-      const el = listRef.current;
-      const idx = rowIndexByPath.get(p);
-      if (!el || idx == null) return;
-      const top = idx * ROW_HEIGHT;
-      if (top < el.scrollTop) el.scrollTop = top;
-      else if (top + ROW_HEIGHT > el.scrollTop + el.clientHeight) el.scrollTop = top + ROW_HEIGHT - el.clientHeight;
-    };
     const curIdx = visiblePathsRef.current.indexOf(focusedPath);
     const next = (d) => visiblePathsRef.current[Math.min(visiblePathsRef.current.length - 1, Math.max(0, (curIdx >= 0 ? curIdx : 0) + d))];
     if (event.key === 'ArrowDown') { event.preventDefault(); const n = next(1); if (n) { handleSelectPath(n, { shiftKey: event.shiftKey }); setFocusedPath(n); scrollToPath(n); } }
@@ -570,8 +627,9 @@ function ProjectExplorerSidebarContent({
         activeSessionId={activeSessionId}
         sessionActivityByKey={sessionActivityByKey}
         now={now}
-        onSelectSession={onSelectSession}
         onDispatchFeed={onDispatchFeed}
+        onToggleSessionMap={onToggleSessionMap}
+        sessionMapOpen={sessionMapOpen}
       />
 
       {contextMenu && (
@@ -594,7 +652,8 @@ function ProjectExplorerSidebarContent({
 export function ProjectExplorerSidebar({
   rootPath: scopeRootPath, rootLabel: scopeRootLabel, cells, selectedId, onSelectCell, selectedCell,
   sessions, activeSessionId, sessionActivityByKey, onOpenFile, onJumpToAgents, workbenchMeta,
-  onSelectSession, onDispatchFeed, onAddComment, commentCountsByPath, onJumpToComments,
+  onDispatchFeed, onAddComment, commentCountsByPath, onJumpToComments, onToggleSessionMap, sessionMapOpen,
+  revealRequest, onRevealHandled,
   projectReady, projectError, onSelectProject, recentProjects, onOpenRecentProject,
 }) {
   if (!projectReady) {
@@ -628,11 +687,14 @@ export function ProjectExplorerSidebar({
       onOpenFile={onOpenFile}
       onJumpToAgents={onJumpToAgents}
       workbenchMeta={workbenchMeta}
-      onSelectSession={onSelectSession}
       onDispatchFeed={onDispatchFeed}
       onAddComment={onAddComment}
       commentCountsByPath={commentCountsByPath}
       onJumpToComments={onJumpToComments}
+      onToggleSessionMap={onToggleSessionMap}
+      sessionMapOpen={sessionMapOpen}
+      revealRequest={revealRequest}
+      onRevealHandled={onRevealHandled}
     />
   );
 }
