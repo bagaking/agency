@@ -534,6 +534,129 @@ async function copyEntry({ rootPath, sourcePath, targetPath }) {
   return { path: normalizeRelPath(targetPath) };
 }
 
+
+function splitConflictName(name, isDirectory) {
+  if (isDirectory) {
+    return { stem: name, ext: '' };
+  }
+  const ext = path.extname(name);
+  if (!ext) {
+    return { stem: name, ext: '' };
+  }
+  return {
+    stem: name.slice(0, -ext.length) || name,
+    ext,
+  };
+}
+
+async function resolveConflictTargetPath(targetDirPath, entryName, { isDirectory = false } = {}) {
+  const { stem, ext } = splitConflictName(entryName, isDirectory);
+  let index = 0;
+  while (index < 10_000) {
+    const candidateName = index === 0 ? entryName : `${stem} (${index})${ext}`;
+    const candidatePath = path.join(targetDirPath, candidateName);
+    try {
+      await fsp.access(candidatePath);
+      index += 1;
+      continue;
+    } catch (error) {
+      return {
+        candidatePath,
+        candidateName,
+        conflictIndex: index,
+      };
+    }
+  }
+  throw new Error('Unable to resolve a conflict-safe target name.');
+}
+
+async function importEntries({ rootPath, targetDir = '', sourcePaths = [] }) {
+  const resolved = await resolveExplorerRoot(rootPath);
+  ensureResolvedRoot(resolved);
+  const rootAbsolute = path.resolve(resolved.rootPath);
+  const targetRelative = normalizeRelPath(targetDir);
+  const targetAbsolute = resolveSafePath(rootAbsolute, targetRelative);
+
+  const targetStats = await fsp.stat(targetAbsolute).catch(() => null);
+  if (!targetStats || !targetStats.isDirectory()) {
+    throw new Error('Target directory does not exist.');
+  }
+
+  const normalizedSources = Array.from(
+    new Set(
+      (Array.isArray(sourcePaths) ? sourcePaths : [])
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+    )
+  );
+  if (!normalizedSources.length) {
+    throw new Error('No source paths provided.');
+  }
+
+  const report = {
+    targetDir: targetRelative,
+    imported: [],
+    importedPaths: [],
+    skipped: [],
+    failures: [],
+    resolvedConflicts: [],
+  };
+
+  for (const sourceValue of normalizedSources) {
+    const sourceAbsolute = path.resolve(sourceValue);
+    try {
+      const stats = await fsp.stat(sourceAbsolute);
+      const sourceName = path.basename(sourceAbsolute);
+      if (!sourceName) {
+        report.skipped.push({ sourcePath: sourceAbsolute, reason: 'invalid-name' });
+        continue;
+      }
+
+      const { candidatePath, candidateName, conflictIndex } = await resolveConflictTargetPath(
+        targetAbsolute,
+        sourceName,
+        { isDirectory: stats.isDirectory() }
+      );
+
+      if (candidatePath === sourceAbsolute) {
+        report.skipped.push({ sourcePath: sourceAbsolute, reason: 'same-path' });
+        continue;
+      }
+
+      if (stats.isDirectory() && candidatePath.startsWith(`${sourceAbsolute}${path.sep}`)) {
+        report.skipped.push({ sourcePath: sourceAbsolute, reason: 'target-inside-source' });
+        continue;
+      }
+
+      await fsp.cp(sourceAbsolute, candidatePath, {
+        recursive: true,
+        force: false,
+        errorOnExist: true,
+      });
+
+      const targetPath = normalizeRelPath(path.relative(rootAbsolute, candidatePath));
+      report.imported.push({ sourcePath: sourceAbsolute, targetPath });
+      report.importedPaths.push(targetPath);
+
+      if (conflictIndex > 0) {
+        report.resolvedConflicts.push({
+          sourcePath: sourceAbsolute,
+          originalName: sourceName,
+          resolvedName: candidateName,
+          targetPath,
+        });
+      }
+    } catch (error) {
+      report.failures.push({
+        sourcePath: sourceAbsolute,
+        error: error?.message || String(error),
+      });
+    }
+  }
+
+  return report;
+}
+
 async function revealEntry({ rootPath, targetPath }) {
   const resolved = await resolveExplorerRoot(rootPath);
   ensureResolvedRoot(resolved);
@@ -577,6 +700,7 @@ module.exports = {
   renameEntry,
   deleteEntry,
   copyEntry,
+  importEntries,
   revealEntry,
   readEntry,
   STATUS_LABELS,

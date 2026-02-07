@@ -11,6 +11,7 @@ const {
   renameEntry,
   deleteEntry,
   copyEntry,
+  importEntries,
   revealEntry,
   readEntry,
 } = require('../../services/explorer');
@@ -82,6 +83,18 @@ function setupExplorerHandlers() {
       throw new Error('sourcePath and targetPath are required.');
     }
     return copyEntry({ rootPath, sourcePath, targetPath });
+  });
+
+  ipcMain.handle('explorer:import', async (_event, payload) => {
+    const rootPath = payload?.rootPath;
+    const targetDir = typeof payload?.targetDir === 'string' ? payload.targetDir : '';
+    const sourcePaths = Array.isArray(payload?.sourcePaths)
+      ? payload.sourcePaths.filter((item) => typeof item === 'string' && item.trim())
+      : [];
+    if (!sourcePaths.length) {
+      throw new Error('sourcePaths must contain at least one path.');
+    }
+    return importEntries({ rootPath, targetDir, sourcePaths });
   });
 
   ipcMain.handle('explorer:reveal', async (_event, payload) => {

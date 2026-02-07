@@ -155,6 +155,7 @@ contextBridge.exposeInMainWorld('agency', {
   renameExplorerEntry: (payload) => ipcRenderer.invoke('explorer:rename', payload),
   deleteExplorerEntry: (payload) => ipcRenderer.invoke('explorer:delete', payload),
   copyExplorerEntry: (payload) => ipcRenderer.invoke('explorer:copy', payload),
+  importExplorerEntries: (payload) => ipcRenderer.invoke('explorer:import', payload),
   revealExplorerEntry: (payload) => ipcRenderer.invoke('explorer:reveal', payload),
   listComments: (payload) => ipcRenderer.invoke('comments:list', payload),
   submitComment: (payload) => ipcRenderer.invoke('comments:submit', payload),

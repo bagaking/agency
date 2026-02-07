@@ -15,6 +15,7 @@ import {
 const ROW_HEIGHT = 24;
 const OVERSCAN = 6;
 const VIRTUALIZE_THRESHOLD = 200;
+const INTERNAL_DRAG_MIME = 'application/agency-paths';
 
 function ProjectExplorerSidebarContent({
   rootPath: scopeRootPath,
@@ -72,6 +73,7 @@ function ProjectExplorerSidebarContent({
     renameEntry,
     deleteEntry,
     copyEntry,
+    importExternalEntries,
     revealEntry,
     handleSelectPath,
   } = useProjectExplorer({
@@ -488,8 +490,188 @@ function ProjectExplorerSidebarContent({
       if (didMove) {
         await refreshAll();
       }
-    } catch (err) { setErrorMessage('Move failed.'); }
+    } catch (err) {
+      setErrorMessage('Move failed.');
+    }
   };
+
+  const readInternalDragPaths = useCallback((dataTransfer) => {
+    if (!dataTransfer?.getData) {
+      return [];
+    }
+    const rawPayload = dataTransfer.getData(INTERNAL_DRAG_MIME);
+    if (!rawPayload) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(rawPayload);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      return Array.from(
+        new Set(
+          parsed
+            .map((value) => explorerPathUtils.toRelativePath(String(value || '').trim()))
+            .filter(Boolean)
+        )
+      );
+    } catch (err) {
+      return [];
+    }
+  }, []);
+
+  const hasExternalDropEntries = useCallback((dataTransfer) => {
+    if (!dataTransfer) {
+      return false;
+    }
+    if (dataTransfer.files?.length) {
+      return true;
+    }
+    const items = Array.from(dataTransfer.items || []);
+    return items.some((item: any) => item?.kind === 'file');
+  }, []);
+
+  const readExternalDropPaths = useCallback((dataTransfer) => {
+    if (!dataTransfer?.files?.length) {
+      return [];
+    }
+    return Array.from(
+      new Set(
+        Array.from(dataTransfer.files)
+          .map((file: any) => String(file?.path || '').trim())
+          .filter(Boolean)
+      )
+    );
+  }, []);
+
+  const resolveDropDirectory = useCallback((targetPath) => {
+    const normalizedPath = explorerPathUtils.toRelativePath(targetPath || '');
+    if (!normalizedPath) {
+      return '';
+    }
+    const node = tree.nodes[normalizedPath];
+    if (node?.type === 'dir') {
+      return normalizedPath;
+    }
+    return explorerPathUtils.dirname(normalizedPath);
+  }, [tree.nodes]);
+
+  const resolveBlankDropDirectory = useCallback(() => {
+    if (!focusedPath) {
+      return '';
+    }
+    return resolveDropDirectory(focusedPath);
+  }, [focusedPath, resolveDropDirectory]);
+
+  const handleExternalImport = useCallback(async (sourcePaths, targetDir) => {
+    if (!sourcePaths.length) {
+      return;
+    }
+    try {
+      const report = await importExternalEntries({ sourcePaths, targetDir });
+      if (!report) {
+        setErrorMessage('External import is unavailable.');
+        return;
+      }
+      const failureCount = Array.isArray(report.failures) ? report.failures.length : 0;
+      if (failureCount > 0) {
+        const importedCount = Array.isArray(report.imported) ? report.imported.length : 0;
+        const firstFailure = report.failures?.[0]?.error ? ` (${report.failures[0].error})` : '';
+        const importedLabel = importedCount === 1 ? 'entry' : 'entries';
+        const failedLabel = failureCount === 1 ? 'failure' : 'failures';
+        if (importedCount > 0) {
+          setErrorMessage(`Imported ${importedCount} ${importedLabel} with ${failureCount} ${failedLabel}${firstFailure}.`);
+        } else {
+          setErrorMessage(`Import failed: ${failureCount} ${failedLabel}${firstFailure}.`);
+        }
+      } else {
+        clearError();
+      }
+    } catch (err) {
+      setErrorMessage(err?.message || 'Import failed.');
+    }
+  }, [clearError, importExternalEntries, setErrorMessage]);
+
+  const handleRowDragOver = useCallback((event, _rowPath, isDir) => {
+    const internalPaths = readInternalDragPaths(event.dataTransfer);
+    if (internalPaths.length > 0) {
+      if (!isDir) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = 'move';
+      return;
+    }
+
+    if (!hasExternalDropEntries(event.dataTransfer)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = 'copy';
+  }, [hasExternalDropEntries, readInternalDragPaths]);
+
+  const handleRowDrop = useCallback(async (event, rowPath, isDir) => {
+    const internalPaths = readInternalDragPaths(event.dataTransfer);
+    if (internalPaths.length > 0) {
+      if (!isDir) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      await handleMove(internalPaths, rowPath);
+      return;
+    }
+
+    const externalPaths = readExternalDropPaths(event.dataTransfer);
+    if (!externalPaths.length) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    const targetDir = isDir ? rowPath : resolveDropDirectory(rowPath);
+    await handleExternalImport(externalPaths, targetDir);
+  }, [handleExternalImport, handleMove, readExternalDropPaths, readInternalDragPaths, resolveDropDirectory]);
+
+  const handleTreeDragOver = useCallback((event) => {
+    const inRow = event.target instanceof Element && event.target.closest('[data-explorer-path]');
+    if (inRow) {
+      return;
+    }
+
+    if (readInternalDragPaths(event.dataTransfer).length > 0) {
+      return;
+    }
+
+    if (!hasExternalDropEntries(event.dataTransfer)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  }, [hasExternalDropEntries, readInternalDragPaths]);
+
+  const handleTreeDrop = useCallback(async (event) => {
+    const inRow = event.target instanceof Element && event.target.closest('[data-explorer-path]');
+    if (inRow) {
+      return;
+    }
+
+    if (readInternalDragPaths(event.dataTransfer).length > 0) {
+      return;
+    }
+
+    const externalPaths = readExternalDropPaths(event.dataTransfer);
+    if (!externalPaths.length) {
+      return;
+    }
+
+    event.preventDefault();
+    await handleExternalImport(externalPaths, resolveBlankDropDirectory());
+  }, [handleExternalImport, readExternalDropPaths, readInternalDragPaths, resolveBlankDropDirectory]);
 
   const toggleStatusFilter = (s) => setStatusFilters(curr => curr.includes(s) ? curr.filter(it => it !== s) : [...curr, s]);
   const buildDragPayload = (p) => selectionSet.has(p) ? Array.from(selectionSet) : [p];
@@ -526,9 +708,9 @@ function ProjectExplorerSidebarContent({
         onClick={isRenaming ? undefined : (e) => { handleSelectPath(item.path, e); setFocusedPath(item.path); listRef.current?.focus(); if (!isDir && !e.metaKey && !e.ctrlKey && !e.shiftKey) onOpenFile?.({ path: item.path, mode: 'preview' }); }}
         onDoubleClick={isRenaming ? undefined : (e) => { if (!isDir) { e.stopPropagation(); onOpenFile?.({ path: item.path, mode: 'pinned' }); } }}
         onContextMenu={isRenaming ? undefined : (e) => { e.preventDefault(); handleSelectPath(item.path, e); setFocusedPath(item.path); setContextMenu({ x: e.clientX, y: e.clientY, path: item.path }); }}
-        onDragStart={isRenaming ? undefined : (e) => { const p = buildDragPayload(item.path); e.dataTransfer.setData('application/agency-paths', JSON.stringify(p)); e.dataTransfer.effectAllowed = 'move'; }}
-        onDragOver={(e) => { if (isDir) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
-        onDrop={async (e) => { if (!isDir) return; e.preventDefault(); const p = e.dataTransfer.getData('application/agency-paths'); if (p) await handleMove(JSON.parse(p), item.path); }}
+        onDragStart={isRenaming ? undefined : (e) => { const p = buildDragPayload(item.path); e.dataTransfer.setData(INTERNAL_DRAG_MIME, JSON.stringify(p)); e.dataTransfer.effectAllowed = 'move'; }}
+        onDragOver={(e) => handleRowDragOver(e, item.path, isDir)}
+        onDrop={(e) => handleRowDrop(e, item.path, isDir)}
         onRequestRename={requestRename}
         renameTarget={renameTarget?.path === item.path ? renameTarget : null} handleRenameSubmit={handleRenameSubmit} setRenameTarget={setRenameTarget}
       />
@@ -601,6 +783,8 @@ function ProjectExplorerSidebarContent({
         ref={listRef} data-testid="explorer-tree" className="flex-1 overflow-y-auto px-1 py-2 focus:outline-none scrollbar-hide" tabIndex={0}
         onClick={() => closeContextMenu()} onKeyDown={handleKeyDown}
         onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+        onDragOver={handleTreeDragOver}
+        onDrop={handleTreeDrop}
       >
         {visibleItems.length === 0 ? (
           <div className="px-3 py-2 text-xs text-muted-foreground/60">No files to display.</div>

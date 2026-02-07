@@ -406,6 +406,38 @@ export function useProjectExplorer(options: any = {}) {
     return result;
   }, [loadDirectory, refreshStatus, rootPath]);
 
+  const importExternalEntries = useCallback(async ({ sourcePaths = [], targetDir = '' } = {}) => {
+    if (!window.agency?.importExplorerEntries) {
+      return null;
+    }
+    const dedupedPaths = Array.from(
+      new Set(
+        (Array.isArray(sourcePaths) ? sourcePaths : [])
+          .map((item) => String(item || '').trim())
+          .filter(Boolean)
+      )
+    );
+    if (!dedupedPaths.length) {
+      return {
+        targetDir: toRelativePath(targetDir || ''),
+        imported: [],
+        importedPaths: [],
+        skipped: [],
+        failures: [],
+        resolvedConflicts: [],
+      };
+    }
+    const normalizedTargetDir = toRelativePath(targetDir || '');
+    const result = await window.agency.importExplorerEntries({
+      rootPath: rootPath || undefined,
+      sourcePaths: dedupedPaths,
+      targetDir: normalizedTargetDir,
+    });
+    await loadDirectory(normalizedTargetDir);
+    await refreshStatus();
+    return result;
+  }, [loadDirectory, refreshStatus, rootPath]);
+
   const revealEntry = useCallback(async (payload) => {
     if (!window.agency?.revealExplorerEntry) {
       return null;
@@ -524,6 +556,7 @@ export function useProjectExplorer(options: any = {}) {
     renameEntry,
     deleteEntry,
     copyEntry,
+    importExternalEntries,
     revealEntry,
     handleSelectPath,
     clearError: () => setError(''),
