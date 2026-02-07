@@ -4,7 +4,7 @@ import { RiveAnimation } from './RiveAnimation.jsx';
 
 export function StatusBar({
   loading,
-  message,
+  message = '',
   onRefresh,
   tmuxStatus,
   ipcAvailable,

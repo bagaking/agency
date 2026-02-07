@@ -105,7 +105,7 @@ function App() {
   const [memoFocusTarget, setMemoFocusTarget] = useState('');
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [terminalMode, setTerminalMode] = useState('shell');
-  const [tmuxStatus, setTmuxStatus] = useState({ available: true });
+  const [tmuxStatus, setTmuxStatus] = useState({ available: true, error: '', version: '' });
   const [ipcAvailable, setIpcAvailable] = useState(true);
   const [sessionMapOpen, setSessionMapOpen] = useState(false);
   const [initialActiveSessions, setInitialActiveSessions] = useState({});
@@ -176,7 +176,7 @@ function App() {
     return selectedCell;
   }, [projectReady, selectedCell]);
   const loadCells = useCallback(
-    async (preferredSelection, rootOverride) => {
+    async (preferredSelection = null, rootOverride = '') => {
       const effectiveRoot = rootOverride || projectRoot;
       setLoading(true);
       try {
@@ -352,6 +352,7 @@ function App() {
         setTmuxStatus({
           available: false,
           error: error?.message || 'Unable to detect tmux.',
+          version: '',
         });
       }
     };
@@ -727,7 +728,7 @@ function App() {
     [activeFontSize, sessionFontSizeByKey]
   );
   const handleSelectSessionFromMap = useCallback(
-    (cellId, sessionId, options = {}) => {
+    (cellId, sessionId, options: { focusView?: boolean } = {}) => {
       if (!cellId || !sessionId) {
         return;
       }
@@ -1214,7 +1215,7 @@ function App() {
     [activeView]
   );
   const openCommentModal = useCallback(
-    ({ line, column } = {}) => {
+    ({ line, column }: { line?: number; column?: number } = {}) => {
       if (!commentRootPath || !commentFilePath) {
         return;
       }
@@ -2097,7 +2098,21 @@ function App() {
   }, [activeProfileId, projectRoot, selectedCell?.branch, selectedCell?.name]);
 
   const handleOpenWorkbenchFile = useCallback(
-    ({ path, rootPath, line, column, focusView = true, cellId } = {}) => {
+    ({
+      path,
+      rootPath,
+      line,
+      column,
+      focusView = true,
+      cellId,
+    }: {
+      path?: string;
+      rootPath?: string;
+      line?: number;
+      column?: number;
+      focusView?: boolean;
+      cellId?: string;
+    } = {}) => {
       if (!path) {
         return;
       }
@@ -2252,7 +2267,12 @@ function App() {
   });
   const handleAddCommentFromExplorer = useCallback((path) => {
     if (!path) return;
-    workbench.openFile({ path, mode: 'pinned', rootPath: explorerRootPath });
+    workbench.openFile({
+      path,
+      mode: 'pinned',
+      rootPath: explorerRootPath,
+      cellId: selectedCell?.id || undefined,
+    });
     setTimeout(() => {
       openCommentModal({ line: 1 });
     }, 100);
@@ -2262,7 +2282,12 @@ function App() {
       if (!path) {
         return;
       }
-      workbench.openFile({ path, mode: 'pinned', rootPath: explorerRootPath });
+      workbench.openFile({
+      path,
+      mode: 'pinned',
+      rootPath: explorerRootPath,
+      cellId: selectedCell?.id || undefined,
+    });
       setActiveView('explorer');
       openHilDrawer('comments');
     },
@@ -2369,6 +2394,7 @@ function App() {
       handleSwitchView('memo');
       hilMemo.setDockSelection({
         type: 'draft',
+        inboxType: 'comments',
         draftId,
       });
     },
@@ -2616,7 +2642,12 @@ function App() {
     revealRequest: pendingExplorerReveal,
     onRevealHandled: () => setPendingExplorerReveal(null),
     onOpenFile: ({ path, mode }) => {
-      workbench.openFile({ path, mode, rootPath: explorerRootPath });
+      workbench.openFile({
+        path,
+        mode,
+        rootPath: explorerRootPath,
+        cellId: selectedCell?.id || undefined,
+      });
     },
     onAddComment: handleAddCommentFromExplorer,
     commentCountsByPath: hilCommentCounts,
