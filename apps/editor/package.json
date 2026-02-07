@@ -30,6 +30,7 @@
     "afterPack": "scripts/after-pack.js",
     "files": [
       "electron/**/*",
+      "shared/**/*",
       "dist/renderer/**/*",
       "package.json"
     ],
