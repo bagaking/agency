@@ -17,7 +17,8 @@
     "package:dir": "pnpm run build:renderer && pnpm run build:speech-helper && PNPM_BIN_DIR=$(pnpm bin -g) && PATH=\"$PNPM_BIN_DIR:$PATH\" PNPM_HOME=\"$PNPM_BIN_DIR\" TMPDIR=/tmp electron-builder --mac --dir",
     "preview": "vite preview",
     "test:e2e": "node scripts/run-e2e.js",
-    "postinstall": "node scripts/postinstall.js"
+    "postinstall": "node scripts/postinstall.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "build": {
     "appId": "com.agency.editor",
@@ -78,6 +79,9 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.50.0",
+    "@types/node": "^25.2.1",
+    "@types/react": "^19.2.13",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "concurrently": "^8.2.2",
@@ -86,6 +90,7 @@
     "electron-builder": "^26.0.12",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.16",
+    "typescript": "^5.9.3",
     "vite": "^5.4.11",
     "wait-on": "^7.2.0"
   }

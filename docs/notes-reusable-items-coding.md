@@ -38,14 +38,17 @@ This is a project-local catalog of reusable engineering assets. The goal is disc
 | Avatar resolution & rotation | MUST | Stable avatar mapping + least-used selection. | `apps/editor/renderer/src/utils/agentAvatar.js` |
 | Debug flags (`DEBUG_FLAGS`) | MUST | Dev-only debug toggles for UI/IPC flows; avoid ad-hoc localStorage keys. | `apps/editor/renderer/src/utils/debugFlags.js` |
 | Session preview memory cache | MUST | Hover preview warmup + memory-first rendering; avoids disk on first hover. | `apps/editor/renderer/src/services/sessionMapPreviewCache.js` |
+| Session runtime helper module | MUST | Share session key/filter/activity/font/terminal-text helper logic across hooks and TS migration seams. | `apps/editor/renderer/src/hooks/shared/sessionRuntime.js` |
+| Voice runtime helper module | MUST | Share language normalization, speech error mapping, permission-kind classification, and SpeechRecognition detection logic. | `apps/editor/renderer/src/hooks/shared/voiceRuntime.js` |
 | Session Reply Relay | MUST | Session-side reply capture, routing, and asset storage for cross-agent comms. | `apps/editor/renderer/src/components/SessionReplyPanel.jsx` |
 
 
 ## High-Leverage Modules (Refactor Queue)
 | Module | Why High Leverage | Reuse Target | Status |
 | --- | --- | --- | --- |
-| `useSessions` | Owns session lifecycle, active state, command dispatch, and activity bookkeeping; changes impact most terminal workflows. | Split into reusable `sessionStore`/`sessionCommands`/`sessionActivity` primitives before TS conversion. | Planned |
-| `useVoiceCapture` | Encapsulates native/browser capture orchestration, permission flow, interim/final handling, and error recovery. | Split into reusable voice adapter + state machine hooks with shared diagnostics helpers. | Planned |
+| `useSessions` | Owns session lifecycle, active state, command dispatch, and activity bookkeeping; changes impact most terminal workflows. | Split into reusable `sessionStore`/`sessionCommands`/`sessionActivity` primitives before TS conversion. | In Progress (shared runtime helpers extracted) |
+| `useVoiceCapture` | Encapsulates native/browser capture orchestration, permission flow, interim/final handling, and error recovery. | Split into reusable voice adapter + state machine hooks with shared diagnostics helpers. | In Progress (shared runtime helpers extracted) |
+| `AppLayout` | Coordinates sidebar/main-panel/HIL rendering and all major feature views, so regressions have broad UI blast radius. | Keep `AppLayout` as orchestration shell and compose `AppSidebarContent`/`AppMainPanels`/`AppHilPanel`. | Completed (composable layout split shipped) |
 | `TerminalPane` | Centralizes xterm attach/input/selection/path-link behavior and preview signaling; very broad blast radius. | Extract terminal interaction controller and keep pane component focused on rendering. | Planned |
 | `App.jsx` | Cross-domain orchestration and wiring hub; currently too wide for safe typed migration in one step. | Incrementally isolate feature composition boundaries into reusable orchestration hooks. | Planned |
 

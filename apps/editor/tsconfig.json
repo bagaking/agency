@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": [
+    "renderer/src/**/*.ts",
+    "renderer/src/**/*.tsx",
+    "renderer/src/**/*.js",
+    "renderer/src/**/*.jsx",
+    "renderer/src/types/**/*.d.ts",
+    "shared/**/*.cjs",
+    "shared/**/*.js"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "electron/native",
+    "electron/**/*.spec.*",
+    "tests",
+    "test-results"
+  ]
+}

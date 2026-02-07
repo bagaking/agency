@@ -1684,3 +1684,35 @@ The editor SHALL update a session's idle activity timestamp only when output cha
 - **WHEN** a session output changes by more characters than the threshold
 - **THEN** the session idle timestamp is refreshed
 
+### Requirement: Editor TypeScript Foundation
+The editor SHALL provide a TypeScript foundation in `apps/editor` with a project tsconfig entrypoint and a standard typecheck command.
+
+#### Scenario: Typecheck command is available
+- **WHEN** a developer runs `pnpm -C apps/editor typecheck`
+- **THEN** TypeScript project checks execute via `tsc --noEmit`.
+
+### Requirement: Renderer Ambient Runtime Types
+The editor SHALL provide ambient type declarations required for typed renderer code to access runtime globals safely.
+
+#### Scenario: Renderer global bridge typing exists
+- **WHEN** TypeScript code in renderer accesses `window.agency`
+- **THEN** the symbol resolves through project ambient declarations without implicit-any global errors.
+
+### Requirement: High-Leverage Runtime Decomposition
+The editor SHALL decompose high-leverage runtime modules into smaller reusable units before broad TS conversion.
+
+#### Scenario: Session hook helper extraction
+- **WHEN** session lifecycle code is maintained
+- **THEN** deterministic helper logic is hosted in dedicated reusable modules instead of one monolithic hook file.
+
+#### Scenario: Voice hook helper extraction
+- **WHEN** voice capture behavior is maintained
+- **THEN** reusable helper logic is hosted in dedicated modules while preserving hook behavior.
+
+### Requirement: App Layout View Composition Split
+The editor SHALL split large layout view orchestration into composable components with stable integration props.
+
+#### Scenario: Existing App integration remains valid
+- **WHEN** `App.jsx` renders `AppLayout`
+- **THEN** existing feature views (Agent Cells, Explorer, Hierarchy, Memo, Action Sheets) remain reachable through stable props.
+

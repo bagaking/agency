@@ -2,21 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { disposeTerminalEntry } from '../terminal/terminalManager.js';
 import { pickSessionAvatarId } from '../utils/agentAvatar.js';
 import { BASELINE_PROFILE_ID } from '../utils/terminusSettings.js';
-
-const DEFAULT_FONT_SIZE = 13;
-const MIN_FONT_SIZE = 10;
-const MAX_FONT_SIZE = 20;
-const ACTIVITY_BOOTSTRAP_THRESHOLD_MS = 30000;
-const ATTACH_ACTIVITY_GRACE_MS = 5 * 1000;
-const DETACHED_ACTIVITY_POLL_MS = 10 * 1000;
-
-const buildSessionKey = (cellId, sessionId) => `${cellId}:${sessionId}`;
-const clampFontSize = (value) => Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, value));
-const normalizeTerminalText = (text) =>
-  String(text || '')
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
-    .replace(/\n/g, '\r');
+import {
+  ACTIVITY_BOOTSTRAP_THRESHOLD_MS,
+  ATTACH_ACTIVITY_GRACE_MS,
+  DEFAULT_FONT_SIZE,
+  DETACHED_ACTIVITY_POLL_MS,
+  buildSessionKey,
+  clampFontSize,
+  filterOpenSessions,
+  mergeSessionActivityTimestamps,
+  normalizeTerminalText,
+  resolveActiveSession,
+} from './shared/sessionRuntime.js';
 
 export function useSessions({
   selectedCell,
@@ -97,23 +94,14 @@ export function useSessions({
 
   const openSessions = useMemo(() => {
     const preferred = activeSessionByCellId[selectedCell?.id];
-    return sessions.filter((session) => {
-      if (session.status === 'closed') {
-        return false;
-      }
-      if (session.status === 'detached') {
-        return session.id === preferred;
-      }
-      return true;
-    });
+    return filterOpenSessions(sessions, preferred);
   }, [sessions, activeSessionByCellId, selectedCell?.id]);
 
   const preferredSessionId = selectedCell ? activeSessionByCellId[selectedCell.id] : undefined;
-  const activeSessionId = selectedCell
-    ? openSessions.find((session) => session.id === preferredSessionId)?.id ||
-      openSessions.find((session) => session.status === 'active')?.id ||
-      openSessions[0]?.id
-    : undefined;
+  const activeSession = selectedCell
+    ? resolveActiveSession({ openSessions, preferredSessionId })
+    : null;
+  const activeSessionId = activeSession?.id;
   const activeSessionKey =
     selectedCell && activeSessionId ? buildSessionKey(selectedCell.id, activeSessionId) : null;
   const activeFontSize = activeSessionKey
@@ -159,37 +147,17 @@ export function useSessions({
           nextSessions = created ? [created] : nextSessions;
         }
         setSessionsByCellId((current) => ({ ...current, [cell.id]: nextSessions }));
-        setSessionActivityByKey((current) => {
-          const next = { ...current };
-          nextSessions.forEach((session) => {
-            const timestamp = Date.parse(session?.lastActivityAt || '');
-            if (!Number.isFinite(timestamp)) {
-              return;
-            }
-            const key = buildSessionKey(cell.id, session.id);
-            const existing = current[key];
-            if (!Number.isFinite(existing) || timestamp > existing) {
-              next[key] = timestamp;
-            }
-          });
-          return next;
-        });
+        setSessionActivityByKey((current) =>
+          mergeSessionActivityTimestamps({
+            current,
+            cellId: cell.id,
+            sessions: nextSessions,
+          })
+        );
 
         const preferred = activeSessionByCellIdRef.current[cell.id];
-        const open = nextSessions.filter((session) => {
-          if (session.status === 'closed') {
-            return false;
-          }
-          if (session.status === 'detached') {
-            return session.id === preferred;
-          }
-          return true;
-        });
-        const resolvedPreferred = preferred && open.find((session) => session.id === preferred);
-        const active =
-          resolvedPreferred ||
-          open.find((session) => session.status === 'active') ||
-          open[0];
+        const open = filterOpenSessions(nextSessions, preferred);
+        const active = resolveActiveSession({ openSessions: open, preferredSessionId: preferred });
         if (selectionVersionRef.current !== selectionVersion) {
           return;
         }
