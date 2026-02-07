@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '@xterm/xterm/css/xterm.css';
-import { StatusBar } from './components/StatusBar.jsx';
+import { StatusBar } from './components/StatusBar';
 import { AppLayout } from './components/AppLayout';
-import { CreateCellModal } from './components/modals/CreateCellModal.jsx';
-import { LifecycleConfirmModal } from './components/modals/LifecycleConfirmModal.jsx';
-import { ModalProvider, useModal } from './components/modals/ModalSystem.jsx';
+import { CreateCellModal } from './components/modals/CreateCellModal';
+import { LifecycleConfirmModal } from './components/modals/LifecycleConfirmModal';
+import { ModalProvider, useModal } from './components/modals/ModalSystem';
 import { useTerminusSettings } from './hooks/useTerminusSettings';
 import { useAppShortcuts } from './hooks/useAppShortcuts';
 import { useSessionNamingSettings } from './hooks/useSessionNamingSettings';
@@ -45,8 +45,8 @@ import { warmSessionMapPreviewCache } from './services/sessionMapPreviewCache';
 import { buildPromotePromptBundle, buildPromotePromptText, buildPromoteActionSheetPrompt } from './utils/hilPromotePrompt';
 import { buildActionSheetCompletion, buildActionSheetPlan } from './utils/actionSheetCompletion';
 import { BASELINE_PROFILE_ID } from './utils/terminusSettings';
-import { SessionMapOverlay } from './components/sessionMap/SessionMapOverlay.jsx';
-import { SessionMapToggle } from './components/sessionMap/SessionMapToggle.jsx';
+import { SessionMapOverlay } from './components/sessionMap/SessionMapOverlay';
+import { SessionMapToggle } from './components/sessionMap/SessionMapToggle';
 import { PREVIEW_WARMUP_DELAY_MS } from './components/sessionMap/sessionMapConstants';
 import { buildSessionMapModel } from './utils/sessionMapModel';
 const defaultCells = [

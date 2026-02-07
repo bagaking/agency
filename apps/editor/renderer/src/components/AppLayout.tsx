@@ -1,6 +1,6 @@
 import React from 'react';
-import { ActivityBar } from './ActivityBar.jsx';
-import { SidebarDock } from './layout/SidebarDock.jsx';
+import { ActivityBar } from './ActivityBar';
+import { SidebarDock } from './layout/SidebarDock';
 import { AppSidebarContent } from './layout/AppSidebarContent';
 import { AppMainPanels } from './layout/AppMainPanels';
 import { AppHilPanel } from './layout/AppHilPanel';
@@ -153,7 +153,7 @@ export function AppLayout({
   memoDrawerProps,
   actionSheetsProps,
   onConfigureProfile,
-}) {
+}: any) {
   const hilSubtitle = explorerPaneProps?.activeRootLabel || explorerSidebarProps?.rootLabel || '';
   const hasSidebar = ['explorer', 'agent-cells', 'hierarchy', 'action-sheets', 'memo'].includes(
     activeView

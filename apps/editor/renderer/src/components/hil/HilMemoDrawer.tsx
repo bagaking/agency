@@ -1,0 +1,222 @@
+import React from 'react';
+import { StickyNote, Camera, Inbox, Quote, ArrowLeft, ArrowUpRight } from 'lucide-react';
+import { FlashCaptureCard } from './memo/FlashCaptureCard';
+import { ExcerptCaptureCard } from './memo/ExcerptCaptureCard';
+import { ScreenshotCaptureCard } from './memo/ScreenshotCaptureCard';
+import { Tooltip } from '../ui/Tooltip';
+import { focusRing } from '../ui/focusRing';
+
+export function HilMemoDrawer({
+  activeInboxId,
+  onSelectInbox,
+  onOpenInbox,
+  flashValue,
+  onFlashChange,
+  onSaveFlash,
+  flashVoice,
+  flashVoiceSegments,
+  flashVoiceShortcut,
+  excerptUrl,
+  onExcerptUrlChange,
+  onFetchExcerpt,
+  excerptPreview,
+  excerptFetching,
+  excerptNote,
+  onExcerptNoteChange,
+  onSaveExcerpt,
+  screenshotAsset,
+  pendingCapture,
+  screenshotNote,
+  onScreenshotNoteChange,
+  onCaptureScreenshot,
+  onOpenRouting,
+  captureLoading,
+  onFocusInboxInput,
+  screenshotShortcut,
+}: any) {
+  const focusRingClass = focusRing.strong;
+  const renderViewRecordsButton = (targetId) => (
+    <Tooltip label="Jump to records page" side="left">
+      <button
+        type="button"
+        onClick={() => onSelectInbox?.(targetId)}
+        aria-label="Jump to records"
+        className={`rounded-full border border-border/30 bg-background/40 p-1.5 text-muted-foreground/60 transition-colors hover:text-foreground hover:border-primary/40 hover:bg-primary/10 ${focusRingClass}`}
+      >
+        <ArrowUpRight size={12} aria-hidden="true" />
+      </button>
+    </Tooltip>
+  );
+
+  return (
+    <div className="flex flex-col gap-4 py-1 select-none">
+      <div className="px-0.5">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted-foreground/50">
+          Inbox Shortcuts
+        </div>
+        <div className="mt-1 text-[11px] text-muted-foreground/60">
+          Jump to capture modes in the Memo inbox.
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <MemoShortcutCard
+          id="flash"
+          label="Flash"
+          description="Quick note capture"
+          icon={StickyNote}
+          active={activeInboxId === 'flash'}
+          actions={renderViewRecordsButton('flash')}
+          onActivate={() => onFocusInboxInput?.('flash')}
+        >
+          <FlashCaptureCard
+            value={flashValue}
+            onChange={onFlashChange}
+            onSave={onSaveFlash}
+            voice={flashVoice}
+            voiceSegments={flashVoiceSegments}
+            voiceShortcut={flashVoiceShortcut}
+            loading={captureLoading}
+          />
+        </MemoShortcutCard>
+
+        <MemoShortcutCard
+          id="excerpt"
+          label="Excerpt"
+          description="Capture a source URL"
+          icon={Quote}
+          active={activeInboxId === 'excerpt'}
+          actions={renderViewRecordsButton('excerpt')}
+          onActivate={() => onFocusInboxInput?.('excerpt')}
+        >
+          <ExcerptCaptureCard
+            url={excerptUrl}
+            onUrlChange={onExcerptUrlChange}
+            onFetch={onFetchExcerpt}
+            preview={excerptPreview}
+            fetching={excerptFetching}
+            note={excerptNote}
+            onNoteChange={onExcerptNoteChange}
+            onSave={onSaveExcerpt}
+            loading={captureLoading}
+          />
+        </MemoShortcutCard>
+
+        <MemoShortcutCard
+          id="screenshot"
+          label="Screenshot"
+          description="Capture and annotate"
+          icon={Camera}
+          active={activeInboxId === 'screenshot'}
+          actions={renderViewRecordsButton('screenshot')}
+          onActivate={() => onFocusInboxInput?.('screenshot')}
+        >
+          <ScreenshotCaptureCard
+            asset={screenshotAsset}
+            pending={pendingCapture}
+            note={screenshotNote}
+            onNoteChange={onScreenshotNoteChange}
+            onCapture={onCaptureScreenshot}
+            onOpenRouting={onOpenRouting}
+            loading={captureLoading}
+            captureShortcut={screenshotShortcut}
+          />
+        </MemoShortcutCard>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onOpenInbox?.()}
+        className={`flex items-center justify-between rounded-xl bg-card/40 px-3 py-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60 ring-1 ring-inset ring-border/20 transition-colors hover:text-foreground hover:ring-primary/30 hover:bg-card/60 ${focusRingClass}`}
+      >
+        <span className="flex items-center gap-2">
+          <Inbox size={12} aria-hidden="true" />
+          Open Inbox
+        </span>
+        <span className="text-[9px] font-medium text-muted-foreground/40">Comments</span>
+      </button>
+    </div>
+  );
+}
+
+function MemoShortcutCard({
+  id,
+  label,
+  description,
+  icon: Icon,
+  active,
+  actions,
+  onActivate,
+  children,
+}: any) {
+  const expanded = !active;
+  const focusRingClass = focusRing.strong;
+  return (
+    <div
+      className={`relative rounded-2xl transition-colors transition-shadow duration-300 ring-1 ring-inset ${
+        active
+          ? 'ring-primary/35 bg-card/60 shadow-[0_12px_30px_rgba(15,23,42,0.35)]'
+          : 'ring-border/20 bg-card/40 hover:ring-primary/25 hover:bg-card/55'
+      }`}
+    >
+      {active ? (
+        <span
+          aria-hidden="true"
+          className="absolute left-1 top-3 bottom-3 w-0.5 rounded-full bg-primary/50 shadow-[0_0_8px_rgba(59,130,246,0.35)]"
+        />
+      ) : null}
+      <div
+        role={active ? 'button' : undefined}
+        tabIndex={active ? 0 : -1}
+        onClick={() => {
+          if (active) {
+            onActivate?.();
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            if (active) {
+              onActivate?.();
+            }
+          }
+        }}
+        className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left ${focusRingClass} ${
+          active ? 'cursor-pointer' : 'cursor-default'
+        }`}
+      >
+        <span className="flex items-center gap-3">
+          <span className={`flex h-8 w-8 items-center justify-center rounded-lg ring-1 ring-inset ${
+            active
+              ? 'ring-primary/40 bg-primary/10 text-primary'
+              : 'ring-border/20 bg-background/40 text-muted-foreground/60'
+          }`}>
+            <Icon size={14} aria-hidden="true" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[12px] font-semibold text-foreground/80">{label}</span>
+            <span className="block text-[10px] text-muted-foreground/50">{description}</span>
+          </span>
+        </span>
+        <span className="flex items-center gap-2">
+          {active ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-primary">
+              <ArrowLeft size={10} aria-hidden="true" />
+              In Inbox
+            </span>
+          ) : null}
+          {actions}
+        </span>
+      </div>
+      <div
+        className={`px-3 pb-3 overflow-hidden transition-[max-height,opacity] duration-300 ${
+          expanded ? 'max-h-[520px] opacity-100' : 'max-h-0 opacity-0'
+        }`}
+      >
+        <div className={`transition-transform duration-300 ${expanded ? 'translate-y-0' : '-translate-y-1'}`}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}

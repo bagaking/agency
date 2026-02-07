@@ -1,14 +1,14 @@
 import React from 'react';
-import { WorkbenchPane } from '../workbench/WorkbenchPane.jsx';
-import { EditorPane } from '../EditorPane.jsx';
-import { QuickActionsView } from '../QuickActionsView.jsx';
-import { AppShortcutsView } from '../AppShortcutsView.jsx';
-import { SessionNamingView } from '../SessionNamingView.jsx';
-import { GatesView } from '../GatesView.jsx';
-import { WorktreeLinksView } from '../WorktreeLinksView.jsx';
-import { ProjectSettingsView } from '../ProjectSettingsView.jsx';
-import { HilMemoView } from '../hil/memo/HilMemoView.jsx';
-import { ActionSheetsView } from '../actionSheets/ActionSheetsView.jsx';
+import { WorkbenchPane } from '../workbench/WorkbenchPane';
+import { EditorPane } from '../EditorPane';
+import { QuickActionsView } from '../QuickActionsView';
+import { AppShortcutsView } from '../AppShortcutsView';
+import { SessionNamingView } from '../SessionNamingView';
+import { GatesView } from '../GatesView';
+import { WorktreeLinksView } from '../WorktreeLinksView';
+import { ProjectSettingsView } from '../ProjectSettingsView';
+import { HilMemoView } from '../hil/memo/HilMemoView';
+import { ActionSheetsView } from '../actionSheets/ActionSheetsView';
 
 const paneVisibilityClass = (isVisible) =>
   isVisible ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none';
@@ -26,7 +26,7 @@ export function AppMainPanels({
   gatesViewProps,
   worktreeLinksViewProps,
   projectSettingsViewProps,
-}) {
+}: any) {
   return (
     <div className="relative flex-1 overflow-hidden">
       <div className={`absolute inset-0 ${paneVisibilityClass(activeView === 'agent-cells')}`}>

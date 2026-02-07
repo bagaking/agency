@@ -1,16 +1,16 @@
 import React from 'react';
-import { HilDrawer } from '../hil/HilDrawer.jsx';
-import { HilCommentsPanel, PromoteModal } from '../hil/HilCommentsPanel.jsx';
-import { HilDraftsPanel } from '../hil/HilDraftsPanel.jsx';
-import { HilMemoDrawer } from '../hil/HilMemoDrawer.jsx';
-import { SessionReplyPanel } from '../SessionReplyPanel.jsx';
+import { HilDrawer } from '../hil/HilDrawer';
+import { HilCommentsPanel, PromoteModal } from '../hil/HilCommentsPanel';
+import { HilDraftsPanel } from '../hil/HilDraftsPanel';
+import { HilMemoDrawer } from '../hil/HilMemoDrawer';
+import { SessionReplyPanel } from '../SessionReplyPanel';
 
 const resolveHilDrawerMeta = ({
   activeView,
   hilDrawerPanel,
   hilReplyProps,
   hilSubtitle,
-}) => {
+}: any) => {
   const isMemoView = activeView === 'memo';
   const isAgentCellsView = activeView === 'agent-cells';
   const panels = isMemoView
@@ -58,7 +58,7 @@ export function AppHilPanel({
   hilReplyProps,
   memoDrawerProps,
   hilSubtitle,
-}) {
+}: any) {
   const meta = resolveHilDrawerMeta({
     activeView,
     hilDrawerPanel,

@@ -1,9 +1,9 @@
 import React from 'react';
-import { AgentCellsSidebar } from '../AgentCellsSidebar.jsx';
-import { HierarchySidebar } from '../HierarchySidebar.jsx';
-import { ProjectExplorerSidebar } from '../explorer/ProjectExplorerSidebar.jsx';
-import { ActionSheetsSidebar } from '../actionSheets/ActionSheetsSidebar.jsx';
-import { HilMemoSidebar } from '../hil/memo/HilMemoSidebar.jsx';
+import { AgentCellsSidebar } from '../AgentCellsSidebar';
+import { HierarchySidebar } from '../HierarchySidebar';
+import { ProjectExplorerSidebar } from '../explorer/ProjectExplorerSidebar';
+import { ActionSheetsSidebar } from '../actionSheets/ActionSheetsSidebar';
+import { HilMemoSidebar } from '../hil/memo/HilMemoSidebar';
 
 export function AppSidebarContent({
   activeView,
@@ -12,7 +12,7 @@ export function AppSidebarContent({
   hierarchySidebarProps,
   actionSheetsProps,
   memoSidebarProps,
-}) {
+}: any) {
   if (activeView === 'explorer') {
     return (
       <ProjectExplorerSidebar

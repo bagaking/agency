@@ -292,7 +292,7 @@ export function useProjectExplorer(options: any = {}) {
   );
 
   const handleSelectPath = useCallback(
-    (path, event) => {
+    (path, event = null) => {
       const normalized = toRelativePath(path);
       const isMulti = event?.metaKey || event?.ctrlKey;
       const isRange = event?.shiftKey;
