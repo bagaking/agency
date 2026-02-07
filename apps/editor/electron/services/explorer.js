@@ -7,6 +7,7 @@ const path = require('path');
 const { getRepoRoot } = require('./git');
 const { resolveProjectRoot } = require('./projectRoot');
 const { listCells } = require('./cells');
+const { normalizeRelPath, resolveSafePath } = require('./shared/pathSafety');
 
 const execFileAsync = promisify(execFile);
 const fsp = fs.promises;
@@ -47,23 +48,6 @@ const statusCache = {
   promise: null,
   rootPath: '',
 };
-
-function normalizeRelPath(value) {
-  if (!value) {
-    return '';
-  }
-  return value.replace(/\\/g, '/').replace(/^\.?\//, '').replace(/\/+$/, '');
-}
-
-function resolveSafePath(rootPath, relativePath) {
-  const normalized = normalizeRelPath(relativePath);
-  const absolute = path.resolve(rootPath, normalized);
-  const rel = path.relative(rootPath, absolute);
-  if (rel.startsWith('..') || path.isAbsolute(rel)) {
-    throw new Error('Path escapes repository root.');
-  }
-  return absolute;
-}
 
 async function resolveExplorerRoot(rootPath) {
   if (!rootPath) {

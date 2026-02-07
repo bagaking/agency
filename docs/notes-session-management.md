@@ -87,7 +87,7 @@ Session Map 的类 RTS 游戏操作界面设计：它是一个跨界面、始终
 - **键盘**：方向键在 token 间移动焦点，Enter/点击跳转。
 - **Dock 模式**：Session Map 作为底部面板出现，会把 Status Bar 顶上去；点击空白不自动关闭；当前为固定高度（约原高度的 2/3）。
 - **点击跳转反馈**：点击 token 仅切换当前 Cell + Session，不关闭 Map；点击缩略图预览后关闭 Map 并切换到 Agent Cells 视图，便于立即进入目标会话。
-- **创建会话**：在 Session Map 的 Cell 分组内直接创建新 Session（含 Terminus Profile 快捷入口）。
+- **创建会话**：在 Session Map 与 Agent Cells 的「+」菜单中可直接创建新 Session；同一 Terminus Profile 以单行聚合展示，并以子按钮触发 Start / Resume / Subcommand。
 - **生命周期与 idle 计算**：Session 的 idle 以 tmux `pane_activity` 为准（代表 pane 最近活动时间，跨 UI 切换和重连也保持）；renderer 收到输出时会增量刷新，重连后的回放有短暂忽略窗口（约 5s），避免误判为活跃。tmux 侧在 attach 附近 1 分钟内仅当 activity 时间戳等于 attach 时间时视为噪声，不更新 idle。session 列表刷新时仅当捕获输出与缓存内容有 diff 才更新 `lastActivityAt`。可选显示 `visited` 表示用户最后一次主动切换到该 Session 的时间。Idle 环形指示随时间从活跃绿色渐变到不活跃灰色（默认 15 分钟拉满），关闭/离线时头像与边框同时变灰。
   - renderer 侧也使用 `activityDiffThreshold` 控制 idle 刷新；仅当输出变化量超过阈值时才触发活跃时间更新。
 - **Attach 生命周期与 GC**：预览/截图会触发短暂 attach（必要时 attach→capture→release），attach 不应改变 idle。Idle 达到阈值（默认 30 分钟）且无交互客户端时，自动 detach 以节省资源；一旦发生交互（hover 预览/点击/终端聚焦）立即重新 attach。

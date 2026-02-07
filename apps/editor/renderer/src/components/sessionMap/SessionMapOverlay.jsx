@@ -712,16 +712,18 @@ export function SessionMapOverlay({
           setCreateMenu(null);
           await onCreateSession?.(createMenu.cell);
         }}
-        onCreateProfile={(profile) => {
-          if (!createMenu?.cell || !profile?.startCommand) {
+        onCreateProfile={(profile, action) => {
+          const command = String(action?.command || profile?.startCommand || '').trim();
+          if (!createMenu?.cell || !command) {
             setCreateMenu(null);
             return;
           }
           setCreateMenu(null);
+          const modeLabel = action?.mode === 'resume' ? ' (resume)' : '';
           onDispatchCommand?.({
-            command: profile.startCommand,
+            command,
             kind: 'start',
-            label: profile.label || profile.id,
+            label: `${profile.label || profile.id}${modeLabel}`,
             profileId: profile.id,
             appendEnter: true,
             cellId: createMenu.cell.id,

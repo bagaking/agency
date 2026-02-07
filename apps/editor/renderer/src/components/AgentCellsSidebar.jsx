@@ -635,17 +635,19 @@ export function AgentCellsSidebar({
           }
           setCreateMenu(null);
         }}
-        onCreateProfile={(profile) => {
-          if (!profile?.startCommand || !createMenu?.cellId) {
+        onCreateProfile={(profile, action) => {
+          const command = String(action?.command || profile?.startCommand || '').trim();
+          if (!command || !createMenu?.cellId) {
             setCreateMenu(null);
             return;
           }
           const cell = cellsById.get(createMenu.cellId);
           if (cell) {
+            const modeLabel = action?.mode === 'resume' ? ' (resume)' : '';
             onDispatchCommand?.({
-              command: profile.startCommand,
+              command,
               kind: 'start',
-              label: profile.label || profile.id,
+              label: `${profile.label || profile.id}${modeLabel}`,
               profileId: profile.id,
               appendEnter: true,
               cellId: cell.id,

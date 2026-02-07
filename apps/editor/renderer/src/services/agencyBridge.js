@@ -191,6 +191,31 @@ export const setSessionNamingSettings = async (payload) => {
   return api.setSessionNamingSettings(payload);
 };
 
+
+export const getGates = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.getGates) {
+    return null;
+  }
+  return api.getGates(payload);
+};
+
+export const setGates = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.setGates) {
+    return null;
+  }
+  return api.setGates(payload);
+};
+
+export const checkGates = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.checkGates) {
+    return null;
+  }
+  return api.checkGates(payload);
+};
+
 export const onAppShortcutTriggered = (handler) => {
   const api = getAgencyApi();
   if (!api?.onAppShortcutTriggered) {

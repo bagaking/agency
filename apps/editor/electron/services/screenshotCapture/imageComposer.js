@@ -1,6 +1,7 @@
 const { clipboard, nativeImage } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const { normalizeRelPath } = require('../shared/pathSafety');
 
 const fsp = fs.promises;
 
@@ -8,17 +9,10 @@ const AGENCY_DIR = '.agency';
 const HIL_DIR = 'hil';
 const ASSETS_DIR = 'assets';
 
-function normalizeRelPath(value) {
-  if (!value) {
-    return '';
-  }
-  return value.replace(/\\/g, '/').replace(/^\.?\//, '').replace(/\/+$/, '');
-}
 
 function getWorktreeName(worktreePath) {
   return path.basename(worktreePath);
 }
-
 function formatTimestamp(date = new Date()) {
   const pad = (value) => String(value).padStart(2, '0');
   return [

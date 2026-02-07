@@ -10,8 +10,7 @@ import {
   isAgencyAvailable,
   setAppShortcuts,
 } from '../services/agencyBridge.js';
-
-const pathBaseName = (value) => value.split('/').filter(Boolean).pop() || value;
+import { pathBaseName, useScopedSettingsState } from './shared/scopedSettingsState.js';
 
 const DEFAULT_ACTIONS = buildDefaultActions();
 const EMPTY_ACTIONS = [];
@@ -20,30 +19,20 @@ export function useAppShortcuts({ selectedCell, appShortcutsScope, userDataPath 
   const [globalActions, setGlobalActions] = useState(DEFAULT_ACTIONS);
   const [projectActions, setProjectActions] = useState(EMPTY_ACTIONS);
   const [agentActions, setAgentActions] = useState(EMPTY_ACTIONS);
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [dirtyByScope, setDirtyByScope] = useState({
-    global: false,
-    project: false,
-    agent: false,
+  const {
+    error,
+    setError,
+    saving,
+    setSaving,
+    dirtyByScope,
+    ensureIpcAvailable,
+    clearDirty,
+    markDirty,
+    clearError,
+  } = useScopedSettingsState({
+    label: 'App shortcuts',
+    isAvailable: isAgencyAvailable,
   });
-
-  const ensureIpcAvailable = (context) => {
-    if (isAgencyAvailable()) {
-      return true;
-    }
-    setError('IPC unavailable. Reload the app or reinstall the packaged build.');
-    console.error('App shortcuts IPC unavailable', context ? { context } : {});
-    return false;
-  };
-
-  const clearDirty = (scope) => {
-    setDirtyByScope((current) => (current[scope] ? { ...current, [scope]: false } : current));
-  };
-
-  const markDirty = (scope) => {
-    setDirtyByScope((current) => (current[scope] ? current : { ...current, [scope]: true }));
-  };
 
   useEffect(() => {
     const loadGlobal = async () => {
@@ -238,7 +227,6 @@ export function useAppShortcuts({ selectedCell, appShortcutsScope, userDataPath 
   };
 
   const dirty = dirtyByScope[appShortcutsScope] || false;
-  const clearError = () => setError('');
 
   return {
     resolvedActions,

@@ -54,131 +54,117 @@ export function CreateCellModal({ onClose, onCreate }) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      data-testid="create-cell-modal"
-    >
-      <div className="w-full max-w-lg rounded-lg border border-border bg-popover text-popover-foreground shadow-lg p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold">Create New Agent</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-sm text-muted-foreground hover:text-foreground"
+    <div className="space-y-6">
+      <label className="group flex items-center gap-3 text-[13px] font-medium text-foreground/80 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          className="h-4 w-4 rounded border-border/60 bg-white/5 text-primary focus:ring-1 focus:ring-primary/40 focus:ring-offset-0 transition-all"
+          checked={reuseExisting}
+          onChange={(event) => setReuseExisting(event.target.checked)}
+        />
+        Link to existing git worktree
+      </label>
+
+      {reuseExisting ? (
+        <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+          <label
+            className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-2 block"
+            htmlFor="reuse-worktree"
           >
-            ✕
-          </button>
-        </div>
-
-        <div className="space-y-5">
-          <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-            <input
-              type="checkbox"
-              className="rounded border-input bg-transparent text-primary focus:ring-1 focus:ring-primary"
-              checked={reuseExisting}
-              onChange={(event) => setReuseExisting(event.target.checked)}
-            />
-            Link to existing git worktree
+            Select Worktree
           </label>
-
-          {reuseExisting ? (
-            <div>
-              <label
-                className="text-xs font-medium text-muted-foreground mb-1.5 block"
-                htmlFor="reuse-worktree"
-              >
-                Select Worktree
-              </label>
-              <select
-                id="reuse-worktree"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                value={selectedWorktree}
-                onChange={handleWorktreeSelect}
-              >
-                <option value="">-- Choose directory --</option>
-                {worktrees.map((item) => (
-                  <option key={item.path} value={item.path}>
-                    {item.branch || 'detached'} · {item.path}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-
-          <div>
-            <label
-              className="text-xs font-medium text-muted-foreground mb-1.5 block"
-              htmlFor="cell-name"
+          <div className="relative">
+            <select
+              id="reuse-worktree"
+              className="w-full rounded-xl border border-border/40 bg-black/40 px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/40 transition-all appearance-none cursor-pointer hover:bg-black/60"
+              value={selectedWorktree}
+              onChange={handleWorktreeSelect}
             >
-              Agent Name
-            </label>
-            <input
-              id="cell-name"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/50"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="e.g. docs-updater"
-              disabled={reuseExisting && selectedWorktreeInfo?.branch}
-            />
-          </div>
-
-          <div>
-            <label
-              className="text-xs font-medium text-muted-foreground mb-1.5 block"
-              htmlFor="branch-prefix"
-            >
-              Branch Strategy
-            </label>
-            <div className="flex gap-2">
-              <select
-                id="branch-prefix"
-                className="w-32 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                value={branchPrefix}
-                onChange={(event) => setBranchPrefix(event.target.value)}
-                disabled={reuseExisting && Boolean(selectedWorktreeInfo?.branch)}
-              >
-                {branchPrefixes.map((prefix) => (
-                  <option key={prefix} value={prefix}>
-                    {prefix}/
-                  </option>
-                ))}
-              </select>
-              <div className="flex-1 flex items-center px-3 text-sm text-muted-foreground border border-transparent">
-                {toBranchSlug(name) || '<name>'}
-              </div>
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground font-mono bg-muted/30 p-1.5 rounded">
-              git branch:{' '}
-              {reuseExisting && selectedWorktreeInfo?.branch
-                ? selectedWorktreeInfo.branch
-                : generatedBranch || '...'}
-            </p>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 mt-8">
-            <button
-              type="button"
-              className="rounded-md px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!canSubmit}
-              onClick={() =>
-                onCreate({
-                  name,
-                  branch: generatedBranch,
-                  reusePath: reuseExisting ? selectedWorktree : undefined,
-                })
-              }
-            >
-              Create Agent
-            </button>
+              <option value="">-- Choose directory --</option>
+              {worktrees.map((item) => (
+                <option key={item.path} value={item.path}>
+                  {item.branch || 'detached'} · {item.path}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
+      ) : null}
+
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <div>
+          <label
+            className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-2 block"
+            htmlFor="cell-name"
+          >
+            Agent Name
+          </label>
+          <input
+            id="cell-name"
+            className="w-full rounded-xl border border-border/40 bg-black/40 px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/40 transition-all placeholder:text-muted-foreground/30 hover:bg-black/60"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="e.g. docs-updater"
+            disabled={reuseExisting && selectedWorktreeInfo?.branch}
+          />
+        </div>
+
+        <div>
+          <label
+            className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-2 block"
+            htmlFor="branch-prefix"
+          >
+            Branch Strategy
+          </label>
+          <select
+            id="branch-prefix"
+            className="w-full rounded-xl border border-border/40 bg-black/40 px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/40 transition-all cursor-pointer hover:bg-black/60"
+            value={branchPrefix}
+            onChange={(event) => setBranchPrefix(event.target.value)}
+            disabled={reuseExisting && Boolean(selectedWorktreeInfo?.branch)}
+          >
+            {branchPrefixes.map((prefix) => (
+              <option key={prefix} value={prefix}>
+                {prefix}/
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border/20 bg-black/40 p-4">
+        <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 mb-2">
+          Git Reference Preview
+        </div>
+        <div className="font-mono text-[13px] text-primary/80 truncate">
+          {reuseExisting && selectedWorktreeInfo?.branch
+            ? selectedWorktreeInfo.branch
+            : generatedBranch || '...'}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-end gap-3 mt-4 pt-2">
+        <button
+          type="button"
+          className="rounded-xl px-5 py-2.5 text-[11px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all"
+          onClick={onClose}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="rounded-xl bg-primary px-6 py-2.5 text-[11px] font-bold uppercase tracking-widest text-slate-950 hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_10px_20px_rgba(0,0,0,0.2)]"
+          disabled={!canSubmit}
+          onClick={() =>
+            onCreate({
+              name,
+              branch: generatedBranch,
+              reusePath: reuseExisting ? selectedWorktree : undefined,
+            })
+          }
+        >
+          Create Agent
+        </button>
       </div>
     </div>
   );

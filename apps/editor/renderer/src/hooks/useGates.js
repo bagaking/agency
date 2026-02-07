@@ -5,8 +5,8 @@ import {
   gateStages,
   normalizeGateConfig,
 } from '../utils/gates.js';
-
-const pathBaseName = (value) => value.split('/').filter(Boolean).pop() || value;
+import { checkGates, getGates, isAgencyAvailable, setGates } from '../services/agencyBridge.js';
+import { pathBaseName } from './shared/scopedSettingsState.js';
 
 const generateGateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -26,11 +26,11 @@ export function useGates({ selectedCell, gateScope, gateStage, repoRoot }) {
 
   useEffect(() => {
     const loadGlobalGates = async () => {
-      if (!window.agency?.getGates) {
+      if (!isAgencyAvailable()) {
         return;
       }
       try {
-        const gates = await window.agency.getGates({ scope: 'global' });
+        const gates = await getGates({ scope: 'global' });
         setGlobalGates(normalizeGateConfig(gates || {}));
       } catch (error) {
         setGatesError(error?.message || 'Failed to load gates.');
@@ -41,7 +41,7 @@ export function useGates({ selectedCell, gateScope, gateStage, repoRoot }) {
 
   useEffect(() => {
     const loadScopedGates = async () => {
-      if (!window.agency?.getGates) {
+      if (!isAgencyAvailable()) {
         return;
       }
       if (!selectedCell?.worktreePath) {
@@ -51,11 +51,11 @@ export function useGates({ selectedCell, gateScope, gateStage, repoRoot }) {
       }
       try {
         const [project, agent] = await Promise.all([
-          window.agency.getGates({
+          getGates({
             scope: 'project',
             worktreePath: selectedCell.worktreePath,
           }),
-          window.agency.getGates({
+          getGates({
             scope: 'agent',
             worktreePath: selectedCell.worktreePath,
           }),
@@ -124,13 +124,13 @@ export function useGates({ selectedCell, gateScope, gateStage, repoRoot }) {
   };
 
   const checkGatesForCell = async ({ cell, stage, silent = true }) => {
-    if (!cell?.worktreePath || !window.agency?.checkGates) {
+    if (!cell?.worktreePath || !isAgencyAvailable()) {
       return [];
     }
     const resolvedStage = gateStages.includes(stage) ? stage : 'active';
     updateGatesChecking(cell.id, resolvedStage, true);
     try {
-      const results = await window.agency.checkGates({
+      const results = await checkGates({
         worktreePath: cell.worktreePath,
         stage: resolvedStage,
         cellName: cell.name,
@@ -224,7 +224,7 @@ export function useGates({ selectedCell, gateScope, gateStage, repoRoot }) {
   };
 
   const saveGates = async () => {
-    if (!window.agency?.setGates) {
+    if (!isAgencyAvailable()) {
       return;
     }
     if (gateScope !== 'global' && !selectedCell?.worktreePath) {
@@ -240,7 +240,7 @@ export function useGates({ selectedCell, gateScope, gateStage, repoRoot }) {
           : gateScope === 'agent'
             ? normalizeGateConfig(agentGates)
             : normalizeGateConfig(globalGates);
-      const saved = await window.agency.setGates({
+      const saved = await setGates({
         scope: gateScope,
         worktreePath: selectedCell?.worktreePath,
         gates: gatesToSave,

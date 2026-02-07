@@ -5,6 +5,7 @@ export const BASELINE_PROFILE = {
   label: 'Shell',
   startCommand: '',
   resumeCommand: '',
+  subcommands: [],
   locked: true,
   kind: 'shell',
   shortcuts: {
@@ -16,6 +17,104 @@ const normalizeId = (value, fallback) => {
   const id = String(value || '').trim();
   return id || fallback;
 };
+
+const LEGACY_RESUME_SUBCOMMAND_ID = '__legacy_resume__';
+
+const normalizeCommand = (value) => String(value || '').trim();
+
+const normalizeSubcommand = (entry, index) => {
+  const command = normalizeCommand(entry?.command);
+  if (!command) {
+    return null;
+  }
+  return {
+    id: normalizeId(entry?.id, `subcommand-${index + 1}`),
+    label: String(entry?.label || '').trim() || `Sub ${index + 1}`,
+    command,
+  };
+};
+
+export const normalizeProfileSubcommands = (subcommands) => {
+  if (!Array.isArray(subcommands)) {
+    return [];
+  }
+  const seen = new Set();
+  const normalized = [];
+  subcommands.forEach((entry, index) => {
+    const item = normalizeSubcommand(entry, index);
+    if (!item) {
+      return;
+    }
+    const dedupeKey = `${item.label}::${item.command}`;
+    if (seen.has(dedupeKey)) {
+      return;
+    }
+    seen.add(dedupeKey);
+    normalized.push(item);
+  });
+  return normalized;
+};
+
+export const getProfileSubcommands = (profile) => {
+  const subcommands = normalizeProfileSubcommands(profile?.subcommands);
+  const resumeCommand = normalizeCommand(profile?.resumeCommand);
+  if (resumeCommand && !subcommands.some((item) => item.command === resumeCommand)) {
+    subcommands.unshift({
+      id: LEGACY_RESUME_SUBCOMMAND_ID,
+      label: 'Resume',
+      command: resumeCommand,
+    });
+  }
+  return subcommands;
+};
+
+export const deriveLegacyResumeCommand = (subcommands) => {
+  const normalized = normalizeProfileSubcommands(subcommands);
+  const resume = normalized.find(
+    (item) => item.id === LEGACY_RESUME_SUBCOMMAND_ID || /^resume$/i.test(item.label)
+  );
+  return resume?.command || '';
+};
+
+export const buildProfileCreateActions = (profile) => {
+  const profileLabel = profile?.label || profile?.id || 'Profile';
+  const profileId = normalizeId(profile?.id, 'profile');
+  const actions = [];
+  const startCommand = normalizeCommand(profile?.startCommand);
+
+  if (startCommand) {
+    actions.push({
+      key: `${profileId}:start`,
+      mode: 'start',
+      badge: 'Start',
+      label: 'Start',
+      command: startCommand,
+      profileLabel,
+      subcommandId: null,
+    });
+  }
+
+  getProfileSubcommands(profile).forEach((subcommand, index) => {
+    const subcommandId = normalizeId(subcommand.id, `subcommand-${index + 1}`);
+    const subcommandLabel = String(subcommand.label || '').trim() || `Sub ${index + 1}`;
+    actions.push({
+      key: `${profileId}:subcommand:${subcommandId}`,
+      mode:
+        subcommandId === LEGACY_RESUME_SUBCOMMAND_ID || /^resume$/i.test(subcommandLabel)
+          ? 'resume'
+          : 'subcommand',
+      badge: subcommandLabel,
+      label: subcommandLabel,
+      command: subcommand.command,
+      profileLabel,
+      subcommandId,
+    });
+  });
+
+  return actions;
+};
+
+export const hasProfileLaunchCommands = (profile) => buildProfileCreateActions(profile).length > 0;
 
 const mergeById = (...scopes) => {
   const merged = [];
@@ -63,6 +162,7 @@ const ensureBaseline = (profiles) => {
   list[index] = {
     ...BASELINE_PROFILE,
     ...list[index],
+    subcommands: normalizeProfileSubcommands(list[index]?.subcommands),
     locked: true,
   };
   return list;
@@ -126,6 +226,7 @@ export const buildProfileRows = ({ scope, globalProfiles, projectProfiles, agent
             : null;
     return {
       ...profile,
+      subcommands: normalizeProfileSubcommands(profile?.subcommands),
       locked: Boolean(profile.locked || id === BASELINE_PROFILE_ID),
       meta: {
         isLocal,

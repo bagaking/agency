@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { buildActionRows, mergeQuickActions } from '../utils/quickActions.js';
 import { getQuickActions, isAgencyAvailable, setQuickActions } from '../services/agencyBridge.js';
-
-const pathBaseName = (value) => value.split('/').filter(Boolean).pop() || value;
+import { pathBaseName, useScopedSettingsState } from './shared/scopedSettingsState.js';
 
 const generateActionId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -15,40 +14,20 @@ export function useQuickActions({ selectedCell, actionsScope }) {
   const [globalQuickActions, setGlobalQuickActions] = useState([]);
   const [projectQuickActions, setProjectQuickActions] = useState([]);
   const [agentQuickActions, setAgentQuickActions] = useState([]);
-  const [quickActionsError, setQuickActionsError] = useState('');
-  const [quickActionsSaving, setQuickActionsSaving] = useState(false);
-  const [dirtyByScope, setDirtyByScope] = useState({
-    global: false,
-    project: false,
-    agent: false,
+  const {
+    error: quickActionsError,
+    setError: setQuickActionsError,
+    saving: quickActionsSaving,
+    setSaving: setQuickActionsSaving,
+    dirtyByScope,
+    ensureIpcAvailable,
+    clearDirty,
+    markDirty,
+    clearError: clearQuickActionsError,
+  } = useScopedSettingsState({
+    label: 'Quick actions',
+    isAvailable: isAgencyAvailable,
   });
-
-  const ensureIpcAvailable = (context) => {
-    if (isAgencyAvailable()) {
-      return true;
-    }
-    setQuickActionsError('IPC unavailable. Reload the app or reinstall the packaged build.');
-    console.error('Quick actions IPC unavailable', context ? { context } : {});
-    return false;
-  };
-
-  const clearDirty = (scope) => {
-    setDirtyByScope((current) => {
-      if (!current[scope]) {
-        return current;
-      }
-      return { ...current, [scope]: false };
-    });
-  };
-
-  const markDirty = (scope) => {
-    setDirtyByScope((current) => {
-      if (current[scope]) {
-        return current;
-      }
-      return { ...current, [scope]: true };
-    });
-  };
 
   useEffect(() => {
     const loadGlobalQuickActions = async () => {
@@ -236,7 +215,6 @@ export function useQuickActions({ selectedCell, actionsScope }) {
     agentLabel: selectedCell?.name || 'Select Cell',
   };
 
-  const clearQuickActionsError = () => setQuickActionsError('');
   const quickActionsDirty = dirtyByScope[actionsScope] || false;
 
   return {

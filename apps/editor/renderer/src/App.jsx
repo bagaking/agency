@@ -4,7 +4,7 @@ import { StatusBar } from './components/StatusBar.jsx';
 import { AppLayout } from './components/AppLayout.jsx';
 import { CreateCellModal } from './components/modals/CreateCellModal.jsx';
 import { LifecycleConfirmModal } from './components/modals/LifecycleConfirmModal.jsx';
-import { ModalProvider } from './components/modals/ModalSystem.jsx';
+import { ModalProvider, useModal } from './components/modals/ModalSystem.jsx';
 import { useTerminusSettings } from './hooks/useTerminusSettings.js';
 import { useAppShortcuts } from './hooks/useAppShortcuts.js';
 import { useSessionNamingSettings } from './hooks/useSessionNamingSettings.js';
@@ -71,6 +71,7 @@ const HIL_DRAWER_DEFAULTS = {
 const resolveHilDrawerDefault = (view) => HIL_DRAWER_DEFAULTS[view] || 'comments';
 
 function App() {
+  const modal = useModal();
   const [cells, setCells] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -2047,7 +2048,12 @@ function App() {
     agent: sessionNamingAgentPath,
   };
   const terminusProfiles = useMemo(
-    () => (resolvedProfiles || []).filter((profile) => String(profile.startCommand || '').trim()),
+    () =>
+      (resolvedProfiles || []).filter((profile) => {
+        const startCommand = String(profile.startCommand || '').trim();
+        const resumeCommand = String(profile.resumeCommand || '').trim();
+        return Boolean(startCommand || resumeCommand);
+      }),
     [resolvedProfiles]
   );
   const activeSession = useMemo(
@@ -2539,11 +2545,22 @@ function App() {
         selectedCell={selectedCell}
         onSelectCell={setSelectedId}
         onCreateCell={() => {
-          if (projectReady) {
-            setShowCreate(true);
-          } else {
+          if (!projectReady) {
             handleSelectProjectRoot();
+            return;
           }
+          modal.openModal({
+            title: 'Create New Agent',
+            content: (
+              <CreateCellModal
+                onClose={() => modal.closeModal()}
+                onCreate={(payload) => {
+                  handleCreate(payload);
+                  modal.closeModal();
+                }}
+              />
+            ),
+          });
         }}
         onJumpToHierarchy={handleHierarchyJump}
         onOpenExplorerForCell={handleOpenExplorerForCell}

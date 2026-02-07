@@ -6,6 +6,7 @@ const { pathToFileURL } = require('url');
 
 const { getRepoRoot } = require('./git');
 const { resolveProjectRoot } = require('./projectRoot');
+const { normalizeRelPath, resolveSafePath } = require('./shared/pathSafety');
 
 const execFileAsync = promisify(execFile);
 const fsp = fs.promises;
@@ -15,26 +16,6 @@ const MAX_BLAME_BYTES = Number(process.env.AGENCY_WORKBENCH_BLAME_MAX_BYTES || 5
 const MAX_DIFF_BYTES = Number(process.env.AGENCY_WORKBENCH_DIFF_MAX_BYTES || 512 * 1024);
 const BINARY_CHECK_BYTES = 8000;
 const ROOT_CACHE = new Map();
-
-function normalizeRelPath(value) {
-  if (!value) {
-    return '';
-  }
-  return value.replace(/\\/g, '/').replace(/^\.?\//, '').replace(/\/+$/, '');
-}
-
-function resolveSafePath(rootPath, relativePath) {
-  if (!rootPath) {
-    throw new Error('Project root is not configured.');
-  }
-  const normalized = normalizeRelPath(relativePath);
-  const absolute = path.resolve(rootPath, normalized);
-  const rel = path.relative(rootPath, absolute);
-  if (rel.startsWith('..') || path.isAbsolute(rel)) {
-    throw new Error('Path escapes repository root.');
-  }
-  return absolute;
-}
 
 async function resolveWorkbenchRoot(rootPath) {
   const cacheKey = rootPath || '__default__';

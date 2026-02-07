@@ -169,6 +169,7 @@ export function AppLayout({
   hilReplyProps,
   memoDrawerProps,
   actionSheetsProps,
+  onConfigureProfile,
 }) {
   const hilSubtitle = explorerPaneProps?.activeRootLabel || explorerSidebarProps?.rootLabel || '';
   const isMemoView = activeView === 'memo';
@@ -229,6 +230,7 @@ export function AppLayout({
         onDetachSession={onDetachSession}
         onRenameSession={onRenameSession}
         onUpdateSessionAvatar={onUpdateSessionAvatar}
+        onConfigureProfile={onConfigureProfile}
       />
     ) : activeView === 'hierarchy' ? (
       <HierarchySidebar

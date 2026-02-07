@@ -1,6 +1,9 @@
 import React from 'react';
 import { AgentAvatarBadge } from './ui/AgentAvatarBadge.jsx';
+import { focusRing } from './ui/focusRing.js';
 import { resolveSessionAvatarId } from '../utils/agentAvatar.js';
+import { buildProfileCreateActions } from '../utils/terminusSettings.js';
+import { Settings } from 'lucide-react';
 
 export function SessionOverflowMenu({
   isOpen,
@@ -102,6 +105,25 @@ export function SessionContextMenu({
   );
 }
 
+const summarizeCommand = (value, max = 56) => {
+  const text = String(value || '').trim();
+  if (!text) {
+    return '';
+  }
+  const firstLine = text.split(/[\r\n]+/)[0];
+  if (firstLine.length <= max) {
+    return firstLine;
+  }
+  return `${firstLine.slice(0, max - 1)}…`;
+};
+
+const actionToneClass = (mode) =>
+  mode === 'start'
+    ? 'hover:text-emerald-400 hover:bg-emerald-400/5'
+    : mode === 'resume'
+      ? 'hover:text-blue-400 hover:bg-blue-400/5'
+      : 'hover:text-violet-400 hover:bg-violet-400/5';
+
 export function SessionCreateMenu({
   isOpen,
   position,
@@ -109,45 +131,89 @@ export function SessionCreateMenu({
   profiles,
   onCreateBase,
   onCreateProfile,
+  onConfigureProfile,
 }) {
   if (!isOpen) {
     return null;
   }
 
+  const focusRingClass = focusRing.default;
+  const profileRows = (profiles || [])
+    .map((profile) => {
+      const actions = buildProfileCreateActions(profile);
+      if (!actions.length) {
+        return null;
+      }
+      return {
+        key: profile?.id || profile?.label,
+        profile,
+        profileLabel: profile?.label || profile?.id || 'Profile',
+        actions,
+      };
+    })
+    .filter(Boolean);
+
   return (
     <div
       ref={containerRef}
-      className="fixed z-[60] w-60 rounded-md border border-border bg-popover py-1 text-[11px] shadow-xl"
+      className="fixed z-[60] w-[23rem] animate-tab-in rounded-xl border border-border/30 bg-popover/98 p-1 text-[11px] shadow-2xl backdrop-blur-2xl"
       style={{ top: position.y, left: position.x }}
     >
-      <div className="px-2 py-1 text-[10px] uppercase font-bold text-muted-foreground">
-        New Session
+      <div className="flex items-center justify-between px-2 py-1 mb-0.5">
+        <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/40">
+          New Session
+        </span>
+        <button
+          type="button"
+          onClick={onCreateBase}
+          className={`rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/60 hover:bg-muted/30 hover:text-foreground transition-all active:bg-muted/50 ${focusRingClass}`}
+        >
+          Blank
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={onCreateBase}
-        className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate transition-colors"
-      >
-        Blank Session
-      </button>
-      {profiles && profiles.length ? (
-        <>
-          <div className="px-2 pt-2 pb-1 text-[10px] uppercase font-bold text-muted-foreground">
-            Terminus Profiles
-          </div>
-          {profiles.map((profile) => (
-            <button
-              key={profile.id}
-              type="button"
-              onClick={() => onCreateProfile(profile)}
-              title={profile.startCommand || profile.label || profile.id}
-              className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted text-muted-foreground hover:text-foreground truncate transition-colors"
+
+      {profileRows.length ? (
+        <div className="max-h-[18rem] space-y-px overflow-y-auto pr-0.5 custom-scrollbar">
+          {profileRows.map(({ key, profile, profileLabel, actions }) => (
+            <div
+              key={key}
+              className="group flex h-8 items-center justify-between overflow-hidden rounded-md pl-2.5 transition-colors hover:bg-white/[0.03]"
             >
-              {profile.label || profile.id}
-            </button>
+              <div className="flex items-center gap-1.5 min-w-0 flex-1 h-full">
+                <span className="truncate font-medium text-foreground/60 group-hover:text-foreground/90 transition-colors select-none">
+                  {profileLabel}
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onConfigureProfile?.(profile);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 text-muted-foreground/30 hover:text-primary/80 transition-all p-1"
+                  title="Configure"
+                >
+                  <Settings size={11} strokeWidth={1.5} />
+                </button>
+              </div>
+              
+              <div className="flex items-stretch h-full shrink-0">
+                {actions.map((action) => (
+                  <button
+                    key={action.key}
+                    type="button"
+                    onClick={() => onCreateProfile?.(profile, action)}
+                    title={action.command}
+                    className={`relative px-2.5 flex items-center justify-center text-[9px] font-bold uppercase tracking-wider text-muted-foreground/40 transition-all duration-150 active:bg-white/[0.05] ${focusRingClass} ${actionToneClass(action.mode)}`}
+                  >
+                    <span className="relative z-10">{action.badge}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
-        </>
+        </div>
       ) : null}
     </div>
   );
 }
+

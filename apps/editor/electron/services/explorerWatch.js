@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { normalizeRelPath } = require('./shared/pathSafety');
 
 const DEFAULT_EXCLUDES = new Set(['.git']);
 const DEBOUNCE_MS = Number(process.env.AGENCY_EXPLORER_WATCH_DEBOUNCE_MS || 300);
@@ -8,13 +9,6 @@ let watcher = null;
 let watcherRoot = '';
 let pendingDirs = new Set();
 let debounceHandle = null;
-
-function normalizeRelPath(value) {
-  if (!value) {
-    return '';
-  }
-  return value.replace(/\\/g, '/').replace(/^\.?\//, '').replace(/\/+$/, '');
-}
 
 function shouldIgnore(relativePath) {
   if (!relativePath) {

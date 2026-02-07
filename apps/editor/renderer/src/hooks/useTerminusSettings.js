@@ -8,8 +8,7 @@ import {
   mergeProfiles,
 } from '../utils/terminusSettings.js';
 import { getTerminusSettings, isAgencyAvailable, setTerminusSettings } from '../services/agencyBridge.js';
-
-const pathBaseName = (value) => value.split('/').filter(Boolean).pop() || value;
+import { pathBaseName, useScopedSettingsState } from './shared/scopedSettingsState.js';
 
 const DEFAULT_SETTINGS = {
   profiles: [BASELINE_PROFILE],
@@ -30,30 +29,20 @@ export function useTerminusSettings({ selectedCell, terminusScope }) {
   const [globalSettings, setGlobalSettings] = useState(DEFAULT_SETTINGS);
   const [projectSettings, setProjectSettings] = useState(EMPTY_SETTINGS);
   const [agentSettings, setAgentSettings] = useState(EMPTY_SETTINGS);
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [dirtyByScope, setDirtyByScope] = useState({
-    global: false,
-    project: false,
-    agent: false,
+  const {
+    error,
+    setError,
+    saving,
+    setSaving,
+    dirtyByScope,
+    ensureIpcAvailable,
+    clearDirty,
+    markDirty,
+    clearError,
+  } = useScopedSettingsState({
+    label: 'Terminus settings',
+    isAvailable: isAgencyAvailable,
   });
-
-  const ensureIpcAvailable = (context) => {
-    if (isAgencyAvailable()) {
-      return true;
-    }
-    setError('IPC unavailable. Reload the app or reinstall the packaged build.');
-    console.error('Terminus settings IPC unavailable', context ? { context } : {});
-    return false;
-  };
-
-  const clearDirty = (scope) => {
-    setDirtyByScope((current) => (current[scope] ? { ...current, [scope]: false } : current));
-  };
-
-  const markDirty = (scope) => {
-    setDirtyByScope((current) => (current[scope] ? current : { ...current, [scope]: true }));
-  };
 
   useEffect(() => {
     const loadGlobal = async () => {
@@ -102,7 +91,17 @@ export function useTerminusSettings({ selectedCell, terminusScope }) {
   }, [selectedCell?.worktreePath]);
 
   const resolvedProfiles = useMemo(
-    () => mergeProfiles(globalSettings.profiles, projectSettings.profiles, agentSettings.profiles),
+    () => {
+      const merged = mergeProfiles(globalSettings.profiles, projectSettings.profiles, agentSettings.profiles);
+      return merged.map((profile) => {
+        const inAgent = agentSettings.profiles?.some((p) => p.id === profile.id);
+        const inProject = projectSettings.profiles?.some((p) => p.id === profile.id);
+        return {
+          ...profile,
+          sourceScope: inAgent ? 'agent' : inProject ? 'project' : 'global',
+        };
+      });
+    },
     [globalSettings.profiles, projectSettings.profiles, agentSettings.profiles]
   );
 
@@ -369,7 +368,6 @@ export function useTerminusSettings({ selectedCell, terminusScope }) {
 
   const dirty = dirtyByScope[terminusScope] || false;
 
-  const clearError = () => setError('');
 
   return {
     resolvedProfiles,

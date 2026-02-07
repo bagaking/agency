@@ -10,8 +10,7 @@ import {
   isAgencyAvailable,
   setSessionNamingSettings,
 } from '../services/agencyBridge.js';
-
-const pathBaseName = (value) => value.split('/').filter(Boolean).pop() || value;
+import { pathBaseName, useScopedSettingsState } from './shared/scopedSettingsState.js';
 
 const ensureName = (value) => String(value || '').trim();
 
@@ -28,30 +27,20 @@ export function useSessionNamingSettings({ selectedCell, sessionNamingScope, use
   const [globalSettings, setGlobalSettings] = useState(DEFAULT_SETTINGS);
   const [projectSettings, setProjectSettings] = useState(EMPTY_SETTINGS);
   const [agentSettings, setAgentSettings] = useState(EMPTY_SETTINGS);
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [dirtyByScope, setDirtyByScope] = useState({
-    global: false,
-    project: false,
-    agent: false,
+  const {
+    error,
+    setError,
+    saving,
+    setSaving,
+    dirtyByScope,
+    ensureIpcAvailable,
+    clearDirty,
+    markDirty,
+    clearError,
+  } = useScopedSettingsState({
+    label: 'Session naming',
+    isAvailable: isAgencyAvailable,
   });
-
-  const ensureIpcAvailable = (context) => {
-    if (isAgencyAvailable()) {
-      return true;
-    }
-    setError('IPC unavailable. Reload the app or reinstall the packaged build.');
-    console.error('Session naming IPC unavailable', context ? { context } : {});
-    return false;
-  };
-
-  const clearDirty = (scope) => {
-    setDirtyByScope((current) => (current[scope] ? { ...current, [scope]: false } : current));
-  };
-
-  const markDirty = (scope) => {
-    setDirtyByScope((current) => (current[scope] ? current : { ...current, [scope]: true }));
-  };
 
   useEffect(() => {
     const loadGlobal = async () => {
@@ -249,7 +238,6 @@ export function useSessionNamingSettings({ selectedCell, sessionNamingScope, use
   };
 
   const dirty = dirtyByScope[sessionNamingScope] || false;
-  const clearError = () => setError('');
 
   return {
     scopeSettings,

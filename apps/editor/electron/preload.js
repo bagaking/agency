@@ -2,34 +2,17 @@ const { contextBridge, ipcRenderer } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
+const { normalizeRelPath, resolveSafePath } = require('./services/shared/pathSafety');
 
 const MAX_TEXT_BYTES = Number(process.env.AGENCY_WORKBENCH_MAX_BYTES || 1024 * 1024);
 const BINARY_CHECK_BYTES = 8000;
 const WORKBENCH_TIMEOUT_MS = Number(process.env.AGENCY_WORKBENCH_TIMEOUT_MS || 8000);
 
-function normalizeRelPath(value) {
-  if (!value) {
-    return '';
-  }
-  return value.replace(/\\/g, '/').replace(/^\.?\//, '').replace(/\/+$/, '');
-}
-
-function resolveSafePath(rootPath, targetPath) {
-  const base = rootPath ? path.resolve(rootPath) : process.cwd();
-  const normalized = normalizeRelPath(targetPath);
-  const absolute = path.resolve(base, normalized);
-  const rel = path.relative(base, absolute);
-  if (rel.startsWith('..') || path.isAbsolute(rel)) {
-    throw new Error('Path escapes repository root.');
-  }
-  return absolute;
-}
-
 async function readLocalTextFile({ rootPath, targetPath }) {
   if (!targetPath) {
     throw new Error('targetPath is required.');
   }
-  const absolute = resolveSafePath(rootPath, targetPath);
+  const absolute = resolveSafePath(rootPath, targetPath, { fallbackToCwd: true });
   const stats = await fs.promises.stat(absolute);
   if (!stats.isFile()) {
     throw new Error('Target is not a file.');
@@ -58,7 +41,7 @@ async function statLocalEntry({ rootPath, targetPath }) {
   if (!targetPath) {
     throw new Error('targetPath is required.');
   }
-  const absolute = resolveSafePath(rootPath, targetPath);
+  const absolute = resolveSafePath(rootPath, targetPath, { fallbackToCwd: true });
   const stats = await fs.promises.stat(absolute);
   return {
     path: normalizeRelPath(targetPath),
