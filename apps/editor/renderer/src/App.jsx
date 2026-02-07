@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '@xterm/xterm/css/xterm.css';
 import { StatusBar } from './components/StatusBar.jsx';
-import { AppLayout } from './components/AppLayout.jsx';
+import { AppLayout } from './components/AppLayout';
 import { CreateCellModal } from './components/modals/CreateCellModal.jsx';
 import { LifecycleConfirmModal } from './components/modals/LifecycleConfirmModal.jsx';
 import { ModalProvider, useModal } from './components/modals/ModalSystem.jsx';
@@ -2456,13 +2456,32 @@ function App() {
     },
     [handleSwitchView]
   );
+  const handleOpenCreateCellModal = useCallback(() => {
+    if (!projectReady) {
+      handleSelectProjectRoot();
+      return;
+    }
+    modal.openModal({
+      title: 'Create New Agent',
+      content: (
+        <CreateCellModal
+          onClose={() => modal.closeModal()}
+          onCreate={(payload) => {
+            handleCreate(payload);
+            modal.closeModal();
+          }}
+        />
+      ),
+    });
+  }, [handleCreate, handleSelectProjectRoot, modal, projectReady]);
+
   const handleSidebarResizeEnd = useCallback(
     (nextWidth) => {
       setSidebarWidth(nextWidth);
       agencySetUiState({
-            sidebarWidth: nextWidth,
-            sidebarCollapsed,
-          }).catch(() => undefined);
+        sidebarWidth: nextWidth,
+        sidebarCollapsed,
+      }).catch(() => undefined);
     },
     [sidebarCollapsed]
   );
@@ -2546,342 +2565,341 @@ function App() {
     },
     [clearSessionNamingError, clearWorktreeLinksError]
   );
+
+  const handleToggleSidebar = useCallback(() => {
+    setSidebarCollapsed((value) => !value);
+  }, []);
+
+  const appLayoutActionSheetsProps = {
+    projectReady,
+    projectError,
+    onSelectProject: handleSelectProjectRoot,
+    sheets: actionSheets,
+    selectedSheet: actionSheetDetail,
+    selectedId: actionSheetId,
+    onSelectSheet: setActionSheetId,
+    onCreateSheet: handleCreateActionSheet,
+    onSaveSheet: handleSaveActionSheet,
+    onUpdateChecks: updateActionSheetChecks,
+    onRefreshList: refreshActionSheets,
+    showArchived: showArchivedActionSheets,
+    onToggleArchived: () => setShowArchivedActionSheets((value) => !value),
+    onRefreshChecks: refreshActionSheetChecks,
+    onDispatchSheet: handleDispatchActionSheet,
+    onCancelSheet: cancelActionSheet,
+    onArchiveSheet: handleArchiveActionSheet,
+    onDeleteSheet: handleDeleteActionSheet,
+    onViewSession: handleViewActionSheetSession,
+    sessions: availableActionSessions,
+    sessionId: actionSheetSessionId,
+    onSelectSession: setActionSheetSessionId,
+    loading: actionSheetsLoading,
+    detailLoading: actionSheetDetailLoading,
+    error: actionSheetInlineError || actionSheetsError,
+  };
+
+  const appLayoutExplorerSidebarProps = {
+    rootPath: explorerRootPath,
+    rootLabel: explorerRootLabel,
+    cells: projectReady ? cells : [],
+    selectedId,
+    onSelectCell: setSelectedId,
+    selectedCell,
+    sessions,
+    activeSessionId,
+    sessionActivityByKey,
+    onJumpToAgents: () => handleSwitchView('agent-cells'),
+    workbenchMeta: explorerMeta,
+    onDispatchFeed: handleDispatchExplorerFeed,
+    onToggleSessionMap: handleToggleSessionMap,
+    sessionMapOpen,
+    revealRequest: pendingExplorerReveal,
+    onRevealHandled: () => setPendingExplorerReveal(null),
+    onOpenFile: ({ path, mode }) => {
+      workbench.openFile({ path, mode, rootPath: explorerRootPath });
+    },
+    onAddComment: handleAddCommentFromExplorer,
+    commentCountsByPath: hilCommentCounts,
+    onJumpToComments: handleJumpToComments,
+  };
+
+  const appLayoutExplorerPaneProps = {
+    workbench,
+    activeRootPath: explorerRootPath,
+    activeRootLabel: explorerRootLabel,
+    projectReady,
+    projectError,
+    onSelectProject: handleSelectProjectRoot,
+    cellId: selectedCell?.id || 'repo',
+    onTabMetaChange: handleWorkbenchMetaChange,
+    commentLines,
+    onOpenComment: openCommentModal,
+    onCursorPositionChange: setCursorPosition,
+    onSelectionChange: handleWorkbenchSelectionChange,
+    pendingJump: pendingWorkbenchJump,
+    onJumpHandled: () => setPendingWorkbenchJump(null),
+  };
+
+  const appLayoutMemoPaneProps = {
+    ...hilMemo,
+    ...memoCapture,
+    flashVoiceShortcut: memoVoiceShortcut,
+    screenshotShortcut,
+    worktreePath: selectedCell?.worktreePath || projectRoot || '',
+    projectReady,
+    projectError,
+    onSelectProject: handleSelectProjectRoot,
+    sessions,
+    onViewSession: handleViewActionSheetSession,
+    actionSheets,
+    onDispatchActionSheet: handleDispatchActionSheet,
+    onCancelActionSheet: cancelActionSheet,
+    onArchiveActionSheet: handleArchiveActionSheet,
+    onDeleteActionSheet: handleDeleteActionSheet,
+    onOpenActionSheets: handleOpenActionSheets,
+    onCreateActionSheet: handleCreateDraftActionSheet,
+    focusInboxInputId: memoFocusTarget,
+    onFocusInboxInputHandled: handleFocusInboxInputHandled,
+  };
+
+  const appLayoutMemoSidebarProps = {
+    ...hilMemo,
+    projectReady,
+  };
+
   return (
     <ModalProvider>
       <div className="relative flex h-screen flex-col bg-background text-foreground overflow-hidden">
-      <AppLayout
-        activeView={activeView}
-        onSwitchView={handleSwitchView}
-        hierarchySection={hierarchySection}
-        onSelectHierarchySection={handleSelectHierarchySection}
-        cells={displayCells}
-        selectedId={selectedId}
-        selectedCell={selectedCell}
-        onSelectCell={setSelectedId}
-        onCreateCell={() => {
-          if (!projectReady) {
-            handleSelectProjectRoot();
-            return;
-          }
-          modal.openModal({
-            title: 'Create New Agent',
-            content: (
-              <CreateCellModal
-                onClose={() => modal.closeModal()}
-                onCreate={(payload) => {
-                  handleCreate(payload);
-                  modal.closeModal();
-                }}
-              />
-            ),
-          });
-        }}
-        onJumpToHierarchy={handleHierarchyJump}
-        onOpenExplorerForCell={handleOpenExplorerForCell}
-        sessionsByCellId={sessionsByCellId}
-        activeSessionByCellId={activeSessionByCellId}
-        sessionActivityByKey={sessionActivityByKey}
-        terminusProfiles={terminusProfiles}
-        onSelectSession={handleSelectSessionFromSidebar}
-        onCreateSession={createSessionForCell}
-        onDispatchSessionCommand={dispatchSessionCommand}
-        onCloseSession={closeSession}
-        onDetachSession={detachSession}
-        onRenameSession={renameSession}
-        onUpdateSessionAvatar={updateSessionAvatar}
-        projectReady={projectReady}
-        projectError={projectError}
-        projectRoot={projectRoot}
-        recentProjects={recentProjects}
-        tmuxStatus={tmuxStatus}
-        onSelectProject={handleSelectProjectRoot}
-        onOpenRecentProject={handleOpenRecentProject}
-        onOpenActions={() => handleHierarchyJump('actions')}
-        onOpenAppShortcuts={() => handleHierarchyJump('app-shortcuts')}
-        onOpenGates={() => handleHierarchyJump('gates')}
-        onOpenSoftlinks={() => handleHierarchyJump('softlinks')}
-        actionsScope={actionsScope}
-        onSelectActionsScope={handleSelectActionsScope}
-        onConfigureProfile={handleConfigureProfile}
-        appShortcutsScope={appShortcutsScope}
-        onSelectAppShortcutsScope={handleSelectAppShortcutsScope}
-        sessionNamingScope={sessionNamingScope}
-        onSelectSessionNamingScope={handleSelectSessionNamingScope}
-        actionsScopeDisabled={terminusScopeDisabled}
-        actionSummary={terminusSummary}
-        appShortcutsScopeDisabled={appShortcutsScopeDisabled}
-        appShortcutsSummary={appShortcutsSummary}
-        appShortcutRows={appShortcutRows}
-        appShortcutsPaths={appShortcutsPaths}
-        appShortcutsError={appShortcutsError}
-        appShortcutsSaving={appShortcutsSaving}
-        appShortcutsDirty={appShortcutsDirty}
-        onUpdateAppShortcut={updateAppShortcut}
-        onOverrideAppShortcut={overrideAppShortcut}
-        onResetAppShortcut={resetAppShortcut}
-        onSaveAppShortcuts={saveAppShortcuts}
-        onClearAppShortcutsError={clearAppShortcutsError}
-        sessionNamingScopeDisabled={sessionNamingScopeDisabled}
-        sessionNamingSummary={sessionNamingSummary}
-        sessionNamingSettings={sessionNamingSettings}
-        resolvedSessionNaming={resolvedSessionNaming}
-        sessionNamingPaths={sessionNamingPaths}
-        sessionNamingError={sessionNamingError}
-        sessionNamingSaving={sessionNamingSaving}
-        sessionNamingDirty={sessionNamingDirty}
-        sessionNamingPreviewContext={sessionNamingPreviewContext}
-        onUpdateSessionNamingRule={updateSessionNamingRule}
-        onUpdateSessionNamingList={updateSessionNamingList}
-        onRenameSessionNamingList={renameSessionNamingList}
-        onRemoveSessionNamingList={removeSessionNamingList}
-        onAddSessionNamingList={addSessionNamingList}
-        onSaveSessionNaming={saveSessionNamingSettings}
-        onClearSessionNamingError={clearSessionNamingError}
-        actionsRows={profileRows}
-        activeProfileId={activeProfileId}
-        projectActionsPath={projectSettingsPath}
-        agentActionsPath={agentSettingsPath}
-        quickActionsError={terminusError}
-        quickActionsSaving={terminusSaving}
-        quickActionsDirty={terminusDirty}
-        onAddAction={addProfile}
-        onRemoveAction={removeProfile}
-        onOverrideAction={overrideProfile}
-        onResetAction={resetProfile}
-        onUpdateAction={updateProfile}
-        onSaveActions={saveTerminusSettings}
-        bindingsByProfile={bindingRowsByProfile}
-        onAddBinding={addBinding}
-        onRemoveBinding={removeBinding}
-        onOverrideBinding={overrideBinding}
-        onResetBinding={resetBinding}
-        onUpdateBinding={updateBinding}
-        onClearTerminusError={clearTerminusError}
-        gateScope={gateScope}
-        onSelectGateScope={handleSelectGateScope}
-        gateStage={gateStage}
-        onSelectGateStage={setGateStage}
-        gateScopeDisabled={gateScopeDisabled}
-        gateSummary={gateSummary}
-        gateRows={gateRows}
-        projectGatesPath={projectGatesPath}
-        agentGatesPath={agentGatesPath}
-        gatesError={gatesError}
-        gatesSaving={gatesSaving}
-        onAddGate={addGate}
-        onRemoveGate={removeGate}
-        onOverrideGate={overrideGate}
-        onResetGate={resetGate}
-        onUpdateGate={updateGate}
-        onSaveGates={handleSaveGates}
-        worktreeLinks={worktreeLinks}
-        worktreeLinksAuto={worktreeLinksAuto}
-        worktreeLinksCandidates={worktreeLinksCandidates}
-        worktreeLinksStatusesByPath={worktreeLinksStatusesByPath}
-        worktreeLinksConfigPath={worktreeLinksConfigPath}
-        worktreeLinksLoading={worktreeLinksLoading}
-        worktreeLinksError={worktreeLinksError}
-        worktreeLinksDirty={worktreeLinksDirty}
-        onToggleWorktreeLinksAuto={toggleWorktreeLinksAuto}
-        onAddWorktreeLink={addWorktreeLink}
-        onAddWorktreeLinkFromCandidate={addWorktreeLinkFromCandidate}
-        onUpdateWorktreeLink={updateWorktreeLink}
-        onRemoveWorktreeLink={removeWorktreeLink}
-        onApplyWorktreeLink={applyWorktreeLink}
-        onApplyAllWorktreeLinks={applyAllWorktreeLinks}
-        onSaveWorktreeLinks={saveWorktreeLinks}
-        onRefreshWorktreeLinks={refreshWorktreeLinks}
-        repoRoot={resolvedRepoRoot}
-        canUseProjectScope={canUseScopedConfig}
-        canUseAgentScope={canUseScopedConfig}
-        editorPaneProps={editorPaneProps}
-        sidebarWidth={sidebarWidth}
-        sidebarCollapsed={sidebarCollapsed}
-        onResizeSidebar={setSidebarWidth}
-        onResizeSidebarEnd={handleSidebarResizeEnd}
-        onToggleSidebar={() => setSidebarCollapsed((value) => !value)}
-        hilDrawerOpen={hilDrawerOpen}
-        hilDrawerPanel={hilDrawerPanel}
-        onToggleHilDrawer={setHilDrawerOpen}
-        onSelectHilDrawerPanel={handleSelectHilDrawerPanel}
-        onOpenHilPromote={openPromoteModal}
-        hilCommentsProps={hilCommentsProps}
-        hilDraftsProps={hilDraftsProps}
-        hilReplyProps={hilReplyProps}
-        memoDrawerProps={memoDrawerProps}
-        actionSheetsProps={{
-          projectReady,
-          projectError,
-          onSelectProject: handleSelectProjectRoot,
-          sheets: actionSheets,
-          selectedSheet: actionSheetDetail,
-          selectedId: actionSheetId,
-          onSelectSheet: setActionSheetId,
-          onCreateSheet: handleCreateActionSheet,
-          onSaveSheet: handleSaveActionSheet,
-          onUpdateChecks: updateActionSheetChecks,
-          onRefreshList: refreshActionSheets,
-          showArchived: showArchivedActionSheets,
-          onToggleArchived: () => setShowArchivedActionSheets((value) => !value),
-          onRefreshChecks: refreshActionSheetChecks,
-          onDispatchSheet: handleDispatchActionSheet,
-          onCancelSheet: cancelActionSheet,
-          onArchiveSheet: handleArchiveActionSheet,
-          onDeleteSheet: handleDeleteActionSheet,
-          onViewSession: handleViewActionSheetSession,
-          sessions: availableActionSessions,
-          sessionId: actionSheetSessionId,
-          onSelectSession: setActionSheetSessionId,
-          loading: actionSheetsLoading,
-          detailLoading: actionSheetDetailLoading,
-          error: actionSheetInlineError || actionSheetsError,
-        }}
-        explorerSidebarProps={{
-          rootPath: explorerRootPath,
-          rootLabel: explorerRootLabel,
-          cells: projectReady ? cells : [],
-          selectedId,
-          onSelectCell: setSelectedId,
-          selectedCell,
-          sessions,
-          activeSessionId,
-          sessionActivityByKey,
-          onJumpToAgents: () => handleSwitchView('agent-cells'),
-          workbenchMeta: explorerMeta,
-          onDispatchFeed: handleDispatchExplorerFeed,
-          onToggleSessionMap: handleToggleSessionMap,
-          sessionMapOpen,
-          revealRequest: pendingExplorerReveal,
-          onRevealHandled: () => setPendingExplorerReveal(null),
-          onOpenFile: ({ path, mode }) => {
-            workbench.openFile({ path, mode, rootPath: explorerRootPath });
-          },
-          onAddComment: handleAddCommentFromExplorer,
-          commentCountsByPath: hilCommentCounts,
-          onJumpToComments: handleJumpToComments,
-        }}
-        explorerPaneProps={{
-          workbench,
-          activeRootPath: explorerRootPath,
-          activeRootLabel: explorerRootLabel,
-          projectReady,
-          projectError,
-          onSelectProject: handleSelectProjectRoot,
-          cellId: selectedCell?.id || 'repo',
-          onTabMetaChange: handleWorkbenchMetaChange,
-          commentLines,
-          onOpenComment: openCommentModal,
-          onCursorPositionChange: setCursorPosition,
-          onSelectionChange: handleWorkbenchSelectionChange,
-          pendingJump: pendingWorkbenchJump,
-          onJumpHandled: () => setPendingWorkbenchJump(null),
-        }}
-        memoPaneProps={{
-          ...hilMemo,
-          ...memoCapture,
-          flashVoiceShortcut: memoVoiceShortcut,
-          screenshotShortcut,
-          worktreePath: selectedCell?.worktreePath || projectRoot || '',
-          projectReady,
-          projectError,
-          onSelectProject: handleSelectProjectRoot,
-          sessions,
-          onViewSession: handleViewActionSheetSession,
-          actionSheets: actionSheets,
-          onDispatchActionSheet: handleDispatchActionSheet,
-          onCancelActionSheet: cancelActionSheet,
-          onArchiveActionSheet: handleArchiveActionSheet,
-          onDeleteActionSheet: handleDeleteActionSheet,
-          onOpenActionSheets: handleOpenActionSheets,
-          onCreateActionSheet: handleCreateDraftActionSheet,
-          focusInboxInputId: memoFocusTarget,
-          onFocusInboxInputHandled: handleFocusInboxInputHandled,
-        }}
-        memoSidebarProps={{
-          ...hilMemo,
-          projectReady,
-        }}
-      />
+        <AppLayout
+          activeView={activeView}
+          onSwitchView={handleSwitchView}
+          hierarchySection={hierarchySection}
+          onSelectHierarchySection={handleSelectHierarchySection}
+          cells={displayCells}
+          selectedId={selectedId}
+          selectedCell={selectedCell}
+          onSelectCell={setSelectedId}
+          onCreateCell={handleOpenCreateCellModal}
+          onJumpToHierarchy={handleHierarchyJump}
+          onOpenExplorerForCell={handleOpenExplorerForCell}
+          sessionsByCellId={sessionsByCellId}
+          activeSessionByCellId={activeSessionByCellId}
+          sessionActivityByKey={sessionActivityByKey}
+          terminusProfiles={terminusProfiles}
+          onSelectSession={handleSelectSessionFromSidebar}
+          onCreateSession={createSessionForCell}
+          onDispatchSessionCommand={dispatchSessionCommand}
+          onCloseSession={closeSession}
+          onDetachSession={detachSession}
+          onRenameSession={renameSession}
+          onUpdateSessionAvatar={updateSessionAvatar}
+          projectReady={projectReady}
+          projectError={projectError}
+          projectRoot={projectRoot}
+          recentProjects={recentProjects}
+          tmuxStatus={tmuxStatus}
+          onSelectProject={handleSelectProjectRoot}
+          onOpenRecentProject={handleOpenRecentProject}
+          onOpenActions={() => handleHierarchyJump('actions')}
+          onOpenAppShortcuts={() => handleHierarchyJump('app-shortcuts')}
+          onOpenGates={() => handleHierarchyJump('gates')}
+          onOpenSoftlinks={() => handleHierarchyJump('softlinks')}
+          actionsScope={actionsScope}
+          onSelectActionsScope={handleSelectActionsScope}
+          onConfigureProfile={handleConfigureProfile}
+          appShortcutsScope={appShortcutsScope}
+          onSelectAppShortcutsScope={handleSelectAppShortcutsScope}
+          sessionNamingScope={sessionNamingScope}
+          onSelectSessionNamingScope={handleSelectSessionNamingScope}
+          actionsScopeDisabled={terminusScopeDisabled}
+          actionSummary={terminusSummary}
+          appShortcutsScopeDisabled={appShortcutsScopeDisabled}
+          appShortcutsSummary={appShortcutsSummary}
+          appShortcutRows={appShortcutRows}
+          appShortcutsPaths={appShortcutsPaths}
+          appShortcutsError={appShortcutsError}
+          appShortcutsSaving={appShortcutsSaving}
+          appShortcutsDirty={appShortcutsDirty}
+          onUpdateAppShortcut={updateAppShortcut}
+          onOverrideAppShortcut={overrideAppShortcut}
+          onResetAppShortcut={resetAppShortcut}
+          onSaveAppShortcuts={saveAppShortcuts}
+          onClearAppShortcutsError={clearAppShortcutsError}
+          sessionNamingScopeDisabled={sessionNamingScopeDisabled}
+          sessionNamingSummary={sessionNamingSummary}
+          sessionNamingSettings={sessionNamingSettings}
+          resolvedSessionNaming={resolvedSessionNaming}
+          sessionNamingPaths={sessionNamingPaths}
+          sessionNamingError={sessionNamingError}
+          sessionNamingSaving={sessionNamingSaving}
+          sessionNamingDirty={sessionNamingDirty}
+          sessionNamingPreviewContext={sessionNamingPreviewContext}
+          onUpdateSessionNamingRule={updateSessionNamingRule}
+          onUpdateSessionNamingList={updateSessionNamingList}
+          onRenameSessionNamingList={renameSessionNamingList}
+          onRemoveSessionNamingList={removeSessionNamingList}
+          onAddSessionNamingList={addSessionNamingList}
+          onSaveSessionNaming={saveSessionNamingSettings}
+          onClearSessionNamingError={clearSessionNamingError}
+          actionsRows={profileRows}
+          activeProfileId={activeProfileId}
+          projectActionsPath={projectSettingsPath}
+          agentActionsPath={agentSettingsPath}
+          quickActionsError={terminusError}
+          quickActionsSaving={terminusSaving}
+          quickActionsDirty={terminusDirty}
+          onAddAction={addProfile}
+          onRemoveAction={removeProfile}
+          onOverrideAction={overrideProfile}
+          onResetAction={resetProfile}
+          onUpdateAction={updateProfile}
+          onSaveActions={saveTerminusSettings}
+          bindingsByProfile={bindingRowsByProfile}
+          onAddBinding={addBinding}
+          onRemoveBinding={removeBinding}
+          onOverrideBinding={overrideBinding}
+          onResetBinding={resetBinding}
+          onUpdateBinding={updateBinding}
+          onClearTerminusError={clearTerminusError}
+          gateScope={gateScope}
+          onSelectGateScope={handleSelectGateScope}
+          gateStage={gateStage}
+          onSelectGateStage={setGateStage}
+          gateScopeDisabled={gateScopeDisabled}
+          gateSummary={gateSummary}
+          gateRows={gateRows}
+          projectGatesPath={projectGatesPath}
+          agentGatesPath={agentGatesPath}
+          gatesError={gatesError}
+          gatesSaving={gatesSaving}
+          onAddGate={addGate}
+          onRemoveGate={removeGate}
+          onOverrideGate={overrideGate}
+          onResetGate={resetGate}
+          onUpdateGate={updateGate}
+          onSaveGates={handleSaveGates}
+          worktreeLinks={worktreeLinks}
+          worktreeLinksAuto={worktreeLinksAuto}
+          worktreeLinksCandidates={worktreeLinksCandidates}
+          worktreeLinksStatusesByPath={worktreeLinksStatusesByPath}
+          worktreeLinksConfigPath={worktreeLinksConfigPath}
+          worktreeLinksLoading={worktreeLinksLoading}
+          worktreeLinksError={worktreeLinksError}
+          worktreeLinksDirty={worktreeLinksDirty}
+          onToggleWorktreeLinksAuto={toggleWorktreeLinksAuto}
+          onAddWorktreeLink={addWorktreeLink}
+          onAddWorktreeLinkFromCandidate={addWorktreeLinkFromCandidate}
+          onUpdateWorktreeLink={updateWorktreeLink}
+          onRemoveWorktreeLink={removeWorktreeLink}
+          onApplyWorktreeLink={applyWorktreeLink}
+          onApplyAllWorktreeLinks={applyAllWorktreeLinks}
+          onSaveWorktreeLinks={saveWorktreeLinks}
+          onRefreshWorktreeLinks={refreshWorktreeLinks}
+          repoRoot={resolvedRepoRoot}
+          canUseProjectScope={canUseScopedConfig}
+          canUseAgentScope={canUseScopedConfig}
+          editorPaneProps={editorPaneProps}
+          sidebarWidth={sidebarWidth}
+          sidebarCollapsed={sidebarCollapsed}
+          onResizeSidebar={setSidebarWidth}
+          onResizeSidebarEnd={handleSidebarResizeEnd}
+          onToggleSidebar={handleToggleSidebar}
+          hilDrawerOpen={hilDrawerOpen}
+          hilDrawerPanel={hilDrawerPanel}
+          onToggleHilDrawer={setHilDrawerOpen}
+          onSelectHilDrawerPanel={handleSelectHilDrawerPanel}
+          onOpenHilPromote={openPromoteModal}
+          hilCommentsProps={hilCommentsProps}
+          hilDraftsProps={hilDraftsProps}
+          hilReplyProps={hilReplyProps}
+          memoDrawerProps={memoDrawerProps}
+          actionSheetsProps={appLayoutActionSheetsProps}
+          explorerSidebarProps={appLayoutExplorerSidebarProps}
+          explorerPaneProps={appLayoutExplorerPaneProps}
+          memoPaneProps={appLayoutMemoPaneProps}
+          memoSidebarProps={appLayoutMemoSidebarProps}
+        />
 
-      <SessionMapOverlay
-        open={sessionMapOpen}
-        model={sessionMapModel}
-        onSelectSession={handleSelectSessionFromMap}
-        onClose={handleToggleSessionMap}
-        resolveFontSize={resolveSessionMapFontSize}
-        terminusProfiles={terminusProfiles}
-        onCreateSession={createSessionForCell}
-        onDispatchCommand={dispatchSessionCommand}
-        onRenameSession={renameSession}
-        onUpdateSessionAvatar={updateSessionAvatar}
-        mode="dock"
-      />
+        <SessionMapOverlay
+          open={sessionMapOpen}
+          model={sessionMapModel}
+          onSelectSession={handleSelectSessionFromMap}
+          onClose={handleToggleSessionMap}
+          resolveFontSize={resolveSessionMapFontSize}
+          terminusProfiles={terminusProfiles}
+          onCreateSession={createSessionForCell}
+          onDispatchCommand={dispatchSessionCommand}
+          onRenameSession={renameSession}
+          onUpdateSessionAvatar={updateSessionAvatar}
+          mode="dock"
+        />
 
-      <StatusBar
-        loading={loading}
-        onRefresh={loadCells}
-        tmuxStatus={tmuxStatus}
-        ipcAvailable={ipcAvailable}
-        centerSlot={sessionMapCenterSlot}
-      />
+        <StatusBar
+          loading={loading}
+          onRefresh={loadCells}
+          tmuxStatus={tmuxStatus}
+          ipcAvailable={ipcAvailable}
+          centerSlot={sessionMapCenterSlot}
+        />
 
-      {showCreate ? (
-        <CreateCellModal onClose={() => setShowCreate(false)} onCreate={handleCreate} />
-      ) : null}
-      {pendingTransition ? (
-        <LifecycleConfirmModal
-          transition={pendingTransition}
-          error={transitionError}
-          loading={transitionLoading}
-          onCancel={() => {
-            setPendingTransition(null);
-            setTransitionError('');
-          }}
-          onConfirm={async () => {
-            if (!pendingTransition?.cell) {
-              return;
-            }
-            setTransitionLoading(true);
-            try {
-              const result = await agencyUpdateCellState({
-                id: pendingTransition.cell.id,
-                state: pendingTransition.nextState,
-                worktreePath: pendingTransition.cell.worktreePath,
-              });
-              if (!result) {
-                setTransitionError('Lifecycle transition failed.');
+        {showCreate ? (
+          <CreateCellModal onClose={() => setShowCreate(false)} onCreate={handleCreate} />
+        ) : null}
+        {pendingTransition ? (
+          <LifecycleConfirmModal
+            transition={pendingTransition}
+            error={transitionError}
+            loading={transitionLoading}
+            onCancel={() => {
+              setPendingTransition(null);
+              setTransitionError('');
+            }}
+            onConfirm={async () => {
+              if (!pendingTransition?.cell) {
                 return;
               }
-              await loadCells();
-              setPendingTransition(null);
-            } catch (error) {
-              setTransitionError(error?.message || 'Lifecycle transition failed.');
-            } finally {
-              setTransitionLoading(false);
-            }
-          }}
-          onRefresh={async () => {
-            if (!pendingTransition?.cell) {
-              return;
-            }
-            try {
-              const gates = ['active', 'archived'].includes(pendingTransition.nextState)
-                ? await checkGatesForCell({
-                    cell: pendingTransition.cell,
-                    stage: pendingTransition.nextState,
-                  })
-                : [];
-              setPendingTransition({
-                ...pendingTransition,
-                gates,
-              });
-              setTransitionError('');
-            } catch (error) {
-              setTransitionError(error?.message || 'Failed to run gates.');
-            }
-          }}
-        />
-      ) : null}
+              setTransitionLoading(true);
+              try {
+                const result = await agencyUpdateCellState({
+                  id: pendingTransition.cell.id,
+                  state: pendingTransition.nextState,
+                  worktreePath: pendingTransition.cell.worktreePath,
+                });
+                if (!result) {
+                  setTransitionError('Lifecycle transition failed.');
+                  return;
+                }
+                await loadCells();
+                setPendingTransition(null);
+              } catch (error) {
+                setTransitionError(error?.message || 'Lifecycle transition failed.');
+              } finally {
+                setTransitionLoading(false);
+              }
+            }}
+            onRefresh={async () => {
+              if (!pendingTransition?.cell) {
+                return;
+              }
+              try {
+                const gates = ['active', 'archived'].includes(pendingTransition.nextState)
+                  ? await checkGatesForCell({
+                      cell: pendingTransition.cell,
+                      stage: pendingTransition.nextState,
+                    })
+                  : [];
+                setPendingTransition({
+                  ...pendingTransition,
+                  gates,
+                });
+                setTransitionError('');
+              } catch (error) {
+                setTransitionError(error?.message || 'Failed to run gates.');
+              }
+            }}
+          />
+        ) : null}
+
       </div>
     </ModalProvider>
   );
