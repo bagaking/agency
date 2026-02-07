@@ -5,18 +5,28 @@ export const ACTIVITY_BOOTSTRAP_THRESHOLD_MS = 30000;
 export const ATTACH_ACTIVITY_GRACE_MS = 5 * 1000;
 export const DETACHED_ACTIVITY_POLL_MS = 10 * 1000;
 
-export const buildSessionKey = (cellId, sessionId) => `${cellId}:${sessionId}`;
+export interface SessionLike {
+  id: string;
+  status?: string;
+  lastActivityAt?: string | null;
+}
 
-export const clampFontSize = (value) =>
+export const buildSessionKey = (cellId: string, sessionId: string): string =>
+  `${cellId}:${sessionId}`;
+
+export const clampFontSize = (value: number): number =>
   Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, value));
 
-export const normalizeTerminalText = (text) =>
+export const normalizeTerminalText = (text: string): string =>
   String(text || '')
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
     .replace(/\n/g, '\r');
 
-export const filterOpenSessions = (sessions, preferredSessionId) => {
+export const filterOpenSessions = (
+  sessions: SessionLike[] | null | undefined,
+  preferredSessionId: string | undefined
+): SessionLike[] => {
   const list = Array.isArray(sessions) ? sessions : [];
   return list.filter((session) => {
     if (session?.status === 'closed') {
@@ -29,7 +39,13 @@ export const filterOpenSessions = (sessions, preferredSessionId) => {
   });
 };
 
-export const resolveActiveSession = ({ openSessions, preferredSessionId }) => {
+export const resolveActiveSession = ({
+  openSessions,
+  preferredSessionId,
+}: {
+  openSessions: SessionLike[] | null | undefined;
+  preferredSessionId: string | undefined;
+}): SessionLike | null => {
   const list = Array.isArray(openSessions) ? openSessions : [];
   return (
     list.find((session) => session.id === preferredSessionId) ||
@@ -39,7 +55,15 @@ export const resolveActiveSession = ({ openSessions, preferredSessionId }) => {
   );
 };
 
-export const mergeSessionActivityTimestamps = ({ current, cellId, sessions }) => {
+export const mergeSessionActivityTimestamps = ({
+  current,
+  cellId,
+  sessions,
+}: {
+  current: Record<string, number> | null | undefined;
+  cellId: string;
+  sessions: SessionLike[] | null | undefined;
+}): Record<string, number> => {
   const base = current || {};
   const list = Array.isArray(sessions) ? sessions : [];
   const next = { ...base };

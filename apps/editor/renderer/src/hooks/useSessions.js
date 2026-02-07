@@ -13,7 +13,7 @@ import {
   mergeSessionActivityTimestamps,
   normalizeTerminalText,
   resolveActiveSession,
-} from './shared/sessionRuntime.js';
+} from './shared/sessionRuntime';
 
 export function useSessions({
   selectedCell,

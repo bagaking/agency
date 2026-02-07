@@ -6,5 +6,7 @@ export {};
 declare global {
   interface Window {
     agency?: Record<string, any>;
+    SpeechRecognition?: any;
+    webkitSpeechRecognition?: any;
   }
 }

@@ -14,5 +14,5 @@
 - [x] 3.3 Update reusable coding catalog with the new shared modules.
 
 ## 4. Follow-up (Next Iterations)
-- [ ] 4.1 Refactor high-leverage hooks (`useSessions`, `useVoiceCapture`) into smaller composable modules.
+- [x] 4.1 Refactor high-leverage hooks (`useSessions`, `useVoiceCapture`) into smaller composable modules.
 - [ ] 4.2 Execute staged TypeScript migration (foundation → high-leverage modules → UI layers).

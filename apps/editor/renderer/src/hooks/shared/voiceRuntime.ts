@@ -1,11 +1,13 @@
-export const resolveSpeechRecognition = () => {
+export type PermissionKind = 'speech' | 'microphone' | null;
+
+export const resolveSpeechRecognition = (): any => {
   if (typeof window === 'undefined') {
     return null;
   }
   return window.SpeechRecognition || window.webkitSpeechRecognition || null;
 };
 
-export const mapSpeechError = (error) => {
+export const mapSpeechError = (error: string | undefined): string => {
   switch (error) {
     case 'not-allowed':
     case 'service-not-allowed':
@@ -23,14 +25,14 @@ export const mapSpeechError = (error) => {
   }
 };
 
-export const normalizeLanguage = (value) => {
+export const normalizeLanguage = (value: unknown): string => {
   if (value && String(value).trim()) {
     return String(value).trim();
   }
   return '';
 };
 
-export const resolveLanguage = (language) => {
+export const resolveLanguage = (language: string): string => {
   const normalized = normalizeLanguage(language);
   if (normalized && normalized !== 'auto') {
     return normalized;
@@ -41,10 +43,10 @@ export const resolveLanguage = (language) => {
   return 'en-US';
 };
 
-export const buildLanguageOptions = () => {
-  const entries = [];
-  const seen = new Set();
-  const add = (value) => {
+export const buildLanguageOptions = (): string[] => {
+  const entries: string[] = [];
+  const seen = new Set<string>();
+  const add = (value: unknown) => {
     const normalized = normalizeLanguage(value);
     if (!normalized || seen.has(normalized)) {
       return;
@@ -64,7 +66,7 @@ export const buildLanguageOptions = () => {
   return entries;
 };
 
-export const resolvePermissionKind = (value) => {
+export const resolvePermissionKind = (value: unknown): PermissionKind => {
   const normalized = String(value || '').toLowerCase();
   if (!normalized) {
     return null;

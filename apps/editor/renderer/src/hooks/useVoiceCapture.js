@@ -16,7 +16,7 @@ import {
   resolveLanguage,
   resolvePermissionKind,
   resolveSpeechRecognition,
-} from './shared/voiceRuntime.js';
+} from './shared/voiceRuntime';
 
 const logVoiceDiagnostics = ({ level = 'warn', message, meta }) => {
   if (typeof console !== 'undefined' && console[level]) {

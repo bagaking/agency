@@ -1,9 +1,9 @@
 import React from 'react';
 import { ActivityBar } from './ActivityBar.jsx';
 import { SidebarDock } from './layout/SidebarDock.jsx';
-import { AppSidebarContent } from './layout/AppSidebarContent.jsx';
-import { AppMainPanels } from './layout/AppMainPanels.jsx';
-import { AppHilPanel } from './layout/AppHilPanel.jsx';
+import { AppSidebarContent } from './layout/AppSidebarContent';
+import { AppMainPanels } from './layout/AppMainPanels';
+import { AppHilPanel } from './layout/AppHilPanel';
 
 export function AppLayout({
   activeView,
