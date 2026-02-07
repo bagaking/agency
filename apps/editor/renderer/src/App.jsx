@@ -2496,6 +2496,20 @@ function App() {
     },
     [clearTerminusError]
   );
+  const handleConfigureProfile = useCallback(
+    (profile) => {
+      if (!profile) return;
+      setHierarchySection('actions');
+      setActiveView('hierarchy');
+      if (sidebarCollapsed) {
+        setSidebarCollapsed(false);
+      }
+      const targetScope = profile.sourceScope || 'global';
+      setActionsScope(targetScope);
+      clearTerminusError();
+    },
+    [sidebarCollapsed, clearTerminusError]
+  );
   const handleSelectAppShortcutsScope = useCallback(
     (scope) => {
       setHierarchySection('app-shortcuts');
@@ -2588,6 +2602,7 @@ function App() {
         onOpenSoftlinks={() => handleHierarchyJump('softlinks')}
         actionsScope={actionsScope}
         onSelectActionsScope={handleSelectActionsScope}
+        onConfigureProfile={handleConfigureProfile}
         appShortcutsScope={appShortcutsScope}
         onSelectAppShortcutsScope={handleSelectAppShortcutsScope}
         sessionNamingScope={sessionNamingScope}

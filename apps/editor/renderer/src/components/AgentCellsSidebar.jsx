@@ -55,6 +55,7 @@ export function AgentCellsSidebar({
   onDetachSession,
   onRenameSession,
   onUpdateSessionAvatar,
+  onConfigureProfile,
 }) {
   const [idleNow, setIdleNow] = useState(Date.now());
   const [closedMenu, setClosedMenu] = useState(null);
@@ -411,10 +412,13 @@ export function AgentCellsSidebar({
                         onClick={(event) => {
                           event.stopPropagation();
                           const rect = event.currentTarget.getBoundingClientRect();
+                          const spaceBelow = window.innerHeight - rect.bottom;
+                          const openUpwards = spaceBelow < 320;
                           setCreateMenu({
                             cellId: cell.id,
                             x: rect.left,
-                            y: rect.bottom + 6,
+                            y: openUpwards ? rect.top - 6 : rect.bottom + 6,
+                            openUpwards,
                           });
                         }}
                         className="rounded p-1 text-muted-foreground/60 hover:text-foreground hover:bg-muted/30"
@@ -471,10 +475,20 @@ export function AgentCellsSidebar({
                             : '';
 
                       return (
-                        <button
+                        <div
                           key={session.id}
-                          type="button"
+                          className={`group relative flex w-full min-w-0 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-[11px] transition-all duration-200 select-none ${
+                            isActive
+                              ? 'bg-primary/10 text-foreground ring-1 ring-primary/20 shadow-sm'
+                              : 'bg-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                          }`}
+                          data-testid={`session-tab-${session.id}`}
+                          data-active={isActive ? 'true' : 'false'}
                           onClick={() => onSelectSession?.(cell.id, session.id)}
+                          onDoubleClick={(event) => {
+                            event.stopPropagation();
+                            beginRenameSession(cell.id, session);
+                          }}
                           onContextMenu={(event) => {
                             event.preventDefault();
                             setContextMenu({
@@ -484,90 +498,89 @@ export function AgentCellsSidebar({
                               y: event.clientY,
                             });
                           }}
-                          className={`group flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] transition-all ${
-                            isActive
-                              ? 'bg-black/40 text-foreground ring-1 ring-primary/40'
-                              : 'bg-transparent text-muted-foreground hover:bg-muted/20 hover:text-foreground'
-                          }`}
-                          data-testid={`session-tab-${session.id}`}
-                          data-active={isActive ? 'true' : 'false'}
-                          title={session.name || session.id}
                         >
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              if (!onUpdateSessionAvatar) {
-                                return;
-                              }
-                              const rect = event.currentTarget.getBoundingClientRect();
-                              openAvatarMenu({ cellId: cell.id, sessionId: session.id }, rect);
-                            }}
-                            className="flex h-6 w-6 items-center justify-center rounded-full"
-                            title="Change session avatar"
-                            data-avatar-picker-anchor="true"
-                          >
-                            <AgentAvatarBadge
-                              avatarId={resolveSessionAvatarId(session, cell)}
-                              size={18}
-                              ringSize={24}
-                              idleMs={idleDuration}
-                              isClosed={isClosed}
-                              className="bg-black/30 transition-colors hover:bg-white/10"
-                            />
-                          </button>
-                          {isEditing ? (
-                            <input
-                              value={editingSessionName}
-                              onChange={(event) => setEditingSessionName(event.target.value)}
-                              onClick={(event) => event.stopPropagation()}
-                              onBlur={() => commitRenameSession()}
-                              onKeyDown={(event) => {
-                                if (event.key === 'Enter') {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  commitRenameSession();
-                                }
-                                if (event.key === 'Escape') {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  cancelRenameSession();
-                                }
-                              }}
-                              className="min-w-0 flex-1 rounded border border-border/40 bg-background/70 px-1 py-0.5 text-[11px] font-medium text-foreground focus:border-primary focus:outline-none"
-                              autoFocus
-                            />
-                          ) : (
-                            <span className="min-w-0 flex-1 truncate font-medium text-left">
-                              {session.name || session.id}
-                            </span>
-                          )}
-                          <span className="text-[9px] text-muted-foreground/60 tabular-nums whitespace-nowrap">
-                            {statusPrefix}Idle {idleLabel}
-                          </span>
-                          {!isEditing && (
+                          <div className="relative flex shrink-0 items-center justify-center">
                             <button
+                              type="button"
                               onClick={(event) => {
                                 event.stopPropagation();
-                                beginRenameSession(cell.id, session);
+                                if (!onUpdateSessionAvatar) return;
+                                const rect = event.currentTarget.getBoundingClientRect();
+                                openAvatarMenu({ cellId: cell.id, sessionId: session.id }, rect);
                               }}
-                              className="opacity-0 group-hover:opacity-100 hover:text-primary transition-all p-0.5 rounded-sm hover:bg-primary/10"
-                              title="Rename Session"
+                              className="relative flex h-5 w-5 items-center justify-center rounded-full transition-transform active:scale-95"
+                              title="Change avatar"
+                              data-avatar-picker-anchor="true"
                             >
-                              <Pencil size={10} />
+                              <AgentAvatarBadge
+                                avatarId={resolveSessionAvatarId(session, cell)}
+                                size={16}
+                                ringSize={20}
+                                idleMs={idleDuration}
+                                isClosed={isClosed}
+                                className="shadow-sm"
+                              />
                             </button>
+                          </div>
+
+                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            {isEditing ? (
+                              <input
+                                value={editingSessionName}
+                                onChange={(event) => setEditingSessionName(event.target.value)}
+                                onClick={(event) => event.stopPropagation()}
+                                onBlur={() => commitRenameSession()}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Enter') {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    commitRenameSession();
+                                  }
+                                  if (event.key === 'Escape') {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    cancelRenameSession();
+                                  }
+                                }}
+                                className="w-full min-w-0 bg-transparent p-0 text-[11px] font-medium text-foreground outline-none placeholder:text-muted-foreground/30 focus:ring-0 selection:bg-primary/20"
+                                autoFocus
+                                onFocus={(e) => e.target.select()}
+                              />
+                            ) : (
+                              <span className="truncate font-medium leading-none tracking-tight">
+                                {session.name || session.id}
+                              </span>
+                            )}
+                            
+                            {!isEditing && (
+                              <div className="flex items-center gap-1.5 opacity-60 transition-opacity group-hover:opacity-90">
+                                <span className={`h-1 w-1 rounded-full ${
+                                  session.status === 'detached' ? 'bg-amber-400/50' : 
+                                  session.status === 'stale' ? 'bg-rose-400/50' : 
+                                  isActive ? 'bg-emerald-400/50' : 'bg-slate-400/30'
+                                }`} />
+                                <span className="truncate text-[9px] font-medium tabular-nums tracking-wide">
+                                  {idleLabel === '—' ? 'Active' : idleLabel}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {!isEditing && (
+                            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 transition-all duration-200 group-hover:opacity-100">
+                              <button
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onCloseSession?.(session.id, cell.id);
+                                }}
+                                className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                                title="Terminate Session"
+                              >
+                                <X size={10} strokeWidth={2.5} />
+                              </button>
+                            </div>
                           )}
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onCloseSession?.(session.id, cell.id);
-                            }}
-                            className="opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-all p-0.5 rounded-sm hover:bg-rose-500/10"
-                            title="Terminate Session"
-                          >
-                            <X size={10} />
-                          </button>
-                        </button>
+                        </div>
                       );
                       })}
                     </div>
@@ -626,6 +639,7 @@ export function AgentCellsSidebar({
         position={createMenu || { x: 0, y: 0 }}
         containerRef={createMenuRef}
         profiles={terminusProfiles || []}
+        onConfigureProfile={onConfigureProfile}
         onCreateBase={async () => {
           if (createMenu?.cellId) {
             const cell = cellsById.get(createMenu.cellId);
