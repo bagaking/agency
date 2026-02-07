@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useMemo, useState } from 'react';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge.jsx';
-import { resolveSessionAvatarId } from '../../utils/agentAvatar.js';
+import { resolveSessionAvatarId } from '../../utils/agentAvatar';
 
 const GAP = 6;
 const MARGIN = 8;

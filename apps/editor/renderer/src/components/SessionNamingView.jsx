@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Plus, Save, Sparkles, Trash2 } from 'lucide-react';
-import { focusRing } from './ui/focusRing.js';
-import { formatSessionName } from '../utils/sessionNaming.js';
+import { focusRing } from './ui/focusRing';
+import { formatSessionName } from '../utils/sessionNaming';
 
 const scopeLabels = {
   global: 'Global',

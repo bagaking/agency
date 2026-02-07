@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
 import { IconButton } from '../ui/IconButton.jsx';
-import { focusRing } from '../ui/focusRing.js';
+import { focusRing } from '../ui/focusRing';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 

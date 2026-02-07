@@ -10,8 +10,8 @@ import {
   updateActionSheetPrompt,
   updateActionSheetChecks,
   runActionSheetChecks,
-} from '../services/agencyBridge.js';
-import { buildActionSheetDispatchText, buildActionSheetPromptText } from '../utils/actionSheetPrompt.js';
+} from '../services/agencyBridge';
+import { buildActionSheetDispatchText, buildActionSheetPromptText } from '../utils/actionSheetPrompt';
 
 const DEFAULT_CONDITIONAL = {
   enabled: true,
@@ -252,7 +252,7 @@ export function useActionSheets({
   );
 
   const scheduleMonitor = useCallback(
-    (id, options = {}) => {
+    (id, options: any = {}) => {
       clearRunner(id);
       const intervalMs = toNumber(options.intervalMs, 15000);
       const intervalId = window.setInterval(async () => {

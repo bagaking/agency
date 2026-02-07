@@ -9,10 +9,10 @@ import {
   Archive,
   Trash2,
 } from 'lucide-react';
-import { stateBadge, gateBadge, formatTime, resolveActionSheetLabel } from './actionSheetUi.js';
+import { stateBadge, gateBadge, formatTime, resolveActionSheetLabel } from './actionSheetUi';
 import { useModal } from '../modals/ModalSystem.jsx';
 import { IconButton } from '../ui/IconButton.jsx';
-import { focusRing } from '../ui/focusRing.js';
+import { focusRing } from '../ui/focusRing';
 
 const resolveDispatchLabel = (state) => {
   if (state === 'failed' || state === 'completed' || state === 'canceled') {

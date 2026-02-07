@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { getAvatarUrl, resolveAvatarId } from '../../utils/agentAvatar.js';
+import { getAvatarUrl, resolveAvatarId } from '../../utils/agentAvatar';
 
 const wrapClass = (className) => (className ? ` ${className}` : '');
 

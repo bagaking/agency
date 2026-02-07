@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
-import { isAgencyAvailable } from '../../services/agencyBridge.js';
+import { isAgencyAvailable } from '../../services/agencyBridge';
 import {
   getCachedSessionMapPreview,
   primeSessionMapPreview,
   setCachedSessionMapPreview,
-} from '../../services/sessionMapPreviewCache.js';
-import { getTerminalSnapshot } from '../../terminal/terminalManager.js';
-import { DEBUG_FLAGS, getDebugFlag } from '../../utils/debugFlags.js';
+} from '../../services/sessionMapPreviewCache';
+import { getTerminalSnapshot } from '../../terminal/terminalManager';
+import { DEBUG_FLAGS, getDebugFlag } from '../../utils/debugFlags';
 import {
   PREVIEW_BG,
   PREVIEW_COLS,
@@ -21,7 +21,7 @@ import {
   PREVIEW_ROWS,
   PREVIEW_SCROLLBACK,
   PREVIEW_TARGET_WIDTH,
-} from './sessionMapConstants.js';
+} from './sessionMapConstants';
 
 const normalizePreviewData = (value) =>
   String(value || '').replace(/\r?\n/g, '\r\n');

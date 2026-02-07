@@ -7,8 +7,8 @@ import {
   getWorkbenchFileUrl as agencyGetWorkbenchFileUrl,
   fetchHilExcerpt as agencyFetchHilExcerpt,
   saveVoiceCaptureAudio as agencySaveVoiceCaptureAudio,
-} from '../services/agencyBridge.js';
-import { useVoiceCapture } from './useVoiceCapture.js';
+} from '../services/agencyBridge';
+import { useVoiceCapture } from './useVoiceCapture';
 
 export function useHilMemoCaptureState({
   worktreePath,
@@ -210,7 +210,7 @@ export function useHilMemoCaptureState({
   }, [flashVoice]);
 
   const handleCreateMemo = useCallback(
-    async ({ body, anchor, meta }) => {
+    async ({ body, anchor = null, meta }: { body: string; anchor?: any; meta: any }) => {
       if (!worktreePath) {
         setCaptureError('Select a project before creating memos.');
         return;

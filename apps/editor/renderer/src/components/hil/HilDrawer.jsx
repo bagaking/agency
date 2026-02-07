@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight, Target } from 'lucide-react';
 import { IconButton } from '../ui/IconButton.jsx';
-import { focusRing } from '../ui/focusRing.js';
+import { focusRing } from '../ui/focusRing';
 
 const defaultPanels = [
   { id: 'comments', label: 'Comments' },

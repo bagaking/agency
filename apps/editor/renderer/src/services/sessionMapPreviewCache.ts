@@ -1,5 +1,5 @@
-import { getSessionMapPreview } from './agencyBridge.js';
-import { PREVIEW_LINES } from '../components/sessionMap/sessionMapConstants.js';
+import { getSessionMapPreview } from './agencyBridge';
+import { PREVIEW_LINES } from '../components/sessionMap/sessionMapConstants';
 
 const memoryCache = new Map();
 const inflight = new Map();
@@ -59,7 +59,7 @@ export const primeSessionMapPreview = async ({
   lines = PREVIEW_LINES,
   startCommand = '',
   cacheOnly = false,
-} = {}) => {
+} : any = {}) => {
   const key = buildKey({ worktreePath, cellId, sessionId });
   if (!key) {
     return null;
@@ -101,7 +101,7 @@ export const warmSessionMapPreviewCache = ({
   sessions = [],
   lines = PREVIEW_LINES,
   concurrency = 3,
-} = {}) => {
+}: any = {}) => {
   if (!Array.isArray(sessions) || sessions.length === 0) {
     return;
   }

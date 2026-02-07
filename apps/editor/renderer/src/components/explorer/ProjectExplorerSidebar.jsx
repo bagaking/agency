@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
-import { useProjectExplorer, explorerPathUtils } from '../../hooks/useProjectExplorer.js';
+import { useProjectExplorer, explorerPathUtils } from '../../hooks/useProjectExplorer';
 import { RecentProjectsList } from '../RecentProjectsList.jsx';
 import { ExplorerContextMenu } from './ExplorerContextMenu.jsx';
 import { ExplorerItem } from './ExplorerItem.jsx';

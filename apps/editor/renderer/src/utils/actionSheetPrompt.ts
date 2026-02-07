@@ -1,6 +1,6 @@
 const normalizeSection = (value) => String(value || '').trim();
 
-export function buildActionSheetPromptText(prompt = {}) {
+export function buildActionSheetPromptText(prompt: any = {}) {
   const requirements = normalizeSection(prompt.requirements);
   const context = normalizeSection(prompt.context);
   const checks = normalizeSection(prompt.checks);

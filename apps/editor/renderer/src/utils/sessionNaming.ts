@@ -1,10 +1,11 @@
 import * as sessionNamingCoreModule from '../../../shared/sessionNamingCore.cjs';
 
+const sessionNamingCoreAny = sessionNamingCoreModule as any;
 const sessionNamingCore =
-  sessionNamingCoreModule.default ||
-  sessionNamingCoreModule.__AGENCY_SESSION_NAMING_CORE__ ||
-  globalThis?.__AGENCY_SESSION_NAMING_CORE__ ||
-  sessionNamingCoreModule;
+  sessionNamingCoreAny.default ||
+  sessionNamingCoreAny.__AGENCY_SESSION_NAMING_CORE__ ||
+  (globalThis as any)?.__AGENCY_SESSION_NAMING_CORE__ ||
+  sessionNamingCoreAny;
 
 
 if (!sessionNamingCore || typeof sessionNamingCore.formatSessionName !== 'function') {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { STATUS_FILTERS, statusBadgeStyles, statusColors, statusBadges, statusLabels } from './explorerUtils.jsx';
-import { focusRing } from '../ui/focusRing.js';
+import { focusRing } from '../ui/focusRing';
 
 const focusRingClass = focusRing.default;
 

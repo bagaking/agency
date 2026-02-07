@@ -23,12 +23,12 @@ import { CaptureRoutingSheet } from '../../capture/CaptureRoutingSheet.jsx';
 import { ActionSheetStatusPanel } from '../../actionSheets/ActionSheetStatusPanel.jsx';
 import { useModal } from '../../modals/ModalSystem.jsx';
 import { IconButton } from '../../ui/IconButton.jsx';
-import { focusRing } from '../../ui/focusRing.js';
+import { focusRing } from '../../ui/focusRing';
 import {
   updateHilItem as agencyUpdateHilItem,
   deleteHilItem as agencyDeleteHilItem,
   getWorkbenchFileUrl as agencyGetWorkbenchFileUrl,
-} from '../../../services/agencyBridge.js';
+} from '../../../services/agencyBridge';
 
 const kindIcons = {
     comment: Terminal,

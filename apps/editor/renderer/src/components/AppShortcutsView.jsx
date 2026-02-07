@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Camera, Mic, Command, RotateCcw, Check, Users, FolderOpen } from 'lucide-react';
-import { focusRing } from './ui/focusRing.js';
+import { focusRing } from './ui/focusRing';
 
 const scopeLabels = {
   global: 'Global',

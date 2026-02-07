@@ -1,8 +1,8 @@
 import React from 'react';
 import { AgentAvatarBadge } from './ui/AgentAvatarBadge.jsx';
-import { focusRing } from './ui/focusRing.js';
-import { resolveSessionAvatarId } from '../utils/agentAvatar.js';
-import { buildProfileCreateActions } from '../utils/terminusSettings.js';
+import { focusRing } from './ui/focusRing';
+import { resolveSessionAvatarId } from '../utils/agentAvatar';
+import { buildProfileCreateActions } from '../utils/terminusSettings';
 import { Settings } from 'lucide-react';
 
 export function SessionOverflowMenu({

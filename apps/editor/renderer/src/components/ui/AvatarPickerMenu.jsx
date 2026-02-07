@@ -5,7 +5,7 @@ import {
   getRecentAvatarIds,
   recordRecentAvatarId,
   resolveAvatarId,
-} from '../../utils/agentAvatar.js';
+} from '../../utils/agentAvatar';
 
 const GRID_COLUMNS = 7;
 const TILE_SIZE = 30;

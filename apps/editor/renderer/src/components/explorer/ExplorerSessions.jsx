@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatIdleShort } from '../../utils/timeFormat.js';
+import { formatIdleShort } from '../../utils/timeFormat';
 
 export function ExplorerSessions({
   selectedCell,

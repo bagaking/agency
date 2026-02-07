@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { ActionSheetStatusPanel } from '../actionSheets/ActionSheetStatusPanel.jsx';
 import { IconButton } from '../ui/IconButton.jsx';
-import { focusRing } from '../ui/focusRing.js';
+import { focusRing } from '../ui/focusRing';
 
 const kindIcons = {
     comment: Terminal,

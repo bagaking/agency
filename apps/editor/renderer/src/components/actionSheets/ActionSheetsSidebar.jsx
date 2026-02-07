@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plus, RefreshCw, FolderOpen, Archive } from 'lucide-react';
-import { stateBadge, formatTime } from './actionSheetUi.js';
+import { stateBadge, formatTime } from './actionSheetUi';
 import { IconButton } from '../ui/IconButton.jsx';
 
 export function ActionSheetsSidebar({

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { pathBaseName } from './shared/scopedSettingsState.js';
+import { pathBaseName } from './shared/scopedSettingsState';
 
 const buildAncestorPaths = (path) => {
   const parts = path.split('/').filter(Boolean);
@@ -61,7 +61,8 @@ const toRelativePath = (value) => value.replace(/\\/g, '/').replace(/^\.?\//, ''
 const dirname = (value) => value.split('/').slice(0, -1).join('/');
 const basename = (value) => value.split('/').pop() || value;
 
-export function useProjectExplorer({ rootPath, rootLabel, getVisiblePaths, enabled = true } = {}) {
+export function useProjectExplorer(options: any = {}) {
+  const { rootPath, rootLabel, getVisiblePaths, enabled = true } = options;
   const [repoRoot, setRepoRoot] = useState('');
   const [repoName, setRepoName] = useState('');
   const [nodesByPath, setNodesByPath] = useState({ '': { path: '', name: '', type: 'dir' } });

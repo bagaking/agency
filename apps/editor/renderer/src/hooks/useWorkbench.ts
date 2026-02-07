@@ -34,7 +34,7 @@ const detectKind = (filePath) => {
   return 'code';
 };
 
-const serializeTabs = (tabsByCellId) => {
+const serializeTabs = (tabsByCellId: Record<string, any[]>) => {
   const next = {};
   Object.entries(tabsByCellId || {}).forEach(([cellId, tabs]) => {
     next[cellId] = (tabs || []).map((tab) => ({
@@ -62,7 +62,7 @@ const hydrateTab = (tab, cellId, fallbackRoot) => {
   };
 };
 
-const normalizeTabsByCellId = (tabsByCellId, fallbackRoot) => {
+const normalizeTabsByCellId = (tabsByCellId: Record<string, any[]>, fallbackRoot: string) => {
   const next = {};
   Object.entries(tabsByCellId || {}).forEach(([cellId, tabs]) => {
     const hydrated = (tabs || [])
@@ -81,7 +81,7 @@ export function useWorkbench({
   cells,
   initialTabsByCellId,
   initialActiveTabByCellId,
-}) {
+}: any) {
   const cellRootById = useMemo(() => {
     const map = new Map();
     (cells || []).forEach((cell) => {

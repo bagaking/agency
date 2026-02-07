@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { SessionMapTerminalPreview } from './SessionMapTerminalPreview.jsx';
-import { formatRelativeTime } from '../../utils/timeFormat.js';
-import { resolveOfflineReason } from './sessionMapUtils.js';
-import { DEBUG_FLAGS, getDebugFlag } from '../../utils/debugFlags.js';
+import { formatRelativeTime } from '../../utils/timeFormat';
+import { resolveOfflineReason } from './sessionMapUtils';
+import { DEBUG_FLAGS, getDebugFlag } from '../../utils/debugFlags';
 import { PreviewLoading } from '../ui/PreviewLoading.jsx';
 import {
   CARD_GAP,
@@ -12,7 +12,7 @@ import {
   PREVIEW_MAX_HEIGHT,
   PREVIEW_MIN_HEIGHT,
   PREVIEW_TARGET_WIDTH,
-} from './sessionMapConstants.js';
+} from './sessionMapConstants';
 
 export function SessionMapHoverCard({
   anchorRect,

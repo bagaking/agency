@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom';
 import { Map as MapIcon, X } from 'lucide-react';
 import { SessionCreateMenu } from '../SessionMenus.jsx';
 import { AvatarPickerMenu } from '../ui/AvatarPickerMenu.jsx';
-import { resolveSessionAvatarId } from '../../utils/agentAvatar.js';
-import { DEBUG_FLAGS, getDebugFlag } from '../../utils/debugFlags.js';
+import { resolveSessionAvatarId } from '../../utils/agentAvatar';
+import { DEBUG_FLAGS, getDebugFlag } from '../../utils/debugFlags';
 import { SessionMapDockLayout } from './SessionMapDockLayout.jsx';
 import { SessionMapGridLayout } from './SessionMapGridLayout.jsx';
 import { SessionMapHoverCard } from './SessionMapHoverCard.jsx';
@@ -14,8 +14,8 @@ import {
   HOVER_CLOSE_DELAY,
   HOVER_OPEN_DELAY,
   ROW_TOP_TOLERANCE,
-} from './sessionMapConstants.js';
-import { hashSeed } from './sessionMapUtils.js';
+} from './sessionMapConstants';
+import { hashSeed } from './sessionMapUtils';
 
 export function SessionMapOverlay({
   open,

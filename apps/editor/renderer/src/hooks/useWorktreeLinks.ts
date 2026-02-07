@@ -161,7 +161,7 @@ export function useWorktreeLinks({ selectedCell, cells, projectRoot }) {
   }, [loadWorktreeLinks, persistWorktreeLinks, projectRoot]);
 
   const applyLink = useCallback(
-    async (linkId, options = {}) => {
+    async (linkId, options: any = {}) => {
       const targetPath = options.worktreePath || selectedCell?.worktreePath;
       if (!targetPath || !window.agency?.applyWorktreeLink) {
         return;
@@ -188,7 +188,7 @@ export function useWorktreeLinks({ selectedCell, cells, projectRoot }) {
   );
 
   const applyAll = useCallback(
-    async (options = {}) => {
+    async (options: any = {}) => {
       const targetPath = options.worktreePath || selectedCell?.worktreePath;
       if (!targetPath || !window.agency?.applyAllWorktreeLinks) {
         return;

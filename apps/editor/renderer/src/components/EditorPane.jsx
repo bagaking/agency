@@ -17,8 +17,8 @@ import { GateList } from './GateList.jsx';
 import { TerminalArea } from './TerminalArea.jsx';
 import { AgentAvatarBadge } from './ui/AgentAvatarBadge.jsx';
 import { AvatarPickerMenu } from './ui/AvatarPickerMenu.jsx';
-import { resolveAvatarId } from '../utils/agentAvatar.js';
-import { formatIdleClock } from '../utils/timeFormat.js';
+import { resolveAvatarId } from '../utils/agentAvatar';
+import { formatIdleClock } from '../utils/timeFormat';
 
 export function EditorPane({
   cell,

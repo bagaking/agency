@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getSessionMap, isAgencyAvailable, setSessionMap } from '../services/agencyBridge.js';
+import { getSessionMap, isAgencyAvailable, setSessionMap } from '../services/agencyBridge';
 
 const DEFAULT_CONFIG = {
   version: 1,
@@ -9,7 +9,8 @@ const DEFAULT_CONFIG = {
   cellColors: {},
 };
 
-export function useSessionMap({ projectRoot } = {}) {
+export function useSessionMap(options: any = {}) {
+  const { projectRoot } = options;
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [configPath, setConfigPath] = useState('');
   const [loading, setLoading] = useState(false);

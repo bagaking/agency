@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { disposeTerminalEntry } from '../terminal/terminalManager.js';
-import { pickSessionAvatarId } from '../utils/agentAvatar.js';
-import { BASELINE_PROFILE_ID } from '../utils/terminusSettings.js';
+import { disposeTerminalEntry } from '../terminal/terminalManager';
+import { pickSessionAvatarId } from '../utils/agentAvatar';
+import { BASELINE_PROFILE_ID } from '../utils/terminusSettings';
 import {
   ACTIVITY_BOOTSTRAP_THRESHOLD_MS,
   ATTACH_ACTIVITY_GRACE_MS,
@@ -15,13 +15,14 @@ import {
   resolveActiveSession,
 } from './shared/sessionRuntime';
 
-export function useSessions({
-  selectedCell,
-  cells,
-  tmuxStatus,
-  onOpenTerminal,
-  initialActiveSessions,
-}) {
+export function useSessions(options: any = {}) {
+  const {
+    selectedCell,
+    cells,
+    tmuxStatus,
+    onOpenTerminal,
+    initialActiveSessions,
+  } = options;
   const [activeSessionByCellId, setActiveSessionByCellId] = useState(
     initialActiveSessions || {}
   );
@@ -300,7 +301,7 @@ export function useSessions({
   }, []);
 
   const selectSession = useCallback(
-    (sessionId, cellIdOverride) => {
+    (sessionId, cellIdOverride = undefined) => {
       const cellId = cellIdOverride || selectedCell?.id;
       if (!cellId) {
         return;
@@ -320,7 +321,7 @@ export function useSessions({
   );
 
   const createSessionForCell = useCallback(
-    async (cellInput, options = {}) => {
+    async (cellInput, options: any = {}) => {
       const targetCell =
         cellInput && typeof cellInput === 'object' ? cellInput : resolveCell(cellInput);
       if (!targetCell || !window.agency?.createSession) {
@@ -633,7 +634,7 @@ export function useSessions({
   }, []);
 
   const handleSessionAttached = useCallback(
-    ({ cellId, sessionId } = {}) => {
+    ({ cellId, sessionId }: any = {}) => {
       if (cellId && sessionId) {
         const key = buildSessionKey(cellId, sessionId);
         const lastActivity = sessionActivityByKeyRef.current[key];

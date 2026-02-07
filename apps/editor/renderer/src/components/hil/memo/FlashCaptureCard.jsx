@@ -2,7 +2,7 @@ import React from 'react';
 import { Check, Loader2 } from 'lucide-react';
 import { VoiceCaptureControl } from './VoiceCaptureControl.jsx';
 import { Tooltip } from '../../ui/Tooltip.jsx';
-import { focusRing } from '../../ui/focusRing.js';
+import { focusRing } from '../../ui/focusRing';
 
 export function FlashCaptureCard({
   value,

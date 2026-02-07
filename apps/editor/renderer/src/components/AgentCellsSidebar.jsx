@@ -19,8 +19,8 @@ import { RecentProjectsList } from './RecentProjectsList.jsx';
 import { SessionContextMenu, SessionCreateMenu, SessionOverflowMenu } from './SessionMenus.jsx';
 import { AgentAvatarBadge } from './ui/AgentAvatarBadge.jsx';
 import { AvatarPickerMenu } from './ui/AvatarPickerMenu.jsx';
-import { formatIdleShort } from '../utils/timeFormat.js';
-import { resolveSessionAvatarId } from '../utils/agentAvatar.js';
+import { formatIdleShort } from '../utils/timeFormat';
+import { resolveSessionAvatarId } from '../utils/agentAvatar';
 
 
 const statusColors = {

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { ProjectEmptyState } from '../ProjectEmptyState.jsx';
 import { ActionSheetStatusPanel } from './ActionSheetStatusPanel.jsx';
-import { stateBadge, formatTime } from './actionSheetUi.js';
+import { stateBadge, formatTime } from './actionSheetUi';
 
 const normalizeChecksText = (checks) =>
   (checks || [])

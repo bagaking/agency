@@ -4,9 +4,9 @@ import {
   gateConfigHasEntries,
   gateStages,
   normalizeGateConfig,
-} from '../utils/gates.js';
-import { checkGates, getGates, isAgencyAvailable, setGates } from '../services/agencyBridge.js';
-import { pathBaseName } from './shared/scopedSettingsState.js';
+} from '../utils/gates';
+import { checkGates, getGates, isAgencyAvailable, setGates } from '../services/agencyBridge';
+import { pathBaseName } from './shared/scopedSettingsState';
 
 const generateGateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {

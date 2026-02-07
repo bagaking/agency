@@ -14,7 +14,7 @@ import {
   Clipboard,
   Type,
 } from 'lucide-react';
-import { focusRing } from './ui/focusRing.js';
+import { focusRing } from './ui/focusRing';
 
 const scopeLabels = {
   global: 'Global',

@@ -1,8 +1,8 @@
 import React from 'react';
 import { CircleOff, Landmark, MoreHorizontal, Plus } from 'lucide-react';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge.jsx';
-import { resolveSessionAvatarId } from '../../utils/agentAvatar.js';
-import { formatRelativeTime } from '../../utils/timeFormat.js';
+import { resolveSessionAvatarId } from '../../utils/agentAvatar';
+import { formatRelativeTime } from '../../utils/timeFormat';
 import { PanelCorner, TacticalFrame } from './SessionMapFrames.jsx';
 
 export function SessionMapDockLayout({

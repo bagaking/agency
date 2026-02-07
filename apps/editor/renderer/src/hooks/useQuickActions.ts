@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { buildActionRows, mergeQuickActions } from '../utils/quickActions.js';
-import { getQuickActions, isAgencyAvailable, setQuickActions } from '../services/agencyBridge.js';
-import { pathBaseName, useScopedSettingsState } from './shared/scopedSettingsState.js';
+import { buildActionRows, mergeQuickActions } from '../utils/quickActions';
+import { getQuickActions, isAgencyAvailable, setQuickActions } from '../services/agencyBridge';
+import { pathBaseName, useScopedSettingsState } from './shared/scopedSettingsState';
 
 const generateActionId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {

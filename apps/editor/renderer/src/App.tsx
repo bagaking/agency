@@ -5,17 +5,17 @@ import { AppLayout } from './components/AppLayout';
 import { CreateCellModal } from './components/modals/CreateCellModal.jsx';
 import { LifecycleConfirmModal } from './components/modals/LifecycleConfirmModal.jsx';
 import { ModalProvider, useModal } from './components/modals/ModalSystem.jsx';
-import { useTerminusSettings } from './hooks/useTerminusSettings.js';
-import { useAppShortcuts } from './hooks/useAppShortcuts.js';
-import { useSessionNamingSettings } from './hooks/useSessionNamingSettings.js';
-import { useGates } from './hooks/useGates.js';
-import { useWorktreeLinks } from './hooks/useWorktreeLinks.js';
-import { useSessions } from './hooks/useSessions.js';
-import { useSessionMap } from './hooks/useSessionMap.js';
-import { useActionSheets } from './hooks/useActionSheets.js';
-import { useWorkbench } from './hooks/useWorkbench.js';
-import { useHilMemoState } from './hooks/useHilMemoState.js';
-import { useHilMemoCaptureState } from './hooks/useHilMemoCaptureState.js';
+import { useTerminusSettings } from './hooks/useTerminusSettings';
+import { useAppShortcuts } from './hooks/useAppShortcuts';
+import { useSessionNamingSettings } from './hooks/useSessionNamingSettings';
+import { useGates } from './hooks/useGates';
+import { useWorktreeLinks } from './hooks/useWorktreeLinks';
+import { useSessions } from './hooks/useSessions';
+import { useSessionMap } from './hooks/useSessionMap';
+import { useActionSheets } from './hooks/useActionSheets';
+import { useWorkbench } from './hooks/useWorkbench';
+import { useHilMemoState } from './hooks/useHilMemoState';
+import { useHilMemoCaptureState } from './hooks/useHilMemoCaptureState';
 import {
   createCell as agencyCreateCell,
   createHilItem as agencyCreateHilItem,
@@ -40,15 +40,15 @@ import {
   updateCellState as agencyUpdateCellState,
   updateCellMeta as agencyUpdateCellMeta,
   updateHilItem as agencyUpdateHilItem,
-} from './services/agencyBridge.js';
-import { warmSessionMapPreviewCache } from './services/sessionMapPreviewCache.js';
-import { buildPromotePromptBundle, buildPromotePromptText, buildPromoteActionSheetPrompt } from './utils/hilPromotePrompt.js';
-import { buildActionSheetCompletion, buildActionSheetPlan } from './utils/actionSheetCompletion.js';
-import { BASELINE_PROFILE_ID } from './utils/terminusSettings.js';
+} from './services/agencyBridge';
+import { warmSessionMapPreviewCache } from './services/sessionMapPreviewCache';
+import { buildPromotePromptBundle, buildPromotePromptText, buildPromoteActionSheetPrompt } from './utils/hilPromotePrompt';
+import { buildActionSheetCompletion, buildActionSheetPlan } from './utils/actionSheetCompletion';
+import { BASELINE_PROFILE_ID } from './utils/terminusSettings';
 import { SessionMapOverlay } from './components/sessionMap/SessionMapOverlay.jsx';
 import { SessionMapToggle } from './components/sessionMap/SessionMapToggle.jsx';
-import { PREVIEW_WARMUP_DELAY_MS } from './components/sessionMap/sessionMapConstants.js';
-import { buildSessionMapModel } from './utils/sessionMapModel.js';
+import { PREVIEW_WARMUP_DELAY_MS } from './components/sessionMap/sessionMapConstants';
+import { buildSessionMapModel } from './utils/sessionMapModel';
 const defaultCells = [
   {
     id: 'sample-cell',

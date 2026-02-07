@@ -3,14 +3,14 @@ import {
   buildActionRows,
   buildDefaultActions,
   mergeActions,
-} from '../utils/appShortcuts.js';
+} from '../utils/appShortcuts';
 import {
   applyAppShortcuts,
   getAppShortcuts,
   isAgencyAvailable,
   setAppShortcuts,
-} from '../services/agencyBridge.js';
-import { pathBaseName, useScopedSettingsState } from './shared/scopedSettingsState.js';
+} from '../services/agencyBridge';
+import { pathBaseName, useScopedSettingsState } from './shared/scopedSettingsState';
 
 const DEFAULT_ACTIONS = buildDefaultActions();
 const EMPTY_ACTIONS = [];

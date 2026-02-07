@@ -8,10 +8,10 @@ import {
 } from 'lucide-react';
 import { statusColors, getFileIcon } from './explorerUtils.jsx';
 import { Tooltip } from '../ui/Tooltip.jsx';
-import { focusRing } from '../ui/focusRing.js';
+import { focusRing } from '../ui/focusRing';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge.jsx';
-import { resolveSessionAvatarId } from '../../utils/agentAvatar.js';
-import { formatIdleShort } from '../../utils/timeFormat.js';
+import { resolveSessionAvatarId } from '../../utils/agentAvatar';
+import { formatIdleShort } from '../../utils/timeFormat';
 
 export function ExplorerFooter({
   selectionCount,

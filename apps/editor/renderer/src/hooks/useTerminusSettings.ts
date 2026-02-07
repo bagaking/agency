@@ -6,9 +6,9 @@ import {
   buildProfileRows,
   mergeProfileBindings,
   mergeProfiles,
-} from '../utils/terminusSettings.js';
-import { getTerminusSettings, isAgencyAvailable, setTerminusSettings } from '../services/agencyBridge.js';
-import { pathBaseName, useScopedSettingsState } from './shared/scopedSettingsState.js';
+} from '../utils/terminusSettings';
+import { getTerminusSettings, isAgencyAvailable, setTerminusSettings } from '../services/agencyBridge';
+import { pathBaseName, useScopedSettingsState } from './shared/scopedSettingsState';
 
 const DEFAULT_SETTINGS = {
   profiles: [BASELINE_PROFILE],

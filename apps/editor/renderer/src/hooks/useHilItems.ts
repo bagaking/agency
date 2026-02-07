@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { listHilItems } from '../services/agencyBridge.js';
+import { listHilItems } from '../services/agencyBridge';
 
 const DEFAULT_FILTERS = {
   kind: 'all',

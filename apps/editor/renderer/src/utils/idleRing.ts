@@ -9,7 +9,7 @@ const lerp = (from, to, ratio) => Math.round(from + (to - from) * ratio);
 
 const toRgba = (rgb, alpha = 0.9) => `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
 
-export const resolveIdleRingColor = ({ idleMs, isClosed = false } = {}) => {
+export const resolveIdleRingColor = ({ idleMs, isClosed = false }: any = {}) => {
   if (isClosed) {
     return toRgba(CLOSED_RGB, 0.7);
   }
@@ -25,7 +25,7 @@ export const resolveIdleRingColor = ({ idleMs, isClosed = false } = {}) => {
   return toRgba(mixed, 0.9);
 };
 
-export const resolveIdleRingStyle = ({ idleMs, isClosed = false } = {}) => ({
+export const resolveIdleRingStyle = ({ idleMs, isClosed = false }: any = {}) => ({
   borderColor: resolveIdleRingColor({ idleMs, isClosed }),
 });
 

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { AgentAvatar } from './AgentAvatar.jsx';
-import { resolveIdleRingStyle } from '../../utils/idleRing.js';
+import { resolveIdleRingStyle } from '../../utils/idleRing';
 
 const wrapClass = (className) => (className ? ` ${className}` : '');
 

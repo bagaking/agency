@@ -2,8 +2,8 @@ import React from 'react';
 import { Map as MapIcon } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip.jsx';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge.jsx';
-import { resolveSessionAvatarId } from '../../utils/agentAvatar.js';
-import { BASELINE_PROFILE_ID } from '../../utils/terminusSettings.js';
+import { resolveSessionAvatarId } from '../../utils/agentAvatar';
+import { BASELINE_PROFILE_ID } from '../../utils/terminusSettings';
 
 export function SessionMapToggle({ open, stats, onToggle, disabled, focusCell, focusSession }) {
   const sessionLabel = focusSession?.name || focusSession?.id || '';

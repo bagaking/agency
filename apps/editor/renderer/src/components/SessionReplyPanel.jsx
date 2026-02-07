@@ -14,10 +14,10 @@ import {
   Edit2,
   Trash2,
 } from 'lucide-react';
-import { createHilItem, listHilItems, updateHilItem } from '../services/agencyBridge.js';
+import { createHilItem, listHilItems, updateHilItem } from '../services/agencyBridge';
 import { AgentAvatarBadge } from './ui/AgentAvatarBadge.jsx';
-import { resolveAvatarId } from '../utils/agentAvatar.js';
-import { focusRing } from './ui/focusRing.js';
+import { resolveAvatarId } from '../utils/agentAvatar';
+import { focusRing } from './ui/focusRing';
 import { Tooltip } from './ui/Tooltip.jsx';
 
 const DEFAULT_TIME_TAG = 'Nature';

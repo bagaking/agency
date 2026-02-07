@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
-import { useHilItems } from './useHilItems.js';
+import { useHilItems } from './useHilItems';
 import { Terminal, StickyNote, Quote, Camera, MessageSquareText } from 'lucide-react';
 
 const resolveBody = (item) =>

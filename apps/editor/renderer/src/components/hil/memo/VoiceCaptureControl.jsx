@@ -1,8 +1,8 @@
 import React from 'react';
 import { ChevronDown, Loader2, Mic, Square } from 'lucide-react';
-import { openSystemPermissions } from '../../../services/agencyBridge.js';
+import { openSystemPermissions } from '../../../services/agencyBridge';
 import { Tooltip } from '../../ui/Tooltip.jsx';
-import { focusRing } from '../../ui/focusRing.js';
+import { focusRing } from '../../ui/focusRing';
 
 export function VoiceCaptureControl({ voice, segments = [], shortcut }) {
   if (!voice) {

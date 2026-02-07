@@ -1,7 +1,7 @@
 import React from 'react';
 import { Settings, ListTree, Folder, Brain, ClipboardList } from 'lucide-react';
 import { Logo } from './Logo.jsx';
-import { focusRing } from './ui/focusRing.js';
+import { focusRing } from './ui/focusRing';
 
 export function ActivityBar({ activeView, onSwitchView }) {
   const primaryItem = {

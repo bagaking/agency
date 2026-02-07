@@ -13,7 +13,7 @@ import {
   X
 } from 'lucide-react';
 import { IconButton } from '../../ui/IconButton.jsx';
-import { focusRing } from '../../ui/focusRing.js';
+import { focusRing } from '../../ui/focusRing';
 
 export function HilMemoSidebar({
   loading,

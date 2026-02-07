@@ -11,7 +11,7 @@ import {
   Info 
 } from 'lucide-react';
 import { IconButton } from '../ui/IconButton.jsx';
-import { focusRing } from '../ui/focusRing.js';
+import { focusRing } from '../ui/focusRing';
 
 const focusRingClass = focusRing.default;
 

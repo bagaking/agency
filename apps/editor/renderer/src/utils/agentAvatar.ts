@@ -84,7 +84,7 @@ export const resolveAvatarId = (input = {}) => {
     }
     return AVATAR_IDS[hashString(input) % AVATAR_IDS.length];
   }
-  const safeInput = input && typeof input === 'object' ? input : {};
+  const safeInput: any = input && typeof input === 'object' ? input : {};
   const { avatar, id, name } = safeInput;
   const explicit = normalizeAvatarId(avatar);
   if (explicit && AVATAR_MAP[explicit]) {

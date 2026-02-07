@@ -7,7 +7,7 @@ import {
   discardVoiceCaptureAudio,
   onVoiceCaptureEvent,
   openSystemPermissions,
-} from '../services/agencyBridge.js';
+} from '../services/agencyBridge';
 
 import {
   buildLanguageOptions,
@@ -18,14 +18,15 @@ import {
   resolveSpeechRecognition,
 } from './shared/voiceRuntime';
 
-const logVoiceDiagnostics = ({ level = 'warn', message, meta }) => {
+const logVoiceDiagnostics = ({ level = 'warn', message, meta = null }: { level?: string; message: any; meta?: any }) => {
   if (typeof console !== 'undefined' && console[level]) {
     console[level](`[voice capture] ${message}`, meta);
   }
   logRuntime?.({ level, message, meta });
 };
 
-export function useVoiceCapture({ language: initialLanguage, onFinal }) {
+export function useVoiceCapture(options: { language?: string; onFinal?: any } = {}) {
+  const { language: initialLanguage, onFinal } = options;
   const recognitionRef = useRef(null);
   const statusRef = useRef('idle');
   const stopRequestedRef = useRef(false);
@@ -140,7 +141,7 @@ export function useVoiceCapture({ language: initialLanguage, onFinal }) {
 
 
   const maybeOpenPermissions = useCallback(
-    (message, kindOverride) => {
+    (message, kindOverride = null) => {
       if (!openSystemPermissions || permissionPromptedRef.current) {
         return;
       }

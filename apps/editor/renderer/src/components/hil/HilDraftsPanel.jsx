@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Layers, Play, Terminal } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip.jsx';
-import { focusRing } from '../ui/focusRing.js';
+import { focusRing } from '../ui/focusRing';
 
 export function HilDraftsPanel({
   drafts = [],

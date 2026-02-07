@@ -5,25 +5,25 @@ import {
   ensureInputListener,
   ensureStarted,
   ensureTerminalEntry,
-} from '../terminal/terminalManager.js';
+} from '../terminal/terminalManager';
 import {
   buildShortcutIndex,
   dispatchTerminalAction,
   matchShortcutBinding,
-} from '../terminal/terminalInputDispatcher.js';
+} from '../terminal/terminalInputDispatcher';
 import {
   createHilItem,
   onTerminalDetached,
   setSessionInteractive,
   setSessionMouse,
-} from '../services/agencyBridge.js';
+} from '../services/agencyBridge';
 import {
   getCachedSessionMapPreview,
   primeSessionMapPreview,
-} from '../services/sessionMapPreviewCache.js';
+} from '../services/sessionMapPreviewCache';
 import { AgentAvatarBadge } from './ui/AgentAvatarBadge.jsx';
-import { resolveAvatarId } from '../utils/agentAvatar.js';
-import { PREVIEW_LINES } from './sessionMap/sessionMapConstants.js';
+import { resolveAvatarId } from '../utils/agentAvatar';
+import { PREVIEW_LINES } from './sessionMap/sessionMapConstants';
 
 const normalizePreviewData = (value) =>
   String(value || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');

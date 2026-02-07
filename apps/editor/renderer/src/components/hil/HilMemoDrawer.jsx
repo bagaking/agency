@@ -4,7 +4,7 @@ import { FlashCaptureCard } from './memo/FlashCaptureCard.jsx';
 import { ExcerptCaptureCard } from './memo/ExcerptCaptureCard.jsx';
 import { ScreenshotCaptureCard } from './memo/ScreenshotCaptureCard.jsx';
 import { Tooltip } from '../ui/Tooltip.jsx';
-import { focusRing } from '../ui/focusRing.js';
+import { focusRing } from '../ui/focusRing';
 
 export function HilMemoDrawer({
   activeInboxId,

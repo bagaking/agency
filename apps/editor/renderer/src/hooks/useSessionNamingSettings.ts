@@ -4,13 +4,13 @@ import {
   EMPTY_SETTINGS,
   resolveSessionNaming,
   normalizeSettings,
-} from '../utils/sessionNaming.js';
+} from '../utils/sessionNaming';
 import {
   getSessionNamingSettings,
   isAgencyAvailable,
   setSessionNamingSettings,
-} from '../services/agencyBridge.js';
-import { pathBaseName, useScopedSettingsState } from './shared/scopedSettingsState.js';
+} from '../services/agencyBridge';
+import { pathBaseName, useScopedSettingsState } from './shared/scopedSettingsState';
 
 const ensureName = (value) => String(value || '').trim();
 

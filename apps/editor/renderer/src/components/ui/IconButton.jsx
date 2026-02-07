@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tooltip } from './Tooltip.jsx';
-import { focusRing } from './focusRing.js';
+import { focusRing } from './focusRing';
 
 export function IconButton({
   label,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { CircleOff, Landmark, MoreHorizontal, Plus } from 'lucide-react';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge.jsx';
-import { resolveSessionAvatarId } from '../../utils/agentAvatar.js';
+import { resolveSessionAvatarId } from '../../utils/agentAvatar';
 
 export function SessionMapGridLayout({
   model,
