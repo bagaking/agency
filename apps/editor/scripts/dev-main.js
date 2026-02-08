@@ -8,6 +8,7 @@ const {
 
 const electronPath = require('electron');
 const mainPath = path.join(__dirname, '..', 'electron', 'main.js');
+const { runElectronBuild } = require('./electronBuild');
 const portFile = resolveRendererPortFile();
 const WAIT_TIMEOUT_MS = 20000;
 const WAIT_INTERVAL_MS = 250;
@@ -44,6 +45,7 @@ const waitForRendererUrl = async () => {
 
 const run = async () => {
   const rendererUrl = await waitForRendererUrl();
+  await runElectronBuild();
   const env = {
     ...process.env,
     ELECTRON_RENDERER_URL: rendererUrl,

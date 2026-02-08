@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "types": ["node", "electron"],
+    "outDir": ".electron-build",
+    "rootDir": "electron",
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": false,
+    "isolatedModules": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true
+  },
+  "include": [
+    "electron/**/*.ts",
+    "electron/**/*.js"
+  ],
+  "exclude": [
+    ".electron-build",
+    "electron/main.js",
+    "electron/preload.js",
+    "electron/native"
+  ]
+}

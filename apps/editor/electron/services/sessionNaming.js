@@ -4,6 +4,7 @@ const os = require('os');
 const path = require('path');
 const yaml = require('js-yaml');
 
+const sessionNamingCorePath = path.join(__dirname, '..', '..', 'shared', 'sessionNamingCore.cjs');
 const {
   DEFAULT_RULE,
   DEFAULT_NAME_LISTS,
@@ -13,7 +14,7 @@ const {
   resolveSessionNaming,
   normalizeSelectionPosition,
   formatSessionName,
-} = require('../../shared/sessionNamingCore.cjs');
+} = require(sessionNamingCorePath);
 
 const fsp = fs.promises;
 

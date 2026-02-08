@@ -8,6 +8,7 @@ const {
 } = require('./rendererDevServer');
 
 const portFile = resolveRendererPortFile();
+const { runElectronBuild } = require('./electronBuild');
 
 const cleanupPortFile = () => {
   if (!portFile) {
@@ -21,6 +22,7 @@ const cleanupPortFile = () => {
 };
 
 const run = async () => {
+  await runElectronBuild();
   const basePort = resolveBasePort();
   const { server, url } = await startRendererDevServer({ port: basePort, portFile });
   const env = {
