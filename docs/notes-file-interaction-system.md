@@ -86,3 +86,5 @@ It is the shared policy layer above local implementation details.
    Agent Cells / Session Map / Memo still need full open/reveal + drag-routing convergence on the unified contract.
 6. Tool-intent governance baseline is active:
    `file:tool:interact` now requires caller metadata (`callerId`, `traceId`) and capability-scoped authorization (`file.read` / `file.write`).
+7. CLI wrapper baseline is active:
+   `fileIntentCli` provides JSON-in / JSON-out access to `file:interact` semantics (user/tool/classify modes) as a thin gateway wrapper.

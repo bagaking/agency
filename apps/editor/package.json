@@ -13,6 +13,7 @@
     "dev": "concurrently \"npm:dev:renderer\" \"npm:dev:main\"",
     "build:renderer": "vite build",
     "build:electron": "node scripts/build-electron.js",
+    "file-intent:cli": "pnpm run build:electron && node .electron-build/cli/fileIntentCli.js",
     "build:speech-helper": "node scripts/build-speech-helper.js",
     "package": "pnpm run build:renderer && pnpm run build:electron && pnpm run build:speech-helper && PNPM_BIN_DIR=$(pnpm bin -g) && PATH=\"$PNPM_BIN_DIR:$PATH\" PNPM_HOME=\"$PNPM_BIN_DIR\" TMPDIR=/tmp electron-builder --mac",
     "package:dir": "pnpm run build:renderer && pnpm run build:electron && pnpm run build:speech-helper && PNPM_BIN_DIR=$(pnpm bin -g) && PATH=\"$PNPM_BIN_DIR:$PATH\" PNPM_HOME=\"$PNPM_BIN_DIR\" TMPDIR=/tmp electron-builder --mac --dir",

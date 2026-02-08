@@ -36,6 +36,15 @@
   - `openspec/changes/add-agent-centric-file-interaction-system/`
   - `docs/notes-file-interaction-system.md`
 
+## File Intent CLI (Gateway Wrapper)
+
+- Run:
+  - `pnpm -C apps/editor run file-intent:cli -- --help`
+- JSON-in / JSON-out wrapper over unified gateway:
+  - user mode (default): `{"intent":"open","targetPath":"README.md"}`
+  - tool mode: `{"intent":"copy","sourcePath":"a.txt","targetPath":"b.txt","callerId":"agent-1","traceId":"trace-1","capabilities":["file.write"]}`
+  - classify mode envelope: `{"mode":"classify","request":{"paths":["Agency.md"]}}`
+
 ## Memo Drawer Interactions
 
 - Memo drawer shortcut cards are interactive capture surfaces and do not switch the main Memo panel when clicked.

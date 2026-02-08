@@ -29,8 +29,8 @@
 - [x] 6.2 Add capability-scoped authorization and audit metadata for tool-invoked file intents.
 - [x] 6.3 Define and validate caller context schema (`sourceSurface`, `callerType`, `callerId`, trace id).
 - [ ] 6.4 Add a process-boundary compatibility plan (dedicated helper process path) without changing caller semantics.
-- [ ] 6.5 Define CLI-friendly request/response schema and keep CLI as thin wrapper over `file:interact`.
-- [ ] 6.6 Add an actual CLI entrypoint wrapper (JSON in/out) that delegates to unified intent gateway.
+- [x] 6.5 Define CLI-friendly request/response schema and keep CLI as thin wrapper over `file:interact`.
+- [x] 6.6 Add an actual CLI entrypoint wrapper (JSON in/out) that delegates to unified intent gateway.
 
 ## 7. Agent Cell Workflow Extensions
 - [ ] 7.1 Add Agent Cell file-change dashboard requirements and first implementation slice.
