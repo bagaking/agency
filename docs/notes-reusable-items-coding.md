@@ -31,9 +31,10 @@ This is a project-local catalog of reusable engineering assets. The goal is disc
 | Renderer IPC via `agencyBridge` | MUST | All renderer → main IPC calls. | `apps/editor/renderer/src/services/agencyBridge.ts` |
 | Scoped settings state hook | MUST | Any Global/Project/Agent settings editor; reuse dirty/error/saving/IPC guard state machine. | `apps/editor/renderer/src/hooks/shared/scopedSettingsState.ts` |
 | Session naming core engine | MUST | Session naming rule parsing/placeholder formatting across main and renderer. | `apps/editor/shared/sessionNamingCore.cjs` |
-| Path safety helpers | MUST | Normalize relative paths and enforce root-safe resolution in Electron services/preload. | `apps/editor/electron/services/shared/pathSafety.js` |
+| Path safety helpers | MUST | Normalize relative paths and enforce root-safe resolution in Electron services/preload. | `apps/editor/electron/services/shared/pathSafety.ts` |
 | Electron compiled entry bootstrap | MUST | Any Electron main/preload TS migration should launch through compiled-entry bootstrap + `build:electron` pipeline for dev/test/package consistency. | `apps/editor/electron/bootstrap/loadCompiledEntrypoint.js`, `apps/editor/scripts/build-electron.js`, `apps/editor/tsconfig.electron.json` |
 | IPC setup registration pipeline | MUST | Register Electron IPC handlers through ordered `IPC_REGISTRATIONS` helpers (`withMainWindow` / `withoutDeps`) to keep behavior parity while reducing repetitive boilerplate. | `apps/editor/electron/main/ipcSetup.ts` |
+| Electron service TS module layer | MUST | Keep main-process service logic in TypeScript modules with named exports; use `// @ts-nocheck` only as transitional guard until strict typing pass. | `apps/editor/electron/services/**/*.ts`, `apps/editor/electron/windows/captureOverlay/*.ts` |
 | Terminus launch action builder | SHOULD | Build unified Start/Resume/Subcommand session-create actions from profile config (menu + dispatch paths). | `apps/editor/renderer/src/utils/terminusSettings.ts` |
 | Session map model builder | MUST | Session map clustering/statistics. | `apps/editor/renderer/src/utils/sessionMapModel.ts` |
 | Time formatting helpers | MUST | Relative/idle time display. | `apps/editor/renderer/src/utils/timeFormat.ts` |
