@@ -17,6 +17,7 @@ import { ActionSheetStatusPanel } from '../actionSheets/ActionSheetStatusPanel';
 import { IconButton } from '../ui/IconButton';
 import { focusRing } from '../ui/focusRing';
 import { resolveFileReferenceTarget } from '../../utils/fileReferences';
+import { setFileDragPayload } from '../../utils/fileDragPayload';
 
 const kindIcons = {
     comment: Terminal,
@@ -402,13 +403,10 @@ function ContextAnchor({ anchor, commentBody, worktreePath, isResolved, onOpenAn
     };
 
     const handleDragStart = (event) => {
-        if (!resolvedReference?.absolutePath) {
+        const success = setFileDragPayload(event, resolvedReference?.absolutePath || '');
+        if (!success) {
             event.preventDefault();
-            return;
         }
-        event.stopPropagation();
-        event.dataTransfer.setData('text/plain', resolvedReference.absolutePath);
-        event.dataTransfer.effectAllowed = 'copy';
     };
 
     return (

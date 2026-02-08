@@ -3,6 +3,7 @@ import { MoreHorizontal } from 'lucide-react';
 import { SessionMapTerminalPreview } from './SessionMapTerminalPreview';
 import { getCachedSessionMapPreview } from '../../services/sessionMapPreviewCache';
 import { extractFileReferences } from '../../utils/fileReferences';
+import { setFileDragPayload } from '../../utils/fileDragPayload';
 import { formatRelativeTime } from '../../utils/timeFormat';
 import { resolveOfflineReason } from './sessionMapUtils';
 import { DEBUG_FLAGS, getDebugFlag } from '../../utils/debugFlags';
@@ -428,13 +429,10 @@ export function SessionMapHoverCard({
   };
 
   const handleShortcutDragStart = (event, shortcut) => {
-    if (!shortcut?.absolutePath) {
+    const success = setFileDragPayload(event, shortcut?.absolutePath || '');
+    if (!success) {
       event.preventDefault();
-      return;
     }
-    event.stopPropagation();
-    event.dataTransfer.setData('text/plain', shortcut.absolutePath);
-    event.dataTransfer.effectAllowed = 'copy';
   };
 
   const enterOffset =

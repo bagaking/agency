@@ -83,17 +83,19 @@ It is the shared policy layer above local implementation details.
 4. Explorer semantic affordance is landed:
    row tags + semantic filtering + semantic quick-locate are available.
 5. Cross-surface routing has progressed:
-   Memo (HIL comments + memo draft references) and Session Map preview shortcuts now open/reveal through unified file intents.
-6. Lightweight drop routing is converging:
-   Session Map and Memo reference chips emit `text/plain` absolute-path payloads that route into Explorer `import_copy` semantics.
-7. Agent Cells open path is now contract-guarded:
-   workbench file-open requests from Agent Cells entry points run `open` intent validation before tab activation/reveal.
+   Memo (HIL comments + memo draft references), Session Map preview shortcuts, and Agent Cells dashboard shortcuts now open/reveal through unified file intents.
+6. Agent Cells file-change dashboard baseline is landed:
+   Agent Cells sidebar now exposes a scoped file-change dashboard (per selected worktree/session preview cache) with open/reveal actions and quick drag entry points.
+7. Lightweight drop routing is now unified:
+   Agent Cells, Session Map, and Memo reference chips all use the same `text/plain` absolute-path drag payload helper so Explorer drop handling stays on `import_copy` semantics.
 8. Tool-intent governance baseline is active:
    `file:tool:interact` now requires caller metadata (`callerId`, `traceId`) and capability-scoped authorization (`file.read` / `file.write`).
 9. CLI wrapper baseline is active:
    `fileIntentCli` provides JSON-in / JSON-out access to `file:interact` semantics (user/tool/classify modes) as a thin gateway wrapper.
 10. Regression coverage has expanded:
-   Electron service tests validate intent normalization + cross-surface intent parity + semantic-rule merge priority + permission outcomes; Playwright e2e coverage includes external-drop import selection/conflict-safe naming and newline-separated text payload routing.
+   Electron service tests validate intent normalization + cross-surface intent parity + semantic-rule merge priority + permission outcomes; renderer utility tests now cover Agent Cells file-change aggregation and unified drag payload formatting.
+11. Baseline validation was re-run:
+   `typecheck:renderer`, `typecheck:electron`, targeted node-test suites, and the current Playwright e2e baseline were executed; existing unrelated e2e failures remain, while external-drop scenarios continue to pass.
 
 ## Process-Boundary Compatibility Plan (Locked)
 - Keep `FileIntentPayload`/`FileIntentResult` as the stable wire format across renderer, tool, CLI, and future helper process callers.

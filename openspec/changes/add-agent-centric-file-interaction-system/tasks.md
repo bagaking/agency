@@ -33,13 +33,13 @@
 - [x] 6.6 Add an actual CLI entrypoint wrapper (JSON in/out) that delegates to unified intent gateway.
 
 ## 7. Agent Cell Workflow Extensions
-- [ ] 7.1 Add Agent Cell file-change dashboard requirements and first implementation slice.
-- [ ] 7.2 Add Agent Cell quick drag/drop entry requirements that route to Explorer import semantics.
-- [ ] 7.3 Ensure Session Map and Memo lightweight drag routing is consistent with Agent Cell interactions.
+- [x] 7.1 Add Agent Cell file-change dashboard requirements and first implementation slice.
+- [x] 7.2 Add Agent Cell quick drag/drop entry requirements that route to Explorer import semantics.
+- [x] 7.3 Ensure Session Map and Memo lightweight drag routing is consistent with Agent Cell interactions.
 
 ## 8. Validation & Docs
 - [x] 8.1 Add unit tests for intent normalization and semantic rule matching/merge.
 - [x] 8.2 Add integration tests for cross-surface intent consistency and lightweight drop routing.
 - [x] 8.3 Add integration tests for tool-invoked file intents and permission-denied outcomes.
 - [x] 8.4 Update `apps/editor/README.md` with unified file interaction, semantic-file behavior, and toolization model.
-- [ ] 8.5 Run e2e/manual baseline checks for Explorer, Agent Cells, Session Map, and Memo entry flows.
+- [x] 8.5 Run e2e/manual baseline checks for Explorer, Agent Cells, Session Map, and Memo entry flows.

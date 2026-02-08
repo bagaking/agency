@@ -25,6 +25,7 @@ import { useModal } from '../../modals/ModalSystem';
 import { IconButton } from '../../ui/IconButton';
 import { focusRing } from '../../ui/focusRing';
 import { resolveFileReferenceTarget } from '../../../utils/fileReferences';
+import { setFileDragPayload } from '../../../utils/fileDragPayload';
 import {
   updateHilItem as agencyUpdateHilItem,
   deleteHilItem as agencyDeleteHilItem,
@@ -231,13 +232,10 @@ export function HilMemoView({
   const handleReferenceDragStart = useCallback(
     (event, path) => {
       const resolved = resolveReferenceTarget(path);
-      if (!resolved?.absolutePath) {
+      const success = setFileDragPayload(event, resolved?.absolutePath || '');
+      if (!success) {
         event.preventDefault();
-        return;
       }
-      event.stopPropagation();
-      event.dataTransfer.setData('text/plain', resolved.absolutePath);
-      event.dataTransfer.effectAllowed = 'copy';
     },
     [resolveReferenceTarget]
   );

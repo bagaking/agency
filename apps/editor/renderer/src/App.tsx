@@ -2313,6 +2313,52 @@ function App() {
     [handleRevealWorkbenchFile]
   );
 
+  const handleOpenAgentCellFileReference = useCallback(
+    ({
+      cellId,
+      rootPath,
+      path,
+      line,
+      column,
+    }: {
+      cellId?: string;
+      rootPath?: string;
+      path?: string;
+      line?: number;
+      column?: number;
+    } = {}) =>
+      handleOpenWorkbenchFile({
+        cellId,
+        rootPath,
+        path,
+        line,
+        column,
+        focusView: true,
+        sourceSurface: 'agent-cells',
+      }),
+    [handleOpenWorkbenchFile]
+  );
+
+  const handleRevealAgentCellFileReference = useCallback(
+    ({
+      cellId,
+      rootPath,
+      path,
+    }: {
+      cellId?: string;
+      rootPath?: string;
+      path?: string;
+    } = {}) =>
+      handleRevealWorkbenchFile({
+        cellId,
+        rootPath,
+        path,
+        focusView: true,
+        sourceSurface: 'agent-cells',
+      }),
+    [handleRevealWorkbenchFile]
+  );
+
   const handleJumpToSession = useCallback(
     (cellId, sessionId) => {
       handleSelectSessionFromMap(cellId, sessionId, { focusView: true });
@@ -2909,6 +2955,8 @@ function App() {
           onCreateCell={handleOpenCreateCellModal}
           onJumpToHierarchy={handleHierarchyJump}
           onOpenExplorerForCell={handleOpenExplorerForCell}
+          onOpenAgentCellFileReference={handleOpenAgentCellFileReference}
+          onRevealAgentCellFileReference={handleRevealAgentCellFileReference}
           sessionsByCellId={sessionsByCellId}
           activeSessionByCellId={activeSessionByCellId}
           sessionActivityByKey={sessionActivityByKey}

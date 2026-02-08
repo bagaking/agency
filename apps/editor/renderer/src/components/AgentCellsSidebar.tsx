@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Plus,
   GitBranch,
@@ -10,10 +10,11 @@ import {
   ArrowUpRight,
   FolderOpen,
   MoreHorizontal,
-  Pencil,
   X,
   ChevronDown,
   ChevronRight,
+  FileText,
+  RefreshCw,
 } from 'lucide-react';
 import { RecentProjectsList } from './RecentProjectsList';
 import { SessionContextMenu, SessionCreateMenu, SessionOverflowMenu } from './SessionMenus';
@@ -21,6 +22,9 @@ import { AgentAvatarBadge } from './ui/AgentAvatarBadge';
 import { AvatarPickerMenu } from './ui/AvatarPickerMenu';
 import { formatIdleShort } from '../utils/timeFormat';
 import { resolveSessionAvatarId } from '../utils/agentAvatar';
+import { getCachedSessionMapPreview, primeSessionMapPreview } from '../services/sessionMapPreviewCache';
+import { buildAgentCellFileChanges } from '../utils/agentCellFileChanges';
+import { setFileDragPayload } from '../utils/fileDragPayload';
 
 
 const statusColors = {
@@ -56,6 +60,8 @@ export function AgentCellsSidebar({
   onRenameSession,
   onUpdateSessionAvatar,
   onConfigureProfile,
+  onOpenFileReference,
+  onRevealFileReference,
 }: any) {
   const [idleNow, setIdleNow] = useState(Date.now());
   const [closedMenu, setClosedMenu] = useState(null);
@@ -64,13 +70,17 @@ export function AgentCellsSidebar({
   const [editingSession, setEditingSession] = useState(null);
   const [editingSessionName, setEditingSessionName] = useState('');
   const [avatarMenu, setAvatarMenu] = useState(null);
-  const [collapsedCells, setCollapsedCells] = useState(() => new Set());
+  const [collapsedCells, setCollapsedCells] = useState<Set<string>>(() => new Set());
+  const [fileDashboardOpen, setFileDashboardOpen] = useState(false);
+  const [fileDashboardLoading, setFileDashboardLoading] = useState(false);
+  const [fileDashboardEntries, setFileDashboardEntries] = useState([]);
+  const [fileDashboardUpdatedAt, setFileDashboardUpdatedAt] = useState(0);
   const closedMenuRef = useRef(null);
   const contextMenuRef = useRef(null);
   const createMenuRef = useRef(null);
   const avatarMenuRef = useRef(null);
   const cellsById = useMemo(
-    () => new Map((cells || []).filter(Boolean).map((cell: any) => [cell.id, cell])),
+    () => new Map<string, any>((cells || []).filter(Boolean).map((cell: any) => [cell.id, cell])),
     [cells]
   );
 
@@ -143,7 +153,7 @@ export function AgentCellsSidebar({
       return;
     }
     setCollapsedCells((current) => {
-      const next = new Set();
+      const next = new Set<string>();
       current.forEach((id) => {
         if (cellsById.has(id)) {
           next.add(id);
@@ -196,17 +206,154 @@ export function AgentCellsSidebar({
     });
   };
 
-  const resolveSessionActivity = (cellId, session) => {
-    const key = buildSessionKey(cellId, session.id);
+  const resolveSessionActivity = useCallback((cellId, session) => {
+    const key = buildSessionKey(cellId, session?.id);
     const activity = sessionActivityByKey?.[key];
     if (Number.isFinite(activity)) {
       return activity;
     }
     const parsed = Date.parse(session?.lastActivityAt || '');
     return Number.isFinite(parsed) ? parsed : null;
-  };
+  }, [sessionActivityByKey]);
 
-  const resolveCellSessions = (cellId) => sessionsByCellId?.[cellId] || [];
+  const resolveCellSessions = useCallback(
+    (cellId): any[] => sessionsByCellId?.[cellId] || [],
+    [sessionsByCellId]
+  );
+
+  const selectedCell: any = useMemo(
+    () => (selectedId ? cellsById.get(selectedId) || null : null),
+    [cellsById, selectedId]
+  );
+
+  const selectedCellSessions = useMemo<any[]>(
+    () =>
+      (selectedCell?.id ? resolveCellSessions(selectedCell.id) : []).filter(
+        (session: any) => session?.status !== 'closed'
+      ),
+    [selectedCell?.id, resolveCellSessions]
+  );
+
+  const handleFileDashboardOpen = useCallback(
+    (shortcut) => {
+      if (!shortcut?.relativePath || !selectedCell?.id || !selectedCell?.worktreePath) {
+        return;
+      }
+      onOpenFileReference?.({
+        cellId: selectedCell.id,
+        rootPath: selectedCell.worktreePath,
+        path: shortcut.relativePath,
+        line: shortcut.line || undefined,
+        column: shortcut.column || undefined,
+      });
+    },
+    [onOpenFileReference, selectedCell?.id, selectedCell?.worktreePath]
+  );
+
+  const handleFileDashboardReveal = useCallback(
+    (shortcut) => {
+      if (!shortcut?.relativePath || !selectedCell?.id || !selectedCell?.worktreePath) {
+        return;
+      }
+      onRevealFileReference?.({
+        cellId: selectedCell.id,
+        rootPath: selectedCell.worktreePath,
+        path: shortcut.relativePath,
+      });
+    },
+    [onRevealFileReference, selectedCell?.id, selectedCell?.worktreePath]
+  );
+
+  const handleFileDashboardDragStart = useCallback((event, shortcut) => {
+    const success = setFileDragPayload(event, shortcut?.absolutePath || '');
+    if (!success) {
+      event.preventDefault();
+    }
+  }, []);
+
+  const refreshFileDashboard = useCallback(
+    async ({ showBusy = false }: { showBusy?: boolean } = {}) => {
+      if (!fileDashboardOpen || !selectedCell?.id || !selectedCell?.worktreePath) {
+        setFileDashboardEntries([]);
+        setFileDashboardLoading(false);
+        setFileDashboardUpdatedAt(0);
+        return;
+      }
+      if (!selectedCellSessions.length) {
+        setFileDashboardEntries([]);
+        setFileDashboardLoading(false);
+        setFileDashboardUpdatedAt(Date.now());
+        return;
+      }
+      if (showBusy) {
+        setFileDashboardLoading(true);
+      }
+      try {
+        const previewsBySessionId = {};
+        await Promise.all(
+          selectedCellSessions.map(async (session) => {
+            if (!session?.id) {
+              return;
+            }
+            try {
+              await primeSessionMapPreview({
+                worktreePath: selectedCell.worktreePath,
+                cellId: selectedCell.id,
+                sessionId: session.id,
+                startCommand: session.startCommand || '',
+                cacheOnly: true,
+              });
+            } catch {
+              // Ignore preview fetch failures and fall back to cached data.
+            }
+            const cached = getCachedSessionMapPreview({
+              worktreePath: selectedCell.worktreePath,
+              cellId: selectedCell.id,
+              sessionId: session.id,
+            });
+            if (cached?.data) {
+              previewsBySessionId[session.id] = String(cached.data);
+            }
+          })
+        );
+        const nextEntries = buildAgentCellFileChanges({
+          rootPath: selectedCell.worktreePath,
+          sessions: selectedCellSessions,
+          previewBySessionId: previewsBySessionId,
+          resolveActivityAt: (session) => resolveSessionActivity(selectedCell.id, session),
+          perSessionLimit: 4,
+          totalLimit: 10,
+        });
+        setFileDashboardEntries(nextEntries);
+        setFileDashboardUpdatedAt(Date.now());
+      } finally {
+        if (showBusy) {
+          setFileDashboardLoading(false);
+        }
+      }
+    },
+    [
+      fileDashboardOpen,
+      resolveSessionActivity,
+      selectedCell?.id,
+      selectedCell?.worktreePath,
+      selectedCellSessions,
+    ]
+  );
+
+  useEffect(() => {
+    if (!fileDashboardOpen) {
+      setFileDashboardEntries([]);
+      setFileDashboardLoading(false);
+      setFileDashboardUpdatedAt(0);
+      return;
+    }
+    void refreshFileDashboard({ showBusy: true });
+    const timer = setInterval(() => {
+      void refreshFileDashboard();
+    }, 1800);
+    return () => clearInterval(timer);
+  }, [fileDashboardOpen, refreshFileDashboard]);
 
   const overflowSessions = useMemo(() => {
     if (!closedMenu?.cellId) {
@@ -217,7 +364,7 @@ export function AgentCellsSidebar({
       detached: list.filter((session) => session.status === 'detached'),
       closed: list.filter((session) => session.status === 'closed'),
     };
-  }, [closedMenu?.cellId, sessionsByCellId]);
+  }, [closedMenu?.cellId, resolveCellSessions]);
 
   const contextMenuSession = useMemo(() => {
     if (!contextMenu?.cellId || !contextMenu?.sessionId) {
@@ -226,14 +373,14 @@ export function AgentCellsSidebar({
     return resolveCellSessions(contextMenu.cellId).find(
       (session) => session.id === contextMenu.sessionId
     );
-  }, [contextMenu?.cellId, contextMenu?.sessionId, sessionsByCellId]);
+  }, [contextMenu?.cellId, contextMenu?.sessionId, resolveCellSessions]);
 
   const avatarMenuSessions = useMemo(() => {
     if (!avatarMenu?.cellId) {
       return [];
     }
     return resolveCellSessions(avatarMenu.cellId);
-  }, [avatarMenu?.cellId, sessionsByCellId]);
+  }, [avatarMenu?.cellId, resolveCellSessions]);
 
   const avatarMenuSession = avatarMenu
     ? avatarMenuSessions.find((session) => session.id === avatarMenu.sessionId)
@@ -241,9 +388,9 @@ export function AgentCellsSidebar({
   const avatarMenuCell = avatarMenu?.cellId ? cellsById.get(avatarMenu.cellId) : null;
   const avatarMenuActiveIds = useMemo(() => {
     if (!avatarMenu?.cellId) {
-      return new Set();
+      return new Set<string>();
     }
-    const ids = new Set();
+    const ids = new Set<string>();
     avatarMenuSessions.forEach((session) => {
       if (!session || !['active', 'detached'].includes(session.status)) {
         return;
@@ -300,7 +447,110 @@ export function AgentCellsSidebar({
           />
         </div>
 
-        <div className="mb-2 mt-4 px-2 text-xs font-medium text-muted-foreground">Agent Cells</div>
+        <div className="mb-2 mt-4 flex items-center justify-between px-2 text-xs font-medium text-muted-foreground">
+          <span>Agent Cells</span>
+          <button
+            type="button"
+            onClick={() => {
+              if (!selectedCell?.worktreePath) {
+                return;
+              }
+              setFileDashboardOpen((current) => !current);
+            }}
+            disabled={!projectReady || !selectedCell?.worktreePath}
+            data-testid="agent-cells-file-dashboard-toggle"
+            className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
+              projectReady && selectedCell?.worktreePath
+                ? fileDashboardOpen
+                  ? 'border-primary/50 text-primary'
+                  : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                : 'cursor-not-allowed border-border/40 text-muted-foreground/50'
+            }`}
+            title={
+              selectedCell?.worktreePath
+                ? fileDashboardOpen
+                  ? 'Hide file-change dashboard'
+                  : 'Open file-change dashboard'
+                : 'Select a non-virtual cell to inspect file changes'
+            }
+          >
+            <FileText size={11} strokeWidth={1.6} />
+            <span>{fileDashboardOpen ? 'Hide' : 'Files'}</span>
+          </button>
+        </div>
+
+        {projectReady && selectedCell?.worktreePath ? (
+          <div
+            className="mb-3 rounded-lg border border-border/60 bg-card/40"
+            data-testid="agent-cells-file-dashboard"
+          >
+            {fileDashboardOpen ? (
+              <div className="space-y-2 px-2.5 py-2">
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span className="truncate">{selectedCell.name || selectedCell.id}</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => void refreshFileDashboard({ showBusy: true })}
+                      className="rounded border border-border/60 p-1 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                      title="Refresh file-change dashboard"
+                      disabled={fileDashboardLoading}
+                    >
+                      <RefreshCw
+                        size={10}
+                        strokeWidth={1.6}
+                        className={fileDashboardLoading ? 'animate-spin' : ''}
+                      />
+                    </button>
+                  </div>
+                </div>
+                {fileDashboardEntries.length ? (
+                  <div className="space-y-1" data-testid="agent-cells-file-dashboard-list">
+                    {fileDashboardEntries.map((shortcut) => (
+                      <div
+                        key={`${shortcut.relativePath}:${shortcut.line || ''}:${shortcut.column || ''}`}
+                        className="flex items-center gap-1 rounded border border-border/40 bg-background/50 px-1.5 py-1 text-[10px]"
+                      >
+                        <button
+                          type="button"
+                          draggable={Boolean(shortcut.absolutePath)}
+                          onDragStart={(event) => handleFileDashboardDragStart(event, shortcut)}
+                          onClick={() => handleFileDashboardOpen(shortcut)}
+                          className="min-w-0 flex-1 truncate text-left text-foreground/90 hover:text-foreground"
+                          title={shortcut.relativePath}
+                        >
+                          {shortcut.displayPath}
+                          {shortcut.line ? `:${shortcut.line}` : ''}
+                          {shortcut.sessionCount > 1 ? ` · ${shortcut.sessionCount} sessions` : ''}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleFileDashboardReveal(shortcut)}
+                          className="rounded border border-border/60 px-1 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground hover:border-primary/50 hover:text-primary"
+                          title="Reveal in Explorer"
+                        >
+                          R
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded border border-dashed border-border/60 px-2 py-2 text-[10px] text-muted-foreground">
+                    {fileDashboardLoading
+                      ? 'Scanning active sessions for file references…'
+                      : 'No file references in recent session previews yet.'}
+                  </div>
+                )}
+                {fileDashboardUpdatedAt ? (
+                  <div className="text-[9px] text-muted-foreground/80">
+                    Updated {formatIdleShort(Math.max(0, Date.now() - fileDashboardUpdatedAt))} ago
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         {!projectReady ? (
           <>
             <div className="mb-3 rounded-lg border border-dashed border-border px-3 py-3 text-[11px] text-muted-foreground">
