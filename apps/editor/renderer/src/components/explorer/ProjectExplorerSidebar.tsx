@@ -16,6 +16,85 @@ const ROW_HEIGHT = 24;
 const OVERSCAN = 6;
 const VIRTUALIZE_THRESHOLD = 200;
 const INTERNAL_DRAG_MIME = 'application/agency-paths';
+const URI_LIST_MIME = 'text/uri-list';
+const DOWNLOAD_URL_MIME = 'DownloadURL';
+const TEXT_PLAIN_MIME = 'text/plain';
+
+function normalizeDroppedPath(value: string): string {
+  return String(value || '').trim();
+}
+
+function readPathFromDroppedFile(file: any): string {
+  const fromLegacyFilePath = normalizeDroppedPath(file?.path || '');
+  if (fromLegacyFilePath) {
+    return fromLegacyFilePath;
+  }
+  const fromBridge = normalizeDroppedPath(window.agency?.getPathForDroppedFile?.(file) || '');
+  return fromBridge;
+}
+
+function decodeFileUri(rawValue: string): string {
+  const value = String(rawValue || '').trim();
+  if (!value.toLowerCase().startsWith('file://')) {
+    return '';
+  }
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'file:') {
+      return '';
+    }
+    let pathname = decodeURIComponent(url.pathname || '');
+    if (/^\/[a-zA-Z]:\//.test(pathname)) {
+      pathname = pathname.slice(1);
+    }
+    return pathname;
+  } catch (error) {
+    return '';
+  }
+}
+
+function parseUriList(value: string): string[] {
+  const lines = String(value || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !line.startsWith('#'));
+  return lines
+    .map((line) => decodeFileUri(line))
+    .filter(Boolean);
+}
+
+function parseDownloadUrl(value: string): string[] {
+  const text = String(value || '').trim();
+  if (!text) {
+    return [];
+  }
+  const firstColon = text.indexOf(':');
+  const secondColon = firstColon >= 0 ? text.indexOf(':', firstColon + 1) : -1;
+  if (firstColon < 0 || secondColon < 0) {
+    return [];
+  }
+  const urlPart = text.slice(secondColon + 1).trim();
+  const path = decodeFileUri(urlPart);
+  return path ? [path] : [];
+}
+
+function parsePlainTextPaths(value: string): string[] {
+  return String(value || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .flatMap((line) => {
+      if (line.toLowerCase().startsWith('file://')) {
+        const decoded = decodeFileUri(line);
+        return decoded ? [decoded] : [];
+      }
+      if (line.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(line)) {
+        return [line];
+      }
+      return [];
+    });
+}
 
 function ProjectExplorerSidebarContent({
   rootPath: scopeRootPath,
@@ -259,6 +338,37 @@ function ProjectExplorerSidebarContent({
     return true;
   }, [rowIndexByPath]);
 
+  const selectPathInExplorer = useCallback((targetPath) => {
+    const normalizedPath = explorerPathUtils.toRelativePath(targetPath || '');
+    if (!normalizedPath) {
+      return;
+    }
+    handleSelectPath(normalizedPath);
+    setFocusedPath(normalizedPath);
+    requestAnimationFrame(() => {
+      if (!scrollToPath(normalizedPath)) {
+        requestAnimationFrame(() => scrollToPath(normalizedPath));
+      }
+    });
+  }, [handleSelectPath, scrollToPath]);
+
+  const expandAncestorsForPath = useCallback(async (targetPath, shouldCancel?: () => boolean) => {
+    const normalizedPath = explorerPathUtils.toRelativePath(targetPath || '');
+    if (!normalizedPath) {
+      return false;
+    }
+    const parts = normalizedPath.split('/').filter(Boolean);
+    let current = '';
+    for (let i = 0; i < parts.length - 1; i += 1) {
+      current = [current, parts[i]].filter(Boolean).join('/');
+      await expandPath(current);
+      if (shouldCancel?.()) {
+        return false;
+      }
+    }
+    return true;
+  }, [expandPath]);
+
   useEffect(() => { visiblePathsRef.current = visiblePaths; }, [visiblePaths]);
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 5000); return () => clearInterval(i); }, []);
 
@@ -282,37 +392,27 @@ function ProjectExplorerSidebarContent({
     }
     let cancelled = false;
     const run = async () => {
-      const parts = targetPath.split('/').filter(Boolean);
-      let current = '';
-      for (let i = 0; i < parts.length - 1; i += 1) {
-        current = [current, parts[i]].filter(Boolean).join('/');
-        await expandPath(current);
-        if (cancelled) {
-          return;
-        }
+      const expanded = await expandAncestorsForPath(targetPath, () => cancelled);
+      if (!expanded || cancelled) {
+        return;
       }
-      handleSelectPath(targetPath);
-      setFocusedPath(targetPath);
-      requestAnimationFrame(() => {
-        if (!scrollToPath(targetPath)) {
-          requestAnimationFrame(() => scrollToPath(targetPath));
-        }
-      });
-      onRevealHandled?.();
+      selectPathInExplorer(targetPath);
+      if (!cancelled) {
+        onRevealHandled?.();
+      }
     };
     run();
     return () => {
       cancelled = true;
     };
   }, [
-    expandPath,
-    handleSelectPath,
+    expandAncestorsForPath,
     onRevealHandled,
     repoRoot,
     revealRequest,
     rootPath,
+    selectPathInExplorer,
     scopeRootPath,
-    scrollToPath,
   ]);
 
   // Handlers
@@ -528,19 +628,40 @@ function ProjectExplorerSidebarContent({
       return true;
     }
     const items = Array.from(dataTransfer.items || []);
-    return items.some((item: any) => item?.kind === 'file');
+    if (items.some((item: any) => item?.kind === 'file')) {
+      return true;
+    }
+    const types = Array.from(dataTransfer.types || []);
+    return (
+      types.includes(URI_LIST_MIME) ||
+      types.includes(DOWNLOAD_URL_MIME) ||
+      types.includes(TEXT_PLAIN_MIME)
+    );
   }, []);
 
   const readExternalDropPaths = useCallback((dataTransfer) => {
-    if (!dataTransfer?.files?.length) {
+    if (!dataTransfer) {
       return [];
     }
+    const fromFiles = Array.from(dataTransfer.files || [])
+      .map((file: any) => readPathFromDroppedFile(file))
+      .filter(Boolean);
+    const fromItems = Array.from(dataTransfer.items || [])
+      .filter((item: any) => item?.kind === 'file')
+      .map((item: any) => item?.getAsFile?.())
+      .map((file: any) => readPathFromDroppedFile(file))
+      .filter(Boolean);
+    const fromUriList = parseUriList(dataTransfer.getData?.(URI_LIST_MIME) || '');
+    const fromDownloadUrl = parseDownloadUrl(dataTransfer.getData?.(DOWNLOAD_URL_MIME) || '');
+    const fromPlainText = parsePlainTextPaths(dataTransfer.getData?.(TEXT_PLAIN_MIME) || '');
     return Array.from(
-      new Set(
-        Array.from(dataTransfer.files)
-          .map((file: any) => String(file?.path || '').trim())
-          .filter(Boolean)
-      )
+      new Set([
+        ...fromFiles,
+        ...fromItems,
+        ...fromUriList,
+        ...fromDownloadUrl,
+        ...fromPlainText,
+      ])
     );
   }, []);
 
@@ -573,6 +694,23 @@ function ProjectExplorerSidebarContent({
         setErrorMessage('External import is unavailable.');
         return;
       }
+      const importedPaths = Array.from(
+        new Set(
+          [
+            ...(Array.isArray(report.importedPaths) ? report.importedPaths : []),
+            ...((Array.isArray(report.imported) ? report.imported : [])
+              .map((entry: any) => String(entry?.targetPath || '').trim())
+              .filter(Boolean)),
+          ]
+            .map((entry) => explorerPathUtils.toRelativePath(String(entry || '')))
+            .filter(Boolean)
+        )
+      );
+      const firstImportedPath = importedPaths[0] || '';
+      if (firstImportedPath) {
+        await expandAncestorsForPath(firstImportedPath);
+        selectPathInExplorer(firstImportedPath);
+      }
       const failureCount = Array.isArray(report.failures) ? report.failures.length : 0;
       if (failureCount > 0) {
         const importedCount = Array.isArray(report.imported) ? report.imported.length : 0;
@@ -590,7 +728,7 @@ function ProjectExplorerSidebarContent({
     } catch (err) {
       setErrorMessage(err?.message || 'Import failed.');
     }
-  }, [clearError, importExternalEntries, setErrorMessage]);
+  }, [clearError, expandAncestorsForPath, importExternalEntries, selectPathInExplorer, setErrorMessage]);
 
   const handleRowDragOver = useCallback((event, _rowPath, isDir) => {
     const internalPaths = readInternalDragPaths(event.dataTransfer);
@@ -616,25 +754,30 @@ function ProjectExplorerSidebarContent({
   const handleRowDrop = useCallback(async (event, rowPath, isDir) => {
     const internalPaths = readInternalDragPaths(event.dataTransfer);
     if (internalPaths.length > 0) {
+      event.preventDefault();
+      event.stopPropagation();
       if (!isDir) {
         return;
       }
-      event.preventDefault();
-      event.stopPropagation();
       await handleMove(internalPaths, rowPath);
       return;
     }
 
+    if (!hasExternalDropEntries(event.dataTransfer)) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+
     const externalPaths = readExternalDropPaths(event.dataTransfer);
     if (!externalPaths.length) {
+      setErrorMessage('Unable to read dropped file paths. Please drag files from Finder directly.');
       return;
     }
 
-    event.preventDefault();
-    event.stopPropagation();
     const targetDir = isDir ? rowPath : resolveDropDirectory(rowPath);
     await handleExternalImport(externalPaths, targetDir);
-  }, [handleExternalImport, handleMove, readExternalDropPaths, readInternalDragPaths, resolveDropDirectory]);
+  }, [handleExternalImport, handleMove, hasExternalDropEntries, readExternalDropPaths, readInternalDragPaths, resolveDropDirectory, setErrorMessage]);
 
   const handleTreeDragOver = useCallback((event) => {
     const inRow = event.target instanceof Element && event.target.closest('[data-explorer-path]');
@@ -665,13 +808,41 @@ function ProjectExplorerSidebarContent({
     }
 
     const externalPaths = readExternalDropPaths(event.dataTransfer);
+    event.preventDefault();
     if (!externalPaths.length) {
+      setErrorMessage('Unable to read dropped file paths. Please drag files from Finder directly.');
       return;
     }
 
-    event.preventDefault();
     await handleExternalImport(externalPaths, resolveBlankDropDirectory());
-  }, [handleExternalImport, readExternalDropPaths, readInternalDragPaths, resolveBlankDropDirectory]);
+  }, [handleExternalImport, readExternalDropPaths, readInternalDragPaths, resolveBlankDropDirectory, setErrorMessage]);
+
+  const handleSidebarDragOver = useCallback((event) => {
+    if (event.defaultPrevented) {
+      return;
+    }
+    if (!hasExternalDropEntries(event.dataTransfer)) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  }, [hasExternalDropEntries]);
+
+  const handleSidebarDrop = useCallback(async (event) => {
+    if (event.defaultPrevented) {
+      return;
+    }
+    if (!hasExternalDropEntries(event.dataTransfer)) {
+      return;
+    }
+    event.preventDefault();
+    const externalPaths = readExternalDropPaths(event.dataTransfer);
+    if (!externalPaths.length) {
+      setErrorMessage('Unable to read dropped file paths. Please drag files from Finder directly.');
+      return;
+    }
+    await handleExternalImport(externalPaths, resolveBlankDropDirectory());
+  }, [handleExternalImport, hasExternalDropEntries, readExternalDropPaths, resolveBlankDropDirectory, setErrorMessage]);
 
   const toggleStatusFilter = (s) => setStatusFilters(curr => curr.includes(s) ? curr.filter(it => it !== s) : [...curr, s]);
   const buildDragPayload = (p) => selectionSet.has(p) ? Array.from(selectionSet) : [p];
@@ -755,7 +926,11 @@ function ProjectExplorerSidebarContent({
   }, [selectedPaths, tree.nodes, folderStatusByPath, statusByPath]);
 
   return (
-    <aside className="relative flex h-full w-full flex-col bg-sidebar select-none">
+    <aside
+      className="relative flex h-full w-full flex-col bg-sidebar select-none"
+      onDragOver={handleSidebarDragOver}
+      onDrop={handleSidebarDrop}
+    >
       <ExplorerHeader
         activeRootLabel={activeRootLabel} onJumpToAgents={onJumpToAgents} onNewFile={() => startDraft('file')} onNewFolder={() => startDraft('dir')}
         onRefresh={refreshAll} isLoading={loadingPaths.size > 0} hasCells={hasCells} cells={cells} selectedId={selectedId} onSelectCell={onSelectCell}
