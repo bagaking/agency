@@ -44,6 +44,12 @@ Source: `docs/notes-continuous-learning.md`
 - Weekly (or before major releases), review `docs/.bagakit/inbox/` and promote durable items into `docs/.bagakit/memory/`.
 - When promoting, keep entries short and source-linked; prefer `decision-*`/`preference-*`/`gotcha-*`/`howto-*` over long narratives. If the curated target already exists, merge instead of creating duplicates.
 
+### Unified File Interaction System
+Source: `docs/notes-file-interaction-system.md`
+- Read this doc when changing Explorer, Agent Cells, Session Map, or Memo file interactions.
+- Update this doc when end-state goals, interaction contracts, or semantic-file rules change.
+- Regenerate docs/must-sop.md after updating this doc.
+
 ### Reusable Items - Coding (Catalog)
 Source: `docs/notes-reusable-items-coding.md`
 - Update this list when you introduce or adopt a new reusable component/library/mechanism.

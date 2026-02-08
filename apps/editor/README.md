@@ -22,6 +22,17 @@
 - Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
 - The workbench supports multi-tab previews, quick open, diff/blame toggles, and media previews.
 
+## Unified File Interaction Direction
+
+- File interaction is a system capability across Explorer, Agent Cells, Session Map, and Memo, not an Explorer-only local feature.
+- The long-term goal is simultaneous success: keep core human operations and agent-driven workflows compatible instead of forcing one-sided trade-offs.
+- Explorer remains the canonical execution hub for filesystem mutation; other surfaces route through a shared interaction contract.
+- Explorer capabilities are being packaged as tool-capable interfaces so agent workflows can invoke the same safe path/permission/conflict logic.
+- Agent semantic files (for example `Agency.md`, Spark conventions, and project-defined rules) are treated as first-class discoverability targets.
+- Current authoritative design and rollout:
+  - `openspec/changes/add-agent-centric-file-interaction-system/`
+  - `docs/notes-file-interaction-system.md`
+
 ## Memo Drawer Interactions
 
 - Memo drawer shortcut cards are interactive capture surfaces and do not switch the main Memo panel when clicked.

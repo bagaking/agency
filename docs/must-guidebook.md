@@ -45,6 +45,7 @@ Promotion rule:
 - Use taxonomy suffixes and keep ordering consistent.
 - Start with `docs/norms-maintaining-reusable-items.md` if present.
 - Terminal interaction requirements: `docs/notes-terminal-interaction-requirements.md`
+- Unified file interaction philosophy: `docs/notes-file-interaction-system.md`
 
 ## Docs Maintenance
 - This guidebook must reference `must-docs-taxonomy.md`.
