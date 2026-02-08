@@ -59,6 +59,4 @@ function setupWorktreeLinksHandlers() {
   });
 }
 
-module.exports = {
-  setupWorktreeLinksHandlers,
-};
+export { setupWorktreeLinksHandlers };

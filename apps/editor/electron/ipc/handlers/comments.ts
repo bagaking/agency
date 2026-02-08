@@ -10,6 +10,4 @@ function setupCommentsHandlers() {
   });
 }
 
-module.exports = {
-  setupCommentsHandlers,
-};
+export { setupCommentsHandlers };

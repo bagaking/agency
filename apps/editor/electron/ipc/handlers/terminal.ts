@@ -133,6 +133,4 @@ function setupTerminalHandlers({ getMainWindow }) {
   });
 }
 
-module.exports = {
-  setupTerminalHandlers,
-};
+export { setupTerminalHandlers };

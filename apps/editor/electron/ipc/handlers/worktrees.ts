@@ -21,6 +21,4 @@ function setupWorktreeHandlers() {
   });
 }
 
-module.exports = {
-  setupWorktreeHandlers,
-};
+export { setupWorktreeHandlers };

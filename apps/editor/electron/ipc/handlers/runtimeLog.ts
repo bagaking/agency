@@ -13,6 +13,4 @@ function setupRuntimeLogHandlers() {
   });
 }
 
-module.exports = {
-  setupRuntimeLogHandlers,
-};
+export { setupRuntimeLogHandlers };

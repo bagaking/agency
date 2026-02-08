@@ -18,6 +18,4 @@ function setupQuickActionsHandlers() {
   });
 }
 
-module.exports = {
-  setupQuickActionsHandlers,
-};
+export { setupQuickActionsHandlers };

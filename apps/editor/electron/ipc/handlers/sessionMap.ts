@@ -40,6 +40,4 @@ function setupSessionMapHandlers() {
   });
 }
 
-module.exports = {
-  setupSessionMapHandlers,
-};
+export { setupSessionMapHandlers };

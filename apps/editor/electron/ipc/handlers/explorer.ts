@@ -129,6 +129,4 @@ function setupExplorerHandlers() {
   });
 }
 
-module.exports = {
-  setupExplorerHandlers,
-};
+export { setupExplorerHandlers };

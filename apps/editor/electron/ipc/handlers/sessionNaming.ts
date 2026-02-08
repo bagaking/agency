@@ -15,6 +15,4 @@ function setupSessionNamingHandlers() {
   });
 }
 
-module.exports = {
-  setupSessionNamingHandlers,
-};
+export { setupSessionNamingHandlers };

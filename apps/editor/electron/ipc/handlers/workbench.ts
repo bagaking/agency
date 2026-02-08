@@ -53,6 +53,4 @@ function setupWorkbenchHandlers() {
   });
 }
 
-module.exports = {
-  setupWorkbenchHandlers,
-};
+export { setupWorkbenchHandlers };

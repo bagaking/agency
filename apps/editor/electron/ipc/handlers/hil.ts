@@ -23,6 +23,4 @@ function setupHilHandlers() {
   });
 }
 
-module.exports = {
-  setupHilHandlers,
-};
+export { setupHilHandlers };

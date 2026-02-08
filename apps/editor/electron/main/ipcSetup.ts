@@ -1,55 +1,72 @@
-import type { BrowserWindow } from 'electron';
+import type { BrowserWindow } from "electron";
 
-const { setupCellHandlers } = require('../ipc/handlers/cells');
-const { setupWorktreeHandlers } = require('../ipc/handlers/worktrees');
-const { setupTerminalHandlers } = require('../ipc/handlers/terminal');
-const { setupSessionHandlers } = require('../ipc/handlers/sessions');
-const { setupUiStateHandlers } = require('../ipc/handlers/uiState');
-const { setupQuickActionsHandlers } = require('../ipc/handlers/quickActions');
-const { setupAppShortcutsHandlers } = require('../ipc/handlers/appShortcuts');
-const { setupTerminusSettingsHandlers } = require('../ipc/handlers/terminusSettings');
-const { setupSessionNamingHandlers } = require('../ipc/handlers/sessionNaming');
-const { setupGatesHandlers } = require('../ipc/handlers/gates');
-const { setupTmuxHandlers } = require('../ipc/handlers/tmux');
-const { setupWorktreeLinksHandlers } = require('../ipc/handlers/worktreeLinks');
-const { setupExplorerHandlers } = require('../ipc/handlers/explorer');
-const { setupRuntimeLogHandlers } = require('../ipc/handlers/runtimeLog');
-const { setupWorkbenchHandlers } = require('../ipc/handlers/workbench');
-const { setupProjectHandlers } = require('../ipc/handlers/project');
-const { setupClipboardHandlers } = require('../ipc/handlers/clipboard');
-const { setupCommentsHandlers } = require('../ipc/handlers/comments');
-const { setupHilHandlers } = require('../ipc/handlers/hil');
-const { setupCaptureHandlers } = require('../ipc/handlers/capture');
-const { setupActionSheetsHandlers } = require('../ipc/handlers/actionSheets');
-const { setupVoiceCaptureHandlers } = require('../ipc/handlers/voiceCapture');
-const { setupSystemHandlers } = require('../ipc/handlers/system');
-const { setupSessionMapHandlers } = require('../ipc/handlers/sessionMap');
+import { setupActionSheetsHandlers } from "../ipc/handlers/actionSheets";
+import { setupAppShortcutsHandlers } from "../ipc/handlers/appShortcuts";
+import { setupCaptureHandlers } from "../ipc/handlers/capture";
+import { setupCellHandlers } from "../ipc/handlers/cells";
+import { setupClipboardHandlers } from "../ipc/handlers/clipboard";
+import { setupCommentsHandlers } from "../ipc/handlers/comments";
+import { setupExplorerHandlers } from "../ipc/handlers/explorer";
+import { setupGatesHandlers } from "../ipc/handlers/gates";
+import { setupHilHandlers } from "../ipc/handlers/hil";
+import { setupProjectHandlers } from "../ipc/handlers/project";
+import { setupQuickActionsHandlers } from "../ipc/handlers/quickActions";
+import { setupRuntimeLogHandlers } from "../ipc/handlers/runtimeLog";
+import { setupSessionMapHandlers } from "../ipc/handlers/sessionMap";
+import { setupSessionNamingHandlers } from "../ipc/handlers/sessionNaming";
+import { setupSessionHandlers } from "../ipc/handlers/sessions";
+import { setupSystemHandlers } from "../ipc/handlers/system";
+import { setupTerminalHandlers } from "../ipc/handlers/terminal";
+import { setupTerminusSettingsHandlers } from "../ipc/handlers/terminusSettings";
+import { setupTmuxHandlers } from "../ipc/handlers/tmux";
+import { setupUiStateHandlers } from "../ipc/handlers/uiState";
+import { setupVoiceCaptureHandlers } from "../ipc/handlers/voiceCapture";
+import { setupWorkbenchHandlers } from "../ipc/handlers/workbench";
+import { setupWorktreeHandlers } from "../ipc/handlers/worktrees";
+import { setupWorktreeLinksHandlers } from "../ipc/handlers/worktreeLinks";
 
 type MainWindowGetter = () => BrowserWindow | undefined;
+type HandlerDeps = { getMainWindow: MainWindowGetter };
+type IpcRegistration = (deps: HandlerDeps) => void;
+
+const withMainWindow = (
+  setup: (deps: HandlerDeps) => void
+): IpcRegistration => {
+  return (deps) => setup(deps);
+};
+
+const withoutDeps = (setup: () => void): IpcRegistration => {
+  return () => setup();
+};
+
+const IPC_REGISTRATIONS: IpcRegistration[] = [
+  withMainWindow(setupCellHandlers),
+  withoutDeps(setupWorktreeHandlers),
+  withMainWindow(setupTerminalHandlers),
+  withoutDeps(setupSessionHandlers),
+  withoutDeps(setupUiStateHandlers),
+  withoutDeps(setupQuickActionsHandlers),
+  withoutDeps(setupAppShortcutsHandlers),
+  withoutDeps(setupTerminusSettingsHandlers),
+  withoutDeps(setupSessionNamingHandlers),
+  withoutDeps(setupGatesHandlers),
+  withoutDeps(setupTmuxHandlers),
+  withoutDeps(setupWorktreeLinksHandlers),
+  withoutDeps(setupExplorerHandlers),
+  withoutDeps(setupWorkbenchHandlers),
+  withoutDeps(setupRuntimeLogHandlers),
+  withoutDeps(setupProjectHandlers),
+  withoutDeps(setupClipboardHandlers),
+  withoutDeps(setupCommentsHandlers),
+  withoutDeps(setupHilHandlers),
+  withoutDeps(setupCaptureHandlers),
+  withoutDeps(setupActionSheetsHandlers),
+  withoutDeps(setupVoiceCaptureHandlers),
+  withoutDeps(setupSystemHandlers),
+  withoutDeps(setupSessionMapHandlers),
+];
 
 export function setupMainIpcHandlers(getMainWindow: MainWindowGetter): void {
-  setupCellHandlers({ getMainWindow });
-  setupWorktreeHandlers();
-  setupTerminalHandlers({ getMainWindow });
-  setupSessionHandlers();
-  setupUiStateHandlers();
-  setupQuickActionsHandlers();
-  setupAppShortcutsHandlers();
-  setupTerminusSettingsHandlers();
-  setupSessionNamingHandlers();
-  setupGatesHandlers();
-  setupTmuxHandlers();
-  setupWorktreeLinksHandlers();
-  setupExplorerHandlers();
-  setupWorkbenchHandlers();
-  setupRuntimeLogHandlers();
-  setupProjectHandlers();
-  setupClipboardHandlers();
-  setupCommentsHandlers();
-  setupHilHandlers();
-  setupCaptureHandlers();
-  setupActionSheetsHandlers();
-  setupVoiceCaptureHandlers();
-  setupSystemHandlers();
-  setupSessionMapHandlers();
+  const deps = { getMainWindow };
+  IPC_REGISTRATIONS.forEach((register) => register(deps));
 }

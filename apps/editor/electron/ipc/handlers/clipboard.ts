@@ -10,6 +10,4 @@ function setupClipboardHandlers() {
   });
 }
 
-module.exports = {
-  setupClipboardHandlers,
-};
+export { setupClipboardHandlers };

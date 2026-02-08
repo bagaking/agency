@@ -5,6 +5,4 @@ function setupTmuxHandlers() {
   ipcMain.handle('tmux:status', async () => getTmuxStatus());
 }
 
-module.exports = {
-  setupTmuxHandlers,
-};
+export { setupTmuxHandlers };

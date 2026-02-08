@@ -62,6 +62,4 @@ function setupProjectHandlers() {
   });
 }
 
-module.exports = {
-  setupProjectHandlers,
-};
+export { setupProjectHandlers };

@@ -34,6 +34,4 @@ function setupActionSheetsHandlers() {
   );
 }
 
-module.exports = {
-  setupActionSheetsHandlers,
-};
+export { setupActionSheetsHandlers };

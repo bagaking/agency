@@ -35,6 +35,4 @@ function setupCaptureHandlers() {
   );
 }
 
-module.exports = {
-  setupCaptureHandlers,
-};
+export { setupCaptureHandlers };

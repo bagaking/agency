@@ -11,6 +11,4 @@ function setupUiStateHandlers() {
   });
 }
 
-module.exports = {
-  setupUiStateHandlers,
-};
+export { setupUiStateHandlers };

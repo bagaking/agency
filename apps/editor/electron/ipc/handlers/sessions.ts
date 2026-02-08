@@ -85,6 +85,4 @@ function setupSessionHandlers() {
   });
 }
 
-module.exports = {
-  setupSessionHandlers,
-};
+export { setupSessionHandlers };

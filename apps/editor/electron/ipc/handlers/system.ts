@@ -26,6 +26,4 @@ function setupSystemHandlers() {
   });
 }
 
-module.exports = {
-  setupSystemHandlers,
-};
+export { setupSystemHandlers };

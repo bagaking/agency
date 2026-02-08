@@ -32,6 +32,4 @@ function setupGatesHandlers() {
   });
 }
 
-module.exports = {
-  setupGatesHandlers,
-};
+export { setupGatesHandlers };

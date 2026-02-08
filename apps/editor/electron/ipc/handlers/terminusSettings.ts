@@ -15,6 +15,4 @@ function setupTerminusSettingsHandlers() {
   });
 }
 
-module.exports = {
-  setupTerminusSettingsHandlers,
-};
+export { setupTerminusSettingsHandlers };

@@ -91,6 +91,4 @@ function setupCellHandlers({ getMainWindow }) {
   });
 }
 
-module.exports = {
-  setupCellHandlers,
-};
+export { setupCellHandlers };

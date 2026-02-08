@@ -26,6 +26,4 @@ function setupVoiceCaptureHandlers() {
   );
 }
 
-module.exports = {
-  setupVoiceCaptureHandlers,
-};
+export { setupVoiceCaptureHandlers };

@@ -25,6 +25,4 @@ function setupAppShortcutsHandlers() {
   });
 }
 
-module.exports = {
-  setupAppShortcutsHandlers,
-};
+export { setupAppShortcutsHandlers };
