@@ -248,6 +248,22 @@ export const performFileIntent = async (payload) => {
   return api.performFileIntent(payload);
 };
 
+export const performToolFileIntent = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.performToolFileIntent) {
+    return null;
+  }
+  return api.performToolFileIntent(payload);
+};
+
+export const classifyAgentFiles = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.classifyAgentFiles) {
+    return null;
+  }
+  return api.classifyAgentFiles(payload);
+};
+
 export const listComments = async (payload) => {
   const api = getAgencyApi();
   if (!api?.listComments) {

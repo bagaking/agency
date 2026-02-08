@@ -141,6 +141,8 @@ const INVOKE_CHANNELS: Record<string, string> = {
   importExplorerEntries: 'explorer:import',
   revealExplorerEntry: 'explorer:reveal',
   performFileIntent: 'file:interact',
+  performToolFileIntent: 'file:tool:interact',
+  classifyAgentFiles: 'file:semantic:classify',
   listComments: 'comments:list',
   submitComment: 'comments:submit',
   listHilItems: 'hil:list',

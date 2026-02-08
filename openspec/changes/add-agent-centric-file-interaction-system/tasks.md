@@ -6,7 +6,7 @@
 ## 2. Phase A - Explorer Baseline Unification
 - [x] 2.1 Add IPC gateway `file:interact` and preload/bridge entry `performFileIntent`.
 - [x] 2.2 Add renderer `fileInteraction` service and migrate Explorer mutation/reveal calls to it.
-- [ ] 2.3 Route remaining Explorer open/reveal actions through unified result/error mapping.
+- [ ] 2.3 Route remaining Explorer open and non-mutation entry paths through unified result/error mapping.
 - [ ] 2.4 Add regression tests for drag import, conflict resolution, and post-import reveal/select behavior.
 
 ## 3. Phase B - Cross-Surface Entry Points
@@ -20,16 +20,17 @@
 - [ ] 4.3 Add Explorer semantic tag rendering, filtering, and quick-locate affordance.
 
 ## 5. IPC, Services, and Compatibility
-- [ ] 5.1 Add preload bridge APIs: `performFileIntent`, `classifyAgentFiles` (first landed: `performFileIntent`).
-- [ ] 5.2 Add IPC handlers: `file:interact`, `file:semantic:classify` (first landed: `file:interact`).
+- [x] 5.1 Add preload bridge APIs: `performFileIntent`, `classifyAgentFiles` (also exposed `performToolFileIntent`).
+- [x] 5.2 Add IPC handlers: `file:interact`, `file:semantic:classify` (plus `file:tool:interact`).
 - [ ] 5.3 Ensure explorer path safety and conflict behavior remain unchanged under the new gateway.
 
 ## 6. Toolization and Process-Interop Readiness
-- [ ] 6.1 Add tool-facing adapters for Explorer-grade file intents using the unified contract (first landed: `file:tool:interact` IPC route).
+- [x] 6.1 Add tool-facing adapters for Explorer-grade file intents using the unified contract (`file:tool:interact` + renderer wrapper `runToolFileIntent`).
 - [ ] 6.2 Add capability-scoped authorization and audit metadata for tool-invoked file intents.
 - [ ] 6.3 Define and validate caller context schema (`sourceSurface`, `callerType`, `callerId`, trace id).
 - [ ] 6.4 Add a process-boundary compatibility plan (dedicated helper process path) without changing caller semantics.
 - [ ] 6.5 Define CLI-friendly request/response schema and keep CLI as thin wrapper over `file:interact`.
+- [ ] 6.6 Add an actual CLI entrypoint wrapper (JSON in/out) that delegates to unified intent gateway.
 
 ## 7. Agent Cell Workflow Extensions
 - [ ] 7.1 Add Agent Cell file-change dashboard requirements and first implementation slice.
