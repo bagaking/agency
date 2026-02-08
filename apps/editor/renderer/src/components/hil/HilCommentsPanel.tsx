@@ -16,6 +16,7 @@ import {
 import { ActionSheetStatusPanel } from '../actionSheets/ActionSheetStatusPanel';
 import { IconButton } from '../ui/IconButton';
 import { focusRing } from '../ui/focusRing';
+import { resolveFileReferenceTarget } from '../../utils/fileReferences';
 
 const kindIcons = {
     comment: Terminal,
@@ -59,6 +60,8 @@ export function HilCommentsPanel({
   comments = [],
   loading,
   error,
+  onOpenAnchor,
+  onRevealAnchor,
   onOpenComment,
   onUpdateStatus,
   commentModalOpen,
@@ -271,6 +274,8 @@ export function HilCommentsPanel({
             comment={comment} 
             onUpdateStatus={onUpdateStatus}
             worktreePath={worktreePath}
+            onOpenAnchor={onOpenAnchor}
+            onRevealAnchor={onRevealAnchor}
           />
         ))
       ) : (
@@ -283,7 +288,7 @@ export function HilCommentsPanel({
   );
 }
 
-function CommentItem({ comment, onUpdateStatus, worktreePath }: any) {
+function CommentItem({ comment, onUpdateStatus, worktreePath, onOpenAnchor, onRevealAnchor }: any) {
     const isResolved = comment.status === 'resolved';
     const isProcessed = Boolean(comment.processed);
     const kindLabel = (comment.kind || 'comment').toUpperCase();
@@ -310,6 +315,8 @@ function CommentItem({ comment, onUpdateStatus, worktreePath }: any) {
                     commentBody={comment.body || comment.message} 
                     worktreePath={worktreePath}
                     isResolved={isResolved}
+                    onOpenAnchor={onOpenAnchor}
+                    onRevealAnchor={onRevealAnchor}
                 />
             )}
 
@@ -350,11 +357,15 @@ function CommentItem({ comment, onUpdateStatus, worktreePath }: any) {
     );
 }
 
-function ContextAnchor({ anchor, commentBody, worktreePath, isResolved }: any) {
+function ContextAnchor({ anchor, commentBody, worktreePath, isResolved, onOpenAnchor, onRevealAnchor }: any) {
     const [showTooltip, setShowTooltip] = useState(false);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     const [snippet, setSnippet] = useState(null);
     const [loading, setLoading] = useState(false);
+    const resolvedReference = useMemo(
+        () => resolveFileReferenceTarget({ path: anchor?.file, rootPath: worktreePath }),
+        [anchor?.file, worktreePath]
+    );
 
     useEffect(() => {
         if (showTooltip && !snippet && window.agency?.getFileSnippet) {
@@ -371,11 +382,51 @@ function ContextAnchor({ anchor, commentBody, worktreePath, isResolved }: any) {
         }
     }, [showTooltip, anchor, worktreePath, snippet]);
 
+    const handleOpen = () => {
+        if (!anchor?.file) {
+            return;
+        }
+        onOpenAnchor?.({
+            path: anchor.file,
+            line: anchor.line,
+            column: anchor.column,
+        });
+    };
+
+    const handleReveal = (event) => {
+        event.stopPropagation();
+        if (!anchor?.file) {
+            return;
+        }
+        onRevealAnchor?.({ path: anchor.file });
+    };
+
+    const handleDragStart = (event) => {
+        if (!resolvedReference?.absolutePath) {
+            event.preventDefault();
+            return;
+        }
+        event.stopPropagation();
+        event.dataTransfer.setData('text/plain', resolvedReference.absolutePath);
+        event.dataTransfer.effectAllowed = 'copy';
+    };
+
     return (
         <div 
-            className="flex items-center gap-1.5 mb-1 px-0.5 cursor-help"
+            role="button"
+            tabIndex={0}
+            className="flex items-center gap-1.5 mb-1 px-0.5 cursor-pointer"
+            onClick={handleOpen}
+            onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    handleOpen();
+                }
+            }}
             onMouseEnter={(e) => { setMousePos({ x: e.clientX, y: e.clientY }); setShowTooltip(true); }}
             onMouseLeave={() => setShowTooltip(false)}
+            draggable={Boolean(resolvedReference?.absolutePath)}
+            onDragStart={handleDragStart}
         >
             <div className={`h-1 w-1 rounded-full ${isResolved ? 'bg-muted-foreground/20' : 'bg-primary shadow-[0_0_6px_rgba(59,130,246,0.6)]'}`} />
             <span className={`text-[9px] font-black uppercase tracking-tighter ${isResolved ? 'text-muted-foreground/40' : 'text-primary'}`}>
@@ -385,6 +436,15 @@ function ContextAnchor({ anchor, commentBody, worktreePath, isResolved }: any) {
                 {anchor.file.split('/').pop()}
             </span>
             <div className={`h-px flex-1 bg-gradient-to-r ${isResolved ? 'from-muted-foreground/10' : 'from-primary/10'} to-transparent`} />
+            {onRevealAnchor ? (
+              <button
+                type="button"
+                onClick={handleReveal}
+                className="rounded border border-border/30 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground/70 hover:border-primary/50 hover:text-primary"
+              >
+                Reveal
+              </button>
+            ) : null}
             
             {showTooltip && (
                 <ContextTooltip 

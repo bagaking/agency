@@ -42,6 +42,7 @@ import {
   updateHilItem as agencyUpdateHilItem,
 } from './services/agencyBridge';
 import { warmSessionMapPreviewCache } from './services/sessionMapPreviewCache';
+import { runFileIntent } from './services/fileInteraction';
 import { buildPromotePromptBundle, buildPromotePromptText, buildPromoteActionSheetPrompt } from './utils/hilPromotePrompt';
 import { buildActionSheetCompletion, buildActionSheetPlan } from './utils/actionSheetCompletion';
 import { BASELINE_PROFILE_ID } from './utils/terminusSettings';
@@ -2098,13 +2099,14 @@ function App() {
   }, [activeProfileId, projectRoot, selectedCell?.branch, selectedCell?.name]);
 
   const handleOpenWorkbenchFile = useCallback(
-    ({
+    async ({
       path,
       rootPath,
       line,
       column,
       focusView = true,
       cellId,
+      sourceSurface = 'agent-cells',
     }: {
       path?: string;
       rootPath?: string;
@@ -2112,8 +2114,10 @@ function App() {
       column?: number;
       focusView?: boolean;
       cellId?: string;
+      sourceSurface?: string;
     } = {}) => {
-      if (!path) {
+      const normalizedPath = String(path || '').trim();
+      if (!normalizedPath) {
         return;
       }
       const resolvedRoot = rootPath || selectedCell?.worktreePath || projectRoot || '';
@@ -2121,13 +2125,33 @@ function App() {
       if (cellId && cellId !== selectedCell?.id) {
         setSelectedId(cellId);
       }
+      try {
+        await runFileIntent({
+          intent: 'open',
+          rootPath: resolvedRoot,
+          targetPath: normalizedPath,
+          sourceSurface,
+        });
+      } catch (error) {
+        const message = error?.message || 'Unable to open file from the selected entry.';
+        modal?.notify?.({
+          title: 'File open failed',
+          description: message,
+          tone: 'warning',
+        });
+        return;
+      }
       workbench.openFile({
-        path,
+        path: normalizedPath,
         mode: 'pinned',
         rootPath: resolvedRoot,
         cellId: targetCellId || undefined,
       });
-      setPendingExplorerReveal({ path, rootPath: resolvedRoot, cellId: targetCellId || null });
+      setPendingExplorerReveal({
+        path: normalizedPath,
+        rootPath: resolvedRoot,
+        cellId: targetCellId || null,
+      });
       if (focusView) {
         setActiveView('explorer');
         if (sidebarCollapsed) {
@@ -2136,7 +2160,7 @@ function App() {
       }
       if (Number.isFinite(line)) {
         setPendingWorkbenchJump({
-          path,
+          path: normalizedPath,
           rootPath: resolvedRoot,
           line: Math.max(1, Math.floor(line)),
           column: Math.max(1, Math.floor(column || 1)),
@@ -2145,6 +2169,7 @@ function App() {
       }
     },
     [
+      modal,
       projectRoot,
       selectedCell?.id,
       selectedCell?.worktreePath,
@@ -2152,6 +2177,140 @@ function App() {
       workbench,
       setSelectedId,
     ]
+  );
+
+  const handleRevealWorkbenchFile = useCallback(
+    async ({
+      path,
+      rootPath,
+      focusView = true,
+      cellId,
+      sourceSurface = 'session-map',
+    }: {
+      path?: string;
+      rootPath?: string;
+      focusView?: boolean;
+      cellId?: string;
+      sourceSurface?: string;
+    } = {}) => {
+      const normalizedPath = String(path || '').trim();
+      if (!normalizedPath) {
+        return false;
+      }
+      const resolvedRoot = rootPath || selectedCell?.worktreePath || projectRoot || '';
+      const targetCellId = cellId || selectedCell?.id || null;
+      if (cellId && cellId !== selectedCell?.id) {
+        setSelectedId(cellId);
+      }
+      try {
+        await runFileIntent({
+          intent: 'reveal',
+          rootPath: resolvedRoot,
+          targetPath: normalizedPath,
+          sourceSurface,
+        });
+      } catch (error) {
+        const message = error?.message || 'Unable to reveal file in Explorer.';
+        modal?.notify?.({
+          title: 'File reveal failed',
+          description: message,
+          tone: 'warning',
+        });
+        return false;
+      }
+      setPendingExplorerReveal({
+        path: normalizedPath,
+        rootPath: resolvedRoot,
+        cellId: targetCellId || null,
+      });
+      if (focusView) {
+        setActiveView('explorer');
+        if (sidebarCollapsed) {
+          setSidebarCollapsed(false);
+        }
+      }
+      return true;
+    },
+    [
+      modal,
+      projectRoot,
+      selectedCell?.id,
+      selectedCell?.worktreePath,
+      sidebarCollapsed,
+      setSelectedId,
+    ]
+  );
+
+  const handleOpenMemoReference = useCallback(
+    ({ path, line, column, sourceSurface = 'memo' }: { path?: string; line?: number; column?: number; sourceSurface?: string } = {}) =>
+      handleOpenWorkbenchFile({
+        path,
+        rootPath: selectedCell?.worktreePath || projectRoot || '',
+        line,
+        column,
+        focusView: true,
+        cellId: selectedCell?.id,
+        sourceSurface,
+      }),
+    [handleOpenWorkbenchFile, projectRoot, selectedCell?.id, selectedCell?.worktreePath]
+  );
+
+  const handleRevealMemoReference = useCallback(
+    ({ path, sourceSurface = 'memo' }: { path?: string; sourceSurface?: string } = {}) =>
+      handleRevealWorkbenchFile({
+        path,
+        rootPath: selectedCell?.worktreePath || projectRoot || '',
+        focusView: true,
+        cellId: selectedCell?.id,
+        sourceSurface,
+      }),
+    [handleRevealWorkbenchFile, projectRoot, selectedCell?.id, selectedCell?.worktreePath]
+  );
+
+  const handleOpenSessionMapShortcut = useCallback(
+    ({
+      cellId,
+      rootPath,
+      path,
+      line,
+      column,
+    }: {
+      cellId?: string;
+      rootPath?: string;
+      path?: string;
+      line?: number;
+      column?: number;
+    } = {}) =>
+      handleOpenWorkbenchFile({
+        cellId,
+        rootPath,
+        path,
+        line,
+        column,
+        focusView: true,
+        sourceSurface: 'session-map',
+      }),
+    [handleOpenWorkbenchFile]
+  );
+
+  const handleRevealSessionMapShortcut = useCallback(
+    ({
+      cellId,
+      rootPath,
+      path,
+    }: {
+      cellId?: string;
+      rootPath?: string;
+      path?: string;
+    } = {}) =>
+      handleRevealWorkbenchFile({
+        cellId,
+        rootPath,
+        path,
+        focusView: true,
+        sourceSurface: 'session-map',
+      }),
+    [handleRevealWorkbenchFile]
   );
 
   const handleJumpToSession = useCallback(
@@ -2266,32 +2425,36 @@ function App() {
     refresh: hilMemo.refresh,
   });
   const handleAddCommentFromExplorer = useCallback((path) => {
-    if (!path) return;
-    workbench.openFile({
+    if (!path) {
+      return;
+    }
+    void handleOpenWorkbenchFile({
       path,
-      mode: 'pinned',
       rootPath: explorerRootPath,
-      cellId: selectedCell?.id || undefined,
+      focusView: true,
+      cellId: selectedCell?.id,
+      sourceSurface: 'explorer',
     });
     setTimeout(() => {
       openCommentModal({ line: 1 });
     }, 100);
-  }, [workbench, explorerRootPath, openCommentModal]);
+  }, [explorerRootPath, handleOpenWorkbenchFile, openCommentModal, selectedCell?.id]);
   const handleJumpToComments = useCallback(
     (path) => {
       if (!path) {
         return;
       }
-      workbench.openFile({
-      path,
-      mode: 'pinned',
-      rootPath: explorerRootPath,
-      cellId: selectedCell?.id || undefined,
-    });
+      void handleOpenWorkbenchFile({
+        path,
+        rootPath: explorerRootPath,
+        focusView: true,
+        cellId: selectedCell?.id,
+        sourceSurface: 'explorer',
+      });
       setActiveView('explorer');
       openHilDrawer('comments');
     },
-    [explorerRootPath, openHilDrawer, workbench]
+    [explorerRootPath, handleOpenWorkbenchFile, openHilDrawer, selectedCell?.id]
   );
   const handleFocusPromoteSession = useCallback(() => {
     if (!promoteSessionId) {
@@ -2316,9 +2479,22 @@ function App() {
   const hilCommentsProps = {
     activeFile: activeTab?.path || '',
     cursorPosition,
+    worktreePath: selectedCell?.worktreePath || projectRoot || '',
     comments,
     loading: commentsLoading,
     error: commentsError,
+    onOpenAnchor: ({ path, line, column }: { path?: string; line?: number; column?: number } = {}) =>
+      handleOpenMemoReference({
+        path,
+        line,
+        column,
+        sourceSurface: 'memo',
+      }),
+    onRevealAnchor: ({ path }: { path?: string } = {}) =>
+      handleRevealMemoReference({
+        path,
+        sourceSurface: 'memo',
+      }),
     onOpenComment: openCommentModal,
     onUpdateStatus: updateCommentStatus,
     commentModalOpen,
@@ -2680,6 +2856,26 @@ function App() {
     projectReady,
     projectError,
     onSelectProject: handleSelectProjectRoot,
+    onOpenReference: ({
+      path,
+      line,
+      column,
+    }: {
+      path?: string;
+      line?: number;
+      column?: number;
+    } = {}) =>
+      handleOpenMemoReference({
+        path,
+        line,
+        column,
+        sourceSurface: 'memo',
+      }),
+    onRevealReference: ({ path }: { path?: string } = {}) =>
+      handleRevealMemoReference({
+        path,
+        sourceSurface: 'memo',
+      }),
     sessions,
     onViewSession: handleViewActionSheetSession,
     actionSheets,
@@ -2862,6 +3058,8 @@ function App() {
           onDispatchCommand={dispatchSessionCommand}
           onRenameSession={renameSession}
           onUpdateSessionAvatar={updateSessionAvatar}
+          onOpenFileShortcut={handleOpenSessionMapShortcut}
+          onRevealFileShortcut={handleRevealSessionMapShortcut}
           mode="dock"
         />
 

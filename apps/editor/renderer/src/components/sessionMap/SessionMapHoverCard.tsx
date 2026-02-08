@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { SessionMapTerminalPreview } from './SessionMapTerminalPreview';
+import { getCachedSessionMapPreview } from '../../services/sessionMapPreviewCache';
+import { extractFileReferences } from '../../utils/fileReferences';
 import { formatRelativeTime } from '../../utils/timeFormat';
 import { resolveOfflineReason } from './sessionMapUtils';
 import { DEBUG_FLAGS, getDebugFlag } from '../../utils/debugFlags';
@@ -24,6 +26,8 @@ export function SessionMapHoverCard({
   onSelectSession,
   onRenameSession,
   onOpenAvatarMenu,
+  onOpenFileShortcut,
+  onRevealFileShortcut,
   cardRef,
   resolveFontSize,
 }: any) {
@@ -50,6 +54,7 @@ export function SessionMapHoverCard({
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [fileShortcuts, setFileShortcuts] = useState([]);
   const menuButtonRef = useRef(null);
   const menuRef = useRef(null);
 
@@ -337,6 +342,35 @@ export function SessionMapHoverCard({
     return () => window.removeEventListener('mousedown', handlePointer);
   }, [menuOpen]);
 
+  const refreshFileShortcuts = useCallback(() => {
+    if (!isOpen || !data?.cell?.worktreePath || !data?.session?.id) {
+      setFileShortcuts([]);
+      return;
+    }
+    const cached = getCachedSessionMapPreview({
+      worktreePath: data.cell.worktreePath,
+      cellId: data.cell.id,
+      sessionId: data.session.id,
+    });
+    const nextShortcuts = extractFileReferences(String(cached?.data || ''), {
+      rootPath: data.cell.worktreePath,
+      limit: 3,
+    });
+    setFileShortcuts(nextShortcuts);
+  }, [data?.cell?.id, data?.cell?.worktreePath, data?.session?.id, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setFileShortcuts([]);
+      return undefined;
+    }
+    refreshFileShortcuts();
+    const timer = setInterval(() => {
+      refreshFileShortcuts();
+    }, 1200);
+    return () => clearInterval(timer);
+  }, [isOpen, refreshFileShortcuts]);
+
   if (!data) {
     return null;
   }
@@ -367,6 +401,40 @@ export function SessionMapHoverCard({
       onRenameSession?.(session.id, nextName, cell.id);
     }
     setEditingName(false);
+  };
+
+  const handleOpenShortcut = (shortcut) => {
+    if (!shortcut?.relativePath) {
+      return;
+    }
+    onOpenFileShortcut?.({
+      cellId: cell.id,
+      rootPath: cell.worktreePath,
+      path: shortcut.relativePath,
+      line: shortcut.line || undefined,
+      column: shortcut.column || undefined,
+    });
+  };
+
+  const handleRevealShortcut = (shortcut) => {
+    if (!shortcut?.relativePath) {
+      return;
+    }
+    onRevealFileShortcut?.({
+      cellId: cell.id,
+      rootPath: cell.worktreePath,
+      path: shortcut.relativePath,
+    });
+  };
+
+  const handleShortcutDragStart = (event, shortcut) => {
+    if (!shortcut?.absolutePath) {
+      event.preventDefault();
+      return;
+    }
+    event.stopPropagation();
+    event.dataTransfer.setData('text/plain', shortcut.absolutePath);
+    event.dataTransfer.effectAllowed = 'copy';
   };
 
   const enterOffset =
@@ -415,10 +483,17 @@ export function SessionMapHoverCard({
       }}
     >
       <div className="flex h-full flex-col">
-        <button
-          type="button"
+        <div
+          role="button"
+          tabIndex={0}
           className="relative flex w-full flex-1 min-h-0 cursor-pointer overflow-hidden bg-transparent text-left transition-opacity duration-200 hover:opacity-[0.85] hover:ring-1 hover:ring-primary/40"
           onClick={() => onSelectSession(cell.id, session.id)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              onSelectSession(cell.id, session.id);
+            }
+          }}
           onMouseMove={(event) => {
             const rect = event.currentTarget.getBoundingClientRect();
             setHint({
@@ -456,7 +531,43 @@ export function SessionMapHoverCard({
               点击访问
             </div>
           ) : null}
-        </button>
+          {fileShortcuts.length ? (
+            <div className="absolute bottom-2 left-2 z-20 flex max-w-[92%] flex-wrap items-center gap-1">
+              {fileShortcuts.map((shortcut) => (
+                <div
+                  key={`${shortcut.relativePath}:${shortcut.line || ''}:${shortcut.column || ''}`}
+                  className="flex items-center gap-1 rounded-md border border-white/20 bg-black/70 px-1.5 py-0.5 text-[9px] text-slate-100"
+                >
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleOpenShortcut(shortcut);
+                    }}
+                    draggable={Boolean(shortcut.absolutePath)}
+                    onDragStart={(event) => handleShortcutDragStart(event, shortcut)}
+                    className="max-w-[130px] truncate text-left hover:text-white"
+                    title={shortcut.relativePath}
+                  >
+                    {shortcut.displayPath}
+                    {shortcut.line ? `:${shortcut.line}` : ''}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleRevealShortcut(shortcut);
+                    }}
+                    className="rounded border border-white/20 px-1 text-[8px] uppercase tracking-wide text-slate-200 hover:border-primary/60 hover:text-white"
+                    title="Reveal in Explorer"
+                  >
+                    R
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
         <div
           className="relative flex items-center border-t border-white/10 bg-black/55 px-2 text-[9px] text-slate-100 backdrop-blur flex-none"
           style={{ height: HOVER_INFO_HEIGHT }}

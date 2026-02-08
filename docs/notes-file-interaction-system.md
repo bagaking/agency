@@ -82,11 +82,22 @@ It is the shared policy layer above local implementation details.
    built-in rules and `.agency/agent-files.yaml` project rules are loaded and merged for classification.
 4. Explorer semantic affordance is landed:
    row tags + semantic filtering + semantic quick-locate are available.
-5. Cross-surface parity remains pending:
-   Agent Cells / Session Map / Memo still need full open/reveal + drag-routing convergence on the unified contract.
-6. Tool-intent governance baseline is active:
+5. Cross-surface routing has progressed:
+   Memo (HIL comments + memo draft references) and Session Map preview shortcuts now open/reveal through unified file intents.
+6. Lightweight drop routing is converging:
+   Session Map and Memo reference chips emit `text/plain` absolute-path payloads that route into Explorer `import_copy` semantics.
+7. Agent Cells open path is now contract-guarded:
+   workbench file-open requests from Agent Cells entry points run `open` intent validation before tab activation/reveal.
+8. Tool-intent governance baseline is active:
    `file:tool:interact` now requires caller metadata (`callerId`, `traceId`) and capability-scoped authorization (`file.read` / `file.write`).
-7. CLI wrapper baseline is active:
+9. CLI wrapper baseline is active:
    `fileIntentCli` provides JSON-in / JSON-out access to `file:interact` semantics (user/tool/classify modes) as a thin gateway wrapper.
-8. Regression coverage has expanded:
-   Electron service tests now validate open-intent path safety/error mapping, tool permission-denied behavior, and `import_copy` conflict/path-safety behavior; Playwright e2e coverage includes external-drop import selection + conflict-safe naming checks.
+10. Regression coverage has expanded:
+   Electron service tests validate intent normalization + cross-surface intent parity + semantic-rule merge priority + permission outcomes; Playwright e2e coverage includes external-drop import selection/conflict-safe naming and newline-separated text payload routing.
+
+## Process-Boundary Compatibility Plan (Locked)
+- Keep `FileIntentPayload`/`FileIntentResult` as the stable wire format across renderer, tool, CLI, and future helper process callers.
+- Keep surface calls pinned to `runFileIntent` / `runToolFileIntent`; transport changes happen behind those wrappers.
+- Add migration seam at `file:interact` handler boundary (Electron main) so helper process forwarding does not alter callers.
+- Preserve caller metadata and capability checks before any cross-process dispatch.
+- Require parity checks (`affectedPaths`, failure codes/messages, conflict behavior, permission-denied semantics) before enabling helper-process execution.

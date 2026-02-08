@@ -374,6 +374,55 @@ test('explorer external drop keeps conflict-safe naming semantics', async () => 
   }
 });
 
+
+test('explorer external drop accepts newline-separated text/plain payloads', async () => {
+  setupTestRepo();
+  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
+
+  const externalDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-external-drop-'));
+  const externalA = path.join(externalDir, 'routing-a.txt');
+  const externalB = path.join(externalDir, 'routing-b.txt');
+  fs.writeFileSync(externalA, 'A\n');
+  fs.writeFileSync(externalB, 'B\n');
+
+  const electronApp = await electron.launch({
+    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
+    env: {
+      ...process.env,
+      ELECTRON_RENDERER_URL: RENDERER_URL,
+      AGENCY_TEST_MODE: '1',
+      AGENCY_CLI_STUB: '1',
+      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
+    },
+  });
+
+  try {
+    const window = await electronApp.firstWindow();
+    await window.getByTitle('Explorer').click();
+    await expect(window.getByTestId('explorer-header')).toBeVisible();
+
+    const targetDirRow = window.locator('[data-explorer-path="src"]');
+    await expect(targetDirRow).toBeVisible();
+
+    const dataTransfer = await window.evaluateHandle(([left, right]) => {
+      const transfer = new DataTransfer();
+      transfer.setData('text/plain', `${String(left || '')}\n${String(right || '')}`);
+      return transfer;
+    }, [externalA, externalB]);
+
+    await targetDirRow.dispatchEvent('dragover', { dataTransfer });
+    await targetDirRow.dispatchEvent('drop', { dataTransfer });
+
+    await expect(window.locator('[data-explorer-path="src/routing-a.txt"]')).toBeVisible();
+    await expect(window.locator('[data-explorer-path="src/routing-b.txt"]')).toBeVisible();
+    expect(fs.readFileSync(path.join(TEST_REPO, 'src', 'routing-a.txt'), 'utf8')).toBe('A\n');
+    expect(fs.readFileSync(path.join(TEST_REPO, 'src', 'routing-b.txt'), 'utf8')).toBe('B\n');
+  } finally {
+    await electronApp.close();
+    fs.rmSync(externalDir, { recursive: true, force: true });
+  }
+});
+
 test('explorer copy and paste duplicates entries', async () => {
   setupTestRepo();
   fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });

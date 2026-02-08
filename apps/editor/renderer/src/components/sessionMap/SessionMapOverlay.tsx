@@ -28,6 +28,8 @@ export function SessionMapOverlay({
   onDispatchCommand,
   onRenameSession,
   onUpdateSessionAvatar,
+  onOpenFileShortcut,
+  onRevealFileShortcut,
   mode = 'popover',
 }: any) {
   const [hovered, setHovered] = useState(null);
@@ -595,6 +597,8 @@ export function SessionMapOverlay({
       onSelectSession={handleSelectAndClose}
       onRenameSession={onRenameSession}
       onOpenAvatarMenu={onUpdateSessionAvatar ? handleOpenAvatarMenu : null}
+      onOpenFileShortcut={onOpenFileShortcut}
+      onRevealFileShortcut={onRevealFileShortcut}
       cardRef={hoverCardRef}
       resolveFontSize={resolveFontSize}
     />

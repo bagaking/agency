@@ -127,6 +127,14 @@ Explorer/electron services remain the execution authority for filesystem mutatio
 - Design transport abstraction so tool calls can later come from a dedicated process channel while preserving current IPC contracts.
 - Keep request/response schema CLI-friendly (single JSON payload in, single JSON result out), so a future CLI command can be a direct wrapper.
 
+### Process-Boundary Compatibility Plan (Phase C Guardrail)
+1. Freeze the wire contract at the existing `FileIntentPayload`/`FileIntentResult` JSON shape, including caller metadata and failure codes.
+2. Keep renderer callers (Explorer/Agent Cells/Session Map/Memo) bound to `runFileIntent` and `runToolFileIntent` only, so transport can swap behind the same API.
+3. Introduce a process adapter seam at Electron main (`file:interact` handler boundary) where calls can be forwarded to a helper process without payload remapping.
+4. Preserve auth semantics (`callerId`, `traceId`, capability scopes) in the gateway before any helper-process dispatch to avoid trust inversion.
+5. Keep CLI wrappers as thin JSON pass-through clients; helper-process migration must not require new CLI flags or schema forks.
+6. Define parity checks for migration readiness: same success/failure payload, same `affectedPaths`, same conflict behavior, same permission-denied outcomes.
+
 ### Electron service
 - Reuse explorer path safety and copy/move conflict logic.
 - Add semantic classification loader:

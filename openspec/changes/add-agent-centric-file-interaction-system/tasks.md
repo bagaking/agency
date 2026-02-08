@@ -10,9 +10,9 @@
 - [x] 2.4 Add regression tests for drag import, conflict resolution, and post-import reveal/select behavior.
 
 ## 3. Phase B - Cross-Surface Entry Points
-- [ ] 3.1 Add Agent Cells open/reveal entry points through `fileInteraction`.
-- [ ] 3.2 Add Session Map open/reveal shortcuts and lightweight drag routing into Explorer import.
-- [ ] 3.3 Add Memo reference open/reveal and lightweight drag routing into Explorer import.
+- [x] 3.1 Add Agent Cells open/reveal entry points through `fileInteraction`.
+- [x] 3.2 Add Session Map open/reveal shortcuts and lightweight drag routing into Explorer import.
+- [x] 3.3 Add Memo reference open/reveal and lightweight drag routing into Explorer import.
 
 ## 4. Phase C - Agent File Semantics
 - [x] 4.1 Implement built-in semantic rules for core agent files (including `Agency.md` and Spark conventions).
@@ -28,7 +28,7 @@
 - [x] 6.1 Add tool-facing adapters for Explorer-grade file intents using the unified contract (`file:tool:interact` + renderer wrapper `runToolFileIntent`).
 - [x] 6.2 Add capability-scoped authorization and audit metadata for tool-invoked file intents.
 - [x] 6.3 Define and validate caller context schema (`sourceSurface`, `callerType`, `callerId`, trace id).
-- [ ] 6.4 Add a process-boundary compatibility plan (dedicated helper process path) without changing caller semantics.
+- [x] 6.4 Add a process-boundary compatibility plan (dedicated helper process path) without changing caller semantics.
 - [x] 6.5 Define CLI-friendly request/response schema and keep CLI as thin wrapper over `file:interact`.
 - [x] 6.6 Add an actual CLI entrypoint wrapper (JSON in/out) that delegates to unified intent gateway.
 
@@ -38,8 +38,8 @@
 - [ ] 7.3 Ensure Session Map and Memo lightweight drag routing is consistent with Agent Cell interactions.
 
 ## 8. Validation & Docs
-- [ ] 8.1 Add unit tests for intent normalization and semantic rule matching/merge.
-- [ ] 8.2 Add integration tests for cross-surface intent consistency and lightweight drop routing.
+- [x] 8.1 Add unit tests for intent normalization and semantic rule matching/merge.
+- [x] 8.2 Add integration tests for cross-surface intent consistency and lightweight drop routing.
 - [x] 8.3 Add integration tests for tool-invoked file intents and permission-denied outcomes.
-- [ ] 8.4 Update `apps/editor/README.md` with unified file interaction, semantic-file behavior, and toolization model.
+- [x] 8.4 Update `apps/editor/README.md` with unified file interaction, semantic-file behavior, and toolization model.
 - [ ] 8.5 Run e2e/manual baseline checks for Explorer, Agent Cells, Session Map, and Memo entry flows.

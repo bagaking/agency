@@ -30,6 +30,7 @@ This is a project-local catalog of reusable engineering assets. The goal is disc
 | --- | --- | --- | --- |
 | Renderer IPC via `agencyBridge` | MUST | All renderer → main IPC calls. | `apps/editor/renderer/src/services/agencyBridge.ts` |
 | Unified file intent gateway (`runFileIntent` / `runToolFileIntent`) | MUST | Any Explorer/Agent Cells/Session Map/Memo file interaction should call unified intent wrappers instead of direct per-channel `window.agency` calls. | `apps/editor/renderer/src/services/fileInteraction.ts`, `apps/editor/electron/services/fileInteraction.ts` |
+| File reference extraction + normalization (`extractFileReferences`, `resolveFileReferenceTarget`) | MUST | Parse terminal/preview/reference text into root-safe file shortcuts for Session Map and Memo open/reveal + drag-routing flows. | `apps/editor/renderer/src/utils/fileReferences.ts` |
 | Scoped settings state hook | MUST | Any Global/Project/Agent settings editor; reuse dirty/error/saving/IPC guard state machine. | `apps/editor/renderer/src/hooks/shared/scopedSettingsState.ts` |
 | Session naming core engine | MUST | Session naming rule parsing/placeholder formatting across main and renderer. | `apps/editor/shared/sessionNamingCore.cjs` |
 | Path safety helpers | MUST | Normalize relative paths and enforce root-safe resolution in Electron services/preload. | `apps/editor/electron/services/shared/pathSafety.ts` |

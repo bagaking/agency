@@ -24,6 +24,7 @@ import { ActionSheetStatusPanel } from '../../actionSheets/ActionSheetStatusPane
 import { useModal } from '../../modals/ModalSystem';
 import { IconButton } from '../../ui/IconButton';
 import { focusRing } from '../../ui/focusRing';
+import { resolveFileReferenceTarget } from '../../../utils/fileReferences';
 import {
   updateHilItem as agencyUpdateHilItem,
   deleteHilItem as agencyDeleteHilItem,
@@ -70,6 +71,8 @@ export function HilMemoView({
   onDeleteActionSheet,
   onOpenActionSheets,
   onCreateActionSheet,
+  onOpenReference,
+  onRevealReference,
   flashText,
   onFlashChange,
   setFlashText,
@@ -193,6 +196,51 @@ export function HilMemoView({
     });
     return map;
   }, [actionSheets]);
+
+  const resolveReferenceTarget = useCallback(
+    (rawPath) => resolveFileReferenceTarget({ path: rawPath, rootPath: worktreePath }),
+    [worktreePath]
+  );
+
+  const handleOpenReference = useCallback(
+    ({ path, line, column }: { path?: string; line?: number; column?: number } = {}) => {
+      const resolved = resolveReferenceTarget(path);
+      if (!resolved?.relativePath) {
+        return;
+      }
+      onOpenReference?.({
+        path: resolved.relativePath,
+        line,
+        column,
+      });
+    },
+    [onOpenReference, resolveReferenceTarget]
+  );
+
+  const handleRevealReference = useCallback(
+    ({ path }: { path?: string } = {}) => {
+      const resolved = resolveReferenceTarget(path);
+      if (!resolved?.relativePath) {
+        return;
+      }
+      onRevealReference?.({ path: resolved.relativePath });
+    },
+    [onRevealReference, resolveReferenceTarget]
+  );
+
+  const handleReferenceDragStart = useCallback(
+    (event, path) => {
+      const resolved = resolveReferenceTarget(path);
+      if (!resolved?.absolutePath) {
+        event.preventDefault();
+        return;
+      }
+      event.stopPropagation();
+      event.dataTransfer.setData('text/plain', resolved.absolutePath);
+      event.dataTransfer.effectAllowed = 'copy';
+    },
+    [resolveReferenceTarget]
+  );
 
   const updateStatus = useCallback(async (item, status) => {
     if (!item?.id || !worktreePath) {
@@ -360,6 +408,9 @@ export function HilMemoView({
               onCreateActionSheet={handleCreateDraftActionSheet}
               resolveBody={resolveBody}
               summarizeBody={summarizeBody}
+              onOpenReference={handleOpenReference}
+              onRevealReference={handleRevealReference}
+              onReferenceDragStart={handleReferenceDragStart}
             />
           ) : (
             <div className="flex h-full flex-col">
@@ -422,6 +473,8 @@ export function HilMemoView({
                     worktreePath={worktreePath}
                     onUpdateStatus={updateStatus}
                     resolveBody={resolveBody}
+                    onOpenReference={handleOpenReference}
+                    onReferenceDragStart={handleReferenceDragStart}
                     onOpenDetail={(detail) => {
                       if (!modal?.openModal) {
                         return;
@@ -485,7 +538,7 @@ export function HilMemoView({
   );
 }
 
-function MemoRow({ item, index, worktreePath, onUpdateStatus, resolveBody, onOpenDetail }: any) {
+function MemoRow({ item, index, worktreePath, onUpdateStatus, resolveBody, onOpenDetail, onOpenReference, onReferenceDragStart }: any) {
     const isResolved = item.status === 'resolved' || item.status === 'archived';
     const isProcessed = item.kind === 'comment' && item.meta?.processed === true;
     const isMemoProcessed = item.kind === 'memo' && item.meta?.processed === true;
@@ -566,11 +619,25 @@ function MemoRow({ item, index, worktreePath, onUpdateStatus, resolveBody, onOpe
                         {replyTimeTag}
                     </div>
                 ) : item.anchor?.file ? (
-                    <div className="flex items-center gap-2 font-mono italic truncate max-w-[220px] group-hover:text-muted-foreground/60 transition-colors">
+                    <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onOpenReference?.({
+                            path: item.anchor.file,
+                            line: item.anchor.line,
+                            column: item.anchor.column,
+                          });
+                        }}
+                        draggable
+                        onDragStart={(event) => onReferenceDragStart?.(event, item.anchor.file)}
+                        className="flex items-center gap-2 font-mono italic truncate max-w-[220px] group-hover:text-muted-foreground/60 transition-colors hover:text-primary"
+                        title={item.anchor.file}
+                    >
                         <Target size={10} className="shrink-0" />
                         {item.anchor.file.split('/').pop()}
                         <span className="not-italic opacity-40">:{item.anchor.line}</span>
-                    </div>
+                    </button>
                 ) : (
                     <span className="italic text-muted-foreground/30">Unlinked</span>
                 )}
@@ -675,6 +742,9 @@ function DraftDetail({
   onCreateActionSheet,
   resolveBody,
   summarizeBody,
+  onOpenReference,
+  onRevealReference,
+  onReferenceDragStart,
 }: any) {
     const createdAt = draft.createdAt ? new Date(draft.createdAt) : null;
     const references = Array.isArray(draft.references) ? draft.references : [];
@@ -867,22 +937,50 @@ function DraftDetail({
                             References
                         </div>
                         <div className="mt-2 flex flex-col gap-2">
-                            {references.map((ref, index) => (
-                                <div
-                                    key={`${ref.id || ref.path || index}`}
-                                    className="rounded-xl border border-border/10 bg-muted/5 px-3 py-2 text-[11px] text-muted-foreground/70"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <Target size={12} className="text-primary/60" />
-                                        <span className="font-mono truncate">
-                                            {ref.path || ref.id || 'Unknown reference'}
-                                        </span>
-                                        {ref.line ? (
-                                            <span className="text-[10px] text-muted-foreground/40">:{ref.line}</span>
-                                        ) : null}
-                                    </div>
-                                </div>
-                            ))}
+                            {references.map((ref, index) => {
+                                const refPath = ref.path || ref.id || '';
+                                const canOpen = Boolean(refPath);
+                                return (
+                                  <div
+                                      key={`${ref.id || ref.path || index}`}
+                                      className="rounded-xl border border-border/10 bg-muted/5 px-3 py-2 text-[11px] text-muted-foreground/70"
+                                  >
+                                      <div className="flex items-center gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              onOpenReference?.({
+                                                path: refPath,
+                                                line: ref.line,
+                                                column: ref.column,
+                                              })
+                                            }
+                                            disabled={!canOpen}
+                                            draggable={canOpen}
+                                            onDragStart={(event) => onReferenceDragStart?.(event, refPath)}
+                                            className="inline-flex min-w-0 items-center gap-2 font-mono truncate text-left hover:text-primary disabled:cursor-default disabled:opacity-60"
+                                          >
+                                            <Target size={12} className="text-primary/60" />
+                                            <span className="truncate">
+                                              {refPath || 'Unknown reference'}
+                                            </span>
+                                            {ref.line ? (
+                                                <span className="text-[10px] text-muted-foreground/40">:{ref.line}</span>
+                                            ) : null}
+                                          </button>
+                                          {canOpen ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => onRevealReference?.({ path: refPath })}
+                                              className="rounded border border-border/30 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground/70 hover:border-primary/50 hover:text-primary"
+                                            >
+                                              Reveal
+                                            </button>
+                                          ) : null}
+                                      </div>
+                                  </div>
+                                );
+                              })}
                         </div>
                     </div>
                 )}
