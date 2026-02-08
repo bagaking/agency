@@ -1,4 +1,8 @@
 // @ts-nocheck
+const fs = require('fs');
+const path = require('path');
+const yaml = require('js-yaml');
+
 const {
   createEntry,
   renameEntry,
@@ -7,6 +11,9 @@ const {
   importEntries,
   revealEntry,
 } = require('./explorer');
+const { resolveProjectRoot } = require('./projectRoot');
+const { getRepoRoot } = require('./git');
+const { normalizeRelPath, resolveSafePath } = require('./shared/pathSafety');
 
 const SUPPORTED_INTENTS = new Set([
   'open',
@@ -19,38 +26,33 @@ const SUPPORTED_INTENTS = new Set([
   'rename',
 ]);
 
-function buildSuccess(intent, data = null, affectedPaths = [], warnings = []) {
-  return {
-    success: true,
-    intent,
-    affectedPaths: Array.isArray(affectedPaths) ? affectedPaths.filter(Boolean) : [],
-    warnings: Array.isArray(warnings) ? warnings : [],
-    failures: [],
-    data,
-  };
-}
-
-function buildFailure(intent, code, message, path) {
-  const failure = { code, message: String(message || 'Unknown error.') };
-  if (path) {
-    failure.path = path;
-  }
-  return {
-    success: false,
-    intent,
-    affectedPaths: [],
-    warnings: [],
-    failures: [failure],
-    data: null,
-  };
-}
+const BUILTIN_SEMANTIC_RULES = [
+  {
+    id: 'agency-file',
+    label: 'Agency',
+    icon: 'file-text',
+    priority: 300,
+    matcherType: 'glob',
+    matcherExpr: '**/Agency.md',
+    source: 'builtin',
+  },
+  {
+    id: 'spark-file',
+    label: 'Spark',
+    icon: 'sparkles',
+    priority: 290,
+    matcherType: 'regex',
+    matcherExpr: '(^|/)spark(\\.[^/]+)?$',
+    source: 'builtin',
+  },
+];
 
 function normalizeIntent(value) {
   return String(value || '').trim().toLowerCase();
 }
 
-function normalizeRelPath(value) {
-  return String(value || '').trim().replace(/\\/g, '/').replace(/^\.?\//, '');
+function normalizePath(value) {
+  return normalizeRelPath(String(value || '').trim());
 }
 
 function normalizeSourcePaths(value) {
@@ -64,6 +66,64 @@ function normalizeSourcePaths(value) {
   );
 }
 
+function buildSuccess(intent, data = null, affectedPaths = [], warnings = []) {
+  return {
+    success: true,
+    intent,
+    affectedPaths: Array.isArray(affectedPaths) ? affectedPaths.filter(Boolean) : [],
+    warnings: Array.isArray(warnings) ? warnings : [],
+    failures: [],
+    data,
+  };
+}
+
+function buildFailure(intent, code, message, itemPath = '') {
+  const failure = {
+    code: String(code || 'FATAL'),
+    message: String(message || 'Unknown error.'),
+  };
+  if (itemPath) {
+    failure.path = itemPath;
+  }
+  return {
+    success: false,
+    intent,
+    affectedPaths: [],
+    warnings: [],
+    failures: [failure],
+    data: null,
+  };
+}
+
+async function resolveInteractionRoot(rootPath) {
+  if (!rootPath) {
+    const repoRoot = await resolveProjectRoot();
+    return {
+      repoRoot: repoRoot || '',
+      rootPath: repoRoot || '',
+    };
+  }
+  try {
+    const repoRoot = await getRepoRoot(rootPath);
+    return {
+      repoRoot: repoRoot || '',
+      rootPath: rootPath || repoRoot || '',
+    };
+  } catch (error) {
+    const repoRoot = await resolveProjectRoot();
+    return {
+      repoRoot: repoRoot || '',
+      rootPath: repoRoot || '',
+    };
+  }
+}
+
+function ensureRootResolved(resolved) {
+  if (!resolved?.rootPath) {
+    throw new Error('Project root is not configured.');
+  }
+}
+
 async function performFileIntent(payload = {}) {
   const intent = normalizeIntent(payload.intent);
   if (!SUPPORTED_INTENTS.has(intent)) {
@@ -72,7 +132,7 @@ async function performFileIntent(payload = {}) {
 
   try {
     if (intent === 'open') {
-      const targetPath = normalizeRelPath(payload.targetPath || payload.path || '');
+      const targetPath = normalizePath(payload.targetPath || payload.path || '');
       if (!targetPath) {
         return buildFailure(intent, 'USER_ERROR', 'targetPath is required for open intent.');
       }
@@ -80,7 +140,7 @@ async function performFileIntent(payload = {}) {
     }
 
     if (intent === 'reveal') {
-      const targetPath = normalizeRelPath(payload.targetPath || payload.path || '');
+      const targetPath = normalizePath(payload.targetPath || payload.path || '');
       if (!targetPath) {
         return buildFailure(intent, 'USER_ERROR', 'targetPath is required for reveal intent.');
       }
@@ -96,14 +156,13 @@ async function performFileIntent(payload = {}) {
       if (!sourcePaths.length) {
         return buildFailure(intent, 'USER_ERROR', 'sourcePaths must contain at least one path.');
       }
-      const targetDir = normalizeRelPath(payload.targetDir || '');
+      const targetDir = normalizePath(payload.targetDir || '');
       const report = await importEntries({
         rootPath: payload.rootPath,
         sourcePaths,
         targetDir,
       });
-      const failures = Array.isArray(report?.failures) ? report.failures : [];
-      const warnings = failures.map((failure) => ({
+      const warnings = (report?.failures || []).map((failure) => ({
         code: 'IMPORT_PARTIAL_FAILURE',
         message: String(failure?.error || 'Import item failed.'),
       }));
@@ -116,8 +175,8 @@ async function performFileIntent(payload = {}) {
     }
 
     if (intent === 'copy') {
-      const sourcePath = normalizeRelPath(payload.sourcePath || '');
-      const targetPath = normalizeRelPath(payload.targetPath || '');
+      const sourcePath = normalizePath(payload.sourcePath || '');
+      const targetPath = normalizePath(payload.targetPath || '');
       if (!sourcePath || !targetPath) {
         return buildFailure(intent, 'USER_ERROR', 'sourcePath and targetPath are required for copy intent.');
       }
@@ -130,8 +189,8 @@ async function performFileIntent(payload = {}) {
     }
 
     if (intent === 'move' || intent === 'rename') {
-      const sourcePath = normalizeRelPath(payload.sourcePath || '');
-      const targetPath = normalizeRelPath(payload.targetPath || '');
+      const sourcePath = normalizePath(payload.sourcePath || '');
+      const targetPath = normalizePath(payload.targetPath || '');
       if (!sourcePath || !targetPath) {
         return buildFailure(intent, 'USER_ERROR', 'sourcePath and targetPath are required for move/rename intent.');
       }
@@ -144,7 +203,7 @@ async function performFileIntent(payload = {}) {
     }
 
     if (intent === 'delete') {
-      const targetPath = normalizeRelPath(payload.targetPath || '');
+      const targetPath = normalizePath(payload.targetPath || '');
       if (!targetPath) {
         return buildFailure(intent, 'USER_ERROR', 'targetPath is required for delete intent.');
       }
@@ -157,7 +216,7 @@ async function performFileIntent(payload = {}) {
 
     if (intent === 'create') {
       const type = payload.type === 'dir' ? 'dir' : 'file';
-      const parentPath = normalizeRelPath(payload.parentPath || '');
+      const parentPath = normalizePath(payload.parentPath || '');
       const name = String(payload.name || '').trim();
       if (!name) {
         return buildFailure(intent, 'USER_ERROR', 'name is required for create intent.');
@@ -168,7 +227,7 @@ async function performFileIntent(payload = {}) {
         parentPath,
         name,
       });
-      return buildSuccess(intent, data, [normalizeRelPath(data?.path || '')]);
+      return buildSuccess(intent, data, [normalizePath(data?.path || '')]);
     }
 
     return buildFailure(intent, 'USER_ERROR', `Unsupported file intent: ${intent}`);
@@ -177,18 +236,203 @@ async function performFileIntent(payload = {}) {
   }
 }
 
+function parseRegexMatcher(expression) {
+  const raw = String(expression || '').trim();
+  if (!raw) {
+    return null;
+  }
+  try {
+    if (raw.startsWith('/') && raw.lastIndexOf('/') > 0) {
+      const lastSlash = raw.lastIndexOf('/');
+      const body = raw.slice(1, lastSlash);
+      const flags = raw.slice(lastSlash + 1) || 'i';
+      return new RegExp(body, flags.includes('i') ? flags : `${flags}i`);
+    }
+    return new RegExp(raw, 'i');
+  } catch (error) {
+    return null;
+  }
+}
+
+function globToRegExp(expression) {
+  const raw = String(expression || '').trim();
+  if (!raw) {
+    return null;
+  }
+  const escaped = raw.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+  const withDouble = escaped.replace(/\*\*/g, '__DOUBLE_STAR__');
+  const withSingle = withDouble.replace(/\*/g, '[^/]*').replace(/\?/g, '[^/]');
+  const pattern = withSingle.replace(/__DOUBLE_STAR__/g, '.*');
+  try {
+    return new RegExp(`^${pattern}$`, 'i');
+  } catch (error) {
+    return null;
+  }
+}
+
+function normalizeSemanticRule(rule, source = 'project', index = 0) {
+  const matcherType = String(rule?.matcherType || 'glob').toLowerCase() === 'regex' ? 'regex' : 'glob';
+  const matcherExpr = String(rule?.matcherExpr || '').trim();
+  if (!matcherExpr) {
+    return null;
+  }
+  const compiled = matcherType === 'regex' ? parseRegexMatcher(matcherExpr) : globToRegExp(matcherExpr);
+  if (!compiled) {
+    return null;
+  }
+  const fallbackPriority = source === 'builtin' ? 200 : 100;
+  const rawPriority = Number(rule?.priority);
+  const priority = Number.isFinite(rawPriority) ? rawPriority : fallbackPriority;
+  const id = String(rule?.id || `${source}-${index + 1}`).trim();
+  const label = String(rule?.label || id).trim();
+  return {
+    id,
+    label,
+    icon: rule?.icon ? String(rule.icon) : '',
+    priority,
+    matcherType,
+    matcherExpr,
+    source,
+    compiled,
+  };
+}
+
+function matchSemanticRules(relativePath, rules) {
+  const normalizedPath = normalizePath(relativePath);
+  const baseName = path.posix.basename(normalizedPath);
+  const matched = [];
+  for (const rule of rules) {
+    if (!rule?.compiled) {
+      continue;
+    }
+    const hit = rule.compiled.test(normalizedPath) || rule.compiled.test(baseName);
+    if (!hit) {
+      continue;
+    }
+    matched.push({
+      id: rule.id,
+      label: rule.label,
+      icon: rule.icon,
+      priority: rule.priority,
+      matcherType: rule.matcherType,
+      matcherExpr: rule.matcherExpr,
+      source: rule.source,
+    });
+  }
+  matched.sort((a, b) => {
+    if (a.priority !== b.priority) {
+      return b.priority - a.priority;
+    }
+    return a.id.localeCompare(b.id);
+  });
+  return matched;
+}
+
+async function readProjectSemanticRules(rootPath) {
+  const configPath = path.join(rootPath, '.agency', 'agent-files.yaml');
+  try {
+    await fs.promises.access(configPath);
+  } catch (error) {
+    return { rules: [], warnings: [] };
+  }
+
+  try {
+    const content = await fs.promises.readFile(configPath, 'utf-8');
+    const parsed = yaml.load(content) || {};
+    const rawRules = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.rules) ? parsed.rules : [];
+    const normalized = rawRules
+      .map((rule, index) => normalizeSemanticRule(rule, 'project', index))
+      .filter(Boolean);
+    return { rules: normalized, warnings: [] };
+  } catch (error) {
+    return {
+      rules: [],
+      warnings: [
+        {
+          code: 'SEMANTIC_RULES_PARSE_FAILED',
+          message: `Failed to parse .agency/agent-files.yaml: ${error?.message || String(error)}`,
+        },
+      ],
+    };
+  }
+}
+
+async function classifyAgentFiles(payload = {}) {
+  const intent = 'classify';
+  try {
+    const resolved = await resolveInteractionRoot(payload.rootPath);
+    ensureRootResolved(resolved);
+    const rootAbsolute = path.resolve(resolved.rootPath);
+    const incomingPaths = Array.isArray(payload.paths) ? payload.paths : [];
+    const normalizedPaths = Array.from(
+      new Set(
+        incomingPaths
+          .map((item) => normalizePath(item))
+          .filter(Boolean)
+      )
+    );
+
+    const warnings = [];
+    const safePaths = [];
+    for (const relativePath of normalizedPaths) {
+      try {
+        resolveSafePath(rootAbsolute, relativePath);
+        safePaths.push(relativePath);
+      } catch (error) {
+        warnings.push({
+          code: 'INVALID_PATH',
+          message: `Skipped path outside root: ${relativePath}`,
+        });
+      }
+    }
+
+    const builtins = BUILTIN_SEMANTIC_RULES
+      .map((rule, index) => normalizeSemanticRule(rule, 'builtin', index))
+      .filter(Boolean);
+    const project = await readProjectSemanticRules(rootAbsolute);
+    const allRules = [...builtins, ...project.rules];
+    const tagsByPath = {};
+    safePaths.forEach((relativePath) => {
+      tagsByPath[relativePath] = matchSemanticRules(relativePath, allRules);
+    });
+
+    return buildSuccess(
+      intent,
+      {
+        rootPath: rootAbsolute,
+        tagsByPath,
+        rules: allRules.map((rule) => ({
+          id: rule.id,
+          label: rule.label,
+          icon: rule.icon,
+          priority: rule.priority,
+          matcherType: rule.matcherType,
+          matcherExpr: rule.matcherExpr,
+          source: rule.source,
+        })),
+      },
+      safePaths,
+      [...warnings, ...project.warnings]
+    );
+  } catch (error) {
+    return buildFailure(intent, 'FATAL', error?.message || String(error));
+  }
+}
+
 async function performToolFileIntent(payload = {}) {
-  const callerType = String(payload.callerType || '').trim();
-  if (callerType && callerType !== 'tool') {
-    return buildFailure(payload.intent || 'unknown', 'PERMISSION_DENIED', 'Tool intent requires callerType=tool.');
-  }
+  const intent = normalizeIntent(payload.intent);
   if (!payload.callerId) {
-    return buildFailure(payload.intent || 'unknown', 'PERMISSION_DENIED', 'Tool intent requires callerId.');
+    return buildFailure(intent || 'unknown', 'PERMISSION_DENIED', 'Tool intent requires callerId.');
   }
-  return performFileIntent({ ...payload, callerType: 'tool' });
+  return performFileIntent({
+    ...payload,
+    callerType: 'tool',
+  });
 }
 
 module.exports = {
   performFileIntent,
   performToolFileIntent,
+  classifyAgentFiles,
 };
+
