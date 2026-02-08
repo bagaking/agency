@@ -20,6 +20,7 @@ export function ExplorerFilterPanel({
   toggleSemanticFilter,
   clearSemanticFilters,
   semanticFiltersCount,
+  onLocateSemanticRule,
 }: any) {
   const sortedSemanticRules = Array.isArray(semanticRules)
     ? [...semanticRules].sort((a, b) => {
@@ -96,20 +97,33 @@ export function ExplorerFilterPanel({
               }
               const active = semanticFilterSet?.has(ruleId);
               return (
-                <button
+                <div
                   key={ruleId}
-                  type="button"
-                  aria-pressed={active}
-                  className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white/5 ${focusRingClass} ${
+                  className={`flex items-center gap-1 rounded-lg transition-colors hover:bg-white/5 ${
                     active ? 'bg-white/5 text-foreground' : 'opacity-60 hover:opacity-100'
                   }`}
-                  onClick={() => toggleSemanticFilter(ruleId)}
                 >
-                  <span className="truncate tracking-tight">{rule?.label || ruleId}</span>
-                  <span className="shrink-0 rounded-[2px] border border-sky-400/30 bg-sky-500/10 px-1 text-[8px] font-bold uppercase tracking-tighter text-sky-200">
-                    {ruleId}
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    aria-pressed={active}
+                    className={`min-w-0 flex-1 px-2 py-1.5 text-left ${focusRingClass}`}
+                    onClick={() => toggleSemanticFilter(ruleId)}
+                  >
+                    <span className="block truncate tracking-tight">{rule?.label || ruleId}</span>
+                    <span className="inline-flex shrink-0 rounded-[2px] border border-sky-400/30 bg-sky-500/10 px-1 text-[8px] font-bold uppercase tracking-tighter text-sky-200">
+                      {ruleId}
+                    </span>
+                  </button>
+                  {onLocateSemanticRule && (
+                    <button
+                      type="button"
+                      className={`shrink-0 rounded-md border border-white/10 px-1.5 py-1 text-[9px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-white/10 ${focusRingClass}`}
+                      onClick={() => onLocateSemanticRule(ruleId)}
+                    >
+                      Locate
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>

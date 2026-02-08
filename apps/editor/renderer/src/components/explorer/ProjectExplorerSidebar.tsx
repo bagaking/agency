@@ -875,6 +875,28 @@ function ProjectExplorerSidebarContent({
   const toggleSemanticFilter = (id) => setSemanticFilters((curr) => (
     curr.includes(id) ? curr.filter((it) => it !== id) : [...curr, id]
   ));
+  const handleLocateSemanticRule = useCallback(async (ruleId) => {
+    const normalizedRuleId = String(ruleId || '').trim();
+    if (!normalizedRuleId) {
+      return;
+    }
+    const allTaggedPaths = Object.keys(semanticTagsByPath || {}).filter((path) => {
+      const tags = Array.isArray(semanticTagsByPath?.[path]) ? semanticTagsByPath[path] : [];
+      return tags.some((tag: any) => String(tag?.id || '') === normalizedRuleId);
+    });
+    if (!allTaggedPaths.length) {
+      setErrorMessage(`No files found for semantic rule "${normalizedRuleId}".`);
+      return;
+    }
+    const preferredPath = visiblePaths.find((path) => allTaggedPaths.includes(path));
+    const targetPath = preferredPath || allTaggedPaths[0];
+    const expanded = await expandAncestorsForPath(targetPath);
+    if (!expanded) {
+      return;
+    }
+    selectPathInExplorer(targetPath);
+    clearError();
+  }, [clearError, expandAncestorsForPath, semanticTagsByPath, selectPathInExplorer, setErrorMessage, visiblePaths]);
   const buildDragPayload = (p) => selectionSet.has(p) ? Array.from(selectionSet) : [p];
   const requestRename = useCallback((path) => {
     if (!path) return;
@@ -980,6 +1002,7 @@ function ProjectExplorerSidebarContent({
           toggleSemanticFilter={toggleSemanticFilter}
           clearSemanticFilters={() => setSemanticFilters([])}
           semanticFiltersCount={semanticFilters.length}
+          onLocateSemanticRule={handleLocateSemanticRule}
         />
       )}
 

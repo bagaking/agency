@@ -80,7 +80,7 @@ It is the shared policy layer above local implementation details.
    core mutation/reveal flows already route through `fileInteraction`.
 3. Agent semantic rules are active:
    built-in rules and `.agency/agent-files.yaml` project rules are loaded and merged for classification.
-4. Explorer semantic affordance is partially landed:
-   row tags + semantic filtering are available; semantic quick-locate still pending.
+4. Explorer semantic affordance is landed:
+   row tags + semantic filtering + semantic quick-locate are available.
 5. Cross-surface parity remains pending:
    Agent Cells / Session Map / Memo still need full open/reveal + drag-routing convergence on the unified contract.
