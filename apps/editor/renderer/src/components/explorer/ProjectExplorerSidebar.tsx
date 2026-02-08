@@ -156,6 +156,7 @@ function ProjectExplorerSidebarContent({
     copyEntry,
     importExternalEntries,
     revealEntry,
+    openEntry,
     handleSelectPath,
   } = useProjectExplorer({
     rootPath: scopeRootPath,
@@ -442,6 +443,26 @@ function ProjectExplorerSidebarContent({
     scopeRootPath,
   ]);
 
+  const handleOpenEntry = useCallback(async (targetPath, mode = 'preview') => {
+    const normalizedPath = explorerPathUtils.toRelativePath(targetPath || '');
+    if (!normalizedPath) {
+      return false;
+    }
+    try {
+      const result = await openEntry({ targetPath: normalizedPath });
+      const resolvedPath = explorerPathUtils.toRelativePath(result?.path || normalizedPath);
+      if (!resolvedPath) {
+        return false;
+      }
+      onOpenFile?.({ path: resolvedPath, mode });
+      clearError();
+      return true;
+    } catch (err) {
+      setErrorMessage(err?.message || 'Failed to open file.');
+      return false;
+    }
+  }, [clearError, onOpenFile, openEntry, setErrorMessage]);
+
   // Handlers
   const closeContextMenu = () => setContextMenu(null);
   const activeTarget = contextMenu?.path || selectedPaths[0] || '';
@@ -508,8 +529,16 @@ function ProjectExplorerSidebarContent({
     if (!baseRoot || !window.agency?.materializeMarkdown) return;
     try {
       const result = await window.agency.materializeMarkdown({ rootPath: baseRoot, targetDir: '.agency/tmp/clipboard', relativeTo: baseRoot });
-      if (result?.path) { await refreshAll(); setSelectedPaths([result.path]); onOpenFile?.({ path: result.path, mode: 'pinned' }); }
-      clearError();
+      let didOpen = true;
+      if (result?.path) {
+        const normalizedPath = explorerPathUtils.toRelativePath(result.path);
+        await refreshAll();
+        setSelectedPaths([normalizedPath]);
+        didOpen = await handleOpenEntry(normalizedPath, 'pinned');
+      }
+      if (didOpen) {
+        clearError();
+      }
     } catch (err) { setErrorMessage('Markdown capture failed.'); }
   };
 
@@ -929,8 +958,8 @@ function ProjectExplorerSidebarContent({
         commentCount={!isDir ? (commentCountsByPath?.[item.path] || 0) : 0}
         onJumpToComments={onJumpToComments}
         cellBadges={cellBadges} depth={item.depth} onToggle={() => togglePath(item.path)}
-        onClick={isRenaming ? undefined : (e) => { handleSelectPath(item.path, e); setFocusedPath(item.path); listRef.current?.focus(); if (!isDir && !e.metaKey && !e.ctrlKey && !e.shiftKey) onOpenFile?.({ path: item.path, mode: 'preview' }); }}
-        onDoubleClick={isRenaming ? undefined : (e) => { if (!isDir) { e.stopPropagation(); onOpenFile?.({ path: item.path, mode: 'pinned' }); } }}
+        onClick={isRenaming ? undefined : (e) => { handleSelectPath(item.path, e); setFocusedPath(item.path); listRef.current?.focus(); if (!isDir && !e.metaKey && !e.ctrlKey && !e.shiftKey) { void handleOpenEntry(item.path, 'preview'); } }}
+        onDoubleClick={isRenaming ? undefined : (e) => { if (!isDir) { e.stopPropagation(); void handleOpenEntry(item.path, 'pinned'); } }}
         onContextMenu={isRenaming ? undefined : (e) => { e.preventDefault(); handleSelectPath(item.path, e); setFocusedPath(item.path); setContextMenu({ x: e.clientX, y: e.clientY, path: item.path }); }}
         onDragStart={isRenaming ? undefined : (e) => { const p = buildDragPayload(item.path); e.dataTransfer.setData(INTERNAL_DRAG_MIME, JSON.stringify(p)); e.dataTransfer.effectAllowed = 'move'; }}
         onDragOver={(e) => handleRowDragOver(e, item.path, isDir)}
@@ -962,7 +991,7 @@ function ProjectExplorerSidebarContent({
     if (event.key === 'ArrowUp') { event.preventDefault(); const n = next(-1); if (n) { handleSelectPath(n, { shiftKey: event.shiftKey }); setFocusedPath(n); scrollToPath(n); } }
     if (event.key === 'ArrowRight') { event.preventDefault(); if (tree.nodes[focusedPath]?.type === 'dir') { if (!expandedPaths.has(focusedPath)) togglePath(focusedPath); else { const first = (tree.children[focusedPath] || [])[0]; if (first) { handleSelectPath(first, { shiftKey: event.shiftKey }); setFocusedPath(first); scrollToPath(first); } } } } 
     if (event.key === 'ArrowLeft') { event.preventDefault(); if (tree.nodes[focusedPath]?.type === 'dir' && expandedPaths.has(focusedPath)) togglePath(focusedPath); else { const p = explorerPathUtils.dirname(focusedPath); if (p !== focusedPath && p !== undefined) { handleSelectPath(p, { shiftKey: event.shiftKey }); setFocusedPath(p); scrollToPath(p); } } }
-    if (event.key === 'Enter') { event.preventDefault(); if (tree.nodes[focusedPath]?.type === 'dir') togglePath(focusedPath); else if (focusedPath) onOpenFile?.({ path: focusedPath, mode: 'pinned' }); }
+    if (event.key === 'Enter') { event.preventDefault(); if (tree.nodes[focusedPath]?.type === 'dir') togglePath(focusedPath); else if (focusedPath) { void handleOpenEntry(focusedPath, 'pinned'); } }
     if (event.key === 'F2' && focusedPath) { event.preventDefault(); requestRename(focusedPath); }
     if ((event.key === 'Delete' || event.key === 'Backspace') && selectionTargets.length) { event.preventDefault(); handleDelete(selectionTargets); }
   };

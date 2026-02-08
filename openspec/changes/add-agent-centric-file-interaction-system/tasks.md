@@ -6,8 +6,8 @@
 ## 2. Phase A - Explorer Baseline Unification
 - [x] 2.1 Add IPC gateway `file:interact` and preload/bridge entry `performFileIntent`.
 - [x] 2.2 Add renderer `fileInteraction` service and migrate Explorer mutation/reveal calls to it.
-- [ ] 2.3 Route remaining Explorer open and non-mutation entry paths through unified result/error mapping.
-- [ ] 2.4 Add regression tests for drag import, conflict resolution, and post-import reveal/select behavior.
+- [x] 2.3 Route remaining Explorer open and non-mutation entry paths through unified result/error mapping.
+- [x] 2.4 Add regression tests for drag import, conflict resolution, and post-import reveal/select behavior.
 
 ## 3. Phase B - Cross-Surface Entry Points
 - [ ] 3.1 Add Agent Cells open/reveal entry points through `fileInteraction`.
@@ -22,7 +22,7 @@
 ## 5. IPC, Services, and Compatibility
 - [x] 5.1 Add preload bridge APIs: `performFileIntent`, `classifyAgentFiles` (also exposed `performToolFileIntent`).
 - [x] 5.2 Add IPC handlers: `file:interact`, `file:semantic:classify` (plus `file:tool:interact`).
-- [ ] 5.3 Ensure explorer path safety and conflict behavior remain unchanged under the new gateway.
+- [x] 5.3 Ensure explorer path safety and conflict behavior remain unchanged under the new gateway.
 
 ## 6. Toolization and Process-Interop Readiness
 - [x] 6.1 Add tool-facing adapters for Explorer-grade file intents using the unified contract (`file:tool:interact` + renderer wrapper `runToolFileIntent`).
@@ -40,6 +40,6 @@
 ## 8. Validation & Docs
 - [ ] 8.1 Add unit tests for intent normalization and semantic rule matching/merge.
 - [ ] 8.2 Add integration tests for cross-surface intent consistency and lightweight drop routing.
-- [ ] 8.3 Add integration tests for tool-invoked file intents and permission-denied outcomes.
+- [x] 8.3 Add integration tests for tool-invoked file intents and permission-denied outcomes.
 - [ ] 8.4 Update `apps/editor/README.md` with unified file interaction, semantic-file behavior, and toolization model.
 - [ ] 8.5 Run e2e/manual baseline checks for Explorer, Agent Cells, Session Map, and Memo entry flows.

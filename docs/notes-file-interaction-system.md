@@ -77,7 +77,7 @@ It is the shared policy layer above local implementation details.
 1. Gateway baseline landed:
    `file:interact`, `file:tool:interact`, and `file:semantic:classify` are available through preload + renderer service wrappers.
 2. Explorer baseline migration is mostly done:
-   core mutation/reveal flows already route through `fileInteraction`.
+   mutation paths and user-triggered open entry points now route through `fileInteraction` intent mapping (`open`/`reveal`/`import_copy`/`move`/`copy`/`delete`/`create`/`rename`).
 3. Agent semantic rules are active:
    built-in rules and `.agency/agent-files.yaml` project rules are loaded and merged for classification.
 4. Explorer semantic affordance is landed:
@@ -88,3 +88,5 @@ It is the shared policy layer above local implementation details.
    `file:tool:interact` now requires caller metadata (`callerId`, `traceId`) and capability-scoped authorization (`file.read` / `file.write`).
 7. CLI wrapper baseline is active:
    `fileIntentCli` provides JSON-in / JSON-out access to `file:interact` semantics (user/tool/classify modes) as a thin gateway wrapper.
+8. Regression coverage has expanded:
+   Electron service tests now validate open-intent path safety/error mapping, tool permission-denied behavior, and `import_copy` conflict/path-safety behavior; Playwright e2e coverage includes external-drop import selection + conflict-safe naming checks.

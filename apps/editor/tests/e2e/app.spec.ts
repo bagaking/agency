@@ -276,6 +276,104 @@ test('explorer drag and drop moves files', async () => {
   await electronApp.close();
 });
 
+test('explorer external drop imports and selects first imported entry', async () => {
+  setupTestRepo();
+  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
+
+  const externalDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-external-drop-'));
+  const externalFile = path.join(externalDir, 'external-note.txt');
+  fs.writeFileSync(externalFile, 'external payload\n');
+
+  const electronApp = await electron.launch({
+    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
+    env: {
+      ...process.env,
+      ELECTRON_RENDERER_URL: RENDERER_URL,
+      AGENCY_TEST_MODE: '1',
+      AGENCY_CLI_STUB: '1',
+      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
+    },
+  });
+
+  try {
+    const window = await electronApp.firstWindow();
+    await window.getByTitle('Explorer').click();
+    await expect(window.getByTestId('explorer-header')).toBeVisible();
+
+    const targetDirRow = window.locator('[data-explorer-path="src"]');
+    await expect(targetDirRow).toBeVisible();
+
+    const dataTransfer = await window.evaluateHandle((rawPath) => {
+      const transfer = new DataTransfer();
+      transfer.setData('text/plain', String(rawPath || ''));
+      return transfer;
+    }, externalFile);
+
+    await targetDirRow.dispatchEvent('dragover', { dataTransfer });
+    await targetDirRow.dispatchEvent('drop', { dataTransfer });
+
+    const importedRow = window.locator('[data-explorer-path="src/external-note.txt"]');
+    await expect(importedRow).toBeVisible();
+    await expect
+      .poll(async () => importedRow.evaluate((node) => node.className.includes('bg-primary/20')))
+      .toBe(true);
+  } finally {
+    await electronApp.close();
+    fs.rmSync(externalDir, { recursive: true, force: true });
+  }
+});
+
+test('explorer external drop keeps conflict-safe naming semantics', async () => {
+  setupTestRepo();
+  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
+  fs.writeFileSync(path.join(TEST_REPO, 'src', 'conflict.txt'), 'existing\n');
+
+  const externalDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-external-drop-'));
+  const externalFile = path.join(externalDir, 'conflict.txt');
+  fs.writeFileSync(externalFile, 'incoming\n');
+
+  const electronApp = await electron.launch({
+    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
+    env: {
+      ...process.env,
+      ELECTRON_RENDERER_URL: RENDERER_URL,
+      AGENCY_TEST_MODE: '1',
+      AGENCY_CLI_STUB: '1',
+      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
+    },
+  });
+
+  try {
+    const window = await electronApp.firstWindow();
+    await window.getByTitle('Explorer').click();
+    await expect(window.getByTestId('explorer-header')).toBeVisible();
+
+    const targetDirRow = window.locator('[data-explorer-path="src"]');
+    await expect(targetDirRow).toBeVisible();
+
+    const dataTransfer = await window.evaluateHandle((rawPath) => {
+      const transfer = new DataTransfer();
+      transfer.setData('text/plain', String(rawPath || ''));
+      return transfer;
+    }, externalFile);
+
+    await targetDirRow.dispatchEvent('dragover', { dataTransfer });
+    await targetDirRow.dispatchEvent('drop', { dataTransfer });
+
+    const importedRow = window.locator('[data-explorer-path="src/conflict (1).txt"]');
+    await expect(importedRow).toBeVisible();
+
+    const existingContent = fs.readFileSync(path.join(TEST_REPO, 'src', 'conflict.txt'), 'utf8');
+    const importedContent = fs.readFileSync(path.join(TEST_REPO, 'src', 'conflict (1).txt'), 'utf8');
+
+    expect(existingContent).toBe('existing\n');
+    expect(importedContent).toBe('incoming\n');
+  } finally {
+    await electronApp.close();
+    fs.rmSync(externalDir, { recursive: true, force: true });
+  }
+});
+
 test('explorer copy and paste duplicates entries', async () => {
   setupTestRepo();
   fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });

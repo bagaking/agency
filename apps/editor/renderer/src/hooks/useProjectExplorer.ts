@@ -502,6 +502,16 @@ export function useProjectExplorer(options: any = {}) {
     return response?.data || null;
   }, [rootPath]);
 
+  const openEntry = useCallback(async (payload) => {
+    const response = await runFileIntent({
+      intent: 'open',
+      sourceSurface: 'explorer',
+      ...payload,
+      rootPath: rootPath || undefined,
+    });
+    return response?.data || null;
+  }, [rootPath]);
+
   const search = useCallback(
     async (query) => {
       if (!window.agency?.searchExplorerFiles) {
@@ -614,6 +624,7 @@ export function useProjectExplorer(options: any = {}) {
     copyEntry,
     importExternalEntries,
     revealEntry,
+    openEntry,
     handleSelectPath,
     clearError: () => setError(''),
   };

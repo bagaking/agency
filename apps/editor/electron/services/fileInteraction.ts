@@ -107,6 +107,32 @@ function buildFailure(intent, code, message, itemPath = '') {
   };
 }
 
+function failureCodeFromError(error) {
+  const message = String(error?.message || '').toLowerCase();
+  if (!message) {
+    return 'FATAL';
+  }
+  const userErrorHints = [
+    'required',
+    'unsupported',
+    'already exists',
+    'does not exist',
+    'no source paths',
+    'target directory',
+    'target path',
+    'path escapes repository root',
+    'outside root',
+    'not a directory',
+    'invalid path',
+    'enoent',
+    'eexist',
+  ];
+  if (userErrorHints.some((hint) => message.includes(hint))) {
+    return 'USER_ERROR';
+  }
+  return 'FATAL';
+}
+
 function normalizeCapabilities(value) {
   const list = Array.isArray(value) ? value : [];
   return Array.from(
@@ -165,6 +191,24 @@ function ensureRootResolved(resolved) {
   }
 }
 
+async function ensureIntentTargetReadable({ rootPath, targetPath, requireExisting = true }) {
+  const resolved = await resolveInteractionRoot(rootPath);
+  ensureRootResolved(resolved);
+  const rootAbsolute = path.resolve(resolved.rootPath);
+  const normalizedPath = normalizePath(targetPath);
+  if (!normalizedPath) {
+    throw new Error('targetPath is required.');
+  }
+  const absolutePath = resolveSafePath(rootAbsolute, normalizedPath);
+  if (requireExisting) {
+    await fs.promises.access(absolutePath);
+  }
+  return {
+    rootPath: rootAbsolute,
+    targetPath: normalizedPath,
+  };
+}
+
 async function performFileIntent(payload = {}) {
   const intent = normalizeIntent(payload.intent);
   if (!SUPPORTED_INTENTS.has(intent)) {
@@ -176,6 +220,15 @@ async function performFileIntent(payload = {}) {
       const targetPath = normalizePath(payload.targetPath || payload.path || '');
       if (!targetPath) {
         return buildFailure(intent, 'USER_ERROR', 'targetPath is required for open intent.');
+      }
+      try {
+        await ensureIntentTargetReadable({
+          rootPath: payload.rootPath,
+          targetPath,
+          requireExisting: true,
+        });
+      } catch (error) {
+        return buildFailure(intent, failureCodeFromError(error), error?.message || String(error), targetPath);
       }
       return buildSuccess(intent, { path: targetPath }, [targetPath]);
     }
@@ -273,7 +326,7 @@ async function performFileIntent(payload = {}) {
 
     return buildFailure(intent, 'USER_ERROR', `Unsupported file intent: ${intent}`);
   } catch (error) {
-    return buildFailure(intent, 'FATAL', error?.message || String(error));
+    return buildFailure(intent, failureCodeFromError(error), error?.message || String(error));
   }
 }
 
