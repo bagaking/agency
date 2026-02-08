@@ -1,12 +1,12 @@
 ## 1. Spec & Contract
 - [x] 1.1 Finalize proposal/design/spec deltas for unified cross-surface file interaction.
-- [ ] 1.2 Validate change with `openspec validate add-agent-centric-file-interaction-system --strict`.
+- [x] 1.2 Validate change with `openspec validate add-agent-centric-file-interaction-system --strict`.
 - [x] 1.3 Freeze `FileIntent` / `FileIntentResult` / `FileSemanticTag` contract fields before implementation.
 
 ## 2. Phase A - Explorer Baseline Unification
-- [ ] 2.1 Add IPC gateway `file:interact` and preload/bridge entry `performFileIntent`.
-- [ ] 2.2 Add renderer `fileInteraction` service and migrate Explorer interaction calls to it.
-- [ ] 2.3 Route Explorer mutation and open/reveal actions through unified result/error mapping.
+- [x] 2.1 Add IPC gateway `file:interact` and preload/bridge entry `performFileIntent`.
+- [x] 2.2 Add renderer `fileInteraction` service and migrate Explorer mutation/reveal calls to it.
+- [ ] 2.3 Route remaining Explorer open/reveal actions through unified result/error mapping.
 - [ ] 2.4 Add regression tests for drag import, conflict resolution, and post-import reveal/select behavior.
 
 ## 3. Phase B - Cross-Surface Entry Points
@@ -20,12 +20,12 @@
 - [ ] 4.3 Add Explorer semantic tag rendering, filtering, and quick-locate affordance.
 
 ## 5. IPC, Services, and Compatibility
-- [ ] 5.1 Add preload bridge APIs: `performFileIntent`, `classifyAgentFiles`.
-- [ ] 5.2 Add IPC handlers: `file:interact`, `file:semantic:classify`.
+- [ ] 5.1 Add preload bridge APIs: `performFileIntent`, `classifyAgentFiles` (first landed: `performFileIntent`).
+- [ ] 5.2 Add IPC handlers: `file:interact`, `file:semantic:classify` (first landed: `file:interact`).
 - [ ] 5.3 Ensure explorer path safety and conflict behavior remain unchanged under the new gateway.
 
 ## 6. Toolization and Process-Interop Readiness
-- [ ] 6.1 Add tool-facing adapters for Explorer-grade file intents using the unified contract.
+- [ ] 6.1 Add tool-facing adapters for Explorer-grade file intents using the unified contract (first landed: `file:tool:interact` IPC route).
 - [ ] 6.2 Add capability-scoped authorization and audit metadata for tool-invoked file intents.
 - [ ] 6.3 Define and validate caller context schema (`sourceSurface`, `callerType`, `callerId`, trace id).
 - [ ] 6.4 Add a process-boundary compatibility plan (dedicated helper process path) without changing caller semantics.

@@ -140,6 +140,7 @@ const INVOKE_CHANNELS: Record<string, string> = {
   copyExplorerEntry: 'explorer:copy',
   importExplorerEntries: 'explorer:import',
   revealExplorerEntry: 'explorer:reveal',
+  performFileIntent: 'file:interact',
   listComments: 'comments:list',
   submitComment: 'comments:submit',
   listHilItems: 'hil:list',

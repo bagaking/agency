@@ -7,6 +7,7 @@ import { setupCellHandlers } from "../ipc/handlers/cells";
 import { setupClipboardHandlers } from "../ipc/handlers/clipboard";
 import { setupCommentsHandlers } from "../ipc/handlers/comments";
 import { setupExplorerHandlers } from "../ipc/handlers/explorer";
+import { setupFileInteractionHandlers } from "../ipc/handlers/fileInteraction";
 import { setupGatesHandlers } from "../ipc/handlers/gates";
 import { setupHilHandlers } from "../ipc/handlers/hil";
 import { setupProjectHandlers } from "../ipc/handlers/project";
@@ -53,6 +54,7 @@ const IPC_REGISTRATIONS: IpcRegistration[] = [
   withoutDeps(setupTmuxHandlers),
   withoutDeps(setupWorktreeLinksHandlers),
   withoutDeps(setupExplorerHandlers),
+  withoutDeps(setupFileInteractionHandlers),
   withoutDeps(setupWorkbenchHandlers),
   withoutDeps(setupRuntimeLogHandlers),
   withoutDeps(setupProjectHandlers),

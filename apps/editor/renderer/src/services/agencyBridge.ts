@@ -240,6 +240,14 @@ export const getTmuxStatus = async () => {
   return api.getTmuxStatus();
 };
 
+export const performFileIntent = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.performFileIntent) {
+    return null;
+  }
+  return api.performFileIntent(payload);
+};
+
 export const listComments = async (payload) => {
   const api = getAgencyApi();
   if (!api?.listComments) {

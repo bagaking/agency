@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { pathBaseName } from './shared/scopedSettingsState';
+import { runFileIntent } from '../services/fileInteraction';
 
 const buildAncestorPaths = (path) => {
   const parts = path.split('/').filter(Boolean);
@@ -350,13 +351,13 @@ export function useProjectExplorer(options: any = {}) {
   }, []);
 
   const createEntry = useCallback(async (payload) => {
-    if (!window.agency?.createExplorerEntry) {
-      return null;
-    }
-    const result = await window.agency.createExplorerEntry({
+    const response = await runFileIntent({
+      intent: 'create',
+      sourceSurface: 'explorer',
       ...payload,
       rootPath: rootPath || undefined,
     });
+    const result = response?.data || null;
     const parentPath = payload?.parentPath || '';
     await loadDirectory(parentPath);
     await refreshStatus();
@@ -364,13 +365,13 @@ export function useProjectExplorer(options: any = {}) {
   }, [loadDirectory, refreshStatus, rootPath]);
 
   const renameEntry = useCallback(async (payload) => {
-    if (!window.agency?.renameExplorerEntry) {
-      return null;
-    }
-    const result = await window.agency.renameExplorerEntry({
+    const response = await runFileIntent({
+      intent: 'rename',
+      sourceSurface: 'explorer',
       ...payload,
       rootPath: rootPath || undefined,
     });
+    const result = response?.data || null;
     const sourceParent = dirname(toRelativePath(payload?.sourcePath || ''));
     const targetParent = dirname(toRelativePath(payload?.targetPath || ''));
     await Promise.all([loadDirectory(sourceParent), loadDirectory(targetParent)]);
@@ -379,13 +380,13 @@ export function useProjectExplorer(options: any = {}) {
   }, [loadDirectory, refreshStatus, rootPath]);
 
   const deleteEntry = useCallback(async (payload) => {
-    if (!window.agency?.deleteExplorerEntry) {
-      return null;
-    }
-    const result = await window.agency.deleteExplorerEntry({
+    const response = await runFileIntent({
+      intent: 'delete',
+      sourceSurface: 'explorer',
       ...payload,
       rootPath: rootPath || undefined,
     });
+    const result = response?.data || null;
     const parentPath = dirname(toRelativePath(payload?.targetPath || ''));
     await loadDirectory(parentPath);
     await refreshStatus();
@@ -393,13 +394,13 @@ export function useProjectExplorer(options: any = {}) {
   }, [loadDirectory, refreshStatus, rootPath]);
 
   const copyEntry = useCallback(async (payload) => {
-    if (!window.agency?.copyExplorerEntry) {
-      return null;
-    }
-    const result = await window.agency.copyExplorerEntry({
+    const response = await runFileIntent({
+      intent: 'copy',
+      sourceSurface: 'explorer',
       ...payload,
       rootPath: rootPath || undefined,
     });
+    const result = response?.data || null;
     const targetParent = dirname(toRelativePath(payload?.targetPath || ''));
     await loadDirectory(targetParent);
     await refreshStatus();
@@ -407,9 +408,6 @@ export function useProjectExplorer(options: any = {}) {
   }, [loadDirectory, refreshStatus, rootPath]);
 
   const importExternalEntries = useCallback(async ({ sourcePaths = [], targetDir = '' } = {}) => {
-    if (!window.agency?.importExplorerEntries) {
-      return null;
-    }
     const dedupedPaths = Array.from(
       new Set(
         (Array.isArray(sourcePaths) ? sourcePaths : [])
@@ -428,24 +426,27 @@ export function useProjectExplorer(options: any = {}) {
       };
     }
     const normalizedTargetDir = toRelativePath(targetDir || '');
-    const result = await window.agency.importExplorerEntries({
+    const response = await runFileIntent({
+      intent: 'import_copy',
+      sourceSurface: 'explorer',
       rootPath: rootPath || undefined,
       sourcePaths: dedupedPaths,
       targetDir: normalizedTargetDir,
     });
+    const result = response?.data || null;
     await loadDirectory(normalizedTargetDir);
     await refreshStatus();
     return result;
   }, [loadDirectory, refreshStatus, rootPath]);
 
   const revealEntry = useCallback(async (payload) => {
-    if (!window.agency?.revealExplorerEntry) {
-      return null;
-    }
-    return window.agency.revealExplorerEntry({
+    const response = await runFileIntent({
+      intent: 'reveal',
+      sourceSurface: 'explorer',
       ...payload,
       rootPath: rootPath || undefined,
     });
+    return response?.data || null;
   }, [rootPath]);
 
   const search = useCallback(
