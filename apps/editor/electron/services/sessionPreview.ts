@@ -1,4 +1,3 @@
-// @ts-nocheck
 const { capturePane, getPaneSize, getLastPaneActivity, sendKeys } = require('./tmux');
 const { getSessionSize } = require('./terminal');
 const { resolveSessionForPreview } = require('./sessions');

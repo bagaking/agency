@@ -1,10 +1,9 @@
-// @ts-nocheck
 const { BrowserWindow, screen, globalShortcut } = require('electron');
 const { createOverlayWindow, closeOverlayWindow } = require('../../windows/captureOverlay/overlayWindow');
 const { getDisplaySource } = require('./sourceGrabber');
 const { saveCaptureAsset, copyCaptureToClipboard } = require('./imageComposer');
 
-let activeSession = null;
+let activeSession: any = null;
 
 const buildRequestId = () =>
   `${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`;
@@ -41,7 +40,8 @@ function restoreAgencyWindows(windows = []) {
   });
 }
 
-async function startCapture({ windowId, includeAgencyWindows = false } = {}) {
+async function startCapture(params: any = {}) {
+  const { windowId, includeAgencyWindows = false } = params || {};
   if (activeSession) {
     throw new Error('A capture session is already active.');
   }
@@ -77,15 +77,16 @@ async function startCapture({ windowId, includeAgencyWindows = false } = {}) {
   });
 }
 
-async function getDisplaySourceForOverlay({ requestId, displayId }) {
+async function getDisplaySourceForOverlay(params: any = {}) {
+  const { requestId, displayId } = params || {};
   const session = assertActiveSession(requestId);
   if (session.sourceCache.has(displayId)) {
     return session.sourceCache.get(displayId);
   }
-  const overlays = Array.from(session.overlays?.values() || []).filter(
-    (win) => win && !win.isDestroyed()
+  const overlays = (Array.from(session.overlays?.values() || []) as any[]).filter(
+    (win: any) => win && !win.isDestroyed()
   );
-  overlays.forEach((win) => {
+  overlays.forEach((win: any) => {
     try {
       win.setOpacity(0);
     } catch {
@@ -99,7 +100,7 @@ async function getDisplaySourceForOverlay({ requestId, displayId }) {
   try {
     source = await getDisplaySource(displayId);
   } finally {
-    overlays.forEach((win) => {
+    overlays.forEach((win: any) => {
       try {
         win.setOpacity(1);
       } catch {
@@ -111,7 +112,8 @@ async function getDisplaySourceForOverlay({ requestId, displayId }) {
   return source;
 }
 
-async function completeCapture({ requestId, payload } = {}) {
+async function completeCapture(params: any = {}) {
+  const { requestId, payload } = params || {};
   const session = assertActiveSession(requestId);
   const { resolve } = session;
   await cleanupSession();
@@ -121,7 +123,8 @@ async function completeCapture({ requestId, payload } = {}) {
   return { ok: true };
 }
 
-async function cancelCapture({ requestId, reason } = {}) {
+async function cancelCapture(params: any = {}) {
+  const { requestId, reason } = params || {};
   const session = assertActiveSession(requestId);
   const { reject } = session;
   await cleanupSession();
@@ -131,7 +134,8 @@ async function cancelCapture({ requestId, reason } = {}) {
   return { ok: true };
 }
 
-async function setIncludeAgencyWindows({ requestId, includeAgencyWindows } = {}) {
+async function setIncludeAgencyWindows(params: any = {}) {
+  const { requestId, includeAgencyWindows } = params || {};
   const session = assertActiveSession(requestId);
   if (session.includeAgencyWindows === includeAgencyWindows) {
     return { ok: true };
@@ -141,7 +145,7 @@ async function setIncludeAgencyWindows({ requestId, includeAgencyWindows } = {})
     restoreAgencyWindows(session.hiddenWindows || []);
     session.hiddenWindows = [];
   } else {
-    const overlayIds = Array.from(session.overlays.values()).map((win) => win.id);
+    const overlayIds = Array.from(session.overlays.values()).map((win: any) => win.id);
     session.hiddenWindows = hideAgencyWindows(overlayIds);
   }
   session.sourceCache.clear();

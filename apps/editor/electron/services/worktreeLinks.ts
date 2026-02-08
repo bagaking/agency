@@ -1,4 +1,3 @@
-// @ts-nocheck
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
@@ -65,7 +64,7 @@ async function readConfig(repoRoot) {
     };
   }
   const raw = await fs.promises.readFile(configPath, 'utf-8');
-  const parsed = yaml.load(raw) || {};
+  const parsed = (yaml.load(raw) || {}) as Record<string, any>;
   return {
     version: parsed.version || 1,
     autoLinkOnCreate: Boolean(parsed.autoLinkOnCreate),
@@ -188,11 +187,13 @@ function getLinkStatus({ repoRoot, worktreePath, link }) {
   };
 }
 
-function getLinkStatuses({ repoRoot, worktreePath, links }) {
+function getLinkStatuses(params: any = {}) {
+  const { repoRoot, worktreePath, links } = params || {};
   return (links || []).map((link) => getLinkStatus({ repoRoot, worktreePath, link }));
 }
 
-async function applyLink({ repoRoot, worktreePath, linkId }) {
+async function applyLink(params: any = {}) {
+  const { repoRoot, worktreePath, linkId } = params || {};
   const config = await readConfig(repoRoot);
   const link = config.links.find((item) => item.id === linkId);
   if (!link) {
@@ -227,7 +228,8 @@ async function applyLink({ repoRoot, worktreePath, linkId }) {
   return { status: 'linked' };
 }
 
-async function applyAllLinks({ repoRoot, worktreePath, bestEffort = false }) {
+async function applyAllLinks(params: any = {}) {
+  const { repoRoot, worktreePath, bestEffort = false } = params || {};
   const config = await readConfig(repoRoot);
   const results = [];
   for (const link of config.links) {
@@ -244,14 +246,15 @@ async function applyAllLinks({ repoRoot, worktreePath, bestEffort = false }) {
   return results;
 }
 
-async function readSummary({ repoRoot, worktreePath, worktreePaths = [] }) {
+async function readSummary(params: any = {}) {
+  const { repoRoot, worktreePath, worktreePaths = [] } = params || {};
   const config = await readConfig(repoRoot);
   const candidates = await listCandidateDirectories(repoRoot);
   
-  const allPaths = new Set(worktreePaths);
-  if (worktreePath) allPaths.add(worktreePath);
+  const allPaths = new Set<string>((Array.isArray(worktreePaths) ? worktreePaths : []).map((value) => String(value || "")).filter(Boolean));
+  if (worktreePath) allPaths.add(String(worktreePath));
 
-  const statusesByPath = {};
+  const statusesByPath: Record<string, any> = {};
   for (const p of allPaths) {
     statusesByPath[p] = getLinkStatuses({ repoRoot, worktreePath: p, links: config.links });
   }

@@ -1,4 +1,3 @@
-// @ts-nocheck
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
@@ -72,7 +71,8 @@ function normalizeMap(config) {
   };
 }
 
-async function readSessionMap({ rootPath } = {}) {
+async function readSessionMap(params: any = {}) {
+  const { rootPath } = params || {};
   const repoRoot = await resolveProjectRoot({ rootPath });
   if (!repoRoot) {
     return { ...DEFAULT_CONFIG, repoRoot: '' };
@@ -90,7 +90,8 @@ async function readSessionMap({ rootPath } = {}) {
   }
 }
 
-async function writeSessionMap({ rootPath, config } = {}) {
+async function writeSessionMap(params: any = {}) {
+  const { rootPath, config } = params || {};
   const repoRoot = await resolveProjectRoot({ rootPath });
   if (!repoRoot) {
     throw new Error('Project root is not configured.');

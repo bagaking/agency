@@ -1,4 +1,3 @@
-// @ts-nocheck
 const { app, BrowserWindow, globalShortcut } = require('electron');
 const fs = require('fs');
 const path = require('path');
@@ -211,7 +210,8 @@ async function writeAgentAppShortcuts(worktreePath, actions) {
   return normalized;
 }
 
-async function getAppShortcuts({ scope = 'resolved', worktreePath } = {}) {
+async function getAppShortcuts(params: any = {}) {
+  const { scope = 'resolved', worktreePath } = params || {};
   if (scope === 'global') {
     return readGlobalAppShortcuts();
   }
@@ -227,7 +227,8 @@ async function getAppShortcuts({ scope = 'resolved', worktreePath } = {}) {
   return mergeActions(globalActions, mergeActions(projectActions, agentActions));
 }
 
-async function setAppShortcuts({ scope = 'global', worktreePath, actions }) {
+async function setAppShortcuts(params: any = {}) {
+  const { scope = 'global', worktreePath, actions } = params || {};
   if (scope === 'project') {
     return writeProjectAppShortcuts(worktreePath, actions);
   }
@@ -272,7 +273,8 @@ function clearRegisteredShortcuts() {
   registeredAccelerators.clear();
 }
 
-function applyAppShortcuts({ actions } = {}) {
+function applyAppShortcuts(params: any = {}) {
+  const { actions } = params || {};
   clearRegisteredShortcuts();
   const catalog = buildCatalogMap();
   const normalized = normalizeScopedActions(actions || []).filter(

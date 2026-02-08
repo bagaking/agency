@@ -1,4 +1,3 @@
-// @ts-nocheck
 const { clipboard, nativeImage } = require('electron');
 const fs = require('fs');
 const path = require('path');
@@ -43,7 +42,8 @@ function parseDataUrl(dataUrl) {
   return { mime, buffer };
 }
 
-async function saveCaptureAsset({ worktreePath, dataUrl } = {}) {
+async function saveCaptureAsset(params: any = {}) {
+  const { worktreePath, dataUrl } = params || {};
   if (!worktreePath) {
     throw new Error('worktreePath is required.');
   }
@@ -64,7 +64,8 @@ async function saveCaptureAsset({ worktreePath, dataUrl } = {}) {
   };
 }
 
-function copyCaptureToClipboard({ dataUrl } = {}) {
+function copyCaptureToClipboard(params: any = {}) {
+  const { dataUrl } = params || {};
   const { buffer } = parseDataUrl(dataUrl);
   const image = nativeImage.createFromBuffer(buffer);
   clipboard.writeImage(image);

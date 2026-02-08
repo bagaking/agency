@@ -1,4 +1,3 @@
-// @ts-nocheck
 const { app } = require('electron');
 const fs = require('fs');
 const path = require('path');
@@ -59,7 +58,7 @@ function getAgentQuickActionsPath(worktreePath) {
   return path.join(agencyDir, `${AGENT_PREFIX}${worktreeName}${AGENT_EXT}`);
 }
 
-function ensureId(action) {
+function ensureId(action: any) {
   if (action.id) {
     return action;
   }
@@ -175,7 +174,8 @@ function mergeQuickActions(...scopes) {
   return merged;
 }
 
-async function getQuickActions({ scope = 'resolved', worktreePath } = {}) {
+async function getQuickActions(params: any = {}) {
+  const { scope = 'resolved', worktreePath } = params || {};
   if (scope === 'global') {
     return readGlobalQuickActions();
   }
@@ -191,7 +191,8 @@ async function getQuickActions({ scope = 'resolved', worktreePath } = {}) {
   return mergeQuickActions(globalActions, projectActions, agentActions);
 }
 
-async function setQuickActions({ scope = 'global', worktreePath, actions }) {
+async function setQuickActions(params: any = {}) {
+  const { scope = 'global', worktreePath, actions } = params || {};
   if (scope === 'project') {
     return writeProjectQuickActions(worktreePath, actions);
   }

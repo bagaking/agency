@@ -1,4 +1,3 @@
-// @ts-nocheck
 const { app, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
@@ -123,7 +122,8 @@ function clearWindowProjectRoot(windowId) {
   windowProjectRoots.delete(windowId);
 }
 
-async function resolveProjectRoot({ rootPath } = {}) {
+async function resolveProjectRoot(params: any = {}) {
+  const { rootPath } = params || {};
   const envRoot = getEnvProjectRoot();
   if (envRoot.explicit && !envRoot.value) {
     return '';
@@ -169,7 +169,8 @@ async function clearProjectRoot() {
   };
 }
 
-async function selectProjectRoot({ ownerWindow } = {}) {
+async function selectProjectRoot(params: any = {}) {
+  const { ownerWindow } = params || {};
   if (process.env.AGENCY_TEST_MODE === '1') {
     if (Object.prototype.hasOwnProperty.call(process.env, ENV_TEST_PROJECT_ROOT)) {
       const candidate = normalizeRoot(process.env[ENV_TEST_PROJECT_ROOT]);
@@ -205,7 +206,8 @@ function getAppPaths() {
   };
 }
 
-async function getProjectContext({ windowId, allowStoredRoot = true } = {}) {
+async function getProjectContext(params: any = {}) {
+  const { windowId, allowStoredRoot = true } = params || {};
   const windowRoot = getWindowProjectRoot(windowId);
   let resolvedRoot = windowRoot ? await resolveProjectRoot({ rootPath: windowRoot }) : '';
   if (!resolvedRoot && windowRoot) {

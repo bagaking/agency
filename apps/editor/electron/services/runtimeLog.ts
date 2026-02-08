@@ -1,4 +1,3 @@
-// @ts-nocheck
 const { app } = require('electron');
 const fs = require('fs');
 const path = require('path');
@@ -148,7 +147,8 @@ async function rotateChunk() {
   await openStream();
 }
 
-async function initRuntimeLogger({ repoRoot } = {}) {
+async function initRuntimeLogger(params: any = {}) {
+  const { repoRoot } = params || {};
   if (state.initialized) {
     return state;
   }

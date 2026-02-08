@@ -1,4 +1,3 @@
-// @ts-nocheck
 const { clipboard } = require('electron');
 const fs = require('fs');
 const path = require('path');
@@ -134,13 +133,14 @@ function resolveUniqueName(targetDir, name, isDir) {
   return { candidate, candidatePath };
 }
 
-async function materializeClipboard({
-  rootPath,
-  targetDir = '',
-  includeText = false,
-  relativeTo,
-  defaultImageName,
-} = {}) {
+async function materializeClipboard(params: any = {}) {
+  const {
+    rootPath,
+    targetDir = '',
+    includeText = false,
+    relativeTo,
+    defaultImageName,
+  } = params || {};
   if (!rootPath) {
     throw new Error('rootPath is required.');
   }
@@ -197,11 +197,12 @@ function isImagePath(value) {
   return ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'].includes(ext);
 }
 
-async function materializeMarkdown({
-  rootPath,
-  targetDir = '',
-  relativeTo,
-} = {}) {
+async function materializeMarkdown(params: any = {}) {
+  const {
+    rootPath,
+    targetDir = '',
+    relativeTo,
+  } = params || {};
   if (!rootPath) {
     throw new Error('rootPath is required.');
   }

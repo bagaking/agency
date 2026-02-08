@@ -1,4 +1,3 @@
-// @ts-nocheck
 const { desktopCapturer, screen } = require('electron');
 
 const toDisplayId = (display) => String(display?.id ?? '');

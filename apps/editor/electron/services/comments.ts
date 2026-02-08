@@ -1,4 +1,3 @@
-// @ts-nocheck
 const path = require('path');
 const { listHilItems, createHilItem } = require('./hil');
 const { getFileSnippet } = require('./workbench');
@@ -45,7 +44,8 @@ function toCommentView(item) {
   };
 }
 
-async function listComments({ worktreePath, filePath } = {}) {
+async function listComments(params: any = {}) {
+  const { worktreePath, filePath } = params || {};
   if (!worktreePath) {
     throw new Error('worktreePath is required.');
   }
@@ -57,14 +57,15 @@ async function listComments({ worktreePath, filePath } = {}) {
   return list.map(toCommentView);
 }
 
-async function submitComment({
-  worktreePath,
-  filePath,
-  line,
-  column,
-  message,
-  todo = false,
-} = {}) {
+async function submitComment(params: any = {}) {
+  const {
+    worktreePath,
+    filePath,
+    line,
+    column,
+    message,
+    todo = false,
+  } = params || {};
   if (!worktreePath) {
     throw new Error('worktreePath is required.');
   }

@@ -1,4 +1,3 @@
-// @ts-nocheck
 const { app } = require('electron');
 const fs = require('fs');
 const os = require('os');
@@ -122,7 +121,8 @@ async function readAgentSettings(worktreePath) {
   }
 }
 
-async function getSessionNamingSettings({ scope = 'resolved', worktreePath } = {}) {
+async function getSessionNamingSettings(params: any = {}) {
+  const { scope = 'resolved', worktreePath } = params || {};
   if (scope === 'project') {
     return readProjectSettings(worktreePath);
   }
@@ -144,7 +144,8 @@ async function getSessionNamingSettings({ scope = 'resolved', worktreePath } = {
   });
 }
 
-async function setSessionNamingSettings({ scope = 'global', worktreePath, settings } = {}) {
+async function setSessionNamingSettings(params: any = {}) {
+  const { scope = 'global', worktreePath, settings } = params || {};
   if (scope === 'project') {
     return writeProjectSettings(worktreePath, settings);
   }
