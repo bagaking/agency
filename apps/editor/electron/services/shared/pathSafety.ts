@@ -1,4 +1,3 @@
-// @ts-nocheck
 const path = require('path');
 
 function normalizeRelPath(value) {
