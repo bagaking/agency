@@ -11,6 +11,7 @@ const {
   importEntries,
   revealEntry,
 } = require('./explorer');
+const { logRuntime } = require('./runtimeLog');
 const { resolveProjectRoot } = require('./projectRoot');
 const { getRepoRoot } = require('./git');
 const { normalizeRelPath, resolveSafePath } = require('./shared/pathSafety');
@@ -25,6 +26,17 @@ const SUPPORTED_INTENTS = new Set([
   'create',
   'rename',
 ]);
+
+const TOOL_INTENT_CAPABILITY = {
+  open: 'file.read',
+  reveal: 'file.read',
+  import_copy: 'file.write',
+  move: 'file.write',
+  copy: 'file.write',
+  delete: 'file.write',
+  create: 'file.write',
+  rename: 'file.write',
+};
 
 const BUILTIN_SEMANTIC_RULES = [
   {
@@ -93,6 +105,35 @@ function buildFailure(intent, code, message, itemPath = '') {
     failures: [failure],
     data: null,
   };
+}
+
+function normalizeCapabilities(value) {
+  const list = Array.isArray(value) ? value : [];
+  return Array.from(
+    new Set(
+      list
+        .map((item) => String(item || '').trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
+}
+
+function normalizeCallerContext(payload = {}) {
+  return {
+    callerType: String(payload?.callerType || 'tool').trim().toLowerCase() || 'tool',
+    callerId: String(payload?.callerId || '').trim(),
+    traceId: String(payload?.traceId || '').trim(),
+    sourceSurface: String(payload?.sourceSurface || '').trim(),
+    capabilities: normalizeCapabilities(payload?.capabilities),
+  };
+}
+
+async function logToolIntentAudit(level, message, meta = {}) {
+  try {
+    await logRuntime(level, message, meta);
+  } catch (error) {
+    // Runtime logging must never block file intents.
+  }
 }
 
 async function resolveInteractionRoot(rootPath) {
@@ -421,13 +462,60 @@ async function classifyAgentFiles(payload = {}) {
 
 async function performToolFileIntent(payload = {}) {
   const intent = normalizeIntent(payload.intent);
-  if (!payload.callerId) {
+  const callerContext = normalizeCallerContext(payload);
+  if (!callerContext.callerId) {
+    await logToolIntentAudit('warn', 'file tool intent denied', {
+      intent,
+      reason: 'missing-caller-id',
+      callerType: callerContext.callerType,
+      sourceSurface: callerContext.sourceSurface,
+    });
     return buildFailure(intent || 'unknown', 'PERMISSION_DENIED', 'Tool intent requires callerId.');
   }
-  return performFileIntent({
+  if (!callerContext.traceId) {
+    await logToolIntentAudit('warn', 'file tool intent denied', {
+      intent,
+      callerId: callerContext.callerId,
+      reason: 'missing-trace-id',
+      callerType: callerContext.callerType,
+      sourceSurface: callerContext.sourceSurface,
+    });
+    return buildFailure(intent || 'unknown', 'PERMISSION_DENIED', 'Tool intent requires traceId.');
+  }
+  const requiredCapability = TOOL_INTENT_CAPABILITY[intent] || 'file.write';
+  if (!callerContext.capabilities.includes(requiredCapability)) {
+    await logToolIntentAudit('warn', 'file tool intent denied', {
+      intent,
+      callerId: callerContext.callerId,
+      traceId: callerContext.traceId,
+      reason: 'missing-capability',
+      requiredCapability,
+      capabilities: callerContext.capabilities,
+      sourceSurface: callerContext.sourceSurface,
+    });
+    return buildFailure(
+      intent || 'unknown',
+      'PERMISSION_DENIED',
+      `Tool intent requires capability: ${requiredCapability}.`
+    );
+  }
+  const response = await performFileIntent({
     ...payload,
-    callerType: 'tool',
+    callerType: callerContext.callerType,
+    callerId: callerContext.callerId,
+    traceId: callerContext.traceId,
+    sourceSurface: callerContext.sourceSurface || payload.sourceSurface || 'agent-tool',
   });
+  await logToolIntentAudit(response?.success ? 'info' : 'warn', 'file tool intent completed', {
+    intent,
+    callerId: callerContext.callerId,
+    traceId: callerContext.traceId,
+    sourceSurface: callerContext.sourceSurface || payload.sourceSurface || 'agent-tool',
+    success: Boolean(response?.success),
+    failureCount: Array.isArray(response?.failures) ? response.failures.length : 0,
+    warningCount: Array.isArray(response?.warnings) ? response.warnings.length : 0,
+  });
+  return response;
 }
 
 module.exports = {
@@ -435,4 +523,3 @@ module.exports = {
   performToolFileIntent,
   classifyAgentFiles,
 };
-

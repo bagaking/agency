@@ -30,6 +30,7 @@
 - The long-term goal is simultaneous success: keep core human operations and agent-driven workflows compatible instead of forcing one-sided trade-offs.
 - Explorer remains the canonical execution hub for filesystem mutation; other surfaces route through a shared interaction contract.
 - Explorer capabilities are being packaged as tool-capable interfaces so agent workflows can invoke the same safe path/permission/conflict logic.
+- Tool-invoked file intents enforce caller metadata (`callerId`, `traceId`) and capability scopes (`file.read` / `file.write`).
 - Agent semantic files (for example `Agency.md`, Spark conventions, and project-defined rules) are treated as first-class discoverability targets.
 - Current authoritative design and rollout:
   - `openspec/changes/add-agent-centric-file-interaction-system/`
