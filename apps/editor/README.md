@@ -17,6 +17,7 @@
 - Explorer provides a project file tree with git status (including added, untracked, ignored) and per-Cell change attribution.
 - Explorer scopes to the active Agent Cell worktree (or repo root) and opens files in the workbench.
 - Explorer supports filters (hidden/ignored/status), keyboard navigation, open/dirty indicators, and watch-based auto refresh.
+- Explorer supports semantic-file tags and semantic filters (built-in + project rules from `.agency/agent-files.yaml`).
 - Explorer supports copy/cut/paste via context menu and keyboard shortcuts.
 - Explorer can paste files or screenshots from the system clipboard, applying `-1` style conflict suffixes.
 - Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
@@ -168,6 +169,7 @@ make editor-dev
 
 - Open Explorer, expand folders, and confirm the tree loads lazily with refresh support.
 - Toggle Explorer filters (hidden/ignored/status) and confirm the tree updates accordingly.
+- Toggle semantic filters and confirm only matching files (plus required ancestors) remain visible.
 - Use arrow keys + Enter/F2 in Explorer to navigate, open files, and rename entries.
 - Create, rename, delete, and drag/drop a file or folder from the Explorer view.
 - Select a file in Explorer and confirm it opens in a workbench tab with line numbers and syntax highlighting.

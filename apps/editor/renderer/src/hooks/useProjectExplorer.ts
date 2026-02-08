@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { pathBaseName } from './shared/scopedSettingsState';
-import { runFileIntent } from '../services/fileInteraction';
+import { classifyFiles, runFileIntent } from '../services/fileInteraction';
 
 const buildAncestorPaths = (path) => {
   const parts = path.split('/').filter(Boolean);
@@ -80,12 +80,15 @@ export function useProjectExplorer(options: any = {}) {
   const [showHidden, setShowHidden] = useState(true);
   const [showChangesOnly, setShowChangesOnly] = useState(false);
   const [selectedPaths, setSelectedPaths] = useState([]);
+  const [semanticTagsByPath, setSemanticTagsByPath] = useState({});
+  const [semanticRules, setSemanticRules] = useState([]);
   const lastSelectedRef = useRef('');
   const selectionAnchorRef = useRef('');
   const statusInFlightRef = useRef(null);
   const statusCacheRef = useRef(null);
   const statusCacheAtRef = useRef(0);
   const statusRefreshHandle = useRef(null);
+  const semanticRefreshHandle = useRef(null);
   const childrenByPathRef = useRef(childrenByPath);
 
   useEffect(() => {
@@ -254,8 +257,58 @@ export function useProjectExplorer(options: any = {}) {
     setStatusByPath({});
     setFolderStatusByPath({});
     setStatusLabels({});
+    setSemanticTagsByPath({});
+    setSemanticRules([]);
     resetTreeState({ resetSearch: true });
   }, [enabled, resetTreeState]);
+
+  const refreshSemanticTags = useCallback(async () => {
+    if (!enabled) {
+      setSemanticTagsByPath({});
+      setSemanticRules([]);
+      return;
+    }
+    const paths = Object.keys(nodesByPath || {})
+      .filter(Boolean)
+      .map((value) => toRelativePath(value))
+      .filter(Boolean);
+    if (!paths.length) {
+      setSemanticTagsByPath({});
+      setSemanticRules([]);
+      return;
+    }
+    try {
+      const response = await classifyFiles({
+        rootPath: rootPath || undefined,
+        paths,
+      });
+      const nextTagsByPath = response?.data?.tagsByPath || {};
+      const nextRules = Array.isArray(response?.data?.rules) ? response.data.rules : [];
+      setSemanticTagsByPath(nextTagsByPath);
+      setSemanticRules(nextRules);
+    } catch (err) {
+      // Semantic classification should not block core explorer interactions.
+    }
+  }, [enabled, nodesByPath, rootPath]);
+
+  useEffect(() => {
+    if (!enabled) {
+      return undefined;
+    }
+    if (semanticRefreshHandle.current) {
+      clearTimeout(semanticRefreshHandle.current);
+    }
+    semanticRefreshHandle.current = setTimeout(() => {
+      semanticRefreshHandle.current = null;
+      refreshSemanticTags();
+    }, 160);
+    return () => {
+      if (semanticRefreshHandle.current) {
+        clearTimeout(semanticRefreshHandle.current);
+        semanticRefreshHandle.current = null;
+      }
+    };
+  }, [enabled, refreshSemanticTags]);
 
   const expandPath = useCallback(
     async (path) => {
@@ -533,6 +586,8 @@ export function useProjectExplorer(options: any = {}) {
     statusByPath,
     folderStatusByPath,
     statusLabels,
+    semanticTagsByPath,
+    semanticRules,
     error,
     setErrorMessage: setError,
     searchQuery,

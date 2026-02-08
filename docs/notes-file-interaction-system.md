@@ -72,3 +72,15 @@ It is the shared policy layer above local implementation details.
   `openspec/changes/add-agent-centric-file-interaction-system/`
 - This note is the project-level philosophy mirror.
 - OpenSpec files carry implementation-level requirements and task breakdown.
+
+## Implementation Snapshot (Current)
+1. Gateway baseline landed:
+   `file:interact`, `file:tool:interact`, and `file:semantic:classify` are available through preload + renderer service wrappers.
+2. Explorer baseline migration is mostly done:
+   core mutation/reveal flows already route through `fileInteraction`.
+3. Agent semantic rules are active:
+   built-in rules and `.agency/agent-files.yaml` project rules are loaded and merged for classification.
+4. Explorer semantic affordance is partially landed:
+   row tags + semantic filtering are available; semantic quick-locate still pending.
+5. Cross-surface parity remains pending:
+   Agent Cells / Session Map / Memo still need full open/reveal + drag-routing convergence on the unified contract.

@@ -15,7 +15,23 @@ export function ExplorerFilterPanel({
   toggleStatusFilter,
   clearStatusFilters,
   statusFiltersCount,
+  semanticRules,
+  semanticFilterSet,
+  toggleSemanticFilter,
+  clearSemanticFilters,
+  semanticFiltersCount,
 }: any) {
+  const sortedSemanticRules = Array.isArray(semanticRules)
+    ? [...semanticRules].sort((a, b) => {
+        const aPriority = Number(a?.priority) || 0;
+        const bPriority = Number(b?.priority) || 0;
+        if (aPriority !== bPriority) {
+          return bPriority - aPriority;
+        }
+        return String(a?.label || a?.id || '').localeCompare(String(b?.label || b?.id || ''));
+      })
+    : [];
+
   return (
     <div
       data-explorer-filter-menu
@@ -65,6 +81,48 @@ export function ExplorerFilterPanel({
         >
           Reset Status Filters
         </button>
+      )}
+
+      {sortedSemanticRules.length > 0 && (
+        <>
+          <div className="mt-4 mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/30">
+            Semantic Files
+          </div>
+          <div className="mt-2 grid grid-cols-1 gap-1">
+            {sortedSemanticRules.map((rule) => {
+              const ruleId = String(rule?.id || '');
+              if (!ruleId) {
+                return null;
+              }
+              const active = semanticFilterSet?.has(ruleId);
+              return (
+                <button
+                  key={ruleId}
+                  type="button"
+                  aria-pressed={active}
+                  className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white/5 ${focusRingClass} ${
+                    active ? 'bg-white/5 text-foreground' : 'opacity-60 hover:opacity-100'
+                  }`}
+                  onClick={() => toggleSemanticFilter(ruleId)}
+                >
+                  <span className="truncate tracking-tight">{rule?.label || ruleId}</span>
+                  <span className="shrink-0 rounded-[2px] border border-sky-400/30 bg-sky-500/10 px-1 text-[8px] font-bold uppercase tracking-tighter text-sky-200">
+                    {ruleId}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {semanticFiltersCount > 0 && (
+            <button
+              type="button"
+              className={`mt-3 w-full rounded-lg border border-white/5 bg-white/5 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider hover:bg-white/10 transition-colors text-muted-foreground hover:text-foreground ${focusRingClass}`}
+              onClick={clearSemanticFilters}
+            >
+              Reset Semantic Filters
+            </button>
+          )}
+        </>
       )}
     </div>
   );

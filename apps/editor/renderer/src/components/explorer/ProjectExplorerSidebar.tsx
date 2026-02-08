@@ -131,6 +131,8 @@ function ProjectExplorerSidebarContent({
     statusByPath,
     folderStatusByPath,
     statusLabels,
+    semanticTagsByPath,
+    semanticRules,
     error,
     setErrorMessage,
     searchQuery,
@@ -169,6 +171,7 @@ function ProjectExplorerSidebarContent({
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [showIgnored, setShowIgnored] = useState(true);
   const [statusFilters, setStatusFilters] = useState([]);
+  const [semanticFilters, setSemanticFilters] = useState([]);
   const [focusedPath, setFocusedPath] = useState('');
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
@@ -181,12 +184,15 @@ function ProjectExplorerSidebarContent({
   const hasRestoredStateRef = useRef(false);
 
   const statusFilterSet = useMemo(() => new Set(statusFilters), [statusFilters]);
+  const semanticFilterSet = useMemo(() => new Set(semanticFilters), [semanticFilters]);
   const isSearchActive = searchQuery.trim().length > 0;
   const tree = isSearchActive ? searchTree : { nodes: nodesByPath, children: childrenByPath };
   const hasStatusFilters = statusFilterSet.size > 0;
+  const hasSemanticFilters = semanticFilterSet.size > 0;
   const hasChangeFilter = showChangesOnly || hasStatusFilters;
+  const hasSemanticFilter = hasSemanticFilters;
   const hasVisibilityFilters = !showHidden || !showIgnored;
-  const hasActiveFilters = hasChangeFilter || hasVisibilityFilters;
+  const hasActiveFilters = hasChangeFilter || hasSemanticFilter || hasVisibilityFilters;
 
   const activeRootLabel = rootLabel || 'Project';
   const hasCells = cells && cells.length > 0;
@@ -238,6 +244,15 @@ function ProjectExplorerSidebarContent({
   }, [expandPath, explorerStateKey, setSelectedPaths]);
 
   useEffect(() => {
+    const availableRuleIds = new Set(
+      (Array.isArray(semanticRules) ? semanticRules : [])
+        .map((rule: any) => String(rule?.id || '').trim())
+        .filter(Boolean)
+    );
+    setSemanticFilters((current) => current.filter((id) => availableRuleIds.has(id)));
+  }, [semanticRules]);
+
+  useEffect(() => {
     if (!explorerStateKey) return;
     try {
       const payload = {
@@ -279,15 +294,27 @@ function ProjectExplorerSidebarContent({
     return false;
   }, [ignoredPaths]);
 
+  const matchesSemanticFilter = useCallback((targetPath) => {
+    if (!hasSemanticFilters) {
+      return true;
+    }
+    const tags = Array.isArray(semanticTagsByPath?.[targetPath]) ? semanticTagsByPath[targetPath] : [];
+    return tags.some((tag: any) => semanticFilterSet.has(String(tag?.id || '')));
+  }, [hasSemanticFilters, semanticFilterSet, semanticTagsByPath]);
+
   const buildVisibleList = useCallback(() => {
     const items = [];
     const shouldInclude = (path, node) => {
-      if (!hasChangeFilter) return true;
       const entry = node.type === 'dir' ? folderStatusByPath[path] : statusByPath[path];
       const scoped = getScopedEntry(entry, node.type === 'dir' ? 'dir' : 'file');
       let status = scoped?.status || null;
-      if (node.type === 'dir' && !statusByPath[path] && status === 'ignored') status = null;
-      return status && (!hasStatusFilters || statusFilterSet.has(status));
+      if (node.type === 'dir' && !statusByPath[path] && status === 'ignored') {
+        status = null;
+      }
+      const statusMatches =
+        !hasChangeFilter || Boolean(status && (!hasStatusFilters || statusFilterSet.has(status)));
+      const semanticMatches = matchesSemanticFilter(path);
+      return statusMatches && semanticMatches;
     };
     const isVisible = (path, node) => {
       if (!path) return true;
@@ -319,7 +346,7 @@ function ProjectExplorerSidebarContent({
       if (idx >= 0) items.splice(idx + 1, 0, { path: `__d__${draftEntry.parentPath}`, depth: items[idx].depth + 1, type: draftEntry.type, draft: true });
     }
     return items;
-  }, [draftEntry, expandedPaths, folderStatusByPath, getScopedEntry, hasChangeFilter, hasStatusFilters, isSearchActive, showHidden, showIgnored, isPathIgnored, statusByPath, statusFilterSet, tree.children, tree.nodes]);
+  }, [draftEntry, expandedPaths, folderStatusByPath, getScopedEntry, hasChangeFilter, hasStatusFilters, isSearchActive, matchesSemanticFilter, showHidden, showIgnored, isPathIgnored, statusByPath, statusFilterSet, tree.children, tree.nodes]);
 
   const visibleItems = useMemo(() => buildVisibleList(), [buildVisibleList]);
   const visiblePaths = useMemo(() => visibleItems.filter(it => !it.draft).map(it => it.path), [visibleItems]);
@@ -845,6 +872,9 @@ function ProjectExplorerSidebarContent({
   }, [handleExternalImport, hasExternalDropEntries, readExternalDropPaths, resolveBlankDropDirectory, setErrorMessage]);
 
   const toggleStatusFilter = (s) => setStatusFilters(curr => curr.includes(s) ? curr.filter(it => it !== s) : [...curr, s]);
+  const toggleSemanticFilter = (id) => setSemanticFilters((curr) => (
+    curr.includes(id) ? curr.filter((it) => it !== id) : [...curr, id]
+  ));
   const buildDragPayload = (p) => selectionSet.has(p) ? Array.from(selectionSet) : [p];
   const requestRename = useCallback((path) => {
     if (!path) return;
@@ -873,6 +903,7 @@ function ProjectExplorerSidebarContent({
         key={item.path} item={item} node={node} isSelected={selectionSet.has(item.path)} isFocused={focusedPath === item.path} isLoading={loadingPaths.has(item.path)}
         isExpanded={expandedPaths.has(item.path) || isSearchActive} isSearchActive={isSearchActive} isOpen={!isDir && openFiles.has(item.path)}
         isDirty={!isDir && dirtyFiles.has(item.path)} isIgnored={isPathIgnored(item.path)} status={entry?.status} added={entry?.added} deleted={entry?.deleted}
+        semanticTags={semanticTagsByPath?.[item.path] || []}
         commentCount={!isDir ? (commentCountsByPath?.[item.path] || 0) : 0}
         onJumpToComments={onJumpToComments}
         cellBadges={cellBadges} depth={item.depth} onToggle={() => togglePath(item.path)}
@@ -944,6 +975,11 @@ function ProjectExplorerSidebarContent({
           showHidden={showHidden} setShowHidden={setShowHidden} showIgnored={showIgnored} setShowIgnored={setShowIgnored}
           showChangesOnly={showChangesOnly} setShowChangesOnly={setShowChangesOnly} statusFilterSet={statusFilterSet}
           toggleStatusFilter={toggleStatusFilter} clearStatusFilters={() => setStatusFilters([])} statusFiltersCount={statusFilters.length}
+          semanticRules={semanticRules}
+          semanticFilterSet={semanticFilterSet}
+          toggleSemanticFilter={toggleSemanticFilter}
+          clearSemanticFilters={() => setSemanticFilters([])}
+          semanticFiltersCount={semanticFilters.length}
         />
       )}
 

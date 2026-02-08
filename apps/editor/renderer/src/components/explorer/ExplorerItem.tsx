@@ -28,6 +28,7 @@ export function ExplorerItem({
   status,
   added,
   deleted,
+  semanticTags,
   commentCount,
   onJumpToComments,
   cellBadges,
@@ -49,6 +50,8 @@ export function ExplorerItem({
   const isUntracked = status === 'untracked';
   const isAdded = status === 'added';
   const hasComments = Number(commentCount) > 0;
+  const primarySemanticTag = Array.isArray(semanticTags) ? semanticTags[0] : null;
+  const semanticOverflowCount = Array.isArray(semanticTags) && semanticTags.length > 1 ? semanticTags.length - 1 : 0;
 
   const iconInfo = isDir ? null : getFileIcon(node.name, isLink);
   const FileIcon = isDir ? getFolderIcon(node.name, isExpanded) : iconInfo.icon;
@@ -176,6 +179,16 @@ export function ExplorerItem({
           {isAdded && !isIgnored && (
             <span className="shrink-0 text-[8px] font-black uppercase tracking-tighter text-emerald-400/60">
               added
+            </span>
+          )}
+          {primarySemanticTag && (
+            <span className="shrink-0 rounded-[2px] border border-sky-400/30 bg-sky-500/10 px-1 text-[8px] font-bold uppercase tracking-tighter text-sky-200">
+              {primarySemanticTag.label || primarySemanticTag.id}
+            </span>
+          )}
+          {semanticOverflowCount > 0 && (
+            <span className="shrink-0 text-[8px] font-bold uppercase tracking-tighter text-sky-300/70">
+              +{semanticOverflowCount}
             </span>
           )}
         </div>

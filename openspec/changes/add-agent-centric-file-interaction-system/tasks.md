@@ -15,9 +15,11 @@
 - [ ] 3.3 Add Memo reference open/reveal and lightweight drag routing into Explorer import.
 
 ## 4. Phase C - Agent File Semantics
-- [ ] 4.1 Implement built-in semantic rules for core agent files (including `Agency.md` and Spark conventions).
-- [ ] 4.2 Add project-level semantic rule loading from `.agency/agent-files.yaml` with priority merge.
+- [x] 4.1 Implement built-in semantic rules for core agent files (including `Agency.md` and Spark conventions).
+- [x] 4.2 Add project-level semantic rule loading from `.agency/agent-files.yaml` with priority merge.
 - [ ] 4.3 Add Explorer semantic tag rendering, filtering, and quick-locate affordance.
+  - Implemented: semantic tag rendering and semantic filter panel wiring.
+  - Pending: quick-locate affordance for semantic-tagged files (one-step locate/jump UX).
 
 ## 5. IPC, Services, and Compatibility
 - [x] 5.1 Add preload bridge APIs: `performFileIntent`, `classifyAgentFiles` (also exposed `performToolFileIntent`).
