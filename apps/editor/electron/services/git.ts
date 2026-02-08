@@ -1,4 +1,3 @@
-// @ts-nocheck
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 
@@ -20,7 +19,7 @@ async function listWorktrees(repoRoot) {
   }
   const blocks = output.split('\n\n').map((block) => block.trim()).filter(Boolean);
   return blocks.map((block) => {
-    const entry = {};
+    const entry: Record<string, string> = {};
     block.split('\n').forEach((line) => {
       if (line.startsWith('worktree ')) {
         entry.path = line.replace('worktree ', '').trim();

@@ -1,4 +1,3 @@
-// @ts-nocheck
 const fs = require('fs');
 const path = require('path');
 
@@ -69,7 +68,8 @@ async function moveOrCopyFile(sourcePath, targetPath) {
   }
 }
 
-async function saveVoiceAsset({ worktreePath, sourcePath, dataUrl, durationMs, mime } = {}) {
+async function saveVoiceAsset(params: any = {}) {
+  const { worktreePath, sourcePath, dataUrl, durationMs, mime } = params || {};
   if (!worktreePath) {
     throw new Error('worktreePath is required.');
   }
@@ -107,7 +107,8 @@ async function saveVoiceAsset({ worktreePath, sourcePath, dataUrl, durationMs, m
   };
 }
 
-async function discardVoiceAsset({ sourcePath } = {}) {
+async function discardVoiceAsset(params: any = {}) {
+  const { sourcePath } = params || {};
   if (!sourcePath) {
     return { ok: false, reason: 'missing-path' };
   }

@@ -1,4 +1,3 @@
-// @ts-nocheck
 const { net } = require('electron');
 const nodeNet = require('net');
 const { JSDOM } = require('jsdom');

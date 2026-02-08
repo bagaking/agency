@@ -1,4 +1,3 @@
-// @ts-nocheck
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
@@ -28,7 +27,7 @@ async function readRegistry(worktreePath) {
   }
   try {
     const raw = await fsp.readFile(registryPath, 'utf-8');
-    const parsed = yaml.load(raw) || {};
+    const parsed = (yaml.load(raw) || {}) as Record<string, any>;
     return {
       version: parsed.version || 1,
       sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
