@@ -1,33 +1,36 @@
-const fs = require('fs');
-const path = require('path');
+import fs from "node:fs";
+import path from "node:path";
 
-function chmodIfExists(filePath) {
+function chmodIfExists(filePath: string): boolean {
   try {
     if (fs.existsSync(filePath)) {
       fs.chmodSync(filePath, 0o755);
       return true;
     }
-  } catch (error) {
-    // Ignore chmod errors; will be surfaced when spawning.
+  } catch {
+    // Ignore chmod errors; they surface when spawning the helper.
   }
+
   return false;
 }
 
-function findPackageRoot() {
+function findPackageRoot(): string | null {
   try {
-    const resolved = require.resolve('node-pty');
+    const resolved = require.resolve("node-pty");
     return path.dirname(path.dirname(resolved));
-  } catch (error) {
+  } catch {
     return null;
   }
 }
 
-function main() {
+function main(): void {
   const root = findPackageRoot();
+
   if (!root) {
     return;
   }
-  const prebuilds = path.join(root, 'prebuilds');
+
+  const prebuilds = path.join(root, "prebuilds");
   if (!fs.existsSync(prebuilds)) {
     return;
   }
@@ -37,7 +40,8 @@ function main() {
     if (!entry.isDirectory()) {
       return;
     }
-    const helperPath = path.join(prebuilds, entry.name, 'spawn-helper');
+
+    const helperPath = path.join(prebuilds, entry.name, "spawn-helper");
     chmodIfExists(helperPath);
   });
 }

@@ -32,7 +32,7 @@ This is a project-local catalog of reusable engineering assets. The goal is disc
 | Scoped settings state hook | MUST | Any Global/Project/Agent settings editor; reuse dirty/error/saving/IPC guard state machine. | `apps/editor/renderer/src/hooks/shared/scopedSettingsState.ts` |
 | Session naming core engine | MUST | Session naming rule parsing/placeholder formatting across main and renderer. | `apps/editor/shared/sessionNamingCore.cjs` |
 | Path safety helpers | MUST | Normalize relative paths and enforce root-safe resolution in Electron services/preload. | `apps/editor/electron/services/shared/pathSafety.ts` |
-| Electron compiled entry bootstrap | MUST | Any Electron main/preload TS migration should launch through compiled-entry bootstrap + `build:electron` pipeline for dev/test/package consistency. | `apps/editor/electron/bootstrap/loadCompiledEntrypoint.js`, `apps/editor/scripts/build-electron.js`, `apps/editor/tsconfig.electron.json` |
+| Electron compiled entry pipeline | MUST | Any Electron main/preload TS migration should launch compiled `.electron-build/main.js` through the shared `build:electron` pipeline for dev/test/package consistency. | `apps/editor/package.json`, `apps/editor/scripts/build-electron.ts`, `apps/editor/scripts/dev-main.ts`, `apps/editor/scripts/run-e2e.ts`, `apps/editor/tsconfig.electron.json` |
 | IPC setup registration pipeline | MUST | Register Electron IPC handlers through ordered `IPC_REGISTRATIONS` helpers (`withMainWindow` / `withoutDeps`) to keep behavior parity while reducing repetitive boilerplate. | `apps/editor/electron/main/ipcSetup.ts` |
 | Electron service TS module layer | MUST | Keep main-process service logic in TypeScript modules with named exports; use `// @ts-nocheck` only as transitional guard until strict typing pass. | `apps/editor/electron/services/**/*.ts`, `apps/editor/electron/windows/captureOverlay/*.ts` |
 | Terminus launch action builder | SHOULD | Build unified Start/Resume/Subcommand session-create actions from profile config (menu + dispatch paths). | `apps/editor/renderer/src/utils/terminusSettings.ts` |
@@ -54,6 +54,14 @@ This is a project-local catalog of reusable engineering assets. The goal is disc
 | `AppLayout` | Coordinates sidebar/main-panel/HIL rendering and all major feature views, so regressions have broad UI blast radius. | Keep `AppLayout` as orchestration shell and compose `AppSidebarContent`/`AppMainPanels`/`AppHilPanel`. | Completed (AppLayout shell + layout modules migrated to TSX) |
 | `TerminalPane` | Centralizes xterm attach/input/selection/path-link behavior and preview signaling; very broad blast radius. | Extract terminal interaction controller and keep pane component focused on rendering. | In Progress (TSX migration complete) |
 | `App.tsx` | Cross-domain orchestration and wiring hub; currently too wide for safe typed migration in one step. | Incrementally isolate feature composition boundaries into reusable orchestration hooks. | Completed (TSX migration complete with extracted composition seams) |
+
+## JS/CJS Compatibility Exceptions
+| File | Why It Remains JS/CJS | Exit Condition |
+| --- | --- | --- |
+| `apps/editor/scripts/after-pack.js` | Electron Builder `afterPack` hook resolves a plain JS file path from package metadata. | Migrate to a validated TS/compiled hook contract in packaging pipeline. |
+| `apps/editor/scripts/cli_stub.js` | Terminal runtime injects this exact script path for CLI stub behavior in test/dev sessions. | Replace with a compiled-entry indirection that preserves path compatibility. |
+| `apps/editor/postcss.config.js` | Current PostCSS toolchain auto-load path expects JS config in this workspace setup. | Adopt and verify a TS-aware PostCSS config loader. |
+| `apps/editor/shared/sessionNamingCore.cjs` | Shared CJS contract is consumed by both Electron (CJS) and renderer/runtime callsites during migration. | Move both callsites to a single TS/ESM core module without interop regressions. |
 
 ## Deprecations
 - None currently.

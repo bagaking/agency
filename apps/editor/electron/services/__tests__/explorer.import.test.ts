@@ -109,3 +109,5 @@ test('importEntries copies directories recursively into the target directory', a
   assert.equal(nestedFile, '# draft');
   assert.equal(siblingFile, 'note body');
 });
+
+export {};

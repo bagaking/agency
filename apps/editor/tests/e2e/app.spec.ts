@@ -56,7 +56,7 @@ test('renders the Agency shell', async () => {
   setupTestRepo();
   fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
   const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
+    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
     env: {
       ...process.env,
       ELECTRON_RENDERER_URL: RENDERER_URL,
@@ -84,7 +84,7 @@ test('shows project selection empty state', async () => {
   setupTestRepo();
   fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
   const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
+    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
     env: {
       ...process.env,
       ELECTRON_RENDERER_URL: RENDERER_URL,
@@ -106,7 +106,7 @@ test('project settings open action populates recent projects', async () => {
   setupTestRepo();
   fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
   const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
+    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
     env: {
       ...process.env,
       ELECTRON_RENDERER_URL: RENDERER_URL,
@@ -137,7 +137,7 @@ test('settings dashboard shows navigation cards and home shortcut', async () => 
   setupTestRepo();
   fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
   const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
+    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
     env: {
       ...process.env,
       ELECTRON_RENDERER_URL: RENDERER_URL,
@@ -167,7 +167,7 @@ test('keeps the active session stable while switching tabs', async () => {
   setupTestRepo();
   fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
   const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
+    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
     env: {
       ...process.env,
       ELECTRON_RENDERER_URL: RENDERER_URL,
@@ -207,7 +207,7 @@ test('explorer filters and keyboard navigation', async () => {
   setupTestRepo();
   fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
   const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
+    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
     env: {
       ...process.env,
       ELECTRON_RENDERER_URL: RENDERER_URL,
@@ -250,7 +250,7 @@ test('explorer drag and drop moves files', async () => {
   setupTestRepo();
   fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
   const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
+    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
     env: {
       ...process.env,
       ELECTRON_RENDERER_URL: RENDERER_URL,
@@ -280,7 +280,7 @@ test('explorer copy and paste duplicates entries', async () => {
   setupTestRepo();
   fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
   const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', 'electron', 'main.js')],
+    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
     env: {
       ...process.env,
       ELECTRON_RENDERER_URL: RENDERER_URL,
