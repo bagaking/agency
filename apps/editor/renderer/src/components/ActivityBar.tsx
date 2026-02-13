@@ -21,9 +21,9 @@ export function ActivityBar({ activeView, onSwitchView }: any) {
   };
 
   const items = [
-    { id: 'action-sheets', icon: ClipboardList, label: 'Action Sheets' },
     { id: 'explorer', icon: Folder, label: 'Explorer' },
     { id: 'memo', icon: Brain, label: 'Memo' },
+    { id: 'action-sheets', icon: ClipboardList, label: 'Action Sheets' },
   ];
 
   const bottomItems = [

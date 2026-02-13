@@ -44,8 +44,9 @@ function setupExplorerHandlers() {
   ipcMain.handle('explorer:search', async (_event, payload) => {
     const rootPath = payload?.rootPath;
     const query = payload?.query || '';
+    const includeAll = Boolean(payload?.includeAll);
     const limit = payload?.limit || 1000;
-    return searchFiles({ rootPath, query, limit });
+    return searchFiles({ rootPath, query, includeAll, limit });
   });
 
   ipcMain.handle('explorer:create', async (_event, payload) => {

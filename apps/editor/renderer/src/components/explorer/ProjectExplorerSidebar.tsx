@@ -1,16 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, FileText, RefreshCw } from 'lucide-react';
 import { useProjectExplorer, explorerPathUtils } from '../../hooks/useProjectExplorer';
+import { formatIdleShort } from '../../utils/timeFormat';
 import { RecentProjectsList } from '../RecentProjectsList';
 import { ExplorerContextMenu } from './ExplorerContextMenu';
 import { ExplorerItem } from './ExplorerItem';
 import { ExplorerHeader } from './ExplorerHeader';
 import { ExplorerFilterPanel } from './ExplorerFilterPanel';
-import { ExplorerSessions } from './ExplorerSessions';
 import { ExplorerFooter } from './ExplorerFooter';
+import { FileDashboardList, type FileDashboardPreviewState } from '../fileDashboard/FileDashboardList';
 import { 
   pickPrimaryStatus, 
 } from './explorerUtils';
+import { buildAgentCellModifiedFileChanges } from '../../utils/agentCellFileChanges';
+import { setFileDragPayload } from '../../utils/fileDragPayload';
+import { getFileSnippet } from '../../services/agencyBridge';
 
 const ROW_HEIGHT = 24;
 const OVERSCAN = 6;
@@ -170,13 +174,19 @@ function ProjectExplorerSidebarContent({
   const [contextMenu, setContextMenu] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
-  const [showIgnored, setShowIgnored] = useState(true);
+  const [showIgnored, setShowIgnored] = useState(false);
   const [statusFilters, setStatusFilters] = useState([]);
   const [semanticFilters, setSemanticFilters] = useState([]);
   const [focusedPath, setFocusedPath] = useState('');
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [clipboard, setClipboard] = useState(null);
+  const [changesPanelOpen, setChangesPanelOpen] = useState(true);
+  const [changesPanelMode, setChangesPanelMode] = useState<'flat' | 'tree'>('flat');
+  const [changesPanelRefreshing, setChangesPanelRefreshing] = useState(false);
+  const [changesPanelUpdatedAt, setChangesPanelUpdatedAt] = useState(0);
+  const [changesPanelPreview, setChangesPanelPreview] = useState<FileDashboardPreviewState | null>(null);
+  const changesPanelPreviewRequestRef = useRef(0);
   const explorerStateKey = useMemo(() => {
     const base = scopeRootPath || rootPath || repoRoot;
     if (!base) return '';
@@ -199,6 +209,22 @@ function ProjectExplorerSidebarContent({
   const hasCells = cells && cells.length > 0;
   const selectedCellId = selectedCell?.id || null;
 
+  const changedPanelEntries = useMemo(() => {
+    if (!selectedCellId) {
+      return [];
+    }
+    const baseRoot = String(selectedCell?.worktreePath || rootPath || scopeRootPath || '').replace(/\/+$/, '');
+    return buildAgentCellModifiedFileChanges({
+      statusFiles: statusByPath,
+      cellId: selectedCellId,
+    })
+      .filter((entry) => String(entry?.status || '').toLowerCase() !== 'ignored')
+      .map((entry) => ({
+        ...entry,
+        absolutePath: baseRoot && entry?.relativePath ? `${baseRoot}/${entry.relativePath}` : '',
+      }));
+  }, [rootPath, scopeRootPath, selectedCell?.worktreePath, selectedCellId, statusByPath]);
+
   const selectionSet = useMemo(() => new Set(selectedPaths), [selectedPaths]);
   const openFiles = useMemo(() => new Set(Object.keys(workbenchMeta || {})), [workbenchMeta]);
   const dirtyFiles = useMemo(() => 
@@ -209,6 +235,23 @@ function ProjectExplorerSidebarContent({
   useEffect(() => {
     hasRestoredStateRef.current = false;
   }, [explorerStateKey]);
+
+  useEffect(() => {
+    setChangesPanelUpdatedAt(Date.now());
+  }, [changedPanelEntries, selectedCellId]);
+
+  useEffect(() => {
+    setChangesPanelPreview(null);
+    changesPanelPreviewRequestRef.current = 0;
+  }, [selectedCellId]);
+
+  useEffect(() => {
+    if (changesPanelOpen) {
+      return;
+    }
+    setChangesPanelPreview(null);
+    changesPanelPreviewRequestRef.current = 0;
+  }, [changesPanelOpen]);
 
   useEffect(() => {
     if (!explorerStateKey || hasRestoredStateRef.current) return;
@@ -305,7 +348,14 @@ function ProjectExplorerSidebarContent({
 
   const buildVisibleList = useCallback(() => {
     const items = [];
+    const includeCache = new Map();
+    const visibilityCache = new Map();
+    const matchCache = new Map();
+
     const shouldInclude = (path, node) => {
+      if (includeCache.has(path)) {
+        return includeCache.get(path);
+      }
       const entry = node.type === 'dir' ? folderStatusByPath[path] : statusByPath[path];
       const scoped = getScopedEntry(entry, node.type === 'dir' ? 'dir' : 'file');
       let status = scoped?.status || null;
@@ -315,36 +365,63 @@ function ProjectExplorerSidebarContent({
       const statusMatches =
         !hasChangeFilter || Boolean(status && (!hasStatusFilters || statusFilterSet.has(status)));
       const semanticMatches = matchesSemanticFilter(path);
-      return statusMatches && semanticMatches;
+      const matched = statusMatches && semanticMatches;
+      includeCache.set(path, matched);
+      return matched;
     };
+
     const isVisible = (path, node) => {
       if (!path) return true;
-      if (!showHidden && node.name.startsWith('.')) return false;
-      return showIgnored || !isPathIgnored(path);
+      if (visibilityCache.has(path)) {
+        return visibilityCache.get(path);
+      }
+      const visible = (showHidden || !node.name.startsWith('.')) && (showIgnored || !isPathIgnored(path));
+      visibilityCache.set(path, visible);
+      return visible;
     };
+
     const checkMatch = (path) => {
+      if (matchCache.has(path)) {
+        return matchCache.get(path);
+      }
       const node = tree.nodes[path];
-      if (!node || !isVisible(path, node)) return false;
-      if (shouldInclude(path, node)) return true;
-      return node.type === 'dir' && (tree.children[path] || []).some(c => checkMatch(c));
+      if (!node || !isVisible(path, node)) {
+        matchCache.set(path, false);
+        return false;
+      }
+      const matched =
+        shouldInclude(path, node) ||
+        (node.type === 'dir' && (tree.children[path] || []).some((child) => checkMatch(child)));
+      matchCache.set(path, matched);
+      return matched;
     };
+
     const walk = (path, depth) => {
       const node = tree.nodes[path];
       if (!node || !isVisible(path, node)) return;
       const isDir = node.type === 'dir';
       const selfMatches = path ? shouldInclude(path, node) : true;
-      let childHasMatch = false;
-      if (isDir) childHasMatch = (tree.children[path] || []).some(c => checkMatch(c));
+      const childHasMatch = isDir ? (tree.children[path] || []).some((child) => checkMatch(child)) : false;
       const shouldShow = path ? selfMatches || childHasMatch : true;
-      if (path && shouldShow) items.push({ path, depth, type: node.type, isSymbolicLink: node.isSymbolicLink });
+      if (path && shouldShow) {
+        items.push({ path, depth, type: node.type, isSymbolicLink: node.isSymbolicLink });
+      }
       if (isDir && shouldShow && (isSearchActive || expandedPaths.has(path))) {
-        (tree.children[path] || []).forEach(c => walk(c, depth + 1));
+        (tree.children[path] || []).forEach((child) => walk(child, depth + 1));
       }
     };
+
     walk('', 0);
     if (draftEntry?.parentPath) {
-      const idx = items.findIndex(it => it.path === draftEntry.parentPath);
-      if (idx >= 0) items.splice(idx + 1, 0, { path: `__d__${draftEntry.parentPath}`, depth: items[idx].depth + 1, type: draftEntry.type, draft: true });
+      const idx = items.findIndex((it) => it.path === draftEntry.parentPath);
+      if (idx >= 0) {
+        items.splice(idx + 1, 0, {
+          path: `__d__${draftEntry.parentPath}`,
+          depth: items[idx].depth + 1,
+          type: draftEntry.type,
+          draft: true,
+        });
+      }
     }
     return items;
   }, [draftEntry, expandedPaths, folderStatusByPath, getScopedEntry, hasChangeFilter, hasStatusFilters, isSearchActive, matchesSemanticFilter, showHidden, showIgnored, isPathIgnored, statusByPath, statusFilterSet, tree.children, tree.nodes]);
@@ -462,6 +539,149 @@ function ProjectExplorerSidebarContent({
       return false;
     }
   }, [clearError, onOpenFile, openEntry, setErrorMessage]);
+
+  const refreshChangesPanel = useCallback(async () => {
+    setChangesPanelRefreshing(true);
+    try {
+      await refreshAll({ forceStatus: true });
+      setChangesPanelUpdatedAt(Date.now());
+    } finally {
+      setChangesPanelRefreshing(false);
+    }
+  }, [refreshAll]);
+
+  const handleOpenChangedEntry = useCallback(
+    async (entry, options: { mode?: 'preview' | 'pinned' } = {}) => {
+      const targetPath = explorerPathUtils.toRelativePath(entry?.relativePath || '');
+      if (!targetPath) {
+        return;
+      }
+
+      // Keep the dispatch footer ("pending send") in sync with changed-files interactions.
+      selectPathInExplorer(targetPath);
+
+      const mode = options.mode === 'pinned' ? 'pinned' : 'preview';
+      const opened = await handleOpenEntry(targetPath, mode);
+      if (!opened) {
+        return;
+      }
+      try {
+        const expanded = await expandAncestorsForPath(targetPath);
+        if (expanded) {
+          selectPathInExplorer(targetPath);
+        }
+      } catch {
+        // Ignore selection sync failures; open already succeeded.
+      }
+    },
+    [expandAncestorsForPath, handleOpenEntry, selectPathInExplorer]
+  );
+
+  const handleRevealChangedEntry = useCallback(
+    async (entry) => {
+      const targetPath = explorerPathUtils.toRelativePath(entry?.relativePath || '');
+      if (!targetPath) {
+        return;
+      }
+
+      // Sync footer selection even when only revealing (no open).
+      selectPathInExplorer(targetPath);
+
+      try {
+        await revealEntry({ targetPath });
+        const expanded = await expandAncestorsForPath(targetPath);
+        if (expanded) {
+          selectPathInExplorer(targetPath);
+        }
+        clearError();
+      } catch (err) {
+        setErrorMessage(err?.message || 'Failed to reveal file.');
+      }
+    },
+    [clearError, expandAncestorsForPath, revealEntry, selectPathInExplorer, setErrorMessage]
+  );
+
+  const loadChangesPanelPreview = useCallback(
+    async (entry) => {
+      const targetPath = explorerPathUtils.toRelativePath(entry?.relativePath || '');
+      const activeRootPath = selectedCell?.worktreePath || rootPath || scopeRootPath || '';
+      if (!targetPath || !activeRootPath) {
+        setChangesPanelPreview(null);
+        return;
+      }
+
+      const line = Number.isFinite(entry?.line) ? Math.max(1, Math.floor(entry.line)) : null;
+      const requestId = changesPanelPreviewRequestRef.current + 1;
+      changesPanelPreviewRequestRef.current = requestId;
+      setChangesPanelPreview({
+        relativePath: targetPath,
+        line,
+        snippet: [],
+        loading: true,
+        error: '',
+      });
+
+      try {
+        const result = await getFileSnippet({
+          rootPath: activeRootPath,
+          targetPath,
+          line: line || 1,
+          context: 2,
+        });
+        if (changesPanelPreviewRequestRef.current !== requestId) {
+          return;
+        }
+        if (!result?.snippet) {
+          setChangesPanelPreview({
+            relativePath: targetPath,
+            line,
+            snippet: [],
+            loading: false,
+            error: 'Unable to load preview.',
+          });
+          return;
+        }
+        setChangesPanelPreview({
+          relativePath: targetPath,
+          line,
+          snippet: result.snippet,
+          loading: false,
+          error: '',
+        });
+      } catch (error) {
+        if (changesPanelPreviewRequestRef.current !== requestId) {
+          return;
+        }
+        setChangesPanelPreview({
+          relativePath: targetPath,
+          line,
+          snippet: [],
+          loading: false,
+          error: error?.message || 'Unable to load preview.',
+        });
+      }
+    },
+    [rootPath, scopeRootPath, selectedCell?.worktreePath]
+  );
+
+  const clearChangesPanelPreview = useCallback(() => {
+    changesPanelPreviewRequestRef.current = 0;
+    setChangesPanelPreview(null);
+  }, []);
+
+  const handlePreviewChangedEntry = useCallback(
+    async (entry) => {
+      await loadChangesPanelPreview(entry);
+    },
+    [loadChangesPanelPreview]
+  );
+
+  const handleChangeEntryDragStart = useCallback((event, entry) => {
+    const success = setFileDragPayload(event, entry?.absolutePath || '');
+    if (!success) {
+      event.preventDefault();
+    }
+  }, []);
 
   // Handlers
   const closeContextMenu = () => setContextMenu(null);
@@ -1015,7 +1235,7 @@ function ProjectExplorerSidebarContent({
     >
       <ExplorerHeader
         activeRootLabel={activeRootLabel} onJumpToAgents={onJumpToAgents} onNewFile={() => startDraft('file')} onNewFolder={() => startDraft('dir')}
-        onRefresh={refreshAll} isLoading={loadingPaths.size > 0} hasCells={hasCells} cells={cells} selectedId={selectedId} onSelectCell={onSelectCell}
+        onRefresh={() => refreshAll({ forceStatus: true, reloadExpanded: true })} isLoading={loadingPaths.size > 0} hasCells={hasCells} cells={cells} selectedId={selectedId} onSelectCell={onSelectCell}
         searchQuery={searchQuery} onSearchChange={setSearchQuery} onClearSearch={() => setSearchQuery('')}
         hasActiveFilters={hasActiveFilters} onToggleFilterMenu={() => setFilterMenuOpen(!filterMenuOpen)}
         searchTruncated={searchTruncated}
@@ -1058,6 +1278,95 @@ function ProjectExplorerSidebarContent({
             </div>
           </div>
         )}
+      </div>
+
+      <div className="mx-2 mb-2 shrink-0 rounded-lg border border-border/60 bg-card/35">
+        <div className="flex items-center justify-between px-2 py-1 text-[10px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <FileText size={11} strokeWidth={1.6} />
+            Changed Files
+            <span className="ml-1 rounded bg-background/60 px-1 text-[9px] font-mono text-muted-foreground/80">{changedPanelEntries.length}</span>
+          </span>
+          <div className="inline-flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => void refreshChangesPanel()}
+              className="rounded p-1 text-muted-foreground hover:text-foreground"
+              title="Refresh changed files"
+              disabled={changesPanelRefreshing}
+            >
+              <RefreshCw
+                size={10}
+                strokeWidth={1.6}
+                className={changesPanelRefreshing ? 'animate-spin' : ''}
+              />
+            </button>
+            <button
+              type="button"
+              onClick={() => setChangesPanelOpen((current) => !current)}
+              className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors ${
+                changesPanelOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+              }`}
+              title={changesPanelOpen ? 'Hide changed files panel' : 'Open changed files panel'}
+            >
+              {changesPanelOpen ? 'Close' : 'Open'}
+            </button>
+          </div>
+        </div>
+
+        {changesPanelOpen ? (
+          <div className="border-t border-border/40 px-2 pb-2 pt-1.5 flex max-h-64 min-h-0 flex-col">
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <span className="truncate text-[10px] text-muted-foreground/80">
+                {selectedCell?.name || selectedCellId || 'Selected Cell'}
+              </span>
+              <div className="inline-flex rounded bg-background/60 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setChangesPanelMode('flat')}
+                  className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors ${
+                    changesPanelMode === 'flat'
+                      ? 'bg-primary/15 text-primary'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Flat
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChangesPanelMode('tree')}
+                  className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors ${
+                    changesPanelMode === 'tree'
+                      ? 'bg-primary/15 text-primary'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Tree
+                </button>
+              </div>
+            </div>
+
+            <FileDashboardList
+              entries={changedPanelEntries}
+              mode={changesPanelMode}
+              loading={changesPanelRefreshing}
+              loadingMessage="Scanning changed files…"
+              emptyMessage="No changed files in the selected Cell."
+              onOpen={(entry) => handleOpenChangedEntry(entry, { mode: 'preview' })}
+              onReveal={(entry) => handleRevealChangedEntry(entry)}
+              onPreview={(entry) => handlePreviewChangedEntry(entry)}
+              onDragStart={handleChangeEntryDragStart}
+              preview={changesPanelPreview}
+              onClearPreview={clearChangesPanelPreview}
+            />
+
+            {changesPanelUpdatedAt ? (
+              <div className="mt-1 text-[9px] text-muted-foreground/80">
+                Updated {formatIdleShort(Math.max(0, Date.now() - changesPanelUpdatedAt))} ago
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <ExplorerFooter

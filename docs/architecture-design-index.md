@@ -16,7 +16,8 @@ This is a lightweight index that points to the authoritative design sources. It 
 - Product requirements/specification: `openspec/specs/agency-editor/spec.md`
 - Change proposals and detailed designs: `openspec/changes/*/proposal.md`, `openspec/changes/*/design.md`
 - Archived historical designs: `openspec/changes/archive/**`
-- Unified file interaction system (active design program): `openspec/changes/add-agent-centric-file-interaction-system/`
+- Unified file interaction system (delivered): `openspec/changes/archive/2026-02-10-add-agent-centric-file-interaction-system/`
+- Unified file interaction evolution (active): `openspec/changes/update-agent-cells-embedded-explorer/`
 
 ## Behavior + verification sources
 - Current feature scope & manual verification: `apps/editor/README.md`

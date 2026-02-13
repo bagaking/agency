@@ -126,6 +126,39 @@ test('performFileIntent keeps open/reveal semantics stable across surfaces', asy
 
   assert.equal(sessionMapOpen.success, true);
   assert.deepEqual(sessionMapOpen.affectedPaths, explorerOpen.affectedPaths);
+
+  const explorerReveal = await performFileIntent({
+    intent: 'reveal',
+    rootPath: rootDir,
+    targetPath: 'docs/guide.md',
+    sourceSurface: 'explorer',
+  });
+  const memoReveal = await performFileIntent({
+    intent: 'reveal',
+    rootPath: rootDir,
+    targetPath: 'docs/guide.md',
+    sourceSurface: 'memo',
+  });
+  const sessionMapReveal = await performFileIntent({
+    intent: 'reveal',
+    rootPath: rootDir,
+    targetPath: 'docs/guide.md',
+    sourceSurface: 'session-map',
+  });
+
+  assert.equal(memoReveal.success, explorerReveal.success);
+  assert.equal(sessionMapReveal.success, explorerReveal.success);
+  assert.deepEqual(memoReveal.affectedPaths, explorerReveal.affectedPaths);
+  assert.deepEqual(sessionMapReveal.affectedPaths, explorerReveal.affectedPaths);
+
+  if (explorerReveal.success) {
+    assert.equal(explorerReveal.data?.path, 'docs/guide.md');
+    assert.equal(memoReveal.data?.path, 'docs/guide.md');
+    assert.equal(sessionMapReveal.data?.path, 'docs/guide.md');
+  } else {
+    assert.equal(memoReveal.failures[0]?.code, explorerReveal.failures[0]?.code);
+    assert.equal(sessionMapReveal.failures[0]?.code, explorerReveal.failures[0]?.code);
+  }
 });
 
 test('performFileIntent import_copy surfaces partial-failure warnings without dropping successful imports', async (t) => {

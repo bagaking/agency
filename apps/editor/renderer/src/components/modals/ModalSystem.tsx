@@ -64,13 +64,15 @@ function ModalCard({ modal, onClose }: any) {
     confirmLabel = 'Confirm',
     cancelLabel = 'Cancel',
     dismissLabel = 'OK',
+    showActions = true,
+    showVariantLabel,
   } = modal;
   const styles = resolveTone(tone);
   const Icon = IconOverride || defaultIcons[variant] || AlertTriangle;
   const isFloating = variant === 'floating';
-  const showCancel = variant === 'confirm';
-  const showDismiss = variant === 'notice' || variant === 'alert' || variant === 'floating';
-  const showLabel = !isFloating;
+  const showCancel = showActions && variant === 'confirm';
+  const showDismiss = showActions && (variant === 'notice' || variant === 'alert' || variant === 'floating');
+  const showLabel = showVariantLabel ?? !isFloating;
 
   return (
     <div className="relative w-full max-w-md animate-tab-in">
@@ -117,35 +119,37 @@ function ModalCard({ modal, onClose }: any) {
             ) : null}
           </div>
         </div>
-        <div className="relative mt-5 flex items-center justify-end gap-2">
-          {showCancel ? (
-            <button
-              type="button"
-              onClick={() => onClose(id, false)}
-              className="rounded-xl border border-border/40 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all"
-            >
-              {cancelLabel}
-            </button>
-          ) : null}
-          {showDismiss ? (
-            <button
-              type="button"
-              onClick={() => onClose(id, true)}
-              className={`rounded-xl px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] ${styles.button}`}
-            >
-              {dismissLabel}
-            </button>
-          ) : null}
-          {showCancel ? (
-            <button
-              type="button"
-              onClick={() => onClose(id, true)}
-              className={`rounded-xl px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] ${styles.button}`}
-            >
-              {confirmLabel}
-            </button>
-          ) : null}
-        </div>
+        {showCancel || showDismiss ? (
+          <div className="relative mt-5 flex items-center justify-end gap-2">
+            {showCancel ? (
+              <button
+                type="button"
+                onClick={() => onClose(id, false)}
+                className="rounded-xl border border-border/40 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all"
+              >
+                {cancelLabel}
+              </button>
+            ) : null}
+            {showDismiss ? (
+              <button
+                type="button"
+                onClick={() => onClose(id, true)}
+                className={`rounded-xl px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] ${styles.button}`}
+              >
+                {dismissLabel}
+              </button>
+            ) : null}
+            {showCancel ? (
+              <button
+                type="button"
+                onClick={() => onClose(id, true)}
+                className={`rounded-xl px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] ${styles.button}`}
+              >
+                {confirmLabel}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );

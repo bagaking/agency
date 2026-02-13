@@ -97,7 +97,7 @@ export function Tooltip({ label, side = 'top', children }: any) {
               role="tooltip"
               data-side={placement}
               style={tooltipStyle}
-              className="pointer-events-none fixed z-[999] whitespace-nowrap rounded-md border border-border/60 bg-popover px-2 py-1 text-[10px] font-medium text-foreground shadow-lg opacity-100"
+              className="pointer-events-none fixed z-[10050] whitespace-nowrap rounded-md border border-border/60 bg-popover px-2 py-1 text-[10px] font-medium text-foreground shadow-lg opacity-100"
             >
               {label}
             </span>,

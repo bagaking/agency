@@ -15,6 +15,14 @@ export const listCells = async (payload) => {
   return api.listCells(payload);
 };
 
+export const listWorktrees = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.listWorktrees) {
+    return [];
+  }
+  return api.listWorktrees(payload);
+};
+
 export const getProjectContext = async () => {
   const api = getAgencyApi();
   if (!api?.getProjectContext) {
@@ -238,6 +246,30 @@ export const getTmuxStatus = async () => {
     return null;
   }
   return api.getTmuxStatus();
+};
+
+export const getExplorerStatus = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.getExplorerStatus) {
+    return null;
+  }
+  return api.getExplorerStatus(payload);
+};
+
+export const searchExplorerFiles = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.searchExplorerFiles) {
+    return null;
+  }
+  return api.searchExplorerFiles(payload);
+};
+
+export const getPathForDroppedFile = (file) => {
+  const api = getAgencyApi();
+  if (!api?.getPathForDroppedFile) {
+    return '';
+  }
+  return api.getPathForDroppedFile(file);
 };
 
 export const performFileIntent = async (payload) => {

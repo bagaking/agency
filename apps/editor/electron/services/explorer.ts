@@ -43,6 +43,9 @@ const ENTRY_TYPES = {
 const DEFAULT_EXCLUDES = new Set(['.git']);
 const MAX_PREVIEW_BYTES = 200 * 1024;
 const STATUS_CACHE_TTL_MS = Number(process.env.AGENCY_EXPLORER_STATUS_TTL_MS || 800);
+const STATUS_WORKTREE_CONCURRENCY = Math.max(1, Number(process.env.AGENCY_EXPLORER_STATUS_CONCURRENCY || 4));
+const GIT_COMMAND_TIMEOUT_MS = Math.max(500, Number(process.env.AGENCY_EXPLORER_GIT_TIMEOUT_MS || 9000));
+const GIT_MAX_BUFFER_BYTES = Math.max(1024 * 1024, Number(process.env.AGENCY_EXPLORER_GIT_MAX_BUFFER_BYTES || 16 * 1024 * 1024));
 const statusCache = {
   value: null,
   timestamp: 0,
@@ -118,8 +121,16 @@ async function listDirectory({ rootPath, relativePath = '', showHidden = true })
 }
 
 async function runGitRaw(args, cwd) {
-  const result = await execFileAsync('git', args, { cwd });
-  return result.stdout || '';
+  try {
+    const result = await execFileAsync('git', args, {
+      cwd,
+      timeout: GIT_COMMAND_TIMEOUT_MS,
+      maxBuffer: GIT_MAX_BUFFER_BYTES,
+    });
+    return result.stdout || '';
+  } catch (error) {
+    return '';
+  }
 }
 
 function statusKindFromCode(code) {
@@ -365,6 +376,27 @@ function buildFolderSummaries(fileMap) {
   return folderMap;
 }
 
+async function mapWithConcurrency(items, limit, mapper) {
+  const list = Array.isArray(items) ? items : [];
+  if (!list.length) {
+    return [];
+  }
+  const size = Math.max(1, Math.floor(limit || 1));
+  const results = new Array(list.length);
+  let cursor = 0;
+
+  const worker = async () => {
+    while (cursor < list.length) {
+      const index = cursor;
+      cursor += 1;
+      results[index] = await mapper(list[index], index);
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(size, list.length) }, () => worker()));
+  return results;
+}
+
 async function getExplorerStatus({ rootPath } = {}) {
   if (rootPath !== statusCache.rootPath) {
     statusCache.value = null;
@@ -392,14 +424,16 @@ async function getExplorerStatus({ rootPath } = {}) {
       };
     }
     const cells = await listCells({ rootPath: repoRoot });
+    const availableCells = Array.isArray(cells) ? cells : [];
+    const worktreeCells = availableCells.filter((cell) => cell?.worktreePath);
     const fileMap = new Map();
-    const statusResults = await Promise.all(
-      cells
-        .filter((cell) => cell.worktreePath)
-        .map(async (cell) => ({
-          cell,
-          ...(await collectWorktreeStatus(cell.worktreePath)),
-        }))
+    const statusResults = await mapWithConcurrency(
+      worktreeCells,
+      STATUS_WORKTREE_CONCURRENCY,
+      async (cell) => ({
+        cell,
+        ...(await collectWorktreeStatus(cell.worktreePath)),
+      })
     );
 
     statusResults.forEach(({ cell, statusByPath, countsByPath }) => {
@@ -426,7 +460,7 @@ async function getExplorerStatus({ rootPath } = {}) {
       rootName: path.basename(repoRoot),
       files,
       folders,
-      cells: cells.map((cell) => ({
+      cells: availableCells.map((cell) => ({
         id: cell.id,
         name: cell.name,
         worktreePath: cell.worktreePath,
@@ -446,22 +480,28 @@ async function getExplorerStatus({ rootPath } = {}) {
   }
 }
 
-async function searchFiles({ rootPath, query, limit = 1000 }) {
-  if (!query) {
+async function searchFiles({ rootPath, query, includeAll = false, limit = 1000 } = {}) {
+  const rawQuery = String(query || '');
+  const lowerQuery = rawQuery.toLowerCase();
+  const trimmedQuery = lowerQuery.trim();
+
+  if (!includeAll && !trimmedQuery) {
     return { matches: [], truncated: false };
   }
+
+  const matchAll = includeAll && !trimmedQuery;
   const resolved = await resolveExplorerRoot(rootPath);
   if (!resolved.rootPath) {
     return { matches: [], truncated: false };
   }
-  const lowerQuery = query.toLowerCase();
   const tracked = await runGitRaw(['ls-files', '-z'], resolved.rootPath);
   const untracked = await runGitRaw(['ls-files', '--others', '--exclude-standard', '-z'], resolved.rootPath);
   const tokens = `${tracked}\0${untracked}`.split('\0').filter(Boolean);
   const matches = [];
   for (const token of tokens) {
     const normalized = normalizeRelPath(token);
-    if (normalized.toLowerCase().includes(lowerQuery)) {
+    const normalizedLower = normalized.toLowerCase();
+    if (matchAll || normalizedLower.includes(trimmedQuery)) {
       matches.push(normalized);
       if (matches.length >= limit) {
         return { matches, truncated: true };

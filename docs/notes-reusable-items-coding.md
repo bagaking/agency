@@ -17,6 +17,7 @@ This is a project-local catalog of reusable engineering assets. The goal is disc
 | `SessionMenus` | MUST | Session-related action menus; avoid one-off menu markup. | `apps/editor/renderer/src/components/SessionMenus.tsx` |
 | `AvatarPickerMenu` | MUST | Avatar selection UI with recents/active handling. | `apps/editor/renderer/src/components/ui/AvatarPickerMenu.tsx` |
 | `AgentAvatarBadge` | MUST | Avatar rendering with idle/closed rings; use for all avatar displays. | `apps/editor/renderer/src/components/ui/AgentAvatarBadge.tsx` |
+| `FileDashboardList` | SHOULD | Render Agent Cells + Explorer changed-files dashboards with Flat/Tree, open/reveal/preview, and drag-start affordances. | `apps/editor/renderer/src/components/fileDashboard/FileDashboardList.tsx` |
 
 ## Reusable Libraries / Packages
 | Item | Must/Nice | When to Use | Source of Truth |
@@ -29,7 +30,10 @@ This is a project-local catalog of reusable engineering assets. The goal is disc
 | Item | Must/Nice | When to Use | Source of Truth |
 | --- | --- | --- | --- |
 | Renderer IPC via `agencyBridge` | MUST | All renderer → main IPC calls. | `apps/editor/renderer/src/services/agencyBridge.ts` |
+| Modal system (`ModalProvider` / `useModal`) | SHOULD | Standard confirm/notice modals; for custom-form content set `showActions: false` + close via `closeModal(id, ...)`. | `apps/editor/renderer/src/components/modals/ModalSystem.tsx` |
 | Unified file intent gateway (`runFileIntent` / `runToolFileIntent`) | MUST | Any Explorer/Agent Cells/Session Map/Memo file interaction should call unified intent wrappers instead of direct per-channel `window.agency` calls. | `apps/editor/renderer/src/services/fileInteraction.ts`, `apps/editor/electron/services/fileInteraction.ts` |
+| Explorer performance pipeline (in-flight directory dedupe + incremental semantic classify + memoized filter matching) | SHOULD | Large repo Explorer interactions to reduce repeated IO/classification/filter recursion and prevent UI stalls. | `apps/editor/renderer/src/hooks/useProjectExplorer.ts`, `apps/editor/renderer/src/components/explorer/ProjectExplorerSidebar.tsx` |
+| Workbench disk-sync decision helpers (`resolveExternalReloadStrategy`, `isPathPossiblyChanged`) | SHOULD | Active workbench tabs that need safe external-file refresh behavior (auto-reload clean tabs, warn on dirty conflicts) without coupling UI logic to raw mtime/path heuristics. | `apps/editor/renderer/src/utils/workbenchDiskSync.ts`, `apps/editor/renderer/src/components/workbench/WorkbenchPane.tsx` |
 | File reference extraction + normalization (`extractFileReferences`, `resolveFileReferenceTarget`) | MUST | Parse terminal/preview/reference text into root-safe file shortcuts for Session Map and Memo open/reveal + drag-routing flows. | `apps/editor/renderer/src/utils/fileReferences.ts` |
 | Unified file drag payload helper (`setFileDragPayload`) | MUST | Emit consistent `text/plain` absolute-path drag payloads across Agent Cells / Session Map / Memo so Explorer drop routing keeps `import_copy` semantics. | `apps/editor/renderer/src/utils/fileDragPayload.ts` |
 | Agent Cells file-change aggregation (`buildAgentCellFileChanges`) | SHOULD | Build scoped file-change dashboard entries from session preview caches with deterministic ranking/dedupe. | `apps/editor/renderer/src/utils/agentCellFileChanges.ts` |

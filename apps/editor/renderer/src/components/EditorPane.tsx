@@ -3,6 +3,8 @@ import {
   MonitorPlay,
   ChevronRight,
   CheckCircle2,
+  ClipboardCheck,
+  ShieldCheck,
   RefreshCw,
   RotateCcw,
   Layout,
@@ -40,6 +42,8 @@ export function EditorPane({
   isVisible,
   onRefreshSessions,
   onStateChange,
+  onTurnGateCreate,
+  onTurnGateExecute,
   onOpenTerminal,
   onZoomIn,
   onZoomOut,
@@ -284,6 +288,30 @@ export function EditorPane({
                         );
                     })}
                 </div>
+
+                {onTurnGateCreate ? (
+                  <button
+                    type="button"
+                    onClick={() => onTurnGateCreate?.(activeStage)}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium transition-colors bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground"
+                    title={`Gate Create (target: ${activeStage})`}
+                  >
+                    <ClipboardCheck size={12} />
+                    <span>Gate Create</span>
+                  </button>
+                ) : null}
+
+                {onTurnGateExecute ? (
+                  <button
+                    type="button"
+                    onClick={() => onTurnGateExecute?.(activeStage)}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium transition-colors bg-primary/10 text-primary hover:bg-primary/20"
+                    title={`Gate Execute (stage: ${activeStage})`}
+                  >
+                    <ShieldCheck size={12} />
+                    <span>Gate Execute</span>
+                  </button>
+                ) : null}
 
                 <button 
                     onClick={() => setShowGates(!showGates)}

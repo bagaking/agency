@@ -13,6 +13,90 @@ export type AgentCellFileChangeEntry = FileReferenceTarget & {
   }>;
   sessionCount: number;
   latestActivityAt: number;
+  sourceType?: 'reference' | 'modified';
+  status?: string;
+  added?: number;
+  deleted?: number;
+};
+
+const STATUS_PRIORITY: string[] = [
+  'conflict',
+  'deleted',
+  'added',
+  'modified',
+  'renamed',
+  'copied',
+  'untracked',
+  'ignored',
+];
+
+const STATUS_RANK = STATUS_PRIORITY.reduce<Record<string, number>>((map, status, index) => {
+  map[status] = index;
+  return map;
+}, {});
+
+const toFiniteNumber = (value: unknown) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+export const buildAgentCellModifiedFileChanges = ({
+  statusFiles = {},
+  cellId = '',
+}: {
+  statusFiles?: Record<string, any>;
+  cellId?: string;
+} = {}): AgentCellFileChangeEntry[] => {
+  if (!cellId) {
+    return [];
+  }
+
+  const rows = Object.values(statusFiles || {})
+    .map((entry: any) => {
+      const relativePath = String(entry?.path || '').trim();
+      if (!relativePath) {
+        return null;
+      }
+      const cellInfo = entry?.cells?.[cellId];
+      if (!cellInfo) {
+        return null;
+      }
+      const added = toFiniteNumber(cellInfo?.added);
+      const deleted = toFiniteNumber(cellInfo?.deleted);
+      const status = String(cellInfo?.status || entry?.status || 'modified').trim() || 'modified';
+      return {
+        rawText: relativePath,
+        relativePath,
+        displayPath: relativePath.split('/').pop() || relativePath,
+        absolutePath: '',
+        line: null,
+        column: null,
+        sessions: [],
+        sessionCount: 0,
+        latestActivityAt: 0,
+        sourceType: 'modified' as const,
+        status,
+        added,
+        deleted,
+      };
+    })
+    .filter(Boolean) as AgentCellFileChangeEntry[];
+
+  rows.sort((left, right) => {
+    const leftRank = STATUS_RANK[left.status || 'modified'] ?? STATUS_PRIORITY.length;
+    const rightRank = STATUS_RANK[right.status || 'modified'] ?? STATUS_PRIORITY.length;
+    if (leftRank !== rightRank) {
+      return leftRank - rightRank;
+    }
+    const leftDelta = Math.abs(toFiniteNumber(left.added)) + Math.abs(toFiniteNumber(left.deleted));
+    const rightDelta = Math.abs(toFiniteNumber(right.added)) + Math.abs(toFiniteNumber(right.deleted));
+    if (rightDelta !== leftDelta) {
+      return rightDelta - leftDelta;
+    }
+    return left.relativePath.localeCompare(right.relativePath);
+  });
+
+  return rows;
 };
 
 export const buildAgentCellFileChanges = ({
@@ -62,6 +146,7 @@ export const buildAgentCellFileChanges = ({
           sessions: [{ id: session.id, name: session.name || session.id }],
           sessionCount: 1,
           latestActivityAt: normalizedActivity,
+          sourceType: 'reference',
         });
         return;
       }

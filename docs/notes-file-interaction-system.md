@@ -69,9 +69,21 @@ It is the shared policy layer above local implementation details.
 
 ## Current Program of Work
 - Authoritative change:
-  `openspec/changes/add-agent-centric-file-interaction-system/`
+  `openspec/changes/archive/2026-02-10-add-agent-centric-file-interaction-system/`
+- Follow-up evolution (active):
+  `openspec/changes/update-agent-cells-embedded-explorer/`
 - This note is the project-level philosophy mirror.
 - OpenSpec files carry implementation-level requirements and task breakdown.
+
+## Follow-up Evolution (Active)
+- Change: `openspec/changes/update-agent-cells-embedded-explorer/`
+- Status: Implementation is in place; remaining items are integration/manual validation and polish (see the change `tasks.md`).
+- Shipped behaviors:
+  - Agent Cells Explorer panel is now bottom-anchored to align with the Agent-context layout style;
+  - the panel collapses into a bottom bar, expands to a default half-height, and supports drag-resize;
+  - file list semantics are explicit and Cell/worktree scoped (`Changes` + `All` from Explorer+git data; no session-level file attribution);
+  - the panel supports a `Changes` vs `All` toggle (with ignore-aware changes filtering and truncation hint for all-files limit);
+  - open/reveal continue to route through unified file intents, and panel-level drop-in import now uses `import_copy`.
 
 ## Implementation Snapshot (Current)
 1. Gateway baseline landed:
@@ -85,7 +97,7 @@ It is the shared policy layer above local implementation details.
 5. Cross-surface routing has progressed:
    Memo (HIL comments + memo draft references), Session Map preview shortcuts, and Agent Cells dashboard shortcuts now open/reveal through unified file intents.
 6. Agent Cells file-change dashboard baseline is landed:
-   Agent Cells sidebar now exposes a scoped file-change dashboard (per selected worktree/session preview cache) with open/reveal actions and quick drag entry points.
+   Agent Cells sidebar now exposes a Cell/worktree-scoped file-change dashboard with open/reveal actions and quick drag entry points.
 7. Lightweight drop routing is now unified:
    Agent Cells, Session Map, and Memo reference chips all use the same `text/plain` absolute-path drag payload helper so Explorer drop handling stays on `import_copy` semantics.
 8. Tool-intent governance baseline is active:
@@ -93,9 +105,21 @@ It is the shared policy layer above local implementation details.
 9. CLI wrapper baseline is active:
    `fileIntentCli` provides JSON-in / JSON-out access to `file:interact` semantics (user/tool/classify modes) as a thin gateway wrapper.
 10. Regression coverage has expanded:
-   Electron service tests validate intent normalization + cross-surface intent parity + semantic-rule merge priority + permission outcomes; renderer utility tests now cover Agent Cells file-change aggregation and unified drag payload formatting.
+   Electron service tests validate intent normalization + cross-surface open/reveal parity + semantic-rule merge priority + permission outcomes; renderer utility tests now cover Agent Cells file-change aggregation and unified drag payload formatting.
 11. Baseline validation was re-run:
    `typecheck:renderer`, `typecheck:electron`, targeted node-test suites, and the current Playwright e2e baseline were executed; existing unrelated e2e failures remain, while external-drop scenarios continue to pass.
+12. Workbench breadcrumbs now expose per-segment reveal actions:
+   each directory/file segment requests in-app Explorer tree reveal (expand + select) so editor/tree stay synchronized without triggering OS Finder reveal.
+13. Explorer dispatch UX was consolidated:
+   the active-session card and selection instruction composer now share one integrated footer card, and the instruction textarea auto-grows while typing for larger context input.
+14. Agent Cells file-access UX now matches Explorer + Agent-context semantics:
+   sidebar Explorer panel is bottom-anchored, supports Cell/worktree `Changes`/`All` views, keeps Flat/Tree modes, and supports open/reveal + drop-import parity.
+15. Explorer performance/stability guardrails were strengthened:
+   root tree listing is no longer blocked by status fetch, directory loads dedupe in-flight requests, semantic classification runs incrementally, tree filter matching caches per-pass decisions, and git status collection is bounded by timeout + concurrency.
+16. Workbench active-tab disk sync is now proactive:
+   active tabs periodically/stat-on-focus check disk mtime, auto-reload when no unsaved edits exist, and surface a reload warning when local unsaved edits conflict with newer disk content.
+17. Explorer sidebar now includes a companion changed-files panel above the Agent footer:
+   this panel mirrors Agent Cells file-dashboard row/tree affordances (open/reveal/preview + drag payload), remains changes-only (no scope toggle), and preserves cross-view visual continuity.
 
 ## Process-Boundary Compatibility Plan (Locked)
 - Keep `FileIntentPayload`/`FileIntentResult` as the stable wire format across renderer, tool, CLI, and future helper process callers.

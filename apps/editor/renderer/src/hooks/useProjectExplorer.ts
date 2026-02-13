@@ -89,11 +89,23 @@ export function useProjectExplorer(options: any = {}) {
   const statusCacheAtRef = useRef(0);
   const statusRefreshHandle = useRef(null);
   const semanticRefreshHandle = useRef(null);
+  const semanticRequestIdRef = useRef(0);
+  const semanticTagsByPathRef = useRef(semanticTagsByPath);
   const childrenByPathRef = useRef(childrenByPath);
+  const expandedPathsRef = useRef(expandedPaths);
+  const loadDirectoryInFlightRef = useRef(new Map());
 
   useEffect(() => {
     childrenByPathRef.current = childrenByPath;
   }, [childrenByPath]);
+
+  useEffect(() => {
+    expandedPathsRef.current = expandedPaths;
+  }, [expandedPaths]);
+
+  useEffect(() => {
+    semanticTagsByPathRef.current = semanticTagsByPath;
+  }, [semanticTagsByPath]);
 
   const refreshRoot = useCallback(async () => {
     if (!window.agency?.getExplorerRoot) {
@@ -172,50 +184,86 @@ export function useProjectExplorer(options: any = {}) {
   const loadDirectory = useCallback(
     async (relativePath) => {
       if (!window.agency?.listExplorerEntries) {
-        return;
+        return null;
       }
       const normalized = toRelativePath(relativePath || '');
-      setLoadingPaths((current) => new Set([...current, normalized]));
-      try {
-        const result = await window.agency.listExplorerEntries({
-          path: normalized,
-          showHidden,
-          rootPath: rootPath || undefined,
-        });
-        const entries = result?.entries || [];
-        setNodesByPath((current) => {
-          const next = { ...current };
-          entries.forEach((entry) => {
-            next[entry.path] = entry;
-          });
-          return next;
-        });
-        setChildrenByPath((current) => ({
-          ...current,
-          [normalized]: entries.map((entry) => entry.path),
-        }));
-      } catch (err) {
-        setError(err?.message || 'Failed to load directory.');
-      } finally {
-        setLoadingPaths((current) => {
-          const next = new Set(current);
-          next.delete(normalized);
-          return next;
-        });
+      const inFlight = loadDirectoryInFlightRef.current.get(normalized);
+      if (inFlight) {
+        return inFlight;
       }
+
+      const request = (async () => {
+        setLoadingPaths((current) => new Set([...current, normalized]));
+        try {
+          const result = await window.agency.listExplorerEntries({
+            path: normalized,
+            showHidden,
+            rootPath: rootPath || undefined,
+          });
+          const entries = result?.entries || [];
+          const childPaths = entries.map((entry) => entry.path);
+
+          setNodesByPath((current) => {
+            const next = { ...current };
+            entries.forEach((entry) => {
+              next[entry.path] = entry;
+            });
+            return next;
+          });
+
+          setChildrenByPath((current) => {
+            const previous = Array.isArray(current[normalized]) ? current[normalized] : [];
+            const sameLength = previous.length === childPaths.length;
+            const unchanged =
+              sameLength && previous.every((value, index) => value === childPaths[index]);
+            if (unchanged) {
+              return current;
+            }
+            return {
+              ...current,
+              [normalized]: childPaths,
+            };
+          });
+
+          return result;
+        } catch (err) {
+          setError(err?.message || 'Failed to load directory.');
+          return null;
+        } finally {
+          loadDirectoryInFlightRef.current.delete(normalized);
+          setLoadingPaths((current) => {
+            const next = new Set(current);
+            next.delete(normalized);
+            return next;
+          });
+        }
+      })();
+
+      loadDirectoryInFlightRef.current.set(normalized, request);
+      return request;
     },
     [rootPath, showHidden]
   );
 
-  const refreshAll = useCallback(async () => {
+  const refreshAll = useCallback(async ({ forceStatus = false, reloadExpanded = false } = {}) => {
     if (!enabled) {
       return;
     }
     if (!rootPath) {
       await refreshRoot();
     }
-    await refreshStatus();
+    // Load root entries first so Explorer tree is responsive even when status is slow.
     await loadDirectory('');
+    if (reloadExpanded) {
+      const expanded = Array.from(expandedPathsRef.current || [])
+        .map((value) => toRelativePath(value || ''))
+        .filter(Boolean)
+        .sort((left, right) => left.split('/').length - right.split('/').length);
+      if (expanded.length) {
+        await Promise.all(expanded.map((entryPath) => loadDirectory(entryPath)));
+      }
+    }
+    await refreshStatus({ force: Boolean(forceStatus) });
   }, [enabled, loadDirectory, refreshRoot, refreshStatus, rootPath]);
 
   useEffect(() => {
@@ -249,6 +297,17 @@ export function useProjectExplorer(options: any = {}) {
   }, [resetTreeState, showHidden]);
 
   useEffect(() => {
+    loadDirectoryInFlightRef.current.clear();
+  }, [rootPath, showHidden, enabled]);
+
+  useEffect(() => {
+    setSemanticTagsByPath({});
+    setSemanticRules([]);
+    semanticTagsByPathRef.current = {};
+    semanticRequestIdRef.current += 1;
+  }, [rootPath, showHidden]);
+
+  useEffect(() => {
     if (enabled) {
       return;
     }
@@ -266,6 +325,7 @@ export function useProjectExplorer(options: any = {}) {
     if (!enabled) {
       setSemanticTagsByPath({});
       setSemanticRules([]);
+      semanticTagsByPathRef.current = {};
       return;
     }
     const paths = Object.keys(nodesByPath || {})
@@ -275,16 +335,35 @@ export function useProjectExplorer(options: any = {}) {
     if (!paths.length) {
       setSemanticTagsByPath({});
       setSemanticRules([]);
+      semanticTagsByPathRef.current = {};
       return;
     }
+
+    const knownTags = semanticTagsByPathRef.current || {};
+    const pendingPaths = paths.filter((value) => !(value in knownTags));
+    if (!pendingPaths.length) {
+      return;
+    }
+
+    const requestId = semanticRequestIdRef.current + 1;
+    semanticRequestIdRef.current = requestId;
+
     try {
       const response = await classifyFiles({
         rootPath: rootPath || undefined,
-        paths,
+        paths: pendingPaths,
       });
+      if (semanticRequestIdRef.current !== requestId) {
+        return;
+      }
       const nextTagsByPath = response?.data?.tagsByPath || {};
       const nextRules = Array.isArray(response?.data?.rules) ? response.data.rules : [];
-      setSemanticTagsByPath(nextTagsByPath);
+      if (Object.keys(nextTagsByPath).length) {
+        setSemanticTagsByPath((current) => ({
+          ...(current || {}),
+          ...nextTagsByPath,
+        }));
+      }
       setSemanticRules(nextRules);
     } catch (err) {
       // Semantic classification should not block core explorer interactions.
@@ -301,7 +380,7 @@ export function useProjectExplorer(options: any = {}) {
     semanticRefreshHandle.current = setTimeout(() => {
       semanticRefreshHandle.current = null;
       refreshSemanticTags();
-    }, 160);
+    }, 260);
     return () => {
       if (semanticRefreshHandle.current) {
         clearTimeout(semanticRefreshHandle.current);

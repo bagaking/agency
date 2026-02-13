@@ -13,16 +13,18 @@
 - Settings provides a lightweight dashboard with project summary, recent projects, and entry cards for Actions, Gates, and Softlinks.
 - The docked sidebar supports resize/collapse and persists width state across launches.
 - Agent Cells focuses on Cell management and offers jump links to Actions, Gates, and Softlinks.
+- Agent Cells sidebar now includes an Explorer panel (Cell/Session scope + Flat/Tree views) for quick file open/reveal navigation.
 - Hierarchy hosts configuration for Actions, Gates, and Softlinks.
 - Explorer provides a project file tree with git status (including added, untracked, ignored) and per-Cell change attribution.
 - Explorer scopes to the active Agent Cell worktree (or repo root) and opens files in the workbench.
+- Workbench breadcrumbs are segment-clickable and reveal/select the target inside Explorer tree (without invoking OS Finder reveal).
 - Explorer supports filters (hidden/ignored/status), keyboard navigation, open/dirty indicators, and watch-based auto refresh.
 - Explorer supports semantic-file tags and semantic filters (built-in + project rules from `.agency/agent-files.yaml`).
 - Explorer semantic filters support quick-locate to jump to the first matching file.
 - Explorer supports copy/cut/paste via context menu and keyboard shortcuts.
 - Explorer can paste files or screenshots from the system clipboard, applying `-1` style conflict suffixes.
 - Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
-- The workbench supports multi-tab previews, quick open, diff/blame toggles, and media previews.
+- The workbench supports multi-tab previews, quick open, diff/blame toggles, media previews, and active-tab disk-change auto sync (auto-reload when clean, warning + reload when dirty).
 
 ## Unified File Interaction Direction
 
@@ -36,7 +38,8 @@
 - Tool-invoked file intents enforce caller metadata (`callerId`, `traceId`) and capability scopes (`file.read` / `file.write`).
 - Agent semantic files (for example `Agency.md`, Spark conventions, and project-defined rules) are treated as first-class discoverability targets.
 - Current authoritative design and rollout:
-  - `openspec/changes/add-agent-centric-file-interaction-system/`
+  - `openspec/changes/archive/2026-02-10-add-agent-centric-file-interaction-system/`
+  - Follow-up evolution (active): `openspec/changes/update-agent-cells-embedded-explorer/`
   - `docs/notes-file-interaction-system.md`
 
 ## File Intent CLI (Gateway Wrapper)
@@ -187,12 +190,15 @@ make editor-dev
 - Use arrow keys + Enter/F2 in Explorer to navigate, open files, and rename entries.
 - Create, rename, delete, and drag/drop a file or folder from the Explorer view.
 - Select a file in Explorer and confirm it opens in a workbench tab with line numbers and syntax highlighting.
+- Click each segment in the workbench breadcrumb and confirm Explorer expands ancestors and focuses the matching node (no Finder popup).
 - Double-click a file to pin its tab, drag tabs to reorder, and close tabs from the tab strip menu.
 - Use Cmd/Ctrl+P to quick-open a file and confirm it opens as a preview tab.
 - Toggle diff and blame on a modified file and confirm decorations/hover metadata appear.
+- Edit an opened file on disk outside Agency and confirm the active tab auto-refreshes when clean, or shows a reload warning when the tab has unsaved edits.
 - Open an image or PDF file and confirm media preview renders with zoom/fit controls.
 - Switch the Explorer scope to another Cell and confirm the tree and workbench tabs reset per worktree.
 - Modify a file in multiple worktrees, refresh Explorer, and confirm per-Cell badges appear.
+- In Agent Cells sidebar Explorer panel, switch Cell/Session scope + Flat/Tree view and verify file rows can open/reveal into Explorer tree.
 - Toggle "changes only" and verify clean files are filtered out.
 - Open the editor with tmux installed, create a session, restart the editor, and confirm the session reattaches.
 - Remove or stop a tmux session, refresh sessions, and verify the session shows as stale.

@@ -43,3 +43,5 @@
 - [x] 8.3 Add integration tests for tool-invoked file intents and permission-denied outcomes.
 - [x] 8.4 Update `apps/editor/README.md` with unified file interaction, semantic-file behavior, and toolization model.
 - [x] 8.5 Run e2e/manual baseline checks for Explorer, Agent Cells, Session Map, and Memo entry flows.
+- [x] 8.6 Improve Explorer breadcrumb navigation so each path segment reveals/selects in the Explorer tree.
+- [x] 8.7 Integrate Explorer footer session card + instruction composer with auto-growing input for larger dispatch context.

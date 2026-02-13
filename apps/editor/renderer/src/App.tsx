@@ -23,6 +23,7 @@ import {
   getProjectContext,
   getTmuxStatus as agencyGetTmuxStatus,
   getUiState,
+  getGates as agencyGetGates,
   isAgencyAvailable,
   listCells as agencyListCells,
   listComments as agencyListComments,
@@ -71,7 +72,7 @@ const HIL_DRAWER_DEFAULTS = {
 
 const resolveHilDrawerDefault = (view) => HIL_DRAWER_DEFAULTS[view] || 'comments';
 
-function App() {
+function AppShell() {
   const modal = useModal();
   const [cells, setCells] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -1090,6 +1091,220 @@ function App() {
     },
     []
   );
+
+
+  const LINE_BREAK = String.fromCharCode(10);
+  const PARAGRAPH_BREAK = `${LINE_BREAK}${LINE_BREAK}`;
+
+  const createTemplatedActionSheet = useCallback(
+    async ({ title, prompt, checks }) => {
+      const resolvedTitle = String(title || '').trim() || 'Action Sheet';
+      const created = await createActionSheet({
+        title: resolvedTitle,
+        prompt: { requirements: '', context: '', checks: '', done: '' },
+        checks: [],
+        conditional: conditionalDefaults,
+      });
+      if (!created?.id) {
+        throw new Error('Unable to create Action Sheet.');
+      }
+      const completion = buildActionSheetCompletion(created.id);
+      await updateActionSheetPlan(
+        created.id,
+        buildActionSheetPlan({ title: resolvedTitle, marker: completion.marker })
+      );
+      const doneBlock = [String(prompt?.done || '').trim(), completion.done]
+        .filter(Boolean)
+        .join(PARAGRAPH_BREAK);
+      await updateActionSheetPrompt(created.id, {
+        requirements: String(prompt?.requirements || ''),
+        context: String(prompt?.context || ''),
+        checks: String(prompt?.checks || ''),
+        done: doneBlock,
+      });
+      const mergedChecks = [...(Array.isArray(checks) ? checks : []), ...completion.checks];
+      await updateActionSheetChecks(created.id, mergedChecks);
+      return created;
+    },
+    [
+      PARAGRAPH_BREAK,
+      conditionalDefaults,
+      createActionSheet,
+      updateActionSheetChecks,
+      updateActionSheetPlan,
+      updateActionSheetPrompt,
+    ]
+  );
+
+  const createTurnGateCreateSheetForCell = useCallback(
+    async ({ cell, stage }) => {
+      if (!cell?.worktreePath) {
+        throw new Error('Cell worktree path is required.');
+      }
+      const worktreeName = String(cell.worktreePath).split('/').filter(Boolean).pop() || '';
+      const resolvedAgentGatesPath = `${cell.worktreePath}/.agency/gates-${worktreeName}.yaml`;
+      const resolvedStage = String(stage || '').trim() || 'active';
+      const title = `Turn Gate Create: ${cell.name || cell.id}`;
+      const prompt = {
+        requirements: [
+          'Define what "done" means for this Turn and ensure gates/checks exist before development.',
+          '',
+          'Gate Create (before development):',
+          '- Confirm contract artifacts exist (OpenSpec change or a design note).',
+          '- Define/adjust gates (Global -> Project -> Agent) so exit criteria is measurable.',
+          '- Ensure checks are executable and reflect the desired exit criteria.',
+        ].join(LINE_BREAK),
+        context: [
+          `Cell: ${cell.name || cell.id}`,
+          `Branch: ${cell.branch || ''}`,
+          `Worktree: ${cell.worktreePath}`,
+          `Target stage: ${resolvedStage}`,
+          '',
+          'Key paths:',
+          projectGatesPath ? `- Project gates: ${projectGatesPath}` : null,
+          resolvedAgentGatesPath ? `- Agent gates: ${resolvedAgentGatesPath}` : null,
+          '',
+          'Reference:',
+          '- docs/notes-gate-turn-workflow.md',
+        ]
+          .filter(Boolean)
+          .join(LINE_BREAK),
+        checks: [
+          'Suggested checks to consider adding (choose what applies):',
+          '- openspec validate <change-id> --strict',
+          '- pnpm -C apps/editor run typecheck:renderer',
+          '- pnpm -C apps/editor run typecheck:electron',
+          '- pnpm -C apps/editor exec playwright test',
+        ].join(LINE_BREAK),
+        done: [
+          'Before starting development:',
+          '- Make sure gates/checks match the Turn exit criteria.',
+          '- Make sure the plan/checklist is actionable.',
+        ].join(LINE_BREAK),
+      };
+      return createTemplatedActionSheet({ title, prompt, checks: [] });
+    },
+    [LINE_BREAK, createTemplatedActionSheet, projectGatesPath]
+  );
+
+  const handleTurnGateCreateSheet = useCallback(
+    async (stage) => {
+      if (!selectedCell?.worktreePath) {
+        modal?.notify?.({
+          title: 'Turn Gate Create unavailable',
+          description: 'Select a Cell before creating a Turn gate sheet.',
+          tone: 'warning',
+        });
+        return;
+      }
+      try {
+        const created = await createTurnGateCreateSheetForCell({ cell: selectedCell, stage });
+        handleOpenActionSheets(created.id);
+      } catch (error) {
+        modal?.notify?.({
+          title: 'Failed to create Turn Gate sheet',
+          description: error?.message || String(error),
+          tone: 'danger',
+        });
+      }
+    },
+    [createTurnGateCreateSheetForCell, handleOpenActionSheets, modal, selectedCell]
+  );
+
+  const handleTurnGateExecuteSheet = useCallback(
+    async (stage) => {
+      if (!selectedCell?.worktreePath) {
+        modal?.notify?.({
+          title: 'Turn Gate Execute unavailable',
+          description: 'Select a Cell before creating a Turn gate execution sheet.',
+          tone: 'warning',
+        });
+        return;
+      }
+      const resolvedStage = String(stage || '').trim() || 'active';
+      try {
+        const resolved = await agencyGetGates({
+          scope: 'resolved',
+          worktreePath: selectedCell.worktreePath,
+        });
+        const gates = Array.isArray(resolved?.[resolvedStage]) ? resolved[resolvedStage] : [];
+        const checks = gates
+          .map((gate) => {
+            const commands = (Array.isArray(gate?.commands) ? gate.commands : [])
+              .map((command) => String(command || '').trim())
+              .filter((command) => command && !command.startsWith('#'));
+            if (!gate?.id || commands.length === 0) {
+              return null;
+            }
+            return {
+              id: gate.id,
+              label: gate.label || gate.id,
+              commands,
+            };
+          })
+          .filter(Boolean);
+
+        const checkSummary = checks.length
+          ? ['This sheet mirrors lifecycle gates:', '', ...checks.map((check) => `- ${check.label}`)].join(
+              LINE_BREAK
+            )
+          : 'No gates with commands were found for this stage. Add gates first (Hierarchy -> Gates).';
+
+        const title = `Turn Gate Execute (${resolvedStage}): ${selectedCell.name || selectedCell.id}`;
+        const prompt = {
+          requirements: [
+            'Execute this Turn gate set and fix failures until the worktree is merge-ready.',
+            '',
+            'Gate Execute (after development):',
+            '- Run the checks (mirrors lifecycle gates for the selected stage).',
+            '- Fix failures until all checks pass.',
+            '- Then proceed to merge / archive / lifecycle transition as needed.',
+          ].join(LINE_BREAK),
+          context: [
+            `Cell: ${selectedCell.name || selectedCell.id}`,
+            `Branch: ${selectedCell.branch || ''}`,
+            `Worktree: ${selectedCell.worktreePath}`,
+            `Stage: ${resolvedStage}`,
+            '',
+            'Key paths:',
+            projectGatesPath ? `- Project gates: ${projectGatesPath}` : null,
+            agentGatesPath ? `- Agent gates: ${agentGatesPath}` : null,
+            '',
+            'Reference:',
+            '- docs/notes-gate-turn-workflow.md',
+          ]
+            .filter(Boolean)
+            .join(LINE_BREAK),
+          checks: checkSummary,
+          done: [
+            'After all checks pass:',
+            '- Merge the branch/worktree changes.',
+            '- Archive the OpenSpec change if applicable.',
+          ].join(LINE_BREAK),
+        };
+
+        const created = await createTemplatedActionSheet({ title, prompt, checks });
+        handleOpenActionSheets(created.id);
+      } catch (error) {
+        modal?.notify?.({
+          title: 'Failed to create Turn Gate execution sheet',
+          description: error?.message || String(error),
+          tone: 'danger',
+        });
+      }
+    },
+    [
+      LINE_BREAK,
+      agentGatesPath,
+      agencyGetGates,
+      createTemplatedActionSheet,
+      handleOpenActionSheets,
+      modal,
+      projectGatesPath,
+      selectedCell,
+    ]
+  );
+
   const bumpHilCommentRefresh = useCallback(() => {
     setHilCommentRefreshToken((value) => value + 1);
   }, []);
@@ -2003,7 +2218,7 @@ function App() {
     [loadCells, selectedCell]
   );
   const handleCreate = useCallback(
-    async ({ name, branch, reusePath }) => {
+    async ({ name, branch, reusePath, startTurnGateCreate }) => {
       if (!projectReady) {
         setProjectError('Select a project before creating a Cell.');
         return;
@@ -2025,13 +2240,27 @@ function App() {
           setSelectedId(cell.id);
         }
         handleOpenTerminal();
+
+        if (startTurnGateCreate) {
+          try {
+            const stage = cell?.state === 'archived' ? 'archived' : 'active';
+            const created = await createTurnGateCreateSheetForCell({ cell, stage });
+            handleOpenActionSheets(created.id);
+          } catch (error) {
+            modal?.notify?.({
+              title: 'Failed to start Turn',
+              description: error?.message || 'Unable to create Gate Create sheet for this Cell.',
+              tone: 'warning',
+            });
+          }
+        }
       } catch (error) {
         console.error(error);
       } finally {
         setLoading(false);
       }
     },
-    [handleOpenTerminal, loadCells, projectReady, projectRoot]
+    [createTurnGateCreateSheetForCell, handleOpenActionSheets, handleOpenTerminal, loadCells, modal, projectReady, projectRoot]
   );
   const handleSaveGates = useCallback(async () => {
     await saveGates();
@@ -2105,6 +2334,7 @@ function App() {
       line,
       column,
       focusView = true,
+      mode = 'pinned',
       cellId,
       sourceSurface = 'agent-cells',
     }: {
@@ -2113,6 +2343,7 @@ function App() {
       line?: number;
       column?: number;
       focusView?: boolean;
+      mode?: 'preview' | 'pinned';
       cellId?: string;
       sourceSurface?: string;
     } = {}) => {
@@ -2143,7 +2374,7 @@ function App() {
       }
       workbench.openFile({
         path: normalizedPath,
-        mode: 'pinned',
+        mode: mode === 'preview' ? 'preview' : 'pinned',
         rootPath: resolvedRoot,
         cellId: targetCellId || undefined,
       });
@@ -2241,6 +2472,24 @@ function App() {
     ]
   );
 
+  const handleRevealPathInExplorerFromWorkbench = useCallback(
+    (path?: string) => {
+      const normalizedPath = String(path || '').trim();
+      if (!normalizedPath) {
+        return;
+      }
+      setPendingExplorerReveal({
+        path: normalizedPath,
+        rootPath: selectedCell?.worktreePath || projectRoot || '',
+        cellId: selectedCell?.id || null,
+      });
+      if (sidebarCollapsed) {
+        setSidebarCollapsed(false);
+      }
+    },
+    [projectRoot, selectedCell?.id, selectedCell?.worktreePath, sidebarCollapsed]
+  );
+
   const handleOpenMemoReference = useCallback(
     ({ path, line, column, sourceSurface = 'memo' }: { path?: string; line?: number; column?: number; sourceSurface?: string } = {}) =>
       handleOpenWorkbenchFile({
@@ -2320,12 +2569,16 @@ function App() {
       path,
       line,
       column,
+      focusView = true,
+      mode = 'pinned',
     }: {
       cellId?: string;
       rootPath?: string;
       path?: string;
       line?: number;
       column?: number;
+      focusView?: boolean;
+      mode?: 'preview' | 'pinned';
     } = {}) =>
       handleOpenWorkbenchFile({
         cellId,
@@ -2333,7 +2586,8 @@ function App() {
         path,
         line,
         column,
-        focusView: true,
+        focusView,
+        mode,
         sourceSurface: 'agent-cells',
       }),
     [handleOpenWorkbenchFile]
@@ -2357,6 +2611,68 @@ function App() {
         sourceSurface: 'agent-cells',
       }),
     [handleRevealWorkbenchFile]
+  );
+
+  const handleImportAgentCellFileReferences = useCallback(
+    async ({
+      cellId,
+      rootPath,
+      sourcePaths = [],
+      targetDir = '',
+    }: {
+      cellId?: string;
+      rootPath?: string;
+      sourcePaths?: string[];
+      targetDir?: string;
+    } = {}) => {
+      const dedupedPaths = Array.from(
+        new Set(
+          (Array.isArray(sourcePaths) ? sourcePaths : [])
+            .map((item) => String(item || '').trim())
+            .filter(Boolean)
+        )
+      );
+      const normalizedTargetDir = String(targetDir || '').trim();
+      if (!dedupedPaths.length) {
+        return {
+          targetDir: normalizedTargetDir,
+          imported: [],
+          importedPaths: [],
+          skipped: [],
+          failures: [],
+          resolvedConflicts: [],
+        };
+      }
+
+      const resolvedRoot = rootPath || selectedCell?.worktreePath || projectRoot || '';
+      if (!resolvedRoot) {
+        throw new Error('Cell worktree is unavailable.');
+      }
+
+      if (cellId && cellId !== selectedCell?.id) {
+        setSelectedId(cellId);
+      }
+
+      try {
+        const response = await runFileIntent({
+          intent: 'import_copy',
+          sourceSurface: 'agent-cells',
+          rootPath: resolvedRoot,
+          sourcePaths: dedupedPaths,
+          targetDir: normalizedTargetDir,
+        });
+        return response?.data || null;
+      } catch (error) {
+        const message = error?.message || 'Unable to import files into the selected Cell.';
+        modal?.notify?.({
+          title: 'File import failed',
+          description: message,
+          tone: 'warning',
+        });
+        throw error;
+      }
+    },
+    [modal, projectRoot, selectedCell?.id, selectedCell?.worktreePath, setSelectedId]
   );
 
   const handleJumpToSession = useCallback(
@@ -2411,6 +2727,8 @@ function App() {
     isVisible: activeView === 'agent-cells',
     onRefreshSessions: refreshSessions,
     onStateChange: handleStateChange,
+    onTurnGateCreate: handleTurnGateCreateSheet,
+    onTurnGateExecute: handleTurnGateExecuteSheet,
     onOpenTerminal: handleOpenTerminal,
     onZoomIn: zoomIn,
     onZoomOut: zoomOut,
@@ -2709,14 +3027,20 @@ function App() {
       handleSelectProjectRoot();
       return;
     }
+
+    const modalId = `create-cell-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 6)}`;
     modal.openModal({
-      title: 'Create New Agent',
+      id: modalId,
+      title: 'Create New Agent Cell',
+      showActions: false,
+      showVariantLabel: false,
+      dismissOnOverlay: true,
       content: (
         <CreateCellModal
-          onClose={() => modal.closeModal()}
-          onCreate={(payload) => {
-            handleCreate(payload);
-            modal.closeModal();
+          onClose={() => modal.closeModal(modalId, false)}
+          onCreate={async (payload) => {
+            await handleCreate(payload);
+            modal.closeModal(modalId, true);
           }}
         />
       ),
@@ -2891,6 +3215,7 @@ function App() {
     onSelectionChange: handleWorkbenchSelectionChange,
     pendingJump: pendingWorkbenchJump,
     onJumpHandled: () => setPendingWorkbenchJump(null),
+    onRevealPathInExplorer: handleRevealPathInExplorerFromWorkbench,
   };
 
   const appLayoutMemoPaneProps = {
@@ -2941,8 +3266,7 @@ function App() {
   };
 
   return (
-    <ModalProvider>
-      <div className="relative flex h-screen flex-col bg-background text-foreground overflow-hidden">
+    <div className="relative flex h-screen flex-col bg-background text-foreground overflow-hidden">
         <AppLayout
           activeView={activeView}
           onSwitchView={handleSwitchView}
@@ -2957,6 +3281,7 @@ function App() {
           onOpenExplorerForCell={handleOpenExplorerForCell}
           onOpenAgentCellFileReference={handleOpenAgentCellFileReference}
           onRevealAgentCellFileReference={handleRevealAgentCellFileReference}
+          onImportAgentCellFileReferences={handleImportAgentCellFileReferences}
           sessionsByCellId={sessionsByCellId}
           activeSessionByCellId={activeSessionByCellId}
           sessionActivityByKey={sessionActivityByKey}
@@ -3178,6 +3503,13 @@ function App() {
         ) : null}
 
       </div>
+  );
+}
+
+function App() {
+  return (
+    <ModalProvider>
+      <AppShell />
     </ModalProvider>
   );
 }

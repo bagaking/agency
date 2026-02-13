@@ -27,6 +27,10 @@ import { QuickOpenModal } from './QuickOpenModal';
 import { ProjectEmptyState } from '../ProjectEmptyState';
 import { Logo } from '../Logo';
 import { IconButton } from '../ui/IconButton';
+import {
+  isPathPossiblyChanged,
+  resolveExternalReloadStrategy,
+} from '../../utils/workbenchDiskSync';
 
 const languageFromPath = (filePath) => {
   const ext = (filePath.split('.').pop() || '').toLowerCase();
@@ -75,7 +79,21 @@ const formatBytes = (value) => {
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const buildBreadcrumbs = (path) => path.split('/').filter(Boolean);
+const TAB_DISK_SYNC_INTERVAL_MS = 2500;
+
+const buildBreadcrumbs = (path) => {
+  const parts = String(path || '').split('/').filter(Boolean);
+  let currentPath = '';
+  return parts.map((label, index) => {
+    currentPath = currentPath ? `${currentPath}/${label}` : label;
+    return {
+      id: `${currentPath}:${index}`,
+      label,
+      path: currentPath,
+      isLast: index === parts.length - 1,
+    };
+  });
+};
 
 export function WorkbenchPane({
   workbench,
@@ -92,6 +110,7 @@ export function WorkbenchPane({
   onSelectionChange,
   pendingJump,
   onJumpHandled,
+  onRevealPathInExplorer,
 }: any) {
   if (!projectReady) {
     return (
@@ -116,6 +135,7 @@ export function WorkbenchPane({
       onSelectionChange={onSelectionChange}
       pendingJump={pendingJump}
       onJumpHandled={onJumpHandled}
+      onRevealPathInExplorer={onRevealPathInExplorer}
     />
   );
 }
@@ -132,6 +152,7 @@ function WorkbenchPaneContent({
   onSelectionChange,
   pendingJump,
   onJumpHandled,
+  onRevealPathInExplorer,
 }: any) {
   const { 
     tabs, 
@@ -152,10 +173,17 @@ function WorkbenchPaneContent({
   const [editorToken, setEditorToken] = useState(0);
   const dragSourceRef = useRef(null);
   const activeEditorRef = useRef(null);
+  const tabStateByIdRef = useRef({});
+  const loadRequestByTabRef = useRef({});
+  const diskCheckInFlightRef = useRef(new Set());
 
   const activeState = activeTab ? tabStateById[activeTab.id] || {} : {};
   const resolvedCommentLines = Array.isArray(commentLines) ? commentLines : [];
   const canComment = Boolean(activeTab && activeTab.kind === 'code');
+
+  useEffect(() => {
+    tabStateByIdRef.current = tabStateById;
+  }, [tabStateById]);
 
   const updateTabState = useCallback((tabId, updates) => {
     setTabStateById((current) => ({
@@ -164,38 +192,75 @@ function WorkbenchPaneContent({
     }));
   }, []);
 
+  const updateTabContent = useCallback((tabId, nextContent) => {
+    setTabStateById((current) => {
+      const previous = current[tabId] || {};
+      const content = nextContent || '';
+      const syncedContent =
+        typeof previous.syncedContent === 'string'
+          ? previous.syncedContent
+          : previous.content || '';
+      return {
+        ...current,
+        [tabId]: {
+          ...previous,
+          content,
+          isDirty: content !== syncedContent,
+        },
+      };
+    });
+  }, []);
+
   const loadTab = useCallback(async (tab) => {
-    if (!tab || !window.agency) return;
+    if (!tab || !window.agency) {
+      return;
+    }
+    const tabId = tab.id;
     const secureKind = detectSecureKind(tab.path);
-    
-    updateTabState(tab.id, { 
-        loading: true, 
-        error: '', 
-        needsReload: false, 
-        diffEnabled: false, 
-        blameEnabled: false,
-        secureKind,
-        unlocked: false
+    const requestId = (Number(loadRequestByTabRef.current[tabId]) || 0) + 1;
+    loadRequestByTabRef.current[tabId] = requestId;
+
+    const commitIfLatest = (updates) => {
+      if (loadRequestByTabRef.current[tabId] !== requestId) {
+        return false;
+      }
+      updateTabState(tabId, updates);
+      return true;
+    };
+
+    updateTabState(tabId, {
+      loading: true,
+      error: '',
+      needsReload: false,
+      diskMtimeMs: 0,
+      diffEnabled: false,
+      blameEnabled: false,
+      secureKind,
+      unlocked: false,
     });
 
     try {
       if (secureKind === 'vector') {
-          const [contentResult, urlResult, meta] = await Promise.all([
-            window.agency.readWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path }),
-            window.agency.getWorkbenchFileUrl({ rootPath: tab.rootPath, targetPath: tab.path }),
-            window.agency.statWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path }),
-          ]);
-          updateTabState(tab.id, {
-            loading: false,
-            content: contentResult?.content || '',
-            fileUrl: urlResult?.url || '',
-            size: meta?.size || 0,
-            mtimeMs: meta?.mtimeMs || 0,
-            language: 'xml',
-            isDirty: false,
-            kind: 'vector'
-          });
-          return;
+        const [contentResult, urlResult, meta] = await Promise.all([
+          window.agency.readWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path }),
+          window.agency.getWorkbenchFileUrl({ rootPath: tab.rootPath, targetPath: tab.path }),
+          window.agency.statWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path }),
+        ]);
+        const content = contentResult?.content || '';
+        commitIfLatest({
+          loading: false,
+          content,
+          syncedContent: content,
+          fileUrl: urlResult?.url || '',
+          size: meta?.size || 0,
+          mtimeMs: meta?.mtimeMs || 0,
+          language: 'xml',
+          isDirty: false,
+          kind: 'vector',
+          needsReload: false,
+          diskMtimeMs: 0,
+        });
+        return;
       }
 
       if (['image', 'video', 'audio', 'pdf'].includes(secureKind)) {
@@ -203,49 +268,181 @@ function WorkbenchPaneContent({
           window.agency.statWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path }),
           window.agency.getWorkbenchFileUrl({ rootPath: tab.rootPath, targetPath: tab.path }),
         ]);
-        updateTabState(tab.id, { loading: false, fileUrl: urlResult?.url || '', size: meta?.size || 0, mtimeMs: meta?.mtimeMs || 0, kind: secureKind });
+        commitIfLatest({
+          loading: false,
+          fileUrl: urlResult?.url || '',
+          size: meta?.size || 0,
+          mtimeMs: meta?.mtimeMs || 0,
+          kind: secureKind,
+          needsReload: false,
+          diskMtimeMs: 0,
+        });
         return;
       }
 
       if (secureKind === 'code') {
-          const result = await window.agency.readWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path });
-          updateTabState(tab.id, {
-            loading: false,
-            content: result?.content || '',
-            size: result?.size || 0,
-            mtimeMs: result?.mtimeMs || 0,
-            binary: Boolean(result?.binary),
-            truncated: Boolean(result?.truncated),
-            language: languageFromPath(tab.path),
-            isDirty: false,
-            kind: 'code'
-          });
+        const result = await window.agency.readWorkbenchEntry({
+          rootPath: tab.rootPath,
+          targetPath: tab.path,
+        });
+        const content = result?.content || '';
+        commitIfLatest({
+          loading: false,
+          content,
+          syncedContent: content,
+          size: result?.size || 0,
+          mtimeMs: result?.mtimeMs || 0,
+          binary: Boolean(result?.binary),
+          truncated: Boolean(result?.truncated),
+          language: languageFromPath(tab.path),
+          isDirty: false,
+          kind: 'code',
+          needsReload: false,
+          diskMtimeMs: 0,
+        });
       } else {
-          const meta = await window.agency.statWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path });
-          updateTabState(tab.id, {
-              loading: false,
-              size: meta?.size || 0,
-              mtimeMs: meta?.mtimeMs || 0,
-              kind: 'unknown'
-          });
+        const meta = await window.agency.statWorkbenchEntry({
+          rootPath: tab.rootPath,
+          targetPath: tab.path,
+        });
+        commitIfLatest({
+          loading: false,
+          size: meta?.size || 0,
+          mtimeMs: meta?.mtimeMs || 0,
+          kind: 'unknown',
+          needsReload: false,
+          diskMtimeMs: 0,
+        });
       }
     } catch (error) {
-      updateTabState(tab.id, { loading: false, error: error?.message || 'Load failed' });
+      commitIfLatest({ loading: false, error: error?.message || 'Load failed' });
     }
   }, [updateTabState]);
 
   useEffect(() => {
-    if (activeTab && !tabStateById[activeTab.id]) loadTab(activeTab);
+    if (activeTab && !tabStateById[activeTab.id]) {
+      loadTab(activeTab);
+    }
   }, [activeTab, loadTab, tabStateById]);
+
+  const checkTabDiskVersion = useCallback(async (tab) => {
+    if (!tab || !window.agency?.statWorkbenchEntry) {
+      return;
+    }
+    const tabId = tab.id;
+    const currentState = tabStateByIdRef.current[tabId];
+    if (!currentState || currentState.loading || currentState.saving) {
+      return;
+    }
+    if (diskCheckInFlightRef.current.has(tabId)) {
+      return;
+    }
+    diskCheckInFlightRef.current.add(tabId);
+    try {
+      const stat = await window.agency.statWorkbenchEntry({
+        rootPath: tab.rootPath,
+        targetPath: tab.path,
+      });
+      const latestState = tabStateByIdRef.current[tabId] || {};
+      const diskMtimeMs = Number(stat?.mtimeMs || 0);
+      const decision = resolveExternalReloadStrategy({
+        knownMtimeMs: Number(latestState.mtimeMs || 0),
+        diskMtimeMs,
+        isDirty: Boolean(latestState.isDirty),
+      });
+      if (!decision.diskNewer) {
+        if (latestState.needsReload) {
+          updateTabState(tabId, { needsReload: false, diskMtimeMs: 0 });
+        }
+        return;
+      }
+      if (decision.shouldMarkNeedsReload) {
+        updateTabState(tabId, { needsReload: true, diskMtimeMs });
+        return;
+      }
+      if (decision.shouldAutoReload) {
+        loadTab(tab);
+      }
+    } catch (_error) {
+      // Ignore transient stat/read failures and keep current editor state.
+    } finally {
+      diskCheckInFlightRef.current.delete(tabId);
+    }
+  }, [loadTab, updateTabState]);
+
+  useEffect(() => {
+    if (!activeTab) {
+      return undefined;
+    }
+    const runCheck = () => {
+      checkTabDiskVersion(activeTab);
+    };
+    runCheck();
+    const intervalHandle = window.setInterval(() => {
+      if (document.hidden) {
+        return;
+      }
+      runCheck();
+    }, TAB_DISK_SYNC_INTERVAL_MS);
+    const handleFocus = () => runCheck();
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        runCheck();
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.clearInterval(intervalHandle);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [activeTab, checkTabDiskVersion]);
+
+  useEffect(() => {
+    if (!activeTab || !window.agency?.onExplorerChanged) {
+      return undefined;
+    }
+    const unsubscribe = window.agency.onExplorerChanged((payload) => {
+      if (!payload) {
+        return;
+      }
+      if (payload.rootPath && activeTab.rootPath && payload.rootPath !== activeTab.rootPath) {
+        return;
+      }
+      if (
+        !isPathPossiblyChanged({
+          targetPath: activeTab.path,
+          changedDirs: payload.paths || [],
+        })
+      ) {
+        return;
+      }
+      checkTabDiskVersion(activeTab);
+    });
+    return () => {
+      unsubscribe?.();
+    };
+  }, [activeTab, checkTabDiskVersion]);
 
   const handleSave = useCallback(async () => {
     if (!activeTab || !activeState || !window.agency?.writeWorkbenchEntry) return;
     updateTabState(activeTab.id, { saving: true });
     try {
+      const content = activeState.content || '';
       const result = await window.agency.writeWorkbenchEntry({
-        rootPath: activeTab.rootPath, targetPath: activeTab.path, content: activeState.content || '',
+        rootPath: activeTab.rootPath,
+        targetPath: activeTab.path,
+        content,
       });
-      updateTabState(activeTab.id, { saving: false, isDirty: false, mtimeMs: result?.mtimeMs || activeState.mtimeMs });
+      updateTabState(activeTab.id, {
+        saving: false,
+        isDirty: false,
+        syncedContent: content,
+        mtimeMs: result?.mtimeMs || activeState.mtimeMs,
+        needsReload: false,
+        diskMtimeMs: 0,
+      });
     } catch (error) {
       updateTabState(activeTab.id, { saving: false, error: 'Save failed' });
     }
@@ -426,9 +623,11 @@ function WorkbenchPaneContent({
       updateTabState(activeTab.id, { loading: true });
       try {
           const result = await window.agency.readWorkbenchEntry({ rootPath: activeTab.rootPath, targetPath: activeTab.path });
+          const content = result?.content || '';
           updateTabState(activeTab.id, {
             loading: false,
-            content: result?.content || '',
+            content,
+            syncedContent: content,
             size: result?.size || 0,
             mtimeMs: result?.mtimeMs || 0,
             binary: Boolean(result?.binary),
@@ -436,7 +635,9 @@ function WorkbenchPaneContent({
             language: languageFromPath(activeTab.path),
             isDirty: false,
             kind: 'code',
-            unlocked: true
+            unlocked: true,
+            needsReload: false,
+            diskMtimeMs: 0,
           });
       } catch (e) {
           updateTabState(activeTab.id, { loading: false, error: 'Forced load failed.' });
@@ -499,12 +700,21 @@ function WorkbenchPaneContent({
           </div>
           <ChevronRight size={10} className="text-white/5 shrink-0" />
           <div className="flex items-center gap-1 overflow-hidden">
-            {breadcrumbs.map((crumb, i) => (
-              <React.Fragment key={i}>
-                <span className={`text-[10px] font-medium transition-colors whitespace-nowrap ${i === breadcrumbs.length - 1 ? 'text-white/80' : 'text-white/20 hover:text-white/40 cursor-default'}`}>
-                  {crumb}
-                </span>
-                {i < breadcrumbs.length - 1 && <ChevronRight size={8} className="text-white/[0.02] shrink-0" />}
+            {breadcrumbs.map((crumb) => (
+              <React.Fragment key={crumb.id}>
+                <button
+                  type="button"
+                  onClick={() => onRevealPathInExplorer?.(crumb.path)}
+                  className={`text-[10px] font-medium transition-colors whitespace-nowrap rounded-sm px-0.5 ${
+                    crumb.isLast
+                      ? 'text-white/80 hover:text-white'
+                      : 'text-white/30 hover:text-white/70'
+                  }`}
+                  title={`Reveal in Explorer: ${crumb.path}`}
+                >
+                  {crumb.label}
+                </button>
+                {!crumb.isLast && <ChevronRight size={8} className="text-white/[0.02] shrink-0" />}
               </React.Fragment>
             ))}
           </div>
@@ -555,6 +765,23 @@ function WorkbenchPaneContent({
 
       {/* 3. Main Viewport */}
       <div className="flex-1 overflow-hidden relative">
+        {activeTab && activeState.needsReload ? (
+          <div className="absolute left-4 top-4 z-20 flex items-center gap-2 rounded-md border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-[10px] font-semibold text-amber-100 shadow-lg">
+            <AlertTriangle size={12} className="text-amber-300" />
+            <span>
+              {activeState.isDirty
+                ? 'File changed on disk. Reload to reconcile before saving.'
+                : 'File changed on disk. Click reload to sync.'}
+            </span>
+            <button
+              type="button"
+              onClick={handleReload}
+              className="rounded border border-amber-300/30 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-100 hover:bg-amber-500/20"
+            >
+              Reload
+            </button>
+          </div>
+        ) : null}
         {!activeTab ? (
           <div className="flex h-full flex-col items-center justify-center text-white/[0.02] bg-[#0b0d11]">
             <Logo size={120} className="opacity-10 grayscale animate-pulse-slow mb-8" />
@@ -600,7 +827,7 @@ function WorkbenchPaneContent({
             fileUrl={activeState.fileUrl}
             language={activeState.language || 'xml'}
             readOnly={activeState.truncated}
-            onChange={(val) => updateTabState(activeTab.id, { content: val, isDirty: true })}
+            onChange={(val) => updateTabContent(activeTab.id, val)}
             onCursorChange={setStatusPosition}
           />
         ) : activeState.kind === 'code' ? (
@@ -613,7 +840,7 @@ function WorkbenchPaneContent({
             commentLines={resolvedCommentLines}
             commentsEnabled={canComment}
             readOnly={activeState.truncated}
-            onChange={(val) => updateTabState(activeTab.id, { content: val, isDirty: true })}
+            onChange={(val) => updateTabContent(activeTab.id, val)}
             onCursorChange={handleCursorChange}
             onSelectionChange={(selection) => {
               if (!onSelectionChange) {

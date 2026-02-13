@@ -46,6 +46,7 @@ Promotion rule:
 - Start with `docs/norms-maintaining-reusable-items.md` if present.
 - Terminal interaction requirements: `docs/notes-terminal-interaction-requirements.md`
 - Unified file interaction philosophy: `docs/notes-file-interaction-system.md`
+- Turn workflow (gates + Action Sheets): `docs/notes-gate-turn-workflow.md`
 
 ## Docs Maintenance
 - This guidebook must reference `must-docs-taxonomy.md`.
