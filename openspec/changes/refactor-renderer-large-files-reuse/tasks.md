@@ -9,9 +9,9 @@
 - [ ] 2.4 Add/align shared helper utilities for repeated activity-diff and preview-normalization logic where applicable.
 - [ ] 2.5 Add renderer bridge adapters for Explorer clipboard/materialize flows and remove direct `window.agency` usage in `ProjectExplorerSidebar`.
 - [x] 2.6 Extract a shared file-snippet preview loader for dashboard + HIL anchor hover previews to unify request/cancel/error handling.
-- [ ] 2.7 Add missing Explorer bridge adapters (root/status/list/watch) and migrate `useProjectExplorer` away from direct `window.agency` usage.
+- [x] 2.7 Add missing Explorer bridge adapters (root/status/list/watch) and migrate `useProjectExplorer` away from direct `window.agency` usage.
 - [ ] 2.8 Add missing session bridge adapters (list/create/close/detach/rename/meta) and migrate `useSessions` away from direct `window.agency` usage.
-- [ ] 2.9 Keep `services/agencyBridge.ts` under renderer quality limits by splitting into domain bridge modules if it grows past 800 lines.
+- [x] 2.9 Keep `services/agencyBridge.ts` under renderer quality limits by splitting into domain bridge modules if it grows past 800 lines.
 
 ## 3. Large-file Decomposition
 - [ ] 3.1 Decompose `apps/editor/renderer/src/App.tsx` into domain controllers/hooks while preserving integration props.

@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { pathBaseName } from './shared/scopedSettingsState';
 import { classifyFiles, runFileIntent } from '../services/fileInteraction';
+import {
+  getExplorerRoot,
+  getExplorerStatus,
+  listExplorerEntries,
+  onExplorerChanged,
+  searchExplorerFiles,
+  watchExplorer,
+} from '../services/agencyBridge';
 
 const buildAncestorPaths = (path) => {
   const parts = path.split('/').filter(Boolean);
@@ -108,18 +116,18 @@ export function useProjectExplorer(options: any = {}) {
   }, [semanticTagsByPath]);
 
   const refreshRoot = useCallback(async () => {
-    if (!window.agency?.getExplorerRoot) {
-      return;
-    }
     if (!enabled) {
       setRepoRoot('');
       setRepoName('');
       return;
     }
     try {
-      const info = await window.agency.getExplorerRoot({
+      const info = await getExplorerRoot({
         rootPath: rootPath || undefined,
       });
+      if (!info) {
+        return;
+      }
       setRepoRoot(info?.repoRoot || '');
       setRepoName(info?.name || '');
     } catch (err) {
@@ -128,9 +136,6 @@ export function useProjectExplorer(options: any = {}) {
   }, [enabled, rootPath]);
 
   const refreshStatus = useCallback(async ({ force = false } = {}) => {
-    if (!window.agency?.getExplorerStatus) {
-      return;
-    }
     if (!enabled) {
       setStatusByPath({});
       setFolderStatusByPath({});
@@ -152,9 +157,12 @@ export function useProjectExplorer(options: any = {}) {
     }
     statusInFlightRef.current = (async () => {
       try {
-        const status = await window.agency.getExplorerStatus({
+        const status = await getExplorerStatus({
           rootPath: rootPath || undefined,
         });
+        if (!status) {
+          return;
+        }
         statusCacheRef.current = status;
         statusCacheAtRef.current = Date.now();
         setStatusByPath(status?.files || {});
@@ -183,9 +191,6 @@ export function useProjectExplorer(options: any = {}) {
 
   const loadDirectory = useCallback(
     async (relativePath) => {
-      if (!window.agency?.listExplorerEntries) {
-        return null;
-      }
       const normalized = toRelativePath(relativePath || '');
       const inFlight = loadDirectoryInFlightRef.current.get(normalized);
       if (inFlight) {
@@ -195,11 +200,14 @@ export function useProjectExplorer(options: any = {}) {
       const request = (async () => {
         setLoadingPaths((current) => new Set([...current, normalized]));
         try {
-          const result = await window.agency.listExplorerEntries({
+          const result = await listExplorerEntries({
             path: normalized,
             showHidden,
             rootPath: rootPath || undefined,
           });
+          if (!result) {
+            return null;
+          }
           const entries = result?.entries || [];
           const childPaths = entries.map((entry) => entry.path);
 
@@ -593,10 +601,6 @@ export function useProjectExplorer(options: any = {}) {
 
   const search = useCallback(
     async (query) => {
-      if (!window.agency?.searchExplorerFiles) {
-        setSearchResults([]);
-        return;
-      }
       if (!enabled) {
         setSearchResults([]);
         setSearchTruncated(false);
@@ -608,10 +612,15 @@ export function useProjectExplorer(options: any = {}) {
         return;
       }
       try {
-        const result = await window.agency.searchExplorerFiles({
+        const result = await searchExplorerFiles({
           query,
           rootPath: rootPath || undefined,
         });
+        if (!result) {
+          setSearchResults([]);
+          setSearchTruncated(false);
+          return;
+        }
         setSearchResults(result?.matches || []);
         setSearchTruncated(Boolean(result?.truncated));
       } catch (err) {
@@ -631,18 +640,15 @@ export function useProjectExplorer(options: any = {}) {
   const searchTree = useMemo(() => buildTreeFromMatches(searchResults), [searchResults]);
 
   useEffect(() => {
-    if (!window.agency?.watchExplorer || !window.agency?.onExplorerChanged) {
-      return undefined;
-    }
     if (!enabled) {
-      window.agency.watchExplorer({ rootPath: '' }).catch(() => undefined);
+      watchExplorer({ rootPath: '' }).catch(() => undefined);
       return undefined;
     }
     const watchRoot = rootPath || repoRoot || '';
     if (watchRoot) {
-      window.agency.watchExplorer({ rootPath: watchRoot }).catch(() => undefined);
+      watchExplorer({ rootPath: watchRoot }).catch(() => undefined);
     }
-    const unsubscribe = window.agency.onExplorerChanged((payload) => {
+    const unsubscribe = onExplorerChanged((payload) => {
       if (!payload) {
         return;
       }
@@ -660,7 +666,7 @@ export function useProjectExplorer(options: any = {}) {
     });
     return () => {
       unsubscribe?.();
-      window.agency.watchExplorer({ rootPath: '' }).catch(() => undefined);
+      watchExplorer({ rootPath: '' }).catch(() => undefined);
     };
   }, [loadDirectory, repoRoot, rootPath, scheduleStatusRefresh]);
 
