@@ -218,7 +218,7 @@ test('explorer filters and keyboard navigation', async () => {
   });
 
   const window = await electronApp.firstWindow();
-  await window.getByTitle('Explorer').click();
+  await window.getByRole('button', { name: 'Explorer', exact: true }).click();
   await expect(window.getByTestId('explorer-header')).toBeVisible();
 
   await expect(window.locator('[data-explorer-path=".hidden"]')).toBeVisible();
@@ -246,6 +246,137 @@ test('explorer filters and keyboard navigation', async () => {
   await electronApp.close();
 });
 
+test('agent cells explorer panel toggles Changes/All views', async () => {
+  setupTestRepo();
+  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
+  const electronApp = await electron.launch({
+    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
+    env: {
+      ...process.env,
+      ELECTRON_RENDERER_URL: RENDERER_URL,
+      AGENCY_TEST_MODE: '1',
+      AGENCY_CLI_STUB: '1',
+      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
+    },
+  });
+
+  try {
+    const window = await electronApp.firstWindow();
+    await window.getByTestId('activity-home').click();
+    const cellItem = window.locator('[data-testid^="cell-item-"]').first();
+    await expect(cellItem).toBeVisible();
+    const cellTestId = await cellItem.getAttribute('data-testid');
+    await cellItem.click();
+
+    const dashboard = window.getByTestId('agent-cells-file-dashboard');
+    const list = dashboard.getByTestId('agent-cells-file-dashboard-list');
+    expect(cellTestId).toMatch(/^cell-item-/);
+
+    await expect(dashboard).toBeVisible();
+    await dashboard.getByRole('button', { name: 'All', exact: true }).click();
+    await dashboard.getByRole('button', { name: 'Refresh Explorer panel', exact: true }).click();
+    await expect(list).toContainText('.gitignore');
+
+    await dashboard.getByRole('button', { name: 'Changes', exact: true }).click();
+    await dashboard.getByRole('button', { name: 'Refresh Explorer panel', exact: true }).click();
+    await expect(list).not.toContainText('.gitignore');
+  } finally {
+    await electronApp.close();
+  }
+});
+
+test('agent cells explorer panel imports dropped external files', async () => {
+  setupTestRepo();
+  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
+
+  const externalDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-agent-cells-drop-'));
+  const externalName = `agent-cells-drop-${Date.now()}.txt`;
+  const externalFile = path.join(externalDir, externalName);
+  fs.writeFileSync(externalFile, 'agent cells drop payload\n');
+
+  const electronApp = await electron.launch({
+    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
+    env: {
+      ...process.env,
+      ELECTRON_RENDERER_URL: RENDERER_URL,
+      AGENCY_TEST_MODE: '1',
+      AGENCY_CLI_STUB: '1',
+      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
+    },
+  });
+
+  try {
+    const window = await electronApp.firstWindow();
+    await window.getByTestId('activity-home').click();
+    const cellItem = window.locator('[data-testid^="cell-item-"]').first();
+    await expect(cellItem).toBeVisible();
+    await cellItem.click();
+
+    const dashboard = window.getByTestId('agent-cells-file-dashboard');
+    await expect(dashboard).toBeVisible();
+
+    const dataTransfer = await window.evaluateHandle((rawPath) => {
+      const transfer = new DataTransfer();
+      transfer.setData('text/plain', String(rawPath || ''));
+      return transfer;
+    }, externalFile);
+
+    await dashboard.dispatchEvent('dragover', { dataTransfer });
+    await dashboard.dispatchEvent('drop', { dataTransfer });
+
+    const importedPath = path.join(TEST_REPO, externalName);
+    await expect.poll(() => fs.existsSync(importedPath)).toBe(true);
+    expect(fs.readFileSync(importedPath, 'utf8')).toBe('agent cells drop payload\n');
+    await expect(dashboard).toContainText('Imported 1 item');
+  } finally {
+    await electronApp.close();
+    fs.rmSync(externalDir, { recursive: true, force: true });
+  }
+});
+
+test('explorer shows companion changed-files panel above footer', async () => {
+  setupTestRepo();
+  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
+  const electronApp = await electron.launch({
+    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
+    env: {
+      ...process.env,
+      ELECTRON_RENDERER_URL: RENDERER_URL,
+      AGENCY_TEST_MODE: '1',
+      AGENCY_CLI_STUB: '1',
+      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
+    },
+  });
+
+  try {
+    const window = await electronApp.firstWindow();
+    await window.getByTestId('activity-home').click();
+    const cellItem = window.locator('[data-testid^="cell-item-"]').first();
+    await expect(cellItem).toBeVisible();
+    await cellItem.click();
+
+    await window.getByRole('button', { name: 'Explorer', exact: true }).click();
+
+    const changesPanel = window.getByTestId('explorer-changes-panel');
+    const changesList = window.getByTestId('explorer-changes-panel-list');
+
+    await expect(changesPanel).toBeVisible();
+    await expect(changesPanel).toContainText('Changed Files');
+    await changesPanel.getByRole('button', { name: 'Refresh changed files', exact: true }).click();
+    await expect(changesList).toBeVisible();
+    await expect
+      .poll(async () => (await changesList.textContent() || '').trim().length > 0)
+      .toBe(true);
+
+    await changesPanel.getByRole('button', { name: 'Tree', exact: true }).click();
+    await expect
+      .poll(async () => (await changesList.textContent() || '').trim().length > 0)
+      .toBe(true);
+  } finally {
+    await electronApp.close();
+  }
+});
+
 test('explorer drag and drop moves files', async () => {
   setupTestRepo();
   fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
@@ -261,7 +392,7 @@ test('explorer drag and drop moves files', async () => {
   });
 
   const window = await electronApp.firstWindow();
-  await window.getByTitle('Explorer').click();
+  await window.getByRole('button', { name: 'Explorer', exact: true }).click();
   await expect(window.getByTestId('explorer-header')).toBeVisible();
 
   const source = window.locator('[data-explorer-path="new.txt"]');
@@ -297,7 +428,7 @@ test('explorer external drop imports and selects first imported entry', async ()
 
   try {
     const window = await electronApp.firstWindow();
-    await window.getByTitle('Explorer').click();
+    await window.getByRole('button', { name: 'Explorer', exact: true }).click();
     await expect(window.getByTestId('explorer-header')).toBeVisible();
 
     const targetDirRow = window.locator('[data-explorer-path="src"]');
@@ -345,7 +476,7 @@ test('explorer external drop keeps conflict-safe naming semantics', async () => 
 
   try {
     const window = await electronApp.firstWindow();
-    await window.getByTitle('Explorer').click();
+    await window.getByRole('button', { name: 'Explorer', exact: true }).click();
     await expect(window.getByTestId('explorer-header')).toBeVisible();
 
     const targetDirRow = window.locator('[data-explorer-path="src"]');
@@ -398,7 +529,7 @@ test('explorer external drop accepts newline-separated text/plain payloads', asy
 
   try {
     const window = await electronApp.firstWindow();
-    await window.getByTitle('Explorer').click();
+    await window.getByRole('button', { name: 'Explorer', exact: true }).click();
     await expect(window.getByTestId('explorer-header')).toBeVisible();
 
     const targetDirRow = window.locator('[data-explorer-path="src"]');
@@ -438,7 +569,7 @@ test('explorer copy and paste duplicates entries', async () => {
   });
 
   const window = await electronApp.firstWindow();
-  await window.getByTitle('Explorer').click();
+  await window.getByRole('button', { name: 'Explorer', exact: true }).click();
   await expect(window.getByTestId('explorer-header')).toBeVisible();
 
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';

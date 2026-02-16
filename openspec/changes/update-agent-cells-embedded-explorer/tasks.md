@@ -9,7 +9,7 @@
   - [x] 1.5.1 keep drag-out `text/plain` absolute-path payloads.
   - [x] 1.5.2 add drop-in external file import into selected Cell worktree via unified `import_copy` semantics.
 - [x] 1.6 Add/adjust unit tests for Agent Cells file list derivation, scope behavior, and drag/drop payload handling.
-- [ ] 1.7 Add/adjust integration/manual tests for panel placement, Changes/All toggle, open/reveal, and drop import.
+- [x] 1.7 Add/adjust integration/manual tests for panel placement, Changes/All toggle, open/reveal, and drop import.
 - [x] 1.8 Add Explorer sidebar companion changed-files panel above Agent footer (no scope toggle; changed files only) for visual continuity.
 - [x] 1.9 Extract reusable file-dashboard list rendering for Agent Cells + Explorer companion panel.
 - [x] 1.10 Add in-place preview action for dashboard rows without forcing view switch.
@@ -25,6 +25,6 @@
 - [ ] 2.2 `All` lists files and indicates truncation when limit is hit.
 - [ ] 2.3 Flat/Tree toggles preserve correct entries and hierarchy.
 - [ ] 2.4 File row open/reveal works and lands in Explorer/workbench correctly.
-- [ ] 2.5 Drag-out payload from Agent Cells panel is consumable by Explorer import flow.
-- [ ] 2.6 Drop-in external files into panel imports into selected Cell worktree with conflict-safe naming.
-- [ ] 2.7 Explorer sidebar companion panel shows changed files for selected Cell and preserves continuity with Agent Cells panel affordances.
+- [x] 2.5 Drag-out payload from Agent Cells panel is consumable by Explorer import flow.
+- [x] 2.6 Drop-in external files into panel imports into selected Cell worktree with conflict-safe naming.
+- [x] 2.7 Explorer sidebar companion panel shows changed files for selected Cell and preserves continuity with Agent Cells panel affordances.

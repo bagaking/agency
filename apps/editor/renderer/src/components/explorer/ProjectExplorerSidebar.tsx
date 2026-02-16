@@ -1280,7 +1280,10 @@ function ProjectExplorerSidebarContent({
         )}
       </div>
 
-      <div className="mx-2 mb-2 shrink-0 rounded-lg border border-border/60 bg-card/35">
+      <div
+        className="mx-2 mb-2 shrink-0 rounded-lg border border-border/60 bg-card/35"
+        data-testid="explorer-changes-panel"
+      >
         <div className="flex items-center justify-between px-2 py-1 text-[10px] text-muted-foreground">
           <span className="inline-flex items-center gap-1">
             <FileText size={11} strokeWidth={1.6} />
@@ -1358,6 +1361,7 @@ function ProjectExplorerSidebarContent({
               onDragStart={handleChangeEntryDragStart}
               preview={changesPanelPreview}
               onClearPreview={clearChangesPanelPreview}
+              listTestId="explorer-changes-panel-list"
             />
 
             {changesPanelUpdatedAt ? (
