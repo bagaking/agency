@@ -26,12 +26,16 @@ import { resolveSessionAvatarId } from '../utils/agentAvatar';
 import { buildAgentCellModifiedFileChanges } from '../utils/agentCellFileChanges';
 import { setFileDragPayload } from '../utils/fileDragPayload';
 import {
+  hasExternalDropEntries as hasExternalDroppedPaths,
+  readExternalDropPaths as readDroppedExternalPaths,
+} from '../utils/externalDropPaths';
+import { useFileSnippetPreview } from '../hooks/useFileSnippetPreview';
+import {
   getExplorerStatus,
   getPathForDroppedFile,
-  getFileSnippet,
   searchExplorerFiles,
 } from '../services/agencyBridge';
-import { FileDashboardList, type FileDashboardPreviewState } from './fileDashboard/FileDashboardList';
+import { FileDashboardList } from './fileDashboard/FileDashboardList';
 
 
 const cellStateColors = {
@@ -41,10 +45,6 @@ const cellStateColors = {
   archived: 'text-slate-500',
 };
 
-
-const URI_LIST_MIME = 'text/uri-list';
-const DOWNLOAD_URL_MIME = 'DownloadURL';
-const TEXT_PLAIN_MIME = 'text/plain';
 
 const FILE_DASHBOARD_MIN_HEIGHT = 148;
 const FILE_DASHBOARD_DEFAULT_RATIO = 0.5;
@@ -56,82 +56,6 @@ const clampNumber = (value: number, min: number, max: number) => {
   const upper = Math.max(min, max);
   return Math.min(upper, Math.max(min, value));
 };
-
-function normalizeDroppedPath(value: string): string {
-  return String(value || '').trim();
-}
-
-function readPathFromDroppedFile(file: any): string {
-  const fromLegacyFilePath = normalizeDroppedPath(file?.path || '');
-  if (fromLegacyFilePath) {
-    return fromLegacyFilePath;
-  }
-  const fromBridge = normalizeDroppedPath(getPathForDroppedFile(file) || '');
-  return fromBridge;
-}
-
-function decodeFileUri(rawValue: string): string {
-  const value = String(rawValue || '').trim();
-  if (!value.toLowerCase().startsWith('file://')) {
-    return '';
-  }
-  try {
-    const url = new URL(value);
-    if (url.protocol !== 'file:') {
-      return '';
-    }
-    let pathname = decodeURIComponent(url.pathname || '');
-    if (/^\/[a-zA-Z]:\//.test(pathname)) {
-      pathname = pathname.slice(1);
-    }
-    return pathname;
-  } catch (_error) {
-    return '';
-  }
-}
-
-function parseUriList(value: string): string[] {
-  const lines = String(value || '')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((line) => !line.startsWith('#'));
-  return lines
-    .map((line) => decodeFileUri(line))
-    .filter(Boolean);
-}
-
-function parseDownloadUrl(value: string): string[] {
-  const text = String(value || '').trim();
-  if (!text) {
-    return [];
-  }
-  const firstColon = text.indexOf(':');
-  const secondColon = firstColon >= 0 ? text.indexOf(':', firstColon + 1) : -1;
-  if (firstColon < 0 || secondColon < 0) {
-    return [];
-  }
-  const urlPart = text.slice(secondColon + 1).trim();
-  const filePath = decodeFileUri(urlPart);
-  return filePath ? [filePath] : [];
-}
-
-function parsePlainTextPaths(value: string): string[] {
-  return String(value || '')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .flatMap((line) => {
-      if (line.toLowerCase().startsWith('file://')) {
-        const decoded = decodeFileUri(line);
-        return decoded ? [decoded] : [];
-      }
-      if (line.startsWith('/') || /^[a-zA-Z]:[\/]/.test(line)) {
-        return [line];
-      }
-      return [];
-    });
-}
 
 const buildSessionKey = (cellId, sessionId) => `${cellId}:${sessionId}`;
 
@@ -180,7 +104,8 @@ export function AgentCellsSidebar({
   const [fileDashboardMode, setFileDashboardMode] = useState<'flat' | 'tree'>('flat');
   const [fileDashboardCellFilter, setFileDashboardCellFilter] = useState<'changes' | 'all'>('changes');
   const [fileDashboardNotice, setFileDashboardNotice] = useState('');
-  const [fileDashboardPreview, setFileDashboardPreview] = useState<FileDashboardPreviewState | null>(null);
+  const fileDashboardSnippetPreview = useFileSnippetPreview({ defaultContext: 2 });
+  const fileDashboardPreview = fileDashboardSnippetPreview.preview;
   const [fileDashboardHeight, setFileDashboardHeight] = useState<number | null>(null);
   const [fileDashboardDragging, setFileDashboardDragging] = useState(false);
   const [sidebarBodyHeight, setSidebarBodyHeight] = useState(0);
@@ -197,7 +122,6 @@ export function AgentCellsSidebar({
     minHeight: number;
     maxHeight: number;
   } | null>(null);
-  const fileDashboardPreviewRequestRef = useRef(0);
   const cellsById = useMemo(
     () => new Map<string, any>((cells || []).filter(Boolean).map((cell: any) => [cell.id, cell])),
     [cells]
@@ -401,77 +325,31 @@ export function AgentCellsSidebar({
   const loadFileDashboardPreview = useCallback(
     async (shortcut) => {
       if (!shortcut?.relativePath || !selectedCell?.worktreePath) {
-        setFileDashboardPreview(null);
+        fileDashboardSnippetPreview.clearPreview();
         return;
       }
 
       const relativePath = String(shortcut.relativePath).trim();
       if (!relativePath) {
-        setFileDashboardPreview(null);
+        fileDashboardSnippetPreview.clearPreview();
         return;
       }
 
       const line = Number.isFinite(shortcut.line) ? Math.max(1, Math.floor(shortcut.line)) : null;
-      const requestId = fileDashboardPreviewRequestRef.current + 1;
-      fileDashboardPreviewRequestRef.current = requestId;
-      setFileDashboardPreview({
+      await fileDashboardSnippetPreview.loadPreview({
+        rootPath: selectedCell.worktreePath,
+        targetPath: relativePath,
         relativePath,
         line,
-        snippet: [],
-        loading: true,
-        error: '',
+        context: 2,
       });
-
-      try {
-        const result = await getFileSnippet({
-          rootPath: selectedCell.worktreePath,
-          targetPath: relativePath,
-          line: line || 1,
-          context: 2,
-        });
-
-        if (fileDashboardPreviewRequestRef.current !== requestId) {
-          return;
-        }
-
-        if (!result?.snippet) {
-          setFileDashboardPreview({
-            relativePath,
-            line,
-            snippet: [],
-            loading: false,
-            error: 'Unable to load preview.',
-          });
-          return;
-        }
-
-        setFileDashboardPreview({
-          relativePath,
-          line,
-          snippet: result.snippet,
-          loading: false,
-          error: '',
-        });
-      } catch (error) {
-        if (fileDashboardPreviewRequestRef.current !== requestId) {
-          return;
-        }
-        setFileDashboardPreview({
-          relativePath,
-          line,
-          snippet: [],
-          loading: false,
-          error: error?.message || 'Unable to load preview.',
-        });
-      }
     },
-    [selectedCell?.worktreePath]
+    [fileDashboardSnippetPreview, selectedCell?.worktreePath]
   );
 
   const clearFileDashboardPreview = useCallback(() => {
-    fileDashboardPreviewRequestRef.current = 0;
-    setFileDashboardPreview(null);
-  }, []);
+    fileDashboardSnippetPreview.clearPreview();
+  }, [fileDashboardSnippetPreview]);
 
   const canDropIntoFileDashboard = Boolean(
     selectedCell?.id && selectedCell?.worktreePath && onImportFileReferences
@@ -677,50 +555,18 @@ export function AgentCellsSidebar({
     }
   }, []);
 
-  const hasExternalDropEntries = useCallback((dataTransfer) => {
-    if (!dataTransfer) {
-      return false;
-    }
-    if (dataTransfer.files?.length) {
-      return true;
-    }
-    const items = Array.from(dataTransfer.items || []);
-    if (items.some((item: any) => item?.kind === 'file')) {
-      return true;
-    }
-    const types = Array.from(dataTransfer.types || []);
-    return (
-      types.includes(URI_LIST_MIME) ||
-      types.includes(DOWNLOAD_URL_MIME) ||
-      types.includes(TEXT_PLAIN_MIME)
-    );
-  }, []);
+  const hasExternalDropEntries = useCallback(
+    (dataTransfer) => hasExternalDroppedPaths(dataTransfer),
+    []
+  );
 
-  const readExternalDropPaths = useCallback((dataTransfer) => {
-    if (!dataTransfer) {
-      return [];
-    }
-    const fromFiles = Array.from(dataTransfer.files || [])
-      .map((file: any) => readPathFromDroppedFile(file))
-      .filter(Boolean);
-    const fromItems = Array.from(dataTransfer.items || [])
-      .filter((item: any) => item?.kind === 'file')
-      .map((item: any) => item?.getAsFile?.())
-      .map((file: any) => readPathFromDroppedFile(file))
-      .filter(Boolean);
-    const fromUriList = parseUriList(dataTransfer.getData?.(URI_LIST_MIME) || '');
-    const fromDownloadUrl = parseDownloadUrl(dataTransfer.getData?.(DOWNLOAD_URL_MIME) || '');
-    const fromPlainText = parsePlainTextPaths(dataTransfer.getData?.(TEXT_PLAIN_MIME) || '');
-    return Array.from(
-      new Set([
-        ...fromFiles,
-        ...fromItems,
-        ...fromUriList,
-        ...fromDownloadUrl,
-        ...fromPlainText,
-      ])
-    );
-  }, []);
+  const readExternalDropPaths = useCallback(
+    (dataTransfer) =>
+      readDroppedExternalPaths(dataTransfer, {
+        getPathForDroppedFile,
+      }),
+    []
+  );
 
   const refreshFileDashboard = useCallback(
     async (

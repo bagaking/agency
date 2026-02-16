@@ -18,6 +18,7 @@ import { IconButton } from '../ui/IconButton';
 import { focusRing } from '../ui/focusRing';
 import { resolveFileReferenceTarget } from '../../utils/fileReferences';
 import { setFileDragPayload } from '../../utils/fileDragPayload';
+import { useFileSnippetPreview } from '../../hooks/useFileSnippetPreview';
 
 const kindIcons = {
     comment: Terminal,
@@ -361,27 +362,34 @@ function CommentItem({ comment, onUpdateStatus, worktreePath, onOpenAnchor, onRe
 function ContextAnchor({ anchor, commentBody, worktreePath, isResolved, onOpenAnchor, onRevealAnchor }: any) {
     const [showTooltip, setShowTooltip] = useState(false);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-    const [snippet, setSnippet] = useState(null);
-    const [loading, setLoading] = useState(false);
+    const {
+      preview: snippetPreviewState,
+      loadPreview: loadSnippetPreview,
+      clearPreview: clearSnippetPreview,
+    } = useFileSnippetPreview({ defaultContext: 3, emptyMessage: '' });
+    const snippet = snippetPreviewState?.snippet?.length ? snippetPreviewState.snippet : null;
+    const loading = Boolean(snippetPreviewState?.loading);
     const resolvedReference = useMemo(
         () => resolveFileReferenceTarget({ path: anchor?.file, rootPath: worktreePath }),
         [anchor?.file, worktreePath]
     );
 
     useEffect(() => {
-        if (showTooltip && !snippet && window.agency?.getFileSnippet) {
-            setLoading(true);
-            window.agency.getFileSnippet({
-                rootPath: worktreePath,
-                targetPath: anchor.file,
-                line: anchor.line,
-                context: 3
-            }).then(res => {
-                setSnippet(res.snippet);
-                setLoading(false);
-            }).catch(() => setLoading(false));
+        clearSnippetPreview();
+    }, [anchor?.file, anchor?.line, clearSnippetPreview, worktreePath]);
+
+    useEffect(() => {
+        if (!showTooltip || snippetPreviewState || !worktreePath || !anchor?.file) {
+            return;
         }
-    }, [showTooltip, anchor, worktreePath, snippet]);
+        loadSnippetPreview({
+            rootPath: worktreePath,
+            targetPath: anchor.file,
+            relativePath: anchor.file,
+            line: anchor.line,
+            context: 3,
+        });
+    }, [anchor?.file, anchor?.line, loadSnippetPreview, showTooltip, snippetPreviewState, worktreePath]);
 
     const handleOpen = () => {
         if (!anchor?.file) {

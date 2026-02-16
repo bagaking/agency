@@ -8,97 +8,23 @@ import { ExplorerItem } from './ExplorerItem';
 import { ExplorerHeader } from './ExplorerHeader';
 import { ExplorerFilterPanel } from './ExplorerFilterPanel';
 import { ExplorerFooter } from './ExplorerFooter';
-import { FileDashboardList, type FileDashboardPreviewState } from '../fileDashboard/FileDashboardList';
+import { FileDashboardList } from '../fileDashboard/FileDashboardList';
 import { 
   pickPrimaryStatus, 
 } from './explorerUtils';
 import { buildAgentCellModifiedFileChanges } from '../../utils/agentCellFileChanges';
 import { setFileDragPayload } from '../../utils/fileDragPayload';
-import { getFileSnippet } from '../../services/agencyBridge';
+import {
+  hasExternalDropEntries as hasExternalDroppedPaths,
+  readExternalDropPaths as readDroppedExternalPaths,
+} from '../../utils/externalDropPaths';
+import { useFileSnippetPreview } from '../../hooks/useFileSnippetPreview';
+import { getPathForDroppedFile } from '../../services/agencyBridge';
 
 const ROW_HEIGHT = 24;
 const OVERSCAN = 6;
 const VIRTUALIZE_THRESHOLD = 200;
 const INTERNAL_DRAG_MIME = 'application/agency-paths';
-const URI_LIST_MIME = 'text/uri-list';
-const DOWNLOAD_URL_MIME = 'DownloadURL';
-const TEXT_PLAIN_MIME = 'text/plain';
-
-function normalizeDroppedPath(value: string): string {
-  return String(value || '').trim();
-}
-
-function readPathFromDroppedFile(file: any): string {
-  const fromLegacyFilePath = normalizeDroppedPath(file?.path || '');
-  if (fromLegacyFilePath) {
-    return fromLegacyFilePath;
-  }
-  const fromBridge = normalizeDroppedPath(window.agency?.getPathForDroppedFile?.(file) || '');
-  return fromBridge;
-}
-
-function decodeFileUri(rawValue: string): string {
-  const value = String(rawValue || '').trim();
-  if (!value.toLowerCase().startsWith('file://')) {
-    return '';
-  }
-  try {
-    const url = new URL(value);
-    if (url.protocol !== 'file:') {
-      return '';
-    }
-    let pathname = decodeURIComponent(url.pathname || '');
-    if (/^\/[a-zA-Z]:\//.test(pathname)) {
-      pathname = pathname.slice(1);
-    }
-    return pathname;
-  } catch (error) {
-    return '';
-  }
-}
-
-function parseUriList(value: string): string[] {
-  const lines = String(value || '')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((line) => !line.startsWith('#'));
-  return lines
-    .map((line) => decodeFileUri(line))
-    .filter(Boolean);
-}
-
-function parseDownloadUrl(value: string): string[] {
-  const text = String(value || '').trim();
-  if (!text) {
-    return [];
-  }
-  const firstColon = text.indexOf(':');
-  const secondColon = firstColon >= 0 ? text.indexOf(':', firstColon + 1) : -1;
-  if (firstColon < 0 || secondColon < 0) {
-    return [];
-  }
-  const urlPart = text.slice(secondColon + 1).trim();
-  const path = decodeFileUri(urlPart);
-  return path ? [path] : [];
-}
-
-function parsePlainTextPaths(value: string): string[] {
-  return String(value || '')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .flatMap((line) => {
-      if (line.toLowerCase().startsWith('file://')) {
-        const decoded = decodeFileUri(line);
-        return decoded ? [decoded] : [];
-      }
-      if (line.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(line)) {
-        return [line];
-      }
-      return [];
-    });
-}
 
 function ProjectExplorerSidebarContent({
   rootPath: scopeRootPath,
@@ -187,8 +113,8 @@ function ProjectExplorerSidebarContent({
   const [changesPanelMode, setChangesPanelMode] = useState<'flat' | 'tree'>('flat');
   const [changesPanelRefreshing, setChangesPanelRefreshing] = useState(false);
   const [changesPanelUpdatedAt, setChangesPanelUpdatedAt] = useState(0);
-  const [changesPanelPreview, setChangesPanelPreview] = useState<FileDashboardPreviewState | null>(null);
-  const changesPanelPreviewRequestRef = useRef(0);
+  const changesPanelSnippetPreview = useFileSnippetPreview({ defaultContext: 2 });
+  const changesPanelPreview = changesPanelSnippetPreview.preview;
   const explorerStateKey = useMemo(() => {
     const base = scopeRootPath || rootPath || repoRoot;
     if (!base) return '';
@@ -243,17 +169,15 @@ function ProjectExplorerSidebarContent({
   }, [changedPanelEntries, selectedCellId]);
 
   useEffect(() => {
-    setChangesPanelPreview(null);
-    changesPanelPreviewRequestRef.current = 0;
-  }, [selectedCellId]);
+    changesPanelSnippetPreview.clearPreview();
+  }, [changesPanelSnippetPreview, selectedCellId]);
 
   useEffect(() => {
     if (changesPanelOpen) {
       return;
     }
-    setChangesPanelPreview(null);
-    changesPanelPreviewRequestRef.current = 0;
-  }, [changesPanelOpen]);
+    changesPanelSnippetPreview.clearPreview();
+  }, [changesPanelOpen, changesPanelSnippetPreview]);
 
   useEffect(() => {
     if (!explorerStateKey || hasRestoredStateRef.current) return;
@@ -608,68 +532,25 @@ function ProjectExplorerSidebarContent({
       const targetPath = explorerPathUtils.toRelativePath(entry?.relativePath || '');
       const activeRootPath = selectedCell?.worktreePath || rootPath || scopeRootPath || '';
       if (!targetPath || !activeRootPath) {
-        setChangesPanelPreview(null);
+        changesPanelSnippetPreview.clearPreview();
         return;
       }
 
       const line = Number.isFinite(entry?.line) ? Math.max(1, Math.floor(entry.line)) : null;
-      const requestId = changesPanelPreviewRequestRef.current + 1;
-      changesPanelPreviewRequestRef.current = requestId;
-      setChangesPanelPreview({
+      await changesPanelSnippetPreview.loadPreview({
+        rootPath: activeRootPath,
+        targetPath,
         relativePath: targetPath,
         line,
-        snippet: [],
-        loading: true,
-        error: '',
+        context: 2,
       });
-
-      try {
-        const result = await getFileSnippet({
-          rootPath: activeRootPath,
-          targetPath,
-          line: line || 1,
-          context: 2,
-        });
-        if (changesPanelPreviewRequestRef.current !== requestId) {
-          return;
-        }
-        if (!result?.snippet) {
-          setChangesPanelPreview({
-            relativePath: targetPath,
-            line,
-            snippet: [],
-            loading: false,
-            error: 'Unable to load preview.',
-          });
-          return;
-        }
-        setChangesPanelPreview({
-          relativePath: targetPath,
-          line,
-          snippet: result.snippet,
-          loading: false,
-          error: '',
-        });
-      } catch (error) {
-        if (changesPanelPreviewRequestRef.current !== requestId) {
-          return;
-        }
-        setChangesPanelPreview({
-          relativePath: targetPath,
-          line,
-          snippet: [],
-          loading: false,
-          error: error?.message || 'Unable to load preview.',
-        });
-      }
     },
-    [rootPath, scopeRootPath, selectedCell?.worktreePath]
+    [changesPanelSnippetPreview, rootPath, scopeRootPath, selectedCell?.worktreePath]
   );
 
   const clearChangesPanelPreview = useCallback(() => {
-    changesPanelPreviewRequestRef.current = 0;
-    setChangesPanelPreview(null);
-  }, []);
+    changesPanelSnippetPreview.clearPreview();
+  }, [changesPanelSnippetPreview]);
 
   const handlePreviewChangedEntry = useCallback(
     async (entry) => {
@@ -898,50 +779,18 @@ function ProjectExplorerSidebarContent({
     }
   }, []);
 
-  const hasExternalDropEntries = useCallback((dataTransfer) => {
-    if (!dataTransfer) {
-      return false;
-    }
-    if (dataTransfer.files?.length) {
-      return true;
-    }
-    const items = Array.from(dataTransfer.items || []);
-    if (items.some((item: any) => item?.kind === 'file')) {
-      return true;
-    }
-    const types = Array.from(dataTransfer.types || []);
-    return (
-      types.includes(URI_LIST_MIME) ||
-      types.includes(DOWNLOAD_URL_MIME) ||
-      types.includes(TEXT_PLAIN_MIME)
-    );
-  }, []);
+  const hasExternalDropEntries = useCallback(
+    (dataTransfer) => hasExternalDroppedPaths(dataTransfer),
+    []
+  );
 
-  const readExternalDropPaths = useCallback((dataTransfer) => {
-    if (!dataTransfer) {
-      return [];
-    }
-    const fromFiles = Array.from(dataTransfer.files || [])
-      .map((file: any) => readPathFromDroppedFile(file))
-      .filter(Boolean);
-    const fromItems = Array.from(dataTransfer.items || [])
-      .filter((item: any) => item?.kind === 'file')
-      .map((item: any) => item?.getAsFile?.())
-      .map((file: any) => readPathFromDroppedFile(file))
-      .filter(Boolean);
-    const fromUriList = parseUriList(dataTransfer.getData?.(URI_LIST_MIME) || '');
-    const fromDownloadUrl = parseDownloadUrl(dataTransfer.getData?.(DOWNLOAD_URL_MIME) || '');
-    const fromPlainText = parsePlainTextPaths(dataTransfer.getData?.(TEXT_PLAIN_MIME) || '');
-    return Array.from(
-      new Set([
-        ...fromFiles,
-        ...fromItems,
-        ...fromUriList,
-        ...fromDownloadUrl,
-        ...fromPlainText,
-      ])
-    );
-  }, []);
+  const readExternalDropPaths = useCallback(
+    (dataTransfer) =>
+      readDroppedExternalPaths(dataTransfer, {
+        getPathForDroppedFile,
+      }),
+    []
+  );
 
   const resolveDropDirectory = useCallback((targetPath) => {
     const normalizedPath = explorerPathUtils.toRelativePath(targetPath || '');
