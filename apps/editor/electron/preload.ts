@@ -134,6 +134,7 @@ const INVOKE_CHANNELS: Record<string, string> = {
   getWorkbenchFileUrl: 'workbench:fileUrl',
   getFileSnippet: 'workbench:snippet',
   diffWorkbenchEntry: 'workbench:diff',
+  blameWorkbenchEntry: 'workbench:blame',
   materializeClipboard: 'clipboard:materialize',
   materializeMarkdown: 'clipboard:materializeMarkdown',
   createExplorerEntry: 'explorer:create',
