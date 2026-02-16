@@ -114,6 +114,8 @@ function ProjectExplorerSidebarContent({
   onJumpToAgents,
   workbenchMeta,
   onDispatchFeed,
+  explorerDeliverySummary,
+  onOpenDeliveryTimeline,
   onAddComment,
   commentCountsByPath,
   onJumpToComments,
@@ -1388,6 +1390,8 @@ function ProjectExplorerSidebarContent({
         sessionActivityByKey={sessionActivityByKey}
         now={now}
         onDispatchFeed={onDispatchFeed}
+        explorerDeliverySummary={explorerDeliverySummary}
+        onOpenDeliveryTimeline={onOpenDeliveryTimeline}
         onToggleSessionMap={onToggleSessionMap}
         sessionMapOpen={sessionMapOpen}
       />
@@ -1412,7 +1416,7 @@ function ProjectExplorerSidebarContent({
 export function ProjectExplorerSidebar({
   rootPath: scopeRootPath, rootLabel: scopeRootLabel, cells, selectedId, onSelectCell, selectedCell,
   sessions, activeSessionId, sessionActivityByKey, onOpenFile, onJumpToAgents, workbenchMeta,
-  onDispatchFeed, onAddComment, commentCountsByPath, onJumpToComments, onToggleSessionMap, sessionMapOpen,
+  onDispatchFeed, explorerDeliverySummary, onOpenDeliveryTimeline, onAddComment, commentCountsByPath, onJumpToComments, onToggleSessionMap, sessionMapOpen,
   revealRequest, onRevealHandled,
   projectReady, projectError, onSelectProject, recentProjects, onOpenRecentProject,
 }: any) {
@@ -1448,6 +1452,8 @@ export function ProjectExplorerSidebar({
       onJumpToAgents={onJumpToAgents}
       workbenchMeta={workbenchMeta}
       onDispatchFeed={onDispatchFeed}
+      explorerDeliverySummary={explorerDeliverySummary}
+      onOpenDeliveryTimeline={onOpenDeliveryTimeline}
       onAddComment={onAddComment}
       commentCountsByPath={commentCountsByPath}
       onJumpToComments={onJumpToComments}

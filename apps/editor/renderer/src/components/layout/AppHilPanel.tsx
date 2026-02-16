@@ -102,6 +102,7 @@ export function AppHilPanel({
           previewById={hilCommentsProps.promotePreviewById}
           promoteStep={hilCommentsProps.promoteStep}
           promoteDraft={hilCommentsProps.promoteDraft}
+          promoteMode={hilCommentsProps.promoteMode}
           promoteActionSheet={hilCommentsProps.promoteActionSheet}
           promoteGateStatus={hilCommentsProps.promoteGateStatus}
           promoteExecutionStatus={hilCommentsProps.promoteExecutionStatus}
@@ -114,11 +115,13 @@ export function AppHilPanel({
           onToggleGroup={hilCommentsProps.onTogglePromoteGroup}
           onPreviewItem={hilCommentsProps.onPromotePreview}
           onSelectSession={hilCommentsProps.onSelectPromoteSession}
+          onSelectMode={hilCommentsProps.onSelectPromoteMode}
           onCreateSession={hilCommentsProps.onCreatePromoteSession}
           onFocusSession={hilCommentsProps.onFocusPromoteSession}
           onClose={hilCommentsProps.onClosePromote}
           onDispatch={hilCommentsProps.onDispatchPromote}
           onConfirm={hilCommentsProps.onConfirmPromote}
+          onOpenTimeline={hilCommentsProps.onOpenPromoteTimeline}
           onDispatchActionSheet={hilCommentsProps.onDispatchActionSheet}
           onCancelActionSheet={hilCommentsProps.onCancelActionSheet}
           onArchiveActionSheet={hilCommentsProps.onArchiveActionSheet}

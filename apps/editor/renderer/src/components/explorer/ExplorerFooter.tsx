@@ -27,12 +27,15 @@ export function ExplorerFooter({
   sessionActivityByKey,
   now,
   onDispatchFeed,
+  explorerDeliverySummary,
+  onOpenDeliveryTimeline,
   activeCell,
   onToggleSessionMap,
   sessionMapOpen,
 }: any) {
   const [comment, setComment] = useState('');
   const [showManifest, setShowManifest] = useState(false);
+  const [deliveryMode, setDeliveryMode] = useState<'quick' | 'gated'>('quick');
   const isComposingRef = useRef(false);
   const commentRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -54,6 +57,9 @@ export function ExplorerFooter({
     ['closed', 'stale', 'archived'].includes(focusSession?.status);
 
   const canDispatch = Boolean(focusSession && selectionCount > 0 && comment.trim());
+  const canOpenTimeline = Boolean(
+    explorerDeliverySummary?.draftId || explorerDeliverySummary?.actionSheetId
+  );
 
   const resizeCommentInput = useCallback(() => {
     const element = commentRef.current;
@@ -77,6 +83,7 @@ export function ExplorerFooter({
       return;
     }
     setShowManifest(false);
+    setDeliveryMode('quick');
     if (!commentRef.current) {
       return;
     }
@@ -154,8 +161,13 @@ export function ExplorerFooter({
         description: trimmedComment,
         context,
         sessionId: current.id,
+        mode: deliveryMode,
+        references: selectionTargets,
       });
       setComment('');
+      if (deliveryMode === 'quick') {
+        onClearSelection?.();
+      }
     } catch (error) {
       console.error(error);
     }
@@ -243,33 +255,72 @@ export function ExplorerFooter({
           {selectionCount > 0 ? (
             <div className="px-2.5 py-2 animate-tab-in">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  className={`flex items-center gap-1.5 rounded-md px-1 py-0.5 text-[10px] text-primary tracking-tight font-medium opacity-80 hover:opacity-100 transition-opacity ${focusRingClass}`}
-                  onMouseEnter={() => setShowManifest(true)}
-                  onMouseLeave={() => setShowManifest(false)}
-                  onFocus={() => setShowManifest(true)}
-                  onBlur={() => setShowManifest(false)}
-                  aria-label="Show selection hierarchy"
-                  aria-expanded={showManifest}
-                >
-                  <span>{selectionCount} items</span>
-                  <span
-                    className="h-1 w-1 rounded-full bg-primary/30"
-                    aria-hidden="true"
-                  />
-                </button>
-
-                <Tooltip label="Clear selection">
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={onClearSelection}
-                    className={`p-1 text-muted-foreground/50 transition-colors hover:text-foreground/85 ${focusRingClass}`}
-                    aria-label="Clear selection"
+                    className={`flex items-center gap-1.5 rounded-md px-1 py-0.5 text-[10px] text-primary tracking-tight font-medium opacity-80 hover:opacity-100 transition-opacity ${focusRingClass}`}
+                    onMouseEnter={() => setShowManifest(true)}
+                    onMouseLeave={() => setShowManifest(false)}
+                    onFocus={() => setShowManifest(true)}
+                    onBlur={() => setShowManifest(false)}
+                    aria-label="Show selection hierarchy"
+                    aria-expanded={showManifest}
                   >
-                    <X size={12} strokeWidth={2} aria-hidden="true" />
+                    <span>{selectionCount} items</span>
+                    <span
+                      className="h-1 w-1 rounded-full bg-primary/30"
+                      aria-hidden="true"
+                    />
                   </button>
-                </Tooltip>
+                  <div className="inline-flex rounded bg-background/70 p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryMode('quick')}
+                      className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors ${focusRingClass} ${
+                        deliveryMode === 'quick'
+                          ? 'bg-primary/15 text-primary'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                      title="Quick send (default)"
+                    >
+                      Quick
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryMode('gated')}
+                      className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors ${focusRingClass} ${
+                        deliveryMode === 'gated'
+                          ? 'bg-primary/15 text-primary'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                      title="Gated send via Action Sheet"
+                    >
+                      Gated
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={onOpenDeliveryTimeline}
+                    disabled={!canOpenTimeline}
+                    className={`rounded border border-border/30 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-40 ${focusRingClass}`}
+                    title="Open latest delivery timeline"
+                  >
+                    Timeline
+                  </button>
+                  <Tooltip label="Clear selection">
+                    <button
+                      type="button"
+                      onClick={onClearSelection}
+                      className={`p-1 text-muted-foreground/50 transition-colors hover:text-foreground/85 ${focusRingClass}`}
+                      aria-label="Clear selection"
+                    >
+                      <X size={12} strokeWidth={2} aria-hidden="true" />
+                    </button>
+                  </Tooltip>
+                </div>
               </div>
 
               <div className="flex items-end gap-1.5 rounded-md border border-border/40 bg-background/40 px-2 py-1.5">
@@ -315,6 +366,23 @@ export function ExplorerFooter({
                   </button>
                 </Tooltip>
               </div>
+              {explorerDeliverySummary ? (
+                <div className="mt-1.5 flex items-center justify-between text-[9px] text-muted-foreground/60">
+                  <span className="truncate">
+                    Last send · {explorerDeliverySummary.mode || 'quick'} ·{' '}
+                    {explorerDeliverySummary.status || 'idle'}
+                  </span>
+                  {explorerDeliverySummary.updatedAt ? (
+                    <span className="shrink-0 font-mono">
+                      {new Date(explorerDeliverySummary.updatedAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false,
+                      })}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>

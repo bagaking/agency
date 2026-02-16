@@ -544,6 +544,7 @@ export function PromoteModal({
   previewById,
   promoteStep,
   promoteDraft,
+  promoteMode,
   promoteActionSheet,
   promoteGateStatus,
   promoteExecutionStatus,
@@ -556,11 +557,13 @@ export function PromoteModal({
   onToggleGroup,
   onPreviewItem,
   onSelectSession,
+  onSelectMode,
   onCreateSession,
   onFocusSession,
   onClose,
   onDispatch,
   onConfirm,
+  onOpenTimeline,
   onDispatchActionSheet,
   onCancelActionSheet,
   onArchiveActionSheet,
@@ -575,6 +578,7 @@ export function PromoteModal({
   const gateReady = gateStatus === 'ready';
   const gateMissing = gateStatus === 'missing';
   const executionStatus = promoteExecutionStatus || (isWaiting ? 'waiting' : 'idle');
+  const deliveryMode = promoteMode === 'gated' ? 'gated' : 'quick';
   const availableSessions = sessions.filter((session) => session.status !== 'closed');
   const activeSession = availableSessions.find((session) => session.id === promoteSessionId) || null;
   const activityKey = selectedCellId && promoteSessionId ? `${selectedCellId}:${promoteSessionId}` : '';
@@ -592,7 +596,9 @@ export function PromoteModal({
           <div>
             <div className="text-[12px] font-semibold text-foreground">Promote Items</div>
             <div className="text-[10px] text-muted-foreground/60">
-              Convert selected items into a draft and wait for completion.
+              {deliveryMode === 'gated'
+                ? 'Gated mode runs via Action Sheets and gate tracking.'
+                : 'Quick mode dispatches immediately and consumes items after ACK.'}
             </div>
           </div>
           <IconButton
@@ -620,9 +626,38 @@ export function PromoteModal({
 
             <div className="rounded-xl border border-border/10 bg-muted/5 px-3 py-3">
               <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
-                Agent Session
+                Delivery
               </div>
               <div className="mt-2 flex items-center gap-2">
+                <div className="inline-flex rounded bg-background/60 p-0.5">
+                  <button
+                    type="button"
+                    disabled={isWaiting}
+                    onClick={() => onSelectMode?.('quick')}
+                    className={`rounded px-2 py-1 text-[9px] font-semibold uppercase tracking-widest transition-colors disabled:opacity-60 ${focusRingClass} ${
+                      deliveryMode === 'quick'
+                        ? 'bg-primary/15 text-primary'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="Quick: dispatch and consume items immediately"
+                  >
+                    Quick
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isWaiting}
+                    onClick={() => onSelectMode?.('gated')}
+                    className={`rounded px-2 py-1 text-[9px] font-semibold uppercase tracking-widest transition-colors disabled:opacity-60 ${focusRingClass} ${
+                      deliveryMode === 'gated'
+                        ? 'bg-primary/15 text-primary'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="Gated: link to Action Sheet and wait for completion gate"
+                  >
+                    Gated
+                  </button>
+                </div>
+
                 <select
                   value={promoteSessionId}
                   onChange={(event) => onSelectSession?.(event.target.value)}
@@ -652,6 +687,15 @@ export function PromoteModal({
                 >
                   View
                 </button>
+                <button
+                  type="button"
+                  onClick={onOpenTimeline}
+                  disabled={!promoteDraft && !(deliveryMode === 'gated' && promoteActionSheet)}
+                  className={`rounded-md border border-border/20 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors disabled:opacity-40 ${focusRingClass}`}
+                  title={promoteDraft ? 'Open created draft in Memo view' : 'Open linked Action Sheet'}
+                >
+                  Timeline
+                </button>
               </div>
               <div className="mt-2 text-[10px] text-muted-foreground/50">
                 {activeSession
@@ -671,9 +715,13 @@ export function PromoteModal({
               </div>
               <div className="mt-2 text-[11px] text-muted-foreground/70 leading-relaxed">
                 {!isWaiting
-                  ? 'Dispatch promote to create a draft and begin the gate.'
+                  ? deliveryMode === 'gated'
+                    ? 'Dispatch promote to create a draft and begin the gate.'
+                    : 'Dispatch promote to create a draft and send it immediately.'
                   : gateReady && promoteDraft
-                    ? 'Draft marked complete. You can confirm and consume items.'
+                    ? deliveryMode === 'quick'
+                      ? 'Quick run acknowledged. Items were consumed after ACK.'
+                      : 'Draft marked complete. You can confirm and consume items.'
                     : gateMissing
                       ? 'Draft not found. Ensure the draft exists in .agency/hil.'
                       : 'Waiting for the agent to complete the draft and mark it promoted.'}
@@ -721,6 +769,10 @@ export function PromoteModal({
                 compact
                 showSessionSelect={false}
               />
+            ) : deliveryMode === 'gated' && isWaiting ? (
+              <div className="rounded-xl border border-border/10 bg-muted/5 px-3 py-3 text-[11px] text-muted-foreground/60">
+                Action Sheet not available yet. Retry dispatch if needed.
+              </div>
             ) : null}
           </div>
         </div>
@@ -849,10 +901,14 @@ export function PromoteModal({
             <button
               type="button"
               onClick={onConfirm}
-              disabled={!gateReady || loading}
+              disabled={(deliveryMode === 'gated' && !gateReady) || loading}
               className={`rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-colors transition-transform active:scale-95 disabled:opacity-50 ${focusRingClass}`}
             >
-              {loading ? 'Confirming…' : 'Confirm Draft'}
+              {loading
+                ? 'Updating…'
+                : deliveryMode === 'gated'
+                  ? 'Confirm Draft'
+                  : 'Done'}
             </button>
           ) : (
             <button
@@ -861,7 +917,11 @@ export function PromoteModal({
               disabled={loading}
               className={`rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-colors transition-transform active:scale-95 disabled:opacity-50 ${focusRingClass}`}
             >
-              {loading ? 'Dispatching…' : 'Dispatch Promote'}
+              {loading
+                ? 'Dispatching…'
+                : deliveryMode === 'gated'
+                  ? 'Dispatch Gated'
+                  : 'Dispatch Quick'}
             </button>
           )}
         </div>

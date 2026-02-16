@@ -47,6 +47,12 @@ import { warmSessionMapPreviewCache } from './services/sessionMapPreviewCache';
 import { runFileIntent } from './services/fileInteraction';
 import { buildPromotePromptBundle, buildPromotePromptText, buildPromoteActionSheetPrompt } from './utils/hilPromotePrompt';
 import { buildActionSheetCompletion, buildActionSheetPlan } from './utils/actionSheetCompletion';
+import {
+  buildDeliveryMeta,
+  normalizeDeliveryMode,
+  setDeliveryExecutionStatus,
+  type DeliveryMode,
+} from './utils/deliveryMetadata';
 import { BASELINE_PROFILE_ID } from './utils/terminusSettings';
 import { SessionMapOverlay } from './components/sessionMap/SessionMapOverlay';
 import { SessionMapToggle } from './components/sessionMap/SessionMapToggle';
@@ -72,6 +78,53 @@ const HIL_DRAWER_DEFAULTS = {
 };
 
 const resolveHilDrawerDefault = (view) => HIL_DRAWER_DEFAULTS[view] || 'comments';
+
+const buildExplorerDeliveryPromptText = ({
+  description,
+  context,
+  mode = 'quick',
+  requestedAt = '',
+  sessionId = '',
+  references = [],
+}: {
+  description: string;
+  context: string;
+  mode?: DeliveryMode | string;
+  requestedAt?: string;
+  sessionId?: string;
+  references?: Array<{ path?: string | null }>;
+}) => {
+  const normalizedMode = normalizeDeliveryMode(mode);
+  const referenceLines = (Array.isArray(references) ? references : [])
+    .map((entry) => String(entry?.path || '').trim())
+    .filter(Boolean);
+  const lines = ['<delivery>'];
+  lines.push('source: explorer');
+  lines.push(`mode: ${normalizedMode}`);
+  if (sessionId) {
+    lines.push(`session_id: ${sessionId}`);
+  }
+  if (requestedAt) {
+    lines.push(`requested_at: ${requestedAt}`);
+  }
+  if (referenceLines.length) {
+    lines.push('references:');
+    referenceLines.forEach((path) => lines.push(`- ${path}`));
+  }
+  lines.push('</delivery>');
+  lines.push('');
+  lines.push('<context>');
+  if (context) {
+    lines.push(context);
+  } else {
+    lines.push('- No explicit file selection context.');
+  }
+  lines.push('</context>');
+  lines.push('<query>');
+  lines.push(description || 'Review selected files.');
+  lines.push('</query>');
+  return lines.join('\n');
+};
 
 function AppShell() {
   const modal = useModal();
@@ -140,12 +193,14 @@ function AppShell() {
   const [promotePreviewById, setPromotePreviewById] = useState({});
   const [promoteDraftId, setPromoteDraftId] = useState('');
   const [promoteDraft, setPromoteDraft] = useState(null);
+  const [promoteMode, setPromoteMode] = useState<DeliveryMode>('quick');
   const [promoteGateStatus, setPromoteGateStatus] = useState('waiting');
   const [promoteExecutionStatus, setPromoteExecutionStatus] = useState('idle');
   const [promoteSessionId, setPromoteSessionId] = useState('');
   const [lastPromoteSessionId, setLastPromoteSessionId] = useState('');
   const [promoteActionSheetId, setPromoteActionSheetId] = useState('');
   const [promoteActionSheet, setPromoteActionSheet] = useState(null);
+  const [explorerDeliverySummary, setExplorerDeliverySummary] = useState<any>(null);
   const [actionSheetSessionId, setActionSheetSessionId] = useState('');
   const [actionSheetInlineError, setActionSheetInlineError] = useState('');
   const projectReady = Boolean(projectRoot);
@@ -650,6 +705,9 @@ function AppShell() {
     }
     setActionSheetSessionId(linked);
   }, [actionSheetDetail?.status?.sessionId, actionSheetSessionId]);
+  useEffect(() => {
+    setExplorerDeliverySummary(null);
+  }, [projectRoot, selectedCell?.id]);
   const mapCells = useMemo(() => (projectReady ? cells : []), [projectReady, cells]);
   const profilesById = useMemo(() => {
     if (!resolvedProfiles) {
@@ -1009,57 +1067,235 @@ function AppShell() {
     ]
   );
   const handleDispatchExplorerFeed = useCallback(
-    async ({ description, context, sessionId }) => {
+    async ({ description, context, sessionId, mode, references }) => {
       if (!actionSheetsRoot) {
         setActionSheetInlineError('Select a project before dispatching feed.');
-        return;
+        return null;
       }
       const trimmedDescription = String(description || '').trim();
       if (!trimmedDescription) {
-        return;
+        return null;
       }
       if (!sessionId) {
         setActionSheetInlineError('Select a session before dispatching feed.');
-        return;
+        return null;
       }
+      const normalizedMode = normalizeDeliveryMode(mode);
+      const requestedAt = new Date().toISOString();
+      const normalizedReferences = Array.from(
+        new Set(
+          (Array.isArray(references) ? references : [])
+            .map((entry) => String(entry || '').trim())
+            .filter(Boolean)
+        )
+      ).map((targetPath) => ({
+        system: 'explorer',
+        path: targetPath,
+        line: null,
+        kind: 'file',
+      }));
+      const promptText = buildExplorerDeliveryPromptText({
+        description: trimmedDescription,
+        context: String(context || ''),
+        mode: normalizedMode,
+        requestedAt,
+        sessionId,
+        references: normalizedReferences,
+      });
+      const title = `Feed: ${trimmedDescription.slice(0, 32)}`;
+      const seedMeta = buildDeliveryMeta({
+        source: 'explorer',
+        mode: normalizedMode,
+        status: 'queued',
+        requestedAt,
+        sessionId,
+        cellId: selectedCell?.id || '',
+        actionSheetId: normalizedMode === 'gated' ? '(pending)' : '',
+        references: normalizedReferences,
+        existingMeta: {
+          sourceKind: 'explorer',
+          feedDescription: trimmedDescription,
+          feedContext: String(context || ''),
+          promoted: normalizedMode === 'quick',
+        },
+        timelineLabel:
+          normalizedMode === 'gated' ? 'Queued gated explorer send' : 'Queued quick explorer send',
+      });
       try {
-        const title = `Feed: ${trimmedDescription.slice(0, 32)}`;
-        const created = await createActionSheet({
-          title,
-          prompt: {
+        let createdSheet: any = null;
+        if (normalizedMode === 'gated') {
+          createdSheet = await createActionSheet({
+            title,
+            prompt: {
+              requirements: trimmedDescription,
+              context: promptText,
+              checks: '',
+              done: '',
+            },
+            checks: [],
+            conditional: conditionalDefaults,
+          });
+          if (!createdSheet?.id) {
+            throw new Error('Unable to create Action Sheet.');
+          }
+          const completion = buildActionSheetCompletion(createdSheet.id);
+          await updateActionSheetPlan(
+            createdSheet.id,
+            buildActionSheetPlan({ title, marker: completion.marker })
+          );
+          await updateActionSheetPrompt(createdSheet.id, {
             requirements: trimmedDescription,
-            context: String(context || ''),
+            context: promptText,
             checks: '',
-            done: '',
-          },
-          checks: [],
-          conditional: conditionalDefaults,
-        });
-        if (!created?.id) {
-          throw new Error('Unable to create Action Sheet.');
+            done: completion.done,
+          });
+          await updateActionSheetChecks(createdSheet.id, completion.checks);
         }
-        const completion = buildActionSheetCompletion(created.id);
-        await updateActionSheetPlan(created.id, buildActionSheetPlan({ title, marker: completion.marker }));
-        await updateActionSheetPrompt(created.id, {
-          requirements: trimmedDescription,
-          context: String(context || ''),
-          checks: '',
-          done: completion.done,
+
+        const draft = await agencyCreateHilItem({
+          worktreePath: hilWorktreePath,
+          kind: 'draft',
+          body: trimmedDescription,
+          references: normalizedReferences,
+          meta: {
+            ...seedMeta,
+            actionSheetId: createdSheet?.id || '',
+          },
         });
-        await updateActionSheetChecks(created.id, completion.checks);
+        if (!draft?.id) {
+          throw new Error('Unable to create delivery draft.');
+        }
+
+        if (normalizedMode === 'gated') {
+          setActionSheetSessionId(sessionId);
+          await dispatchActionSheet({ id: createdSheet.id, sessionId });
+        } else {
+          await dispatchSessionCommand({
+            command: promptText,
+            kind: 'dispatch',
+            label: `Explorer (quick): ${trimmedDescription.slice(0, 32)}`,
+            sessionId,
+            cellId: selectedCell?.id || '',
+            profileId: BASELINE_PROFILE_ID,
+            worktreePath: hilWorktreePath,
+            appendEnter: true,
+            doubleEnter: true,
+          });
+        }
+
+        const dispatchedAt = new Date().toISOString();
+        const runningMeta = setDeliveryExecutionStatus({
+          meta: draft.meta || seedMeta,
+          source: 'explorer',
+          mode: normalizedMode,
+          status: 'running',
+          at: dispatchedAt,
+          label:
+            normalizedMode === 'gated'
+              ? 'Gated explorer send dispatched'
+              : 'Quick explorer send dispatched',
+          sessionId,
+          actionSheetId: createdSheet?.id || '',
+        });
+        const runningDraft = await agencyUpdateHilItem({
+          worktreePath: hilWorktreePath,
+          itemId: draft.id,
+          patch: { meta: runningMeta },
+        });
+        const nextDraft = runningDraft || draft;
+
+        if (normalizedMode === 'quick') {
+          const acknowledgedAt = new Date().toISOString();
+          const completedMeta = setDeliveryExecutionStatus({
+            meta: nextDraft.meta || runningMeta,
+            source: 'explorer',
+            mode: normalizedMode,
+            status: 'complete',
+            at: acknowledgedAt,
+            label: 'Quick explorer send acknowledged',
+            details: 'Explorer selection was consumed immediately after dispatch ACK.',
+            sessionId,
+            actionSheetId: createdSheet?.id || '',
+          });
+          completedMeta.executionAcknowledgedAt = acknowledgedAt;
+          const completedDraft = await agencyUpdateHilItem({
+            worktreePath: hilWorktreePath,
+            itemId: draft.id,
+            patch: { meta: completedMeta },
+          });
+          setExplorerDeliverySummary({
+            source: 'explorer',
+            mode: normalizedMode,
+            status: 'complete',
+            draftId: completedDraft?.id || draft.id,
+            actionSheetId: createdSheet?.id || '',
+            sessionId,
+            updatedAt: acknowledgedAt,
+            title,
+            description: trimmedDescription,
+            references: normalizedReferences,
+          });
+          setActionSheetInlineError('');
+          return {
+            source: 'explorer',
+            mode: normalizedMode,
+            status: 'complete',
+            draftId: completedDraft?.id || draft.id,
+            actionSheetId: createdSheet?.id || '',
+            consumed: true,
+          };
+        }
+
+        setExplorerDeliverySummary({
+          source: 'explorer',
+          mode: normalizedMode,
+          status: 'running',
+          draftId: nextDraft?.id || draft.id,
+          actionSheetId: createdSheet?.id || '',
+          sessionId,
+          updatedAt: dispatchedAt,
+          title,
+          description: trimmedDescription,
+          references: normalizedReferences,
+        });
         setActionSheetInlineError('');
-        setActionSheetSessionId(sessionId);
-        await dispatchActionSheet({ id: created.id, sessionId });
+        return {
+          source: 'explorer',
+          mode: normalizedMode,
+          status: 'running',
+          draftId: nextDraft?.id || draft.id,
+          actionSheetId: createdSheet?.id || '',
+          consumed: false,
+        };
       } catch (error) {
-        setActionSheetInlineError(error?.message || 'Failed to dispatch feed Action Sheet.');
+        const message =
+          error?.message ||
+          (normalizedMode === 'gated'
+            ? 'Failed to dispatch gated explorer feed.'
+            : 'Failed to dispatch quick explorer feed.');
+        setActionSheetInlineError(message);
+        setExplorerDeliverySummary((current) => ({
+          ...(current || {}),
+          source: 'explorer',
+          mode: normalizedMode,
+          status: 'failed',
+          sessionId: sessionId || current?.sessionId || '',
+          updatedAt: new Date().toISOString(),
+          error: message,
+        }));
         throw error;
       }
     },
     [
       actionSheetsRoot,
+      agencyCreateHilItem,
+      agencyUpdateHilItem,
       conditionalDefaults,
       createActionSheet,
       dispatchActionSheet,
+      dispatchSessionCommand,
+      hilWorktreePath,
+      selectedCell?.id,
       updateActionSheetChecks,
       updateActionSheetPlan,
       updateActionSheetPrompt,
@@ -1632,6 +1868,7 @@ function AppShell() {
     setPromoteStep('setup');
     setPromoteDraftId('');
     setPromoteDraft(null);
+    setPromoteMode('quick');
     setPromoteGateStatus('waiting');
     setPromoteExecutionStatus('idle');
     setPromoteActionSheetId('');
@@ -1690,6 +1927,7 @@ function AppShell() {
     setPromoteStep('setup');
     setPromoteDraftId('');
     setPromoteDraft(null);
+    setPromoteMode('quick');
     setPromoteGateStatus('waiting');
     setPromoteSessionId('');
     setPromoteExecutionStatus('idle');
@@ -1821,76 +2059,176 @@ function AppShell() {
         line: item.anchor?.line || null,
         kind: item.kind || null,
       }));
+      const mode = normalizeDeliveryMode(promoteMode);
       const actionSheetTitle = `Promote: ${promoteDescription.trim().slice(0, 32)}`;
-      const createdSheet = await createActionSheet({
-        title: actionSheetTitle,
-        prompt: {
+      const dispatchPromptText = [
+        '<delivery>',
+        'source: promote',
+        `mode: ${mode}`,
+        `session_id: ${promoteSessionId}`,
+        `requested_at: ${requestedAt}`,
+        '</delivery>',
+        '',
+        promptText,
+      ].join('\n');
+
+      const seedMeta = buildDeliveryMeta({
+        source: 'promote',
+        mode,
+        status: 'queued',
+        requestedAt,
+        sessionId: promoteSessionId,
+        cellId: selectedCell?.id || '',
+        actionSheetId: mode === 'gated' ? '(pending)' : '',
+        references,
+        existingMeta: {
+          sourceKind: 'hil',
+          promoteSessionId: promoteSessionId,
+          promoted: false,
+          promptBundle,
+          promptText,
+        },
+        timelineLabel: mode === 'gated' ? 'Queued gated promote' : 'Queued quick promote',
+      });
+
+      let createdSheet: any = null;
+      if (mode === 'gated') {
+        createdSheet = await createActionSheet({
+          title: actionSheetTitle,
+          prompt: {
+            requirements: actionSheetPrompt.requirements,
+            context: actionSheetPrompt.context,
+            checks: '',
+            done: '',
+          },
+          checks: [],
+          conditional: conditionalDefaults,
+        });
+        if (!createdSheet?.id) {
+          setPromoteError('Unable to create Action Sheet.');
+          return;
+        }
+        const completion = buildActionSheetCompletion(createdSheet.id);
+        await updateActionSheetPlan(
+          createdSheet.id,
+          buildActionSheetPlan({ title: actionSheetTitle, marker: completion.marker })
+        );
+        await updateActionSheetPrompt(createdSheet.id, {
           requirements: actionSheetPrompt.requirements,
           context: actionSheetPrompt.context,
           checks: '',
-          done: '',
-        },
-        checks: [],
-        conditional: conditionalDefaults,
-      });
-      if (!createdSheet?.id) {
-        setPromoteError('Unable to create Action Sheet.');
-        return;
+          done: completion.done,
+        });
+        await updateActionSheetChecks(createdSheet.id, completion.checks);
       }
-      const completion = buildActionSheetCompletion(createdSheet.id);
-      await updateActionSheetPlan(createdSheet.id, buildActionSheetPlan({ title: actionSheetTitle, marker: completion.marker }));
-      await updateActionSheetPrompt(createdSheet.id, {
-        requirements: actionSheetPrompt.requirements,
-        context: actionSheetPrompt.context,
-        checks: '',
-        done: completion.done,
-      });
-      await updateActionSheetChecks(createdSheet.id, completion.checks);
+
       const draft = await agencyCreateHilItem({
         worktreePath: promoteWorktreePath,
         kind: 'draft',
         body: promoteDescription.trim(),
         references,
         meta: {
-          sourceKind: 'hil',
-          sourceBatch: 'promote',
-          promoteSessionId: promoteSessionId,
-          actionSheetId: createdSheet.id,
-          promoted: false,
-          promptBundle,
-          promptText,
-          executionStatus: 'queued',
-          executionSessionId: promoteSessionId,
-          executionRequestedAt: requestedAt,
+          ...seedMeta,
+          actionSheetId: createdSheet?.id || '',
         },
       });
       if (!draft) {
         setPromoteError('Unable to create draft.');
         return;
       }
+
       setPromoteDraftId(draft.id);
       setPromoteDraft(draft);
       setPromoteGateStatus('waiting');
       setPromoteExecutionStatus('queued');
-      setPromoteActionSheetId(createdSheet.id);
-      setPromoteActionSheet(createdSheet.status || null);
+      setPromoteActionSheetId(createdSheet?.id || '');
+      setPromoteActionSheet(createdSheet?.status || null);
       setPromoteStep('waiting');
-      await dispatchActionSheet({ id: createdSheet.id, sessionId: promoteSessionId });
+
+      // Dispatch the run (quick uses direct terminal send; gated uses Action Sheet).
+      if (mode === 'gated') {
+        await dispatchActionSheet({ id: createdSheet.id, sessionId: promoteSessionId });
+      } else {
+        await dispatchSessionCommand({
+          command: dispatchPromptText,
+          kind: 'dispatch',
+          label: `Promote (quick): ${promoteDescription.trim().slice(0, 32)}`,
+          sessionId: promoteSessionId,
+          cellId: selectedCell?.id || '',
+          profileId: BASELINE_PROFILE_ID,
+          worktreePath: promoteWorktreePath,
+          appendEnter: true,
+          doubleEnter: true,
+        });
+      }
+
+      const runningMeta = setDeliveryExecutionStatus({
+        meta: draft.meta || seedMeta,
+        source: 'promote',
+        mode,
+        status: 'running',
+        at: new Date().toISOString(),
+        label: mode === 'gated' ? 'Gated promote dispatched' : 'Quick promote dispatched',
+        sessionId: promoteSessionId,
+        actionSheetId: createdSheet?.id || '',
+      });
+
       const updatedDraft = await agencyUpdateHilItem({
         worktreePath: promoteWorktreePath,
         itemId: draft.id,
-        patch: {
-          meta: {
-            executionStatus: 'running',
-            executionStartedAt: new Date().toISOString(),
-          },
-        },
+        patch: { meta: runningMeta },
       });
+
       if (updatedDraft) {
         setPromoteDraft(updatedDraft);
         setPromoteExecutionStatus(updatedDraft.meta?.executionStatus || 'running');
       } else {
         setPromoteExecutionStatus('running');
+      }
+
+      // Quick mode consumes sources immediately after dispatch ACK (terminal write), not after completion.
+      if (mode === 'quick') {
+        const promotedAt = new Date().toISOString();
+        await Promise.all(
+          selected.map((item) =>
+            agencyUpdateHilItem({
+              worktreePath: promoteWorktreePath,
+              itemId: item.id,
+              patch: {
+                meta: {
+                  processed: true,
+                  promotedDraftId: draft.id,
+                  promoteSessionId: promoteSessionId || null,
+                  promotedAt,
+                },
+              },
+            })
+          )
+        );
+        await loadComments();
+        const completedMeta = setDeliveryExecutionStatus({
+          meta: updatedDraft?.meta || runningMeta,
+          source: 'promote',
+          mode,
+          status: 'complete',
+          at: promotedAt,
+          label: 'Quick promote acknowledged',
+          details: 'Selected items were consumed immediately after dispatch ACK.',
+          sessionId: promoteSessionId,
+          actionSheetId: createdSheet?.id || '',
+        });
+        completedMeta.promoted = true;
+        completedMeta.executionAcknowledgedAt = promotedAt;
+        const completedDraft = await agencyUpdateHilItem({
+          worktreePath: promoteWorktreePath,
+          itemId: draft.id,
+          patch: { meta: completedMeta },
+        });
+        if (completedDraft) {
+          setPromoteDraft(completedDraft);
+        }
+        setPromoteExecutionStatus('complete');
+        setPromoteGateStatus('ready');
       }
     } catch (error) {
       setPromoteError(error?.message || 'Failed to dispatch promote workflow.');
@@ -1900,20 +2238,29 @@ function AppShell() {
     }
   }, [
     promoteDescription,
+    promoteMode,
     promoteItems,
     promoteSelectedIds,
     promoteSessionId,
     promoteWorktreePath,
     promotePreviewById,
+    selectedCell?.id,
     conditionalDefaults,
     createActionSheet,
     dispatchActionSheet,
+    dispatchSessionCommand,
+    loadComments,
     updateActionSheetChecks,
     updateActionSheetPlan,
     updateActionSheetPrompt,
   ]);
   const confirmPromote = useCallback(async () => {
     if (!promoteWorktreePath || !promoteDraftId) {
+      return;
+    }
+    const mode = normalizeDeliveryMode(promoteMode);
+    if (mode === 'quick') {
+      closePromoteModal();
       return;
     }
     if (promoteGateStatus !== 'ready') {
@@ -1959,6 +2306,7 @@ function AppShell() {
     openHilDrawer,
     promoteDraftId,
     promoteGateStatus,
+    promoteMode,
     promoteItems,
     promoteSelectedIds,
     promoteSessionId,
@@ -2912,6 +3260,7 @@ function AppShell() {
     promotePreviewById,
     promoteStep,
     promoteDraft,
+    promoteMode,
     promoteActionSheet,
     promoteGateStatus,
     promoteExecutionStatus,
@@ -2925,10 +3274,16 @@ function AppShell() {
     onTogglePromoteGroup: togglePromoteGroup,
     onPromotePreview: loadPromotePreview,
     onSelectPromoteSession: setPromoteSessionId,
+    onSelectPromoteMode: (mode: DeliveryMode) => setPromoteMode(normalizeDeliveryMode(mode)),
     onCreatePromoteSession: createPromoteSession,
     onDispatchPromote: dispatchPromote,
     onConfirmPromote: confirmPromote,
     onFocusPromoteSession: handleFocusPromoteSession,
+    onOpenPromoteTimeline: () =>
+      handleOpenDeliveryTimeline({
+        draftId: promoteDraftId,
+        actionSheetId: promoteActionSheetId,
+      }),
     onDispatchActionSheet: handleDispatchActionSheet,
     onCancelActionSheet: cancelActionSheet,
     onArchiveActionSheet: handleArchiveActionSheet,
@@ -2969,6 +3324,27 @@ function AppShell() {
     },
     [handleSwitchView, hilMemo.setDockSelection]
   );
+  const handleOpenDeliveryTimeline = useCallback(
+    ({ draftId, actionSheetId }: { draftId?: string; actionSheetId?: string } = {}) => {
+      if (draftId) {
+        handleOpenMemoDraft(draftId);
+        return;
+      }
+      if (actionSheetId) {
+        handleOpenActionSheets(actionSheetId);
+      }
+    },
+    [handleOpenActionSheets, handleOpenMemoDraft]
+  );
+  const handleOpenExplorerDeliveryTimeline = useCallback(() => {
+    if (!explorerDeliverySummary) {
+      return;
+    }
+    handleOpenDeliveryTimeline({
+      draftId: explorerDeliverySummary?.draftId,
+      actionSheetId: explorerDeliverySummary?.actionSheetId,
+    });
+  }, [explorerDeliverySummary, handleOpenDeliveryTimeline]);
   const { handleCaptureScreenshot, flashVoice } = memoCapture;
   const handleAppShortcutTriggered = useCallback(
     (payload) => {
@@ -3233,6 +3609,8 @@ function AppShell() {
     onJumpToAgents: () => handleSwitchView('agent-cells'),
     workbenchMeta: explorerMeta,
     onDispatchFeed: handleDispatchExplorerFeed,
+    explorerDeliverySummary,
+    onOpenDeliveryTimeline: handleOpenExplorerDeliveryTimeline,
     onToggleSessionMap: handleToggleSessionMap,
     sessionMapOpen,
     revealRequest: pendingExplorerReveal,
