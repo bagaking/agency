@@ -31,6 +31,17 @@ import {
   isPathPossiblyChanged,
   resolveExternalReloadStrategy,
 } from '../../utils/workbenchDiskSync';
+import {
+  blameWorkbenchEntry,
+  diffWorkbenchEntry,
+  getWorkbenchFileUrl,
+  isAgencyAvailable,
+  isAgencyMethodAvailable,
+  onExplorerChanged,
+  readWorkbenchEntry,
+  statWorkbenchEntry,
+  writeWorkbenchEntry,
+} from '../../services/agencyBridge';
 
 const languageFromPath = (filePath) => {
   const ext = (filePath.split('.').pop() || '').toLowerCase();
@@ -212,7 +223,7 @@ function WorkbenchPaneContent({
   }, []);
 
   const loadTab = useCallback(async (tab) => {
-    if (!tab || !window.agency) {
+    if (!tab || !isAgencyAvailable()) {
       return;
     }
     const tabId = tab.id;
@@ -242,9 +253,9 @@ function WorkbenchPaneContent({
     try {
       if (secureKind === 'vector') {
         const [contentResult, urlResult, meta] = await Promise.all([
-          window.agency.readWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path }),
-          window.agency.getWorkbenchFileUrl({ rootPath: tab.rootPath, targetPath: tab.path }),
-          window.agency.statWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path }),
+          readWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path }),
+          getWorkbenchFileUrl({ rootPath: tab.rootPath, targetPath: tab.path }),
+          statWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path }),
         ]);
         const content = contentResult?.content || '';
         commitIfLatest({
@@ -265,8 +276,8 @@ function WorkbenchPaneContent({
 
       if (['image', 'video', 'audio', 'pdf'].includes(secureKind)) {
         const [meta, urlResult] = await Promise.all([
-          window.agency.statWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path }),
-          window.agency.getWorkbenchFileUrl({ rootPath: tab.rootPath, targetPath: tab.path }),
+          statWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path }),
+          getWorkbenchFileUrl({ rootPath: tab.rootPath, targetPath: tab.path }),
         ]);
         commitIfLatest({
           loading: false,
@@ -281,7 +292,7 @@ function WorkbenchPaneContent({
       }
 
       if (secureKind === 'code') {
-        const result = await window.agency.readWorkbenchEntry({
+        const result = await readWorkbenchEntry({
           rootPath: tab.rootPath,
           targetPath: tab.path,
         });
@@ -301,7 +312,7 @@ function WorkbenchPaneContent({
           diskMtimeMs: 0,
         });
       } else {
-        const meta = await window.agency.statWorkbenchEntry({
+        const meta = await statWorkbenchEntry({
           rootPath: tab.rootPath,
           targetPath: tab.path,
         });
@@ -326,7 +337,7 @@ function WorkbenchPaneContent({
   }, [activeTab, loadTab, tabStateById]);
 
   const checkTabDiskVersion = useCallback(async (tab) => {
-    if (!tab || !window.agency?.statWorkbenchEntry) {
+    if (!tab || !isAgencyMethodAvailable('statWorkbenchEntry')) {
       return;
     }
     const tabId = tab.id;
@@ -339,7 +350,7 @@ function WorkbenchPaneContent({
     }
     diskCheckInFlightRef.current.add(tabId);
     try {
-      const stat = await window.agency.statWorkbenchEntry({
+      const stat = await statWorkbenchEntry({
         rootPath: tab.rootPath,
         targetPath: tab.path,
       });
@@ -400,10 +411,10 @@ function WorkbenchPaneContent({
   }, [activeTab, checkTabDiskVersion]);
 
   useEffect(() => {
-    if (!activeTab || !window.agency?.onExplorerChanged) {
+    if (!activeTab || !isAgencyMethodAvailable('onExplorerChanged')) {
       return undefined;
     }
-    const unsubscribe = window.agency.onExplorerChanged((payload) => {
+    const unsubscribe = onExplorerChanged((payload) => {
       if (!payload) {
         return;
       }
@@ -426,11 +437,11 @@ function WorkbenchPaneContent({
   }, [activeTab, checkTabDiskVersion]);
 
   const handleSave = useCallback(async () => {
-    if (!activeTab || !activeState || !window.agency?.writeWorkbenchEntry) return;
+    if (!activeTab || !activeState || !isAgencyMethodAvailable('writeWorkbenchEntry')) return;
     updateTabState(activeTab.id, { saving: true });
     try {
       const content = activeState.content || '';
-      const result = await window.agency.writeWorkbenchEntry({
+      const result = await writeWorkbenchEntry({
         rootPath: activeTab.rootPath,
         targetPath: activeTab.path,
         content,
@@ -448,7 +459,7 @@ function WorkbenchPaneContent({
     }
   }, [activeState, activeTab, updateTabState]);
   const handleSaveAs = useCallback(async () => {
-    if (!activeTab || !activeState || !window.agency?.writeWorkbenchEntry) {
+    if (!activeTab || !activeState || !isAgencyMethodAvailable('writeWorkbenchEntry')) {
       return;
     }
     const nextPath = window.prompt('Save as…', activeTab.path);
@@ -461,7 +472,7 @@ function WorkbenchPaneContent({
     }
     updateTabState(activeTab.id, { saving: true });
     try {
-      await window.agency.writeWorkbenchEntry({
+      await writeWorkbenchEntry({
         rootPath: activeTab.rootPath,
         targetPath: normalizedPath,
         content: activeState.content || '',
@@ -542,24 +553,30 @@ function WorkbenchPaneContent({
   }, [activeState.kind, activeTab, closeTab, handleSave, handleSaveAs, runEditorAction]);
 
   const toggleDiff = useCallback(async () => {
-    if (!activeTab || !window.agency?.diffWorkbenchEntry) return;
+    if (!activeTab || !isAgencyMethodAvailable('diffWorkbenchEntry')) return;
     const enabled = !activeState.diffEnabled;
     updateTabState(activeTab.id, { diffEnabled: enabled });
     if (enabled && !activeState.diffHunks) {
       try {
-        const result = await window.agency.diffWorkbenchEntry({ rootPath: activeTab.rootPath, targetPath: activeTab.path });
+        const result = await diffWorkbenchEntry({
+          rootPath: activeTab.rootPath,
+          targetPath: activeTab.path,
+        });
         updateTabState(activeTab.id, { diffHunks: result?.hunks || [] });
       } catch (e) { console.error(e); }
     }
   }, [activeState, activeTab, updateTabState]);
 
   const toggleBlame = useCallback(async () => {
-    if (!activeTab || !window.agency?.blameWorkbenchEntry) return;
+    if (!activeTab || !isAgencyMethodAvailable('blameWorkbenchEntry')) return;
     const enabled = !activeState.blameEnabled;
     updateTabState(activeTab.id, { blameEnabled: enabled });
     if (enabled && !activeState.blameLines) {
       try {
-        const result = await window.agency.blameWorkbenchEntry({ rootPath: activeTab.rootPath, targetPath: activeTab.path });
+        const result = await blameWorkbenchEntry({
+          rootPath: activeTab.rootPath,
+          targetPath: activeTab.path,
+        });
         updateTabState(activeTab.id, { blameLines: result?.lines || [] });
       } catch (e) { console.error(e); }
     }
@@ -622,7 +639,10 @@ function WorkbenchPaneContent({
       if (!activeTab) return;
       updateTabState(activeTab.id, { loading: true });
       try {
-          const result = await window.agency.readWorkbenchEntry({ rootPath: activeTab.rootPath, targetPath: activeTab.path });
+          const result = await readWorkbenchEntry({
+            rootPath: activeTab.rootPath,
+            targetPath: activeTab.path,
+          });
           const content = result?.content || '';
           updateTabState(activeTab.id, {
             loading: false,
