@@ -9,7 +9,7 @@ A focused audit of the current large-file list shows recurring quality and reuse
 - duplicated external drop-path parsing in Agent Cells and Explorer sidebars;
 - repeated file-preview loading patterns across file dashboards;
 - repeated file-snippet preview loading patterns across dashboards and HIL comment anchors;
-- direct `window.agency` usage in large React components (TerminalPane, Explorer, Workbench, HIL comments), which bypasses renderer service wrappers and conflicts with project norms.
+- direct `window.agency` usage in high-churn React components/hooks (Explorer, Workbench, HIL comments, `useProjectExplorer`, `useSessions`), which bypasses renderer service wrappers and conflicts with project norms.
 
 ## What Changes
 - Perform a staged refactor for the current large renderer files:
@@ -24,7 +24,7 @@ A focused audit of the current large-file list shows recurring quality and reuse
   - `apps/editor/renderer/src/components/QuickActionsView.tsx`
   - `apps/editor/renderer/src/components/SessionReplyPanel.tsx`
 - Extract reusable modules first (shared utility/hook/component) before file-local splitting.
-- Route renderer-main interactions through bridge services instead of direct `window.agency` in React components.
+- Route renderer-main interactions through bridge services instead of direct `window.agency` in React components/high-churn hooks.
 - Consolidate duplicated drag-drop parsing and file-preview loading behavior into shared reusable modules.
 - Keep feature behavior unchanged (refactor-only scope).
 - After refactor completion, update Bagakit reusable catalog docs for all new/changed reusable items.

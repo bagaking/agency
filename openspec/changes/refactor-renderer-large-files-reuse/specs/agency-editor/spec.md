@@ -35,7 +35,7 @@ The editor SHALL extract and reuse shared interaction modules for duplicated ren
 - **AND** loading/error/cancellation semantics remain consistent across surfaces.
 
 ### Requirement: Renderer Bridge Adapter Consistency
-The editor SHALL route renderer-main operations in large UI components through service bridge adapters rather than direct runtime-global calls.
+The editor SHALL route renderer-main operations in large UI components and high-churn orchestration hooks through service bridge adapters rather than direct runtime-global calls.
 
 #### Scenario: Component runtime calls use bridge adapters
 - **WHEN** large renderer components perform terminal/workbench/explorer/HIL runtime operations
@@ -46,6 +46,11 @@ The editor SHALL route renderer-main operations in large UI components through s
 - **WHEN** Explorer handles paste/materialize flows
 - **THEN** those runtime calls flow through bridge adapters instead of direct `window.agency` access in component code
 - **AND** existing paste/materialize behavior remains unchanged.
+
+#### Scenario: High-churn hooks use bridge adapters
+- **WHEN** `useProjectExplorer` and `useSessions` perform runtime operations
+- **THEN** those operations flow through renderer bridge adapters rather than direct `window.agency` calls
+- **AND** existing hook-level behavior and return contracts remain unchanged.
 
 ### Requirement: Reuse Catalog Synchronization After Refactor
 The editor SHALL synchronize reusable-item documentation when refactor work introduces, modifies, or deprecates reusable coding assets.

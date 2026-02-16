@@ -8,6 +8,7 @@ High-impact findings:
 - `App.tsx` is a monolithic composition root with cross-domain state orchestration.
 - `AgentCellsSidebar.tsx` and `ProjectExplorerSidebar.tsx` duplicate external drop parsing and dashboard preview flows.
 - `ProjectExplorerSidebar.tsx` also keeps clipboard/materialize runtime calls inline via `window.agency`.
+- `useProjectExplorer.ts` and `useSessions.ts` still keep many direct runtime-global calls despite being core orchestration hooks.
 - `TerminalPane.tsx` and `WorkbenchPane.tsx` contain heavy runtime/IPC logic inside UI components.
 - `useTerminalRuntimeEffect.ts` is itself now a large runtime monolith after initial extraction from `TerminalPane.tsx`.
 - `SessionReplyPanel.tsx` combines reply history data loading, prompt insertion, routing/send, and item mutation flows in one component.
@@ -38,6 +39,7 @@ Priority reusable candidates:
 - File-snippet preview loader hook (shared by dashboard previews and HIL anchor hover previews).
 - Renderer bridge adapters for terminal/workbench/HIL snippet flows.
 - Renderer bridge adapters for Explorer clipboard/materialize helpers.
+- Missing bridge adapters for `useProjectExplorer` / `useSessions` runtime operations.
 - Shared HIL row-action primitives where behavior is identical.
 
 ### Decision 2: Domain-controller split for `App.tsx`
@@ -58,6 +60,9 @@ Initial bridge normalization targets:
 - workbench read/write/diff/blame/stat flows
 - explorer clipboard/materialize paths
 - HIL context snippet loading
+- explorer root/status/list/watch paths used by `useProjectExplorer`
+- session lifecycle paths used by `useSessions`
+- bridge module composition (`services/agencyBridge.ts` -> domain-oriented adapters) when aggregate size approaches quality threshold
 
 ### Decision 4: File-by-file decomposition map
 - `App.tsx` -> composition root + domain controllers/hooks.
