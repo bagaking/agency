@@ -110,6 +110,8 @@ const INVOKE_CHANNELS: Record<string, string> = {
   applyAppShortcuts: 'app-shortcuts:apply',
   getQuickActions: 'quick-actions:get',
   setQuickActions: 'quick-actions:set',
+  getReplyQuickPrompts: 'reply-quick-prompts:get',
+  setReplyQuickPrompts: 'reply-quick-prompts:set',
   getTerminusSettings: 'terminus-settings:get',
   setTerminusSettings: 'terminus-settings:set',
   getSessionNamingSettings: 'session-naming:get',

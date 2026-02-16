@@ -3,6 +3,7 @@ import { WorkbenchPane } from '../workbench/WorkbenchPane';
 import { EditorPane } from '../EditorPane';
 import { QuickActionsView } from '../QuickActionsView';
 import { AppShortcutsView } from '../AppShortcutsView';
+import { ReplyQuickPromptsView } from '../ReplyQuickPromptsView';
 import { SessionNamingView } from '../SessionNamingView';
 import { GatesView } from '../GatesView';
 import { WorktreeLinksView } from '../WorktreeLinksView';
@@ -22,6 +23,7 @@ export function AppMainPanels({
   actionSheetsProps,
   quickActionsViewProps,
   appShortcutsViewProps,
+  replyQuickPromptsViewProps,
   sessionNamingViewProps,
   gatesViewProps,
   worktreeLinksViewProps,
@@ -52,6 +54,12 @@ export function AppMainPanels({
       {activeView === 'hierarchy' && hierarchySection === 'app-shortcuts' ? (
         <div className="absolute inset-0">
           <AppShortcutsView {...appShortcutsViewProps} />
+        </div>
+      ) : null}
+
+      {activeView === 'hierarchy' && hierarchySection === 'reply-quick-prompts' ? (
+        <div className="absolute inset-0">
+          <ReplyQuickPromptsView {...replyQuickPromptsViewProps} />
         </div>
       ) : null}
 

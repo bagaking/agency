@@ -7,6 +7,7 @@ import { LifecycleConfirmModal } from './components/modals/LifecycleConfirmModal
 import { ModalProvider, useModal } from './components/modals/ModalSystem';
 import { useTerminusSettings } from './hooks/useTerminusSettings';
 import { useAppShortcuts } from './hooks/useAppShortcuts';
+import { useReplyQuickPrompts } from './hooks/useReplyQuickPrompts';
 import { useSessionNamingSettings } from './hooks/useSessionNamingSettings';
 import { useGates } from './hooks/useGates';
 import { useWorktreeLinks } from './hooks/useWorktreeLinks';
@@ -101,6 +102,7 @@ function AppShell() {
   const [hierarchySection, setHierarchySection] = useState('actions');
   const [actionsScope, setActionsScope] = useState('global');
   const [appShortcutsScope, setAppShortcutsScope] = useState('global');
+  const [replyQuickPromptsScope, setReplyQuickPromptsScope] = useState('global');
   const [sessionNamingScope, setSessionNamingScope] = useState('global');
   const [gateScope, setGateScope] = useState('global');
   const [gateStage, setGateStage] = useState('active');
@@ -433,6 +435,27 @@ function AppShell() {
   } = useAppShortcuts({
     selectedCell: scopedCell,
     appShortcutsScope,
+    userDataPath,
+  });
+  const {
+    scopePrompts: replyQuickPromptsRows,
+    resolvedPrompts: resolvedReplyQuickPrompts,
+    scopeDisabled: replyQuickPromptsScopeDisabled,
+    projectSettingsPath: replyQuickPromptsProjectPath,
+    agentSettingsPath: replyQuickPromptsAgentPath,
+    globalSettingsPath: replyQuickPromptsGlobalPath,
+    error: replyQuickPromptsError,
+    saving: replyQuickPromptsSaving,
+    dirty: replyQuickPromptsDirty,
+    summary: replyQuickPromptsSummary,
+    addPrompt: addReplyQuickPrompt,
+    updatePrompt: updateReplyQuickPrompt,
+    removePrompt: removeReplyQuickPrompt,
+    savePrompts: saveReplyQuickPrompts,
+    clearError: clearReplyQuickPromptsError,
+  } = useReplyQuickPrompts({
+    selectedCell: scopedCell,
+    scope: replyQuickPromptsScope,
     userDataPath,
   });
   const {
@@ -2273,6 +2296,11 @@ function AppShell() {
     project: appShortcutsProjectPath,
     agent: appShortcutsAgentPath,
   };
+  const replyQuickPromptsPaths = {
+    global: replyQuickPromptsGlobalPath,
+    project: replyQuickPromptsProjectPath,
+    agent: replyQuickPromptsAgentPath,
+  };
   const sessionNamingPaths = {
     global: sessionNamingGlobalPath,
     project: sessionNamingProjectPath,
@@ -2834,6 +2862,7 @@ function AppShell() {
     worktreePath: selectedCell?.worktreePath || projectRoot || '',
     selection: activeReplySelection,
     focusToken: replyFocusToken,
+    resolvedQuickPrompts: resolvedReplyQuickPrompts,
     sessionTargets,
     onClearSelection: handleClearReplySelection,
     onSendSessionText: sendSessionText,
@@ -3067,6 +3096,9 @@ function AppShell() {
       if (target === 'app-shortcuts') {
         clearAppShortcutsError();
       }
+      if (target === 'reply-quick-prompts') {
+        clearReplyQuickPromptsError();
+      }
       if (target === 'gates') {
         clearGatesError();
       }
@@ -3077,7 +3109,14 @@ function AppShell() {
         clearWorktreeLinksError();
       }
     },
-    [clearAppShortcutsError, clearGatesError, clearSessionNamingError, clearTerminusError, clearWorktreeLinksError]
+    [
+      clearAppShortcutsError,
+      clearGatesError,
+      clearReplyQuickPromptsError,
+      clearSessionNamingError,
+      clearTerminusError,
+      clearWorktreeLinksError,
+    ]
   );
   const handleSelectActionsScope = useCallback(
     (scope) => {
@@ -3109,6 +3148,14 @@ function AppShell() {
     },
     [clearAppShortcutsError]
   );
+  const handleSelectReplyQuickPromptsScope = useCallback(
+    (scope) => {
+      setHierarchySection('reply-quick-prompts');
+      setReplyQuickPromptsScope(scope);
+      clearReplyQuickPromptsError();
+    },
+    [clearReplyQuickPromptsError]
+  );
   const handleSelectGateScope = useCallback(
     (scope) => {
       setHierarchySection('gates');
@@ -3134,8 +3181,11 @@ function AppShell() {
       if (section === 'session-naming') {
         clearSessionNamingError();
       }
+      if (section === 'reply-quick-prompts') {
+        clearReplyQuickPromptsError();
+      }
     },
-    [clearSessionNamingError, clearWorktreeLinksError]
+    [clearReplyQuickPromptsError, clearSessionNamingError, clearWorktreeLinksError]
   );
 
   const handleToggleSidebar = useCallback(() => {
@@ -3302,6 +3352,7 @@ function AppShell() {
           onOpenRecentProject={handleOpenRecentProject}
           onOpenActions={() => handleHierarchyJump('actions')}
           onOpenAppShortcuts={() => handleHierarchyJump('app-shortcuts')}
+          onOpenReplyQuickPrompts={() => handleHierarchyJump('reply-quick-prompts')}
           onOpenGates={() => handleHierarchyJump('gates')}
           onOpenSoftlinks={() => handleHierarchyJump('softlinks')}
           actionsScope={actionsScope}
@@ -3309,13 +3360,28 @@ function AppShell() {
           onConfigureProfile={handleConfigureProfile}
           appShortcutsScope={appShortcutsScope}
           onSelectAppShortcutsScope={handleSelectAppShortcutsScope}
+          replyQuickPromptsScope={replyQuickPromptsScope}
+          onSelectReplyQuickPromptsScope={handleSelectReplyQuickPromptsScope}
           sessionNamingScope={sessionNamingScope}
           onSelectSessionNamingScope={handleSelectSessionNamingScope}
           actionsScopeDisabled={terminusScopeDisabled}
           actionSummary={terminusSummary}
           appShortcutsScopeDisabled={appShortcutsScopeDisabled}
           appShortcutsSummary={appShortcutsSummary}
+          replyQuickPromptsScopeDisabled={replyQuickPromptsScopeDisabled}
+          replyQuickPromptsSummary={replyQuickPromptsSummary}
           appShortcutRows={appShortcutRows}
+          replyQuickPromptsRows={replyQuickPromptsRows}
+          resolvedReplyQuickPrompts={resolvedReplyQuickPrompts}
+          replyQuickPromptsPaths={replyQuickPromptsPaths}
+          replyQuickPromptsError={replyQuickPromptsError}
+          replyQuickPromptsSaving={replyQuickPromptsSaving}
+          replyQuickPromptsDirty={replyQuickPromptsDirty}
+          onAddReplyQuickPrompt={addReplyQuickPrompt}
+          onUpdateReplyQuickPrompt={updateReplyQuickPrompt}
+          onRemoveReplyQuickPrompt={removeReplyQuickPrompt}
+          onSaveReplyQuickPrompts={saveReplyQuickPrompts}
+          onClearReplyQuickPromptsError={clearReplyQuickPromptsError}
           appShortcutsPaths={appShortcutsPaths}
           appShortcutsError={appShortcutsError}
           appShortcutsSaving={appShortcutsSaving}

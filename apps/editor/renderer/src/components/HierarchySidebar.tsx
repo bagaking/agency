@@ -1,14 +1,25 @@
 import React from 'react';
-import { SquareTerminal, FolderClosed, User, Link2, ShieldCheck, Command, Tag } from 'lucide-react';
+import {
+  SquareTerminal,
+  FolderClosed,
+  User,
+  Link2,
+  ShieldCheck,
+  Command,
+  Tag,
+  MessageSquareText,
+} from 'lucide-react';
 
 export function HierarchySidebar({
   section,
   actionsScope,
   appShortcutsScope,
+  replyQuickPromptsScope,
   sessionNamingScope,
   gateScope,
   onSelectActionsScope,
   onSelectAppShortcutsScope,
+  onSelectReplyQuickPromptsScope,
   onSelectSessionNamingScope,
   onSelectGateScope,
   onSelectSoftlinks,
@@ -16,6 +27,7 @@ export function HierarchySidebar({
   canUseAgentScope,
   actionSummary,
   appShortcutsSummary,
+  replyQuickPromptsSummary,
   sessionNamingSummary,
   gateSummary,
 }: any) {
@@ -80,6 +92,33 @@ export function HierarchySidebar({
             selected={section === 'app-shortcuts' && appShortcutsScope === 'agent'}
             disabled={!canUseAgentScope}
             onClick={() => onSelectAppShortcutsScope?.('agent')}
+          />
+        </div>
+
+        <div className="mb-2 mt-6 px-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">REPLY QUICK PROMPTS</div>
+        <div className="space-y-0.5">
+          <ScopeItem
+            icon={MessageSquareText}
+            label="Global User"
+            meta={replyQuickPromptsSummary?.globalOverrides ? 'Overrides' : 'Base'}
+            selected={section === 'reply-quick-prompts' && replyQuickPromptsScope === 'global'}
+            onClick={() => onSelectReplyQuickPromptsScope?.('global')}
+          />
+          <ScopeItem
+            icon={FolderClosed}
+            label="Project Local"
+            meta={replyQuickPromptsSummary?.projectOverrides ? 'Custom' : 'Inherit'}
+            selected={section === 'reply-quick-prompts' && replyQuickPromptsScope === 'project'}
+            disabled={!canUseProjectScope}
+            onClick={() => onSelectReplyQuickPromptsScope?.('project')}
+          />
+          <ScopeItem
+            icon={User}
+            label={`Agent - ${replyQuickPromptsSummary?.agentLabel || 'Select Cell'}`}
+            meta={replyQuickPromptsSummary?.agentOverrides ? 'Custom' : 'Inherit'}
+            selected={section === 'reply-quick-prompts' && replyQuickPromptsScope === 'agent'}
+            disabled={!canUseAgentScope}
+            onClick={() => onSelectReplyQuickPromptsScope?.('agent')}
           />
         </div>
 

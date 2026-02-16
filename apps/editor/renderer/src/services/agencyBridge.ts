@@ -183,6 +183,22 @@ export const setQuickActions = async (payload) => {
   return api.setQuickActions(payload);
 };
 
+export const getReplyQuickPrompts = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.getReplyQuickPrompts) {
+    return null;
+  }
+  return api.getReplyQuickPrompts(payload);
+};
+
+export const setReplyQuickPrompts = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.setReplyQuickPrompts) {
+    return null;
+  }
+  return api.setReplyQuickPrompts(payload);
+};
+
 export const getTerminusSettings = async (payload) => {
   const api = getAgencyApi();
   if (!api?.getTerminusSettings) {

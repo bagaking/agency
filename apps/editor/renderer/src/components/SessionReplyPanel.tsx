@@ -13,6 +13,8 @@ import {
   Clock,
   Edit2,
   Trash2,
+  Sparkles,
+  ChevronDown,
 } from 'lucide-react';
 import { createHilItem, listHilItems, updateHilItem } from '../services/agencyBridge';
 import { AgentAvatarBadge } from './ui/AgentAvatarBadge';
@@ -27,6 +29,11 @@ const REPLY_EDITOR_FONT_SIZE = 13;
 const REPLY_EDITOR_LINE_HEIGHT = 20;
 const REPLY_EDITOR_FONT_FAMILY =
   'Menlo, Monaco, "SF Mono", "Hiragino Sans GB", "PingFang SC", "Noto Sans CJK SC", "Courier New", monospace';
+const SCOPE_LABELS = {
+  global: 'Global',
+  project: 'Project',
+  agent: 'Agent',
+};
 
 const normalizeTerminalText = (value) =>
   String(value || '')
@@ -86,6 +93,7 @@ export function SessionReplyPanel({
   worktreePath,
   selection,
   focusToken,
+  resolvedQuickPrompts = [],
   sessionTargets = [],
   onClearSelection,
   onSendSessionText,
@@ -95,8 +103,11 @@ export function SessionReplyPanel({
   const focusRingClass = focusRing.default;
   const editorRef = useRef(null);
   const editorContainerRef = useRef(null);
+  const quickPromptMenuRef = useRef(null);
+  const quickPromptTriggerRef = useRef(null);
   const [replyText, setReplyText] = useState('');
   const [sendMenuOpen, setSendMenuOpen] = useState(false);
+  const [quickPromptMenuOpen, setQuickPromptMenuOpen] = useState(false);
   const [replyItems, setReplyItems] = useState([]);
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [error, setError] = useState('');
@@ -134,6 +145,13 @@ export function SessionReplyPanel({
         return left.localeCompare(right);
       });
   }, [cell?.id, session?.id, sessionTargets]);
+  const availableQuickPrompts = useMemo(
+    () =>
+      (resolvedQuickPrompts || []).filter(
+        (prompt) => prompt?.enabled !== false && String(prompt?.text || '').trim()
+      ),
+    [resolvedQuickPrompts]
+  );
 
   useEffect(() => {
     setSelectedTarget(null);
@@ -174,6 +192,7 @@ export function SessionReplyPanel({
   useEffect(() => {
     setReplyText('');
     setSendMenuOpen(false);
+    setQuickPromptMenuOpen(false);
     setError('');
   }, [cell?.id, session?.id]);
 
@@ -198,6 +217,23 @@ export function SessionReplyPanel({
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (!quickPromptMenuOpen) {
+      return undefined;
+    }
+    const handlePointerDown = (event) => {
+      if (quickPromptMenuRef.current?.contains(event.target)) {
+        return;
+      }
+      if (quickPromptTriggerRef.current?.contains(event.target)) {
+        return;
+      }
+      setQuickPromptMenuOpen(false);
+    };
+    window.addEventListener('mousedown', handlePointerDown);
+    return () => window.removeEventListener('mousedown', handlePointerDown);
+  }, [quickPromptMenuOpen]);
+
   const handleArchiveReply = useCallback(async (item) => {
     if (!item?.id || !worktreePath) return;
     try {
@@ -220,6 +256,37 @@ export function SessionReplyPanel({
           setReplyText(item.body);
           editorRef.current?.focus?.();
       }
+  }, []);
+
+  const handleInsertQuickPrompt = useCallback((value) => {
+    const text = String(value || '');
+    if (!text) {
+      return;
+    }
+    const editor = editorRef.current;
+    if (editor?.executeEdits) {
+      const selection = editor.getSelection?.();
+      const position = editor.getPosition?.() || { lineNumber: 1, column: 1 };
+      const range = selection || {
+        startLineNumber: position.lineNumber,
+        startColumn: position.column,
+        endLineNumber: position.lineNumber,
+        endColumn: position.column,
+      };
+      editor.executeEdits('reply-quick-prompts', [
+        {
+          range,
+          text,
+          forceMoveMarkers: true,
+        },
+      ]);
+      const nextValue = editor.getModel?.()?.getValue?.() || '';
+      setReplyText(nextValue);
+      editor.focus?.();
+    } else {
+      setReplyText((current) => `${current}${text}`);
+    }
+    setQuickPromptMenuOpen(false);
   }, []);
 
   const buildTargetMeta = useCallback(
@@ -427,6 +494,65 @@ export function SessionReplyPanel({
               <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
                 Compose
               </span>
+              <div className="relative">
+                <button
+                  ref={quickPromptTriggerRef}
+                  type="button"
+                  onClick={() =>
+                    setQuickPromptMenuOpen((current) => {
+                      const next = !current;
+                      if (next) {
+                        setSendMenuOpen(false);
+                      }
+                      return next;
+                    })
+                  }
+                  disabled={!availableQuickPrompts.length}
+                  className={`inline-flex h-6 items-center gap-1 rounded-md border border-border/30 bg-background/60 px-2 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-35 ${focusRingClass}`}
+                >
+                  <Sparkles size={10} />
+                  <span>快捷回复如何</span>
+                  <ChevronDown size={10} />
+                </button>
+                {quickPromptMenuOpen ? (
+                  <div
+                    ref={quickPromptMenuRef}
+                    className="absolute left-0 top-full z-50 mt-2 w-80 max-h-72 overflow-y-auto rounded-lg border border-border/50 bg-popover p-1 shadow-2xl"
+                  >
+                    {availableQuickPrompts.length ? (
+                      availableQuickPrompts.map((prompt) => (
+                        <button
+                          key={prompt.id}
+                          type="button"
+                          onClick={() => handleInsertQuickPrompt(prompt.text)}
+                          className="w-full rounded-md px-2 py-1.5 text-left transition-colors hover:bg-muted/40"
+                        >
+                          {prompt.title ? (
+                            <div className="truncate text-[10px] font-semibold text-foreground">
+                              {prompt.title}
+                            </div>
+                          ) : null}
+                          <div className="line-clamp-2 whitespace-pre-wrap break-words text-[10px] font-mono text-muted-foreground">
+                            {prompt.text}
+                          </div>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {(prompt.sources || []).map((source) => (
+                              <span
+                                key={`${prompt.id}-${source}`}
+                                className="rounded border border-border/60 bg-muted/20 px-1 py-0.5 text-[8px] font-bold uppercase tracking-widest text-muted-foreground/70"
+                              >
+                                {SCOPE_LABELS[source] || source}
+                              </span>
+                            ))}
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-2 py-3 text-[10px] text-muted-foreground/70">No quick prompts configured.</div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
               {/* Target Indicator - Inline if selected */}
               {selectedTarget && (
                   <div className="flex items-center gap-1 text-[9px] text-primary/85 bg-primary/10 rounded-full px-2 py-0.5 border border-primary/20">
@@ -459,7 +585,15 @@ export function SessionReplyPanel({
                   <Tooltip label={sendMenuOpen ? null : (selectedTarget ? "Change Target" : "Select Target")} side="top">
                     <button
                       type="button"
-                      onClick={() => setSendMenuOpen(!sendMenuOpen)}
+                      onClick={() =>
+                        setSendMenuOpen((current) => {
+                          const next = !current;
+                          if (next) {
+                            setQuickPromptMenuOpen(false);
+                          }
+                          return next;
+                        })
+                      }
                       disabled={!otherTargets.length}
                       className={`flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-muted/20 hover:text-foreground disabled:opacity-30 ${selectedTarget ? 'text-primary bg-primary/15' : ''} ${focusRingClass}`}
                     >

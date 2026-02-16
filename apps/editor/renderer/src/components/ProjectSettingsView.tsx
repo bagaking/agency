@@ -1,5 +1,18 @@
 import React from 'react';
-import { FolderOpen, RefreshCw, ShieldCheck, SquareTerminal, Link2, Box, Cpu, HardDrive, AlertCircle, ArrowRight, Command } from 'lucide-react';
+import {
+  FolderOpen,
+  RefreshCw,
+  ShieldCheck,
+  SquareTerminal,
+  Link2,
+  Box,
+  Cpu,
+  HardDrive,
+  AlertCircle,
+  ArrowRight,
+  Command,
+  MessageSquareText,
+} from 'lucide-react';
 import { RecentProjectsList } from './RecentProjectsList';
 
 const basename = (value) => value.split('/').filter(Boolean).pop() || value;
@@ -14,6 +27,7 @@ export function ProjectSettingsView({
   onOpenRecent,
   onOpenActions,
   onOpenAppShortcuts,
+  onOpenReplyQuickPrompts,
   onOpenGates,
   onOpenSoftlinks,
 }: any) {
@@ -42,6 +56,16 @@ export function ProjectSettingsView({
       disabled: false,
       color: 'text-indigo-400',
       bg: 'group-hover:bg-indigo-500/10'
+    },
+    {
+      id: 'reply-quick-prompts',
+      title: 'Reply Quick Prompts',
+      description: 'Define scoped prompt snippets for Session Reply composer.',
+      icon: MessageSquareText,
+      onClick: onOpenReplyQuickPrompts,
+      disabled: false,
+      color: 'text-cyan-400',
+      bg: 'group-hover:bg-cyan-500/10'
     },
     {
       id: 'gates',

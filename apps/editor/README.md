@@ -14,7 +14,7 @@
 - The docked sidebar supports resize/collapse and persists width state across launches.
 - Agent Cells focuses on Cell management and offers jump links to Actions, Gates, and Softlinks.
 - Agent Cells sidebar now includes an Explorer panel (Cell/Session scope + Flat/Tree views) for quick file open/reveal navigation.
-- Hierarchy hosts configuration for Actions, Gates, and Softlinks.
+- Hierarchy hosts configuration for Actions, App Shortcuts, Reply Quick Prompts, Session Naming, Gates, and Softlinks.
 - Explorer provides a project file tree with git status (including added, untracked, ignored) and per-Cell change attribution.
 - Explorer scopes to the active Agent Cell worktree (or repo root) and opens files in the workbench.
 - Workbench breadcrumbs are segment-clickable and reveal/select the target inside Explorer tree (without invoking OS Finder reveal).
@@ -89,6 +89,16 @@
 - Agent overrides live at `.agency/quick-actions-<worktreeName>.yaml`.
 - Actions resolve by scope order: Global -> Project -> Agent.
 - Commands can be multi-line scripts executed line-by-line in the active session.
+
+## Reply Quick Prompts
+
+- Reply Quick Prompts are configured under Hierarchy -> Reply Quick Prompts.
+- Prompt definitions are scoped as Global, Project, and Agent.
+- Global prompts are stored as `reply-quick-prompts.json` in the editor user data directory.
+- Project prompts are stored at `.agency/reply-quick-prompts.yaml`.
+- Agent prompts are stored at `.agency/reply-quick-prompts-<worktreeName>.yaml`.
+- Effective prompts resolve by ordered union + dedupe (Global -> Project -> Agent) using normalized prompt text.
+- The Session Reply composer provides `快捷回复如何` near input controls and inserts the selected resolved prompt at the current cursor position.
 
 ## Gates
 
@@ -205,6 +215,7 @@ make editor-dev
 - Close a session, verify it appears under the overflow menu, and reopen it to create a new session.
 - Add a quick action with both commands and verify start/resume run in the active session.
 - Switch to Project or Agent actions, confirm inherited actions are read-only, and verify Override/Reset behavior.
+- Configure reply quick prompts across multiple scopes, confirm resolved source badges in Hierarchy, and insert one from `快捷回复如何` in Session Reply composer.
 - Open Hierarchy -> Gates, add a failing gate command for Active, and confirm the Active transition is blocked until the gate passes.
 - From Agent Cells, use the jump links to open Actions, Gates, and Softlinks views.
 - Run a start action and verify a new session is created and selected before the command runs.
