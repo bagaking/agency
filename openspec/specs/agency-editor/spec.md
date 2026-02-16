@@ -1295,12 +1295,11 @@ The baseline profile MUST be visible in the Terminus configuration view and MUST
 - **THEN** the plain-shell profile is listed and cannot be removed
 
 ### Requirement: Shortcut Interception Defaults
-The editor SHALL NOT intercept keyboard shortcuts unless explicitly configured in Terminus settings for the active profile.
-Default Terminus settings MUST provide zero shortcut bindings.
+The editor SHALL NOT intercept keyboard shortcuts unless explicitly configured in Terminus settings for the active profile, except for documented baseline terminal compatibility behaviors that preserve cross-platform modifier keys.
 
-#### Scenario: No configured bindings
+#### Scenario: Baseline modifier behaviors
 - **WHEN** a user presses Shift+Enter in the terminal and no Terminus bindings are configured for the active profile
-- **THEN** the terminal receives the native Shift+Enter behavior without interception
+- **THEN** the terminal receives the baseline Shift+Enter behavior documented for the editor's terminal compatibility layer.
 
 ### Requirement: Shortcut Input Dispatch
 The editor SHALL route configured Terminus shortcut bindings through a centralized terminal input dispatcher that sends explicit input actions (e.g., text or key sequences) to the active session.
@@ -1990,4 +1989,70 @@ The editor SHALL preserve existing Electron service runtime semantics while migr
 #### Scenario: Existing IPC service integrations remain compatible
 - **WHEN** IPC handlers call existing service functions after migration
 - **THEN** the runtime behavior remains compatible with the pre-migration implementation.
+
+### Requirement: Terminal Mouse + Selection Compatibility
+The editor SHALL provide terminal mouse interaction, modifier key combos, and text selection simultaneously, without requiring global tradeoffs.
+
+#### Scenario: Mouse interaction by default
+- **WHEN** a user clicks or scrolls in a terminal with a TUI that enables mouse reporting
+- **THEN** mouse interactions are delivered to the TUI by default.
+
+#### Scenario: Force selection with modifier
+- **WHEN** a user holds the selection modifier (Shift or Alt) and drags to select text
+- **THEN** mouse reporting is temporarily disabled for that session and text selection succeeds in the terminal.
+
+#### Scenario: Restore mouse after selection
+- **WHEN** the selection drag ends or selection is cleared
+- **THEN** mouse reporting returns to its default enabled state for that session.
+
+### Requirement: Modifier-Based Scrollback Override
+The editor SHALL allow users to force local scrollback even when mouse reporting is enabled.
+
+#### Scenario: Alt/Option scrolls local buffer
+- **WHEN** a user holds Alt/Option and scrolls the mouse wheel
+- **THEN** the terminal scrollback moves locally without sending wheel events to the TUI.
+
+### Requirement: Reply Quick Prompt Scoped Configuration
+The editor SHALL provide Reply Quick Prompt configuration in Hierarchy with Global, Project, and Agent scopes.
+The editor SHALL persist prompt lists per scope using the same scoped-config conventions as other Hierarchy settings.
+
+#### Scenario: Open Reply Quick Prompts in Hierarchy
+- **WHEN** a user navigates to Hierarchy configuration
+- **THEN** a Reply Quick Prompts section is available
+- **AND** users can switch between Global, Project, and Agent scopes.
+
+#### Scenario: Save scoped prompts
+- **WHEN** a user edits prompt items in a scope and saves
+- **THEN** the prompt list is persisted for that scope and reloads correctly.
+
+### Requirement: Reply Quick Prompt Resolution Uses Union + Dedupe
+The editor SHALL resolve effective Reply Quick Prompts by computing the ordered union of Global, Project, and Agent lists.
+The editor SHALL deduplicate prompts by normalized prompt text instead of overriding by scope.
+The first occurrence in scope order (Global -> Project -> Agent) SHALL be canonical for display text, while later duplicates SHALL still contribute source metadata.
+
+#### Scenario: Duplicate prompt across scopes
+- **WHEN** the same prompt text exists in both Global and Agent scopes
+- **THEN** the effective prompt list contains one entry for that text
+- **AND** the entry records both scopes as sources.
+
+#### Scenario: Scope-specific additions preserved
+- **WHEN** each scope contributes different prompt texts
+- **THEN** the effective prompt list includes all unique prompts in stable scope order.
+
+### Requirement: Hierarchy Shows Resolved Prompt Sources
+The editor SHALL show a resolved prompt preview in the Hierarchy Reply Quick Prompts view.
+Each resolved prompt SHALL show source scope badges to explain dedupe/union results.
+
+#### Scenario: Visualize merged source badges
+- **WHEN** a resolved prompt is contributed by multiple scopes
+- **THEN** the Hierarchy resolved list shows all contributing scope badges for that prompt.
+
+### Requirement: Reply Composer Quick Prompt Entry
+In Agent Cells Reply panel, the editor SHALL provide a quick prompt action labeled `快捷回复如何` near the reply input controls.
+The action SHALL open the resolved prompt list and allow inserting a selected prompt into the reply editor.
+
+#### Scenario: Insert prompt from quick action
+- **WHEN** a user selects a prompt from `快捷回复如何`
+- **THEN** the prompt text is inserted into the Reply editor at the cursor position
+- **AND** the Reply editor remains focused for further editing.
 

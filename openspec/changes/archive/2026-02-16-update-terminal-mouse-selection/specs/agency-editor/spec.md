@@ -7,6 +7,8 @@ The editor SHALL NOT intercept keyboard shortcuts unless explicitly configured i
 - **WHEN** a user presses Shift+Enter in the terminal and no Terminus bindings are configured for the active profile
 - **THEN** the terminal receives the baseline Shift+Enter behavior documented for the editor's terminal compatibility layer.
 
+## ADDED Requirements
+
 ### Requirement: Terminal Mouse + Selection Compatibility
 The editor SHALL provide terminal mouse interaction, modifier key combos, and text selection simultaneously, without requiring global tradeoffs.
 
@@ -21,8 +23,6 @@ The editor SHALL provide terminal mouse interaction, modifier key combos, and te
 #### Scenario: Restore mouse after selection
 - **WHEN** the selection drag ends or selection is cleared
 - **THEN** mouse reporting returns to its default enabled state for that session.
-
-## ADDED Requirements
 
 ### Requirement: Modifier-Based Scrollback Override
 The editor SHALL allow users to force local scrollback even when mouse reporting is enabled.
