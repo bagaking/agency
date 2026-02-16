@@ -1,12 +1,14 @@
 ## 1. Analysis Baseline
-- [x] 1.1 Audit current large renderer files (`>=800` lines) and capture quality/reuse findings.
-- [x] 1.2 Define reuse-first decomposition strategy for each audited file.
+- [x] 1.1 Audit current large renderer files (`>=800` lines; currently 10 files) and capture quality/reuse findings.
+- [x] 1.2 Define reuse-first decomposition strategy for each audited file (including terminal runtime hook + session reply panel).
 
 ## 2. Reuse-first Foundation
 - [ ] 2.1 Extract shared external drop-path parser utility and migrate Agent Cells + Explorer to it.
 - [ ] 2.2 Extract shared file-dashboard preview loading hook and migrate Agent Cells + Explorer changed-files panel.
 - [ ] 2.3 Add renderer bridge adapters for terminal/workbench/HIL snippet flows and migrate direct component calls.
 - [ ] 2.4 Add/align shared helper utilities for repeated activity-diff and preview-normalization logic where applicable.
+- [ ] 2.5 Add renderer bridge adapters for Explorer clipboard/materialize flows and remove direct `window.agency` usage in `ProjectExplorerSidebar`.
+- [ ] 2.6 Extract a shared file-snippet preview loader for dashboard + HIL anchor hover previews to unify request/cancel/error handling.
 
 ## 3. Large-file Decomposition
 - [ ] 3.1 Decompose `apps/editor/renderer/src/App.tsx` into domain controllers/hooks while preserving integration props.
@@ -17,11 +19,14 @@
 - [ ] 3.6 Decompose `apps/editor/renderer/src/components/hil/HilCommentsPanel.tsx` by splitting comments panel and promote modal.
 - [ ] 3.7 Decompose `apps/editor/renderer/src/components/workbench/WorkbenchPane.tsx` into loading/sync/command modules.
 - [ ] 3.8 Decompose `apps/editor/renderer/src/components/QuickActionsView.tsx` into profile/binding/capture modules.
+- [ ] 3.9 Decompose `apps/editor/renderer/src/components/terminal/useTerminalRuntimeEffect.ts` into focused runtime sub-hooks/utilities (linking, selection-mode arbitration, resize/activity sync).
+- [ ] 3.10 Decompose `apps/editor/renderer/src/components/SessionReplyPanel.tsx` into composer/history/routing modules and move shared helpers into reusable utilities.
 
 ## 4. Validation
 - [ ] 4.1 Typecheck passes for renderer/electron.
 - [ ] 4.2 Existing E2E and manual smoke paths for Agent Cells / Explorer / Terminal / Workbench / HIL remain valid.
 - [ ] 4.3 No user-visible behavior regressions in file open/reveal/import, terminal interaction, memo/promote, and quick actions.
+- [ ] 4.4 Add/refresh targeted unit tests for extracted shared modules (drop parser, preview loader, terminal/runtime helpers).
 
 ## 5. Bagakit Reuse Documentation (Required after refactor completion)
 - [ ] 5.1 Update `docs/notes-reusable-items-coding.md` for all newly introduced or changed reusable items.
