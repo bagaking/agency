@@ -1,0 +1,10 @@
+{
+  "name": "agency-workspace",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@9.15.1",
+  "scripts": {
+    "build:agency-data": "pnpm --filter @agency/agency-data run build",
+    "typecheck:agency-data": "pnpm --filter @agency/agency-data run typecheck"
+  }
+}

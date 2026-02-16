@@ -472,6 +472,38 @@ export const runActionSheetChecks = async (payload) => {
   return api.runActionSheetChecks(payload);
 };
 
+export const startDelivery = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.startDelivery) {
+    return null;
+  }
+  return api.startDelivery(payload);
+};
+
+export const confirmDelivery = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.confirmDelivery) {
+    return null;
+  }
+  return api.confirmDelivery(payload);
+};
+
+export const getDeliveryStatus = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.getDeliveryStatus) {
+    return null;
+  }
+  return api.getDeliveryStatus(payload);
+};
+
+export const getDeliveryTimeline = async (payload) => {
+  const api = getAgencyApi();
+  if (!api?.getDeliveryTimeline) {
+    return null;
+  }
+  return api.getDeliveryTimeline(payload);
+};
+
 export const startScreenshotCapture = async (payload) => {
   const api = getAgencyApi();
   if (!api?.startScreenshotCapture) {

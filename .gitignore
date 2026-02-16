@@ -67,6 +67,7 @@ logs
 # Node/Electron
 node_modules
 apps/**/dist
+pkg/**/dist
 apps/**/.vite
 apps/**/out
 apps/**/playwright-report

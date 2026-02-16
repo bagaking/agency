@@ -6,6 +6,7 @@ import { setupCaptureHandlers } from "../ipc/handlers/capture";
 import { setupCellHandlers } from "../ipc/handlers/cells";
 import { setupClipboardHandlers } from "../ipc/handlers/clipboard";
 import { setupCommentsHandlers } from "../ipc/handlers/comments";
+import { setupDeliveryHandlers } from "../ipc/handlers/delivery";
 import { setupExplorerHandlers } from "../ipc/handlers/explorer";
 import { setupFileInteractionHandlers } from "../ipc/handlers/fileInteraction";
 import { setupGatesHandlers } from "../ipc/handlers/gates";
@@ -62,6 +63,7 @@ const IPC_REGISTRATIONS: IpcRegistration[] = [
   withoutDeps(setupProjectHandlers),
   withoutDeps(setupClipboardHandlers),
   withoutDeps(setupCommentsHandlers),
+  withoutDeps(setupDeliveryHandlers),
   withoutDeps(setupHilHandlers),
   withoutDeps(setupCaptureHandlers),
   withoutDeps(setupActionSheetsHandlers),

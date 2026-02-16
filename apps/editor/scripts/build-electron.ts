@@ -41,6 +41,10 @@ function main(): void {
   fs.rmSync(outDir, { recursive: true, force: true });
 
   const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+  run(pnpmCommand, ["--filter", "@agency/agency-data", "run", "build"], {
+    cwd: projectRoot,
+    env: process.env,
+  });
   run(pnpmCommand, ["exec", "tsc", "-p", "tsconfig.electron.json"], {
     cwd: projectRoot,
     env: process.env,
