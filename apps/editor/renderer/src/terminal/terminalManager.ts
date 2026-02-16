@@ -1,5 +1,6 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { logRuntime, startTerminal } from '../services/agencyBridge';
 
 const terminals = new Map();
 
@@ -111,7 +112,7 @@ export const attachTerminal = ({ entry, container }) => {
     entry.opened = true;
     return true;
   } catch (error) {
-    window.agency?.logRuntime?.({
+    logRuntime({
       level: 'error',
       message: 'terminal attach failed',
       meta: {
@@ -140,12 +141,11 @@ export const ensureStarted = async ({ entry, payload }) => {
   if (entry.starting) {
     return entry.starting;
   }
-  if (!window.agency?.startTerminal) {
-    throw new Error('Terminal start is unavailable.');
-  }
-  entry.starting = window.agency
-    .startTerminal(payload)
-    .then(() => {
+  entry.starting = Promise.resolve(startTerminal(payload))
+    .then((result) => {
+      if (result == null) {
+        throw new Error('Terminal start is unavailable.');
+      }
       entry.started = true;
       entry.starting = null;
       return { started: true, didStart: true };
@@ -166,7 +166,7 @@ export const disposeTerminalEntry = ({ cellId, sessionId }) => {
   if (!entry) {
     return;
   }
-  window.agency?.logRuntime?.({
+  logRuntime({
     level: 'info',
     message: 'terminal disposed',
     meta: { cellId, sessionId },

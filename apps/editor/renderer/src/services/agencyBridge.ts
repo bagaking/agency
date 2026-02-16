@@ -39,6 +39,22 @@ export const logRuntime = async (payload) => {
   return api.logRuntime(payload);
 };
 
+export const writeTerminal = (payload) => {
+  const api = getAgencyApi();
+  if (!api?.writeTerminal) {
+    return null;
+  }
+  return api.writeTerminal(payload);
+};
+
+export const resizeTerminal = (payload) => {
+  const api = getAgencyApi();
+  if (!api?.resizeTerminal) {
+    return null;
+  }
+  return api.resizeTerminal(payload);
+};
+
 export const getUiState = async () => {
   const api = getAgencyApi();
   if (!api?.getUiState) {

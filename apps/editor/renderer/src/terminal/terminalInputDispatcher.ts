@@ -1,3 +1,5 @@
+import { materializeClipboard, writeTerminal } from '../services/agencyBridge';
+
 const MODIFIER_ALIASES = {
   cmd: 'meta',
   command: 'meta',
@@ -259,14 +261,17 @@ export const dispatchTerminalAction = async ({
   pasteTracker,
   pasteThrottleMs = 120,
 }) => {
-  if (!action || !cellId || !sessionId || !window.agency?.writeTerminal) {
+  if (!action || !cellId || !sessionId) {
     return false;
   }
   const sendData = (data) => {
     if (!data) {
       return false;
     }
-    window.agency.writeTerminal({ cellId, sessionId, data });
+    const sent = writeTerminal({ cellId, sessionId, data });
+    if (sent == null) {
+      return false;
+    }
     if (onActivity) {
       onActivity({ cellId, sessionId });
     }
@@ -279,7 +284,7 @@ export const dispatchTerminalAction = async ({
     return sendData(payload);
   }
   if (actionType === 'pasteFiles') {
-    if (!window.agency?.materializeClipboard || !worktreePath) {
+    if (!worktreePath) {
       logRuntime?.({
         level: 'warn',
         message: 'terminal paste unavailable',
@@ -295,7 +300,7 @@ export const dispatchTerminalAction = async ({
       pasteTracker.current = now;
     }
     try {
-      const result = await window.agency.materializeClipboard({
+      const result = await materializeClipboard({
         rootPath: worktreePath,
         targetDir: '.agency/tmp',
         includeText: true,
