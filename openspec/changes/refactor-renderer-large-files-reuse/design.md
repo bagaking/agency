@@ -82,6 +82,15 @@ Every extracted reusable item (component/hook/mechanism) must be cataloged or up
 
 If an item is deprecated/replaced, the catalog entry must include replacement/migration notes.
 
+### Decision 6: Complexity guardrail for module splits
+Decomposition should reduce complexity, not create file-system noise.
+
+Guardrails:
+- Prefer same-folder extraction for one-off helpers tightly coupled to a component.
+- Create a dedicated subfolder only when at least two sibling modules share a stable sub-domain boundary.
+- Prioritize readable naming and call-site clarity over maximal granularity.
+- Apply bridge normalization in medium-sized/high-churn files too, but avoid directory fan-out when behavior remains localized.
+
 ## Risks / Trade-offs
 - Risk: abstraction churn with too many tiny modules.
   - Mitigation: enforce feature-owned folders and minimum cohesion bar.

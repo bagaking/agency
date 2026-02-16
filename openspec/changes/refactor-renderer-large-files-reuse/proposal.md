@@ -26,6 +26,7 @@ A focused audit of the current large-file list shows recurring quality and reuse
 - Extract reusable modules first (shared utility/hook/component) before file-local splitting.
 - Route renderer-main interactions through bridge services instead of direct `window.agency` in React components/high-churn hooks.
 - Consolidate duplicated drag-drop parsing and file-preview loading behavior into shared reusable modules.
+- Add a bridge-hygiene sweep for medium renderer modules that still call `window.agency` directly (`useWorktreeLinks`, `CreateCellModal`, `QuickOpenModal`, Session Map debug logging), while avoiding unnecessary one-file-per-folder extraction.
 - Keep feature behavior unchanged (refactor-only scope).
 - After refactor completion, update Bagakit reusable catalog docs for all new/changed reusable items.
 

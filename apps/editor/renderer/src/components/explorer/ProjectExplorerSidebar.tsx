@@ -19,7 +19,12 @@ import {
   readExternalDropPaths as readDroppedExternalPaths,
 } from '../../utils/externalDropPaths';
 import { useFileSnippetPreview } from '../../hooks/useFileSnippetPreview';
-import { getPathForDroppedFile } from '../../services/agencyBridge';
+import {
+  getPathForDroppedFile,
+  isAgencyMethodAvailable,
+  materializeClipboard,
+  materializeMarkdown,
+} from '../../services/agencyBridge';
 
 const ROW_HEIGHT = 24;
 const OVERSCAN = 6;
@@ -573,7 +578,7 @@ function ProjectExplorerSidebarContent({
   const activeDir = activeNode?.type === 'dir' ? activeTarget : explorerPathUtils.dirname(activeTarget);
   const selectionTargets = selectedPaths.length ? selectedPaths : activeTarget ? [activeTarget] : [];
   const selectionCount = selectionTargets.length;
-  const canPaste = (clipboard?.paths?.length > 0) || Boolean(window.agency?.materializeClipboard);
+  const canPaste = clipboard?.paths?.length > 0 || isAgencyMethodAvailable('materializeClipboard');
 
   const resolvePasteDirectory = () => {
     if (!activeTarget) return '';
@@ -586,9 +591,14 @@ function ProjectExplorerSidebarContent({
   const handlePasteSelection = async () => {
     const baseRoot = rootPath || repoRoot || '';
     const targetDir = resolvePasteDirectory();
-    if (window.agency?.materializeClipboard && baseRoot) {
+    if (baseRoot && isAgencyMethodAvailable('materializeClipboard')) {
       try {
-        const result = await window.agency.materializeClipboard({ rootPath: baseRoot, targetDir, includeText: false, relativeTo: baseRoot });
+        const result = await materializeClipboard({
+          rootPath: baseRoot,
+          targetDir,
+          includeText: false,
+          relativeTo: baseRoot,
+        });
         if (result?.type === 'files' || result?.type === 'image') {
           if (targetDir) expandPath(targetDir);
           await refreshAll();
@@ -629,9 +639,13 @@ function ProjectExplorerSidebarContent({
 
   const handlePasteMarkdown = async () => {
     const baseRoot = rootPath || repoRoot || '';
-    if (!baseRoot || !window.agency?.materializeMarkdown) return;
+    if (!baseRoot || !isAgencyMethodAvailable('materializeMarkdown')) return;
     try {
-      const result = await window.agency.materializeMarkdown({ rootPath: baseRoot, targetDir: '.agency/tmp/clipboard', relativeTo: baseRoot });
+      const result = await materializeMarkdown({
+        rootPath: baseRoot,
+        targetDir: '.agency/tmp/clipboard',
+        relativeTo: baseRoot,
+      });
       let didOpen = true;
       if (result?.path) {
         const normalizedPath = explorerPathUtils.toRelativePath(result.path);

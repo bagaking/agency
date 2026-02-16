@@ -4,7 +4,7 @@ required: true
 sop:
   - Read docs/must-guidebook.md before working.
   - Use pnpm for workspace dependencies and keep pnpm-lock.yaml committed.
-  - Renderer IPC must go through apps/editor/renderer/src/services/agencyBridge.js.
+  - Renderer IPC must go through apps/editor/renderer/src/services/agencyBridge.ts.
   - Avoid direct window.agency usage in React components.
   - When changing voice input, rescore behavior, or language handling, update docs/notes-voice-input.md.
   - Keep code DRY and SOLID; refactor files over 800 lines.
@@ -36,5 +36,5 @@ This document collects core engineering norms that must stay aligned with projec
 - When adding new renderer actions, ensure a safe fallback path or a clear error message in logs.
 
 ## Renderer IPC Access
-- Centralize renderer-main IPC calls in `apps/editor/renderer/src/services/agencyBridge.js`.
+- Centralize renderer-main IPC calls in `apps/editor/renderer/src/services/agencyBridge.ts`.
 - Avoid direct `window.agency` usage in React components; route through the bridge for consistency and easier testing.

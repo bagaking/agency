@@ -1,4 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
+import {
+  applyAllWorktreeLinks,
+  applyWorktreeLink,
+  getWorktreeLinks,
+  isAgencyMethodAvailable,
+  setWorktreeLinks,
+} from '../services/agencyBridge';
 
 const generateLinkId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -20,7 +27,7 @@ export function useWorktreeLinks({ selectedCell, cells, projectRoot }) {
 
   const loadWorktreeLinks = useCallback(
     async ({ preserveEdits = false } = {}) => {
-      if (!window.agency?.getWorktreeLinks) {
+      if (!isAgencyMethodAvailable('getWorktreeLinks')) {
         return;
       }
       if (!projectRoot) {
@@ -37,7 +44,7 @@ export function useWorktreeLinks({ selectedCell, cells, projectRoot }) {
       setLoading(true);
       setError('');
       try {
-        const summary = await window.agency.getWorktreeLinks({
+        const summary = await getWorktreeLinks({
           rootPath: projectRoot,
           worktreePath: selectedCell?.worktreePath,
           worktreePaths: (cells || []).map((cell) => cell.worktreePath).filter(Boolean),
@@ -78,13 +85,18 @@ export function useWorktreeLinks({ selectedCell, cells, projectRoot }) {
   }, []);
 
   const persistWorktreeLinks = useCallback(async () => {
-    const saved = await window.agency.setWorktreeLinks({
+    if (!isAgencyMethodAvailable('setWorktreeLinks')) {
+      return null;
+    }
+    const saved = await setWorktreeLinks({
       rootPath: projectRoot,
       autoLinkOnCreate,
       links,
     });
-    setLinks(Array.isArray(saved?.links) ? saved.links : []);
-    setAutoLinkOnCreate(Boolean(saved?.autoLinkOnCreate));
+    if (saved) {
+      setLinks(Array.isArray(saved?.links) ? saved.links : []);
+      setAutoLinkOnCreate(Boolean(saved?.autoLinkOnCreate));
+    }
     setDirty(false);
     return saved;
   }, [autoLinkOnCreate, links, projectRoot]);
@@ -141,7 +153,7 @@ export function useWorktreeLinks({ selectedCell, cells, projectRoot }) {
   );
 
   const saveLinks = useCallback(async () => {
-    if (!window.agency?.setWorktreeLinks) {
+    if (!isAgencyMethodAvailable('setWorktreeLinks')) {
       return;
     }
     if (!projectRoot) {
@@ -163,7 +175,7 @@ export function useWorktreeLinks({ selectedCell, cells, projectRoot }) {
   const applyLink = useCallback(
     async (linkId, options: any = {}) => {
       const targetPath = options.worktreePath || selectedCell?.worktreePath;
-      if (!targetPath || !window.agency?.applyWorktreeLink) {
+      if (!targetPath || !isAgencyMethodAvailable('applyWorktreeLink')) {
         return;
       }
       setLoading(true);
@@ -172,7 +184,7 @@ export function useWorktreeLinks({ selectedCell, cells, projectRoot }) {
         if (dirty) {
           await persistWorktreeLinks();
         }
-        await window.agency.applyWorktreeLink({
+        await applyWorktreeLink({
           rootPath: projectRoot,
           worktreePath: targetPath,
           linkId,
@@ -190,7 +202,7 @@ export function useWorktreeLinks({ selectedCell, cells, projectRoot }) {
   const applyAll = useCallback(
     async (options: any = {}) => {
       const targetPath = options.worktreePath || selectedCell?.worktreePath;
-      if (!targetPath || !window.agency?.applyAllWorktreeLinks) {
+      if (!targetPath || !isAgencyMethodAvailable('applyAllWorktreeLinks')) {
         return;
       }
       setLoading(true);
@@ -199,7 +211,7 @@ export function useWorktreeLinks({ selectedCell, cells, projectRoot }) {
         if (dirty) {
           await persistWorktreeLinks();
         }
-        const results = await window.agency.applyAllWorktreeLinks({
+        const results = await applyAllWorktreeLinks({
           rootPath: projectRoot,
           worktreePath: targetPath,
         });

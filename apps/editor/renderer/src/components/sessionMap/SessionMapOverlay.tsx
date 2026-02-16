@@ -16,6 +16,7 @@ import {
   ROW_TOP_TOLERANCE,
 } from './sessionMapConstants';
 import { hashSeed } from './sessionMapUtils';
+import { logRuntime } from '../../services/agencyBridge';
 
 export function SessionMapOverlay({
   open,
@@ -55,7 +56,7 @@ export function SessionMapOverlay({
         return;
       }
       console.log(`[SessionMapHover] ${label}`, payload);
-      window.agency?.logRuntime?.({
+      logRuntime({
         level: 'info',
         message: `SessionMapHover:${label}`,
         meta: payload,

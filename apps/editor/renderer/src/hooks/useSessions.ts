@@ -3,6 +3,17 @@ import { disposeTerminalEntry } from '../terminal/terminalManager';
 import { pickSessionAvatarId } from '../utils/agentAvatar';
 import { BASELINE_PROFILE_ID } from '../utils/terminusSettings';
 import {
+  closeSession as closeSessionBridge,
+  createSession as createSessionBridge,
+  detachSession as detachSessionBridge,
+  disposeTerminal as disposeTerminalBridge,
+  isAgencyMethodAvailable,
+  listSessions as listSessionsBridge,
+  renameSession as renameSessionBridge,
+  updateSessionMeta as updateSessionMetaBridge,
+  writeTerminal as writeTerminalBridge,
+} from '../services/agencyBridge';
+import {
   ACTIVITY_BOOTSTRAP_THRESHOLD_MS,
   ATTACH_ACTIVITY_GRACE_MS,
   DEFAULT_FONT_SIZE,
@@ -113,7 +124,7 @@ export function useSessions(options: any = {}) {
 
   const loadSessionsForCell = useCallback(
     async (cell, { silent = false } = {}) => {
-      if (!cell || !window.agency?.listSessions) {
+      if (!cell || !isAgencyMethodAvailable('listSessions')) {
         return;
       }
       const selectionVersion = selectionVersionRef.current;
@@ -134,9 +145,12 @@ export function useSessions(options: any = {}) {
         setSessionError('');
       }
       try {
-        let nextSessions = await window.agency.listSessions({ worktreePath: cell.worktreePath });
-        if (nextSessions.length === 0 && window.agency?.createSession) {
-          const created = await window.agency.createSession({
+        let nextSessions = await listSessionsBridge({ worktreePath: cell.worktreePath });
+        if (!Array.isArray(nextSessions)) {
+          nextSessions = [];
+        }
+        if (nextSessions.length === 0 && isAgencyMethodAvailable('createSession')) {
+          const created = await createSessionBridge({
             cellId: cell.id,
             worktreePath: cell.worktreePath,
             name: 'Default',
@@ -270,14 +284,14 @@ export function useSessions(options: any = {}) {
   }, []);
 
   const sendSessionText = useCallback(({ cellId, sessionId, text }) => {
-    if (!cellId || !sessionId || !window.agency?.writeTerminal) {
+    if (!cellId || !sessionId || !isAgencyMethodAvailable('writeTerminal')) {
       return false;
     }
     const payload = normalizeTerminalText(text);
     if (!payload) {
       return false;
     }
-    window.agency.writeTerminal({ cellId, sessionId, data: payload });
+    writeTerminalBridge({ cellId, sessionId, data: payload });
     return true;
   }, []);
 
@@ -324,7 +338,7 @@ export function useSessions(options: any = {}) {
     async (cellInput, options: any = {}) => {
       const targetCell =
         cellInput && typeof cellInput === 'object' ? cellInput : resolveCell(cellInput);
-      if (!targetCell || !window.agency?.createSession) {
+      if (!targetCell || !isAgencyMethodAvailable('createSession')) {
         return null;
       }
       const shouldOpenTerminal = targetCell.id === selectedCell?.id;
@@ -341,7 +355,7 @@ export function useSessions(options: any = {}) {
         const { name, sessionId, profileId, avatar } = options || {};
         const preferredAvatar =
           avatar || pickSessionAvatarId(sessionsByCellId[targetCell.id] || []);
-        const created = await window.agency.createSession({
+        const created = await createSessionBridge({
           cellId: targetCell.id,
           worktreePath: targetCell.worktreePath,
           name: name || undefined,
@@ -404,17 +418,17 @@ export function useSessions(options: any = {}) {
   const closeSession = useCallback(
     async (sessionId, cellIdOverride) => {
       const targetCell = resolveCell(cellIdOverride) || selectedCell;
-      if (!targetCell || !window.agency?.closeSession) {
+      if (!targetCell || !isAgencyMethodAvailable('closeSession')) {
         return;
       }
       setSessionLoading(true);
       setSessionError('');
       try {
-        await window.agency.closeSession({
+        await closeSessionBridge({
           worktreePath: targetCell.worktreePath,
           sessionId,
         });
-        window.agency?.disposeTerminal?.({ cellId: targetCell.id, sessionId });
+        disposeTerminalBridge({ cellId: targetCell.id, sessionId });
         disposeTerminalEntry({ cellId: targetCell.id, sessionId });
         await loadSessionsForCell(targetCell);
       } catch (error) {
@@ -429,17 +443,17 @@ export function useSessions(options: any = {}) {
   const detachSession = useCallback(
     async (sessionId, cellIdOverride) => {
       const targetCell = resolveCell(cellIdOverride) || selectedCell;
-      if (!targetCell || !window.agency?.detachSession) {
+      if (!targetCell || !isAgencyMethodAvailable('detachSession')) {
         return;
       }
       setSessionLoading(true);
       setSessionError('');
       try {
-        await window.agency.detachSession({
+        await detachSessionBridge({
           worktreePath: targetCell.worktreePath,
           sessionId,
         });
-        window.agency?.disposeTerminal?.({ cellId: targetCell.id, sessionId });
+        disposeTerminalBridge({ cellId: targetCell.id, sessionId });
         disposeTerminalEntry({ cellId: targetCell.id, sessionId });
         await loadSessionsForCell(targetCell);
       } catch (error) {
@@ -454,13 +468,13 @@ export function useSessions(options: any = {}) {
   const renameSession = useCallback(
     async (sessionId, name, cellIdOverride) => {
       const targetCell = resolveCell(cellIdOverride) || selectedCell;
-      if (!targetCell || !window.agency?.renameSession) {
+      if (!targetCell || !isAgencyMethodAvailable('renameSession')) {
         return;
       }
       setSessionLoading(true);
       setSessionError('');
       try {
-        await window.agency.renameSession({
+        await renameSessionBridge({
           worktreePath: targetCell.worktreePath,
           sessionId,
           name,
@@ -478,13 +492,13 @@ export function useSessions(options: any = {}) {
   const updateSessionAvatar = useCallback(
     async (sessionId, avatar, cellIdOverride) => {
       const targetCell = resolveCell(cellIdOverride) || selectedCell;
-      if (!targetCell || !window.agency?.updateSessionMeta) {
+      if (!targetCell || !isAgencyMethodAvailable('updateSessionMeta')) {
         return;
       }
       setSessionLoading(true);
       setSessionError('');
       try {
-        const updated = await window.agency.updateSessionMeta({
+        const updated = await updateSessionMetaBridge({
           worktreePath: targetCell.worktreePath,
           sessionId,
           avatar,
@@ -570,14 +584,14 @@ export function useSessions(options: any = {}) {
           setSessionError(tmuxStatus.error || 'tmux is required. Install tmux and try again.');
           return;
         }
-        if (!window.agency?.createSession) {
+        if (!isAgencyMethodAvailable('createSession')) {
           return;
         }
         setSessionLoading(true);
         setSessionError('');
         try {
           const preferredAvatar = pickSessionAvatarId(sessionsByCellId[targetCell.id] || []);
-          const created = await window.agency.createSession({
+          const created = await createSessionBridge({
             cellId: targetCell.id,
             worktreePath: worktreePath || targetCell.worktreePath,
             name: label ? `CLI - ${label}` : 'CLI',

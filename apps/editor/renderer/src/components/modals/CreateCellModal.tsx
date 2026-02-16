@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, FolderTree, GitBranch, Info } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
 import { focusRing } from '../ui/focusRing';
+import { isAgencyMethodAvailable, listWorktrees } from '../../services/agencyBridge';
 
 const branchStrategies = [
   { value: 'feat', label: 'feat', hint: 'New feature work' },
@@ -63,12 +64,12 @@ export function CreateCellModal({ onClose, onCreate }: any) {
 
   useEffect(() => {
     const loadWorktrees = async () => {
-      if (!window.agency?.listWorktrees) {
+      if (!isAgencyMethodAvailable('listWorktrees')) {
         return;
       }
       try {
-        const items = await window.agency.listWorktrees();
-        setWorktrees(items);
+        const items = await listWorktrees();
+        setWorktrees(Array.isArray(items) ? items : []);
       } catch (error) {
         console.error(error);
       }

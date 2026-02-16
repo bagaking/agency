@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, X } from 'lucide-react';
+import { isAgencyMethodAvailable, searchExplorerFiles } from '../../services/agencyBridge';
 
 export function QuickOpenModal({ open, onClose, onSelect, rootPath }: any) {
   const [query, setQuery] = useState('');
@@ -24,12 +25,12 @@ export function QuickOpenModal({ open, onClose, onSelect, rootPath }: any) {
         setResults([]);
         return;
       }
-      if (!window.agency?.searchExplorerFiles) {
+      if (!isAgencyMethodAvailable('searchExplorerFiles')) {
         return;
       }
       setLoading(true);
       try {
-        const result = await window.agency.searchExplorerFiles({
+        const result = await searchExplorerFiles({
           query: query.trim(),
           rootPath: rootPath || undefined,
         });

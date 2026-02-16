@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
-import { isAgencyAvailable } from '../../services/agencyBridge';
+import { isAgencyAvailable, logRuntime } from '../../services/agencyBridge';
 import {
   getCachedSessionMapPreview,
   primeSessionMapPreview,
@@ -65,7 +65,7 @@ export function SessionMapTerminalPreview({
         return;
       }
       console.log(`[SessionMapPreview] ${label}`, payload);
-      window.agency?.logRuntime?.({
+      logRuntime({
         level: 'info',
         message: `SessionMapPreview:${label}`,
         meta: payload,

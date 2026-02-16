@@ -33,7 +33,7 @@ Source: `docs/guidelines-ui-components.md`
 Source: `docs/norms-dev.md`
 - Read docs/must-guidebook.md before working.
 - Use pnpm for workspace dependencies and keep pnpm-lock.yaml committed.
-- Renderer IPC must go through apps/editor/renderer/src/services/agencyBridge.js.
+- Renderer IPC must go through apps/editor/renderer/src/services/agencyBridge.ts.
 - Avoid direct window.agency usage in React components.
 - When changing voice input, rescore behavior, or language handling, update docs/notes-voice-input.md.
 - Keep code DRY and SOLID; refactor files over 800 lines.
