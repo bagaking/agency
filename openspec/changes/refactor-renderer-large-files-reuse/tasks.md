@@ -27,7 +27,7 @@
 - [x] 3.10 Decompose `apps/editor/renderer/src/components/SessionReplyPanel.tsx` into composer/history/routing modules and move shared helpers into reusable utilities.
 
 ## 4. Validation
-- [ ] 4.1 Typecheck passes for renderer/electron.
+- [x] 4.1 Typecheck passes for renderer/electron.
 - [ ] 4.2 Existing E2E and manual smoke paths for Agent Cells / Explorer / Terminal / Workbench / HIL remain valid.
 - [ ] 4.3 No user-visible behavior regressions in file open/reveal/import, terminal interaction, memo/promote, and quick actions.
 - [ ] 4.4 Add/refresh targeted unit tests for extracted shared modules (drop parser, preview loader, terminal/runtime helpers).
