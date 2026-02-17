@@ -54,6 +54,8 @@ This is a project-local catalog of reusable engineering assets. The goal is disc
 | Debug flags (`DEBUG_FLAGS`) | MUST | Dev-only debug toggles for UI/IPC flows; avoid ad-hoc localStorage keys. | `apps/editor/renderer/src/utils/debugFlags.ts` |
 | Session preview memory cache | MUST | Hover preview warmup + memory-first rendering; avoids disk on first hover. | `apps/editor/renderer/src/services/sessionMapPreviewCache.ts` |
 | Session runtime helper module | MUST | Share session key/filter/activity/font/terminal-text helper logic across hooks and TS migration seams. | `apps/editor/renderer/src/hooks/shared/sessionRuntime.ts` |
+| Line endings normalization helpers | SHOULD | Normalize preview/newline payloads consistently across Terminal + Session Map preview surfaces without duplicating regexes. | `apps/editor/renderer/src/utils/lineEndings.ts` |
+| Terminal activity diff helpers | SHOULD | Compare terminal buffer snapshots and threshold-detect activity changes for previews/idle tracking without copy-pasting diff math. | `apps/editor/renderer/src/utils/terminalActivityDiff.ts` |
 | Voice runtime helper module | MUST | Share language normalization, speech error mapping, permission-kind classification, and SpeechRecognition detection logic. | `apps/editor/renderer/src/hooks/shared/voiceRuntime.ts` |
 | Session Reply Relay | MUST | Session-side reply capture, routing, and asset storage for cross-agent comms. | `apps/editor/renderer/src/components/SessionReplyPanel.tsx` |
 

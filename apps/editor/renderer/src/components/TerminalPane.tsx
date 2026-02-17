@@ -28,11 +28,15 @@ import {
 } from '../services/sessionMapPreviewCache';
 import { AgentAvatarBadge } from './ui/AgentAvatarBadge';
 import { resolveAvatarId } from '../utils/agentAvatar';
+import { normalizeLineEndingsToLf } from '../utils/lineEndings';
+import {
+  DEFAULT_ACTIVITY_DIFF_THRESHOLD,
+  countDiffChars,
+  getBufferSnapshot,
+  resolveActivityDiffThreshold,
+} from '../utils/terminalActivityDiff';
 import { PREVIEW_LINES } from './sessionMap/sessionMapConstants';
 import { useTerminalRuntimeEffect } from './terminal/useTerminalRuntimeEffect';
-
-const normalizePreviewData = (value) =>
-  String(value || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
 const normalizeSelectionText = (value) =>
   String(value || '')
@@ -40,66 +44,8 @@ const normalizeSelectionText = (value) =>
     .replace(/\r/g, '\n')
     .replace(/\n/g, '\r');
 
-const DEFAULT_ACTIVITY_DIFF_THRESHOLD = 12;
 const TRAILING_PATH_PUNCTUATION = /[.,;:!?)}\]。，；：！？）】》」』、]+$/;
 const PATH_REGEX = /(^|[^A-Za-z0-9_@./~+-])([A-Za-z0-9_@./~+-]+\/[A-Za-z0-9_@./~+-]+\.[A-Za-z0-9]+(?::\d+(?::\d+)?)?)/g;
-
-const normalizeActivitySnapshot = (value) =>
-  String(value || '')
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
-    .trimEnd();
-
-const resolveActivityThreshold = (value) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    return DEFAULT_ACTIVITY_DIFF_THRESHOLD;
-  }
-  return Math.max(1, Math.floor(parsed));
-};
-
-const countDiffChars = (prev, next, limit) => {
-  if (prev === next) {
-    return 0;
-  }
-  const left = String(prev || '');
-  const right = String(next || '');
-  const leftLen = left.length;
-  const rightLen = right.length;
-  const minLen = Math.min(leftLen, rightLen);
-  let diff = Math.abs(leftLen - rightLen);
-  const cap = Number.isFinite(limit) ? limit : Infinity;
-  for (let i = 0; i < minLen && diff <= cap; i += 1) {
-    if (left[i] !== right[i]) {
-      diff += 1;
-    }
-  }
-  return diff;
-};
-
-const getBufferSnapshot = (terminal, lines) => {
-  const buffer = terminal?.buffer?.active;
-  if (!terminal || !buffer) {
-    return '';
-  }
-  const maxLines = Number.isFinite(lines) ? Math.max(1, Math.floor(lines)) : 90;
-  const start = Math.max(0, buffer.length - maxLines);
-  const output = [];
-  for (let i = start; i < buffer.length; i += 1) {
-    const line = buffer.getLine(i);
-    if (!line) {
-      output.push('');
-      continue;
-    }
-    const text = line.translateToString(true);
-    if (line.isWrapped && output.length) {
-      output[output.length - 1] += text;
-    } else {
-      output.push(text);
-    }
-  }
-  return normalizeActivitySnapshot(output.join('\n'));
-};
 
 const stripTrailingPunctuation = (value) => {
   const trimmed = String(value || '').trimEnd();
@@ -406,7 +352,7 @@ function TerminalPane({
   }, [isActive]);
 
   useEffect(() => {
-    activityThresholdRef.current = resolveActivityThreshold(activityDiffThreshold);
+    activityThresholdRef.current = resolveActivityDiffThreshold(activityDiffThreshold);
   }, [activityDiffThreshold]);
 
   useEffect(() => {
@@ -580,7 +526,7 @@ function TerminalPane({
     let canceled = false;
     const cached = getCachedSessionMapPreview({ worktreePath, cellId, sessionId });
     if (cached?.data) {
-      setPreviewData(normalizePreviewData(cached.data));
+      setPreviewData(normalizeLineEndingsToLf(cached.data));
     } else {
       setPreviewData('');
     }
@@ -596,7 +542,7 @@ function TerminalPane({
           return;
         }
         if (result?.data) {
-          setPreviewData(normalizePreviewData(result.data));
+          setPreviewData(normalizeLineEndingsToLf(result.data));
         }
       })
       .catch(() => {});

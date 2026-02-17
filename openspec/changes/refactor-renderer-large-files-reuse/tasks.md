@@ -6,7 +6,7 @@
 - [x] 2.1 Extract shared external drop-path parser utility and migrate Agent Cells + Explorer to it.
 - [x] 2.2 Extract shared file-dashboard preview loading hook and migrate Agent Cells + Explorer changed-files panel.
 - [x] 2.3 Add renderer bridge adapters for terminal/workbench/HIL snippet flows and migrate direct component calls.
-- [ ] 2.4 Add/align shared helper utilities for repeated activity-diff and preview-normalization logic where applicable.
+- [x] 2.4 Add/align shared helper utilities for repeated activity-diff and preview-normalization logic where applicable.
 - [x] 2.5 Add renderer bridge adapters for Explorer clipboard/materialize flows and remove direct `window.agency` usage in `ProjectExplorerSidebar`.
 - [x] 2.6 Extract a shared file-snippet preview loader for dashboard + HIL anchor hover previews to unify request/cancel/error handling.
 - [x] 2.7 Add missing Explorer bridge adapters (root/status/list/watch) and migrate `useProjectExplorer` away from direct `window.agency` usage.

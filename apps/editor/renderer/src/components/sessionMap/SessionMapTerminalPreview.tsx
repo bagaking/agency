@@ -22,9 +22,8 @@ import {
   PREVIEW_SCROLLBACK,
   PREVIEW_TARGET_WIDTH,
 } from './sessionMapConstants';
+import { normalizeLineEndingsToCrlf } from '../../utils/lineEndings';
 
-const normalizePreviewData = (value) =>
-  String(value || '').replace(/\r?\n/g, '\r\n');
 const USE_LOCAL_SNAPSHOT = false;
 
 export function SessionMapTerminalPreview({
@@ -210,7 +209,7 @@ export function SessionMapTerminalPreview({
       if (!payload) {
         return false;
       }
-      const normalized = normalizePreviewData(payload.data);
+      const normalized = normalizeLineEndingsToCrlf(payload.data);
       if (!normalized) {
         return false;
       }
@@ -473,7 +472,7 @@ export function SessionMapTerminalPreview({
         if (!active) {
           return;
         }
-        const nextData = normalizePreviewData(result?.data);
+        const nextData = normalizeLineEndingsToCrlf(result?.data);
         if (!nextData) {
           logDebug('ipc-preview-empty', { cellId: cell.id, sessionId: session.id });
           return;
