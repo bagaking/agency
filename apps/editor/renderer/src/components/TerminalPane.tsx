@@ -31,18 +31,9 @@ import { resolveAvatarId } from '../utils/agentAvatar';
 import { normalizeLineEndingsToLf } from '../utils/lineEndings';
 import {
   DEFAULT_ACTIVITY_DIFF_THRESHOLD,
-  countDiffChars,
-  getBufferSnapshot,
   resolveActivityDiffThreshold,
 } from '../utils/terminalActivityDiff';
-import {
-  buildTerminalSelectionSite,
-  findTerminalPathMatches,
-  formatTerminalSelectionTime,
-  normalizeTerminalSelectionText,
-  stripTrailingPathPunctuation,
-  writeSelectionToClipboard,
-} from '../utils/terminalSelection';
+import { normalizeTerminalSelectionText } from '../utils/terminalSelection';
 import { PREVIEW_LINES } from './sessionMap/sessionMapConstants';
 import { useTerminalRuntimeEffect } from './terminal/useTerminalRuntimeEffect';
 
@@ -392,13 +383,6 @@ function TerminalPane({
     onTerminalDataSubscribe: onTerminalData,
     onTerminalErrorSubscribe: onTerminalError,
     setSessionMouse,
-    stripTrailingPunctuation: stripTrailingPathPunctuation,
-    findPathMatches: findTerminalPathMatches,
-    buildSelectionSite: buildTerminalSelectionSite,
-    formatSelectionTime: formatTerminalSelectionTime,
-    writeSelectionToClipboard,
-    getBufferSnapshot,
-    countDiffChars,
   });
 
 
