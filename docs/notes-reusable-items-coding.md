@@ -18,6 +18,7 @@ This is a project-local catalog of reusable engineering assets. The goal is disc
 | `AvatarPickerMenu` | MUST | Avatar selection UI with recents/active handling. | `apps/editor/renderer/src/components/ui/AvatarPickerMenu.tsx` |
 | `AgentAvatarBadge` | MUST | Avatar rendering with idle/closed rings; use for all avatar displays. | `apps/editor/renderer/src/components/ui/AgentAvatarBadge.tsx` |
 | `FileDashboardList` | SHOULD | Render Agent Cells + Explorer changed-files dashboards with Flat/Tree, open/reveal/preview, and drag-start affordances. | `apps/editor/renderer/src/components/fileDashboard/FileDashboardList.tsx` |
+| `QuickActionProfileCard` / `QuickActionBindingCard` | SHOULD | Build Terminus profile + shortcut editors with consistent override/reset/capture UX instead of one-off inline card markup. | `apps/editor/renderer/src/components/quickActions/QuickActionProfileCard.tsx`, `apps/editor/renderer/src/components/quickActions/QuickActionBindingCard.tsx`, `apps/editor/renderer/src/components/quickActions/quickActionsShared.ts` |
 
 ## Reusable Libraries / Packages
 | Item | Must/Nice | When to Use | Source of Truth |
