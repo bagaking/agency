@@ -35,130 +35,16 @@ import {
   getBufferSnapshot,
   resolveActivityDiffThreshold,
 } from '../utils/terminalActivityDiff';
+import {
+  buildTerminalSelectionSite,
+  findTerminalPathMatches,
+  formatTerminalSelectionTime,
+  normalizeTerminalSelectionText,
+  stripTrailingPathPunctuation,
+  writeSelectionToClipboard,
+} from '../utils/terminalSelection';
 import { PREVIEW_LINES } from './sessionMap/sessionMapConstants';
 import { useTerminalRuntimeEffect } from './terminal/useTerminalRuntimeEffect';
-
-const normalizeSelectionText = (value) =>
-  String(value || '')
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
-    .replace(/\n/g, '\r');
-
-const TRAILING_PATH_PUNCTUATION = /[.,;:!?)}\]。，；：！？）】》」』、]+$/;
-const PATH_REGEX = /(^|[^A-Za-z0-9_@./~+-])([A-Za-z0-9_@./~+-]+\/[A-Za-z0-9_@./~+-]+\.[A-Za-z0-9]+(?::\d+(?::\d+)?)?)/g;
-
-const stripTrailingPunctuation = (value) => {
-  const trimmed = String(value || '').trimEnd();
-  return trimmed.replace(TRAILING_PATH_PUNCTUATION, '');
-};
-
-const findPathMatches = (value) => {
-  const text = String(value || '');
-  const matches = [];
-  PATH_REGEX.lastIndex = 0;
-  let match = PATH_REGEX.exec(text);
-  while (match) {
-    const prefix = match[1] || '';
-    const raw = match[2] || '';
-    const startIndex = match.index + prefix.length;
-    const cleaned = stripTrailingPunctuation(raw);
-    if (cleaned) {
-      matches.push({
-        raw,
-        text: cleaned,
-        startIndex,
-      });
-    }
-    match = PATH_REGEX.exec(text);
-  }
-  return matches;
-};
-
-const formatSelectionTime = (timestamp) => {
-  if (!timestamp) {
-    return '';
-  }
-  const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
-  const pad = (value) => String(value).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(
-    date.getHours()
-  )}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-};
-
-const buildSelectionSite = (terminal, position) => {
-  if (!terminal || !position) {
-    return '';
-  }
-  const buffer = terminal.buffer?.active;
-  if (!buffer) {
-    return '';
-  }
-  let start = position.start || null;
-  let end = position.end || null;
-  if (!start || !end) {
-    return '';
-  }
-  if (end.y < start.y || (end.y === start.y && end.x < start.x)) {
-    [start, end] = [end, start];
-  }
-  const lines = [];
-  for (let row = start.y; row <= end.y; row += 1) {
-    const line = buffer.getLine(row);
-    const text = line ? line.translateToString(true) : '';
-    if (!text) {
-      lines.push('');
-      continue;
-    }
-    const clamp = (value) => Math.max(0, Math.min(text.length, value));
-    const wrap = (value, from, to) => {
-      if (from >= to) {
-        return value;
-      }
-      return `${value.slice(0, from)}\`${value.slice(from, to)}\`${value.slice(to)}`;
-    };
-    if (start.y === end.y) {
-      const from = clamp(start.x);
-      const to = clamp(end.x);
-      lines.push(wrap(text, from, to));
-      continue;
-    }
-    if (row === start.y) {
-      const from = clamp(start.x);
-      lines.push(wrap(text, from, text.length));
-      continue;
-    }
-    if (row === end.y) {
-      const to = clamp(end.x);
-      lines.push(wrap(text, 0, to));
-      continue;
-    }
-    lines.push(wrap(text, 0, text.length));
-  }
-  return lines.join('\n');
-};
-
-const writeSelectionToClipboard = async (selection) => {
-  if (!selection) {
-    return false;
-  }
-  if (navigator?.clipboard?.writeText) {
-    await navigator.clipboard.writeText(selection);
-    return true;
-  }
-  const textarea = document.createElement('textarea');
-  textarea.value = selection;
-  textarea.setAttribute('readonly', '');
-  textarea.style.position = 'fixed';
-  textarea.style.opacity = '0';
-  document.body.appendChild(textarea);
-  textarea.select();
-  const copied = document.execCommand('copy');
-  document.body.removeChild(textarea);
-  return copied;
-};
 
 function TerminalPane({
   cell,
@@ -320,7 +206,7 @@ function TerminalPane({
     onSendSessionText?.({
       cellId: target.cellId,
       sessionId: target.sessionId,
-      text: normalizeSelectionText(selection),
+      text: normalizeTerminalSelectionText(selection),
     });
     setActionMenuOpen(false);
   };
@@ -506,10 +392,10 @@ function TerminalPane({
     onTerminalDataSubscribe: onTerminalData,
     onTerminalErrorSubscribe: onTerminalError,
     setSessionMouse,
-    stripTrailingPunctuation,
-    findPathMatches,
-    buildSelectionSite,
-    formatSelectionTime,
+    stripTrailingPunctuation: stripTrailingPathPunctuation,
+    findPathMatches: findTerminalPathMatches,
+    buildSelectionSite: buildTerminalSelectionSite,
+    formatSelectionTime: formatTerminalSelectionTime,
     writeSelectionToClipboard,
     getBufferSnapshot,
     countDiffChars,

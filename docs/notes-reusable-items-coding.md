@@ -57,6 +57,7 @@ This is a project-local catalog of reusable engineering assets. The goal is disc
 | Session runtime helper module | MUST | Share session key/filter/activity/font/terminal-text helper logic across hooks and TS migration seams. | `apps/editor/renderer/src/hooks/shared/sessionRuntime.ts` |
 | Line endings normalization helpers | SHOULD | Normalize preview/newline payloads consistently across Terminal + Session Map preview surfaces without duplicating regexes. | `apps/editor/renderer/src/utils/lineEndings.ts` |
 | Terminal activity diff helpers | SHOULD | Compare terminal buffer snapshots and threshold-detect activity changes for previews/idle tracking without copy-pasting diff math. | `apps/editor/renderer/src/utils/terminalActivityDiff.ts` |
+| Terminal selection helpers (`terminalSelection`) | SHOULD | Share selection-text normalization, file-path tokenization, selection-site formatting, and clipboard write fallback for terminal selection actions and runtime effects. | `apps/editor/renderer/src/utils/terminalSelection.ts` |
 | Voice runtime helper module | MUST | Share language normalization, speech error mapping, permission-kind classification, and SpeechRecognition detection logic. | `apps/editor/renderer/src/hooks/shared/voiceRuntime.ts` |
 | Session Reply Relay | MUST | Session-side reply capture, routing, and asset storage for cross-agent comms. | `apps/editor/renderer/src/components/SessionReplyPanel.tsx` |
 
