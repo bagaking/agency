@@ -12,6 +12,7 @@ import {
 } from './explorerUtils';
 import { buildAgentCellModifiedFileChanges } from '../../utils/agentCellFileChanges';
 import { setFileDragPayload } from '../../utils/fileDragPayload';
+import { buildExplorerVisibleItems } from './explorerVisibleItems';
 import {
   ExplorerChangedFilesPanel,
   type ExplorerChangedFilesPanelMode,
@@ -273,87 +274,47 @@ function ProjectExplorerSidebarContent({
     return tags.some((tag: any) => semanticFilterSet.has(String(tag?.id || '')));
   }, [hasSemanticFilters, semanticFilterSet, semanticTagsByPath]);
 
-  const buildVisibleList = useCallback(() => {
-    const items = [];
-    const includeCache = new Map();
-    const visibilityCache = new Map();
-    const matchCache = new Map();
-
-    const shouldInclude = (path, node) => {
-      if (includeCache.has(path)) {
-        return includeCache.get(path);
-      }
-      const entry = node.type === 'dir' ? folderStatusByPath[path] : statusByPath[path];
-      const scoped = getScopedEntry(entry, node.type === 'dir' ? 'dir' : 'file');
-      let status = scoped?.status || null;
-      if (node.type === 'dir' && !statusByPath[path] && status === 'ignored') {
-        status = null;
-      }
-      const statusMatches =
-        !hasChangeFilter || Boolean(status && (!hasStatusFilters || statusFilterSet.has(status)));
-      const semanticMatches = matchesSemanticFilter(path);
-      const matched = statusMatches && semanticMatches;
-      includeCache.set(path, matched);
-      return matched;
-    };
-
-    const isVisible = (path, node) => {
-      if (!path) return true;
-      if (visibilityCache.has(path)) {
-        return visibilityCache.get(path);
-      }
-      const visible = (showHidden || !node.name.startsWith('.')) && (showIgnored || !isPathIgnored(path));
-      visibilityCache.set(path, visible);
-      return visible;
-    };
-
-    const checkMatch = (path) => {
-      if (matchCache.has(path)) {
-        return matchCache.get(path);
-      }
-      const node = tree.nodes[path];
-      if (!node || !isVisible(path, node)) {
-        matchCache.set(path, false);
-        return false;
-      }
-      const matched =
-        shouldInclude(path, node) ||
-        (node.type === 'dir' && (tree.children[path] || []).some((child) => checkMatch(child)));
-      matchCache.set(path, matched);
-      return matched;
-    };
-
-    const walk = (path, depth) => {
-      const node = tree.nodes[path];
-      if (!node || !isVisible(path, node)) return;
-      const isDir = node.type === 'dir';
-      const selfMatches = path ? shouldInclude(path, node) : true;
-      const childHasMatch = isDir ? (tree.children[path] || []).some((child) => checkMatch(child)) : false;
-      const shouldShow = path ? selfMatches || childHasMatch : true;
-      if (path && shouldShow) {
-        items.push({ path, depth, type: node.type, isSymbolicLink: node.isSymbolicLink });
-      }
-      if (isDir && shouldShow && (isSearchActive || expandedPaths.has(path))) {
-        (tree.children[path] || []).forEach((child) => walk(child, depth + 1));
-      }
-    };
-
-    walk('', 0);
-    if (draftEntry?.parentPath) {
-      const idx = items.findIndex((it) => it.path === draftEntry.parentPath);
-      if (idx >= 0) {
-        items.splice(idx + 1, 0, {
-          path: `__d__${draftEntry.parentPath}`,
-          depth: items[idx].depth + 1,
-          type: draftEntry.type,
-          draft: true,
-        });
-      }
-    }
-    return items;
-  }, [draftEntry, expandedPaths, folderStatusByPath, getScopedEntry, hasChangeFilter, hasStatusFilters, isSearchActive, matchesSemanticFilter, showHidden, showIgnored, isPathIgnored, statusByPath, statusFilterSet, tree.children, tree.nodes]);
-
-  const visibleItems = useMemo(() => buildVisibleList(), [buildVisibleList]);
+  const visibleItems = useMemo(
+    () =>
+      buildExplorerVisibleItems({
+        tree: {
+          nodes: tree.nodes,
+          children: tree.children,
+        },
+        expandedPaths,
+        isSearchActive,
+        showHidden,
+        showIgnored,
+        draftEntry: draftEntry?.parentPath
+          ? { parentPath: draftEntry.parentPath, type: draftEntry.type }
+          : null,
+        folderStatusByPath,
+        statusByPath,
+        getScopedEntry,
+        hasChangeFilter,
+        hasStatusFilters,
+        statusFilterSet,
+        matchesSemanticFilter,
+        isPathIgnored,
+      }),
+    [
+      draftEntry,
+      expandedPaths,
+      folderStatusByPath,
+      getScopedEntry,
+      hasChangeFilter,
+      hasStatusFilters,
+      isPathIgnored,
+      isSearchActive,
+      matchesSemanticFilter,
+      showHidden,
+      showIgnored,
+      statusByPath,
+      statusFilterSet,
+      tree.children,
+      tree.nodes,
+    ]
+  );
   const visiblePaths = useMemo(() => visibleItems.filter(it => !it.draft).map(it => it.path), [visibleItems]);
   const rowIndexByPath = useMemo(() => {
     const map = new Map();
