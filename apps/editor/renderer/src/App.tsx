@@ -30,7 +30,6 @@ import {
   listHilItems as agencyListHilItems,
   onCellsUpdated as subscribeCellsUpdated,
   readActionSheet as agencyReadActionSheet,
-  readWorkbenchEntry as agencyReadWorkbenchEntry,
   onAppShortcutTriggered as subscribeAppShortcutTriggered,
   setUiState as agencySetUiState,
   submitComment as agencySubmitComment,
@@ -41,7 +40,7 @@ import { warmSessionMapPreviewCache } from './services/sessionMapPreviewCache';
 import { useAppProjectLifecycle } from './app/useAppProjectLifecycle';
 import { useWorkbenchFileNavigation } from './app/useWorkbenchFileNavigation';
 import { useCellLifecycleActions } from './app/useCellLifecycleActions';
-import { buildPromotePromptBundle, buildPromotePromptText, buildPromoteActionSheetPrompt } from './utils/hilPromotePrompt';
+import { useHilPromoteWorkflow } from './app/useHilPromoteWorkflow';
 import { buildActionSheetCompletion, buildActionSheetPlan } from './utils/actionSheetCompletion';
 import {
   buildDeliveryMeta,
@@ -179,23 +178,6 @@ function AppShell() {
   const [hilCommentCounts, setHilCommentCounts] = useState({});
   const [hilCommentRefreshToken, setHilCommentRefreshToken] = useState(0);
   const [userDataPath, setUserDataPath] = useState('');
-  const [promoteModalOpen, setPromoteModalOpen] = useState(false);
-  const [promoteStep, setPromoteStep] = useState('setup');
-  const [promoteDescription, setPromoteDescription] = useState('');
-  const [promoteLoading, setPromoteLoading] = useState(false);
-  const [promoteError, setPromoteError] = useState('');
-  const [promoteItems, setPromoteItems] = useState([]);
-  const [promoteSelectedIds, setPromoteSelectedIds] = useState([]);
-  const [promotePreviewById, setPromotePreviewById] = useState({});
-  const [promoteDraftId, setPromoteDraftId] = useState('');
-  const [promoteDraft, setPromoteDraft] = useState(null);
-  const [promoteMode, setPromoteMode] = useState<DeliveryMode>('quick');
-  const [promoteGateStatus, setPromoteGateStatus] = useState('waiting');
-  const [promoteExecutionStatus, setPromoteExecutionStatus] = useState('idle');
-  const [promoteSessionId, setPromoteSessionId] = useState('');
-  const [lastPromoteSessionId, setLastPromoteSessionId] = useState('');
-  const [promoteActionSheetId, setPromoteActionSheetId] = useState('');
-  const [promoteActionSheet, setPromoteActionSheet] = useState(null);
   const [explorerDeliverySummary, setExplorerDeliverySummary] = useState<any>(null);
   const [actionSheetSessionId, setActionSheetSessionId] = useState('');
   const [actionSheetInlineError, setActionSheetInlineError] = useState('');
@@ -869,15 +851,6 @@ function AppShell() {
       [cellId]: meta || {},
     }));
   }, []);
-  useEffect(() => {
-    if (commentModalOpen || promoteModalOpen) {
-      setHilDrawerPanel('comments');
-      setHilDrawerOpen(true);
-      return;
-    }
-    const preferredPanel = hilDrawerPanelByView[activeView];
-    setHilDrawerPanel(preferredPanel || resolveHilDrawerDefault(activeView));
-  }, [activeView, commentModalOpen, hilDrawerPanelByView, promoteModalOpen]);
   useEffect(() => {
     if (activeView === 'agent-cells') {
       setHilDrawerOpen(true);
@@ -1763,34 +1736,6 @@ function AppShell() {
     },
     [commentRootPath, loadComments, bumpHilCommentRefresh]
   );
-  const isDraftComplete = useCallback((draft) => {
-    if (!draft) {
-      return false;
-    }
-    if (draft.meta?.promoted !== true) {
-      return false;
-    }
-    if (draft.meta?.executionStatus !== 'complete') {
-      return false;
-    }
-    const todos = Array.isArray(draft.meta?.todos) ? draft.meta.todos : null;
-    if (!todos || todos.length === 0) {
-      return true;
-    }
-    return todos.every((todo) => todo?.done === true || todo?.checked === true || todo?.status === 'done');
-  }, []);
-  const normalizeActionSheetExecution = useCallback((state) => {
-    if (state === 'completed') {
-      return 'complete';
-    }
-    if (state === 'waiting_gate') {
-      return 'running';
-    }
-    if (state === 'queued' || state === 'running' || state === 'failed' || state === 'canceled') {
-      return state;
-    }
-    return 'idle';
-  }, []);
   useEffect(() => {
     loadComments();
   }, [loadComments]);
@@ -1846,578 +1791,63 @@ function AppShell() {
       canceled = true;
     };
   }, [commentFilePath, commentModalOpen, commentRootPath, commentTarget.line]);
-  useEffect(() => {
-    if (promoteSessionId) {
-      setLastPromoteSessionId(promoteSessionId);
-    }
-  }, [promoteSessionId]);
   const promoteWorktreePath = selectedCell?.worktreePath || projectRoot || '';
-  const openPromoteModal = useCallback(async () => {
-    if (!promoteWorktreePath) {
-      return;
-    }
-    setPromoteModalOpen(true);
-    setPromoteLoading(true);
-    setPromoteError('');
-    setPromoteDescription('');
-    setPromotePreviewById({});
-    setPromoteStep('setup');
-    setPromoteDraftId('');
-    setPromoteDraft(null);
-    setPromoteMode('quick');
-    setPromoteGateStatus('waiting');
-    setPromoteExecutionStatus('idle');
-    setPromoteActionSheetId('');
-    setPromoteActionSheet(null);
-    try {
-      const list = await agencyListHilItems({
-        worktreePath: promoteWorktreePath,
-        kind: 'all',
-      });
-      if (!list) {
-        setPromoteItems([]);
-        setPromoteSelectedIds([]);
-        return;
-      }
-      const pending = (Array.isArray(list) ? list : [])
-        .filter((item) => item && (item.kind === 'comment' || item.kind === 'memo' || item.kind === 'reply'))
-        .filter((item) => item.meta?.processed !== true)
-        .sort((a, b) => {
-          const fileA = a.anchor?.file || '';
-          const fileB = b.anchor?.file || '';
-          if (fileA !== fileB) {
-            return fileA.localeCompare(fileB);
-          }
-          const lineA = Number(a.anchor?.line || 0);
-          const lineB = Number(b.anchor?.line || 0);
-          if (lineA !== lineB) {
-            return lineA - lineB;
-          }
-          return (a.createdAt || '').localeCompare(b.createdAt || '');
-        });
-      setPromoteItems(pending);
-      setPromoteSelectedIds(pending.map((item) => item.id));
-      const availableSessions = sessions.filter((session) => session.status !== 'closed');
-      const preferredSession =
-        activeView === 'agent-cells'
-          ? availableSessions.find((session) => session.id === activeSessionId) ||
-            availableSessions.find((session) => session.id === lastPromoteSessionId)
-          : availableSessions.find((session) => session.id === lastPromoteSessionId);
-      const fallbackSession = preferredSession || availableSessions[0] || null;
-      setPromoteSessionId(fallbackSession?.id || '');
-    } catch (error) {
-      setPromoteError(error?.message || 'Failed to load pending items.');
-      setPromoteItems([]);
-      setPromoteSelectedIds([]);
-    } finally {
-      setPromoteLoading(false);
-    }
-  }, [activeSessionId, activeView, lastPromoteSessionId, promoteWorktreePath, sessions]);
-  const closePromoteModal = useCallback(() => {
-    setPromoteModalOpen(false);
-    setPromoteError('');
-    setPromoteItems([]);
-    setPromoteSelectedIds([]);
-    setPromotePreviewById({});
-    setPromoteDescription('');
-    setPromoteStep('setup');
-    setPromoteDraftId('');
-    setPromoteDraft(null);
-    setPromoteMode('quick');
-    setPromoteGateStatus('waiting');
-    setPromoteSessionId('');
-    setPromoteExecutionStatus('idle');
-    setPromoteActionSheetId('');
-    setPromoteActionSheet(null);
-  }, []);
-  const togglePromoteItem = useCallback((itemId) => {
-    if (!itemId) {
-      return;
-    }
-    setPromoteSelectedIds((current) => {
-      if (current.includes(itemId)) {
-        return current.filter((id) => id !== itemId);
-      }
-      return [...current, itemId];
-    });
-  }, []);
-  const togglePromoteGroup = useCallback((itemIds) => {
-    const ids = Array.isArray(itemIds) ? itemIds.filter(Boolean) : [];
-    if (!ids.length) {
-      return;
-    }
-    setPromoteSelectedIds((current) => {
-      const selected = new Set(current);
-      const allSelected = ids.every((id) => selected.has(id));
-      if (allSelected) {
-        ids.forEach((id) => selected.delete(id));
-      } else {
-        ids.forEach((id) => selected.add(id));
-      }
-      return Array.from(selected);
-    });
-  }, []);
-  const loadPromotePreview = useCallback(
-    async (item) => {
-      if (!item?.id || !item?.anchor?.file || !promoteWorktreePath) {
-        return;
-      }
-      if (promotePreviewById[item.id]) {
-        return;
-      }
-      try {
-        const result = await agencyReadWorkbenchEntry({
-          rootPath: promoteWorktreePath,
-          targetPath: item.anchor.file,
-        });
-        if (!result) {
-          setPromotePreviewById((current) => ({
-            ...current,
-            [item.id]: {
-              error: 'Unable to load preview.',
-            },
-          }));
-          return;
-        }
-        const content = result?.content || '';
-        const lines = content.split('\n');
-        const targetLine = Math.max(1, Number(item.anchor?.line || 1));
-        const start = Math.max(1, targetLine - 2);
-        const end = Math.min(lines.length || 1, targetLine + 2);
-        const snippet = lines.slice(start - 1, end).map((text, index) => ({
-          line: start + index,
-          text,
-        }));
-        setPromotePreviewById((current) => ({
-          ...current,
-          [item.id]: {
-            snippet,
-            file: item.anchor.file,
-            line: targetLine,
-          },
-        }));
-      } catch (error) {
-        setPromotePreviewById((current) => ({
-          ...current,
-          [item.id]: {
-            error: error?.message || 'Unable to load preview.',
-          },
-        }));
-      }
-    },
-    [promotePreviewById, promoteWorktreePath]
-  );
-  const createPromoteSession = useCallback(async () => {
-    if (!promoteWorktreePath) {
-      return;
-    }
-    const created = await createSession({ name: 'Promote' });
-    if (created?.id) {
-      setPromoteSessionId(created.id);
-    }
-  }, [createSession, promoteWorktreePath]);
-  const dispatchPromote = useCallback(async () => {
-    if (!promoteWorktreePath) {
-      return;
-    }
-    if (!promoteDescription.trim()) {
-      setPromoteError('Description is required.');
-      return;
-    }
-    const selected = promoteItems.filter((item) => promoteSelectedIds.includes(item.id));
-    if (!selected.length) {
-      setPromoteError('Select at least one item to promote.');
-      return;
-    }
-    if (!promoteSessionId) {
-      setPromoteError('Select a session to dispatch the promote workflow.');
-      return;
-    }
-    setPromoteLoading(true);
-    setPromoteError('');
-    try {
-      const promptBundle = buildPromotePromptBundle({
-        description: promoteDescription.trim(),
-        items: selected,
-        previewById: promotePreviewById,
-      });
-      const promptText = buildPromotePromptText(promptBundle);
-      const actionSheetPrompt = buildPromoteActionSheetPrompt({
-        description: promoteDescription.trim(),
-        items: selected,
-        previewById: promotePreviewById,
-      });
-      const requestedAt = new Date().toISOString();
-      const references = selected.map((item) => ({
-        system: 'hil',
-        id: item.id,
-        path: item.anchor?.file || null,
-        line: item.anchor?.line || null,
-        kind: item.kind || null,
-      }));
-      const mode = normalizeDeliveryMode(promoteMode);
-      const actionSheetTitle = `Promote: ${promoteDescription.trim().slice(0, 32)}`;
-      const dispatchPromptText = [
-        '<delivery>',
-        'source: promote',
-        `mode: ${mode}`,
-        `session_id: ${promoteSessionId}`,
-        `requested_at: ${requestedAt}`,
-        '</delivery>',
-        '',
-        promptText,
-      ].join('\n');
-
-      const seedMeta = buildDeliveryMeta({
-        source: 'promote',
-        mode,
-        status: 'queued',
-        requestedAt,
-        sessionId: promoteSessionId,
-        cellId: selectedCell?.id || '',
-        actionSheetId: mode === 'gated' ? '(pending)' : '',
-        references,
-        existingMeta: {
-          sourceKind: 'hil',
-          promoteSessionId: promoteSessionId,
-          promoted: false,
-          promptBundle,
-          promptText,
-        },
-        timelineLabel: mode === 'gated' ? 'Queued gated promote' : 'Queued quick promote',
-      });
-
-      let createdSheet: any = null;
-      if (mode === 'gated') {
-        createdSheet = await createActionSheet({
-          title: actionSheetTitle,
-          prompt: {
-            requirements: actionSheetPrompt.requirements,
-            context: actionSheetPrompt.context,
-            checks: '',
-            done: '',
-          },
-          checks: [],
-          conditional: conditionalDefaults,
-        });
-        if (!createdSheet?.id) {
-          setPromoteError('Unable to create Action Sheet.');
-          return;
-        }
-        const completion = buildActionSheetCompletion(createdSheet.id);
-        await updateActionSheetPlan(
-          createdSheet.id,
-          buildActionSheetPlan({ title: actionSheetTitle, marker: completion.marker })
-        );
-        await updateActionSheetPrompt(createdSheet.id, {
-          requirements: actionSheetPrompt.requirements,
-          context: actionSheetPrompt.context,
-          checks: '',
-          done: completion.done,
-        });
-        await updateActionSheetChecks(createdSheet.id, completion.checks);
-      }
-
-      const draft = await agencyCreateHilItem({
-        worktreePath: promoteWorktreePath,
-        kind: 'draft',
-        body: promoteDescription.trim(),
-        references,
-        meta: {
-          ...seedMeta,
-          actionSheetId: createdSheet?.id || '',
-        },
-      });
-      if (!draft) {
-        setPromoteError('Unable to create draft.');
-        return;
-      }
-
-      setPromoteDraftId(draft.id);
-      setPromoteDraft(draft);
-      setPromoteGateStatus('waiting');
-      setPromoteExecutionStatus('queued');
-      setPromoteActionSheetId(createdSheet?.id || '');
-      setPromoteActionSheet(createdSheet?.status || null);
-      setPromoteStep('waiting');
-
-      // Dispatch the run (quick uses direct terminal send; gated uses Action Sheet).
-      if (mode === 'gated') {
-        await dispatchActionSheet({ id: createdSheet.id, sessionId: promoteSessionId });
-      } else {
-        await dispatchSessionCommand({
-          command: dispatchPromptText,
-          kind: 'dispatch',
-          label: `Promote (quick): ${promoteDescription.trim().slice(0, 32)}`,
-          sessionId: promoteSessionId,
-          cellId: selectedCell?.id || '',
-          profileId: BASELINE_PROFILE_ID,
-          worktreePath: promoteWorktreePath,
-          appendEnter: true,
-          doubleEnter: true,
-        });
-      }
-
-      const runningMeta = setDeliveryExecutionStatus({
-        meta: draft.meta || seedMeta,
-        source: 'promote',
-        mode,
-        status: 'running',
-        at: new Date().toISOString(),
-        label: mode === 'gated' ? 'Gated promote dispatched' : 'Quick promote dispatched',
-        sessionId: promoteSessionId,
-        actionSheetId: createdSheet?.id || '',
-      });
-
-      const updatedDraft = await agencyUpdateHilItem({
-        worktreePath: promoteWorktreePath,
-        itemId: draft.id,
-        patch: { meta: runningMeta },
-      });
-
-      if (updatedDraft) {
-        setPromoteDraft(updatedDraft);
-        setPromoteExecutionStatus(updatedDraft.meta?.executionStatus || 'running');
-      } else {
-        setPromoteExecutionStatus('running');
-      }
-
-      // Quick mode consumes sources immediately after dispatch ACK (terminal write), not after completion.
-      if (mode === 'quick') {
-        const promotedAt = new Date().toISOString();
-        await Promise.all(
-          selected.map((item) =>
-            agencyUpdateHilItem({
-              worktreePath: promoteWorktreePath,
-              itemId: item.id,
-              patch: {
-                meta: {
-                  processed: true,
-                  promotedDraftId: draft.id,
-                  promoteSessionId: promoteSessionId || null,
-                  promotedAt,
-                },
-              },
-            })
-          )
-        );
-        await loadComments();
-        const completedMeta = setDeliveryExecutionStatus({
-          meta: updatedDraft?.meta || runningMeta,
-          source: 'promote',
-          mode,
-          status: 'complete',
-          at: promotedAt,
-          label: 'Quick promote acknowledged',
-          details: 'Selected items were consumed immediately after dispatch ACK.',
-          sessionId: promoteSessionId,
-          actionSheetId: createdSheet?.id || '',
-        });
-        completedMeta.promoted = true;
-        completedMeta.executionAcknowledgedAt = promotedAt;
-        const completedDraft = await agencyUpdateHilItem({
-          worktreePath: promoteWorktreePath,
-          itemId: draft.id,
-          patch: { meta: completedMeta },
-        });
-        if (completedDraft) {
-          setPromoteDraft(completedDraft);
-        }
-        setPromoteExecutionStatus('complete');
-        setPromoteGateStatus('ready');
-      }
-    } catch (error) {
-      setPromoteError(error?.message || 'Failed to dispatch promote workflow.');
-      setPromoteExecutionStatus('failed');
-    } finally {
-      setPromoteLoading(false);
-    }
-  }, [
-    promoteDescription,
-    promoteMode,
-    promoteItems,
-    promoteSelectedIds,
-    promoteSessionId,
-    promoteWorktreePath,
-    promotePreviewById,
-    selectedCell?.id,
-    conditionalDefaults,
-    createActionSheet,
-    dispatchActionSheet,
-    dispatchSessionCommand,
-    loadComments,
-    updateActionSheetChecks,
-    updateActionSheetPlan,
-    updateActionSheetPrompt,
-  ]);
-  const confirmPromote = useCallback(async () => {
-    if (!promoteWorktreePath || !promoteDraftId) {
-      return;
-    }
-    const mode = normalizeDeliveryMode(promoteMode);
-    if (mode === 'quick') {
-      closePromoteModal();
-      return;
-    }
-    if (promoteGateStatus !== 'ready') {
-      setPromoteError('Draft completion gate is not ready.');
-      return;
-    }
-    const selected = promoteItems.filter((item) => promoteSelectedIds.includes(item.id));
-    if (!selected.length) {
-      setPromoteError('Select at least one item to promote.');
-      return;
-    }
-    setPromoteLoading(true);
-    setPromoteError('');
-    try {
-      const promotedAt = new Date().toISOString();
-      await Promise.all(
-        selected.map((item) =>
-          agencyUpdateHilItem({
-            worktreePath: promoteWorktreePath,
-            itemId: item.id,
-            patch: {
-              meta: {
-                processed: true,
-                promotedDraftId: promoteDraftId,
-                promoteSessionId: promoteSessionId || null,
-                promotedAt,
-              },
-            },
-          })
-        )
-      );
-      await loadComments();
-      closePromoteModal();
-      openHilDrawer('comments');
-    } catch (error) {
-      setPromoteError(error?.message || 'Failed to confirm promote.');
-    } finally {
-      setPromoteLoading(false);
-    }
-  }, [
-    closePromoteModal,
-    loadComments,
-    openHilDrawer,
-    promoteDraftId,
-    promoteGateStatus,
-    promoteMode,
-    promoteItems,
-    promoteSelectedIds,
-    promoteSessionId,
-    promoteWorktreePath,
-  ]);
-  useEffect(() => {
-    if (!promoteModalOpen || promoteStep !== 'waiting' || !promoteDraftId || !promoteWorktreePath) {
-      return undefined;
-    }
-    let canceled = false;
-    const poll = async () => {
-      try {
-        const list = await agencyListHilItems({
-          worktreePath: promoteWorktreePath,
-          kind: 'draft',
-        });
-        if (canceled) {
-          return;
-        }
-        const drafts = Array.isArray(list) ? list : [];
-        const found = drafts.find((item) => item.id === promoteDraftId);
-        if (!found) {
-          setPromoteDraft(null);
-          setPromoteGateStatus('missing');
-          setPromoteExecutionStatus('missing');
-          return;
-        }
-        let nextDraft = found;
-        const sheetId = promoteActionSheetId || found.meta?.actionSheetId || '';
-        if (sheetId && !promoteActionSheetId) {
-          setPromoteActionSheetId(sheetId);
-        }
-        let actionSheetStatus = null;
-        if (sheetId) {
-          try {
-            const sheet = await agencyReadActionSheet({
-              worktreePath: promoteWorktreePath,
-              id: sheetId,
-            });
-            if (sheet?.status) {
-              actionSheetStatus = sheet.status;
-              setPromoteActionSheet(sheet.status);
-            }
-          } catch (readError) {
-            setPromoteActionSheet(null);
-          }
-        } else {
-          setPromoteActionSheet(null);
-        }
-        const actionSheetCompleted = actionSheetStatus?.state === 'completed';
-        const actionSheetFailed = actionSheetStatus?.state === 'failed';
-        if (actionSheetStatus?.gateStatus === 'passed' || actionSheetCompleted) {
-          if (nextDraft.meta?.promoted !== true || nextDraft.meta?.executionStatus !== 'complete') {
-            const updated = await agencyUpdateHilItem({
-              worktreePath: promoteWorktreePath,
-              itemId: nextDraft.id,
-              patch: {
-                meta: {
-                  promoted: true,
-                  executionStatus: 'complete',
-                  executionFinishedAt: new Date().toISOString(),
-                },
-              },
-            });
-            if (updated) {
-              nextDraft = updated;
-            }
-          }
-        } else if (actionSheetFailed && nextDraft.meta?.executionStatus !== 'failed') {
-          const updated = await agencyUpdateHilItem({
-            worktreePath: promoteWorktreePath,
-            itemId: nextDraft.id,
-            patch: {
-              meta: {
-                executionStatus: 'failed',
-              },
-            },
-          });
-          if (updated) {
-            nextDraft = updated;
-          }
-        }
-        setPromoteDraft(nextDraft);
-        if (actionSheetStatus?.state) {
-          setPromoteExecutionStatus(normalizeActionSheetExecution(actionSheetStatus.state));
-        } else {
-          setPromoteExecutionStatus(nextDraft.meta?.executionStatus || 'waiting');
-        }
-        const gateReady =
-          actionSheetStatus?.gateStatus === 'passed' ||
-          actionSheetCompleted ||
-          isDraftComplete(nextDraft);
-        setPromoteGateStatus(gateReady ? 'ready' : 'waiting');
-      } catch (error) {
-        if (canceled) {
-          return;
-        }
-        setPromoteGateStatus('waiting');
-      }
-    };
-    poll();
-    const interval = setInterval(poll, 3000);
-    return () => {
-      canceled = true;
-      clearInterval(interval);
-    };
-  }, [
-    isDraftComplete,
-    normalizeActionSheetExecution,
-    promoteActionSheetId,
-    promoteDraftId,
+  const {
     promoteModalOpen,
     promoteStep,
+    promoteDescription,
+    promoteLoading,
+    promoteError,
+    promoteItems,
+    promoteSelectedIds,
+    promotePreviewById,
+    promoteDraftId,
+    promoteDraft,
+    promoteMode,
+    promoteActionSheet,
+    promoteActionSheetId,
+    promoteGateStatus,
+    promoteExecutionStatus,
+    promoteSessionId,
+    setPromoteDescription,
+    setPromoteSessionId,
+    selectPromoteMode,
+    openPromoteModal,
+    closePromoteModal,
+    togglePromoteItem,
+    togglePromoteGroup,
+    loadPromotePreview,
+    createPromoteSession,
+    dispatchPromote,
+    confirmPromote,
+  } = useHilPromoteWorkflow({
     promoteWorktreePath,
-  ]);
+    sessions,
+    activeSessionId,
+    activeView,
+    selectedCellId: selectedCell?.id || '',
+    conditionalDefaults,
+    createActionSheet,
+    updateActionSheetPlan,
+    updateActionSheetPrompt,
+    updateActionSheetChecks,
+    dispatchActionSheet,
+    dispatchSessionCommand,
+    createSession,
+    loadComments,
+    openHilDrawer,
+  });
+
+  useEffect(() => {
+    if (commentModalOpen || promoteModalOpen) {
+      setHilDrawerPanel('comments');
+      setHilDrawerOpen(true);
+      return;
+    }
+    const preferredPanel = hilDrawerPanelByView[activeView];
+    setHilDrawerPanel(preferredPanel || resolveHilDrawerDefault(activeView));
+  }, [activeView, commentModalOpen, hilDrawerPanelByView, promoteModalOpen]);
+
   const { handleSelectProjectRoot, handleOpenRecentProject } = useAppProjectLifecycle({
     resetSessions,
     workbench,
@@ -2784,7 +2214,7 @@ function AppShell() {
     onTogglePromoteGroup: togglePromoteGroup,
     onPromotePreview: loadPromotePreview,
     onSelectPromoteSession: setPromoteSessionId,
-    onSelectPromoteMode: (mode: DeliveryMode) => setPromoteMode(normalizeDeliveryMode(mode)),
+    onSelectPromoteMode: selectPromoteMode,
     onCreatePromoteSession: createPromoteSession,
     onDispatchPromote: dispatchPromote,
     onConfirmPromote: confirmPromote,
