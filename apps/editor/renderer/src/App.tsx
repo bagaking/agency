@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import '@xterm/xterm/css/xterm.css';
 import { StatusBar } from './components/StatusBar';
 import { AppLayout } from './components/AppLayout';
@@ -12,7 +12,6 @@ import { useSessionNamingSettings } from './hooks/useSessionNamingSettings';
 import { useGates } from './hooks/useGates';
 import { useWorktreeLinks } from './hooks/useWorktreeLinks';
 import { useSessions } from './hooks/useSessions';
-import { useSessionMap } from './hooks/useSessionMap';
 import { useActionSheets } from './hooks/useActionSheets';
 import { useWorkbench } from './hooks/useWorkbench';
 import { useHilMemoState } from './hooks/useHilMemoState';
@@ -28,18 +27,16 @@ import {
   setUiState as agencySetUiState,
   updateCellState as agencyUpdateCellState,
 } from './services/agencyBridge';
-import { warmSessionMapPreviewCache } from './services/sessionMapPreviewCache';
 import { useAppProjectLifecycle } from './app/useAppProjectLifecycle';
 import { useWorkbenchFileNavigation } from './app/useWorkbenchFileNavigation';
 import { useCellLifecycleActions } from './app/useCellLifecycleActions';
 import { useHilPromoteWorkflow } from './app/useHilPromoteWorkflow';
 import { useActionSheetOrchestration } from './app/useActionSheetOrchestration';
 import { useHilFileCommenting } from './app/useHilFileCommenting';
+import { useSessionMapOverlayController } from './app/useSessionMapOverlayController';
 import { BASELINE_PROFILE_ID } from './utils/terminusSettings';
 import { SessionMapOverlay } from './components/sessionMap/SessionMapOverlay';
 import { SessionMapToggle } from './components/sessionMap/SessionMapToggle';
-import { PREVIEW_WARMUP_DELAY_MS } from './components/sessionMap/sessionMapConstants';
-import { buildSessionMapModel } from './utils/sessionMapModel';
 const defaultCells = [
   {
     id: 'sample-cell',
@@ -99,7 +96,6 @@ function AppShell() {
   const [terminalMode, setTerminalMode] = useState('shell');
   const [tmuxStatus, setTmuxStatus] = useState({ available: true, error: '', version: '' });
   const [ipcAvailable, setIpcAvailable] = useState(true);
-  const [sessionMapOpen, setSessionMapOpen] = useState(false);
   const [initialActiveSessions, setInitialActiveSessions] = useState({});
   const [initialWorkbenchTabs, setInitialWorkbenchTabs] = useState({});
   const [initialWorkbenchActiveTabs, setInitialWorkbenchActiveTabs] = useState({});
@@ -472,18 +468,6 @@ function AppShell() {
     setTerminalOpen(true);
   }, []);
   const {
-    config: sessionMapConfig,
-    updateConfig: updateSessionMapConfig,
-    hasLoaded: sessionMapLoaded,
-  } = useSessionMap({ projectRoot });
-  const activityDiffThreshold = useMemo(() => {
-    const parsed = Number(sessionMapConfig?.activityDiffThreshold);
-    if (!Number.isFinite(parsed)) {
-      return 12;
-    }
-    return Math.max(1, Math.floor(parsed));
-  }, [sessionMapConfig?.activityDiffThreshold]);
-  const {
     sessions,
     sessionsByCellId,
     activeSessionId,
@@ -541,19 +525,45 @@ function AppShell() {
     });
     return list;
   }, [displayCells, sessionsByCellId]);
-  useEffect(() => {
-    setSessionMapOpen(false);
-  }, [projectRoot]);
-  useEffect(() => {
-    if (!projectReady || !sessionMapLoaded) {
-      return;
-    }
-    if (sessionMapConfig?.autoOpenSeen) {
-      return;
-    }
-    setSessionMapOpen(true);
-    updateSessionMapConfig({ autoOpenSeen: true });
-  }, [projectReady, sessionMapConfig?.autoOpenSeen, sessionMapLoaded, updateSessionMapConfig]);
+  const {
+    activityDiffThreshold,
+    focusSession,
+    sessionMapEnabled,
+    sessionMapModel,
+    sessionMapOpen,
+    handleToggleSessionMap,
+    resolveSessionMapFontSize,
+    handleSelectSessionFromMap,
+  } = useSessionMapOverlayController({
+    projectRoot,
+    projectReady,
+    cells,
+    sessions,
+    sessionsByCellId,
+    activeSessionId,
+    activeSessionByCellId,
+    sessionActivityByKey,
+    sessionVisitedByKey,
+    resolvedProfiles,
+    activeFontSize,
+    sessionFontSizeByKey,
+    refreshSessionsForCells,
+    selectSession,
+    setSelectedId,
+    setTerminalOpen,
+    setActiveView,
+  });
+
+  const sessionMapCenterSlot = (
+    <SessionMapToggle
+      open={sessionMapOpen}
+      stats={sessionMapEnabled ? sessionMapModel.stats : null}
+      onToggle={handleToggleSessionMap}
+      disabled={!sessionMapEnabled}
+      focusCell={selectedCell}
+      focusSession={focusSession}
+    />
+  );
   const actionSheetsRoot = projectRoot || selectedCell?.worktreePath || '';
   const hilWorktreePath = selectedCell?.worktreePath || projectRoot || '';
   const {
@@ -612,127 +622,12 @@ function AppShell() {
   useEffect(() => {
     setExplorerDeliverySummary(null);
   }, [projectRoot, selectedCell?.id]);
-  const mapCells = useMemo(() => (projectReady ? cells : []), [projectReady, cells]);
-  const profilesById = useMemo(() => {
-    if (!resolvedProfiles) {
-      return null;
-    }
-    return new Map(resolvedProfiles.map((profile) => [profile.id, profile]));
-  }, [resolvedProfiles]);
-  const sessionMapModel = useMemo(
-    () =>
-      buildSessionMapModel({
-        cells: mapCells,
-        sessionsByCellId,
-        activeSessionByCellId,
-        sessionActivityByKey,
-        sessionVisitedByKey,
-        config: sessionMapConfig,
-        profilesById,
-      }),
-    [
-      mapCells,
-      sessionsByCellId,
-      activeSessionByCellId,
-      sessionActivityByKey,
-      sessionVisitedByKey,
-      sessionMapConfig,
-      profilesById,
-    ]
-  );
-  const previewWarmKeyRef = useRef('');
-  const sessionMapPreviewSeeds = useMemo(() => {
-    if (!sessionMapModel?.clusters?.length) {
-      return [];
-    }
-    const seeds = [];
-    sessionMapModel.clusters.forEach((cluster) => {
-      const cell = cluster.cell;
-      if (!cell?.id || !cell?.worktreePath) {
-        return;
-      }
-      cluster.sessions.forEach((session) => {
-        if (!session?.id || session.isOffline) {
-          return;
-        }
-        seeds.push({
-          cellId: cell.id,
-          worktreePath: cell.worktreePath,
-          sessionId: session.id,
-        });
-      });
-    });
-    return seeds;
-  }, [sessionMapModel]);
-  const sessionMapEnabled = projectReady && mapCells.length > 0;
-  useEffect(() => {
-    if (!sessionMapEnabled || sessionMapPreviewSeeds.length === 0) {
-      return;
-    }
-    const nextKey = sessionMapPreviewSeeds
-      .map((item) => `${item.cellId}:${item.sessionId}`)
-      .sort()
-      .join('|');
-    if (!nextKey || nextKey === previewWarmKeyRef.current) {
-      return;
-    }
-    previewWarmKeyRef.current = nextKey;
-    const scheduleWarmup = () => {
-      warmSessionMapPreviewCache({
-        sessions: sessionMapPreviewSeeds,
-      });
-    };
-    if (typeof window !== 'undefined' && window.requestIdleCallback) {
-      const handle = window.requestIdleCallback(scheduleWarmup, { timeout: 1200 });
-      return () => window.cancelIdleCallback?.(handle);
-    }
-    const handle = setTimeout(scheduleWarmup, PREVIEW_WARMUP_DELAY_MS);
-    return () => clearTimeout(handle);
-  }, [sessionMapEnabled, sessionMapPreviewSeeds]);
-  useEffect(() => {
-    if (!sessionMapOpen || !sessionMapEnabled) {
-      return;
-    }
-    refreshSessionsForCells(mapCells, { silent: true });
-  }, [mapCells, refreshSessionsForCells, sessionMapEnabled, sessionMapOpen]);
   useEffect(() => {
     if (activeView !== 'agent-cells' || !projectReady || displayCells.length === 0) {
       return;
     }
     refreshSessionsForCells(displayCells, { silent: true });
   }, [activeView, projectReady, displayCells, refreshSessionsForCells]);
-  const handleToggleSessionMap = useCallback(() => {
-    setSessionMapOpen((value) => !value);
-  }, []);
-  const resolveSessionMapFontSize = useCallback(
-    (cellId, sessionId) => {
-      if (!cellId || !sessionId) {
-        return activeFontSize || 13;
-      }
-      const key = `${cellId}:${sessionId}`;
-      return sessionFontSizeByKey?.[key] || activeFontSize || 13;
-    },
-    [activeFontSize, sessionFontSizeByKey]
-  );
-  const handleSelectSessionFromMap = useCallback(
-    (cellId, sessionId, options: { focusView?: boolean } = {}) => {
-      if (!cellId || !sessionId) {
-        return;
-      }
-      const targetCell = mapCells.find((cell) => cell.id === cellId);
-      if (!targetCell) {
-        return;
-      }
-      if (options?.focusView) {
-        setActiveView('agent-cells');
-      }
-      setSelectedId(cellId);
-      selectSession(sessionId, cellId);
-      setTerminalOpen(true);
-      refreshSessionsForCells([targetCell], { silent: true });
-    },
-    [mapCells, refreshSessionsForCells, selectSession, setActiveView]
-  );
   const handleSelectSessionFromSidebar = useCallback(
     (cellId, sessionId) => {
       if (!cellId || !sessionId) {
@@ -748,20 +643,6 @@ function AppShell() {
       refreshSessionsForCells([targetCell], { silent: true });
     },
     [displayCells, refreshSessionsForCells, selectSession]
-  );
-  const focusSession = useMemo(
-    () => sessions.find((session) => session.id === activeSessionId),
-    [activeSessionId, sessions]
-  );
-  const sessionMapCenterSlot = (
-    <SessionMapToggle
-      open={sessionMapOpen}
-      stats={sessionMapEnabled ? sessionMapModel.stats : null}
-      onToggle={handleToggleSessionMap}
-      disabled={!sessionMapEnabled}
-      focusCell={selectedCell}
-      focusSession={focusSession}
-    />
   );
   const activeTab = workbench.activeTab;
   const [workbenchMetaByCellId, setWorkbenchMetaByCellId] = useState({});
