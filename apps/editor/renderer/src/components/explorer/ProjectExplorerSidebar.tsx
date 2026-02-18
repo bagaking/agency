@@ -17,6 +17,11 @@ import {
   type ExplorerChangedFilesPanelMode,
 } from './ExplorerChangedFilesPanel';
 import {
+  buildExplorerInternalDragPayload,
+  readExplorerInternalDragPaths,
+  writeExplorerInternalDragPaths,
+} from './explorerInternalDragPaths';
+import {
   hasExternalDropEntries as hasExternalDroppedPaths,
   readExternalDropPaths as readDroppedExternalPaths,
 } from '../../utils/externalDropPaths';
@@ -31,7 +36,6 @@ import {
 const ROW_HEIGHT = 24;
 const OVERSCAN = 6;
 const VIRTUALIZE_THRESHOLD = 200;
-const INTERNAL_DRAG_MIME = 'application/agency-paths';
 
 function ProjectExplorerSidebarContent({
   rootPath: scopeRootPath,
@@ -770,31 +774,6 @@ function ProjectExplorerSidebarContent({
     }
   };
 
-  const readInternalDragPaths = useCallback((dataTransfer) => {
-    if (!dataTransfer?.getData) {
-      return [];
-    }
-    const rawPayload = dataTransfer.getData(INTERNAL_DRAG_MIME);
-    if (!rawPayload) {
-      return [];
-    }
-    try {
-      const parsed = JSON.parse(rawPayload);
-      if (!Array.isArray(parsed)) {
-        return [];
-      }
-      return Array.from(
-        new Set(
-          parsed
-            .map((value) => explorerPathUtils.toRelativePath(String(value || '').trim()))
-            .filter(Boolean)
-        )
-      );
-    } catch (err) {
-      return [];
-    }
-  }, []);
-
   const hasExternalDropEntries = useCallback(
     (dataTransfer) => hasExternalDroppedPaths(dataTransfer),
     []
@@ -874,7 +853,7 @@ function ProjectExplorerSidebarContent({
   }, [clearError, expandAncestorsForPath, importExternalEntries, selectPathInExplorer, setErrorMessage]);
 
   const handleRowDragOver = useCallback((event, _rowPath, isDir) => {
-    const internalPaths = readInternalDragPaths(event.dataTransfer);
+    const internalPaths = readExplorerInternalDragPaths(event.dataTransfer);
     if (internalPaths.length > 0) {
       if (!isDir) {
         return;
@@ -892,10 +871,10 @@ function ProjectExplorerSidebarContent({
     event.preventDefault();
     event.stopPropagation();
     event.dataTransfer.dropEffect = 'copy';
-  }, [hasExternalDropEntries, readInternalDragPaths]);
+  }, [hasExternalDropEntries]);
 
   const handleRowDrop = useCallback(async (event, rowPath, isDir) => {
-    const internalPaths = readInternalDragPaths(event.dataTransfer);
+    const internalPaths = readExplorerInternalDragPaths(event.dataTransfer);
     if (internalPaths.length > 0) {
       event.preventDefault();
       event.stopPropagation();
@@ -920,7 +899,7 @@ function ProjectExplorerSidebarContent({
 
     const targetDir = isDir ? rowPath : resolveDropDirectory(rowPath);
     await handleExternalImport(externalPaths, targetDir);
-  }, [handleExternalImport, handleMove, hasExternalDropEntries, readExternalDropPaths, readInternalDragPaths, resolveDropDirectory, setErrorMessage]);
+  }, [handleExternalImport, handleMove, hasExternalDropEntries, readExternalDropPaths, resolveDropDirectory, setErrorMessage]);
 
   const handleTreeDragOver = useCallback((event) => {
     const inRow = event.target instanceof Element && event.target.closest('[data-explorer-path]');
@@ -928,7 +907,7 @@ function ProjectExplorerSidebarContent({
       return;
     }
 
-    if (readInternalDragPaths(event.dataTransfer).length > 0) {
+    if (readExplorerInternalDragPaths(event.dataTransfer).length > 0) {
       return;
     }
 
@@ -938,7 +917,7 @@ function ProjectExplorerSidebarContent({
 
     event.preventDefault();
     event.dataTransfer.dropEffect = 'copy';
-  }, [hasExternalDropEntries, readInternalDragPaths]);
+  }, [hasExternalDropEntries]);
 
   const handleTreeDrop = useCallback(async (event) => {
     const inRow = event.target instanceof Element && event.target.closest('[data-explorer-path]');
@@ -946,7 +925,7 @@ function ProjectExplorerSidebarContent({
       return;
     }
 
-    if (readInternalDragPaths(event.dataTransfer).length > 0) {
+    if (readExplorerInternalDragPaths(event.dataTransfer).length > 0) {
       return;
     }
 
@@ -958,7 +937,7 @@ function ProjectExplorerSidebarContent({
     }
 
     await handleExternalImport(externalPaths, resolveBlankDropDirectory());
-  }, [handleExternalImport, readExternalDropPaths, readInternalDragPaths, resolveBlankDropDirectory, setErrorMessage]);
+  }, [handleExternalImport, readExternalDropPaths, resolveBlankDropDirectory, setErrorMessage]);
 
   const handleSidebarDragOver = useCallback((event) => {
     if (event.defaultPrevented) {
@@ -1013,7 +992,6 @@ function ProjectExplorerSidebarContent({
     selectPathInExplorer(targetPath);
     clearError();
   }, [clearError, expandAncestorsForPath, semanticTagsByPath, selectPathInExplorer, setErrorMessage, visiblePaths]);
-  const buildDragPayload = (p) => selectionSet.has(p) ? Array.from(selectionSet) : [p];
   const requestRename = useCallback((path) => {
     if (!path) return;
     setRenameTarget({ path, value: explorerPathUtils.basename(path) });
@@ -1048,7 +1026,10 @@ function ProjectExplorerSidebarContent({
         onClick={isRenaming ? undefined : (e) => { handleSelectPath(item.path, e); setFocusedPath(item.path); listRef.current?.focus(); if (!isDir && !e.metaKey && !e.ctrlKey && !e.shiftKey) { void handleOpenEntry(item.path, 'preview'); } }}
         onDoubleClick={isRenaming ? undefined : (e) => { if (!isDir) { e.stopPropagation(); void handleOpenEntry(item.path, 'pinned'); } }}
         onContextMenu={isRenaming ? undefined : (e) => { e.preventDefault(); handleSelectPath(item.path, e); setFocusedPath(item.path); setContextMenu({ x: e.clientX, y: e.clientY, path: item.path }); }}
-        onDragStart={isRenaming ? undefined : (e) => { const p = buildDragPayload(item.path); e.dataTransfer.setData(INTERNAL_DRAG_MIME, JSON.stringify(p)); e.dataTransfer.effectAllowed = 'move'; }}
+        onDragStart={isRenaming ? undefined : (event) => {
+          const payload = buildExplorerInternalDragPayload(item.path, selectionSet);
+          writeExplorerInternalDragPaths(event.dataTransfer, payload);
+        }}
         onDragOver={(e) => handleRowDragOver(e, item.path, isDir)}
         onDrop={(e) => handleRowDrop(e, item.path, isDir)}
         onRequestRename={requestRename}
