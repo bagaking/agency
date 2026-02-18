@@ -16,17 +16,13 @@ import {
   ExplorerChangedFilesPanel,
   type ExplorerChangedFilesPanelMode,
 } from './ExplorerChangedFilesPanel';
+import { useExplorerClipboardActions } from './useExplorerClipboardActions';
 import { useExplorerDropHandlers } from './useExplorerDropHandlers';
 import {
   buildExplorerInternalDragPayload,
   writeExplorerInternalDragPaths,
 } from './explorerInternalDragPaths';
 import { useFileSnippetPreview } from '../../hooks/useFileSnippetPreview';
-import {
-  isAgencyMethodAvailable,
-  materializeClipboard,
-  materializeMarkdown,
-} from '../../services/agencyBridge';
 
 const ROW_HEIGHT = 24;
 const OVERSCAN = 6;
@@ -114,7 +110,6 @@ function ProjectExplorerSidebarContent({
   const [focusedPath, setFocusedPath] = useState('');
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
-  const [clipboard, setClipboard] = useState(null);
   const [changesPanelOpen, setChangesPanelOpen] = useState(true);
   const [changesPanelMode, setChangesPanelMode] = useState<ExplorerChangedFilesPanelMode>('flat');
   const [changesPanelRefreshing, setChangesPanelRefreshing] = useState(false);
@@ -579,86 +574,29 @@ function ProjectExplorerSidebarContent({
   const activeDir = activeNode?.type === 'dir' ? activeTarget : explorerPathUtils.dirname(activeTarget);
   const selectionTargets = selectedPaths.length ? selectedPaths : activeTarget ? [activeTarget] : [];
   const selectionCount = selectionTargets.length;
-  const canPaste = clipboard?.paths?.length > 0 || isAgencyMethodAvailable('materializeClipboard');
 
-  const resolvePasteDirectory = () => {
-    if (!activeTarget) return '';
-    const node = tree.nodes[activeTarget];
-    return node?.type === 'dir' ? activeTarget : explorerPathUtils.dirname(activeTarget);
-  };
-
-  const handleCopySelection = (mode) => { if (selectionTargets.length) setClipboard({ mode, paths: Array.from(new Set(selectionTargets)) }); };
-  
-  const handlePasteSelection = async () => {
-    const baseRoot = rootPath || repoRoot || '';
-    const targetDir = resolvePasteDirectory();
-    if (baseRoot && isAgencyMethodAvailable('materializeClipboard')) {
-      try {
-        const result = await materializeClipboard({
-          rootPath: baseRoot,
-          targetDir,
-          includeText: false,
-          relativeTo: baseRoot,
-        });
-        if (result?.type === 'files' || result?.type === 'image') {
-          if (targetDir) expandPath(targetDir);
-          await refreshAll();
-          if (result?.paths?.length) setSelectedPaths(result.paths);
-          clearError();
-          return;
-        }
-      } catch (err) { setErrorMessage(err?.message || 'Failed to paste.'); return; }
-    }
-    if (!clipboard?.paths?.length) return;
-    try {
-      let didMove = false;
-      let hadError = false;
-      for (const sourcePath of clipboard.paths) {
-        const baseName = explorerPathUtils.basename(sourcePath);
-        const targetPath = [targetDir, baseName].filter(Boolean).join('/');
-        if (targetDir && targetDir.startsWith(`${sourcePath}/`)) {
-          setErrorMessage('Cannot paste a folder into itself.');
-          hadError = true;
-          continue;
-        }
-        if (sourcePath === targetPath) {
-          continue;
-        }
-        if (clipboard.mode === 'cut') await renameEntry({ sourcePath, targetPath });
-        else await copyEntry({ sourcePath, targetPath });
-        didMove = true;
-      }
-      if (!hadError) {
-        clearError();
-      }
-      if (clipboard.mode === 'cut' && didMove) setClipboard(null);
-      if (didMove) {
-        await refreshAll();
-      }
-    } catch (err) { setErrorMessage('Paste failed.'); }
-  };
-
-  const handlePasteMarkdown = async () => {
-    const baseRoot = rootPath || repoRoot || '';
-    if (!baseRoot || !isAgencyMethodAvailable('materializeMarkdown')) return;
-    try {
-      const result = await materializeMarkdown({
-        rootPath: baseRoot,
-        targetDir: '.agency/tmp/clipboard',
-        relativeTo: baseRoot,
-      });
-      let didOpen = true;
-      if (result?.path) {
-        const normalizedPath = explorerPathUtils.toRelativePath(result.path);
-        await refreshAll();
-        setSelectedPaths([normalizedPath]);
-        didOpen = await handleOpenEntry(normalizedPath, 'pinned');
-      }
-      if (didOpen) {
-        clearError();
-      }
-    } catch (err) { setErrorMessage('Markdown capture failed.'); }
-  };
+  const {
+    canPaste,
+    handleCopySelection,
+    handlePasteSelection,
+    handlePasteMarkdown,
+    handleCopyPath,
+    handleCopyRelativePath,
+  } = useExplorerClipboardActions({
+    rootPath,
+    repoRoot,
+    activeTarget,
+    treeNodes: tree.nodes,
+    selectionTargets,
+    setSelectedPaths,
+    expandPath,
+    refreshAll,
+    renameEntry,
+    copyEntry,
+    clearError,
+    setErrorMessage,
+    openEntry: handleOpenEntry,
+  });
 
   const startDraft = (type) => { if (activeDir) expandPath(activeDir); setDraftEntry({ type, parentPath: activeDir || '', value: '' }); };
   const handleDraftSubmit = async () => {
@@ -679,43 +617,6 @@ function ProjectExplorerSidebarContent({
     try { await renameEntry({ sourcePath: renameTarget.path, targetPath: nextPath }); clearError(); } 
     catch (err) { setErrorMessage('Rename failed.'); }
     setRenameTarget(null);
-  };
-
-  const writeClipboard = async (text) => {
-    if (!text) return;
-    if (navigator?.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return;
-    }
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.setAttribute('readonly', '');
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textarea);
-  };
-
-  const handleCopyPath = async (targets) => {
-    const list = (Array.isArray(targets) ? targets : [targets]).filter(Boolean);
-    if (!list.length) return;
-    try {
-      const base = rootPath || repoRoot || '';
-      const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base;
-      const payload = list.map(it => (normalizedBase ? `${normalizedBase}/${it}` : it)).join('\n');
-      await writeClipboard(payload);
-    } catch (err) {}
-  };
-
-  const handleCopyRelativePath = async (targets) => {
-    const list = (Array.isArray(targets) ? targets : [targets]).filter(Boolean);
-    if (!list.length) return;
-    try {
-      const payload = list.join('\n');
-      await writeClipboard(payload);
-    } catch (err) {}
   };
 
   const handleDelete = async (targets) => {

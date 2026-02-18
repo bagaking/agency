@@ -53,6 +53,7 @@ This is a project-local catalog of reusable engineering assets. The goal is disc
 | Terminus launch action builder | SHOULD | Build unified Start/Resume/Subcommand session-create actions from profile config (menu + dispatch paths). | `apps/editor/renderer/src/utils/terminusSettings.ts` |
 | Session map model builder | MUST | Session map clustering/statistics. | `apps/editor/renderer/src/utils/sessionMapModel.ts` |
 | Time formatting helpers | MUST | Relative/idle time display. | `apps/editor/renderer/src/utils/timeFormat.ts` |
+| Clipboard write helper (`writeTextToClipboard`) | SHOULD | Any UI surface that needs to copy text/path payloads; provides async clipboard + `execCommand` fallback without re-implementing DOM glue. | `apps/editor/renderer/src/utils/clipboard.ts` |
 | Avatar resolution & rotation | MUST | Stable avatar mapping + least-used selection. | `apps/editor/renderer/src/utils/agentAvatar.ts` |
 | Debug flags (`DEBUG_FLAGS`) | MUST | Dev-only debug toggles for UI/IPC flows; avoid ad-hoc localStorage keys. | `apps/editor/renderer/src/utils/debugFlags.ts` |
 | Session preview memory cache | MUST | Hover preview warmup + memory-first rendering; avoids disk on first hover. | `apps/editor/renderer/src/services/sessionMapPreviewCache.ts` |

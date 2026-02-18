@@ -1,3 +1,5 @@
+import { writeTextToClipboard } from './clipboard';
+
 const TRAILING_PATH_PUNCTUATION = /[.,;:!?)}\]。，；：！？）】》」』、]+$/;
 const PATH_REGEX =
   /(^|[^A-Za-z0-9_@./~+-])([A-Za-z0-9_@./~+-]+\/[A-Za-z0-9_@./~+-]+\.[A-Za-z0-9]+(?::\d+(?::\d+)?)?)/g;
@@ -109,23 +111,7 @@ export const writeSelectionToClipboard = async (selection: unknown): Promise<voi
   if (!selection) {
     return;
   }
-  const text = String(selection || '');
-  if (!text) {
-    return;
-  }
-  if (navigator?.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return;
-  }
-  const textarea = document.createElement('textarea');
-  textarea.value = text;
-  textarea.setAttribute('readonly', '');
-  textarea.style.position = 'fixed';
-  textarea.style.opacity = '0';
-  document.body.appendChild(textarea);
-  textarea.select();
-  document.execCommand('copy');
-  document.body.removeChild(textarea);
+  await writeTextToClipboard(selection);
 };
 
 export const __testTerminalSelection = {
@@ -135,4 +121,3 @@ export const __testTerminalSelection = {
   normalizeTerminalSelectionText,
   stripTrailingPathPunctuation,
 };
-
