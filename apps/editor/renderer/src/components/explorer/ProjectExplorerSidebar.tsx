@@ -1,19 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, FileText, RefreshCw } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { useProjectExplorer, explorerPathUtils } from '../../hooks/useProjectExplorer';
-import { formatIdleShort } from '../../utils/timeFormat';
 import { RecentProjectsList } from '../RecentProjectsList';
 import { ExplorerContextMenu } from './ExplorerContextMenu';
 import { ExplorerItem } from './ExplorerItem';
 import { ExplorerHeader } from './ExplorerHeader';
 import { ExplorerFilterPanel } from './ExplorerFilterPanel';
 import { ExplorerFooter } from './ExplorerFooter';
-import { FileDashboardList } from '../fileDashboard/FileDashboardList';
 import { 
   pickPrimaryStatus, 
 } from './explorerUtils';
 import { buildAgentCellModifiedFileChanges } from '../../utils/agentCellFileChanges';
 import { setFileDragPayload } from '../../utils/fileDragPayload';
+import {
+  ExplorerChangedFilesPanel,
+  type ExplorerChangedFilesPanelMode,
+} from './ExplorerChangedFilesPanel';
 import {
   hasExternalDropEntries as hasExternalDroppedPaths,
   readExternalDropPaths as readDroppedExternalPaths,
@@ -115,7 +117,7 @@ function ProjectExplorerSidebarContent({
   const [viewportHeight, setViewportHeight] = useState(0);
   const [clipboard, setClipboard] = useState(null);
   const [changesPanelOpen, setChangesPanelOpen] = useState(true);
-  const [changesPanelMode, setChangesPanelMode] = useState<'flat' | 'tree'>('flat');
+  const [changesPanelMode, setChangesPanelMode] = useState<ExplorerChangedFilesPanelMode>('flat');
   const [changesPanelRefreshing, setChangesPanelRefreshing] = useState(false);
   const [changesPanelUpdatedAt, setChangesPanelUpdatedAt] = useState(0);
   const changesPanelSnippetPreview = useFileSnippetPreview({ defaultContext: 2 });
@@ -1145,98 +1147,24 @@ function ProjectExplorerSidebarContent({
         )}
       </div>
 
-      <div
-        className="mx-2 mb-2 shrink-0 rounded-lg border border-border/60 bg-card/35"
-        data-testid="explorer-changes-panel"
-      >
-        <div className="flex items-center justify-between px-2 py-1 text-[10px] text-muted-foreground">
-          <span className="inline-flex items-center gap-1">
-            <FileText size={11} strokeWidth={1.6} />
-            Changed Files
-            <span className="ml-1 rounded bg-background/60 px-1 text-[9px] font-mono text-muted-foreground/80">{changedPanelEntries.length}</span>
-          </span>
-          <div className="inline-flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => void refreshChangesPanel()}
-              className="rounded p-1 text-muted-foreground hover:text-foreground"
-              title="Refresh changed files"
-              disabled={changesPanelRefreshing}
-            >
-              <RefreshCw
-                size={10}
-                strokeWidth={1.6}
-                className={changesPanelRefreshing ? 'animate-spin' : ''}
-              />
-            </button>
-            <button
-              type="button"
-              onClick={() => setChangesPanelOpen((current) => !current)}
-              className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors ${
-                changesPanelOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-              }`}
-              title={changesPanelOpen ? 'Hide changed files panel' : 'Open changed files panel'}
-            >
-              {changesPanelOpen ? 'Close' : 'Open'}
-            </button>
-          </div>
-        </div>
-
-        {changesPanelOpen ? (
-          <div className="border-t border-border/40 px-2 pb-2 pt-1.5 flex max-h-64 min-h-0 flex-col">
-            <div className="mb-1 flex items-center justify-between gap-2">
-              <span className="truncate text-[10px] text-muted-foreground/80">
-                {selectedCell?.name || selectedCellId || 'Selected Cell'}
-              </span>
-              <div className="inline-flex rounded bg-background/60 p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setChangesPanelMode('flat')}
-                  className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors ${
-                    changesPanelMode === 'flat'
-                      ? 'bg-primary/15 text-primary'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Flat
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setChangesPanelMode('tree')}
-                  className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors ${
-                    changesPanelMode === 'tree'
-                      ? 'bg-primary/15 text-primary'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Tree
-                </button>
-              </div>
-            </div>
-
-            <FileDashboardList
-              entries={changedPanelEntries}
-              mode={changesPanelMode}
-              loading={changesPanelRefreshing}
-              loadingMessage="Scanning changed files…"
-              emptyMessage="No changed files in the selected Cell."
-              onOpen={(entry) => handleOpenChangedEntry(entry, { mode: 'preview' })}
-              onReveal={(entry) => handleRevealChangedEntry(entry)}
-              onPreview={(entry) => handlePreviewChangedEntry(entry)}
-              onDragStart={handleChangeEntryDragStart}
-              preview={changesPanelPreview}
-              onClearPreview={clearChangesPanelPreview}
-              listTestId="explorer-changes-panel-list"
-            />
-
-            {changesPanelUpdatedAt ? (
-              <div className="mt-1 text-[9px] text-muted-foreground/80">
-                Updated {formatIdleShort(Math.max(0, Date.now() - changesPanelUpdatedAt))} ago
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+      <ExplorerChangedFilesPanel
+        entries={changedPanelEntries}
+        selectedCell={selectedCell}
+        selectedCellId={selectedCellId}
+        isOpen={changesPanelOpen}
+        mode={changesPanelMode}
+        refreshing={changesPanelRefreshing}
+        updatedAt={changesPanelUpdatedAt}
+        preview={changesPanelPreview}
+        onRefresh={refreshChangesPanel}
+        onToggleOpen={() => setChangesPanelOpen((current) => !current)}
+        onModeChange={setChangesPanelMode}
+        onOpenEntry={(entry) => handleOpenChangedEntry(entry, { mode: 'preview' })}
+        onRevealEntry={handleRevealChangedEntry}
+        onPreviewEntry={handlePreviewChangedEntry}
+        onDragEntry={handleChangeEntryDragStart}
+        onClearPreview={clearChangesPanelPreview}
+      />
 
       <ExplorerFooter
         selectionCount={selectionCount}
