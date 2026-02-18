@@ -5,12 +5,6 @@ import { AppLayout } from './components/AppLayout';
 import { CreateCellModal } from './components/modals/CreateCellModal';
 import { LifecycleConfirmModal } from './components/modals/LifecycleConfirmModal';
 import { ModalProvider, useModal } from './components/modals/ModalSystem';
-import { useTerminusSettings } from './hooks/useTerminusSettings';
-import { useAppShortcuts } from './hooks/useAppShortcuts';
-import { useReplyQuickPrompts } from './hooks/useReplyQuickPrompts';
-import { useSessionNamingSettings } from './hooks/useSessionNamingSettings';
-import { useGates } from './hooks/useGates';
-import { useWorktreeLinks } from './hooks/useWorktreeLinks';
 import { useSessions } from './hooks/useSessions';
 import { useActionSheets } from './hooks/useActionSheets';
 import { useWorkbench } from './hooks/useWorkbench';
@@ -35,6 +29,7 @@ import { useCreateCellModalLauncher } from './app/useCreateCellModalLauncher';
 import { useGlobalAppShortcutListener } from './app/useGlobalAppShortcutListener';
 import { useHilDrawerController } from './app/useHilDrawerController';
 import { useSessionSidebarSelection } from './app/useSessionSidebarSelection';
+import { useHierarchyConfigState } from './app/useHierarchyConfigState';
 import { BASELINE_PROFILE_ID } from './utils/terminusSettings';
 import { SessionMapOverlay } from './components/sessionMap/SessionMapOverlay';
 import { SessionMapToggle } from './components/sessionMap/SessionMapToggle';
@@ -163,38 +158,17 @@ function AppShell() {
     setIpcAvailable,
   });
   const {
-    links: worktreeLinks,
-    autoLinkOnCreate: worktreeLinksAuto,
-    candidates: worktreeLinksCandidates,
-    statusesByPath: worktreeLinksStatusesByPath,
-    repoRoot: worktreeLinksRepoRoot,
-    configPath: worktreeLinksConfigPath,
-    loading: worktreeLinksLoading,
-    error: worktreeLinksError,
-    dirty: worktreeLinksDirty,
-    toggleAuto: toggleWorktreeLinksAuto,
-    addLink: addWorktreeLink,
-    addFromCandidate: addWorktreeLinkFromCandidate,
-    updateLink: updateWorktreeLink,
-    removeLink: removeWorktreeLink,
-    saveLinks: saveWorktreeLinks,
-    applyLink: applyWorktreeLink,
-    applyAll: applyAllWorktreeLinks,
-    refreshLinks: refreshWorktreeLinks,
-    clearError: clearWorktreeLinksError,
-  } = useWorktreeLinks({ selectedCell: scopedCell, cells, projectRoot });
-  const {
     resolvedProfiles,
     resolvedBindingsByProfile,
     profileRows,
     bindingRowsByProfile,
-    scopeDisabled: terminusScopeDisabled,
+    terminusScopeDisabled,
     projectSettingsPath,
     agentSettingsPath,
-    error: terminusError,
-    saving: terminusSaving,
-    dirty: terminusDirty,
-    summary: terminusSummary,
+    terminusError,
+    terminusSaving,
+    terminusDirty,
+    terminusSummary,
     addProfile,
     updateProfile,
     overrideProfile,
@@ -205,83 +179,48 @@ function AppShell() {
     overrideBinding,
     removeBinding,
     resetBinding,
-    saveSettings: saveTerminusSettings,
-    clearError: clearTerminusError,
-  } = useTerminusSettings({ selectedCell: scopedCell, terminusScope: actionsScope });
-  const {
-    resolvedActions: appShortcutResolvedActions,
-    actionRows: appShortcutRows,
-    scopeDisabled: appShortcutsScopeDisabled,
-    projectSettingsPath: appShortcutsProjectPath,
-    agentSettingsPath: appShortcutsAgentPath,
-    globalSettingsPath: appShortcutsGlobalPath,
-    error: appShortcutsError,
-    saving: appShortcutsSaving,
-    dirty: appShortcutsDirty,
-    summary: appShortcutsSummary,
-    updateAction: updateAppShortcut,
-    overrideAction: overrideAppShortcut,
-    resetAction: resetAppShortcut,
+    saveTerminusSettings,
+    clearTerminusError,
+    appShortcutRows,
+    appShortcutsScopeDisabled,
+    appShortcutsError,
+    appShortcutsSaving,
+    appShortcutsDirty,
+    appShortcutsSummary,
+    updateAppShortcut,
+    overrideAppShortcut,
+    resetAppShortcut,
     saveAppShortcuts,
-    clearError: clearAppShortcutsError,
-  } = useAppShortcuts({
-    selectedCell: scopedCell,
-    appShortcutsScope,
-    userDataPath,
-  });
-  const {
-    scopePrompts: replyQuickPromptsRows,
-    resolvedPrompts: resolvedReplyQuickPrompts,
-    scopeDisabled: replyQuickPromptsScopeDisabled,
-    projectSettingsPath: replyQuickPromptsProjectPath,
-    agentSettingsPath: replyQuickPromptsAgentPath,
-    globalSettingsPath: replyQuickPromptsGlobalPath,
-    error: replyQuickPromptsError,
-    saving: replyQuickPromptsSaving,
-    dirty: replyQuickPromptsDirty,
-    summary: replyQuickPromptsSummary,
-    addPrompt: addReplyQuickPrompt,
-    updatePrompt: updateReplyQuickPrompt,
-    removePrompt: removeReplyQuickPrompt,
-    savePrompts: saveReplyQuickPrompts,
-    clearError: clearReplyQuickPromptsError,
-  } = useReplyQuickPrompts({
-    selectedCell: scopedCell,
-    scope: replyQuickPromptsScope,
-    userDataPath,
-  });
-  const {
-    scopeSettings: sessionNamingSettings,
-    resolvedSettings: resolvedSessionNaming,
-    scopeDisabled: sessionNamingScopeDisabled,
-    projectSettingsPath: sessionNamingProjectPath,
-    agentSettingsPath: sessionNamingAgentPath,
-    globalSettingsPath: sessionNamingGlobalPath,
-    error: sessionNamingError,
-    saving: sessionNamingSaving,
-    dirty: sessionNamingDirty,
-    summary: sessionNamingSummary,
-    updateRule: updateSessionNamingRule,
-    updateNameList: updateSessionNamingList,
-    removeNameList: removeSessionNamingList,
-    renameNameList: renameSessionNamingList,
-    addNameList: addSessionNamingList,
-    saveSettings: saveSessionNamingSettings,
-    clearError: clearSessionNamingError,
-  } = useSessionNamingSettings({
-    selectedCell: scopedCell,
-    sessionNamingScope,
-    userDataPath,
-  });
-  const memoVoiceShortcut = useMemo(() => {
-    const action = (appShortcutResolvedActions || []).find((entry) => entry.id === 'memo.voice');
-    return action?.shortcut || '';
-  }, [appShortcutResolvedActions]);
-  const screenshotShortcut = useMemo(() => {
-    const action = (appShortcutResolvedActions || []).find((entry) => entry.id === 'capture.screenshot');
-    return action?.shortcut || '';
-  }, [appShortcutResolvedActions]);
-  const {
+    clearAppShortcutsError,
+    appShortcutsPaths,
+    replyQuickPromptsRows,
+    resolvedReplyQuickPrompts,
+    replyQuickPromptsScopeDisabled,
+    replyQuickPromptsError,
+    replyQuickPromptsSaving,
+    replyQuickPromptsDirty,
+    replyQuickPromptsSummary,
+    addReplyQuickPrompt,
+    updateReplyQuickPrompt,
+    removeReplyQuickPrompt,
+    saveReplyQuickPrompts,
+    clearReplyQuickPromptsError,
+    replyQuickPromptsPaths,
+    sessionNamingSettings,
+    resolvedSessionNaming,
+    sessionNamingScopeDisabled,
+    sessionNamingError,
+    sessionNamingSaving,
+    sessionNamingDirty,
+    sessionNamingSummary,
+    updateSessionNamingRule,
+    updateSessionNamingList,
+    removeSessionNamingList,
+    renameSessionNamingList,
+    addSessionNamingList,
+    saveSessionNamingSettings,
+    clearSessionNamingError,
+    sessionNamingPaths,
     gateRows,
     gateScopeDisabled,
     projectGatesPath,
@@ -299,7 +238,41 @@ function AppShell() {
     resetGate,
     saveGates,
     clearGatesError,
-  } = useGates({ selectedCell: scopedCell, gateScope, gateStage, repoRoot: projectRoot });
+    worktreeLinks,
+    worktreeLinksAuto,
+    worktreeLinksCandidates,
+    worktreeLinksStatusesByPath,
+    worktreeLinksRepoRoot,
+    worktreeLinksConfigPath,
+    worktreeLinksLoading,
+    worktreeLinksError,
+    worktreeLinksDirty,
+    toggleWorktreeLinksAuto,
+    addWorktreeLink,
+    addWorktreeLinkFromCandidate,
+    updateWorktreeLink,
+    removeWorktreeLink,
+    saveWorktreeLinks,
+    applyWorktreeLink,
+    applyAllWorktreeLinks,
+    refreshWorktreeLinks,
+    clearWorktreeLinksError,
+    memoVoiceShortcut,
+    screenshotShortcut,
+    canUseScopedConfig,
+    resolvedRepoRoot,
+  } = useHierarchyConfigState({
+    scopedCell,
+    cells,
+    projectRoot,
+    actionsScope,
+    appShortcutsScope,
+    replyQuickPromptsScope,
+    sessionNamingScope,
+    gateScope,
+    gateStage,
+    userDataPath,
+  });
   const handleOpenTerminal = useCallback(() => {
     setTerminalMode('shell');
     setTerminalOpen(true);
@@ -725,23 +698,6 @@ function AppShell() {
     saveGates,
     modal,
   });
-  const canUseScopedConfig = Boolean(scopedCell?.worktreePath);
-  const resolvedRepoRoot = projectRoot || worktreeLinksRepoRoot;
-  const appShortcutsPaths = {
-    global: appShortcutsGlobalPath,
-    project: appShortcutsProjectPath,
-    agent: appShortcutsAgentPath,
-  };
-  const replyQuickPromptsPaths = {
-    global: replyQuickPromptsGlobalPath,
-    project: replyQuickPromptsProjectPath,
-    agent: replyQuickPromptsAgentPath,
-  };
-  const sessionNamingPaths = {
-    global: sessionNamingGlobalPath,
-    project: sessionNamingProjectPath,
-    agent: sessionNamingAgentPath,
-  };
   const terminusProfiles = useMemo(
     () =>
       (resolvedProfiles || []).filter((profile) => {
