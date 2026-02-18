@@ -32,21 +32,18 @@ import {
 import {
   blameWorkbenchEntry,
   diffWorkbenchEntry,
-  getWorkbenchFileUrl,
   isAgencyAvailable,
   isAgencyMethodAvailable,
   onExplorerChanged,
-  readWorkbenchEntry,
   statWorkbenchEntry,
   writeWorkbenchEntry,
 } from '../../services/agencyBridge';
 import {
   buildWorkbenchBreadcrumbs,
-  detectWorkbenchSecureKind,
   formatWorkbenchBytes,
-  resolveWorkbenchLanguage,
   WORKBENCH_TAB_DISK_SYNC_INTERVAL_MS,
 } from './workbenchPaneHelpers';
+import { loadWorkbenchCodeState, loadWorkbenchTabState } from './workbenchPaneLoaders';
 
 
 export function WorkbenchPane({
@@ -168,7 +165,6 @@ function WorkbenchPaneContent({
       return;
     }
     const tabId = tab.id;
-    const secureKind = detectWorkbenchSecureKind(tab.path);
     const requestId = (Number(loadRequestByTabRef.current[tabId]) || 0) + 1;
     loadRequestByTabRef.current[tabId] = requestId;
 
@@ -187,85 +183,15 @@ function WorkbenchPaneContent({
       diskMtimeMs: 0,
       diffEnabled: false,
       blameEnabled: false,
-      secureKind,
       unlocked: false,
     });
 
     try {
-      if (secureKind === 'vector') {
-        const [contentResult, urlResult, meta] = await Promise.all([
-          readWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path }),
-          getWorkbenchFileUrl({ rootPath: tab.rootPath, targetPath: tab.path }),
-          statWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path }),
-        ]);
-        const content = contentResult?.content || '';
-        commitIfLatest({
-          loading: false,
-          content,
-          syncedContent: content,
-          fileUrl: urlResult?.url || '',
-          size: meta?.size || 0,
-          mtimeMs: meta?.mtimeMs || 0,
-          language: 'xml',
-          isDirty: false,
-          kind: 'vector',
-          needsReload: false,
-          diskMtimeMs: 0,
-        });
-        return;
-      }
-
-      if (['image', 'video', 'audio', 'pdf'].includes(secureKind)) {
-        const [meta, urlResult] = await Promise.all([
-          statWorkbenchEntry({ rootPath: tab.rootPath, targetPath: tab.path }),
-          getWorkbenchFileUrl({ rootPath: tab.rootPath, targetPath: tab.path }),
-        ]);
-        commitIfLatest({
-          loading: false,
-          fileUrl: urlResult?.url || '',
-          size: meta?.size || 0,
-          mtimeMs: meta?.mtimeMs || 0,
-          kind: secureKind,
-          needsReload: false,
-          diskMtimeMs: 0,
-        });
-        return;
-      }
-
-      if (secureKind === 'code') {
-        const result = await readWorkbenchEntry({
-          rootPath: tab.rootPath,
-          targetPath: tab.path,
-        });
-        const content = result?.content || '';
-        commitIfLatest({
-          loading: false,
-          content,
-          syncedContent: content,
-          size: result?.size || 0,
-          mtimeMs: result?.mtimeMs || 0,
-          binary: Boolean(result?.binary),
-          truncated: Boolean(result?.truncated),
-          language: resolveWorkbenchLanguage(tab.path),
-          isDirty: false,
-          kind: 'code',
-          needsReload: false,
-          diskMtimeMs: 0,
-        });
-      } else {
-        const meta = await statWorkbenchEntry({
-          rootPath: tab.rootPath,
-          targetPath: tab.path,
-        });
-        commitIfLatest({
-          loading: false,
-          size: meta?.size || 0,
-          mtimeMs: meta?.mtimeMs || 0,
-          kind: 'unknown',
-          needsReload: false,
-          diskMtimeMs: 0,
-        });
-      }
+      const nextState = await loadWorkbenchTabState({
+        rootPath: tab.rootPath,
+        targetPath: tab.path,
+      });
+      commitIfLatest(nextState);
     } catch (error) {
       commitIfLatest({ loading: false, error: error?.message || 'Load failed' });
     }
@@ -577,32 +503,19 @@ function WorkbenchPaneContent({
   ]);
 
   const handleUnlock = async () => {
-      if (!activeTab) return;
-      updateTabState(activeTab.id, { loading: true });
-      try {
-          const result = await readWorkbenchEntry({
-            rootPath: activeTab.rootPath,
-            targetPath: activeTab.path,
-          });
-          const content = result?.content || '';
-          updateTabState(activeTab.id, {
-            loading: false,
-            content,
-            syncedContent: content,
-            size: result?.size || 0,
-            mtimeMs: result?.mtimeMs || 0,
-            binary: Boolean(result?.binary),
-            truncated: Boolean(result?.truncated),
-            language: resolveWorkbenchLanguage(activeTab.path),
-            isDirty: false,
-            kind: 'code',
-            unlocked: true,
-            needsReload: false,
-            diskMtimeMs: 0,
-          });
-      } catch (e) {
-          updateTabState(activeTab.id, { loading: false, error: 'Forced load failed.' });
-      }
+    if (!activeTab) {
+      return;
+    }
+    updateTabState(activeTab.id, { loading: true });
+    try {
+      const nextState = await loadWorkbenchCodeState({
+        rootPath: activeTab.rootPath,
+        targetPath: activeTab.path,
+      });
+      updateTabState(activeTab.id, { ...nextState, error: '' });
+    } catch (_error) {
+      updateTabState(activeTab.id, { loading: false, error: 'Forced load failed.' });
+    }
   };
 
   const breadcrumbs = activeTab ? buildWorkbenchBreadcrumbs(activeTab.path) : [];

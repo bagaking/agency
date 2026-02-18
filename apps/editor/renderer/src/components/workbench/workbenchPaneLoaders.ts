@@ -1,0 +1,127 @@
+import {
+  getWorkbenchFileUrl,
+  readWorkbenchEntry,
+  statWorkbenchEntry,
+} from '../../services/agencyBridge';
+import {
+  detectWorkbenchSecureKind,
+  resolveWorkbenchLanguage,
+  type WorkbenchSecureKind,
+} from './workbenchPaneHelpers';
+
+type WorkbenchTabTarget = {
+  rootPath: string;
+  targetPath: string;
+};
+
+type WorkbenchTabLoadResult = Record<string, any>;
+
+const baseLoadedState = {
+  loading: false,
+  needsReload: false,
+  diskMtimeMs: 0,
+};
+
+const loadVectorWorkbenchState = async ({
+  rootPath,
+  targetPath,
+}: WorkbenchTabTarget): Promise<WorkbenchTabLoadResult> => {
+  const [contentResult, urlResult, meta] = await Promise.all([
+    readWorkbenchEntry({ rootPath, targetPath }),
+    getWorkbenchFileUrl({ rootPath, targetPath }),
+    statWorkbenchEntry({ rootPath, targetPath }),
+  ]);
+  const content = contentResult?.content || '';
+  return {
+    ...baseLoadedState,
+    content,
+    syncedContent: content,
+    fileUrl: urlResult?.url || '',
+    size: meta?.size || 0,
+    mtimeMs: meta?.mtimeMs || 0,
+    language: 'xml',
+    isDirty: false,
+    kind: 'vector',
+  };
+};
+
+const loadMediaWorkbenchState = async ({
+  rootPath,
+  targetPath,
+  kind,
+}: WorkbenchTabTarget & {
+  kind: WorkbenchSecureKind;
+}): Promise<WorkbenchTabLoadResult> => {
+  const [meta, urlResult] = await Promise.all([
+    statWorkbenchEntry({ rootPath, targetPath }),
+    getWorkbenchFileUrl({ rootPath, targetPath }),
+  ]);
+  return {
+    ...baseLoadedState,
+    fileUrl: urlResult?.url || '',
+    size: meta?.size || 0,
+    mtimeMs: meta?.mtimeMs || 0,
+    kind,
+  };
+};
+
+const loadCodeWorkbenchState = async ({
+  rootPath,
+  targetPath,
+}: WorkbenchTabTarget): Promise<WorkbenchTabLoadResult> => {
+  const result = await readWorkbenchEntry({ rootPath, targetPath });
+  const content = result?.content || '';
+  return {
+    ...baseLoadedState,
+    content,
+    syncedContent: content,
+    size: result?.size || 0,
+    mtimeMs: result?.mtimeMs || 0,
+    binary: Boolean(result?.binary),
+    truncated: Boolean(result?.truncated),
+    language: resolveWorkbenchLanguage(targetPath),
+    isDirty: false,
+    kind: 'code',
+  };
+};
+
+const loadUnknownWorkbenchState = async ({
+  rootPath,
+  targetPath,
+}: WorkbenchTabTarget): Promise<WorkbenchTabLoadResult> => {
+  const meta = await statWorkbenchEntry({ rootPath, targetPath });
+  return {
+    ...baseLoadedState,
+    size: meta?.size || 0,
+    mtimeMs: meta?.mtimeMs || 0,
+    kind: 'unknown',
+  };
+};
+
+export const loadWorkbenchTabState = async ({
+  rootPath,
+  targetPath,
+}: WorkbenchTabTarget): Promise<WorkbenchTabLoadResult> => {
+  const secureKind = detectWorkbenchSecureKind(targetPath);
+  if (secureKind === 'vector') {
+    return loadVectorWorkbenchState({ rootPath, targetPath });
+  }
+  if (['image', 'video', 'audio', 'pdf'].includes(secureKind)) {
+    return loadMediaWorkbenchState({ rootPath, targetPath, kind: secureKind });
+  }
+  if (secureKind === 'code') {
+    return loadCodeWorkbenchState({ rootPath, targetPath });
+  }
+  return loadUnknownWorkbenchState({ rootPath, targetPath });
+};
+
+export const loadWorkbenchCodeState = async ({
+  rootPath,
+  targetPath,
+}: WorkbenchTabTarget): Promise<WorkbenchTabLoadResult> => {
+  const state = await loadCodeWorkbenchState({ rootPath, targetPath });
+  return {
+    ...state,
+    unlocked: true,
+  };
+};
