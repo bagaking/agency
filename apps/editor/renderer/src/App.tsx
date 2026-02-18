@@ -30,13 +30,9 @@ import {
   listComments as agencyListComments,
   listHilItems as agencyListHilItems,
   onCellsUpdated as subscribeCellsUpdated,
-  onProjectUpdated as subscribeProjectUpdated,
-  onRecentProjectsUpdated as subscribeRecentProjectsUpdated,
   readActionSheet as agencyReadActionSheet,
   readWorkbenchEntry as agencyReadWorkbenchEntry,
   onAppShortcutTriggered as subscribeAppShortcutTriggered,
-  selectProjectRoot as agencySelectProjectRoot,
-  setProjectRoot as agencySetProjectRoot,
   setUiState as agencySetUiState,
   submitComment as agencySubmitComment,
   updateCellState as agencyUpdateCellState,
@@ -44,6 +40,7 @@ import {
   updateHilItem as agencyUpdateHilItem,
 } from './services/agencyBridge';
 import { warmSessionMapPreviewCache } from './services/sessionMapPreviewCache';
+import { useAppProjectLifecycle } from './app/useAppProjectLifecycle';
 import { useWorkbenchFileNavigation } from './app/useWorkbenchFileNavigation';
 import { buildPromotePromptBundle, buildPromotePromptText, buildPromoteActionSheetPrompt } from './utils/hilPromotePrompt';
 import { buildActionSheetCompletion, buildActionSheetPlan } from './utils/actionSheetCompletion';
@@ -2422,123 +2419,31 @@ function AppShell() {
     promoteStep,
     promoteWorktreePath,
   ]);
-  const resetProjectState = useCallback(() => {
-    setSelectedId(null);
-    setCells([]);
-    setInitialActiveSessions({});
-    resetSessions();
-    workbench.resetTabs();
-    setWorkbenchSelectionByCellId({});
-    setWorkbenchMetaByCellId({});
-    setInitialWorkbenchTabs({});
-    setInitialWorkbenchActiveTabs({});
-  }, [
+  const { handleSelectProjectRoot, handleOpenRecentProject } = useAppProjectLifecycle({
     resetSessions,
     workbench,
+    setSelectedId,
+    setCells,
+    setInitialActiveSessions,
+    setWorkbenchSelectionByCellId,
+    setWorkbenchMetaByCellId,
     setInitialWorkbenchTabs,
     setInitialWorkbenchActiveTabs,
-  ]);
-  const handleSelectProjectRoot = useCallback(async () => {
-    setProjectError('');
-    try {
-      const result = await agencySelectProjectRoot();
-      if (!result) {
-        return;
-      }
-    } catch (error) {
-      setProjectError(error?.message || 'Failed to select project.');
-    }
-  }, []);
-
-  const handleOpenRecentProject = useCallback(
-    async (projectPath) => {
-      if (!projectPath) {
-        return;
-      }
-      setProjectError('');
-      try {
-        const result = await agencySetProjectRoot({ projectRoot: projectPath });
-        if (!result) {
-          return;
-        }
-      } catch (error) {
-        setProjectError(error?.message || 'Failed to open project.');
-      }
-    },
-    []
-  );
-  useEffect(() => {
-    const unsubscribe = subscribeProjectUpdated(async (payload) => {
-      if (!payload) {
-        return;
-      }
-      resetProjectState();
-      setProjectRoot(payload.projectRoot || '');
-      setRecentProjects(Array.isArray(payload.recentProjects) ? payload.recentProjects : []);
-      setProjectError('');
-      // 移除这里的 setActiveView('explorer')，保留用户当前视图
-    });
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, [resetProjectState]);
-  useEffect(() => {
-    const unsubscribe = subscribeRecentProjectsUpdated((payload) => {
-      if (!payload) {
-        return;
-      }
-      setRecentProjects(Array.isArray(payload.recentProjects) ? payload.recentProjects : []);
-    });
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, []);
-  useEffect(() => {
-    if (!selectedCell?.id) {
-      return;
-    }
-    if (uiStateLoaded) {
-      agencySetUiState({
-          selectedId: selectedCell.id,
-          activeSessionByCellId,
-        }).catch(() => undefined);
-    }
-    setTerminalMode('shell');
-    setTerminalOpen(true);
-  }, [selectedCell?.id, activeSessionByCellId, uiStateLoaded]);
-
-  useEffect(() => {
-    if (!uiStateLoaded) {
-      return;
-    }
-    const handle = setTimeout(() => {
-      agencySetUiState({
-          sidebarWidth,
-          sidebarCollapsed,
-          activeView,
-          hilDrawerOpen,
-          hilDrawerPanel,
-          hilDrawerPanelByView,
-          workbenchTabsByCellId: workbench.serializeTabs(workbench.tabsByCellId),
-          workbenchActiveTabByCellId: workbench.activeTabByCellId,
-        }).catch(() => undefined);
-    }, 200);
-    return () => clearTimeout(handle);
-  }, [
+    setProjectError,
+    setProjectRoot,
+    setRecentProjects,
+    selectedCellId: selectedCell?.id || '',
+    activeSessionByCellId,
+    uiStateLoaded,
+    setTerminalMode,
+    setTerminalOpen,
+    sidebarWidth,
+    sidebarCollapsed,
     activeView,
     hilDrawerOpen,
     hilDrawerPanel,
     hilDrawerPanelByView,
-    sidebarCollapsed,
-    sidebarWidth,
-    uiStateLoaded,
-    workbench.activeTabByCellId,
-    workbench.tabsByCellId,
-  ]);
+  });
   const gateDisplayStage = scopedCell?.state === 'archived' ? 'archived' : 'active';
   const gateResultsByStage = scopedCell ? gateResultsByCellId[scopedCell.id] || {} : {};
   const gatesCheckingByStage = scopedCell ? gatesCheckingByCellId[scopedCell.id] || {} : {};
