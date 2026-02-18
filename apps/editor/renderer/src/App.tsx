@@ -32,6 +32,7 @@ import { useRendererBootstrap } from './app/useRendererBootstrap';
 import { buildAppLayoutPanelProps } from './app/buildAppLayoutPanelProps';
 import { buildAppLayoutProps } from './app/buildAppLayoutProps';
 import { useCellLifecycleTransitionModal } from './app/useCellLifecycleTransitionModal';
+import { useCreateCellModalLauncher } from './app/useCreateCellModalLauncher';
 import { BASELINE_PROFILE_ID } from './utils/terminusSettings';
 import { SessionMapOverlay } from './components/sessionMap/SessionMapOverlay';
 import { SessionMapToggle } from './components/sessionMap/SessionMapToggle';
@@ -1115,30 +1116,12 @@ function AppShell() {
     },
     [handleSwitchView]
   );
-  const handleOpenCreateCellModal = useCallback(() => {
-    if (!projectReady) {
-      handleSelectProjectRoot();
-      return;
-    }
-
-    const modalId = `create-cell-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 6)}`;
-    modal.openModal({
-      id: modalId,
-      title: 'Create New Agent Cell',
-      showActions: false,
-      showVariantLabel: false,
-      dismissOnOverlay: true,
-      content: (
-        <CreateCellModal
-          onClose={() => modal.closeModal(modalId, false)}
-          onCreate={async (payload) => {
-            await handleCreate(payload);
-            modal.closeModal(modalId, true);
-          }}
-        />
-      ),
-    });
-  }, [handleCreate, handleSelectProjectRoot, modal, projectReady]);
+  const handleOpenCreateCellModal = useCreateCellModalLauncher({
+    projectReady,
+    handleSelectProjectRoot,
+    modal,
+    handleCreate,
+  });
 
   const handleSidebarResizeEnd = useCallback(
     (nextWidth) => {
