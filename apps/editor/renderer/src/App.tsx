@@ -17,7 +17,6 @@ import { useWorkbench } from './hooks/useWorkbench';
 import { useHilMemoState } from './hooks/useHilMemoState';
 import { useHilMemoCaptureState } from './hooks/useHilMemoCaptureState';
 import {
-  onAppShortcutTriggered as subscribeAppShortcutTriggered,
   setUiState as agencySetUiState,
 } from './services/agencyBridge';
 import { useAppProjectLifecycle } from './app/useAppProjectLifecycle';
@@ -33,6 +32,7 @@ import { buildAppLayoutPanelProps } from './app/buildAppLayoutPanelProps';
 import { buildAppLayoutProps } from './app/buildAppLayoutProps';
 import { useCellLifecycleTransitionModal } from './app/useCellLifecycleTransitionModal';
 import { useCreateCellModalLauncher } from './app/useCreateCellModalLauncher';
+import { useGlobalAppShortcutListener } from './app/useGlobalAppShortcutListener';
 import { BASELINE_PROFILE_ID } from './utils/terminusSettings';
 import { SessionMapOverlay } from './components/sessionMap/SessionMapOverlay';
 import { SessionMapToggle } from './components/sessionMap/SessionMapToggle';
@@ -1073,40 +1073,13 @@ function AppShell() {
     });
   }, [explorerDeliverySummary, handleOpenDeliveryTimeline]);
   const { handleCaptureScreenshot, flashVoice } = memoCapture;
-  const handleAppShortcutTriggered = useCallback(
-    (payload) => {
-      const actionId = payload?.id;
-      if (!actionId) {
-        return;
-      }
-      if (actionId === 'view.agents') {
-        handleSwitchView('agent-cells');
-        return;
-      }
-      if (actionId === 'view.explorer') {
-        handleSwitchView('explorer');
-        return;
-      }
-      if (actionId === 'capture.screenshot') {
-        handleSwitchView('memo');
-        setHilDrawerOpen(true);
-        handleOpenMemoInbox('screenshot');
-        handleCaptureScreenshot?.();
-        return;
-      }
-      if (actionId === 'memo.voice') {
-        handleSwitchView('memo');
-        setHilDrawerOpen(true);
-        handleOpenMemoInbox('flash');
-        flashVoice?.start?.();
-      }
-    },
-    [flashVoice, handleCaptureScreenshot, handleOpenMemoInbox, handleSwitchView, setHilDrawerOpen]
-  );
-  useEffect(() => {
-    const unsubscribe = subscribeAppShortcutTriggered?.(handleAppShortcutTriggered);
-    return () => unsubscribe?.();
-  }, [handleAppShortcutTriggered]);
+  useGlobalAppShortcutListener({
+    handleSwitchView,
+    setHilDrawerOpen,
+    handleOpenMemoInbox,
+    handleCaptureScreenshot,
+    flashVoice,
+  });
   const handleOpenExplorerForCell = useCallback(
     (cellId) => {
       if (cellId) {
