@@ -34,6 +34,7 @@ import { useCellLifecycleTransitionModal } from './app/useCellLifecycleTransitio
 import { useCreateCellModalLauncher } from './app/useCreateCellModalLauncher';
 import { useGlobalAppShortcutListener } from './app/useGlobalAppShortcutListener';
 import { useHilDrawerController } from './app/useHilDrawerController';
+import { useSessionSidebarSelection } from './app/useSessionSidebarSelection';
 import { BASELINE_PROFILE_ID } from './utils/terminusSettings';
 import { SessionMapOverlay } from './components/sessionMap/SessionMapOverlay';
 import { SessionMapToggle } from './components/sessionMap/SessionMapToggle';
@@ -458,28 +459,15 @@ function AppShell() {
   useEffect(() => {
     setExplorerDeliverySummary(null);
   }, [projectRoot, selectedCell?.id]);
-  useEffect(() => {
-    if (activeView !== 'agent-cells' || !projectReady || displayCells.length === 0) {
-      return;
-    }
-    refreshSessionsForCells(displayCells, { silent: true });
-  }, [activeView, projectReady, displayCells, refreshSessionsForCells]);
-  const handleSelectSessionFromSidebar = useCallback(
-    (cellId, sessionId) => {
-      if (!cellId || !sessionId) {
-        return;
-      }
-      const targetCell = displayCells.find((cell) => cell.id === cellId);
-      if (!targetCell) {
-        return;
-      }
-      setSelectedId(cellId);
-      selectSession(sessionId, cellId);
-      setTerminalOpen(true);
-      refreshSessionsForCells([targetCell], { silent: true });
-    },
-    [displayCells, refreshSessionsForCells, selectSession]
-  );
+  const { handleSelectSessionFromSidebar } = useSessionSidebarSelection({
+    activeView,
+    projectReady,
+    displayCells,
+    refreshSessionsForCells,
+    selectSession,
+    setSelectedId,
+    setTerminalOpen,
+  });
   const activeTab = workbench.activeTab;
   const [workbenchMetaByCellId, setWorkbenchMetaByCellId] = useState({});
   const handleWorkbenchMetaChange = useCallback((cellId, meta) => {
