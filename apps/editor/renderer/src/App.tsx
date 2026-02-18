@@ -31,6 +31,8 @@ import { useHilDrawerController } from './app/useHilDrawerController';
 import { useSessionSidebarSelection } from './app/useSessionSidebarSelection';
 import { useHierarchyConfigState } from './app/useHierarchyConfigState';
 import { useSessionReplyContext } from './app/useSessionReplyContext';
+import { useMemoNavigationHandlers } from './app/useMemoNavigationHandlers';
+import { useExplorerCommentRouting } from './app/useExplorerCommentRouting';
 import { SessionMapOverlay } from './components/sessionMap/SessionMapOverlay';
 import { SessionMapToggle } from './components/sessionMap/SessionMapToggle';
 const defaultCells = [
@@ -847,38 +849,14 @@ function AppShell() {
     onCaptureSaved: handleMemoCaptureSaved,
     refresh: hilMemo.refresh,
   });
-  const handleAddCommentFromExplorer = useCallback((path) => {
-    if (!path) {
-      return;
-    }
-    void handleOpenWorkbenchFile({
-      path,
-      rootPath: explorerRootPath,
-      focusView: true,
-      cellId: selectedCell?.id,
-      sourceSurface: 'explorer',
-    });
-    setTimeout(() => {
-      openCommentModal({ line: 1 });
-    }, 100);
-  }, [explorerRootPath, handleOpenWorkbenchFile, openCommentModal, selectedCell?.id]);
-  const handleJumpToComments = useCallback(
-    (path) => {
-      if (!path) {
-        return;
-      }
-      void handleOpenWorkbenchFile({
-        path,
-        rootPath: explorerRootPath,
-        focusView: true,
-        cellId: selectedCell?.id,
-        sourceSurface: 'explorer',
-      });
-      setActiveView('explorer');
-      openHilDrawer('comments');
-    },
-    [explorerRootPath, handleOpenWorkbenchFile, openHilDrawer, selectedCell?.id]
-  );
+  const { handleAddCommentFromExplorer, handleJumpToComments } = useExplorerCommentRouting({
+    explorerRootPath,
+    selectedCellId: selectedCell?.id || '',
+    handleOpenWorkbenchFile,
+    openCommentModal,
+    setActiveView,
+    openHilDrawer,
+  });
   const handleFocusPromoteSession = useCallback(() => {
     if (!promoteSessionId) {
       return;
@@ -887,61 +865,20 @@ function AppShell() {
     handleOpenTerminal();
     selectSession(promoteSessionId);
   }, [handleOpenTerminal, promoteSessionId, selectSession]);
-  const handleFocusInboxInput = useCallback((targetId) => {
-    if (!targetId) {
-      return;
-    }
-    setMemoFocusTarget(targetId);
-  }, []);
-  const handleFocusInboxInputHandled = useCallback(() => {
-    setMemoFocusTarget('');
-  }, []);
-  const handleOpenMemoInbox = useCallback(
-    (inboxType = 'comments') => {
-      handleSwitchView('memo');
-      hilMemo.setDockSelection({
-        type: 'inbox',
-        inboxType,
-        draftId: null,
-      });
-    },
-    [handleSwitchView, hilMemo.setDockSelection]
-  );
-  const handleOpenMemoDraft = useCallback(
-    (draftId) => {
-      if (!draftId) {
-        return;
-      }
-      handleSwitchView('memo');
-      hilMemo.setDockSelection({
-        type: 'draft',
-        inboxType: 'comments',
-        draftId,
-      });
-    },
-    [handleSwitchView, hilMemo.setDockSelection]
-  );
-  const handleOpenDeliveryTimeline = useCallback(
-    ({ draftId, actionSheetId }: { draftId?: string; actionSheetId?: string } = {}) => {
-      if (draftId) {
-        handleOpenMemoDraft(draftId);
-        return;
-      }
-      if (actionSheetId) {
-        handleOpenActionSheets(actionSheetId);
-      }
-    },
-    [handleOpenActionSheets, handleOpenMemoDraft]
-  );
-  const handleOpenExplorerDeliveryTimeline = useCallback(() => {
-    if (!explorerDeliverySummary) {
-      return;
-    }
-    handleOpenDeliveryTimeline({
-      draftId: explorerDeliverySummary?.draftId,
-      actionSheetId: explorerDeliverySummary?.actionSheetId,
-    });
-  }, [explorerDeliverySummary, handleOpenDeliveryTimeline]);
+  const {
+    handleFocusInboxInput,
+    handleFocusInboxInputHandled,
+    handleOpenMemoInbox,
+    handleOpenMemoDraft,
+    handleOpenDeliveryTimeline,
+    handleOpenExplorerDeliveryTimeline,
+  } = useMemoNavigationHandlers({
+    handleSwitchView,
+    setDockSelection: hilMemo.setDockSelection,
+    setMemoFocusTarget,
+    handleOpenActionSheets,
+    explorerDeliverySummary,
+  });
   const { handleCaptureScreenshot, flashVoice } = memoCapture;
   useGlobalAppShortcutListener({
     handleSwitchView,
