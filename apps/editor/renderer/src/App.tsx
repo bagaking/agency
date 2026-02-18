@@ -19,7 +19,6 @@ import { useHilMemoCaptureState } from './hooks/useHilMemoCaptureState';
 import {
   onAppShortcutTriggered as subscribeAppShortcutTriggered,
   setUiState as agencySetUiState,
-  updateCellState as agencyUpdateCellState,
 } from './services/agencyBridge';
 import { useAppProjectLifecycle } from './app/useAppProjectLifecycle';
 import { useWorkbenchFileNavigation } from './app/useWorkbenchFileNavigation';
@@ -32,6 +31,7 @@ import { useHierarchyNavigation } from './app/useHierarchyNavigation';
 import { useRendererBootstrap } from './app/useRendererBootstrap';
 import { buildAppLayoutPanelProps } from './app/buildAppLayoutPanelProps';
 import { buildAppLayoutProps } from './app/buildAppLayoutProps';
+import { useCellLifecycleTransitionModal } from './app/useCellLifecycleTransitionModal';
 import { BASELINE_PROFILE_ID } from './utils/terminusSettings';
 import { SessionMapOverlay } from './components/sessionMap/SessionMapOverlay';
 import { SessionMapToggle } from './components/sessionMap/SessionMapToggle';
@@ -1151,6 +1151,18 @@ function AppShell() {
     [sidebarCollapsed]
   );
   const {
+    handleCancelTransition,
+    handleConfirmTransition,
+    handleRefreshTransitionGates,
+  } = useCellLifecycleTransitionModal({
+    pendingTransition,
+    setPendingTransition,
+    setTransitionError,
+    setTransitionLoading,
+    loadCells,
+    checkGatesForCell,
+  });
+  const {
     hilReplyProps,
     hilCommentsProps,
     hilDraftsProps,
@@ -1488,53 +1500,9 @@ function AppShell() {
             transition={pendingTransition}
             error={transitionError}
             loading={transitionLoading}
-            onCancel={() => {
-              setPendingTransition(null);
-              setTransitionError('');
-            }}
-            onConfirm={async () => {
-              if (!pendingTransition?.cell) {
-                return;
-              }
-              setTransitionLoading(true);
-              try {
-                const result = await agencyUpdateCellState({
-                  id: pendingTransition.cell.id,
-                  state: pendingTransition.nextState,
-                  worktreePath: pendingTransition.cell.worktreePath,
-                });
-                if (!result) {
-                  setTransitionError('Lifecycle transition failed.');
-                  return;
-                }
-                await loadCells();
-                setPendingTransition(null);
-              } catch (error) {
-                setTransitionError(error?.message || 'Lifecycle transition failed.');
-              } finally {
-                setTransitionLoading(false);
-              }
-            }}
-            onRefresh={async () => {
-              if (!pendingTransition?.cell) {
-                return;
-              }
-              try {
-                const gates = ['active', 'archived'].includes(pendingTransition.nextState)
-                  ? await checkGatesForCell({
-                      cell: pendingTransition.cell,
-                      stage: pendingTransition.nextState,
-                    })
-                  : [];
-                setPendingTransition({
-                  ...pendingTransition,
-                  gates,
-                });
-                setTransitionError('');
-              } catch (error) {
-                setTransitionError(error?.message || 'Failed to run gates.');
-              }
-            }}
+            onCancel={handleCancelTransition}
+            onConfirm={handleConfirmTransition}
+            onRefresh={handleRefreshTransitionGates}
           />
         ) : null}
 
