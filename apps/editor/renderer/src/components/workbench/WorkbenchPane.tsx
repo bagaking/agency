@@ -26,25 +26,22 @@ import { ProjectEmptyState } from '../ProjectEmptyState';
 import { Logo } from '../Logo';
 import { IconButton } from '../ui/IconButton';
 import {
-  isPathPossiblyChanged,
-  resolveExternalReloadStrategy,
-} from '../../utils/workbenchDiskSync';
-import {
-  blameWorkbenchEntry,
-  diffWorkbenchEntry,
   isAgencyAvailable,
   isAgencyMethodAvailable,
-  onExplorerChanged,
-  statWorkbenchEntry,
-  writeWorkbenchEntry,
 } from '../../services/agencyBridge';
 import {
   buildWorkbenchBreadcrumbs,
   formatWorkbenchBytes,
-  WORKBENCH_TAB_DISK_SYNC_INTERVAL_MS,
 } from './workbenchPaneHelpers';
 import { loadWorkbenchCodeState, loadWorkbenchTabState } from './workbenchPaneLoaders';
+import {
+  loadWorkbenchBlameLines,
+  loadWorkbenchDiffHunks,
+  normalizeWorkbenchSaveAsPath,
+  saveWorkbenchTabContent,
+} from './workbenchPaneCommands';
 import { useWorkbenchKeyboardShortcuts } from './useWorkbenchKeyboardShortcuts';
+import { useWorkbenchDiskSync } from './useWorkbenchDiskSync';
 
 
 export function WorkbenchPane({
@@ -125,7 +122,6 @@ function WorkbenchPaneContent({
   const activeEditorRef = useRef(null);
   const tabStateByIdRef = useRef({});
   const loadRequestByTabRef = useRef({});
-  const diskCheckInFlightRef = useRef(new Set());
 
   const activeState = activeTab ? tabStateById[activeTab.id] || {} : {};
   const resolvedCommentLines = Array.isArray(commentLines) ? commentLines : [];
@@ -204,112 +200,20 @@ function WorkbenchPaneContent({
     }
   }, [activeTab, loadTab, tabStateById]);
 
-  const checkTabDiskVersion = useCallback(async (tab) => {
-    if (!tab || !isAgencyMethodAvailable('statWorkbenchEntry')) {
-      return;
-    }
-    const tabId = tab.id;
-    const currentState = tabStateByIdRef.current[tabId];
-    if (!currentState || currentState.loading || currentState.saving) {
-      return;
-    }
-    if (diskCheckInFlightRef.current.has(tabId)) {
-      return;
-    }
-    diskCheckInFlightRef.current.add(tabId);
-    try {
-      const stat = await statWorkbenchEntry({
-        rootPath: tab.rootPath,
-        targetPath: tab.path,
-      });
-      const latestState = tabStateByIdRef.current[tabId] || {};
-      const diskMtimeMs = Number(stat?.mtimeMs || 0);
-      const decision = resolveExternalReloadStrategy({
-        knownMtimeMs: Number(latestState.mtimeMs || 0),
-        diskMtimeMs,
-        isDirty: Boolean(latestState.isDirty),
-      });
-      if (!decision.diskNewer) {
-        if (latestState.needsReload) {
-          updateTabState(tabId, { needsReload: false, diskMtimeMs: 0 });
-        }
-        return;
-      }
-      if (decision.shouldMarkNeedsReload) {
-        updateTabState(tabId, { needsReload: true, diskMtimeMs });
-        return;
-      }
-      if (decision.shouldAutoReload) {
-        loadTab(tab);
-      }
-    } catch (_error) {
-      // Ignore transient stat/read failures and keep current editor state.
-    } finally {
-      diskCheckInFlightRef.current.delete(tabId);
-    }
-  }, [loadTab, updateTabState]);
+  useWorkbenchDiskSync({
+    activeTab,
+    loadTab,
+    updateTabState,
+    tabStateByIdRef,
+  });
 
-  useEffect(() => {
-    if (!activeTab) {
-      return undefined;
-    }
-    const runCheck = () => {
-      checkTabDiskVersion(activeTab);
-    };
-    runCheck();
-    const intervalHandle = window.setInterval(() => {
-      if (document.hidden) {
-        return;
-      }
-      runCheck();
-    }, WORKBENCH_TAB_DISK_SYNC_INTERVAL_MS);
-    const handleFocus = () => runCheck();
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        runCheck();
-      }
-    };
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      window.clearInterval(intervalHandle);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [activeTab, checkTabDiskVersion]);
-
-  useEffect(() => {
-    if (!activeTab || !isAgencyMethodAvailable('onExplorerChanged')) {
-      return undefined;
-    }
-    const unsubscribe = onExplorerChanged((payload) => {
-      if (!payload) {
-        return;
-      }
-      if (payload.rootPath && activeTab.rootPath && payload.rootPath !== activeTab.rootPath) {
-        return;
-      }
-      if (
-        !isPathPossiblyChanged({
-          targetPath: activeTab.path,
-          changedDirs: payload.paths || [],
-        })
-      ) {
-        return;
-      }
-      checkTabDiskVersion(activeTab);
-    });
-    return () => {
-      unsubscribe?.();
-    };
-  }, [activeTab, checkTabDiskVersion]);
 
   const handleSave = useCallback(async () => {
     if (!activeTab || !activeState || !isAgencyMethodAvailable('writeWorkbenchEntry')) return;
     updateTabState(activeTab.id, { saving: true });
     try {
       const content = activeState.content || '';
-      const result = await writeWorkbenchEntry({
+      const result = await saveWorkbenchTabContent({
         rootPath: activeTab.rootPath,
         targetPath: activeTab.path,
         content,
@@ -334,13 +238,13 @@ function WorkbenchPaneContent({
     if (!nextPath) {
       return;
     }
-    const normalizedPath = nextPath.replace(/\\/g, '/').replace(/^\.?\//, '');
+    const normalizedPath = normalizeWorkbenchSaveAsPath(nextPath);
     if (!normalizedPath) {
       return;
     }
     updateTabState(activeTab.id, { saving: true });
     try {
-      await writeWorkbenchEntry({
+      await saveWorkbenchTabContent({
         rootPath: activeTab.rootPath,
         targetPath: normalizedPath,
         content: activeState.content || '',
@@ -391,11 +295,11 @@ function WorkbenchPaneContent({
     updateTabState(activeTab.id, { diffEnabled: enabled });
     if (enabled && !activeState.diffHunks) {
       try {
-        const result = await diffWorkbenchEntry({
+        const hunks = await loadWorkbenchDiffHunks({
           rootPath: activeTab.rootPath,
           targetPath: activeTab.path,
         });
-        updateTabState(activeTab.id, { diffHunks: result?.hunks || [] });
+        updateTabState(activeTab.id, { diffHunks: hunks });
       } catch (e) { console.error(e); }
     }
   }, [activeState, activeTab, updateTabState]);
@@ -406,11 +310,11 @@ function WorkbenchPaneContent({
     updateTabState(activeTab.id, { blameEnabled: enabled });
     if (enabled && !activeState.blameLines) {
       try {
-        const result = await blameWorkbenchEntry({
+        const lines = await loadWorkbenchBlameLines({
           rootPath: activeTab.rootPath,
           targetPath: activeTab.path,
         });
-        updateTabState(activeTab.id, { blameLines: result?.lines || [] });
+        updateTabState(activeTab.id, { blameLines: lines });
       } catch (e) { console.error(e); }
     }
   }, [activeState, activeTab, updateTabState]);
