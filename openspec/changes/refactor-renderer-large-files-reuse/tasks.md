@@ -20,7 +20,7 @@
 - [x] 3.3 Decompose `apps/editor/renderer/src/components/TerminalPane.tsx` into lifecycle/resize/input/selection modules.
 - [ ] 3.4 Decompose `apps/editor/renderer/src/components/explorer/ProjectExplorerSidebar.tsx` into actions/dnd/panel modules.
 - [ ] 3.5 Decompose `apps/editor/renderer/src/components/hil/memo/HilMemoView.tsx` into list/detail/mutation modules.
-- [ ] 3.6 Decompose `apps/editor/renderer/src/components/hil/HilCommentsPanel.tsx` by splitting comments panel and promote modal.
+- [x] 3.6 Decompose `apps/editor/renderer/src/components/hil/HilCommentsPanel.tsx` by splitting comments panel and promote modal.
 - [x] 3.7 Decompose `apps/editor/renderer/src/components/workbench/WorkbenchPane.tsx` into loading/sync/command modules.
 - [x] 3.8 Decompose `apps/editor/renderer/src/components/QuickActionsView.tsx` into profile/binding/capture modules.
 - [x] 3.9 Decompose `apps/editor/renderer/src/components/terminal/useTerminalRuntimeEffect.ts` into focused runtime sub-hooks/utilities (linking, selection-mode arbitration, resize/activity sync).
