@@ -22,7 +22,6 @@ type UseCellLifecycleActionsArgs = {
   setPendingTransition: (value: any) => void;
   setProjectError: (value: string) => void;
   setLoading: (value: boolean) => void;
-  setShowCreate: (value: boolean) => void;
   setSelectedId: (value: any) => void;
   saveGates: () => Promise<any>;
   modal: any;
@@ -44,7 +43,6 @@ export function useCellLifecycleActions({
   setPendingTransition,
   setProjectError,
   setLoading,
-  setShowCreate,
   setSelectedId,
   saveGates,
   modal,
@@ -114,7 +112,6 @@ export function useCellLifecycleActions({
         if (!cell) {
           return;
         }
-        setShowCreate(false);
         await loadCells();
         if (cell?.id) {
           setSelectedId(cell.id);
@@ -151,7 +148,6 @@ export function useCellLifecycleActions({
       setLoading,
       setProjectError,
       setSelectedId,
-      setShowCreate,
     ]
   );
 
@@ -167,4 +163,3 @@ export function useCellLifecycleActions({
     handleSaveGates,
   };
 }
-

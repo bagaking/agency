@@ -1,9 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import '@xterm/xterm/css/xterm.css';
-import { StatusBar } from './components/StatusBar';
 import { AppLayout } from './components/AppLayout';
-import { CreateCellModal } from './components/modals/CreateCellModal';
-import { LifecycleConfirmModal } from './components/modals/LifecycleConfirmModal';
 import { ModalProvider, useModal } from './components/modals/ModalSystem';
 import { useSessions } from './hooks/useSessions';
 import { useActionSheets } from './hooks/useActionSheets';
@@ -22,8 +19,7 @@ import { useHilFileCommenting } from './app/useHilFileCommenting';
 import { useSessionMapOverlayController } from './app/useSessionMapOverlayController';
 import { useHierarchyNavigation } from './app/useHierarchyNavigation';
 import { useRendererBootstrap } from './app/useRendererBootstrap';
-import { buildAppLayoutPanelProps } from './app/buildAppLayoutPanelProps';
-import { buildAppLayoutProps } from './app/buildAppLayoutProps';
+import { buildComposedAppLayoutProps } from './app/buildComposedAppLayoutProps';
 import { useCellLifecycleTransitionModal } from './app/useCellLifecycleTransitionModal';
 import { useCreateCellModalLauncher } from './app/useCreateCellModalLauncher';
 import { useGlobalAppShortcutListener } from './app/useGlobalAppShortcutListener';
@@ -33,7 +29,8 @@ import { useHierarchyConfigState } from './app/useHierarchyConfigState';
 import { useSessionReplyContext } from './app/useSessionReplyContext';
 import { useMemoNavigationHandlers } from './app/useMemoNavigationHandlers';
 import { useExplorerCommentRouting } from './app/useExplorerCommentRouting';
-import { SessionMapOverlay } from './components/sessionMap/SessionMapOverlay';
+import { useWorkbenchReplySelectionState } from './app/useWorkbenchReplySelectionState';
+import { AppShellChrome } from './app/AppShellChrome';
 import { SessionMapToggle } from './components/sessionMap/SessionMapToggle';
 const defaultCells = [
   {
@@ -65,7 +62,6 @@ function AppShell() {
   const [projectError, setProjectError] = useState('');
   const [recentProjects, setRecentProjects] = useState([]);
   const [fallbackTerminalRoot, setFallbackTerminalRoot] = useState('');
-  const [showCreate, setShowCreate] = useState(false);
   const [pendingTransition, setPendingTransition] = useState(null);
   const [transitionError, setTransitionError] = useState('');
   const [transitionLoading, setTransitionLoading] = useState(false);
@@ -76,12 +72,6 @@ function AppShell() {
   const [hilDrawerOpen, setHilDrawerOpen] = useState(false);
   const [hilDrawerPanel, setHilDrawerPanel] = useState('comments');
   const [hilDrawerPanelByView, setHilDrawerPanelByView] = useState({});
-  const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
-  const [workbenchSelectionByCellId, setWorkbenchSelectionByCellId] = useState({});
-  const [replySelectionByKey, setReplySelectionByKey] = useState({});
-  const [replyFocusToken, setReplyFocusToken] = useState(0);
-  const [pendingWorkbenchJump, setPendingWorkbenchJump] = useState(null);
-  const [pendingExplorerReveal, setPendingExplorerReveal] = useState(null);
   const [hierarchySection, setHierarchySection] = useState('actions');
   const [actionsScope, setActionsScope] = useState('global');
   const [appShortcutsScope, setAppShortcutsScope] = useState('global');
@@ -159,111 +149,7 @@ function AppShell() {
     setTmuxStatus,
     setIpcAvailable,
   });
-  const {
-    resolvedProfiles,
-    resolvedBindingsByProfile,
-    profileRows,
-    bindingRowsByProfile,
-    terminusScopeDisabled,
-    projectSettingsPath,
-    agentSettingsPath,
-    terminusError,
-    terminusSaving,
-    terminusDirty,
-    terminusSummary,
-    addProfile,
-    updateProfile,
-    overrideProfile,
-    removeProfile,
-    resetProfile,
-    addBinding,
-    updateBinding,
-    overrideBinding,
-    removeBinding,
-    resetBinding,
-    saveTerminusSettings,
-    clearTerminusError,
-    appShortcutRows,
-    appShortcutsScopeDisabled,
-    appShortcutsError,
-    appShortcutsSaving,
-    appShortcutsDirty,
-    appShortcutsSummary,
-    updateAppShortcut,
-    overrideAppShortcut,
-    resetAppShortcut,
-    saveAppShortcuts,
-    clearAppShortcutsError,
-    appShortcutsPaths,
-    replyQuickPromptsRows,
-    resolvedReplyQuickPrompts,
-    replyQuickPromptsScopeDisabled,
-    replyQuickPromptsError,
-    replyQuickPromptsSaving,
-    replyQuickPromptsDirty,
-    replyQuickPromptsSummary,
-    addReplyQuickPrompt,
-    updateReplyQuickPrompt,
-    removeReplyQuickPrompt,
-    saveReplyQuickPrompts,
-    clearReplyQuickPromptsError,
-    replyQuickPromptsPaths,
-    sessionNamingSettings,
-    resolvedSessionNaming,
-    sessionNamingScopeDisabled,
-    sessionNamingError,
-    sessionNamingSaving,
-    sessionNamingDirty,
-    sessionNamingSummary,
-    updateSessionNamingRule,
-    updateSessionNamingList,
-    removeSessionNamingList,
-    renameSessionNamingList,
-    addSessionNamingList,
-    saveSessionNamingSettings,
-    clearSessionNamingError,
-    sessionNamingPaths,
-    gateRows,
-    gateScopeDisabled,
-    projectGatesPath,
-    agentGatesPath,
-    gatesError,
-    gatesSaving,
-    gateResultsByCellId,
-    gatesCheckingByCellId,
-    gateSummary,
-    checkGatesForCell,
-    addGate,
-    updateGate,
-    overrideGate,
-    removeGate,
-    resetGate,
-    saveGates,
-    clearGatesError,
-    worktreeLinks,
-    worktreeLinksAuto,
-    worktreeLinksCandidates,
-    worktreeLinksStatusesByPath,
-    worktreeLinksRepoRoot,
-    worktreeLinksConfigPath,
-    worktreeLinksLoading,
-    worktreeLinksError,
-    worktreeLinksDirty,
-    toggleWorktreeLinksAuto,
-    addWorktreeLink,
-    addWorktreeLinkFromCandidate,
-    updateWorktreeLink,
-    removeWorktreeLink,
-    saveWorktreeLinks,
-    applyWorktreeLink,
-    applyAllWorktreeLinks,
-    refreshWorktreeLinks,
-    clearWorktreeLinksError,
-    memoVoiceShortcut,
-    screenshotShortcut,
-    canUseScopedConfig,
-    resolvedRepoRoot,
-  } = useHierarchyConfigState({
+  const hierarchyConfig = useHierarchyConfigState({
     scopedCell,
     cells,
     projectRoot,
@@ -279,38 +165,7 @@ function AppShell() {
     setTerminalMode('shell');
     setTerminalOpen(true);
   }, []);
-  const {
-    sessions,
-    sessionsByCellId,
-    activeSessionId,
-    activeFontSize,
-    sessionFontSizeByKey,
-    lastActivityAt,
-    sessionActivityByKey,
-    sessionVisitedByKey,
-    sessionLoading,
-    sessionError,
-    pendingCommand,
-    activeSessionByCellId,
-    refreshSessions,
-    refreshSessionsForCells,
-    createSession,
-    createSessionForCell,
-    closeSession,
-    detachSession,
-    renameSession,
-    updateSessionAvatar,
-    selectSession,
-    updateSessionActivity,
-    zoomIn,
-    zoomOut,
-    zoomReset,
-    dispatchSessionCommand,
-    sendSessionText,
-    acknowledgeCommandSent,
-    handleSessionAttached,
-    resetSessions,
-  } = useSessions({
+  const sessionsState = useSessions({
     selectedCell,
     cells,
     tmuxStatus,
@@ -320,8 +175,8 @@ function AppShell() {
   const sessionTargets = useMemo(() => {
     const list = [];
     (displayCells || []).forEach((cell) => {
-      const sessions = sessionsByCellId[cell.id] || [];
-      sessions.forEach((session) => {
+      const cellSessions = sessionsState.sessionsByCellId[cell.id] || [];
+      cellSessions.forEach((session) => {
         if (!session || session.status === 'closed' || session.status === 'stale') {
           return;
         }
@@ -336,7 +191,7 @@ function AppShell() {
       });
     });
     return list;
-  }, [displayCells, sessionsByCellId]);
+  }, [displayCells, sessionsState.sessionsByCellId]);
   const {
     activityDiffThreshold,
     focusSession,
@@ -350,17 +205,17 @@ function AppShell() {
     projectRoot,
     projectReady,
     cells,
-    sessions,
-    sessionsByCellId,
-    activeSessionId,
-    activeSessionByCellId,
-    sessionActivityByKey,
-    sessionVisitedByKey,
-    resolvedProfiles,
-    activeFontSize,
-    sessionFontSizeByKey,
-    refreshSessionsForCells,
-    selectSession,
+    sessions: sessionsState.sessions,
+    sessionsByCellId: sessionsState.sessionsByCellId,
+    activeSessionId: sessionsState.activeSessionId,
+    activeSessionByCellId: sessionsState.activeSessionByCellId,
+    sessionActivityByKey: sessionsState.sessionActivityByKey,
+    sessionVisitedByKey: sessionsState.sessionVisitedByKey,
+    resolvedProfiles: hierarchyConfig.resolvedProfiles,
+    activeFontSize: sessionsState.activeFontSize,
+    sessionFontSizeByKey: sessionsState.sessionFontSizeByKey,
+    refreshSessionsForCells: sessionsState.refreshSessionsForCells,
+    selectSession: sessionsState.selectSession,
     setSelectedId,
     setTerminalOpen,
     setActiveView,
@@ -378,34 +233,12 @@ function AppShell() {
   );
   const actionSheetsRoot = projectRoot || selectedCell?.worktreePath || '';
   const hilWorktreePath = selectedCell?.worktreePath || projectRoot || '';
-  const {
-    sheets: actionSheets,
-    selectedId: actionSheetId,
-    selectedSheet: actionSheetDetail,
-    loading: actionSheetsLoading,
-    detailLoading: actionSheetDetailLoading,
-    error: actionSheetsError,
-    setSelectedId: setActionSheetId,
-    refreshList: refreshActionSheets,
-    createSheet: createActionSheet,
-    updateSheetStatus: updateActionSheetStatus,
-    updateSheetPlan: updateActionSheetPlan,
-    updateSheetPrompt: updateActionSheetPrompt,
-    updateSheetChecks: updateActionSheetChecks,
-    refreshChecks: refreshActionSheetChecks,
-    dispatchSheet: dispatchActionSheet,
-    cancelSheet: cancelActionSheet,
-    conditionalDefaults,
-    showArchived: showArchivedActionSheets,
-    setShowArchived: setShowArchivedActionSheets,
-    archiveSheet: archiveActionSheet,
-    deleteSheet: deleteActionSheet,
-  } = useActionSheets({
+  const actionSheetsState = useActionSheets({
     worktreePath: actionSheetsRoot,
     selectedCellId: selectedCell?.id || '',
-    dispatchSessionCommand,
+    dispatchSessionCommand: sessionsState.dispatchSessionCommand,
     onOpenTerminal: handleOpenTerminal,
-    onSelectSession: selectSession,
+    onSelectSession: sessionsState.selectSession,
     onSwitchView: setActiveView,
   });
   const workbench = useWorkbench({
@@ -419,18 +252,18 @@ function AppShell() {
     worktreePath: selectedCell?.worktreePath || projectRoot || '',
   });
   useEffect(() => {
-    if (actionSheetSessionId || !activeSessionId) {
+    if (actionSheetSessionId || !sessionsState.activeSessionId) {
       return;
     }
-    setActionSheetSessionId(activeSessionId);
-  }, [actionSheetSessionId, activeSessionId]);
+    setActionSheetSessionId(sessionsState.activeSessionId);
+  }, [actionSheetSessionId, sessionsState.activeSessionId]);
   useEffect(() => {
-    const linked = actionSheetDetail?.status?.sessionId;
+    const linked = actionSheetsState.selectedSheet?.status?.sessionId;
     if (actionSheetSessionId || !linked) {
       return;
     }
     setActionSheetSessionId(linked);
-  }, [actionSheetDetail?.status?.sessionId, actionSheetSessionId]);
+  }, [actionSheetSessionId, actionSheetsState.selectedSheet?.status?.sessionId]);
   useEffect(() => {
     setExplorerDeliverySummary(null);
   }, [projectRoot, selectedCell?.id]);
@@ -438,22 +271,37 @@ function AppShell() {
     activeView,
     projectReady,
     displayCells,
-    refreshSessionsForCells,
-    selectSession,
+    refreshSessionsForCells: sessionsState.refreshSessionsForCells,
+    selectSession: sessionsState.selectSession,
     setSelectedId,
     setTerminalOpen,
   });
   const activeTab = workbench.activeTab;
-  const [workbenchMetaByCellId, setWorkbenchMetaByCellId] = useState({});
-  const handleWorkbenchMetaChange = useCallback((cellId, meta) => {
-    if (!cellId) {
-      return;
-    }
-    setWorkbenchMetaByCellId((current) => ({
-      ...current,
-      [cellId]: meta || {},
-    }));
-  }, []);
+  const {
+    cursorPosition,
+    setCursorPosition,
+    setWorkbenchSelectionByCellId,
+    replySelectionByKey,
+    setReplySelectionByKey,
+    replyFocusToken,
+    pendingWorkbenchJump,
+    setPendingWorkbenchJump,
+    pendingExplorerReveal,
+    setPendingExplorerReveal,
+    setWorkbenchMetaByCellId,
+    explorerMeta,
+    memoSelection,
+    handleWorkbenchMetaChange,
+    handleWorkbenchSelectionChange,
+    handleSelectionContext,
+    handleReplySelection,
+  } = useWorkbenchReplySelectionState({
+    selectedCellId: selectedCell?.id || '',
+    activeView,
+    setHilDrawerOpen,
+    setHilDrawerPanel,
+    setHilDrawerPanelByView,
+  });
   const { openHilDrawer, handleSelectHilDrawerPanel } = useHilDrawerController({
     activeView,
     hilDrawerOpen,
@@ -463,8 +311,8 @@ function AppShell() {
     setHilDrawerPanelByView,
   });
   const availableActionSessions = useMemo(
-    () => sessions.filter((session) => session.status !== 'closed'),
-    [sessions]
+    () => sessionsState.sessions.filter((session) => session.status !== 'closed'),
+    [sessionsState.sessions]
   );
   const {
     handleCreateActionSheet,
@@ -485,169 +333,67 @@ function AppShell() {
     selectedCell,
     actionSheetsRoot,
     hilWorktreePath,
-    conditionalDefaults,
-    activeSessionId,
+    conditionalDefaults: actionSheetsState.conditionalDefaults,
+    activeSessionId: sessionsState.activeSessionId,
     summarizeHilDraft: hilMemo.summarizeBody,
     refreshHilMemo: hilMemo.refresh,
-    createActionSheet,
-    updateActionSheetStatus,
-    updateActionSheetPlan,
-    updateActionSheetPrompt,
-    updateActionSheetChecks,
-    dispatchActionSheet,
-    archiveActionSheet,
-    deleteActionSheet,
-    dispatchSessionCommand,
+    createActionSheet: actionSheetsState.createSheet,
+    updateActionSheetStatus: actionSheetsState.updateSheetStatus,
+    updateActionSheetPlan: actionSheetsState.updateSheetPlan,
+    updateActionSheetPrompt: actionSheetsState.updateSheetPrompt,
+    updateActionSheetChecks: actionSheetsState.updateSheetChecks,
+    dispatchActionSheet: actionSheetsState.dispatchSheet,
+    archiveActionSheet: actionSheetsState.archiveSheet,
+    deleteActionSheet: actionSheetsState.deleteSheet,
+    dispatchSessionCommand: sessionsState.dispatchSessionCommand,
     setActionSheetInlineError,
     setActionSheetSessionId,
-    setActionSheetId,
+    setActionSheetId: actionSheetsState.setSelectedId,
     setExplorerDeliverySummary,
     setActiveView,
     handleOpenTerminal,
-    selectSession,
-    projectGatesPath,
-    agentGatesPath,
+    selectSession: sessionsState.selectSession,
+    projectGatesPath: hierarchyConfig.projectGatesPath,
+    agentGatesPath: hierarchyConfig.agentGatesPath,
   });
 
-  const {
-    commentRootPath,
-    commentFilePath,
-    comments,
-    commentsLoading,
-    commentsError,
-    refreshComments: loadComments,
-    commentLines,
-    commentCountsByPath: hilCommentCounts,
-    commentModalOpen,
-    commentTarget,
-    commentMessage,
-    commentTodo,
-    commentError,
-    commentSaving,
-    commentSnippet,
-    commentSnippetLoading,
-    commentSnippetError,
-    setCommentMessage,
-    setCommentTodo,
-    openCommentModal,
-    closeCommentModal,
-    submitComment,
-    updateCommentStatus,
-  } = useHilFileCommenting({
+  const hilCommentState = useHilFileCommenting({
     activeTab,
     cursorPosition,
     hilWorktreePath: selectedCell?.worktreePath || projectRoot || '',
     openHilDrawer,
   });
-  const handleWorkbenchSelectionChange = useCallback(
-    (selection) => {
-      const cellKey = selectedCell?.id || 'repo';
-      setWorkbenchSelectionByCellId((current) => {
-        if (!selection) {
-          if (!current[cellKey]) {
-            return current;
-          }
-          const next = { ...current };
-          delete next[cellKey];
-          return next;
-        }
-        return {
-          ...current,
-          [cellKey]: selection,
-        };
-      });
-    },
-    [selectedCell?.id]
-  );
-  const handleSelectionContext = useCallback((selection) => {
-    if (!selection?.cellId || !selection?.sessionId) {
-      return;
-    }
-    const key = `${selection.cellId}:${selection.sessionId}`;
-    setReplySelectionByKey((current) => ({
-      ...current,
-      [key]: selection,
-    }));
-  }, []);
-  const handleReplySelection = useCallback(
-    (selection) => {
-      if (!selection?.cellId || !selection?.sessionId) {
-        return;
-      }
-      const key = `${selection.cellId}:${selection.sessionId}`;
-      setReplySelectionByKey((current) => ({
-        ...current,
-        [key]: selection,
-      }));
-      setHilDrawerPanel('reply');
-      setHilDrawerOpen(true);
-      setHilDrawerPanelByView((current) => ({
-        ...current,
-        [activeView]: 'reply',
-      }));
-      setReplyFocusToken((token) => token + 1);
-    },
-    [activeView]
-  );
   const promoteWorktreePath = selectedCell?.worktreePath || projectRoot || '';
-  const {
-    promoteModalOpen,
-    promoteStep,
-    promoteDescription,
-    promoteLoading,
-    promoteError,
-    promoteItems,
-    promoteSelectedIds,
-    promotePreviewById,
-    promoteDraftId,
-    promoteDraft,
-    promoteMode,
-    promoteActionSheet,
-    promoteActionSheetId,
-    promoteGateStatus,
-    promoteExecutionStatus,
-    promoteSessionId,
-    setPromoteDescription,
-    setPromoteSessionId,
-    selectPromoteMode,
-    openPromoteModal,
-    closePromoteModal,
-    togglePromoteItem,
-    togglePromoteGroup,
-    loadPromotePreview,
-    createPromoteSession,
-    dispatchPromote,
-    confirmPromote,
-  } = useHilPromoteWorkflow({
+  const promoteWorkflow = useHilPromoteWorkflow({
     promoteWorktreePath,
-    sessions,
-    activeSessionId,
+    sessions: sessionsState.sessions,
+    activeSessionId: sessionsState.activeSessionId,
     activeView,
     selectedCellId: selectedCell?.id || '',
-    conditionalDefaults,
-    createActionSheet,
-    updateActionSheetPlan,
-    updateActionSheetPrompt,
-    updateActionSheetChecks,
-    dispatchActionSheet,
-    dispatchSessionCommand,
-    createSession,
-    loadComments,
+    conditionalDefaults: actionSheetsState.conditionalDefaults,
+    createActionSheet: actionSheetsState.createSheet,
+    updateActionSheetPlan: actionSheetsState.updateSheetPlan,
+    updateActionSheetPrompt: actionSheetsState.updateSheetPrompt,
+    updateActionSheetChecks: actionSheetsState.updateSheetChecks,
+    dispatchActionSheet: actionSheetsState.dispatchSheet,
+    dispatchSessionCommand: sessionsState.dispatchSessionCommand,
+    createSession: sessionsState.createSession,
+    loadComments: hilCommentState.refreshComments,
     openHilDrawer,
   });
 
   useEffect(() => {
-    if (commentModalOpen || promoteModalOpen) {
+    if (hilCommentState.commentModalOpen || promoteWorkflow.promoteModalOpen) {
       setHilDrawerPanel('comments');
       setHilDrawerOpen(true);
       return;
     }
     const preferredPanel = hilDrawerPanelByView[activeView];
     setHilDrawerPanel(preferredPanel || resolveHilDrawerDefault(activeView));
-  }, [activeView, commentModalOpen, hilDrawerPanelByView, promoteModalOpen]);
+  }, [activeView, hilCommentState.commentModalOpen, hilDrawerPanelByView, promoteWorkflow.promoteModalOpen]);
 
   const { handleSelectProjectRoot, handleOpenRecentProject } = useAppProjectLifecycle({
-    resetSessions,
+    resetSessions: sessionsState.resetSessions,
     workbench,
     setSelectedId,
     setCells,
@@ -660,7 +406,7 @@ function AppShell() {
     setProjectRoot,
     setRecentProjects,
     selectedCellId: selectedCell?.id || '',
-    activeSessionByCellId,
+    activeSessionByCellId: sessionsState.activeSessionByCellId,
     uiStateLoaded,
     setTerminalMode,
     setTerminalOpen,
@@ -672,8 +418,8 @@ function AppShell() {
     hilDrawerPanelByView,
   });
   const gateDisplayStage = scopedCell?.state === 'archived' ? 'archived' : 'active';
-  const gateResultsByStage = scopedCell ? gateResultsByCellId[scopedCell.id] || {} : {};
-  const gatesCheckingByStage = scopedCell ? gatesCheckingByCellId[scopedCell.id] || {} : {};
+  const gateResultsByStage = scopedCell ? hierarchyConfig.gateResultsByCellId[scopedCell.id] || {} : {};
+  const gatesCheckingByStage = scopedCell ? hierarchyConfig.gatesCheckingByCellId[scopedCell.id] || {} : {};
   const {
     handleStateChange,
     handleUpdateCellAvatar,
@@ -686,7 +432,7 @@ function AppShell() {
     projectReady,
     selectedCell,
     loadCells,
-    checkGatesForCell,
+    checkGatesForCell: hierarchyConfig.checkGatesForCell,
     createTurnGateCreateSheetForCell,
     handleOpenActionSheets,
     handleOpenTerminal,
@@ -695,14 +441,12 @@ function AppShell() {
     setPendingTransition,
     setProjectError,
     setLoading,
-    setShowCreate,
     setSelectedId,
-    saveGates,
+    saveGates: hierarchyConfig.saveGates,
     modal,
   });
   const {
     openWorkbenchFile: handleOpenWorkbenchFile,
-    revealWorkbenchFile: handleRevealWorkbenchFile,
     revealPathInExplorerFromWorkbench: handleRevealPathInExplorerFromWorkbench,
     openMemoReference: handleOpenMemoReference,
     revealMemoReference: handleRevealMemoReference,
@@ -723,23 +467,13 @@ function AppShell() {
     setPendingExplorerReveal,
     setPendingWorkbenchJump,
   });
-  const {
-    terminusProfiles,
-    activeSession,
-    activeProfileId,
-    activeProfileBindings,
-    activeReplySelection,
-    sessionNamingPreviewContext,
-    handleJumpToSession,
-    handleJumpToReplyMemo,
-    handleClearReplySelection,
-  } = useSessionReplyContext({
-    resolvedProfiles,
-    sessions,
-    activeSessionId,
+  const sessionReplyContext = useSessionReplyContext({
+    resolvedProfiles: hierarchyConfig.resolvedProfiles,
+    sessions: sessionsState.sessions,
+    activeSessionId: sessionsState.activeSessionId,
     selectedCell,
     replySelectionByKey,
-    resolvedBindingsByProfile,
+    resolvedBindingsByProfile: hierarchyConfig.resolvedBindingsByProfile,
     projectRoot,
     setActiveView,
     sidebarCollapsed,
@@ -749,47 +483,6 @@ function AppShell() {
     handleSelectSessionFromMap,
   });
 
-  const editorPaneProps = {
-    cell: selectedCell,
-    projectReady,
-    projectError,
-    terminalMode,
-    terminalOpen,
-    sessionId: activeSessionId,
-    sessionTargets,
-    sessions,
-    sessionLoading,
-    sessionError,
-    terminusBindings: activeProfileBindings,
-    tmuxStatus,
-    gateResultsByStage,
-    gatesCheckingByStage,
-    gateDisplayStage,
-    idleSince: lastActivityAt,
-    isVisible: activeView === 'agent-cells',
-    onRefreshSessions: refreshSessions,
-    onStateChange: handleStateChange,
-    onTurnGateCreate: handleTurnGateCreateSheet,
-    onTurnGateExecute: handleTurnGateExecuteSheet,
-    onOpenTerminal: handleOpenTerminal,
-    onZoomIn: zoomIn,
-    onZoomOut: zoomOut,
-    onZoomReset: zoomReset,
-    onSelectProject: handleSelectProjectRoot,
-    pendingCommand,
-    onCommandSent: acknowledgeCommandSent,
-    onSessionActivity: updateSessionActivity,
-    onSessionAttached: handleSessionAttached,
-    onSendSessionText: sendSessionText,
-    terminalFontSize: activeFontSize,
-    onUpdateCellAvatar: handleUpdateCellAvatar,
-    onOpenWorkbenchFile: handleOpenWorkbenchFile,
-    onJumpToSession: handleJumpToSession,
-    onJumpToMemo: handleJumpToReplyMemo,
-    activityDiffThreshold,
-    onSelectionContext: handleSelectionContext,
-    onReplySelection: handleReplySelection,
-  };
   const {
     handleSwitchView,
     handleHierarchyJump,
@@ -811,12 +504,12 @@ function AppShell() {
     setReplyQuickPromptsScope,
     setGateScope,
     setSessionNamingScope,
-    clearTerminusError,
-    clearAppShortcutsError,
-    clearReplyQuickPromptsError,
-    clearGatesError,
-    clearSessionNamingError,
-    clearWorktreeLinksError,
+    clearTerminusError: hierarchyConfig.clearTerminusError,
+    clearAppShortcutsError: hierarchyConfig.clearAppShortcutsError,
+    clearReplyQuickPromptsError: hierarchyConfig.clearReplyQuickPromptsError,
+    clearGatesError: hierarchyConfig.clearGatesError,
+    clearSessionNamingError: hierarchyConfig.clearSessionNamingError,
+    clearWorktreeLinksError: hierarchyConfig.clearWorktreeLinksError,
   });
   const explorerRootPath = projectReady
     ? selectedCell?.worktreePath || projectRoot || ''
@@ -824,8 +517,6 @@ function AppShell() {
   const explorerRootLabel = projectReady
     ? selectedCell?.name || 'Repository'
     : 'Project';
-  const explorerMeta = workbenchMetaByCellId[selectedCell?.id || 'repo'] || {};
-  const memoSelection = workbenchSelectionByCellId[selectedCell?.id || 'repo'] || null;
   const handleMemoCaptureSaved = useCallback(
     (noteType) => {
       if (!noteType) {
@@ -853,18 +544,18 @@ function AppShell() {
     explorerRootPath,
     selectedCellId: selectedCell?.id || '',
     handleOpenWorkbenchFile,
-    openCommentModal,
+    openCommentModal: hilCommentState.openCommentModal,
     setActiveView,
     openHilDrawer,
   });
   const handleFocusPromoteSession = useCallback(() => {
-    if (!promoteSessionId) {
+    if (!promoteWorkflow.promoteSessionId) {
       return;
     }
     setActiveView('agent-cells');
     handleOpenTerminal();
-    selectSession(promoteSessionId);
-  }, [handleOpenTerminal, promoteSessionId, selectSession]);
+    sessionsState.selectSession(promoteWorkflow.promoteSessionId);
+  }, [handleOpenTerminal, promoteWorkflow.promoteSessionId, sessionsState.selectSession]);
   const {
     handleFocusInboxInput,
     handleFocusInboxInputHandled,
@@ -923,353 +614,173 @@ function AppShell() {
     setTransitionError,
     setTransitionLoading,
     loadCells,
-    checkGatesForCell,
+    checkGatesForCell: hierarchyConfig.checkGatesForCell,
   });
-  const {
-    hilReplyProps,
-    hilCommentsProps,
-    hilDraftsProps,
-    memoDrawerProps,
-    appLayoutActionSheetsProps,
-    appLayoutExplorerSidebarProps,
-    appLayoutExplorerPaneProps,
-    appLayoutMemoPaneProps,
-    appLayoutMemoSidebarProps,
-  } = buildAppLayoutPanelProps({
-    selectedCell,
-    projectRoot,
-    activeSession,
-    activeReplySelection,
-    replyFocusToken,
-    resolvedReplyQuickPrompts,
-    sessionTargets,
-    handleClearReplySelection,
-    sendSessionText,
-    handleJumpToSession,
-    handleJumpToReplyMemo,
-    activeTab,
-    cursorPosition,
-    comments,
-    commentsLoading,
-    commentsError,
-    handleOpenMemoReference,
-    handleRevealMemoReference,
-    openCommentModal,
-    updateCommentStatus,
-    commentModalOpen,
-    commentTarget,
-    commentMessage,
-    commentTodo,
-    commentError,
-    commentSaving,
-    commentSnippet,
-    commentSnippetLoading,
-    commentSnippetError,
-    setCommentMessage,
-    setCommentTodo,
-    closeCommentModal,
-    submitComment,
-    promoteModalOpen,
-    promoteDescription,
-    promoteError,
-    promoteLoading,
-    promoteItems,
-    promoteSelectedIds,
-    promotePreviewById,
-    promoteStep,
-    promoteDraft,
-    promoteMode,
-    promoteActionSheet,
-    promoteGateStatus,
-    promoteExecutionStatus,
-    promoteSessionId,
-    sessions,
-    sessionActivityByKey,
-    closePromoteModal,
-    setPromoteDescription,
-    togglePromoteItem,
-    togglePromoteGroup,
-    loadPromotePreview,
-    setPromoteSessionId,
-    selectPromoteMode,
-    createPromoteSession,
-    dispatchPromote,
-    confirmPromote,
-    handleFocusPromoteSession,
-    handleOpenDeliveryTimeline,
-    promoteDraftId,
-    promoteActionSheetId,
-    handleDispatchActionSheet,
-    cancelActionSheet,
-    handleArchiveActionSheet,
-    handleDeleteActionSheet,
-    handleOpenActionSheets,
-    hilMemo,
-    handleOpenMemoDraft,
-    handleViewActionSheetSession,
-    handleRunDraftInActiveSession,
-    actionSheets,
-    activeSessionId,
-    handleOpenMemoInbox,
-    handleFocusInboxInput,
-    memoCapture,
-    memoVoiceShortcut,
-    screenshotShortcut,
-    projectReady,
-    projectError,
-    handleSelectProjectRoot,
-    handleCreateDraftActionSheet,
-    memoFocusTarget,
-    handleFocusInboxInputHandled,
-    setShowArchivedActionSheets,
-    actionSheetDetail,
-    actionSheetId,
-    setActionSheetId,
-    handleCreateActionSheet,
-    handleSaveActionSheet,
-    updateActionSheetChecks,
-    refreshActionSheets,
-    showArchivedActionSheets,
-    refreshActionSheetChecks,
-    availableActionSessions,
-    actionSheetSessionId,
-    setActionSheetSessionId,
-    actionSheetsLoading,
-    actionSheetDetailLoading,
-    actionSheetInlineError,
-    actionSheetsError,
-    explorerRootPath,
-    explorerRootLabel,
-    cells,
-    selectedId,
-    setSelectedId,
-    sessionMapOpen,
-    handleSwitchView,
-    explorerMeta,
-    handleDispatchExplorerFeed,
-    explorerDeliverySummary,
-    handleOpenExplorerDeliveryTimeline,
-    handleToggleSessionMap,
-    pendingExplorerReveal,
-    setPendingExplorerReveal,
-    workbench,
-    handleAddCommentFromExplorer,
-    hilCommentCounts,
-    handleJumpToComments,
-    commentLines,
-    handleWorkbenchMetaChange,
-    setCursorPosition,
-    handleWorkbenchSelectionChange,
-    pendingWorkbenchJump,
-    setPendingWorkbenchJump,
-    handleRevealPathInExplorerFromWorkbench,
-  });
-  const appLayoutProps = buildAppLayoutProps({
-    activeView,
-    handleSwitchView,
-    hierarchySection,
-    handleSelectHierarchySection,
-    displayCells,
-    selectedId,
-    selectedCell,
-    setSelectedId,
-    handleOpenCreateCellModal,
-    handleHierarchyJump,
-    handleOpenExplorerForCell,
-    handleOpenAgentCellFileReference,
-    handleRevealAgentCellFileReference,
-    handleImportAgentCellFileReferences,
-    sessionsByCellId,
-    activeSessionByCellId,
-    sessionActivityByKey,
-    terminusProfiles,
-    handleSelectSessionFromSidebar,
-    createSessionForCell,
-    dispatchSessionCommand,
-    closeSession,
-    detachSession,
-    renameSession,
-    updateSessionAvatar,
-    projectReady,
-    projectError,
-    projectRoot,
-    recentProjects,
-    tmuxStatus,
-    handleSelectProjectRoot,
-    handleOpenRecentProject,
-    actionsScope,
-    handleSelectActionsScope,
-    handleConfigureProfile,
-    appShortcutsScope,
-    handleSelectAppShortcutsScope,
-    replyQuickPromptsScope,
-    handleSelectReplyQuickPromptsScope,
-    sessionNamingScope,
-    handleSelectSessionNamingScope,
-    terminusScopeDisabled,
-    terminusSummary,
-    appShortcutsScopeDisabled,
-    appShortcutsSummary,
-    replyQuickPromptsScopeDisabled,
-    replyQuickPromptsSummary,
-    appShortcutRows,
-    replyQuickPromptsRows,
-    resolvedReplyQuickPrompts,
-    replyQuickPromptsPaths,
-    replyQuickPromptsError,
-    replyQuickPromptsSaving,
-    replyQuickPromptsDirty,
-    addReplyQuickPrompt,
-    updateReplyQuickPrompt,
-    removeReplyQuickPrompt,
-    saveReplyQuickPrompts,
-    clearReplyQuickPromptsError,
-    appShortcutsPaths,
-    appShortcutsError,
-    appShortcutsSaving,
-    appShortcutsDirty,
-    updateAppShortcut,
-    overrideAppShortcut,
-    resetAppShortcut,
-    saveAppShortcuts,
-    clearAppShortcutsError,
-    sessionNamingScopeDisabled,
-    sessionNamingSummary,
-    sessionNamingSettings,
-    resolvedSessionNaming,
-    sessionNamingPaths,
-    sessionNamingError,
-    sessionNamingSaving,
-    sessionNamingDirty,
-    sessionNamingPreviewContext,
-    updateSessionNamingRule,
-    updateSessionNamingList,
-    renameSessionNamingList,
-    removeSessionNamingList,
-    addSessionNamingList,
-    saveSessionNamingSettings,
-    clearSessionNamingError,
-    profileRows,
-    activeProfileId,
-    projectSettingsPath,
-    agentSettingsPath,
-    terminusError,
-    terminusSaving,
-    terminusDirty,
-    addProfile,
-    removeProfile,
-    overrideProfile,
-    resetProfile,
-    updateProfile,
-    saveTerminusSettings,
-    bindingRowsByProfile,
-    addBinding,
-    removeBinding,
-    overrideBinding,
-    resetBinding,
-    updateBinding,
-    clearTerminusError,
-    gateScope,
-    handleSelectGateScope,
-    gateStage,
-    setGateStage,
-    gateScopeDisabled,
-    gateSummary,
-    gateRows,
-    projectGatesPath,
-    agentGatesPath,
-    gatesError,
-    gatesSaving,
-    addGate,
-    removeGate,
-    overrideGate,
-    resetGate,
-    updateGate,
-    handleSaveGates,
-    worktreeLinks,
-    worktreeLinksAuto,
-    worktreeLinksCandidates,
-    worktreeLinksStatusesByPath,
-    worktreeLinksConfigPath,
-    worktreeLinksLoading,
-    worktreeLinksError,
-    worktreeLinksDirty,
-    toggleWorktreeLinksAuto,
-    addWorktreeLink,
-    addWorktreeLinkFromCandidate,
-    updateWorktreeLink,
-    removeWorktreeLink,
-    applyWorktreeLink,
-    applyAllWorktreeLinks,
-    saveWorktreeLinks,
-    refreshWorktreeLinks,
-    resolvedRepoRoot,
-    canUseScopedConfig,
-    editorPaneProps,
-    sidebarWidth,
-    sidebarCollapsed,
-    setSidebarWidth,
-    handleSidebarResizeEnd,
-    handleToggleSidebar,
-    hilDrawerOpen,
-    hilDrawerPanel,
-    setHilDrawerOpen,
-    handleSelectHilDrawerPanel,
-    openPromoteModal,
-    hilCommentsProps,
-    hilDraftsProps,
-    hilReplyProps,
-    memoDrawerProps,
-    appLayoutActionSheetsProps,
-    appLayoutExplorerSidebarProps,
-    appLayoutExplorerPaneProps,
-    appLayoutMemoPaneProps,
-    appLayoutMemoSidebarProps,
+  const appLayoutProps = buildComposedAppLayoutProps({
+    layoutState: {
+      activeView,
+      hierarchySection,
+      displayCells,
+      selectedId,
+      selectedCell,
+      sidebarWidth,
+      sidebarCollapsed,
+      hilDrawerOpen,
+      hilDrawerPanel,
+      terminalMode,
+      terminalOpen,
+    },
+    projectState: {
+      projectReady,
+      projectError,
+      projectRoot,
+      recentProjects,
+      tmuxStatus,
+    },
+    scopeState: {
+      actionsScope,
+      appShortcutsScope,
+      replyQuickPromptsScope,
+      sessionNamingScope,
+      gateScope,
+      gateStage,
+    },
+    gateState: {
+      gateDisplayStage,
+      gateResultsByStage,
+      gatesCheckingByStage,
+      activityDiffThreshold,
+    },
+    sessionsState,
+    sessionReplyContext,
+    hierarchyConfig,
+    promoteWorkflow,
+    hilCommentState,
+    actionSheetsState,
+    workbenchState: {
+      activeTab,
+      cursorPosition,
+      workbench,
+      setCursorPosition,
+    },
+    selectionState: {
+      replyFocusToken,
+      sessionTargets,
+      availableActionSessions,
+      actionSheetSessionId,
+      actionSheetInlineError,
+      pendingExplorerReveal,
+      pendingWorkbenchJump,
+      explorerMeta,
+      cells,
+      setSelectedId,
+    },
+    memoState: {
+      hilMemo,
+      memoCapture,
+      memoFocusTarget,
+    },
+    explorerState: {
+      explorerRootPath,
+      explorerRootLabel,
+      explorerDeliverySummary,
+      sessionMapOpen,
+    },
+    navigationHandlers: {
+      handleSwitchView,
+      handleSelectHierarchySection,
+      handleHierarchyJump,
+      handleSelectSessionFromSidebar,
+      handleSelectProjectRoot,
+      handleOpenRecentProject,
+      handleSelectActionsScope,
+      handleConfigureProfile,
+      handleSelectAppShortcutsScope,
+      handleSelectReplyQuickPromptsScope,
+      handleSelectSessionNamingScope,
+      handleSelectGateScope,
+      setGateStage,
+      handleSaveGates,
+      setSidebarWidth,
+      handleSidebarResizeEnd,
+      handleToggleSidebar,
+      setHilDrawerOpen,
+      handleSelectHilDrawerPanel,
+    },
+    actionHandlers: {
+      handleStateChange,
+      handleTurnGateCreateSheet,
+      handleTurnGateExecuteSheet,
+      handleOpenTerminal,
+      handleUpdateCellAvatar,
+      handleOpenWorkbenchFile,
+      handleSelectionContext,
+      handleReplySelection,
+      handleOpenMemoReference,
+      handleRevealMemoReference,
+      handleFocusPromoteSession,
+      handleOpenDeliveryTimeline,
+      handleDispatchActionSheet,
+      handleArchiveActionSheet,
+      handleDeleteActionSheet,
+      handleOpenActionSheets,
+      handleOpenMemoDraft,
+      handleViewActionSheetSession,
+      handleRunDraftInActiveSession,
+      handleOpenMemoInbox,
+      handleFocusInboxInput,
+      handleCreateDraftActionSheet,
+      handleFocusInboxInputHandled,
+      handleCreateActionSheet,
+      handleSaveActionSheet,
+      setActionSheetSessionId,
+      handleOpenExplorerDeliveryTimeline,
+      handleDispatchExplorerFeed,
+      handleToggleSessionMap,
+      setPendingExplorerReveal,
+      handleAddCommentFromExplorer,
+      handleJumpToComments,
+      handleWorkbenchMetaChange,
+      handleWorkbenchSelectionChange,
+      setPendingWorkbenchJump,
+      handleRevealPathInExplorerFromWorkbench,
+      handleOpenCreateCellModal,
+      handleOpenExplorerForCell,
+      handleOpenAgentCellFileReference,
+      handleRevealAgentCellFileReference,
+      handleImportAgentCellFileReferences,
+    },
   });
 
   return (
     <div className="relative flex h-screen flex-col bg-background text-foreground overflow-hidden">
       <AppLayout {...appLayoutProps} />
-
-        <SessionMapOverlay
-          open={sessionMapOpen}
-          model={sessionMapModel}
-          onSelectSession={handleSelectSessionFromMap}
-          onClose={handleToggleSessionMap}
-          resolveFontSize={resolveSessionMapFontSize}
-          terminusProfiles={terminusProfiles}
-          onCreateSession={createSessionForCell}
-          onDispatchCommand={dispatchSessionCommand}
-          onRenameSession={renameSession}
-          onUpdateSessionAvatar={updateSessionAvatar}
-          onOpenFileShortcut={handleOpenSessionMapShortcut}
-          onRevealFileShortcut={handleRevealSessionMapShortcut}
-          mode="dock"
-        />
-
-        <StatusBar
-          loading={loading}
-          onRefresh={loadCells}
-          tmuxStatus={tmuxStatus}
-          ipcAvailable={ipcAvailable}
-          centerSlot={sessionMapCenterSlot}
-        />
-
-        {showCreate ? (
-          <CreateCellModal onClose={() => setShowCreate(false)} onCreate={handleCreate} />
-        ) : null}
-        {pendingTransition ? (
-          <LifecycleConfirmModal
-            transition={pendingTransition}
-            error={transitionError}
-            loading={transitionLoading}
-            onCancel={handleCancelTransition}
-            onConfirm={handleConfirmTransition}
-            onRefresh={handleRefreshTransitionGates}
-          />
-        ) : null}
-
-      </div>
+      <AppShellChrome
+        sessionMapOpen={sessionMapOpen}
+        sessionMapModel={sessionMapModel}
+        handleSelectSessionFromMap={handleSelectSessionFromMap}
+        handleToggleSessionMap={handleToggleSessionMap}
+        resolveSessionMapFontSize={resolveSessionMapFontSize}
+        terminusProfiles={sessionReplyContext.terminusProfiles}
+        createSessionForCell={sessionsState.createSessionForCell}
+        dispatchSessionCommand={sessionsState.dispatchSessionCommand}
+        renameSession={sessionsState.renameSession}
+        updateSessionAvatar={sessionsState.updateSessionAvatar}
+        handleOpenSessionMapShortcut={handleOpenSessionMapShortcut}
+        handleRevealSessionMapShortcut={handleRevealSessionMapShortcut}
+        loading={loading}
+        loadCells={loadCells}
+        tmuxStatus={tmuxStatus}
+        ipcAvailable={ipcAvailable}
+        sessionMapCenterSlot={sessionMapCenterSlot}
+        pendingTransition={pendingTransition}
+        transitionError={transitionError}
+        transitionLoading={transitionLoading}
+        handleCancelTransition={handleCancelTransition}
+        handleConfirmTransition={handleConfirmTransition}
+        handleRefreshTransitionGates={handleRefreshTransitionGates}
+      />
+    </div>
   );
 }
 

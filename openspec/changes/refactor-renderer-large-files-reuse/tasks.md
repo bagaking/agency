@@ -15,7 +15,7 @@
 - [x] 2.10 Remove direct `window.agency` usage in smaller but frequently edited renderer modules (`useWorktreeLinks`, `CreateCellModal`, `QuickOpenModal`, Session Map debug logging).
 
 ## 3. Large-file Decomposition
-- [ ] 3.1 Decompose `apps/editor/renderer/src/App.tsx` into domain controllers/hooks while preserving integration props.
+- [x] 3.1 Decompose `apps/editor/renderer/src/App.tsx` into domain controllers/hooks while preserving integration props.
 - [x] 3.2 Decompose `apps/editor/renderer/src/components/AgentCellsSidebar.tsx` into session list and dashboard modules.
 - [x] 3.3 Decompose `apps/editor/renderer/src/components/TerminalPane.tsx` into lifecycle/resize/input/selection modules.
 - [x] 3.4 Decompose `apps/editor/renderer/src/components/explorer/ProjectExplorerSidebar.tsx` into actions/dnd/panel modules.
