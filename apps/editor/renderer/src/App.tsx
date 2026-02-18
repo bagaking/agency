@@ -34,6 +34,7 @@ import { useHilPromoteWorkflow } from './app/useHilPromoteWorkflow';
 import { useActionSheetOrchestration } from './app/useActionSheetOrchestration';
 import { useHilFileCommenting } from './app/useHilFileCommenting';
 import { useSessionMapOverlayController } from './app/useSessionMapOverlayController';
+import { useHierarchyNavigation } from './app/useHierarchyNavigation';
 import { BASELINE_PROFILE_ID } from './utils/terminusSettings';
 import { SessionMapOverlay } from './components/sessionMap/SessionMapOverlay';
 import { SessionMapToggle } from './components/sessionMap/SessionMapToggle';
@@ -1083,15 +1084,34 @@ function AppShell() {
     onSelectionContext: handleSelectionContext,
     onReplySelection: handleReplySelection,
   };
-  const handleSwitchView = useCallback(
-    (view) => {
-      setActiveView(view);
-      if (sidebarCollapsed) {
-        setSidebarCollapsed(false);
-      }
-    },
-    [sidebarCollapsed]
-  );
+  const {
+    handleSwitchView,
+    handleHierarchyJump,
+    handleSelectActionsScope,
+    handleConfigureProfile,
+    handleSelectAppShortcutsScope,
+    handleSelectReplyQuickPromptsScope,
+    handleSelectGateScope,
+    handleSelectSessionNamingScope,
+    handleSelectHierarchySection,
+    handleToggleSidebar,
+  } = useHierarchyNavigation({
+    sidebarCollapsed,
+    setActiveView,
+    setSidebarCollapsed,
+    setHierarchySection,
+    setActionsScope,
+    setAppShortcutsScope,
+    setReplyQuickPromptsScope,
+    setGateScope,
+    setSessionNamingScope,
+    clearTerminusError,
+    clearAppShortcutsError,
+    clearReplyQuickPromptsError,
+    clearGatesError,
+    clearSessionNamingError,
+    clearWorktreeLinksError,
+  });
   const explorerRootPath = projectReady
     ? selectedCell?.worktreePath || projectRoot || ''
     : '';
@@ -1421,112 +1441,6 @@ function AppShell() {
     },
     [sidebarCollapsed]
   );
-  const handleHierarchyJump = useCallback(
-    (target) => {
-      setHierarchySection(target);
-      setActiveView('hierarchy');
-      if (target === 'actions') {
-        clearTerminusError();
-      }
-      if (target === 'app-shortcuts') {
-        clearAppShortcutsError();
-      }
-      if (target === 'reply-quick-prompts') {
-        clearReplyQuickPromptsError();
-      }
-      if (target === 'gates') {
-        clearGatesError();
-      }
-      if (target === 'session-naming') {
-        clearSessionNamingError();
-      }
-      if (target === 'softlinks') {
-        clearWorktreeLinksError();
-      }
-    },
-    [
-      clearAppShortcutsError,
-      clearGatesError,
-      clearReplyQuickPromptsError,
-      clearSessionNamingError,
-      clearTerminusError,
-      clearWorktreeLinksError,
-    ]
-  );
-  const handleSelectActionsScope = useCallback(
-    (scope) => {
-      setHierarchySection('actions');
-      setActionsScope(scope);
-      clearTerminusError();
-    },
-    [clearTerminusError]
-  );
-  const handleConfigureProfile = useCallback(
-    (profile) => {
-      if (!profile) return;
-      setHierarchySection('actions');
-      setActiveView('hierarchy');
-      if (sidebarCollapsed) {
-        setSidebarCollapsed(false);
-      }
-      const targetScope = profile.sourceScope || 'global';
-      setActionsScope(targetScope);
-      clearTerminusError();
-    },
-    [sidebarCollapsed, clearTerminusError]
-  );
-  const handleSelectAppShortcutsScope = useCallback(
-    (scope) => {
-      setHierarchySection('app-shortcuts');
-      setAppShortcutsScope(scope);
-      clearAppShortcutsError();
-    },
-    [clearAppShortcutsError]
-  );
-  const handleSelectReplyQuickPromptsScope = useCallback(
-    (scope) => {
-      setHierarchySection('reply-quick-prompts');
-      setReplyQuickPromptsScope(scope);
-      clearReplyQuickPromptsError();
-    },
-    [clearReplyQuickPromptsError]
-  );
-  const handleSelectGateScope = useCallback(
-    (scope) => {
-      setHierarchySection('gates');
-      setGateScope(scope);
-      clearGatesError();
-    },
-    [clearGatesError]
-  );
-  const handleSelectSessionNamingScope = useCallback(
-    (scope) => {
-      setHierarchySection('session-naming');
-      setSessionNamingScope(scope);
-      clearSessionNamingError();
-    },
-    [clearSessionNamingError]
-  );
-  const handleSelectHierarchySection = useCallback(
-    (section) => {
-      setHierarchySection(section);
-      if (section === 'softlinks') {
-        clearWorktreeLinksError();
-      }
-      if (section === 'session-naming') {
-        clearSessionNamingError();
-      }
-      if (section === 'reply-quick-prompts') {
-        clearReplyQuickPromptsError();
-      }
-    },
-    [clearReplyQuickPromptsError, clearSessionNamingError, clearWorktreeLinksError]
-  );
-
-  const handleToggleSidebar = useCallback(() => {
-    setSidebarCollapsed((value) => !value);
-  }, []);
-
   const appLayoutActionSheetsProps = {
     projectReady,
     projectError,
