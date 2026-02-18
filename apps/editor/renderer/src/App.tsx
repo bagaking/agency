@@ -33,6 +33,7 @@ import { buildAppLayoutProps } from './app/buildAppLayoutProps';
 import { useCellLifecycleTransitionModal } from './app/useCellLifecycleTransitionModal';
 import { useCreateCellModalLauncher } from './app/useCreateCellModalLauncher';
 import { useGlobalAppShortcutListener } from './app/useGlobalAppShortcutListener';
+import { useHilDrawerController } from './app/useHilDrawerController';
 import { BASELINE_PROFILE_ID } from './utils/terminusSettings';
 import { SessionMapOverlay } from './components/sessionMap/SessionMapOverlay';
 import { SessionMapToggle } from './components/sessionMap/SessionMapToggle';
@@ -490,34 +491,14 @@ function AppShell() {
       [cellId]: meta || {},
     }));
   }, []);
-  useEffect(() => {
-    if (activeView === 'agent-cells') {
-      setHilDrawerOpen(true);
-      setHilDrawerPanel('reply');
-    }
-  }, [activeView]);
-  useEffect(() => {
-    if (hilDrawerOpen && activeView === 'agent-cells' && hilDrawerPanel !== 'reply') {
-      setHilDrawerPanel('reply');
-    }
-  }, [hilDrawerOpen, activeView, hilDrawerPanel]);
-  const openHilDrawer = useCallback((panel = 'comments') => {
-    setHilDrawerPanel(panel);
-    setHilDrawerOpen(true);
-  }, []);
-  const handleSelectHilDrawerPanel = useCallback(
-    (panel) => {
-      if (!panel) {
-        return;
-      }
-      setHilDrawerPanel(panel);
-      setHilDrawerPanelByView((current) => ({
-        ...current,
-        [activeView]: panel,
-      }));
-    },
-    [activeView]
-  );
+  const { openHilDrawer, handleSelectHilDrawerPanel } = useHilDrawerController({
+    activeView,
+    hilDrawerOpen,
+    hilDrawerPanel,
+    setHilDrawerOpen,
+    setHilDrawerPanel,
+    setHilDrawerPanelByView,
+  });
   const availableActionSessions = useMemo(
     () => sessions.filter((session) => session.status !== 'closed'),
     [sessions]
