@@ -16,18 +16,13 @@ import {
   ExplorerChangedFilesPanel,
   type ExplorerChangedFilesPanelMode,
 } from './ExplorerChangedFilesPanel';
+import { useExplorerDropHandlers } from './useExplorerDropHandlers';
 import {
   buildExplorerInternalDragPayload,
-  readExplorerInternalDragPaths,
   writeExplorerInternalDragPaths,
 } from './explorerInternalDragPaths';
-import {
-  hasExternalDropEntries as hasExternalDroppedPaths,
-  readExternalDropPaths as readDroppedExternalPaths,
-} from '../../utils/externalDropPaths';
 import { useFileSnippetPreview } from '../../hooks/useFileSnippetPreview';
 import {
-  getPathForDroppedFile,
   isAgencyMethodAvailable,
   materializeClipboard,
   materializeMarkdown,
@@ -774,38 +769,6 @@ function ProjectExplorerSidebarContent({
     }
   };
 
-  const hasExternalDropEntries = useCallback(
-    (dataTransfer) => hasExternalDroppedPaths(dataTransfer),
-    []
-  );
-
-  const readExternalDropPaths = useCallback(
-    (dataTransfer) =>
-      readDroppedExternalPaths(dataTransfer, {
-        getPathForDroppedFile,
-      }),
-    []
-  );
-
-  const resolveDropDirectory = useCallback((targetPath) => {
-    const normalizedPath = explorerPathUtils.toRelativePath(targetPath || '');
-    if (!normalizedPath) {
-      return '';
-    }
-    const node = tree.nodes[normalizedPath];
-    if (node?.type === 'dir') {
-      return normalizedPath;
-    }
-    return explorerPathUtils.dirname(normalizedPath);
-  }, [tree.nodes]);
-
-  const resolveBlankDropDirectory = useCallback(() => {
-    if (!focusedPath) {
-      return '';
-    }
-    return resolveDropDirectory(focusedPath);
-  }, [focusedPath, resolveDropDirectory]);
-
   const handleExternalImport = useCallback(async (sourcePaths, targetDir) => {
     if (!sourcePaths.length) {
       return;
@@ -852,119 +815,20 @@ function ProjectExplorerSidebarContent({
     }
   }, [clearError, expandAncestorsForPath, importExternalEntries, selectPathInExplorer, setErrorMessage]);
 
-  const handleRowDragOver = useCallback((event, _rowPath, isDir) => {
-    const internalPaths = readExplorerInternalDragPaths(event.dataTransfer);
-    if (internalPaths.length > 0) {
-      if (!isDir) {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      event.dataTransfer.dropEffect = 'move';
-      return;
-    }
-
-    if (!hasExternalDropEntries(event.dataTransfer)) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    event.dataTransfer.dropEffect = 'copy';
-  }, [hasExternalDropEntries]);
-
-  const handleRowDrop = useCallback(async (event, rowPath, isDir) => {
-    const internalPaths = readExplorerInternalDragPaths(event.dataTransfer);
-    if (internalPaths.length > 0) {
-      event.preventDefault();
-      event.stopPropagation();
-      if (!isDir) {
-        return;
-      }
-      await handleMove(internalPaths, rowPath);
-      return;
-    }
-
-    if (!hasExternalDropEntries(event.dataTransfer)) {
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-
-    const externalPaths = readExternalDropPaths(event.dataTransfer);
-    if (!externalPaths.length) {
-      setErrorMessage('Unable to read dropped file paths. Please drag files from Finder directly.');
-      return;
-    }
-
-    const targetDir = isDir ? rowPath : resolveDropDirectory(rowPath);
-    await handleExternalImport(externalPaths, targetDir);
-  }, [handleExternalImport, handleMove, hasExternalDropEntries, readExternalDropPaths, resolveDropDirectory, setErrorMessage]);
-
-  const handleTreeDragOver = useCallback((event) => {
-    const inRow = event.target instanceof Element && event.target.closest('[data-explorer-path]');
-    if (inRow) {
-      return;
-    }
-
-    if (readExplorerInternalDragPaths(event.dataTransfer).length > 0) {
-      return;
-    }
-
-    if (!hasExternalDropEntries(event.dataTransfer)) {
-      return;
-    }
-
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'copy';
-  }, [hasExternalDropEntries]);
-
-  const handleTreeDrop = useCallback(async (event) => {
-    const inRow = event.target instanceof Element && event.target.closest('[data-explorer-path]');
-    if (inRow) {
-      return;
-    }
-
-    if (readExplorerInternalDragPaths(event.dataTransfer).length > 0) {
-      return;
-    }
-
-    const externalPaths = readExternalDropPaths(event.dataTransfer);
-    event.preventDefault();
-    if (!externalPaths.length) {
-      setErrorMessage('Unable to read dropped file paths. Please drag files from Finder directly.');
-      return;
-    }
-
-    await handleExternalImport(externalPaths, resolveBlankDropDirectory());
-  }, [handleExternalImport, readExternalDropPaths, resolveBlankDropDirectory, setErrorMessage]);
-
-  const handleSidebarDragOver = useCallback((event) => {
-    if (event.defaultPrevented) {
-      return;
-    }
-    if (!hasExternalDropEntries(event.dataTransfer)) {
-      return;
-    }
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'copy';
-  }, [hasExternalDropEntries]);
-
-  const handleSidebarDrop = useCallback(async (event) => {
-    if (event.defaultPrevented) {
-      return;
-    }
-    if (!hasExternalDropEntries(event.dataTransfer)) {
-      return;
-    }
-    event.preventDefault();
-    const externalPaths = readExternalDropPaths(event.dataTransfer);
-    if (!externalPaths.length) {
-      setErrorMessage('Unable to read dropped file paths. Please drag files from Finder directly.');
-      return;
-    }
-    await handleExternalImport(externalPaths, resolveBlankDropDirectory());
-  }, [handleExternalImport, hasExternalDropEntries, readExternalDropPaths, resolveBlankDropDirectory, setErrorMessage]);
+  const {
+    handleRowDragOver,
+    handleRowDrop,
+    handleTreeDragOver,
+    handleTreeDrop,
+    handleSidebarDragOver,
+    handleSidebarDrop,
+  } = useExplorerDropHandlers({
+    treeNodes: tree.nodes,
+    focusedPath,
+    onMoveEntries: handleMove,
+    onImportExternalEntries: handleExternalImport,
+    setErrorMessage,
+  });
 
   const toggleStatusFilter = (s) => setStatusFilters(curr => curr.includes(s) ? curr.filter(it => it !== s) : [...curr, s]);
   const toggleSemanticFilter = (id) => setSemanticFilters((curr) => (
