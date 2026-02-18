@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ChevronRight,
   FileText,
@@ -11,8 +11,6 @@ import {
   Save,
   AlertTriangle,
   Search,
-  Command,
-  Columns,
   Maximize2,
   Split,
   FileCode,
@@ -42,69 +40,14 @@ import {
   statWorkbenchEntry,
   writeWorkbenchEntry,
 } from '../../services/agencyBridge';
+import {
+  buildWorkbenchBreadcrumbs,
+  detectWorkbenchSecureKind,
+  formatWorkbenchBytes,
+  resolveWorkbenchLanguage,
+  WORKBENCH_TAB_DISK_SYNC_INTERVAL_MS,
+} from './workbenchPaneHelpers';
 
-const languageFromPath = (filePath) => {
-  const ext = (filePath.split('.').pop() || '').toLowerCase();
-  switch (ext) {
-    case 'js': case 'cjs': case 'mjs': case 'jsx': return 'javascript';
-    case 'ts': case 'tsx': return 'typescript';
-    case 'json': return 'json';
-    case 'md': case 'markdown': return 'markdown';
-    case 'css': return 'css';
-    case 'html': return 'html';
-    case 'yaml': case 'yml': return 'yaml';
-    case 'py': return 'python';
-    case 'go': return 'go';
-    case 'rs': return 'rust';
-    case 'sh': case 'bash': return 'shell';
-    case 'sql': return 'sql';
-    default: return 'plaintext';
-  }
-};
-
-const TEXT_EXTS = new Set([
-    'js', 'jsx', 'ts', 'tsx', 'mjs', 'cjs', 'json', 'yaml', 'yml', 'toml', 'md', 'markdown',
-    'css', 'scss', 'less', 'html', 'htm', 'py', 'go', 'rs', 'c', 'cpp', 'h', 'hpp', 'java',
-    'rb', 'php', 'sh', 'bash', 'zsh', 'sql', 'txt', 'log', 'env', 'gitignore', 'makefile'
-]);
-
-const MEDIA_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'mp4', 'mov', 'webm', 'mp3', 'wav', 'pdf']);
-
-const detectSecureKind = (filePath) => {
-    const ext = (filePath.split('.').pop() || '').toLowerCase();
-    if (ext === 'svg') return 'vector';
-    if (TEXT_EXTS.has(ext)) return 'code';
-    if (MEDIA_EXTS.has(ext)) {
-        if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico'].includes(ext)) return 'image';
-        if (['mp4', 'mov', 'webm'].includes(ext)) return 'video';
-        if (['mp3', 'wav'].includes(ext)) return 'audio';
-        if (ext === 'pdf') return 'pdf';
-    }
-    return 'unknown';
-};
-
-const formatBytes = (value) => {
-  if (!value && value !== 0) return '';
-  if (value < 1024) return `${value} B`;
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
-};
-
-const TAB_DISK_SYNC_INTERVAL_MS = 2500;
-
-const buildBreadcrumbs = (path) => {
-  const parts = String(path || '').split('/').filter(Boolean);
-  let currentPath = '';
-  return parts.map((label, index) => {
-    currentPath = currentPath ? `${currentPath}/${label}` : label;
-    return {
-      id: `${currentPath}:${index}`,
-      label,
-      path: currentPath,
-      isLast: index === parts.length - 1,
-    };
-  });
-};
 
 export function WorkbenchPane({
   workbench,
@@ -173,7 +116,6 @@ function WorkbenchPaneContent({
     closeOtherTabs, 
     closeAllTabs, 
     pinTab, 
-    reorderTabs, 
     setActiveTab 
   } = workbench;
   
@@ -182,7 +124,6 @@ function WorkbenchPaneContent({
   const [statusPosition, setStatusPosition] = useState({ line: 1, column: 1 });
   const [tabMenu, setTabMenu] = useState(null);
   const [editorToken, setEditorToken] = useState(0);
-  const dragSourceRef = useRef(null);
   const activeEditorRef = useRef(null);
   const tabStateByIdRef = useRef({});
   const loadRequestByTabRef = useRef({});
@@ -227,7 +168,7 @@ function WorkbenchPaneContent({
       return;
     }
     const tabId = tab.id;
-    const secureKind = detectSecureKind(tab.path);
+    const secureKind = detectWorkbenchSecureKind(tab.path);
     const requestId = (Number(loadRequestByTabRef.current[tabId]) || 0) + 1;
     loadRequestByTabRef.current[tabId] = requestId;
 
@@ -305,7 +246,7 @@ function WorkbenchPaneContent({
           mtimeMs: result?.mtimeMs || 0,
           binary: Boolean(result?.binary),
           truncated: Boolean(result?.truncated),
-          language: languageFromPath(tab.path),
+          language: resolveWorkbenchLanguage(tab.path),
           isDirty: false,
           kind: 'code',
           needsReload: false,
@@ -394,7 +335,7 @@ function WorkbenchPaneContent({
         return;
       }
       runCheck();
-    }, TAB_DISK_SYNC_INTERVAL_MS);
+    }, WORKBENCH_TAB_DISK_SYNC_INTERVAL_MS);
     const handleFocus = () => runCheck();
     const handleVisibilityChange = () => {
       if (!document.hidden) {
@@ -652,7 +593,7 @@ function WorkbenchPaneContent({
             mtimeMs: result?.mtimeMs || 0,
             binary: Boolean(result?.binary),
             truncated: Boolean(result?.truncated),
-            language: languageFromPath(activeTab.path),
+            language: resolveWorkbenchLanguage(activeTab.path),
             isDirty: false,
             kind: 'code',
             unlocked: true,
@@ -664,7 +605,7 @@ function WorkbenchPaneContent({
       }
   };
 
-  const breadcrumbs = activeTab ? buildBreadcrumbs(activeTab.path) : [];
+  const breadcrumbs = activeTab ? buildWorkbenchBreadcrumbs(activeTab.path) : [];
 
   return (
     <section className="flex h-full flex-1 flex-col bg-[#0b0d11] overflow-hidden select-none">
@@ -897,7 +838,7 @@ function WorkbenchPaneContent({
         <div className="flex items-center gap-6">
             <div className="flex items-center gap-2"><FileCode size={10} className="text-primary/20" /><span className="text-primary/40">{activeState.language}</span></div>
             <div className="h-3 w-px bg-white/[0.03]" />
-            <div className="flex items-center gap-2"><Maximize2 size={10} className="opacity-10" /><span>{formatBytes(activeState.size)}</span></div>
+            <div className="flex items-center gap-2"><Maximize2 size={10} className="opacity-10" /><span>{formatWorkbenchBytes(activeState.size)}</span></div>
         </div>
       </div>
 
