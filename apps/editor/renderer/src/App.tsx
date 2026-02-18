@@ -18,20 +18,15 @@ import { useWorkbench } from './hooks/useWorkbench';
 import { useHilMemoState } from './hooks/useHilMemoState';
 import { useHilMemoCaptureState } from './hooks/useHilMemoCaptureState';
 import {
-  getFileSnippet as agencyGetFileSnippet,
   getProjectContext,
   getTmuxStatus as agencyGetTmuxStatus,
   getUiState,
   isAgencyAvailable,
   listCells as agencyListCells,
-  listComments as agencyListComments,
-  listHilItems as agencyListHilItems,
   onCellsUpdated as subscribeCellsUpdated,
   onAppShortcutTriggered as subscribeAppShortcutTriggered,
   setUiState as agencySetUiState,
-  submitComment as agencySubmitComment,
   updateCellState as agencyUpdateCellState,
-  updateHilItem as agencyUpdateHilItem,
 } from './services/agencyBridge';
 import { warmSessionMapPreviewCache } from './services/sessionMapPreviewCache';
 import { useAppProjectLifecycle } from './app/useAppProjectLifecycle';
@@ -39,6 +34,7 @@ import { useWorkbenchFileNavigation } from './app/useWorkbenchFileNavigation';
 import { useCellLifecycleActions } from './app/useCellLifecycleActions';
 import { useHilPromoteWorkflow } from './app/useHilPromoteWorkflow';
 import { useActionSheetOrchestration } from './app/useActionSheetOrchestration';
+import { useHilFileCommenting } from './app/useHilFileCommenting';
 import { BASELINE_PROFILE_ID } from './utils/terminusSettings';
 import { SessionMapOverlay } from './components/sessionMap/SessionMapOverlay';
 import { SessionMapToggle } from './components/sessionMap/SessionMapToggle';
@@ -107,20 +103,6 @@ function AppShell() {
   const [initialActiveSessions, setInitialActiveSessions] = useState({});
   const [initialWorkbenchTabs, setInitialWorkbenchTabs] = useState({});
   const [initialWorkbenchActiveTabs, setInitialWorkbenchActiveTabs] = useState({});
-  const [comments, setComments] = useState([]);
-  const [commentsLoading, setCommentsLoading] = useState(false);
-  const [commentsError, setCommentsError] = useState('');
-  const [commentModalOpen, setCommentModalOpen] = useState(false);
-  const [commentMessage, setCommentMessage] = useState('');
-  const [commentTodo, setCommentTodo] = useState(false);
-  const [commentError, setCommentError] = useState('');
-  const [commentSaving, setCommentSaving] = useState(false);
-  const [commentTarget, setCommentTarget] = useState({ line: 1, column: 1 });
-  const [commentSnippet, setCommentSnippet] = useState(null);
-  const [commentSnippetLoading, setCommentSnippetLoading] = useState(false);
-  const [commentSnippetError, setCommentSnippetError] = useState('');
-  const [hilCommentCounts, setHilCommentCounts] = useState({});
-  const [hilCommentRefreshToken, setHilCommentRefreshToken] = useState(0);
   const [userDataPath, setUserDataPath] = useState('');
   const [explorerDeliverySummary, setExplorerDeliverySummary] = useState<any>(null);
   const [actionSheetSessionId, setActionSheetSessionId] = useState('');
@@ -782,9 +764,6 @@ function AppShell() {
     />
   );
   const activeTab = workbench.activeTab;
-  const canComment = Boolean(activeTab && activeTab.kind === 'code');
-  const commentRootPath = activeTab?.rootPath || '';
-  const commentFilePath = activeTab?.path || '';
   const [workbenchMetaByCellId, setWorkbenchMetaByCellId] = useState({});
   const handleWorkbenchMetaChange = useCallback((cellId, meta) => {
     if (!cellId) {
@@ -870,81 +849,36 @@ function AppShell() {
     agentGatesPath,
   });
 
-  const bumpHilCommentRefresh = useCallback(() => {
-    setHilCommentRefreshToken((value) => value + 1);
-  }, []);
-  const refreshHilCommentCounts = useCallback(
-    async (worktreePath) => {
-      if (!worktreePath) {
-        setHilCommentCounts({});
-        return;
-      }
-      try {
-        const list = await agencyListHilItems({
-          worktreePath,
-          kind: 'comment',
-        });
-        const nextCounts = {};
-        (Array.isArray(list) ? list : [])
-          .filter((item) => item?.kind === 'comment' && item?.status !== 'archived')
-          .forEach((item) => {
-            const file = item?.anchor?.file;
-            if (!file) {
-              return;
-            }
-            nextCounts[file] = (nextCounts[file] || 0) + 1;
-          });
-        setHilCommentCounts(nextCounts);
-      } catch (error) {
-        setHilCommentCounts({});
-      }
-    },
-    []
-  );
-  const loadComments = useCallback(async () => {
-    if (!commentRootPath || !commentFilePath || !canComment) {
-      setComments([]);
-      setCommentsError('');
-      setCommentsLoading(false);
-      return;
-    }
-    setCommentsLoading(true);
-    setCommentsError('');
-    try {
-      const list = await agencyListComments({
-        worktreePath: commentRootPath,
-        filePath: commentFilePath,
-      });
-      if (!list) {
-        setComments([]);
-        return;
-      }
-      setComments(Array.isArray(list) ? list : []);
-    } catch (error) {
-      setCommentsError(error?.message || 'Failed to load comments.');
-    } finally {
-      setCommentsLoading(false);
-    }
-  }, [canComment, commentFilePath, commentRootPath]);
-  const commentLines = useMemo(() => {
-    if (!comments.length) {
-      return [];
-    }
-    const map = new Map();
-    comments.forEach((comment) => {
-      const line = Number(comment.line || comment.anchor?.line);
-      if (!Number.isFinite(line) || line <= 0) {
-        return;
-      }
-      const entry = map.get(line) || { line, todo: false, count: 0 };
-      entry.count += 1;
-      if (comment.todo || comment.meta?.todo) {
-        entry.todo = true;
-      }
-      map.set(line, entry);
-    });
-    return Array.from(map.values());
-  }, [comments]);
+  const {
+    commentRootPath,
+    commentFilePath,
+    comments,
+    commentsLoading,
+    commentsError,
+    refreshComments: loadComments,
+    commentLines,
+    commentCountsByPath: hilCommentCounts,
+    commentModalOpen,
+    commentTarget,
+    commentMessage,
+    commentTodo,
+    commentError,
+    commentSaving,
+    commentSnippet,
+    commentSnippetLoading,
+    commentSnippetError,
+    setCommentMessage,
+    setCommentTodo,
+    openCommentModal,
+    closeCommentModal,
+    submitComment,
+    updateCommentStatus,
+  } = useHilFileCommenting({
+    activeTab,
+    cursorPosition,
+    hilWorktreePath: selectedCell?.worktreePath || projectRoot || '',
+    openHilDrawer,
+  });
   const handleWorkbenchSelectionChange = useCallback(
     (selection) => {
       const cellKey = selectedCell?.id || 'repo';
@@ -995,139 +929,6 @@ function AppShell() {
     },
     [activeView]
   );
-  const openCommentModal = useCallback(
-    ({ line, column }: { line?: number; column?: number } = {}) => {
-      if (!commentRootPath || !commentFilePath) {
-        return;
-      }
-      const nextLine = Number.isFinite(line) ? line : cursorPosition.line;
-      const nextColumn = Number.isFinite(column) ? column : cursorPosition.column;
-      setCommentTarget({
-        line: Math.max(1, Math.floor(nextLine || 1)),
-        column: Math.max(1, Math.floor(nextColumn || 1)),
-      });
-      setCommentModalOpen(true);
-      setCommentMessage('');
-      setCommentTodo(false);
-      setCommentError('');
-      openHilDrawer('comments');
-    },
-    [commentFilePath, commentRootPath, cursorPosition, openHilDrawer]
-  );
-  const closeCommentModal = useCallback(() => {
-    setCommentModalOpen(false);
-    setCommentMessage('');
-    setCommentTodo(false);
-    setCommentError('');
-    setCommentSnippet(null);
-    setCommentSnippetLoading(false);
-    setCommentSnippetError('');
-  }, []);
-  const submitComment = useCallback(async () => {
-    if (!commentRootPath || !commentFilePath) {
-      return;
-    }
-    if (!commentMessage.trim()) {
-      setCommentError('Comment cannot be empty.');
-      return;
-    }
-    setCommentSaving(true);
-    setCommentError('');
-    try {
-      const result = await agencySubmitComment({
-        worktreePath: commentRootPath,
-        filePath: commentFilePath,
-        line: commentTarget.line,
-        column: commentTarget.column,
-        message: commentMessage.trim(),
-        todo: commentTodo,
-      });
-      if (!result) {
-        return;
-      }
-      await loadComments();
-      bumpHilCommentRefresh();
-      closeCommentModal();
-      openHilDrawer('comments');
-    } catch (error) {
-      setCommentError(error?.message || 'Failed to submit comment.');
-    } finally {
-      setCommentSaving(false);
-    }
-  }, [commentFilePath, commentMessage, commentRootPath, commentTodo, commentTarget, closeCommentModal, loadComments, openHilDrawer, bumpHilCommentRefresh]);
-  const updateCommentStatus = useCallback(
-    async (comment, status) => {
-      if (!comment?.id || !commentRootPath) {
-        return;
-      }
-      const result = await agencyUpdateHilItem({
-        worktreePath: commentRootPath,
-        itemId: comment.id,
-        patch: { status },
-      });
-      if (!result) {
-        return;
-      }
-      await loadComments();
-      bumpHilCommentRefresh();
-    },
-    [commentRootPath, loadComments, bumpHilCommentRefresh]
-  );
-  useEffect(() => {
-    loadComments();
-  }, [loadComments]);
-  useEffect(() => {
-    const worktreePath = selectedCell?.worktreePath || projectRoot || '';
-    refreshHilCommentCounts(worktreePath);
-  }, [projectRoot, refreshHilCommentCounts, selectedCell?.worktreePath, hilCommentRefreshToken]);
-  useEffect(() => {
-    if (!commentFilePath) {
-      closeCommentModal();
-    }
-  }, [commentFilePath, closeCommentModal]);
-  useEffect(() => {
-    if (!commentModalOpen || !commentRootPath || !commentFilePath) {
-      setCommentSnippet(null);
-      setCommentSnippetLoading(false);
-      setCommentSnippetError('');
-      return undefined;
-    }
-    let canceled = false;
-    setCommentSnippetLoading(true);
-    setCommentSnippetError('');
-    agencyGetFileSnippet({
-      rootPath: commentRootPath,
-      targetPath: commentFilePath,
-      line: commentTarget.line,
-      context: 3,
-    })
-      .then((result) => {
-        if (canceled) {
-          return;
-        }
-        if (!result) {
-          setCommentSnippet(null);
-          return;
-        }
-        setCommentSnippet(result || null);
-      })
-      .catch((error) => {
-        if (canceled) {
-          return;
-        }
-        setCommentSnippet(null);
-        setCommentSnippetError(error?.message || 'Failed to load line context.');
-      })
-      .finally(() => {
-        if (canceled) {
-          return;
-        }
-        setCommentSnippetLoading(false);
-      });
-    return () => {
-      canceled = true;
-    };
-  }, [commentFilePath, commentModalOpen, commentRootPath, commentTarget.line]);
   const promoteWorktreePath = selectedCell?.worktreePath || projectRoot || '';
   const {
     promoteModalOpen,
