@@ -18,7 +18,6 @@ import { useWorkbench } from './hooks/useWorkbench';
 import { useHilMemoState } from './hooks/useHilMemoState';
 import { useHilMemoCaptureState } from './hooks/useHilMemoCaptureState';
 import {
-  createCell as agencyCreateCell,
   createHilItem as agencyCreateHilItem,
   getFileSnippet as agencyGetFileSnippet,
   getProjectContext,
@@ -36,12 +35,12 @@ import {
   setUiState as agencySetUiState,
   submitComment as agencySubmitComment,
   updateCellState as agencyUpdateCellState,
-  updateCellMeta as agencyUpdateCellMeta,
   updateHilItem as agencyUpdateHilItem,
 } from './services/agencyBridge';
 import { warmSessionMapPreviewCache } from './services/sessionMapPreviewCache';
 import { useAppProjectLifecycle } from './app/useAppProjectLifecycle';
 import { useWorkbenchFileNavigation } from './app/useWorkbenchFileNavigation';
+import { useCellLifecycleActions } from './app/useCellLifecycleActions';
 import { buildPromotePromptBundle, buildPromotePromptText, buildPromoteActionSheetPrompt } from './utils/hilPromotePrompt';
 import { buildActionSheetCompletion, buildActionSheetPlan } from './utils/actionSheetCompletion';
 import {
@@ -2447,101 +2446,32 @@ function AppShell() {
   const gateDisplayStage = scopedCell?.state === 'archived' ? 'archived' : 'active';
   const gateResultsByStage = scopedCell ? gateResultsByCellId[scopedCell.id] || {} : {};
   const gatesCheckingByStage = scopedCell ? gatesCheckingByCellId[scopedCell.id] || {} : {};
-  const handleStateChange = useCallback(
-    async (nextState) => {
-      if (!scopedCell) {
-        return;
-      }
-      if (nextState === scopedCell.state) {
-        return;
-      }
-      setTransitionError('');
-      let nextCells = cells;
-      try {
-        const result = await agencyListCells({ rootPath: projectRoot });
-        if (Array.isArray(result)) {
-          nextCells = result;
-          setCells(nextCells);
-        }
-      } catch (error) {
-        console.error(error);
-      }
-      const freshCell = nextCells.find((cell) => cell.id === scopedCell.id) || scopedCell;
-      let gates = [];
-      if (['active', 'archived'].includes(nextState)) {
-        gates = await checkGatesForCell({ cell: freshCell, stage: nextState, silent: true });
-      }
-      setPendingTransition({
-        cell: freshCell,
-        nextState,
-        gates,
-      });
-    },
-    [cells, checkGatesForCell, projectRoot, scopedCell]
-  );
-  const handleUpdateCellAvatar = useCallback(
-    async (avatar) => {
-      if (!selectedCell) {
-        return;
-      }
-      await agencyUpdateCellMeta({
-        id: selectedCell.id,
-        worktreePath: selectedCell.worktreePath,
-        avatar,
-      });
-      await loadCells();
-    },
-    [loadCells, selectedCell]
-  );
-  const handleCreate = useCallback(
-    async ({ name, branch, reusePath, startTurnGateCreate }) => {
-      if (!projectReady) {
-        setProjectError('Select a project before creating a Cell.');
-        return;
-      }
-      setLoading(true);
-      try {
-        const cell = await agencyCreateCell({
-          name,
-          branch,
-          reusePath,
-          rootPath: projectRoot,
-        });
-        if (!cell) {
-          return;
-        }
-        setShowCreate(false);
-        await loadCells();
-        if (cell?.id) {
-          setSelectedId(cell.id);
-        }
-        handleOpenTerminal();
-
-        if (startTurnGateCreate) {
-          try {
-            const stage = cell?.state === 'archived' ? 'archived' : 'active';
-            const created = await createTurnGateCreateSheetForCell({ cell, stage });
-            handleOpenActionSheets(created.id);
-          } catch (error) {
-            modal?.notify?.({
-              title: 'Failed to start Turn',
-              description: error?.message || 'Unable to create Gate Create sheet for this Cell.',
-              tone: 'warning',
-            });
-          }
-        }
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [createTurnGateCreateSheetForCell, handleOpenActionSheets, handleOpenTerminal, loadCells, modal, projectReady, projectRoot]
-  );
-  const handleSaveGates = useCallback(async () => {
-    await saveGates();
-    await loadCells();
-  }, [loadCells, saveGates]);
+  const {
+    handleStateChange,
+    handleUpdateCellAvatar,
+    handleCreate,
+    handleSaveGates,
+  } = useCellLifecycleActions({
+    scopedCell,
+    cells,
+    projectRoot,
+    projectReady,
+    selectedCell,
+    loadCells,
+    checkGatesForCell,
+    createTurnGateCreateSheetForCell,
+    handleOpenActionSheets,
+    handleOpenTerminal,
+    setTransitionError,
+    setCells,
+    setPendingTransition,
+    setProjectError,
+    setLoading,
+    setShowCreate,
+    setSelectedId,
+    saveGates,
+    modal,
+  });
   const canUseScopedConfig = Boolean(scopedCell?.worktreePath);
   const resolvedRepoRoot = projectRoot || worktreeLinksRepoRoot;
   const appShortcutsPaths = {
