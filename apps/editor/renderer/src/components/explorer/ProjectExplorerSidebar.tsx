@@ -11,20 +11,19 @@ import {
   pickPrimaryStatus, 
 } from './explorerUtils';
 import { buildAgentCellModifiedFileChanges } from '../../utils/agentCellFileChanges';
-import { setFileDragPayload } from '../../utils/fileDragPayload';
 import { buildExplorerVisibleItems } from './explorerVisibleItems';
 import {
   ExplorerChangedFilesPanel,
   type ExplorerChangedFilesPanelMode,
 } from './ExplorerChangedFilesPanel';
 import { useExplorerClipboardActions } from './useExplorerClipboardActions';
+import { useExplorerChangedFilesActions } from './useExplorerChangedFilesActions';
 import { useExplorerDropHandlers } from './useExplorerDropHandlers';
 import { useExplorerPersistedUiState } from './useExplorerPersistedUiState';
 import {
   buildExplorerInternalDragPayload,
   writeExplorerInternalDragPaths,
 } from './explorerInternalDragPaths';
-import { useFileSnippetPreview } from '../../hooks/useFileSnippetPreview';
 
 const ROW_HEIGHT = 24;
 const OVERSCAN = 6;
@@ -114,10 +113,6 @@ function ProjectExplorerSidebarContent({
   const [viewportHeight, setViewportHeight] = useState(0);
   const [changesPanelOpen, setChangesPanelOpen] = useState(true);
   const [changesPanelMode, setChangesPanelMode] = useState<ExplorerChangedFilesPanelMode>('flat');
-  const [changesPanelRefreshing, setChangesPanelRefreshing] = useState(false);
-  const [changesPanelUpdatedAt, setChangesPanelUpdatedAt] = useState(0);
-  const changesPanelSnippetPreview = useFileSnippetPreview({ defaultContext: 2 });
-  const changesPanelPreview = changesPanelSnippetPreview.preview;
   const explorerStateKey = useMemo(() => {
     const base = scopeRootPath || rootPath || repoRoot;
     if (!base) return '';
@@ -173,21 +168,6 @@ function ProjectExplorerSidebarContent({
     setSelectedPaths,
     setFocusedPath,
   });
-
-  useEffect(() => {
-    setChangesPanelUpdatedAt(Date.now());
-  }, [changedPanelEntries, selectedCellId]);
-
-  useEffect(() => {
-    changesPanelSnippetPreview.clearPreview();
-  }, [changesPanelSnippetPreview, selectedCellId]);
-
-  useEffect(() => {
-    if (changesPanelOpen) {
-      return;
-    }
-    changesPanelSnippetPreview.clearPreview();
-  }, [changesPanelOpen, changesPanelSnippetPreview]);
 
   useEffect(() => {
     const availableRuleIds = new Set(
@@ -387,105 +367,31 @@ function ProjectExplorerSidebarContent({
     }
   }, [clearError, onOpenFile, openEntry, setErrorMessage]);
 
-  const refreshChangesPanel = useCallback(async () => {
-    setChangesPanelRefreshing(true);
-    try {
-      await refreshAll({ forceStatus: true });
-      setChangesPanelUpdatedAt(Date.now());
-    } finally {
-      setChangesPanelRefreshing(false);
-    }
-  }, [refreshAll]);
-
-  const handleOpenChangedEntry = useCallback(
-    async (entry, options: { mode?: 'preview' | 'pinned' } = {}) => {
-      const targetPath = explorerPathUtils.toRelativePath(entry?.relativePath || '');
-      if (!targetPath) {
-        return;
-      }
-
-      // Keep the dispatch footer ("pending send") in sync with changed-files interactions.
-      selectPathInExplorer(targetPath);
-
-      const mode = options.mode === 'pinned' ? 'pinned' : 'preview';
-      const opened = await handleOpenEntry(targetPath, mode);
-      if (!opened) {
-        return;
-      }
-      try {
-        const expanded = await expandAncestorsForPath(targetPath);
-        if (expanded) {
-          selectPathInExplorer(targetPath);
-        }
-      } catch {
-        // Ignore selection sync failures; open already succeeded.
-      }
-    },
-    [expandAncestorsForPath, handleOpenEntry, selectPathInExplorer]
-  );
-
-  const handleRevealChangedEntry = useCallback(
-    async (entry) => {
-      const targetPath = explorerPathUtils.toRelativePath(entry?.relativePath || '');
-      if (!targetPath) {
-        return;
-      }
-
-      // Sync footer selection even when only revealing (no open).
-      selectPathInExplorer(targetPath);
-
-      try {
-        await revealEntry({ targetPath });
-        const expanded = await expandAncestorsForPath(targetPath);
-        if (expanded) {
-          selectPathInExplorer(targetPath);
-        }
-        clearError();
-      } catch (err) {
-        setErrorMessage(err?.message || 'Failed to reveal file.');
-      }
-    },
-    [clearError, expandAncestorsForPath, revealEntry, selectPathInExplorer, setErrorMessage]
-  );
-
-  const loadChangesPanelPreview = useCallback(
-    async (entry) => {
-      const targetPath = explorerPathUtils.toRelativePath(entry?.relativePath || '');
-      const activeRootPath = selectedCell?.worktreePath || rootPath || scopeRootPath || '';
-      if (!targetPath || !activeRootPath) {
-        changesPanelSnippetPreview.clearPreview();
-        return;
-      }
-
-      const line = Number.isFinite(entry?.line) ? Math.max(1, Math.floor(entry.line)) : null;
-      await changesPanelSnippetPreview.loadPreview({
-        rootPath: activeRootPath,
-        targetPath,
-        relativePath: targetPath,
-        line,
-        context: 2,
-      });
-    },
-    [changesPanelSnippetPreview, rootPath, scopeRootPath, selectedCell?.worktreePath]
-  );
-
-  const clearChangesPanelPreview = useCallback(() => {
-    changesPanelSnippetPreview.clearPreview();
-  }, [changesPanelSnippetPreview]);
-
-  const handlePreviewChangedEntry = useCallback(
-    async (entry) => {
-      await loadChangesPanelPreview(entry);
-    },
-    [loadChangesPanelPreview]
-  );
-
-  const handleChangeEntryDragStart = useCallback((event, entry) => {
-    const success = setFileDragPayload(event, entry?.absolutePath || '');
-    if (!success) {
-      event.preventDefault();
-    }
-  }, []);
+  const {
+    changesPanelPreview,
+    changesPanelRefreshing,
+    changesPanelUpdatedAt,
+    refreshChangesPanel,
+    clearChangesPanelPreview,
+    handleOpenChangedEntry,
+    handleRevealChangedEntry,
+    handlePreviewChangedEntry,
+    handleChangeEntryDragStart,
+  } = useExplorerChangedFilesActions({
+    rootPath,
+    scopeRootPath,
+    selectedCellWorktreePath: String(selectedCell?.worktreePath || ''),
+    selectedCellId,
+    isPanelOpen: changesPanelOpen,
+    changedPanelEntries,
+    refreshAll,
+    selectPathInExplorer,
+    handleOpenEntry,
+    expandAncestorsForPath,
+    revealEntry,
+    clearError,
+    setErrorMessage,
+  });
 
   // Handlers
   const closeContextMenu = () => setContextMenu(null);
