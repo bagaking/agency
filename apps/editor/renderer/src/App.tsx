@@ -17,12 +17,6 @@ import { useWorkbench } from './hooks/useWorkbench';
 import { useHilMemoState } from './hooks/useHilMemoState';
 import { useHilMemoCaptureState } from './hooks/useHilMemoCaptureState';
 import {
-  getProjectContext,
-  getTmuxStatus as agencyGetTmuxStatus,
-  getUiState,
-  isAgencyAvailable,
-  listCells as agencyListCells,
-  onCellsUpdated as subscribeCellsUpdated,
   onAppShortcutTriggered as subscribeAppShortcutTriggered,
   setUiState as agencySetUiState,
   updateCellState as agencyUpdateCellState,
@@ -35,6 +29,7 @@ import { useActionSheetOrchestration } from './app/useActionSheetOrchestration';
 import { useHilFileCommenting } from './app/useHilFileCommenting';
 import { useSessionMapOverlayController } from './app/useSessionMapOverlayController';
 import { useHierarchyNavigation } from './app/useHierarchyNavigation';
+import { useRendererBootstrap } from './app/useRendererBootstrap';
 import { BASELINE_PROFILE_ID } from './utils/terminusSettings';
 import { SessionMapOverlay } from './components/sessionMap/SessionMapOverlay';
 import { SessionMapToggle } from './components/sessionMap/SessionMapToggle';
@@ -135,197 +130,33 @@ function AppShell() {
     }
     return selectedCell;
   }, [projectReady, selectedCell]);
-  const loadCells = useCallback(
-    async (preferredSelection = null, rootOverride = '') => {
-      const effectiveRoot = rootOverride || projectRoot;
-      setLoading(true);
-      try {
-        if (!effectiveRoot) {
-          setCells([]);
-          if (!selectedId) {
-            setSelectedId('local-terminal');
-          }
-          return;
-        }
-        const result = await agencyListCells({ rootPath: effectiveRoot });
-        if (Array.isArray(result)) {
-          setCells(result);
-          if (result.length) {
-            const preferredMatch = preferredSelection
-              ? result.find((cell) => cell.id === preferredSelection)
-              : null;
-            const existingMatch = selectedId
-              ? result.find((cell) => cell.id === selectedId)
-              : null;
-            setSelectedId((preferredMatch || existingMatch || result[0]).id);
-          } else {
-            setSelectedId(null);
-          }
-        } else {
-          setCells(defaultCells);
-          if (!selectedId) setSelectedId(defaultCells[0].id);
-        }
-      } catch (error) {
-        console.error(error);
-        if (String(error?.message || '').includes('Project root is not configured')) {
-          setCells([]);
-          setSelectedId(null);
-        } else {
-          setCells(defaultCells);
-          if (!selectedId) setSelectedId(defaultCells[0].id);
-        }
-      } finally {
-        setLoading(false);
-      }
-    },
-    [projectRoot, selectedId]
-  );
-  useEffect(() => {
-    const bootstrap = async () => {
-      let context = null;
-      try {
-        context = await getProjectContext();
-      } catch (error) {
-        console.error(error);
-      }
-      const resolvedProjectRoot = context?.projectRoot || '';
-      setProjectRoot(resolvedProjectRoot);
-      setRecentProjects(Array.isArray(context?.recentProjects) ? context.recentProjects : []);
-      const resolvedUserDataPath = context?.userDataPath || '';
-      setFallbackTerminalRoot(resolvedUserDataPath);
-      setUserDataPath(resolvedUserDataPath);
-      if (context?.storedRoot && !context?.valid) {
-        setProjectError('Stored project path is no longer available. Select a new project.');
-      } else {
-        setProjectError('');
-      }
-      try {
-        const state = await getUiState();
-        if (state) {
-          if (state?.activeSessionByCellId && typeof state.activeSessionByCellId === 'object') {
-            setInitialActiveSessions(state.activeSessionByCellId);
-          }
-          if (state?.workbenchTabsByCellId && typeof state.workbenchTabsByCellId === 'object') {
-            setInitialWorkbenchTabs(
-              resolvedProjectRoot ? state.workbenchTabsByCellId : {}
-            );
-          }
-          if (state?.workbenchActiveTabByCellId && typeof state.workbenchActiveTabByCellId === 'object') {
-            setInitialWorkbenchActiveTabs(
-              resolvedProjectRoot ? state.workbenchActiveTabByCellId : {}
-            );
-          }
-          if (state?.selectedId) {
-            setSelectedId(state.selectedId);
-          } else if (!resolvedProjectRoot) {
-            setSelectedId('local-terminal');
-          }
-          if (typeof state?.sidebarWidth === 'number') {
-            setSidebarWidth(state.sidebarWidth);
-          }
-          if (typeof state?.sidebarCollapsed === 'boolean') {
-            setSidebarCollapsed(state.sidebarCollapsed);
-          }
-          let restoredActiveView = 'agent-cells';
-          if (typeof state?.activeView === 'string') {
-            const allowedViews = new Set(['agent-cells', 'action-sheets', 'explorer', 'hierarchy', 'settings', 'memo']);
-            if (allowedViews.has(state.activeView)) {
-              restoredActiveView = state.activeView;
-              setActiveView(state.activeView);
-            }
-          }
-          if (typeof state?.hilDrawerOpen === 'boolean') {
-            setHilDrawerOpen(state.hilDrawerOpen);
-          }
-          if (typeof state?.hilDrawerPanel === 'string') {
-            setHilDrawerPanel(state.hilDrawerPanel);
-          }
-          if (state?.hilDrawerPanelByView && typeof state.hilDrawerPanelByView === 'object') {
-            setHilDrawerPanelByView(state.hilDrawerPanelByView);
-          } else if (typeof state?.hilDrawerPanel === 'string') {
-            setHilDrawerPanelByView({ [restoredActiveView]: state.hilDrawerPanel });
-          }
-          if (!resolvedProjectRoot) {
-            setActiveView('agent-cells');
-            setSelectedId('local-terminal');
-            setTerminalOpen(true);
-            setCells([]);
-          }
-          await loadCells(
-            state?.selectedId || (resolvedProjectRoot ? undefined : 'local-terminal'),
-            resolvedProjectRoot
-          );
-          setUiStateLoaded(true);
-          return;
-        }
-      } catch (error) {
-        console.error(error);
-      }
-      await loadCells(undefined, resolvedProjectRoot);
-      setUiStateLoaded(true);
-    };
-    bootstrap();
-  }, [loadCells]);
-  useEffect(() => {
-    const handleRejection = (event) => {
-      const reason = event?.reason;
-      if (reason && reason.type === 'cancelation') {
-        event.preventDefault();
-      }
-    };
-    window.addEventListener('unhandledrejection', handleRejection);
-    return () => {
-      window.removeEventListener('unhandledrejection', handleRejection);
-    };
-  }, []);
-  useEffect(() => {
-    const unsubscribe = subscribeCellsUpdated(() => loadCells());
-    if (!unsubscribe) {
-      return undefined;
-    }
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, [loadCells]);
-  useEffect(() => {
-    if (!uiStateLoaded) {
-      return;
-    }
-    if (!projectRoot) {
-      setActiveView('agent-cells');
-      setSelectedId('local-terminal');
-      setTerminalOpen(true);
-    }
-    loadCells(undefined, projectRoot);
-  }, [projectRoot, uiStateLoaded, loadCells]);
-  useEffect(() => {
-    const loadTmuxStatus = async () => {
-      try {
-        const status = await agencyGetTmuxStatus();
-        if (!status) {
-          return;
-        }
-        setTmuxStatus(status || { available: false, error: 'Unable to detect tmux.' });
-      } catch (error) {
-        setTmuxStatus({
-          available: false,
-          error: error?.message || 'Unable to detect tmux.',
-          version: '',
-        });
-      }
-    };
-    loadTmuxStatus();
-  }, []);
-
-  useEffect(() => {
-    const available = isAgencyAvailable();
-    setIpcAvailable(available);
-    if (!available) {
-      console.error('IPC unavailable: preload failed to expose window.agency.');
-    }
-  }, []);
+  const { loadCells } = useRendererBootstrap({
+    projectRoot,
+    selectedId,
+    defaultCells,
+    setLoading,
+    setCells,
+    setSelectedId,
+    setProjectRoot,
+    setRecentProjects,
+    setFallbackTerminalRoot,
+    setUserDataPath,
+    setProjectError,
+    setInitialActiveSessions,
+    setInitialWorkbenchTabs,
+    setInitialWorkbenchActiveTabs,
+    setSidebarWidth,
+    setSidebarCollapsed,
+    setActiveView,
+    setHilDrawerOpen,
+    setHilDrawerPanel,
+    setHilDrawerPanelByView,
+    setTerminalOpen,
+    setUiStateLoaded,
+    uiStateLoaded,
+    setTmuxStatus,
+    setIpcAvailable,
+  });
   const {
     links: worktreeLinks,
     autoLinkOnCreate: worktreeLinksAuto,
