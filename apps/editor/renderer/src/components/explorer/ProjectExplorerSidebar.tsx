@@ -19,6 +19,7 @@ import {
 } from './ExplorerChangedFilesPanel';
 import { useExplorerClipboardActions } from './useExplorerClipboardActions';
 import { useExplorerDropHandlers } from './useExplorerDropHandlers';
+import { useExplorerPersistedUiState } from './useExplorerPersistedUiState';
 import {
   buildExplorerInternalDragPayload,
   writeExplorerInternalDragPaths,
@@ -53,8 +54,8 @@ function ProjectExplorerSidebarContent({
   revealRequest,
   onRevealHandled,
 }: any) {
-  const listRef = useRef(null);
-  const visiblePathsRef = useRef([]);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const visiblePathsRef = useRef<string[]>([]);
   const {
     rootPath,
     rootLabel,
@@ -122,7 +123,6 @@ function ProjectExplorerSidebarContent({
     if (!base) return '';
     return `agency:explorer:${base}`;
   }, [scopeRootPath, rootPath, repoRoot]);
-  const hasRestoredStateRef = useRef(false);
 
   const statusFilterSet = useMemo(() => new Set(statusFilters), [statusFilters]);
   const semanticFilterSet = useMemo(() => new Set(semanticFilters), [semanticFilters]);
@@ -162,9 +162,17 @@ function ProjectExplorerSidebarContent({
     [workbenchMeta]
   );
 
-  useEffect(() => {
-    hasRestoredStateRef.current = false;
-  }, [explorerStateKey]);
+  useExplorerPersistedUiState({
+    stateKey: explorerStateKey,
+    listRef,
+    expandedPaths,
+    selectedPaths,
+    focusedPath,
+    scrollTop,
+    expandPath,
+    setSelectedPaths,
+    setFocusedPath,
+  });
 
   useEffect(() => {
     setChangesPanelUpdatedAt(Date.now());
@@ -182,40 +190,6 @@ function ProjectExplorerSidebarContent({
   }, [changesPanelOpen, changesPanelSnippetPreview]);
 
   useEffect(() => {
-    if (!explorerStateKey || hasRestoredStateRef.current) return;
-    hasRestoredStateRef.current = true;
-    try {
-      const raw = window.sessionStorage?.getItem(explorerStateKey);
-      if (!raw) return;
-      const payload = JSON.parse(raw);
-      const expanded = Array.isArray(payload?.expandedPaths) ? payload.expandedPaths : [];
-      const selected = Array.isArray(payload?.selectedPaths) ? payload.selectedPaths : [];
-      const focused = typeof payload?.focusedPath === 'string' ? payload.focusedPath : '';
-      const storedScrollTop = typeof payload?.scrollTop === 'number' ? payload.scrollTop : null;
-      (async () => {
-        const uniqueExpanded = new Set(expanded.filter(Boolean));
-        uniqueExpanded.add('');
-        for (const entry of uniqueExpanded) {
-          await expandPath(entry);
-        }
-        if (selected.length) {
-          setSelectedPaths(selected);
-          setFocusedPath(focused || selected[0]);
-        } else if (focused) {
-          setFocusedPath(focused);
-        }
-        if (storedScrollTop != null) {
-          requestAnimationFrame(() => {
-            if (listRef.current) listRef.current.scrollTop = storedScrollTop;
-          });
-        }
-      })();
-    } catch (err) {
-      // Ignore invalid persisted state.
-    }
-  }, [expandPath, explorerStateKey, setSelectedPaths]);
-
-  useEffect(() => {
     const availableRuleIds = new Set(
       (Array.isArray(semanticRules) ? semanticRules : [])
         .map((rule: any) => String(rule?.id || '').trim())
@@ -223,21 +197,6 @@ function ProjectExplorerSidebarContent({
     );
     setSemanticFilters((current) => current.filter((id) => availableRuleIds.has(id)));
   }, [semanticRules]);
-
-  useEffect(() => {
-    if (!explorerStateKey) return;
-    try {
-      const payload = {
-        expandedPaths: Array.from(expandedPaths || []),
-        selectedPaths,
-        focusedPath,
-        scrollTop,
-      };
-      window.sessionStorage?.setItem(explorerStateKey, JSON.stringify(payload));
-    } catch (err) {
-      // Ignore persistence errors (quota/disabled storage).
-    }
-  }, [expandedPaths, explorerStateKey, focusedPath, scrollTop, selectedPaths]);
 
   const getScopedEntry = useCallback((entry, type) => {
     if (!entry || !selectedCellId || !entry.cells?.[selectedCellId]) return entry;
