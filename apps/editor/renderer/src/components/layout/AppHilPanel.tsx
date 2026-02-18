@@ -1,6 +1,7 @@
 import React from 'react';
 import { HilDrawer } from '../hil/HilDrawer';
-import { HilCommentsPanel, PromoteModal } from '../hil/HilCommentsPanel';
+import { HilCommentsPanel } from '../hil/HilCommentsPanel';
+import { PromoteModal } from '../hil/HilPromoteModal';
 import { HilDraftsPanel } from '../hil/HilDraftsPanel';
 import { HilMemoDrawer } from '../hil/HilMemoDrawer';
 import { SessionReplyPanel } from '../SessionReplyPanel';
