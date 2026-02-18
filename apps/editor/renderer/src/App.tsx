@@ -30,7 +30,7 @@ import { useGlobalAppShortcutListener } from './app/useGlobalAppShortcutListener
 import { useHilDrawerController } from './app/useHilDrawerController';
 import { useSessionSidebarSelection } from './app/useSessionSidebarSelection';
 import { useHierarchyConfigState } from './app/useHierarchyConfigState';
-import { BASELINE_PROFILE_ID } from './utils/terminusSettings';
+import { useSessionReplyContext } from './app/useSessionReplyContext';
 import { SessionMapOverlay } from './components/sessionMap/SessionMapOverlay';
 import { SessionMapToggle } from './components/sessionMap/SessionMapToggle';
 const defaultCells = [
@@ -698,54 +698,6 @@ function AppShell() {
     saveGates,
     modal,
   });
-  const terminusProfiles = useMemo(
-    () =>
-      (resolvedProfiles || []).filter((profile) => {
-        const startCommand = String(profile.startCommand || '').trim();
-        const resumeCommand = String(profile.resumeCommand || '').trim();
-        return Boolean(startCommand || resumeCommand);
-      }),
-    [resolvedProfiles]
-  );
-  const activeSession = useMemo(
-    () => sessions?.find((session) => session.id === activeSessionId) || null,
-    [sessions, activeSessionId]
-  );
-  const replySelectionKey = useMemo(() => {
-    if (!selectedCell?.id || !activeSessionId) {
-      return '';
-    }
-    return `${selectedCell.id}:${activeSessionId}`;
-  }, [activeSessionId, selectedCell?.id]);
-  const activeReplySelection = useMemo(() => {
-    if (!replySelectionKey) {
-      return null;
-    }
-    return replySelectionByKey[replySelectionKey] || null;
-  }, [replySelectionByKey, replySelectionKey]);
-  const activeProfileId = activeSession?.profileId || BASELINE_PROFILE_ID;
-  const activeProfileBindings = useMemo(() => {
-    if (!resolvedBindingsByProfile) {
-      return [];
-    }
-    if (typeof resolvedBindingsByProfile.get === 'function') {
-      return resolvedBindingsByProfile.get(activeProfileId) || [];
-    }
-    return resolvedBindingsByProfile[activeProfileId] || [];
-  }, [activeProfileId, resolvedBindingsByProfile]);
-  const sessionNamingPreviewContext = useMemo(() => {
-    const projectLabel = (projectRoot || '')
-      .split('/')
-      .filter(Boolean)
-      .pop();
-    return {
-      cell: selectedCell?.name || 'Agent',
-      profile: activeProfileId || 'shell',
-      project: projectLabel || '',
-      branch: selectedCell?.branch || '',
-      user: 'you',
-    };
-  }, [activeProfileId, projectRoot, selectedCell?.branch, selectedCell?.name]);
   const {
     openWorkbenchFile: handleOpenWorkbenchFile,
     revealWorkbenchFile: handleRevealWorkbenchFile,
@@ -769,38 +721,31 @@ function AppShell() {
     setPendingExplorerReveal,
     setPendingWorkbenchJump,
   });
-
-  const handleJumpToSession = useCallback(
-    (cellId, sessionId) => {
-      handleSelectSessionFromMap(cellId, sessionId, { focusView: true });
-    },
-    [handleSelectSessionFromMap]
-  );
-
-  const handleJumpToReplyMemo = useCallback(() => {
-    setActiveView('memo');
-    if (sidebarCollapsed) {
-      setSidebarCollapsed(false);
-    }
-    hilMemo.setDockSelection({
-      type: 'inbox',
-      inboxType: 'reply',
-      draftId: null,
-    });
-  }, [hilMemo.setDockSelection, sidebarCollapsed]);
-  const handleClearReplySelection = useCallback(() => {
-    if (!replySelectionKey) {
-      return;
-    }
-    setReplySelectionByKey((current) => {
-      if (!current[replySelectionKey]) {
-        return current;
-      }
-      const next = { ...current };
-      delete next[replySelectionKey];
-      return next;
-    });
-  }, [replySelectionKey]);
+  const {
+    terminusProfiles,
+    activeSession,
+    activeProfileId,
+    activeProfileBindings,
+    activeReplySelection,
+    sessionNamingPreviewContext,
+    handleJumpToSession,
+    handleJumpToReplyMemo,
+    handleClearReplySelection,
+  } = useSessionReplyContext({
+    resolvedProfiles,
+    sessions,
+    activeSessionId,
+    selectedCell,
+    replySelectionByKey,
+    resolvedBindingsByProfile,
+    projectRoot,
+    setActiveView,
+    sidebarCollapsed,
+    setSidebarCollapsed,
+    setReplySelectionByKey,
+    setDockSelection: hilMemo.setDockSelection,
+    handleSelectSessionFromMap,
+  });
 
   const editorPaneProps = {
     cell: selectedCell,
