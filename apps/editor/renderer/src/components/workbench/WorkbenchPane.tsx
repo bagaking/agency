@@ -44,6 +44,7 @@ import {
   WORKBENCH_TAB_DISK_SYNC_INTERVAL_MS,
 } from './workbenchPaneHelpers';
 import { loadWorkbenchCodeState, loadWorkbenchTabState } from './workbenchPaneLoaders';
+import { useWorkbenchKeyboardShortcuts } from './useWorkbenchKeyboardShortcuts';
 
 
 export function WorkbenchPane({
@@ -369,55 +370,20 @@ function WorkbenchPaneContent({
     action?.run?.();
   }, []);
 
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (!activeTab) {
-        return;
-      }
-      const target = event.target;
-      const isEditable =
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.isContentEditable);
-      const isMonaco = Boolean(target?.closest?.('.monaco-editor'));
-      if (isEditable && !isMonaco) {
-        return;
-      }
-      const isMac = navigator.platform?.toLowerCase().includes('mac');
-      const modKey = isMac ? event.metaKey : event.ctrlKey;
-      if (!modKey) {
-        return;
-      }
-      const key = event.key.toLowerCase();
-      if (key === 's') {
-        event.preventDefault();
-        if (event.shiftKey) {
-          handleSaveAs();
-        } else {
-          handleSave();
-        }
-        return;
-      }
-      if (key === 'w') {
-        event.preventDefault();
-        if (activeTab?.id) {
-          closeTab(activeTab.id);
-        }
-        return;
-      }
-      if (key === 'f' && activeState.kind === 'code') {
-        event.preventDefault();
-        if (event.altKey) {
-          runEditorAction('editor.action.startFindReplaceAction');
-        } else {
-          runEditorAction('actions.find');
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeState.kind, activeTab, closeTab, handleSave, handleSaveAs, runEditorAction]);
+  const closeActiveTab = useCallback(() => {
+    if (activeTab?.id) {
+      closeTab(activeTab.id);
+    }
+  }, [activeTab?.id, closeTab]);
+
+  useWorkbenchKeyboardShortcuts({
+    activeTab,
+    activeKind: activeState.kind,
+    onSave: handleSave,
+    onSaveAs: handleSaveAs,
+    onCloseActiveTab: closeActiveTab,
+    runEditorAction,
+  });
 
   const toggleDiff = useCallback(async () => {
     if (!activeTab || !isAgencyMethodAvailable('diffWorkbenchEntry')) return;
