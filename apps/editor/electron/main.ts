@@ -44,8 +44,28 @@ type RendererInfo = {
 };
 
 let mainWindow: AgencyWindow | undefined;
+let testUserDataPath: string | null = null;
 
 app.setName('Agency');
+
+function configureTestUserDataPath(): string | null {
+  if (process.env.AGENCY_TEST_MODE !== '1') {
+    return null;
+  }
+  const candidate = String(process.env.AGENCY_TEST_USER_DATA_PATH || '').trim();
+  if (!candidate) {
+    return null;
+  }
+  try {
+    fs.mkdirSync(candidate, { recursive: true });
+    app.setPath('userData', candidate);
+    return candidate;
+  } catch {
+    return null;
+  }
+}
+
+testUserDataPath = configureTestUserDataPath();
 
 const startupTimeline = createStartupTimeline(({ stage, elapsedMs, meta }) => {
   logRuntime('info', 'startup stage', {
@@ -59,7 +79,9 @@ function recordStartup(stage: string, meta: StartupMeta = {}): void {
   startupTimeline.record(stage, meta);
 }
 
-recordStartup('process-start');
+recordStartup('process-start', {
+  testUserDataPath,
+});
 
 function ensureDarwinPath(): {
   updated: boolean;

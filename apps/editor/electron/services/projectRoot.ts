@@ -220,6 +220,14 @@ async function getProjectContext(params: any = {}) {
       setWindowProjectRoot(windowId, resolvedRoot);
     }
   }
+  if (!resolvedRoot) {
+    const envRoot = getEnvProjectRoot();
+    const envCandidate = envRoot.explicit ? envRoot.value : '';
+    resolvedRoot = envCandidate ? await resolveProjectRoot({ rootPath: envCandidate }) : '';
+    if (windowId && resolvedRoot) {
+      setWindowProjectRoot(windowId, resolvedRoot);
+    }
+  }
   const valid = Boolean(resolvedRoot);
   return {
     projectRoot: resolvedRoot,
