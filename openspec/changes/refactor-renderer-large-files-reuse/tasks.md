@@ -30,9 +30,9 @@
 - [x] 4.1 Typecheck passes for renderer/electron.
 - [ ] 4.2 Existing E2E and manual smoke paths for Agent Cells / Explorer / Terminal / Workbench / HIL remain valid.
 - [ ] 4.3 No user-visible behavior regressions in file open/reveal/import, terminal interaction, memo/promote, and quick actions.
-- [ ] 4.4 Add/refresh targeted unit tests for extracted shared modules (drop parser, preview loader, terminal/runtime helpers).
+- [x] 4.4 Add/refresh targeted unit tests for extracted shared modules (drop parser, preview loader, terminal/runtime helpers).
 
 ## 5. Bagakit Reuse Documentation (Required after refactor completion)
-- [ ] 5.1 Update `docs/notes-reusable-items-coding.md` for all newly introduced or changed reusable items.
-- [ ] 5.2 Record deprecations/replacements for removed duplicated logic (with migration note/source path).
+- [x] 5.1 Update `docs/notes-reusable-items-coding.md` for all newly introduced or changed reusable items.
+- [x] 5.2 Record deprecations/replacements for removed duplicated logic (with migration note/source path).
 - [ ] 5.3 If SOP/frontmatter changes are introduced in docs, regenerate `docs/must-sop.md`.
