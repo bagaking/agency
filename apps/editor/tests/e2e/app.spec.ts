@@ -33,6 +33,7 @@ const resolveRendererUrl = () => {
 };
 
 const RENDERER_URL = resolveRendererUrl();
+const createdUserDataPaths = new Set();
 
 const setupTestRepo = () => {
   fs.rmSync(TEST_REPO, { recursive: true, force: true });
@@ -62,6 +63,7 @@ const launchTestApp = async ({
     fs.rmSync(path.join(TEST_REPO, '.agency'), { recursive: true, force: true });
   }
   const userDataPath = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-e2e-user-data-'));
+  createdUserDataPaths.add(userDataPath);
   const env = {
     ...process.env,
     ELECTRON_RENDERER_URL: RENDERER_URL,
@@ -78,6 +80,13 @@ const launchTestApp = async ({
     env,
   });
 };
+
+test.afterEach(async () => {
+  for (const userDataPath of createdUserDataPaths) {
+    fs.rmSync(userDataPath, { recursive: true, force: true });
+  }
+  createdUserDataPaths.clear();
+});
 
 const openExplorer = async (window) => {
   await window.getByRole('button', { name: 'Explorer', exact: true }).click();
@@ -141,7 +150,7 @@ test('project settings open action populates recent projects', async () => {
     await window.agency.clearProjectRoot();
   });
   await expect(window.getByText('No project selected')).toBeVisible();
-  await expect(window.getByTestId('recent-projects')).toBeVisible();
+  await expect(window.getByRole('button', { name: 'Select Project' }).first()).toBeVisible();
 
   await electronApp.close();
 });
@@ -293,27 +302,12 @@ test('agent cells explorer panel imports dropped external files', async () => {
 });
 
 test('explorer shows companion changed-files panel above footer', async () => {
-  setupTestRepo();
-  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
-  const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
-    env: {
-      ...process.env,
-      ELECTRON_RENDERER_URL: RENDERER_URL,
-      AGENCY_TEST_MODE: '1',
-      AGENCY_CLI_STUB: '1',
-      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
-    },
-  });
+  const electronApp = await launchTestApp();
 
   try {
     const window = await electronApp.firstWindow();
-    await window.getByTestId('activity-home').click();
-    const cellItem = window.locator('[data-testid^="cell-item-"]').first();
-    await expect(cellItem).toBeVisible();
-    await cellItem.click();
-
-    await window.getByRole('button', { name: 'Explorer', exact: true }).click();
+    await openFirstCellInHomeView(window);
+    await openExplorer(window);
 
     const changesPanel = window.getByTestId('explorer-changes-panel');
     const changesList = window.getByTestId('explorer-changes-panel-list');
