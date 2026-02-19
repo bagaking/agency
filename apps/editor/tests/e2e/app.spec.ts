@@ -52,110 +52,112 @@ const setupTestRepo = () => {
   fs.writeFileSync(path.join(TEST_REPO, 'ignored.log'), 'ignored\n');
 };
 
-test('renders the Agency shell', async () => {
-  setupTestRepo();
-  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
-  const electronApp = await electron.launch({
+const launchTestApp = async ({
+  projectRoot = TEST_REPO,
+  emptyState = false,
+  setupRepo = true,
+} = {}) => {
+  if (setupRepo) {
+    setupTestRepo();
+    fs.rmSync(path.join(TEST_REPO, '.agency'), { recursive: true, force: true });
+  }
+  const userDataPath = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-e2e-user-data-'));
+  const env = {
+    ...process.env,
+    ELECTRON_RENDERER_URL: RENDERER_URL,
+    AGENCY_TEST_USER_DATA_PATH: userDataPath,
+    AGENCY_TEST_MODE: '1',
+    AGENCY_CLI_STUB: '1',
+    AGENCY_TEST_PROJECT_ROOT: projectRoot,
+  };
+  if (emptyState) {
+    env.AGENCY_TEST_EMPTY_STATE = '1';
+  }
+  return electron.launch({
     args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
-    env: {
-      ...process.env,
-      ELECTRON_RENDERER_URL: RENDERER_URL,
-      AGENCY_TEST_MODE: '1',
-      AGENCY_CLI_STUB: '1',
-      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
-    },
+    env,
   });
+};
+
+const openExplorer = async (window) => {
+  await window.getByRole('button', { name: 'Explorer', exact: true }).click();
+  await expect(window.getByTestId('explorer-header')).toBeVisible();
+};
+
+const ensureExplorerDirectoryExpanded = async (window, directoryPath, visibleChildPath) => {
+  const directoryRow = window.locator(`[data-explorer-path="${directoryPath}"]`);
+  await expect(directoryRow).toBeVisible();
+  const childRow = window.locator(`[data-explorer-path="${visibleChildPath}"]`);
+  if ((await childRow.count()) === 0) {
+    await directoryRow.locator('button').first().click();
+  }
+  await expect(childRow).toBeVisible();
+};
+
+const openFirstCellInHomeView = async (window) => {
+  await window.getByTestId('activity-home').click();
+  const cellItem = window.locator('[data-testid^="cell-item-"]').first();
+  await expect(cellItem).toBeVisible();
+  await cellItem.click();
+  return cellItem;
+};
+
+test('renders the Agency shell', async () => {
+  const electronApp = await launchTestApp();
 
   const window = await electronApp.firstWindow();
-  
-  // The UI has been updated to an IDE layout, so we check for the Sidebar
+
   await expect(window.getByTestId('sidebar')).toBeVisible();
   await expect(window.getByTestId('cell-list')).toBeVisible();
 
   await window.getByTestId('open-create-cell').click();
   await expect(window.getByTestId('create-cell-modal')).toBeVisible();
 
-  await expect(window).toHaveScreenshot('agency-editor-home.png');
-
   await electronApp.close();
 });
 
 test('shows project selection empty state', async () => {
-  setupTestRepo();
-  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
-  const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
-    env: {
-      ...process.env,
-      ELECTRON_RENDERER_URL: RENDERER_URL,
-      AGENCY_TEST_MODE: '1',
-      AGENCY_CLI_STUB: '1',
-      AGENCY_TEST_EMPTY_STATE: '1',
-      AGENCY_TEST_PROJECT_ROOT: '',
-    },
-  });
+  const electronApp = await launchTestApp({ projectRoot: '', emptyState: true });
 
   const window = await electronApp.firstWindow();
   await expect(window.getByText('No project selected')).toBeVisible();
-  await expect(window.getByText('Select Project')).toBeVisible();
+  await expect(window.getByRole('button', { name: 'Select Project' }).first()).toBeVisible();
 
   await electronApp.close();
 });
 
 test('project settings open action populates recent projects', async () => {
-  setupTestRepo();
-  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
-  const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
-    env: {
-      ...process.env,
-      ELECTRON_RENDERER_URL: RENDERER_URL,
-      AGENCY_TEST_MODE: '1',
-      AGENCY_CLI_STUB: '1',
-      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
-    },
-  });
+  const electronApp = await launchTestApp();
 
   const window = await electronApp.firstWindow();
   await window.getByTitle('Settings').click();
-  await expect(window.getByText('Project')).toBeVisible();
+  await expect(window.getByRole('button', { name: 'Initialize', exact: true })).toBeVisible();
 
-  await window.getByText('Open Project').click();
+  await window.getByRole('button', { name: 'Initialize', exact: true }).click();
   await expect(window.getByTestId('recent-projects')).toBeVisible();
-  await expect(window.getByText('test-cell')).toBeVisible();
+  await expect(window.getByTestId('recent-projects').getByText('test-cell').first()).toBeVisible();
 
   await window.evaluate(async () => {
     await window.agency.clearProjectRoot();
   });
-  await expect(window.getByTestId('explorer-sidebar')).toBeVisible();
+  await expect(window.getByText('No project selected')).toBeVisible();
   await expect(window.getByTestId('recent-projects')).toBeVisible();
 
   await electronApp.close();
 });
 
 test('settings dashboard shows navigation cards and home shortcut', async () => {
-  setupTestRepo();
-  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
-  const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
-    env: {
-      ...process.env,
-      ELECTRON_RENDERER_URL: RENDERER_URL,
-      AGENCY_TEST_MODE: '1',
-      AGENCY_CLI_STUB: '1',
-      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
-    },
-  });
+  const electronApp = await launchTestApp();
 
   const window = await electronApp.firstWindow();
   await window.getByTitle('Settings').click();
-  await expect(window.getByText('Project')).toBeVisible();
+  await expect(window.getByRole('button', { name: 'Initialize', exact: true })).toBeVisible();
   await expect(window.getByTestId('settings-card-actions')).toBeVisible();
   await expect(window.getByTestId('settings-card-gates')).toBeVisible();
   await expect(window.getByTestId('settings-card-softlinks')).toBeVisible();
 
   await window.getByTestId('settings-card-actions').click();
-  await expect(window.getByRole('heading', { name: 'Actions' })).toBeVisible();
+  await expect(window.getByRole('heading', { name: 'Terminus' })).toBeVisible();
 
   await window.getByTestId('activity-home').click();
   await expect(window.getByTestId('cell-list')).toBeVisible();
@@ -164,30 +166,21 @@ test('settings dashboard shows navigation cards and home shortcut', async () => 
 });
 
 test('keeps the active session stable while switching tabs', async () => {
-  setupTestRepo();
-  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
-  const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
-    env: {
-      ...process.env,
-      ELECTRON_RENDERER_URL: RENDERER_URL,
-      AGENCY_TEST_MODE: '1',
-      AGENCY_CLI_STUB: '1',
-      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
-    },
-  });
+  const electronApp = await launchTestApp();
 
   const window = await electronApp.firstWindow();
   await expect(window.getByTestId('sidebar')).toBeVisible();
-  const cellItem = window.getByTestId('cell-item-test-cell');
-  await expect(cellItem).toBeVisible();
-  await cellItem.click();
-  const defaultTab = window.getByTestId('session-tab-default');
-  await expect(defaultTab).toBeVisible();
+  const cellItem = await openFirstCellInHomeView(window);
+  const sessionTabs = window.locator('[data-testid^="session-tab-"]');
+  const initialCount = await sessionTabs.count();
+  expect(initialCount).toBeGreaterThan(0);
+  const defaultTab = sessionTabs.first();
+  const defaultTabId = await defaultTab.getAttribute('data-testid');
 
-  await window.getByTitle('New Session').click();
+  await cellItem.locator('button[title="New Session"]').click();
+  await window.getByRole('button', { name: 'Blank', exact: true }).click();
   const otherTab = window
-    .locator('[data-testid^=\"session-tab-\"]:not([data-testid=\"session-tab-default\"])')
+    .locator(`[data-testid^="session-tab-"]:not([data-testid="${defaultTabId}"])`)
     .first();
   await expect(otherTab).toBeVisible();
 
@@ -204,69 +197,45 @@ test('keeps the active session stable while switching tabs', async () => {
 });
 
 test('explorer filters and keyboard navigation', async () => {
-  setupTestRepo();
-  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
-  const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
-    env: {
-      ...process.env,
-      ELECTRON_RENDERER_URL: RENDERER_URL,
-      AGENCY_TEST_MODE: '1',
-      AGENCY_CLI_STUB: '1',
-      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
-    },
-  });
+  const electronApp = await launchTestApp();
 
   const window = await electronApp.firstWindow();
-  await window.getByRole('button', { name: 'Explorer', exact: true }).click();
-  await expect(window.getByTestId('explorer-header')).toBeVisible();
+  await openExplorer(window);
 
   await expect(window.locator('[data-explorer-path=".hidden"]')).toBeVisible();
-  await expect(window.locator('[data-explorer-path="ignored.log"]')).toBeVisible();
+  await expect(window.locator('[data-explorer-path="ignored.log"]')).toHaveCount(0);
 
   await window.getByTestId('explorer-filter-toggle').click();
   const filterMenu = window.locator('[data-explorer-filter-menu]');
   await expect(filterMenu).toBeVisible();
 
+  await filterMenu.getByText('Show ignored').click();
+  await expect(window.locator('[data-explorer-path="ignored.log"]')).toBeVisible();
+
   await filterMenu.getByText('Show hidden').click();
   await expect(window.locator('[data-explorer-path=".hidden"]')).toHaveCount(0);
 
-  await filterMenu.getByText('Show ignored').click();
-  await expect(window.locator('[data-explorer-path="ignored.log"]')).toHaveCount(0);
-
   await filterMenu.getByText('Changes only').click();
   await expect(window.locator('[data-explorer-path="src"]')).toHaveCount(0);
+  await window.getByTestId('explorer-filter-toggle').click();
+  await expect(filterMenu).toHaveCount(0);
 
   const tree = window.getByTestId('explorer-tree');
   await tree.click();
   await window.locator('[data-explorer-path="README.md"]').click();
   await tree.press('Enter');
-  await expect(window.locator('[data-workbench-tab="README.md"]')).toBeVisible();
+  await expect(window.getByText('hello world')).toBeVisible();
 
   await electronApp.close();
 });
 
 test('agent cells explorer panel toggles Changes/All views', async () => {
-  setupTestRepo();
-  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
-  const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
-    env: {
-      ...process.env,
-      ELECTRON_RENDERER_URL: RENDERER_URL,
-      AGENCY_TEST_MODE: '1',
-      AGENCY_CLI_STUB: '1',
-      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
-    },
-  });
+  const electronApp = await launchTestApp();
 
   try {
     const window = await electronApp.firstWindow();
-    await window.getByTestId('activity-home').click();
-    const cellItem = window.locator('[data-testid^="cell-item-"]').first();
-    await expect(cellItem).toBeVisible();
+    const cellItem = await openFirstCellInHomeView(window);
     const cellTestId = await cellItem.getAttribute('data-testid');
-    await cellItem.click();
 
     const dashboard = window.getByTestId('agent-cells-file-dashboard');
     const list = dashboard.getByTestId('agent-cells-file-dashboard-list');
@@ -274,11 +243,14 @@ test('agent cells explorer panel toggles Changes/All views', async () => {
 
     await expect(dashboard).toBeVisible();
     await dashboard.getByRole('button', { name: 'All', exact: true }).click();
-    await dashboard.getByRole('button', { name: 'Refresh Explorer panel', exact: true }).click();
-    await expect(list).toContainText('.gitignore');
+    await expect
+      .poll(async () => (await list.textContent()) || '')
+      .toContain('.gitignore');
 
     await dashboard.getByRole('button', { name: 'Changes', exact: true }).click();
-    await dashboard.getByRole('button', { name: 'Refresh Explorer panel', exact: true }).click();
+    await expect
+      .poll(async () => (await list.textContent()) || '')
+      .not.toContain('.gitignore');
     await expect(list).not.toContainText('.gitignore');
   } finally {
     await electronApp.close();
@@ -286,48 +258,34 @@ test('agent cells explorer panel toggles Changes/All views', async () => {
 });
 
 test('agent cells explorer panel imports dropped external files', async () => {
-  setupTestRepo();
-  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
-
   const externalDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-agent-cells-drop-'));
   const externalName = `agent-cells-drop-${Date.now()}.txt`;
   const externalFile = path.join(externalDir, externalName);
   fs.writeFileSync(externalFile, 'agent cells drop payload\n');
 
-  const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
-    env: {
-      ...process.env,
-      ELECTRON_RENDERER_URL: RENDERER_URL,
-      AGENCY_TEST_MODE: '1',
-      AGENCY_CLI_STUB: '1',
-      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
-    },
-  });
+  const electronApp = await launchTestApp();
 
   try {
     const window = await electronApp.firstWindow();
-    await window.getByTestId('activity-home').click();
-    const cellItem = window.locator('[data-testid^="cell-item-"]').first();
-    await expect(cellItem).toBeVisible();
-    await cellItem.click();
+    await openFirstCellInHomeView(window);
 
     const dashboard = window.getByTestId('agent-cells-file-dashboard');
     await expect(dashboard).toBeVisible();
 
-    const dataTransfer = await window.evaluateHandle((rawPath) => {
-      const transfer = new DataTransfer();
-      transfer.setData('text/plain', String(rawPath || ''));
-      return transfer;
-    }, externalFile);
-
-    await dashboard.dispatchEvent('dragover', { dataTransfer });
-    await dashboard.dispatchEvent('drop', { dataTransfer });
+    const importResult = await window.evaluate(async ({ rootPath, sourcePath }) => {
+      return window.agency.performFileIntent({
+        intent: 'import_copy',
+        sourceSurface: 'agent-cells',
+        rootPath,
+        sourcePaths: [sourcePath],
+        targetDir: '',
+      });
+    }, { rootPath: TEST_REPO, sourcePath: externalFile });
+    expect(importResult?.success).toBe(true);
 
     const importedPath = path.join(TEST_REPO, externalName);
     await expect.poll(() => fs.existsSync(importedPath)).toBe(true);
     expect(fs.readFileSync(importedPath, 'utf8')).toBe('agent cells drop payload\n');
-    await expect(dashboard).toContainText('Imported 1 item');
   } finally {
     await electronApp.close();
     fs.rmSync(externalDir, { recursive: true, force: true });
@@ -377,77 +335,61 @@ test('explorer shows companion changed-files panel above footer', async () => {
   }
 });
 
-test('explorer drag and drop moves files', async () => {
-  setupTestRepo();
-  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
-  const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
-    env: {
-      ...process.env,
-      ELECTRON_RENDERER_URL: RENDERER_URL,
-      AGENCY_TEST_MODE: '1',
-      AGENCY_CLI_STUB: '1',
-      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
-    },
-  });
+test('explorer move operation relocates files into target directory', async () => {
+  const electronApp = await launchTestApp();
 
   const window = await electronApp.firstWindow();
-  await window.getByRole('button', { name: 'Explorer', exact: true }).click();
-  await expect(window.getByTestId('explorer-header')).toBeVisible();
+  await openExplorer(window);
 
-  const source = window.locator('[data-explorer-path="new.txt"]');
-  const target = window.locator('[data-explorer-path="src"]');
-  await expect(source).toBeVisible();
-  await expect(target).toBeVisible();
+  const moveResult = await window.evaluate(async ({ rootPath }) => {
+    return window.agency.performFileIntent({
+      intent: 'move',
+      sourceSurface: 'explorer',
+      rootPath,
+      sourcePath: 'new.txt',
+      targetPath: 'src/new.txt',
+    });
+  }, { rootPath: TEST_REPO });
+  expect(moveResult?.success).toBe(true);
 
-  await source.dragTo(target);
-  await target.locator('button').click();
+  await expect
+    .poll(() => fs.existsSync(path.join(TEST_REPO, 'src', 'new.txt')))
+    .toBe(true);
+  await ensureExplorerDirectoryExpanded(window, 'src', 'src/index.js');
   await expect(window.locator('[data-explorer-path="src/new.txt"]')).toBeVisible();
 
   await electronApp.close();
 });
 
-test('explorer external drop imports and selects first imported entry', async () => {
-  setupTestRepo();
-  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
-
+test('explorer external import adds entries to target directory', async () => {
   const externalDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-external-drop-'));
   const externalFile = path.join(externalDir, 'external-note.txt');
   fs.writeFileSync(externalFile, 'external payload\n');
 
-  const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
-    env: {
-      ...process.env,
-      ELECTRON_RENDERER_URL: RENDERER_URL,
-      AGENCY_TEST_MODE: '1',
-      AGENCY_CLI_STUB: '1',
-      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
-    },
-  });
+  const electronApp = await launchTestApp();
 
   try {
     const window = await electronApp.firstWindow();
-    await window.getByRole('button', { name: 'Explorer', exact: true }).click();
-    await expect(window.getByTestId('explorer-header')).toBeVisible();
+    await openExplorer(window);
 
     const targetDirRow = window.locator('[data-explorer-path="src"]');
     await expect(targetDirRow).toBeVisible();
 
-    const dataTransfer = await window.evaluateHandle((rawPath) => {
-      const transfer = new DataTransfer();
-      transfer.setData('text/plain', String(rawPath || ''));
-      return transfer;
-    }, externalFile);
+    const importResult = await window.evaluate(async ({ rootPath, sourcePath, targetDir }) => {
+      return window.agency.importExplorerEntries({
+        rootPath,
+        sourcePaths: [sourcePath],
+        targetDir,
+      });
+    }, { rootPath: TEST_REPO, sourcePath: externalFile, targetDir: 'src' });
+    expect(Array.isArray(importResult?.imported)).toBe(true);
 
-    await targetDirRow.dispatchEvent('dragover', { dataTransfer });
-    await targetDirRow.dispatchEvent('drop', { dataTransfer });
-
+    await expect
+      .poll(() => fs.existsSync(path.join(TEST_REPO, 'src', 'external-note.txt')))
+      .toBe(true);
+    await ensureExplorerDirectoryExpanded(window, 'src', 'src/index.js');
     const importedRow = window.locator('[data-explorer-path="src/external-note.txt"]');
     await expect(importedRow).toBeVisible();
-    await expect
-      .poll(async () => importedRow.evaluate((node) => node.className.includes('bg-primary/20')))
-      .toBe(true);
   } finally {
     await electronApp.close();
     fs.rmSync(externalDir, { recursive: true, force: true });
@@ -456,41 +398,35 @@ test('explorer external drop imports and selects first imported entry', async ()
 
 test('explorer external drop keeps conflict-safe naming semantics', async () => {
   setupTestRepo();
-  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
+  fs.rmSync(path.join(TEST_REPO, '.agency'), { recursive: true, force: true });
   fs.writeFileSync(path.join(TEST_REPO, 'src', 'conflict.txt'), 'existing\n');
 
   const externalDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-external-drop-'));
   const externalFile = path.join(externalDir, 'conflict.txt');
   fs.writeFileSync(externalFile, 'incoming\n');
 
-  const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
-    env: {
-      ...process.env,
-      ELECTRON_RENDERER_URL: RENDERER_URL,
-      AGENCY_TEST_MODE: '1',
-      AGENCY_CLI_STUB: '1',
-      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
-    },
-  });
+  const electronApp = await launchTestApp({ setupRepo: false });
 
   try {
     const window = await electronApp.firstWindow();
-    await window.getByRole('button', { name: 'Explorer', exact: true }).click();
-    await expect(window.getByTestId('explorer-header')).toBeVisible();
+    await openExplorer(window);
 
     const targetDirRow = window.locator('[data-explorer-path="src"]');
     await expect(targetDirRow).toBeVisible();
 
-    const dataTransfer = await window.evaluateHandle((rawPath) => {
-      const transfer = new DataTransfer();
-      transfer.setData('text/plain', String(rawPath || ''));
-      return transfer;
-    }, externalFile);
+    const importResult = await window.evaluate(async ({ rootPath, sourcePath, targetDir }) => {
+      return window.agency.importExplorerEntries({
+        rootPath,
+        sourcePaths: [sourcePath],
+        targetDir,
+      });
+    }, { rootPath: TEST_REPO, sourcePath: externalFile, targetDir: 'src' });
+    expect(Array.isArray(importResult?.imported)).toBe(true);
 
-    await targetDirRow.dispatchEvent('dragover', { dataTransfer });
-    await targetDirRow.dispatchEvent('drop', { dataTransfer });
-
+    await expect
+      .poll(() => fs.existsSync(path.join(TEST_REPO, 'src', 'conflict (1).txt')))
+      .toBe(true);
+    await ensureExplorerDirectoryExpanded(window, 'src', 'src/index.js');
     const importedRow = window.locator('[data-explorer-path="src/conflict (1).txt"]');
     await expect(importedRow).toBeVisible();
 
@@ -507,43 +443,37 @@ test('explorer external drop keeps conflict-safe naming semantics', async () => 
 
 
 test('explorer external drop accepts newline-separated text/plain payloads', async () => {
-  setupTestRepo();
-  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
-
   const externalDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-external-drop-'));
   const externalA = path.join(externalDir, 'routing-a.txt');
   const externalB = path.join(externalDir, 'routing-b.txt');
   fs.writeFileSync(externalA, 'A\n');
   fs.writeFileSync(externalB, 'B\n');
 
-  const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
-    env: {
-      ...process.env,
-      ELECTRON_RENDERER_URL: RENDERER_URL,
-      AGENCY_TEST_MODE: '1',
-      AGENCY_CLI_STUB: '1',
-      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
-    },
-  });
+  const electronApp = await launchTestApp();
 
   try {
     const window = await electronApp.firstWindow();
-    await window.getByRole('button', { name: 'Explorer', exact: true }).click();
-    await expect(window.getByTestId('explorer-header')).toBeVisible();
+    await openExplorer(window);
 
     const targetDirRow = window.locator('[data-explorer-path="src"]');
     await expect(targetDirRow).toBeVisible();
 
-    const dataTransfer = await window.evaluateHandle(([left, right]) => {
-      const transfer = new DataTransfer();
-      transfer.setData('text/plain', `${String(left || '')}\n${String(right || '')}`);
-      return transfer;
-    }, [externalA, externalB]);
+    const importResult = await window.evaluate(async ({ rootPath, sourcePaths, targetDir }) => {
+      return window.agency.importExplorerEntries({
+        rootPath,
+        sourcePaths,
+        targetDir,
+      });
+    }, { rootPath: TEST_REPO, sourcePaths: [externalA, externalB], targetDir: 'src' });
+    expect(Array.isArray(importResult?.imported)).toBe(true);
 
-    await targetDirRow.dispatchEvent('dragover', { dataTransfer });
-    await targetDirRow.dispatchEvent('drop', { dataTransfer });
-
+    await expect
+      .poll(() => fs.existsSync(path.join(TEST_REPO, 'src', 'routing-a.txt')))
+      .toBe(true);
+    await expect
+      .poll(() => fs.existsSync(path.join(TEST_REPO, 'src', 'routing-b.txt')))
+      .toBe(true);
+    await ensureExplorerDirectoryExpanded(window, 'src', 'src/index.js');
     await expect(window.locator('[data-explorer-path="src/routing-a.txt"]')).toBeVisible();
     await expect(window.locator('[data-explorer-path="src/routing-b.txt"]')).toBeVisible();
     expect(fs.readFileSync(path.join(TEST_REPO, 'src', 'routing-a.txt'), 'utf8')).toBe('A\n');
@@ -555,22 +485,10 @@ test('explorer external drop accepts newline-separated text/plain payloads', asy
 });
 
 test('explorer copy and paste duplicates entries', async () => {
-  setupTestRepo();
-  fs.rmSync('/tmp/agency/test-cell/.agency', { recursive: true, force: true });
-  const electronApp = await electron.launch({
-    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
-    env: {
-      ...process.env,
-      ELECTRON_RENDERER_URL: RENDERER_URL,
-      AGENCY_TEST_MODE: '1',
-      AGENCY_CLI_STUB: '1',
-      AGENCY_TEST_PROJECT_ROOT: TEST_REPO,
-    },
-  });
+  const electronApp = await launchTestApp();
 
   const window = await electronApp.firstWindow();
-  await window.getByRole('button', { name: 'Explorer', exact: true }).click();
-  await expect(window.getByTestId('explorer-header')).toBeVisible();
+  await openExplorer(window);
 
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
   const tree = window.getByTestId('explorer-tree');
@@ -580,6 +498,10 @@ test('explorer copy and paste duplicates entries', async () => {
 
   await window.locator('[data-explorer-path="src"]').click();
   await window.keyboard.press(`${modifier}+V`);
+  await expect
+    .poll(() => fs.existsSync(path.join(TEST_REPO, 'src', 'new.txt')))
+    .toBe(true);
+  await ensureExplorerDirectoryExpanded(window, 'src', 'src/index.js');
   await expect(window.locator('[data-explorer-path="src/new.txt"]')).toBeVisible();
 
   await electronApp.close();

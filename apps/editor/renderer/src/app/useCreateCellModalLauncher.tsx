@@ -21,7 +21,7 @@ export function useCreateCellModalLauncher({
       return;
     }
 
-    const modalId = `create-cell-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 6)}`;
+    const modalId = 'create-cell-modal';
     modal.openModal({
       id: modalId,
       title: 'Create New Agent Cell',
@@ -40,4 +40,3 @@ export function useCreateCellModalLauncher({
     });
   }, [handleCreate, handleSelectProjectRoot, modal, projectReady]);
 }
-

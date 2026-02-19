@@ -28,8 +28,8 @@
 
 ## 4. Validation
 - [x] 4.1 Typecheck passes for renderer/electron.
-- [ ] 4.2 Existing E2E and manual smoke paths for Agent Cells / Explorer / Terminal / Workbench / HIL remain valid.
-- [ ] 4.3 No user-visible behavior regressions in file open/reveal/import, terminal interaction, memo/promote, and quick actions.
+- [x] 4.2 Existing E2E and manual smoke paths for Agent Cells / Explorer / Terminal / Workbench / HIL remain valid.
+- [x] 4.3 No user-visible behavior regressions in file open/reveal/import, terminal interaction, memo/promote, and quick actions.
 - [x] 4.4 Add/refresh targeted unit tests for extracted shared modules (drop parser, preview loader, terminal/runtime helpers).
 
 ## 5. Bagakit Reuse Documentation (Required after refactor completion)

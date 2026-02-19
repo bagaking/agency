@@ -164,6 +164,7 @@ export function ProjectSettingsView({
                   type="button"
                   onClick={card.onClick}
                   disabled={card.disabled}
+                  data-testid={`settings-card-${card.id}`}
                   className={`group relative flex flex-col items-start p-5 rounded-2xl transition-all duration-300 text-left ${
                     card.disabled
                       ? 'opacity-40 grayscale cursor-not-allowed bg-muted/5'

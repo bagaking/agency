@@ -99,6 +99,7 @@ export function ExplorerHeader({
         </div>
         <IconButton
           label="Explorer filters"
+          data-testid="explorer-filter-toggle"
           onClick={onToggleFilterMenu}
           aria-pressed={hasActiveFilters}
           className={`h-7 w-7 rounded-full border transition-colors ${

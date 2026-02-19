@@ -75,7 +75,7 @@ function ModalCard({ modal, onClose }: any) {
   const showLabel = showVariantLabel ?? !isFloating;
 
   return (
-    <div className="relative w-full max-w-md animate-tab-in">
+    <div className="relative w-full max-w-md animate-tab-in" data-testid={id}>
       <div className="absolute -top-8 right-6 h-20 w-20 rounded-full bg-primary/20 blur-3xl" />
       <div className="absolute -bottom-10 left-6 h-24 w-24 rounded-full bg-emerald-500/15 blur-3xl" />
       <div
