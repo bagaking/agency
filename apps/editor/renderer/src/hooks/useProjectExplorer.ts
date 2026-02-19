@@ -21,6 +21,9 @@ const buildAncestorPaths = (path) => {
   return ancestors;
 };
 
+const SEMANTIC_CLASSIFY_BATCH_SIZE = 200;
+const SEMANTIC_CLASSIFY_CONTINUE_DELAY_MS = 48;
+
 const buildTreeFromMatches = (paths) => {
   const nodes = {
     '': { path: '', name: '', type: 'dir' },
@@ -329,7 +332,7 @@ export function useProjectExplorer(options: any = {}) {
     resetTreeState({ resetSearch: true });
   }, [enabled, resetTreeState]);
 
-  const refreshSemanticTags = useCallback(async () => {
+  const refreshSemanticTags = useCallback(async function runSemanticRefresh() {
     if (!enabled) {
       setSemanticTagsByPath({});
       setSemanticRules([]);
@@ -352,6 +355,8 @@ export function useProjectExplorer(options: any = {}) {
     if (!pendingPaths.length) {
       return;
     }
+    const batchPaths = pendingPaths.slice(0, SEMANTIC_CLASSIFY_BATCH_SIZE);
+    const hasMore = pendingPaths.length > batchPaths.length;
 
     const requestId = semanticRequestIdRef.current + 1;
     semanticRequestIdRef.current = requestId;
@@ -359,7 +364,7 @@ export function useProjectExplorer(options: any = {}) {
     try {
       const response = await classifyFiles({
         rootPath: rootPath || undefined,
-        paths: pendingPaths,
+        paths: batchPaths,
       });
       if (semanticRequestIdRef.current !== requestId) {
         return;
@@ -373,6 +378,15 @@ export function useProjectExplorer(options: any = {}) {
         }));
       }
       setSemanticRules(nextRules);
+      if (hasMore) {
+        if (semanticRefreshHandle.current) {
+          clearTimeout(semanticRefreshHandle.current);
+        }
+        semanticRefreshHandle.current = setTimeout(() => {
+          semanticRefreshHandle.current = null;
+          void runSemanticRefresh();
+        }, SEMANTIC_CLASSIFY_CONTINUE_DELAY_MS);
+      }
     } catch (err) {
       // Semantic classification should not block core explorer interactions.
     }
