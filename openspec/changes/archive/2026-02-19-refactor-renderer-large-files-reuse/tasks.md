@@ -35,4 +35,4 @@
 ## 5. Bagakit Reuse Documentation (Required after refactor completion)
 - [x] 5.1 Update `docs/notes-reusable-items-coding.md` for all newly introduced or changed reusable items.
 - [x] 5.2 Record deprecations/replacements for removed duplicated logic (with migration note/source path).
-- [ ] 5.3 If SOP/frontmatter changes are introduced in docs, regenerate `docs/must-sop.md`.
+- [x] 5.3 If SOP/frontmatter changes are introduced in docs, regenerate `docs/must-sop.md` (not needed in this change: no SOP/frontmatter edits).
