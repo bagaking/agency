@@ -14,12 +14,17 @@ const {
   listAgencySessionsWithMetadata,
 } = require('./tmux');
 const { getRepoRoot } = require('./git');
+const {
+  issueMobileSessionProxyToken,
+  maskMobileSessionProxyToken,
+} = require('./mobileSessionProxy');
 
 const execFileAsync = promisify(execFile);
 
 const CONTINUE_MODES = Object.freeze({
   DIRECT: 'direct',
   HUB: 'hub',
+  PROXY: 'proxy',
 });
 
 const DEFAULT_SSH_PORT = 22;
@@ -404,9 +409,14 @@ function shellQuote(value) {
 }
 
 function normalizeContinuationMode(mode) {
-  return String(mode || '').trim().toLowerCase() === CONTINUE_MODES.HUB
-    ? CONTINUE_MODES.HUB
-    : CONTINUE_MODES.DIRECT;
+  const normalized = String(mode || '').trim().toLowerCase();
+  if (normalized === CONTINUE_MODES.HUB) {
+    return CONTINUE_MODES.HUB;
+  }
+  if (normalized === CONTINUE_MODES.PROXY) {
+    return CONTINUE_MODES.PROXY;
+  }
+  return CONTINUE_MODES.DIRECT;
 }
 
 function normalizeSessionStatus(value) {
@@ -470,6 +480,37 @@ function buildHubAttachCommand({ user, host, port, hubSession, launcherPath }) {
   });
 }
 
+function buildProxyAttachCommand({ host, port, token }) {
+  const normalizedHost = String(host || '').trim();
+  const normalizedPort = normalizePort(port);
+  const normalizedToken = String(token || '').trim();
+  if (!normalizedHost || normalizedPort === null || !normalizedToken) {
+    return '';
+  }
+  const remote = `stty raw -echo; trap "stty sane" EXIT INT TERM; (printf '%s\\\\n' ${shellQuote(normalizedToken)}; cat) | nc ${shellQuote(normalizedHost)} ${normalizedPort}`;
+  return `bash -lc ${shellQuote(remote)}`;
+}
+
+function createProxyWarnings({ host, port, extraWarnings = [] }) {
+  const warnings = [];
+  if (!host) {
+    warnings.push('No reachable host was discovered for proxy continuation.');
+  }
+  if (!normalizePort(port)) {
+    warnings.push('Mobile proxy port is unavailable.');
+  }
+  warnings.push(
+    'Proxy mode uses plain TCP + session token. Prefer trusted LAN/Tailscale networks for remote access.'
+  );
+  extraWarnings.forEach((warning) => {
+    const text = String(warning || '').trim();
+    if (text) {
+      warnings.push(text);
+    }
+  });
+  return warnings;
+}
+
 function createWarnings({
   host,
   port,
@@ -514,20 +555,30 @@ async function resolveSshReadinessContext() {
   } else {
     readiness = await ensureSshChannelOpen({ candidatePorts });
   }
-  const tailscaleIps = process.env.AGENCY_TEST_MODE === '1' ? [] : await discoverTailscaleIps();
-  const lanIps = discoverLanIps();
-  const { host, hostCandidates } = resolveHostSelection({ tailscaleIps, lanIps });
+  const hostContext = await resolveNetworkHostContext();
   const manualEnableCommand = resolveManualEnableCommand(process.platform);
 
   return {
     user,
+    host: hostContext.host,
+    hostCandidates: hostContext.hostCandidates,
+    tailscaleIps: hostContext.tailscaleIps,
+    lanIps: hostContext.lanIps,
+    candidatePorts,
+    readiness,
+    manualEnableCommand,
+  };
+}
+
+async function resolveNetworkHostContext() {
+  const tailscaleIps = process.env.AGENCY_TEST_MODE === '1' ? [] : await discoverTailscaleIps();
+  const lanIps = discoverLanIps();
+  const { host, hostCandidates } = resolveHostSelection({ tailscaleIps, lanIps });
+  return {
     host,
     hostCandidates,
     tailscaleIps,
     lanIps,
-    candidatePorts,
-    readiness,
-    manualEnableCommand,
   };
 }
 
@@ -898,10 +949,15 @@ async function prepareSessionContinueOnMobile({ worktreePath, sessionId, mode })
   if (!session) {
     throw new Error('Session not found.');
   }
+  if (!isAttachableStatus(session.status)) {
+    throw new Error('Session is not attachable. Create or restore a live session first.');
+  }
 
   const resolvedMode = normalizeContinuationMode(mode);
+  const modeNeedsLiveSession =
+    resolvedMode === CONTINUE_MODES.DIRECT || resolvedMode === CONTINUE_MODES.PROXY;
   let tmuxSession = '';
-  if (resolvedMode === CONTINUE_MODES.DIRECT) {
+  if (modeNeedsLiveSession) {
     tmuxSession = String(session.tmuxSession || '').trim();
     if (!tmuxSession) {
       throw new Error('Session is missing tmux target.');
@@ -910,6 +966,47 @@ async function prepareSessionContinueOnMobile({ worktreePath, sessionId, mode })
     if (!alive) {
       throw new Error('Session is stale. Create or restore a live session first.');
     }
+  }
+
+  if (resolvedMode === CONTINUE_MODES.PROXY) {
+    const hostContext = await resolveNetworkHostContext();
+    const tokenLease = await issueMobileSessionProxyToken({
+      worktreePath: resolvedWorktree,
+      sessionId: session.id,
+      sessionName: session.name || session.id,
+      tmuxSession,
+    });
+    const command = buildProxyAttachCommand({
+      host: hostContext.host,
+      port: tokenLease?.endpoint?.port,
+      token: tokenLease.token,
+    });
+    const warnings = createProxyWarnings({
+      host: hostContext.host,
+      port: tokenLease?.endpoint?.port,
+      extraWarnings: ['Proxy command expects `nc` (netcat) in the mobile terminal client shell.'],
+    });
+    return {
+      mode: resolvedMode,
+      sessionId: session.id,
+      sessionName: session.name || session.id,
+      tmuxSession,
+      generatedAt: new Date().toISOString(),
+      command,
+      proxy: {
+        ready: Boolean(command),
+        host: hostContext.host,
+        hostCandidates: hostContext.hostCandidates,
+        tailscaleIps: hostContext.tailscaleIps,
+        lanIps: hostContext.lanIps,
+        port: tokenLease?.endpoint?.port || null,
+        token: tokenLease.token,
+        tokenMasked: maskMobileSessionProxyToken(tokenLease.token),
+        reusedToken: Boolean(tokenLease.reused),
+        issuedAt: tokenLease.issuedAt,
+        warnings,
+      },
+    };
   }
 
   const sshContext = await resolveSshReadinessContext();

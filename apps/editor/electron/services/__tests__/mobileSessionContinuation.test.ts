@@ -6,17 +6,19 @@ const os = require('node:os');
 
 const { writeRegistry } = require('../sessionRegistry');
 const { prepareSessionContinueOnMobile } = require('../mobileSessionContinuation');
+const { resetMobileSessionProxyForTests } = require('../mobileSessionProxy');
 
 async function createTempDir(prefix) {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix));
 }
 
-test('prepareSessionContinueOnMobile builds ssh+tmux command in test mode', async (t) => {
-  const worktreePath = await createTempDir('agency-mobile-continue-');
+async function setupTestMode(t, prefix) {
+  const worktreePath = await createTempDir(prefix);
   const previousMode = process.env.AGENCY_TEST_MODE;
   process.env.AGENCY_TEST_MODE = '1';
 
   t.after(async () => {
+    await resetMobileSessionProxyForTests();
     if (previousMode === undefined) {
       delete process.env.AGENCY_TEST_MODE;
     } else {
@@ -24,6 +26,12 @@ test('prepareSessionContinueOnMobile builds ssh+tmux command in test mode', asyn
     }
     await fs.rm(worktreePath, { recursive: true, force: true });
   });
+
+  return { worktreePath };
+}
+
+test('prepareSessionContinueOnMobile builds ssh+tmux command in test mode', async (t) => {
+  const { worktreePath } = await setupTestMode(t, 'agency-mobile-continue-');
 
   await writeRegistry(worktreePath, {
     version: 1,
@@ -54,18 +62,7 @@ test('prepareSessionContinueOnMobile builds ssh+tmux command in test mode', asyn
 });
 
 test('prepareSessionContinueOnMobile builds hub command and artifacts in test mode', async (t) => {
-  const worktreePath = await createTempDir('agency-mobile-hub-');
-  const previousMode = process.env.AGENCY_TEST_MODE;
-  process.env.AGENCY_TEST_MODE = '1';
-
-  t.after(async () => {
-    if (previousMode === undefined) {
-      delete process.env.AGENCY_TEST_MODE;
-    } else {
-      process.env.AGENCY_TEST_MODE = previousMode;
-    }
-    await fs.rm(worktreePath, { recursive: true, force: true });
-  });
+  const { worktreePath } = await setupTestMode(t, 'agency-mobile-hub-');
 
   await writeRegistry(worktreePath, {
     version: 1,
@@ -109,19 +106,46 @@ test('prepareSessionContinueOnMobile builds hub command and artifacts in test mo
   assert.match(launcherRaw, /Select session index/);
 });
 
-test('prepareSessionContinueOnMobile hub catalog excludes stale and closed sessions by default', async (t) => {
-  const worktreePath = await createTempDir('agency-mobile-hub-filter-');
-  const previousMode = process.env.AGENCY_TEST_MODE;
-  process.env.AGENCY_TEST_MODE = '1';
+test('prepareSessionContinueOnMobile builds proxy command and reuses token in test mode', async (t) => {
+  const { worktreePath } = await setupTestMode(t, 'agency-mobile-proxy-');
 
-  t.after(async () => {
-    if (previousMode === undefined) {
-      delete process.env.AGENCY_TEST_MODE;
-    } else {
-      process.env.AGENCY_TEST_MODE = previousMode;
-    }
-    await fs.rm(worktreePath, { recursive: true, force: true });
+  await writeRegistry(worktreePath, {
+    version: 1,
+    sessions: [
+      {
+        id: 'sess-proxy-1',
+        name: 'Proxy Session 1',
+        tmuxSession: 'agency-cell-sess-proxy-1',
+        status: 'active',
+      },
+    ],
   });
+
+  const first = await prepareSessionContinueOnMobile({
+    worktreePath,
+    sessionId: 'sess-proxy-1',
+    mode: 'proxy',
+  });
+  const second = await prepareSessionContinueOnMobile({
+    worktreePath,
+    sessionId: 'sess-proxy-1',
+    mode: 'proxy',
+  });
+
+  assert.equal(first.mode, 'proxy');
+  assert.equal(first.proxy.ready, true);
+  assert.match(first.command, /bash -lc/);
+  assert.match(first.command, /\| nc /);
+  assert.equal(first.proxy.reusedToken, false);
+  assert.ok(first.proxy.token);
+  assert.ok(first.proxy.tokenMasked);
+
+  assert.equal(second.proxy.reusedToken, true);
+  assert.equal(second.proxy.token, first.proxy.token);
+});
+
+test('prepareSessionContinueOnMobile hub catalog excludes stale and closed sessions by default', async (t) => {
+  const { worktreePath } = await setupTestMode(t, 'agency-mobile-hub-filter-');
 
   await writeRegistry(worktreePath, {
     version: 1,
@@ -164,18 +188,7 @@ test('prepareSessionContinueOnMobile hub catalog excludes stale and closed sessi
 });
 
 test('prepareSessionContinueOnMobile throws when session is missing', async (t) => {
-  const worktreePath = await createTempDir('agency-mobile-continue-missing-');
-  const previousMode = process.env.AGENCY_TEST_MODE;
-  process.env.AGENCY_TEST_MODE = '1';
-
-  t.after(async () => {
-    if (previousMode === undefined) {
-      delete process.env.AGENCY_TEST_MODE;
-    } else {
-      process.env.AGENCY_TEST_MODE = previousMode;
-    }
-    await fs.rm(worktreePath, { recursive: true, force: true });
-  });
+  const { worktreePath } = await setupTestMode(t, 'agency-mobile-continue-missing-');
 
   await writeRegistry(worktreePath, {
     version: 1,
@@ -190,6 +203,32 @@ test('prepareSessionContinueOnMobile throws when session is missing', async (t) 
         mode: 'direct',
       }),
     /Session not found/,
+  );
+});
+
+test('prepareSessionContinueOnMobile rejects closed session in proxy mode', async (t) => {
+  const { worktreePath } = await setupTestMode(t, 'agency-mobile-proxy-closed-');
+
+  await writeRegistry(worktreePath, {
+    version: 1,
+    sessions: [
+      {
+        id: 'sess-closed',
+        name: 'Closed Session',
+        tmuxSession: 'agency-cell-sess-closed',
+        status: 'closed',
+      },
+    ],
+  });
+
+  await assert.rejects(
+    () =>
+      prepareSessionContinueOnMobile({
+        worktreePath,
+        sessionId: 'sess-closed',
+        mode: 'proxy',
+      }),
+    /not attachable/,
   );
 });
 

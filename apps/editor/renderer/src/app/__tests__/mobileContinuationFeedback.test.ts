@@ -56,9 +56,52 @@ test('buildMobileContinuationFeedback returns hub warning content', () => {
   assert.match(feedback.description, /Generated command:/);
 });
 
+test('buildMobileContinuationFeedback returns proxy success content', () => {
+  const feedback = buildMobileContinuationFeedback({
+    requestedMode: 'proxy',
+    sessionId: 'sess-proxy',
+    result: {
+      mode: 'proxy',
+      sessionName: 'Proxy Session',
+      proxy: {
+        ready: true,
+        host: '100.64.0.9',
+        port: 49152,
+        tokenMasked: 'abc123...wxyz',
+      },
+    },
+  });
+
+  assert.equal(feedback.kind, 'success');
+  assert.equal(feedback.title, 'Mobile proxy command copied');
+  assert.match(feedback.description, /Proxy Session -> 100\.64\.0\.9:49152/);
+  assert.match(feedback.description, /abc123\.\.\.wxyz/);
+});
+
+test('buildMobileContinuationFeedback returns proxy warning content', () => {
+  const feedback = buildMobileContinuationFeedback({
+    requestedMode: 'proxy',
+    sessionId: 'sess-proxy',
+    result: {
+      mode: 'proxy',
+      command: "bash -lc '...'",
+      proxy: {
+        ready: false,
+        warnings: ['No reachable host was discovered for proxy continuation.'],
+      },
+    },
+  });
+
+  assert.equal(feedback.kind, 'warning');
+  assert.equal(feedback.title, 'Mobile Proxy needs setup');
+  assert.match(feedback.description, /proxy continuation is not ready yet/i);
+  assert.match(feedback.description, /Detected issues:/);
+  assert.match(feedback.description, /Generated command:/);
+});
+
 test('resolveMobileContinuationErrorTitle is mode-aware', () => {
   assert.equal(resolveMobileContinuationErrorTitle('hub'), 'Mobile Hub failed');
+  assert.equal(resolveMobileContinuationErrorTitle('proxy'), 'Mobile Proxy failed');
   assert.equal(resolveMobileContinuationErrorTitle('direct'), 'Continue on Mobile failed');
   assert.equal(resolveMobileContinuationErrorTitle('unknown'), 'Continue on Mobile failed');
 });
-

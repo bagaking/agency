@@ -51,7 +51,7 @@ type AgentCellsSessionsPanelProps = {
   onContinueSessionOnMobile?: (
     sessionId: string,
     cellId: string,
-    mode?: 'direct' | 'hub'
+    mode?: 'direct' | 'hub' | 'proxy'
   ) => Promise<void> | void;
   onConfigureProfile?: (profile: any) => void;
 };
@@ -629,6 +629,12 @@ export function AgentCellsSessionsPanel({
         onContinueOnMobileHub={() => {
           if (contextMenu?.cellId && contextMenu?.sessionId) {
             void onContinueSessionOnMobile?.(contextMenu.sessionId, contextMenu.cellId, 'hub');
+          }
+          setContextMenu(null);
+        }}
+        onContinueOnMobileProxy={() => {
+          if (contextMenu?.cellId && contextMenu?.sessionId) {
+            void onContinueSessionOnMobile?.(contextMenu.sessionId, contextMenu.cellId, 'proxy');
           }
           setContextMenu(null);
         }}

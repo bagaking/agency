@@ -80,6 +80,7 @@ export function SessionContextMenu({
   onRename,
   onContinueOnMobileDirect,
   onContinueOnMobileHub,
+  onContinueOnMobileProxy,
   canContinueOnMobile = true,
 }: any) {
   if (!isOpen) {
@@ -117,6 +118,13 @@ export function SessionContextMenu({
         className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:cursor-not-allowed disabled:opacity-40"
       >
         Continue on Mobile (Hub)
+      </button>
+      <button
+        onClick={onContinueOnMobileProxy}
+        disabled={!canContinueOnMobile}
+        className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Continue on Mobile (Proxy)
       </button>
     </div>
   );

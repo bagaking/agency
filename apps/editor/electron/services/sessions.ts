@@ -28,6 +28,7 @@ const {
 const { getRepoRoot } = require('./git');
 const { readSessionMap } = require('./sessionMap');
 const { readPreviewCache, writePreviewCache } = require('./sessionPreviewCache');
+const { revokeMobileSessionProxyTokenForSession } = require('./mobileSessionProxy');
 
 const SESSION_STATUSES = {
   active: 'active',
@@ -240,6 +241,17 @@ function ensureWorktreePath(worktreePath) {
     throw new Error('Worktree path is missing or invalid.');
   }
   return path.resolve(worktreePath);
+}
+
+function revokeMobileProxyToken({ worktreePath, sessionId }) {
+  if (!worktreePath || !sessionId) {
+    return;
+  }
+  try {
+    revokeMobileSessionProxyTokenForSession({ worktreePath, sessionId });
+  } catch (_error) {
+    // Proxy token cleanup is best effort.
+  }
 }
 
 function generateSessionId() {
@@ -587,6 +599,7 @@ async function recreateSession({ cellId, worktreePath, sessionId }) {
   await ensureTmuxAvailable();
   const registry = await readRegistry(worktreePath);
   const existing = registry.sessions.find((session) => session.id === sessionId);
+  revokeMobileProxyToken({ worktreePath, sessionId: existing?.id || sessionId });
   const nextRegistry = removeSession(registry, sessionId);
   await writeRegistry(worktreePath, nextRegistry);
   return createNewSession({
@@ -621,6 +634,7 @@ async function closeSessionById({ worktreePath, sessionId }) {
     closedAt: updatedAt,
   });
   await writeRegistry(worktreePath, nextRegistry);
+  revokeMobileProxyToken({ worktreePath, sessionId: existing.id });
   return nextRegistry.sessions.find((session) => session.id === sessionId);
 }
 

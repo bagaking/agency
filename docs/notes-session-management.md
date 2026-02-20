@@ -35,13 +35,17 @@ Session Reply Relay 是面向 Session 的“回复资产化”机制，强调 **
   - Agent Cells 的 session 右键菜单提供两种入口：
     - `Continue on Mobile (Direct)`：直达当前 session。
     - `Continue on Mobile (Hub)`：进入 Mobile Hub，再在 Hub 内切换项目/Cell/session。
+    - `Continue on Mobile (Proxy)`：生成 token 代理命令，用移动端终端直接连入目标 session。
   - Direct 模式会解析 session 绑定的 `tmuxSession`，生成 `ssh -p <port> <user>@<host> -t 'tmux attach-session -t <tmuxSession>'` 指令。
   - Hub 模式会生成并附带一组 Hub 产物（`catalog + launcher`），命令会 attach 到一个按 repo root 稳定命名的 tmux Hub session（`agency-mobile-hub-<hash>`）。
+  - Proxy 模式会启动（或复用）本机 token-auth 代理端口，生成 `bash -lc '... | nc <host> <port>'` 指令；连接后首行提交 session token，随后桥接到 `tmux attach-session`。
+  - Proxy token 按 `worktree + sessionId` 绑定并复用；token 生命周期与 session 生命周期一致：session 结束（close/recreate 或 tmux 失活）后 token 失效。
   - Hub 的目录视图由 tmux metadata 驱动（Project -> Cell -> Session）；stale/closed 会话默认不作为可 attach 目标显示。
   - host 选择优先级：Tailscale IPv4 > 私网 LAN IPv4 > hostname。
   - SSH 端口会先做本地探测（含 sshd config 端口候选）；若未发现监听端口，会尝试平台相关的 best-effort 启动命令并重新探测。
   - 若仍未就绪，UI 进入 warning 态并给出一次性手动启用命令（例如 macOS 的 `sudo launchctl load -w /System/Library/LaunchDaemons/ssh.plist`）。
   - 当命令可生成时会自动复制到剪贴板，并提示 endpoint/模式信息；Hub 模式会额外显示 catalog 摘要（projects/cells/sessions）。
+  - Proxy 模式依赖移动端终端具备 `nc`（netcat）；建议仅在 Tailscale/LAN 等可信网络下使用。
 - **Attach 类型与优先级**：
   - **interactive**：用户正在交互的终端视图（如 Agent Cell 选中态）。
   - **preview**：hover/截图用的短暂 attach（可短暂持有，完成后释放）。
