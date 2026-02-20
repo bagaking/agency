@@ -25,6 +25,9 @@ async function getDisplaySource(displayId) {
   }
   const image = source.thumbnail;
   const sizeInfo = image.getSize();
+  if (!sizeInfo?.width || !sizeInfo?.height) {
+    throw new Error('Screen source is empty. Check screen recording permission and try again.');
+  }
   return {
     display,
     displayId: toDisplayId(display),

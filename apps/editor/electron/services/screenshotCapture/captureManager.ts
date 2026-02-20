@@ -53,6 +53,12 @@ async function startCapture(params: any = {}) {
   const displays = screen.getAllDisplays();
   const overlayWindows = new Map();
   const hiddenWindows = includeAgencyWindows ? [] : hideAgencyWindows([]);
+  let resolveCapture: any = null;
+  let rejectCapture: any = null;
+  const captureResult = new Promise((resolve, reject) => {
+    resolveCapture = resolve;
+    rejectCapture = reject;
+  });
 
   activeSession = {
     requestId,
@@ -61,20 +67,29 @@ async function startCapture(params: any = {}) {
     overlays: overlayWindows,
     hiddenWindows,
     sourceCache: new Map(),
+    resolve: resolveCapture,
+    reject: rejectCapture,
   };
 
-  const overlayPromises = displays.map((display) => {
-    const overlay = createOverlayWindow({ display, requestId });
+  displays.forEach((display) => {
+    const overlay = createOverlayWindow({
+      display,
+      requestId,
+      onFatalLoadError: ({ displayId, errorDescription, validatedURL }: any) => {
+        if (!activeSession || activeSession.requestId !== requestId) {
+          return;
+        }
+        const reason =
+          errorDescription || validatedURL
+            ? `Capture overlay failed to load (display ${displayId}): ${errorDescription || validatedURL}.`
+            : `Capture overlay failed to load (display ${displayId}).`;
+        void cancelCapture({ requestId, reason }).catch(() => undefined);
+      },
+    });
     overlayWindows.set(display.id, overlay);
-    return overlay;
   });
 
-  await Promise.all(overlayPromises);
-
-  return await new Promise((resolve, reject) => {
-    activeSession.resolve = resolve;
-    activeSession.reject = reject;
-  });
+  return await captureResult;
 }
 
 async function getDisplaySourceForOverlay(params: any = {}) {

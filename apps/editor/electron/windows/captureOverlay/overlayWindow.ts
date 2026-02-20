@@ -3,23 +3,28 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const { resolveRendererUrl } = require('../../services/rendererUrl');
 
-function buildOverlayUrl(requestId, displayId) {
-  const rendererUrl = resolveRendererUrl().url;
-  if (rendererUrl) {
-    const url = new URL(rendererUrl);
-    url.searchParams.set('capture', '1');
-    url.searchParams.set('requestId', requestId);
-    url.searchParams.set('displayId', String(displayId));
-    return url.toString();
-  }
-  const fileUrl = pathToFileURL(path.join(__dirname, '../../dist/renderer/index.html'));
+function buildFileOverlayUrl(requestId, displayId) {
+  const fileUrl = pathToFileURL(path.join(__dirname, '../../../dist/renderer/index.html'));
   fileUrl.searchParams.set('capture', '1');
   fileUrl.searchParams.set('requestId', requestId);
   fileUrl.searchParams.set('displayId', String(displayId));
   return fileUrl.toString();
 }
 
-function createOverlayWindow({ display, requestId }) {
+function buildOverlayUrls(requestId, displayId) {
+  const fallbackUrl = buildFileOverlayUrl(requestId, displayId);
+  const rendererUrl = resolveRendererUrl().url;
+  if (!rendererUrl) {
+    return { initialUrl: fallbackUrl, fallbackUrl: '' };
+  }
+  const devUrl = new URL(rendererUrl);
+  devUrl.searchParams.set('capture', '1');
+  devUrl.searchParams.set('requestId', requestId);
+  devUrl.searchParams.set('displayId', String(displayId));
+  return { initialUrl: devUrl.toString(), fallbackUrl };
+}
+
+function createOverlayWindow({ display, requestId, onFatalLoadError }) {
   const { bounds } = display;
   const win = new BrowserWindow({
     x: bounds.x,
@@ -46,7 +51,29 @@ function createOverlayWindow({ display, requestId }) {
   win.__agencyCaptureOverlay = true;
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  win.loadURL(buildOverlayUrl(requestId, display.id));
+  const { initialUrl, fallbackUrl } = buildOverlayUrls(requestId, display.id);
+  let fallbackUsed = false;
+  win.webContents.on(
+    'did-fail-load',
+    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (!isMainFrame) {
+        return;
+      }
+      const failedUrl = String(validatedURL || '');
+      if (!fallbackUsed && fallbackUrl && failedUrl !== fallbackUrl) {
+        fallbackUsed = true;
+        void win.loadURL(fallbackUrl);
+        return;
+      }
+      onFatalLoadError?.({
+        displayId: display.id,
+        errorCode,
+        errorDescription,
+        validatedURL: failedUrl,
+      });
+    }
+  );
+  void win.loadURL(initialUrl);
   return win;
 }
 
