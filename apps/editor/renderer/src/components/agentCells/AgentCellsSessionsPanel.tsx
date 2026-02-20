@@ -48,7 +48,11 @@ type AgentCellsSessionsPanelProps = {
   onDetachSession?: (sessionId: string, cellId: string) => void;
   onRenameSession?: (sessionId: string, name: string, cellId: string) => void;
   onUpdateSessionAvatar?: (sessionId: string, avatarId: string, cellId: string) => void;
-  onContinueSessionOnMobile?: (sessionId: string, cellId: string) => Promise<void> | void;
+  onContinueSessionOnMobile?: (
+    sessionId: string,
+    cellId: string,
+    mode?: 'direct' | 'hub'
+  ) => Promise<void> | void;
   onConfigureProfile?: (profile: any) => void;
 };
 
@@ -616,9 +620,15 @@ export function AgentCellsSessionsPanel({
           }
           setContextMenu(null);
         }}
-        onContinueOnMobile={() => {
+        onContinueOnMobileDirect={() => {
           if (contextMenu?.cellId && contextMenu?.sessionId) {
-            void onContinueSessionOnMobile?.(contextMenu.sessionId, contextMenu.cellId);
+            void onContinueSessionOnMobile?.(contextMenu.sessionId, contextMenu.cellId, 'direct');
+          }
+          setContextMenu(null);
+        }}
+        onContinueOnMobileHub={() => {
+          if (contextMenu?.cellId && contextMenu?.sessionId) {
+            void onContinueSessionOnMobile?.(contextMenu.sessionId, contextMenu.cellId, 'hub');
           }
           setContextMenu(null);
         }}

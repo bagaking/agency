@@ -78,7 +78,8 @@ export function SessionContextMenu({
   containerRef,
   onDetach,
   onRename,
-  onContinueOnMobile,
+  onContinueOnMobileDirect,
+  onContinueOnMobileHub,
   canContinueOnMobile = true,
 }: any) {
   if (!isOpen) {
@@ -104,11 +105,18 @@ export function SessionContextMenu({
         Rename Session
       </button>
       <button
-        onClick={onContinueOnMobile}
+        onClick={onContinueOnMobileDirect}
         disabled={!canContinueOnMobile}
         className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:cursor-not-allowed disabled:opacity-40"
       >
-        Continue on Mobile
+        Continue on Mobile (Direct)
+      </button>
+      <button
+        onClick={onContinueOnMobileHub}
+        disabled={!canContinueOnMobile}
+        className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Continue on Mobile (Hub)
       </button>
     </div>
   );

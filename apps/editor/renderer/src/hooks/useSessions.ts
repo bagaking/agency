@@ -524,7 +524,7 @@ export function useSessions(options: any = {}) {
   );
 
   const prepareSessionContinueOnMobile = useCallback(
-    async (sessionId, cellIdOverride) => {
+    async (sessionId, cellIdOverride, mode = 'direct') => {
       const targetCell = resolveCell(cellIdOverride) || selectedCell;
       if (!targetCell || !isAgencyMethodAvailable('prepareSessionContinueOnMobile')) {
         return null;
@@ -534,6 +534,7 @@ export function useSessions(options: any = {}) {
         return await prepareSessionContinueOnMobileBridge({
           worktreePath: targetCell.worktreePath,
           sessionId,
+          mode,
         });
       } catch (error) {
         setSessionError(error?.message || 'Failed to prepare mobile continuation command.');
