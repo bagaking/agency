@@ -87,6 +87,8 @@ function TerminalPane({
   const linkProviderRef = useRef(null);
   const activitySnapshotRef = useRef('');
   const activityFrameRef = useRef(null);
+  const writeBatchRef = useRef<string[]>([]);
+  const writeBatchFrameRef = useRef<number | null>(null);
   const activityThresholdRef = useRef(DEFAULT_ACTIVITY_DIFF_THRESHOLD);
   const pointerDownRef = useRef(null);
   const mouseOverrideRef = useRef({
@@ -362,6 +364,8 @@ function TerminalPane({
     linkProviderRef,
     activitySnapshotRef,
     activityFrameRef,
+    writeBatchRef,
+    writeBatchFrameRef,
     activityThresholdRef,
     pointerDownRef,
     mouseOverrideRef,

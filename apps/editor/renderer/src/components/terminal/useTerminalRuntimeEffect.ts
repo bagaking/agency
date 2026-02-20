@@ -44,6 +44,8 @@ export const useTerminalRuntimeEffect = (runtime: any) => {
     linkProviderRef,
     activitySnapshotRef,
     activityFrameRef,
+    writeBatchRef,
+    writeBatchFrameRef,
     activityThresholdRef,
     pointerDownRef,
     mouseOverrideRef,
@@ -118,9 +120,14 @@ export const useTerminalRuntimeEffect = (runtime: any) => {
     setSessionReady(entry.started);
     setErrorMessage('');
     activitySnapshotRef.current = '';
+    writeBatchRef.current = [];
     if (activityFrameRef.current) {
       cancelAnimationFrame(activityFrameRef.current);
       activityFrameRef.current = null;
+    }
+    if (writeBatchFrameRef.current) {
+      cancelAnimationFrame(writeBatchFrameRef.current);
+      writeBatchFrameRef.current = null;
     }
 
     if (linkProviderRef.current?.dispose) {
@@ -292,10 +299,32 @@ export const useTerminalRuntimeEffect = (runtime: any) => {
       });
     };
 
+    const flushWriteBatch = () => {
+      writeBatchFrameRef.current = null;
+      if (!writeBatchRef.current.length) {
+        return;
+      }
+      const chunk = writeBatchRef.current.join('');
+      writeBatchRef.current = [];
+      entry.terminal.write(chunk, scheduleActivityCheck);
+    };
+
+    const scheduleWriteBatch = () => {
+      if (writeBatchFrameRef.current) {
+        return;
+      }
+      writeBatchFrameRef.current = requestAnimationFrame(flushWriteBatch);
+    };
+
     const unsubscribe = onTerminalDataSubscribe((payload) => {
       if (payload?.cellId === cellId && payload?.sessionId === sessionId) {
         lastOutputAtRef.current = Date.now();
-        entry.terminal.write(payload.data, scheduleActivityCheck);
+        const chunk = String(payload?.data ?? '');
+        if (!chunk) {
+          return;
+        }
+        writeBatchRef.current.push(chunk);
+        scheduleWriteBatch();
       }
     });
     const unsubscribeError = onTerminalErrorSubscribe((payload) => {
@@ -325,6 +354,11 @@ export const useTerminalRuntimeEffect = (runtime: any) => {
         cancelAnimationFrame(activityFrameRef.current);
         activityFrameRef.current = null;
       }
+      if (writeBatchFrameRef.current) {
+        cancelAnimationFrame(writeBatchFrameRef.current);
+        writeBatchFrameRef.current = null;
+      }
+      writeBatchRef.current = [];
       contextMenuTargets.forEach((target) => {
         target.removeEventListener('contextmenu', handleContextMenu);
       });
