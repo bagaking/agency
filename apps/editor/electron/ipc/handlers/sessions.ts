@@ -86,11 +86,11 @@ function setupSessionHandlers() {
   });
 
   ipcMain.handle('sessions:continueOnMobile', async (_event, payload) => {
-    const { worktreePath, sessionId } = payload || {};
+    const { worktreePath, sessionId, mode } = payload || {};
     if (!worktreePath || !sessionId) {
       throw new Error('worktreePath and sessionId are required.');
     }
-    return prepareSessionContinueOnMobile({ worktreePath, sessionId });
+    return prepareSessionContinueOnMobile({ worktreePath, sessionId, mode });
   });
 }
 

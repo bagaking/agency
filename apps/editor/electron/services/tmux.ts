@@ -5,6 +5,109 @@ const { promisify } = require('util');
 const execFileAsync = promisify(execFile);
 const PREVIEW_MIN_LINES = 20;
 const PREVIEW_MAX_LINES = 400;
+const AGENCY_METADATA_FIELDS = [
+  ['projectRoot', '@agency_project_root'],
+  ['projectName', '@agency_project_name'],
+  ['worktreePath', '@agency_worktree_path'],
+  ['cellId', '@agency_cell_id'],
+  ['cellName', '@agency_cell_name'],
+  ['sessionId', '@agency_session_id'],
+  ['sessionName', '@agency_session_name'],
+  ['sessionStatus', '@agency_session_status'],
+  ['lastActivityAt', '@agency_last_activity_at'],
+];
+
+function sanitizeTmuxOptionValue(value) {
+  return String(value ?? '')
+    .replace(/\r?\n/g, ' ')
+    .replace(/\t/g, ' ')
+    .trim();
+}
+
+function normalizeTmuxOptionName(optionName) {
+  const key = String(optionName || '').trim();
+  if (!key) {
+    return '';
+  }
+  return key.startsWith('@') ? key : `@${key}`;
+}
+
+async function setTmuxUserOption(sessionName, optionName, value) {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    return;
+  }
+  const target = String(sessionName || '').trim();
+  const option = normalizeTmuxOptionName(optionName);
+  if (!target || !option) {
+    return;
+  }
+  const normalized = sanitizeTmuxOptionValue(value);
+  try {
+    if (!normalized) {
+      await execFileAsync('tmux', ['set-option', '-q', '-u', '-t', target, option]);
+      return;
+    }
+    await execFileAsync('tmux', ['set-option', '-q', '-t', target, option, normalized]);
+  } catch (_error) {
+    // Non-fatal: metadata sync should never block session operations.
+  }
+}
+
+async function setAgencySessionMetadata(sessionName, metadata = {}) {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    return;
+  }
+  const target = String(sessionName || '').trim();
+  if (!target || !metadata || typeof metadata !== 'object') {
+    return;
+  }
+  for (const [fieldKey, optionName] of AGENCY_METADATA_FIELDS) {
+    // eslint-disable-next-line no-await-in-loop
+    await setTmuxUserOption(target, optionName, metadata[fieldKey]);
+  }
+}
+
+function parseSessionAttached(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return 0;
+  }
+  return parsed > 0 ? 1 : 0;
+}
+
+async function listAgencySessionsWithMetadata() {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    return [];
+  }
+  const formatParts = ['#{session_name}', '#{session_attached}'];
+  AGENCY_METADATA_FIELDS.forEach(([, optionName]) => {
+    formatParts.push(`#{${optionName}}`);
+  });
+  let output = '';
+  try {
+    const result = await execFileAsync('tmux', ['list-sessions', '-F', formatParts.join('\t')]);
+    output = String(result?.stdout || '');
+  } catch (_error) {
+    return [];
+  }
+
+  return output
+    .split(/\r?\n/)
+    .map((line) => String(line || '').trim())
+    .filter(Boolean)
+    .map((line) => {
+      const columns = line.split('\t');
+      const row = {
+        tmuxSession: String(columns[0] || '').trim(),
+        attached: parseSessionAttached(columns[1]),
+      };
+      AGENCY_METADATA_FIELDS.forEach(([fieldKey], index) => {
+        row[fieldKey] = String(columns[index + 2] || '').trim();
+      });
+      return row;
+    })
+    .filter((row) => row.tmuxSession);
+}
 
 async function ensureTmuxAvailable() {
   if (process.env.AGENCY_TEST_MODE === '1') {
@@ -255,4 +358,6 @@ export {
   getPaneSize,
   getLastPaneActivity,
   sendKeys,
+  setAgencySessionMetadata,
+  listAgencySessionsWithMetadata,
 };
