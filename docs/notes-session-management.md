@@ -32,12 +32,16 @@ Session Reply Relay 是面向 Session 的“回复资产化”机制，强调 **
 ## Session 管理机制
 - **Attach Manager（统一入口）**：所有 attach 行为必须由 Session 层管理器统一调度（终端、hover 预览、快照/截图），避免重复逻辑与 idle 被误触发。
 - **Continue on Mobile（远程续接）**：
-  - Agent Cells 的 session 右键菜单提供 `Continue on Mobile`。
-  - 触发后主进程会解析 session 绑定的 `tmuxSession`，生成对应 `ssh -p <port> <user>@<host> -t 'tmux attach-session -t <tmuxSession>'` 指令。
+  - Agent Cells 的 session 右键菜单提供两种入口：
+    - `Continue on Mobile (Direct)`：直达当前 session。
+    - `Continue on Mobile (Hub)`：进入 Mobile Hub，再在 Hub 内切换项目/Cell/session。
+  - Direct 模式会解析 session 绑定的 `tmuxSession`，生成 `ssh -p <port> <user>@<host> -t 'tmux attach-session -t <tmuxSession>'` 指令。
+  - Hub 模式会生成并附带一组 Hub 产物（`catalog + launcher`），命令会 attach 到一个按 repo root 稳定命名的 tmux Hub session（`agency-mobile-hub-<hash>`）。
+  - Hub 的目录视图由 tmux metadata 驱动（Project -> Cell -> Session）；stale/closed 会话默认不作为可 attach 目标显示。
   - host 选择优先级：Tailscale IPv4 > 私网 LAN IPv4 > hostname。
   - SSH 端口会先做本地探测（含 sshd config 端口候选）；若未发现监听端口，会尝试平台相关的 best-effort 启动命令并重新探测。
   - 若仍未就绪，UI 进入 warning 态并给出一次性手动启用命令（例如 macOS 的 `sudo launchctl load -w /System/Library/LaunchDaemons/ssh.plist`）。
-  - 当命令可生成时会自动复制到剪贴板，并提示 endpoint/session 信息。
+  - 当命令可生成时会自动复制到剪贴板，并提示 endpoint/模式信息；Hub 模式会额外显示 catalog 摘要（projects/cells/sessions）。
 - **Attach 类型与优先级**：
   - **interactive**：用户正在交互的终端视图（如 Agent Cell 选中态）。
   - **preview**：hover/截图用的短暂 attach（可短暂持有，完成后释放）。
