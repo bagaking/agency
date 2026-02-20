@@ -19,6 +19,7 @@ export const detachSession = createOptionalInvoke('detachSession');
 export const renameSession = createOptionalInvoke('renameSession');
 export const updateSessionMeta = createOptionalInvoke('updateSessionMeta');
 export const setSessionMouse = createOptionalInvoke('setSessionMouse');
+export const prepareSessionContinueOnMobile = createOptionalInvoke('prepareSessionContinueOnMobile');
 export const updateCellState = createOptionalInvoke('updateCellState');
 export const updateCellMeta = createOptionalInvoke('updateCellMeta');
 
@@ -134,4 +135,3 @@ export const openSystemPermissions = createOptionalInvoke('openSystemPermissions
 
 export const getPathForDroppedFile = (file: File): string =>
   invokeAgencyMethod('getPathForDroppedFile', file, '');
-

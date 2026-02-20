@@ -170,6 +170,7 @@ export function buildComposedAppLayoutProps({
     handleOpenAgentCellFileReference: actionHandlers.handleOpenAgentCellFileReference,
     handleRevealAgentCellFileReference: actionHandlers.handleRevealAgentCellFileReference,
     handleImportAgentCellFileReferences: actionHandlers.handleImportAgentCellFileReferences,
+    handleContinueSessionOnMobile: actionHandlers.handleContinueSessionOnMobile,
     ...sessionsState,
     terminusProfiles: sessionReplyContext.terminusProfiles,
     handleSelectSessionFromSidebar: navigationHandlers.handleSelectSessionFromSidebar,

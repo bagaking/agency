@@ -48,6 +48,7 @@ type AgentCellsSessionsPanelProps = {
   onDetachSession?: (sessionId: string, cellId: string) => void;
   onRenameSession?: (sessionId: string, name: string, cellId: string) => void;
   onUpdateSessionAvatar?: (sessionId: string, avatarId: string, cellId: string) => void;
+  onContinueSessionOnMobile?: (sessionId: string, cellId: string) => Promise<void> | void;
   onConfigureProfile?: (profile: any) => void;
 };
 
@@ -72,6 +73,7 @@ export function AgentCellsSessionsPanel({
   onDetachSession,
   onRenameSession,
   onUpdateSessionAvatar,
+  onContinueSessionOnMobile,
   onConfigureProfile,
 }: AgentCellsSessionsPanelProps) {
   const [idleNow, setIdleNow] = useState(Date.now());
@@ -597,6 +599,11 @@ export function AgentCellsSessionsPanel({
         isOpen={Boolean(contextMenu && contextMenuSession)}
         position={contextMenu || { x: 0, y: 0 }}
         containerRef={contextMenuRef}
+        canContinueOnMobile={Boolean(
+          contextMenuSession &&
+            contextMenuSession.status !== 'closed' &&
+            contextMenuSession.status !== 'stale'
+        )}
         onDetach={() => {
           if (contextMenu?.cellId && contextMenu?.sessionId) {
             onDetachSession?.(contextMenu.sessionId, contextMenu.cellId);
@@ -606,6 +613,12 @@ export function AgentCellsSessionsPanel({
         onRename={() => {
           if (contextMenu?.cellId && contextMenuSession) {
             beginRenameSession(contextMenu.cellId, contextMenuSession);
+          }
+          setContextMenu(null);
+        }}
+        onContinueOnMobile={() => {
+          if (contextMenu?.cellId && contextMenu?.sessionId) {
+            void onContinueSessionOnMobile?.(contextMenu.sessionId, contextMenu.cellId);
           }
           setContextMenu(null);
         }}
@@ -668,4 +681,3 @@ export function AgentCellsSessionsPanel({
     </>
   );
 }
-

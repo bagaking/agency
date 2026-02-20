@@ -32,6 +32,7 @@ import { useExplorerCommentRouting } from './app/useExplorerCommentRouting';
 import { useWorkbenchReplySelectionState } from './app/useWorkbenchReplySelectionState';
 import { AppShellChrome } from './app/AppShellChrome';
 import { SessionMapToggle } from './components/sessionMap/SessionMapToggle';
+import { writeTextToClipboard } from './utils/clipboard';
 const defaultCells = [
   {
     id: 'sample-cell',
@@ -594,6 +595,64 @@ function AppShell() {
     handleCreate,
   });
 
+  const handleContinueSessionOnMobile = useCallback(
+    async (sessionId, cellId) => {
+      if (!sessionId) {
+        return;
+      }
+      try {
+        const result = await sessionsState.prepareSessionContinueOnMobile(sessionId, cellId);
+        if (!result) {
+          throw new Error('Mobile continuation is unavailable in this runtime.');
+        }
+
+        if (result.command) {
+          await writeTextToClipboard(result.command);
+        }
+
+        const ssh = result.ssh || {};
+        const sessionLabel = result.sessionName || sessionId;
+        const endpointLabel =
+          ssh.user && ssh.host && ssh.port ? `${ssh.user}@${ssh.host}:${ssh.port}` : 'SSH endpoint unavailable';
+
+        if (ssh.ready) {
+          const autoEnabledNote = ssh.autoEnabled ? ' (SSH channel auto-enabled)' : '';
+          modal.notify({
+            tone: 'success',
+            title: 'Mobile command copied',
+            description: `${sessionLabel} -> ${endpointLabel}${autoEnabledNote}`,
+          });
+          return;
+        }
+
+        const warningLines = Array.isArray(ssh.warnings)
+          ? ssh.warnings.filter(Boolean).map((line) => `- ${line}`)
+          : [];
+        const detailBlocks = [
+          `${sessionLabel} is not ready for remote attach yet.`,
+          warningLines.length ? `Detected issues:\n${warningLines.join('\n')}` : '',
+          ssh.manualEnableCommand ? `Manual setup:\n${ssh.manualEnableCommand}` : '',
+          result.command ? `Generated command:\n${result.command}` : '',
+        ].filter(Boolean);
+
+        modal.openModal({
+          tone: 'warning',
+          variant: 'alert',
+          title: 'Continue on Mobile needs setup',
+          description: detailBlocks.join('\n\n'),
+          dismissLabel: 'OK',
+        });
+      } catch (error) {
+        modal.notify({
+          tone: 'danger',
+          title: 'Continue on Mobile failed',
+          description: error?.message || 'Failed to prepare mobile continuation command.',
+        });
+      }
+    },
+    [modal, sessionsState.prepareSessionContinueOnMobile]
+  );
+
   const handleSidebarResizeEnd = useCallback(
     (nextWidth) => {
       setSidebarWidth(nextWidth);
@@ -749,6 +808,7 @@ function AppShell() {
       handleOpenAgentCellFileReference,
       handleRevealAgentCellFileReference,
       handleImportAgentCellFileReferences,
+      handleContinueSessionOnMobile,
     },
   });
 

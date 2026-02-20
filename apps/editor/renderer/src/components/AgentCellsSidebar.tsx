@@ -27,6 +27,7 @@ export function AgentCellsSidebar({
   onDetachSession,
   onRenameSession,
   onUpdateSessionAvatar,
+  onContinueSessionOnMobile,
   onConfigureProfile,
   onOpenFileReference,
   onRevealFileReference,
@@ -160,6 +161,7 @@ export function AgentCellsSidebar({
           onDetachSession={onDetachSession}
           onRenameSession={onRenameSession}
           onUpdateSessionAvatar={onUpdateSessionAvatar}
+          onContinueSessionOnMobile={onContinueSessionOnMobile}
           onConfigureProfile={onConfigureProfile}
         />
 
@@ -201,4 +203,3 @@ function NavItem({ icon: Icon, label, onClick, disabled }: any) {
     </button>
   );
 }
-

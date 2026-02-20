@@ -24,6 +24,8 @@ export function buildAppLayoutProps({
   detachSession,
   renameSession,
   updateSessionAvatar,
+  prepareSessionContinueOnMobile,
+  handleContinueSessionOnMobile,
   projectReady,
   projectError,
   projectRoot,
@@ -186,6 +188,8 @@ export function buildAppLayoutProps({
     onDetachSession: detachSession,
     onRenameSession: renameSession,
     onUpdateSessionAvatar: updateSessionAvatar,
+    onContinueSessionOnMobile:
+      handleContinueSessionOnMobile || prepareSessionContinueOnMobile,
     projectReady,
     projectError,
     projectRoot,
@@ -329,4 +333,3 @@ export function buildAppLayoutProps({
     memoSidebarProps: appLayoutMemoSidebarProps,
   };
 }
-

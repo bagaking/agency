@@ -8,6 +8,7 @@ const {
   updateSessionMeta,
   setSessionMouse,
 } = require('../../services/sessions');
+const { prepareSessionContinueOnMobile } = require('../../services/mobileSessionContinuation');
 
 function setupSessionHandlers() {
   ipcMain.handle('sessions:list', async (_event, payload) => {
@@ -82,6 +83,14 @@ function setupSessionHandlers() {
       throw new Error('worktreePath and sessionId are required.');
     }
     return setSessionMouse({ worktreePath, sessionId, enabled });
+  });
+
+  ipcMain.handle('sessions:continueOnMobile', async (_event, payload) => {
+    const { worktreePath, sessionId } = payload || {};
+    if (!worktreePath || !sessionId) {
+      throw new Error('worktreePath and sessionId are required.');
+    }
+    return prepareSessionContinueOnMobile({ worktreePath, sessionId });
   });
 }
 

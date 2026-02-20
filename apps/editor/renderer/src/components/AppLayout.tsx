@@ -34,6 +34,7 @@ export function AppLayout({
   onDetachSession,
   onRenameSession,
   onUpdateSessionAvatar,
+  onContinueSessionOnMobile,
   projectReady,
   projectError,
   projectRoot,
@@ -215,6 +216,7 @@ export function AppLayout({
         onDetachSession,
         onRenameSession,
         onUpdateSessionAvatar,
+        onContinueSessionOnMobile,
         onConfigureProfile,
       }}
       hierarchySidebarProps={{

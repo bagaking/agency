@@ -384,6 +384,7 @@ function createFixture() {
     handleOpenAgentCellFileReference: noop,
     handleRevealAgentCellFileReference: noop,
     handleImportAgentCellFileReferences: noop,
+    handleContinueSessionOnMobile: asyncNoop,
   };
 
   const explorerState = {
@@ -441,6 +442,10 @@ test('buildComposedAppLayoutProps wires editor and hierarchy wiring', () => {
   assert.equal(result.editorPaneProps.terminusBindings, fixture.refs.sessionReplyContext.activeProfileBindings);
   assert.equal(result.editorPaneProps.onOpenTerminal, fixture.refs.actionHandlers.handleOpenTerminal);
   assert.equal(result.editorPaneProps.activityDiffThreshold, fixture.refs.gateState.activityDiffThreshold);
+  assert.equal(
+    result.onContinueSessionOnMobile,
+    fixture.refs.actionHandlers.handleContinueSessionOnMobile
+  );
 });
 
 test('buildComposedAppLayoutProps preserves action sheets and explorer callbacks', () => {

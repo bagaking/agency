@@ -9,6 +9,7 @@ import {
   disposeTerminal as disposeTerminalBridge,
   isAgencyMethodAvailable,
   listSessions as listSessionsBridge,
+  prepareSessionContinueOnMobile as prepareSessionContinueOnMobileBridge,
   renameSession as renameSessionBridge,
   updateSessionMeta as updateSessionMetaBridge,
   writeTerminal as writeTerminalBridge,
@@ -522,6 +523,26 @@ export function useSessions(options: any = {}) {
     [loadSessionsForCell, resolveCell, selectedCell]
   );
 
+  const prepareSessionContinueOnMobile = useCallback(
+    async (sessionId, cellIdOverride) => {
+      const targetCell = resolveCell(cellIdOverride) || selectedCell;
+      if (!targetCell || !isAgencyMethodAvailable('prepareSessionContinueOnMobile')) {
+        return null;
+      }
+      setSessionError('');
+      try {
+        return await prepareSessionContinueOnMobileBridge({
+          worktreePath: targetCell.worktreePath,
+          sessionId,
+        });
+      } catch (error) {
+        setSessionError(error?.message || 'Failed to prepare mobile continuation command.');
+        throw error;
+      }
+    },
+    [resolveCell, selectedCell]
+  );
+
   const zoomIn = useCallback(() => {
     if (!selectedCell || !activeSessionId) {
       return;
@@ -709,6 +730,7 @@ export function useSessions(options: any = {}) {
     detachSession,
     renameSession,
     updateSessionAvatar,
+    prepareSessionContinueOnMobile,
     selectSession,
     updateSessionActivity,
     sendSessionText,

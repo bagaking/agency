@@ -15,6 +15,7 @@ Session 管理目标：
 - 保持多会话的**可见性、可访问性与一致的生命周期语义**（idle/visited/attach），不因视图切换而丢失状态。
 - 将 Session Map 作为跨界面的“导航与协同规划入口”，并与 Agentic Cell 的会话选择保持同步。
 - 所有终端 attach/preview/capture 都收口到 Session 层管理器，保证一致性与可控资源回收。
+- 提供“Continue on Mobile”远程续接路径：对选中 session 生成 `ssh + tmux attach` 指令，并附带 SSH 通道就绪诊断。
 
 ## Session Reply Relay（跨会话回复资产）
 Session Reply Relay 是面向 Session 的“回复资产化”机制，强调 **跨多 agent 通信 / 不耦合具体 CLI 输入体验 / 同时形成资产**。
@@ -30,6 +31,13 @@ Session Reply Relay 是面向 Session 的“回复资产化”机制，强调 **
 
 ## Session 管理机制
 - **Attach Manager（统一入口）**：所有 attach 行为必须由 Session 层管理器统一调度（终端、hover 预览、快照/截图），避免重复逻辑与 idle 被误触发。
+- **Continue on Mobile（远程续接）**：
+  - Agent Cells 的 session 右键菜单提供 `Continue on Mobile`。
+  - 触发后主进程会解析 session 绑定的 `tmuxSession`，生成对应 `ssh -p <port> <user>@<host> -t 'tmux attach-session -t <tmuxSession>'` 指令。
+  - host 选择优先级：Tailscale IPv4 > 私网 LAN IPv4 > hostname。
+  - SSH 端口会先做本地探测（含 sshd config 端口候选）；若未发现监听端口，会尝试平台相关的 best-effort 启动命令并重新探测。
+  - 若仍未就绪，UI 进入 warning 态并给出一次性手动启用命令（例如 macOS 的 `sudo launchctl load -w /System/Library/LaunchDaemons/ssh.plist`）。
+  - 当命令可生成时会自动复制到剪贴板，并提示 endpoint/session 信息。
 - **Attach 类型与优先级**：
   - **interactive**：用户正在交互的终端视图（如 Agent Cell 选中态）。
   - **preview**：hover/截图用的短暂 attach（可短暂持有，完成后释放）。
