@@ -489,8 +489,8 @@ function buildProxyAttachCommand({ host, port, token }) {
   }
   const remote = [
     'if ! command -v nc >/dev/null 2>&1; then',
-    "  echo 'nc (netcat) is required for proxy continuation.';",
-    '  exit 1;',
+    "  echo 'nc (netcat) is required for proxy continuation.'",
+    '  exit 1',
     'fi',
     `(printf '%s\\\\n' ${shellQuote(normalizedToken)}; cat) | nc ${shellQuote(normalizedHost)} ${normalizedPort}`,
   ].join('; ');

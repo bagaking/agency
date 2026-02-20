@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $(basename "$0") <project_root> [--force]" >&2
+  echo "Usage: $(basename "$0") <project_root> [--force] [--vendor-scripts]" >&2
   exit 1
 }
 
@@ -13,11 +13,15 @@ fi
 project_root="$1"
 shift
 force=0
+vendor_scripts=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --force)
       force=1
+      ;;
+    --vendor-scripts)
+      vendor_scripts=1
       ;;
     *)
       usage
@@ -29,13 +33,13 @@ done
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 skill_root="$(cd "${script_dir}/.." && pwd)"
 refs_dir="${skill_root}/references"
-reusable_items_dir="${refs_dir}/reusable-items"
+tpl_dir="${refs_dir}/tpl"
+reusable_items_dir="${tpl_dir}/reusable-items"
 docs_dir="${project_root}/docs"
 agents_file="${project_root}/AGENTS.md"
-block_file="${refs_dir}/agents-block-template.md"
+block_file="${tpl_dir}/agents-block-template.md"
 start_tag="<!-- BAGAKIT:LIVEDOCS:START -->"
 end_tag="<!-- BAGAKIT:LIVEDOCS:END -->"
-project_scripts_dir="${project_root}/scripts"
 bagakit_dir="${docs_dir}/.bagakit"
 bagakit_generated_dir="${bagakit_dir}/.generated"
 
@@ -99,13 +103,17 @@ if [[ ! -d "$refs_dir" ]]; then
   exit 1
 fi
 
+if [[ ! -d "$tpl_dir" ]]; then
+  echo "missing templates dir: ${tpl_dir}" >&2
+  exit 1
+fi
+
 if [[ ! -d "$reusable_items_dir" ]]; then
   echo "missing reusable-items templates dir: ${reusable_items_dir}" >&2
   exit 1
 fi
 
 mkdir -p "$docs_dir"
-mkdir -p "$project_scripts_dir"
 mkdir -p "$bagakit_dir" "$bagakit_generated_dir"
 
 # Flat layout: rely on kind-first filenames (`decision-...`) instead of kind subdirs.
@@ -114,22 +122,22 @@ mkdir -p \
   "${bagakit_dir}/inbox"
 
 # Directory guidance (kept in-repo, helpful to agents and humans).
-copy_template "${refs_dir}/memory-dir-readme-template.md" "${bagakit_dir}/memory/README.md"
-copy_template "${refs_dir}/inbox-dir-readme-template.md" "${bagakit_dir}/inbox/README.md"
+copy_template "${tpl_dir}/memory-dir-readme-template.md" "${bagakit_dir}/memory/README.md"
+copy_template "${tpl_dir}/inbox-dir-readme-template.md" "${bagakit_dir}/inbox/README.md"
 
-copy_template "${refs_dir}/docs-taxonomy-template.md" "${docs_dir}/must-docs-taxonomy.md"
-copy_template "${refs_dir}/guidebook-template.md" "${docs_dir}/must-guidebook.md"
-copy_template "${refs_dir}/sop-template.md" "${docs_dir}/must-sop.md"
-copy_template "${refs_dir}/memory-policy-template.md" "${docs_dir}/must-memory.md"
+copy_template "${tpl_dir}/docs-taxonomy-template.md" "${docs_dir}/must-docs-taxonomy.md"
+copy_template "${tpl_dir}/guidebook-template.md" "${docs_dir}/must-guidebook.md"
+copy_template "${tpl_dir}/sop-template.md" "${docs_dir}/must-sop.md"
+copy_template "${tpl_dir}/memory-policy-template.md" "${docs_dir}/must-memory.md"
 
 # Default continuous-learning SOP doc (non-system, optional).
-copy_template "${refs_dir}/notes-continuous-learning-template.md" "${docs_dir}/notes-continuous-learning.md"
+copy_template "${tpl_dir}/notes-continuous-learning-template.md" "${docs_dir}/notes-continuous-learning.md"
 
 # Adoption helpers (optional): only seed when adopting into an existing docs tree.
 if [[ $had_docs_files -eq 1 ]]; then
-  copy_template "${refs_dir}/notes-adopting-living-docs-template.md" "${docs_dir}/notes-adopting-living-docs.md"
-  copy_template "${refs_dir}/guidelines-doc-coauthoring-template.md" "${docs_dir}/guidelines-doc-coauthoring.md"
-  copy_template "${refs_dir}/notes-directives-examples-template.md" "${docs_dir}/notes-directives-examples.md"
+  copy_template "${tpl_dir}/notes-adopting-living-docs-template.md" "${docs_dir}/notes-adopting-living-docs.md"
+  copy_template "${tpl_dir}/guidelines-doc-coauthoring-template.md" "${docs_dir}/guidelines-doc-coauthoring.md"
+  copy_template "${tpl_dir}/notes-directives-examples-template.md" "${docs_dir}/notes-directives-examples.md"
 fi
 
 # Reusable items governance (non-system; optional mechanism by default).
@@ -174,17 +182,24 @@ if [[ $is_ui_project -eq 1 ]]; then
   copy_template "${reusable_items_dir}/notes-reusable-items-design-template.md" "${docs_dir}/notes-reusable-items-design.md"
 fi
 
-copy_script "${skill_root}/scripts/bagakit_generate_sop.sh" "${project_scripts_dir}/bagakit_generate_sop.sh"
-copy_script "${skill_root}/scripts/bagakit_memory.sh" "${project_scripts_dir}/bagakit_memory.sh"
-copy_script "${skill_root}/scripts/bagakit_memory_index.py" "${project_scripts_dir}/bagakit_memory_index.py"
-copy_script "${skill_root}/scripts/bagakit_inbox.sh" "${project_scripts_dir}/bagakit_inbox.sh"
-copy_script "${skill_root}/scripts/bagakit_doctor.sh" "${project_scripts_dir}/bagakit_doctor.sh"
-copy_script "${skill_root}/scripts/bagakit_learning.sh" "${project_scripts_dir}/bagakit_learning.sh"
-copy_script "${skill_root}/scripts/bagakit_learning.py" "${project_scripts_dir}/bagakit_learning.py"
-copy_script "${skill_root}/scripts/bagakit_reusable_items.sh" "${project_scripts_dir}/bagakit_reusable_items.sh"
-copy_script "${skill_root}/scripts/bagakit_reusable_items.py" "${project_scripts_dir}/bagakit_reusable_items.py"
-copy_script "${skill_root}/scripts/bagakit_update.sh" "${project_scripts_dir}/bagakit_update.sh"
-copy_script "${skill_root}/scripts/validate-docs.sh" "${project_scripts_dir}/validate-docs.sh"
+if [[ $vendor_scripts -eq 1 ]]; then
+  project_scripts_dir="${project_root}/scripts"
+  mkdir -p "$project_scripts_dir"
+
+  copy_script "${skill_root}/scripts/living-docs-generate-sop.sh" "${project_scripts_dir}/living-docs-generate-sop.sh"
+  copy_script "${skill_root}/scripts/living-docs-memory.sh" "${project_scripts_dir}/living-docs-memory.sh"
+  copy_script "${skill_root}/scripts/living-docs-memory-index.py" "${project_scripts_dir}/living-docs-memory-index.py"
+  copy_script "${skill_root}/scripts/living-docs-inbox.sh" "${project_scripts_dir}/living-docs-inbox.sh"
+  copy_script "${skill_root}/scripts/living-docs-doctor.sh" "${project_scripts_dir}/living-docs-doctor.sh"
+  copy_script "${skill_root}/scripts/living-docs-learning.sh" "${project_scripts_dir}/living-docs-learning.sh"
+  copy_script "${skill_root}/scripts/living-docs-learning.py" "${project_scripts_dir}/living-docs-learning.py"
+  copy_script "${skill_root}/scripts/living-docs-learning-contract.sh" "${project_scripts_dir}/living-docs-learning-contract.sh"
+  copy_script "${skill_root}/scripts/living-docs-learning-contract.py" "${project_scripts_dir}/living-docs-learning-contract.py"
+  copy_script "${skill_root}/scripts/living-docs-reusable-items.sh" "${project_scripts_dir}/living-docs-reusable-items.sh"
+  copy_script "${skill_root}/scripts/living-docs-reusable-items.py" "${project_scripts_dir}/living-docs-reusable-items.py"
+  copy_script "${skill_root}/scripts/living-docs-update.sh" "${project_scripts_dir}/living-docs-update.sh"
+  copy_script "${skill_root}/scripts/validate-docs.sh" "${project_scripts_dir}/validate-docs.sh"
+fi
 
 # Ignore generated artifacts locally without touching the project's root .gitignore.
 # Keep this file committed so any repo that uses the layout stays clean by default.
@@ -198,7 +213,7 @@ EOF
 fi
 
 # Generate must-sop.md (removes placeholders and stays deterministic).
-sh "${project_scripts_dir}/bagakit_generate_sop.sh" "${project_root}" >/dev/null
+sh "${skill_root}/scripts/living-docs-generate-sop.sh" "${project_root}" >/dev/null
 
 if [[ -f "$agents_file" ]]; then
   if grep -q "${start_tag}" "$agents_file"; then

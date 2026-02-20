@@ -136,6 +136,7 @@ test('prepareSessionContinueOnMobile builds proxy command and reuses token in te
   assert.equal(first.proxy.ready, true);
   assert.match(first.command, /bash -lc/);
   assert.match(first.command, /\| nc /);
+  assert.doesNotMatch(first.command, /;;/);
   assert.equal(first.proxy.reusedToken, false);
   assert.ok(first.proxy.token);
   assert.ok(first.proxy.tokenMasked);

@@ -88,7 +88,7 @@ else
   done
   if [[ -f "${docs_dir}/must-sop.md" ]]; then
     if grep -q "<Doc Title>" "${docs_dir}/must-sop.md" 2>/dev/null; then
-      warn "docs/must-sop.md looks like a template; regenerate with: sh scripts/bagakit_generate_sop.sh ."
+      warn "docs/must-sop.md looks like a template; regenerate with: export BAGAKIT_LIVING_DOCS_SKILL_DIR=\"\${BAGAKIT_LIVING_DOCS_SKILL_DIR:-\${BAGAKIT_HOME:-\$HOME/.bagakit}/skills/bagakit-living-docs}\" && sh \"\$BAGAKIT_LIVING_DOCS_SKILL_DIR/scripts/living-docs-generate-sop.sh\" ."
     fi
   fi
 fi

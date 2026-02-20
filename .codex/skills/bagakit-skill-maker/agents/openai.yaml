@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bagakit-SkillMaker"
+  short_description: "Scaffold and validate skills"
+  default_prompt: "Create or refactor a Bagakit skill using standalone-first and rule-driven optional contract principles."

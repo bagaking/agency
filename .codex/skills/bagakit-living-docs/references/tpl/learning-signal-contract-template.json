@@ -1,0 +1,20 @@
+{
+  "schema": "bagakit.learning.signal.v1",
+  "generated_at": "2026-02-19T00:00:00Z",
+  "producer": "bagakit-long-run",
+  "signals": [
+    {
+      "id": "howto-resume-loop",
+      "kind": "howto",
+      "topic": "resume-loop",
+      "summary": "Run check_and_resume after every round and follow next-action contract.",
+      "confidence": 0.83,
+      "evidence": [
+        "source_ref=.bagakit/long-run/next-action.json",
+        "checks=validate-long-run.sh + doctor"
+      ],
+      "source_ref": ".bagakit/long-run/next-action.json",
+      "source_channel": "long-run"
+    }
+  ]
+}

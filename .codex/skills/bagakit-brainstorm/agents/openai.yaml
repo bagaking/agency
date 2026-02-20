@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bagakit-Brainstorm"
+  short_description: "Brainstorm from markdown with expert-forum gate and handoff artifacts"
+  default_prompt: "Use markdown context to generate options, trade-offs, decision matrix, expert-forum report, and a clear outcome/handoff package."

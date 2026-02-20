@@ -1,16 +1,24 @@
 ---
 name: bagakit-living-docs
-description: Create and maintain a living documentation + memory system for any project, including system-level docs (must-guidebook.md, must-sop.md, must-docs-taxonomy.md, must-memory.md), doc taxonomy rules, SOP generation from frontmatter, managed AGENTS.md injection blocks, required response footers, and a lightweight project memory layer (docs/.bagakit/{memory,inbox}/).
+description: Create and maintain a living documentation + memory system for any project. Use when you need mandatory system docs, managed AGENTS injection, SOP generation from frontmatter, and a project-local memory layer.
 ---
 
 # Bagakit Living Docs
 
-## Overview
-Establish a self-updating documentation + memory system that stays accurate as the project evolves. This skill defines system docs, taxonomy rules, SOP generation, a project memory layer, and AGENTS.md injections.
+## Standalone-First Contract
+- This skill is standalone-first: it can run with only this repo's scripts and references.
+- Cross-skill collaboration is optional and signal/contract-based (import/export/evolve JSON/markdown artifacts), never direct mandatory flow coupling.
+- Tooling resolves to `${BAGAKIT_HOME:-$HOME/.bagakit}/skills/bagakit-living-docs` by default.
 
-Key idea:
-- System-level rules live in `docs/must-*.md` (all `must-*` are mandatory reading in a target project).
-- Other mechanisms (e.g. reusable-items governance, directives) are optional: adopt/modify/disable per the target project's own norms.
+## When to Use
+- A project needs stable `docs/must-*.md` governance and deterministic doc update workflow.
+- A project needs `AGENTS.md` managed block injection with `[[BAGAKIT]]` footer discipline.
+- A project needs memory capture/search/promotion (`docs/.bagakit/{inbox,memory}`) for long-running collaboration.
+
+## When NOT to Use
+- You only need one-off documentation output and no reusable process/tooling.
+- You want this skill to hard-depend on another specific skill runtime.
+- You need a full project/task execution harness rather than docs/memory governance.
 
 ## Workflow
 1) Confirm doc root and system prefix
@@ -57,8 +65,16 @@ Key idea:
 - Keep naming prefixes consistent across docs (type-first).
 - Keep system docs short and index-style; put details in domain docs.
 
+## `[[BAGAKIT]]` Footer Contract
+Use a footer block after each task update:
+
+```text
+[[BAGAKIT]]
+- LivingDoc: Docs=<updated docs>; Memory=<captured/promoted/none>; Evidence=<commands/checks>; Next=<one deterministic next action>
+```
+
 ## Templates and references
-Templates live under `references/`.
+Templates live under `references/tpl/`.
 
 - System docs:
   - `docs-taxonomy-template.md`
@@ -78,7 +94,7 @@ Templates live under `references/`.
   - `notes-directives-examples-template.md`
   - `guidelines-doc-coauthoring-template.md`
   - `notes-project-charter-template.md` (suggested)
-- Reusable items templates (under `references/reusable-items/`):
+- Reusable items templates (under `references/tpl/reusable-items/`):
   - `norms-maintaining-reusable-items-template.md`
   - `notes-reusable-items-<domain>-template.md` (domains: coding/design/writing/knowledge)
 
@@ -86,13 +102,28 @@ Templates live under `references/`.
 Scripts live under `scripts/`.
 
 - Apply templates + inject AGENTS block: `apply-living-docs.sh`
-- Generate `docs/must-sop.md` from doc frontmatter: `bagakit_generate_sop.sh`
-- Memory recall (search/get): `bagakit_memory.sh`
-- Inbox helper (new/promote): `bagakit_inbox.sh`
-- Session-to-inbox learning extractor: `bagakit_learning.sh` (uses `bagakit_learning.py`)
-- Update helper (check remote vs local skill; apply into project): `bagakit_update.sh`
-- Diagnostics (non-destructive): `bagakit_doctor.sh`
-- Reusable-items query: `bagakit_reusable_items.sh` (uses `bagakit_reusable_items.py`)
-- Optional: local SQLite FTS index: `bagakit_memory_index.py`
+- Generate `docs/must-sop.md` from doc frontmatter: `living-docs-generate-sop.sh`
+- Memory recall (search/get): `living-docs-memory.sh`
+- Inbox helper (new/promote): `living-docs-inbox.sh`
+- Session-to-inbox learning extractor: `living-docs-learning.sh` (uses `living-docs-learning.py`)
+- Contract-signal exchange + evolution: `living-docs-learning-contract.sh` (uses `living-docs-learning-contract.py`)
+- Update helper (check remote vs local skill; apply into project): `living-docs-update.sh`
+- Diagnostics (non-destructive): `living-docs-doctor.sh`
+- Reusable-items query: `living-docs-reusable-items.sh` (uses `living-docs-reusable-items.py`)
+- Optional: local SQLite FTS index: `living-docs-memory-index.py`
 - Validate docs + memory conventions: `validate-docs.sh`
-- Skill self-test: `test.sh`
+- Skill self-test: `scripts_dev/test.sh`
+
+## Output Routes and Default Mode
+- Deliverable type: memory/governance skill for documentation standards and durable knowledge flow.
+- Action handoff output (default route): updated `docs/must-*.md`, managed `AGENTS.md` block, and generated SOP files under the project docs path.
+- Memory handoff output (default route): inbox/memory artifacts under `docs/.bagakit/{inbox,memory}/`.
+- Optional adapter routes: external task/spec systems can consume docs or memory files through optional integration contracts only.
+- Adapter policy: optional and rule-driven; no direct hard dependency is required for standalone operation.
+
+## Archive Gate (Completion Handoff)
+- Completion archive must record destination path/id for `action_handoff` (which docs/scripts changed) and `memory_handoff` (where summary/memory entries were deposited, or explicit `none` rationale).
+- Do not mark completion until docs regeneration/validation evidence exists and archive destination report is explicit.
+
+## Fallback Path
+- If the target project cannot adopt full living-docs right now, apply only system docs + AGENTS managed block first, then add memory and reusable-items in later rounds.

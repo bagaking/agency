@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "description": "Required local ft-harness references that must be read before strict harness operations.",
+  "entries": [
+    {
+      "id": "ft-harness-skill-contract",
+      "type": "file",
+      "location": "../SKILL.md",
+      "required": true
+    },
+    {
+      "id": "ft-harness-requirements",
+      "type": "file",
+      "location": "../docs/notes-requirements.md",
+      "required": true
+    },
+    {
+      "id": "ft-harness-guidebook",
+      "type": "file",
+      "location": "../docs/must-guidebook.md",
+      "required": false
+    }
+  ]
+}
