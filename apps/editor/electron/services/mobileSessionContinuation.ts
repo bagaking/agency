@@ -487,7 +487,13 @@ function buildProxyAttachCommand({ host, port, token }) {
   if (!normalizedHost || normalizedPort === null || !normalizedToken) {
     return '';
   }
-  const remote = `stty raw -echo; trap "stty sane" EXIT INT TERM; (printf '%s\\\\n' ${shellQuote(normalizedToken)}; cat) | nc ${shellQuote(normalizedHost)} ${normalizedPort}`;
+  const remote = [
+    'if ! command -v nc >/dev/null 2>&1; then',
+    "  echo 'nc (netcat) is required for proxy continuation.';",
+    '  exit 1;',
+    'fi',
+    `(printf '%s\\\\n' ${shellQuote(normalizedToken)}; cat) | nc ${shellQuote(normalizedHost)} ${normalizedPort}`,
+  ].join('; ');
   return `bash -lc ${shellQuote(remote)}`;
 }
 
@@ -501,6 +507,9 @@ function createProxyWarnings({ host, port, extraWarnings = [] }) {
   }
   warnings.push(
     'Proxy mode uses plain TCP + session token. Prefer trusted LAN/Tailscale networks for remote access.'
+  );
+  warnings.push(
+    'If your mobile client runs shell input in line-buffered mode, keys are sent on Enter (session remains usable).'
   );
   extraWarnings.forEach((warning) => {
     const text = String(warning || '').trim();
