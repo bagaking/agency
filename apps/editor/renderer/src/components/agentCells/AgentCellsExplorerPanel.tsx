@@ -51,8 +51,11 @@ export function AgentCellsExplorerPanel({
   const [fileDashboardMode, setFileDashboardMode] = useState<'flat' | 'tree'>('flat');
   const [fileDashboardCellFilter, setFileDashboardCellFilter] = useState<'changes' | 'all'>('changes');
   const [fileDashboardNotice, setFileDashboardNotice] = useState('');
-  const fileDashboardSnippetPreview = useFileSnippetPreview({ defaultContext: 2 });
-  const fileDashboardPreview = fileDashboardSnippetPreview.preview;
+  const {
+    preview: fileDashboardPreview,
+    loadPreview: loadFileSnippetPreview,
+    clearPreview: clearFileSnippetPreview,
+  } = useFileSnippetPreview({ defaultContext: 2 });
   const [fileDashboardHeight, setFileDashboardHeight] = useState<number | null>(null);
   const [fileDashboardDragging, setFileDashboardDragging] = useState(false);
 
@@ -70,18 +73,18 @@ export function AgentCellsExplorerPanel({
   const loadFileDashboardPreview = useCallback(
     async (shortcut: AgentCellFileChangeEntry) => {
       if (!shortcut?.relativePath || !selectedCell?.worktreePath) {
-        fileDashboardSnippetPreview.clearPreview();
+        clearFileSnippetPreview();
         return;
       }
 
       const relativePath = String(shortcut.relativePath).trim();
       if (!relativePath) {
-        fileDashboardSnippetPreview.clearPreview();
+        clearFileSnippetPreview();
         return;
       }
 
       const line = Number.isFinite(shortcut.line) ? Math.max(1, Math.floor(Number(shortcut.line))) : null;
-      await fileDashboardSnippetPreview.loadPreview({
+      await loadFileSnippetPreview({
         rootPath: selectedCell.worktreePath,
         targetPath: relativePath,
         relativePath,
@@ -89,12 +92,12 @@ export function AgentCellsExplorerPanel({
         context: 2,
       });
     },
-    [fileDashboardSnippetPreview, selectedCell?.worktreePath]
+    [clearFileSnippetPreview, loadFileSnippetPreview, selectedCell?.worktreePath]
   );
 
   const clearFileDashboardPreview = useCallback(() => {
-    fileDashboardSnippetPreview.clearPreview();
-  }, [fileDashboardSnippetPreview]);
+    clearFileSnippetPreview();
+  }, [clearFileSnippetPreview]);
 
   const canDropIntoFileDashboard = Boolean(
     selectedCell?.id && selectedCell?.worktreePath && onImportFileReferences
@@ -671,4 +674,3 @@ export function AgentCellsExplorerPanel({
     </div>
   ) : null;
 }
-

@@ -318,6 +318,7 @@ export function AgentCellsSessionsPanel({
             {cells.map((cell: any) => {
               const cellSessions = resolveCellSessions(String(cell.id));
               const activeSessionId = activeSessionByCellId?.[cell.id] || null;
+              const isSelectedCell = selectedId === cell.id;
               const isCollapsed = collapsedCells.has(cell.id);
               const openSessions = cellSessions.filter((session) => {
                 if (session.status === 'closed') {
@@ -347,7 +348,7 @@ export function AgentCellsSessionsPanel({
                     }}
                     data-testid={`cell-item-${cell.id}`}
                     className={`group flex w-full items-center gap-2 rounded px-2 py-1 text-sm transition-colors ${
-                      selectedId === cell.id
+                      isSelectedCell
                         ? 'bg-primary/10 text-foreground'
                         : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'
                     }`}
@@ -375,7 +376,7 @@ export function AgentCellsSessionsPanel({
                     <span className="truncate">{cell.name}</span>
                     <div
                       className={`ml-auto flex items-center gap-1 transition-opacity ${
-                        selectedId === cell.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                        isSelectedCell ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                       }`}
                     >
                       {!cell.isVirtual ? (
@@ -441,7 +442,8 @@ export function AgentCellsSessionsPanel({
                   {!isCollapsed ? (
                     <div className="mt-1 space-y-0.5 pl-6">
                       {sortedSessions.map((session) => {
-                        const isActive = session.id === activeSessionId;
+                        const isCellActiveSession = session.id === activeSessionId;
+                        const isSelectedSession = isSelectedCell && isCellActiveSession;
                         const activityAt = resolveSessionActivity(cell.id, session);
                         const idleDuration = Number.isFinite(activityAt)
                           ? Math.max(0, idleNow - Number(activityAt))
@@ -455,12 +457,13 @@ export function AgentCellsSessionsPanel({
                           <div
                             key={session.id}
                             className={`group relative flex w-full min-w-0 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-[11px] transition-all duration-200 select-none ${
-                              isActive
+                              isSelectedSession
                                 ? 'bg-primary/10 text-foreground ring-1 ring-primary/20 shadow-sm'
                                 : 'bg-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground'
                             }`}
                             data-testid={`session-tab-${session.id}`}
-                            data-active={isActive ? 'true' : 'false'}
+                            data-active={isSelectedSession ? 'true' : 'false'}
+                            data-cell-active={isCellActiveSession ? 'true' : 'false'}
                             onClick={() => onSelectSession?.(cell.id, session.id)}
                             onDoubleClick={(event) => {
                               event.stopPropagation();
@@ -537,7 +540,7 @@ export function AgentCellsSessionsPanel({
                                         ? 'bg-amber-400/50'
                                         : session.status === 'stale'
                                           ? 'bg-rose-400/50'
-                                          : isActive
+                                          : isCellActiveSession
                                             ? 'bg-emerald-400/50'
                                             : 'bg-slate-400/30'
                                     }`}

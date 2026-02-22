@@ -71,6 +71,7 @@ function TerminalPane({
   const resizeAttemptsRef = useRef(0);
   const activationWarnedRef = useRef(false);
   const isActiveRef = useRef(isActive);
+  const isVisibleRef = useRef(isVisible);
   const bindingIndexRef = useRef(new Map());
   const dispatchRef = useRef(null);
   const pasteTrackerRef = useRef(0);
@@ -231,6 +232,10 @@ function TerminalPane({
   }, [isActive]);
 
   useEffect(() => {
+    isVisibleRef.current = isVisible;
+  }, [isVisible]);
+
+  useEffect(() => {
     activityThresholdRef.current = resolveActivityDiffThreshold(activityDiffThreshold);
   }, [activityDiffThreshold]);
 
@@ -338,6 +343,7 @@ function TerminalPane({
     worktreePath,
     fontSize,
     mode,
+    isVisibleRef,
     onOpenWorkbenchFile,
     onSelectionContext,
     onActivity,

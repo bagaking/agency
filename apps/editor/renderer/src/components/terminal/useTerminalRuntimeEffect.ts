@@ -18,6 +18,7 @@ export const useTerminalRuntimeEffect = (runtime: any) => {
     worktreePath,
     fontSize,
     mode,
+    isVisibleRef,
     onOpenWorkbenchFile,
     onSelectionContext,
     onActivity,
@@ -155,6 +156,7 @@ export const useTerminalRuntimeEffect = (runtime: any) => {
       resizeHandlerRef,
       focusHandlerRef,
       isActiveRef,
+      isVisibleRef,
       resizeTerminal,
       logRuntime,
     });

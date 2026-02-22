@@ -13,6 +13,7 @@ export const attachTerminalResizeController = ({
   resizeHandlerRef,
   focusHandlerRef,
   isActiveRef,
+  isVisibleRef,
   resizeTerminal,
   logRuntime,
 }: any) => {
@@ -121,8 +122,30 @@ export const attachTerminalResizeController = ({
     });
   };
 
+  const canAutoFocusTerminal = () => {
+    if (!isActiveRef.current || !isVisibleRef?.current || !terminalRef.current || !containerRef.current) {
+      return false;
+    }
+    const computedStyle = window.getComputedStyle(containerRef.current);
+    if (computedStyle.visibility === 'hidden') {
+      return false;
+    }
+    const activeElement = document.activeElement as HTMLElement | null;
+    if (!activeElement || activeElement === document.body) {
+      return true;
+    }
+    if (containerRef.current.contains(activeElement)) {
+      return true;
+    }
+    // Avoid background terminals stealing focus from another active terminal/input.
+    return false;
+  };
+
   resizeHandlerRef.current = scheduleResize;
   focusHandlerRef.current = () => {
+    if (!canAutoFocusTerminal()) {
+      return;
+    }
     terminalRef.current?.focus();
   };
 
@@ -140,7 +163,7 @@ export const attachTerminalResizeController = ({
       .then(() => scheduleResize(true, 'fonts-ready'))
       .catch(() => {});
   }
-  if (isActiveRef.current) {
+  if (canAutoFocusTerminal()) {
     terminalRef.current?.focus();
   }
 
@@ -161,4 +184,3 @@ export const attachTerminalResizeController = ({
     }
   };
 };
-

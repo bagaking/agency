@@ -73,6 +73,37 @@ export function useRendererBootstrap({
   setTmuxStatus,
   setIpcAvailable,
 }: UseRendererBootstrapArgs) {
+  const resolveNextSelectedId = useCallback(
+    ({
+      currentSelectedId,
+      nextCells,
+      preferredSelection,
+    }: {
+      currentSelectedId: string | null;
+      nextCells: any[];
+      preferredSelection: string | null;
+    }) => {
+      const list = Array.isArray(nextCells) ? nextCells : [];
+      if (!list.length) {
+        return null;
+      }
+      const preferredMatch = preferredSelection
+        ? list.find((cell) => cell.id === preferredSelection)
+        : null;
+      if (preferredMatch) {
+        return preferredMatch.id;
+      }
+      const existingMatch = currentSelectedId
+        ? list.find((cell) => cell.id === currentSelectedId)
+        : null;
+      if (existingMatch) {
+        return existingMatch.id;
+      }
+      return list[0].id;
+    },
+    []
+  );
+
   const loadCells = useCallback(
     async (preferredSelection: string | null = null, rootOverride = '') => {
       const effectiveRoot = rootOverride || projectRoot;
@@ -80,28 +111,22 @@ export function useRendererBootstrap({
       try {
         if (!effectiveRoot) {
           setCells([]);
-          if (!selectedId) {
-            setSelectedId('local-terminal');
-          }
+          setSelectedId((current: string | null) => current || 'local-terminal');
           return;
         }
         const result = await agencyListCells({ rootPath: effectiveRoot });
         if (Array.isArray(result)) {
           setCells(result);
-          if (result.length) {
-            const preferredMatch = preferredSelection
-              ? result.find((cell) => cell.id === preferredSelection)
-              : null;
-            const existingMatch = selectedId ? result.find((cell) => cell.id === selectedId) : null;
-            setSelectedId((preferredMatch || existingMatch || result[0]).id);
-          } else {
-            setSelectedId(null);
-          }
+          setSelectedId((current: string | null) =>
+            resolveNextSelectedId({
+              currentSelectedId: current,
+              nextCells: result,
+              preferredSelection,
+            })
+          );
         } else {
           setCells(defaultCells);
-          if (!selectedId) {
-            setSelectedId(defaultCells[0].id);
-          }
+          setSelectedId((current: string | null) => current || defaultCells[0].id);
         }
       } catch (error: any) {
         console.error(error);
@@ -110,15 +135,13 @@ export function useRendererBootstrap({
           setSelectedId(null);
         } else {
           setCells(defaultCells);
-          if (!selectedId) {
-            setSelectedId(defaultCells[0].id);
-          }
+          setSelectedId((current: string | null) => current || defaultCells[0].id);
         }
       } finally {
         setLoading(false);
       }
     },
-    [defaultCells, projectRoot, selectedId, setCells, setLoading, setSelectedId]
+    [defaultCells, projectRoot, resolveNextSelectedId, setCells, setLoading, setSelectedId]
   );
 
   useEffect(() => {
@@ -291,4 +314,3 @@ export function useRendererBootstrap({
     loadCells,
   };
 }
-
