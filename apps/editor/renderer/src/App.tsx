@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '@xterm/xterm/css/xterm.css';
 import { AppLayout } from './components/AppLayout';
 import { ModalProvider, useModal } from './components/modals/ModalSystem';
@@ -121,6 +121,29 @@ function AppShell() {
     () => displayCells.find((cell) => cell.id === selectedId) || null,
     [displayCells, selectedId]
   );
+  const selectionTraceRef = useRef<{ selectedId: string; cellId: string }>({
+    selectedId: '',
+    cellId: '',
+  });
+  useEffect(() => {
+    const next = {
+      selectedId: selectedId || '',
+      cellId: selectedCell?.id || '',
+    };
+    const prev = selectionTraceRef.current;
+    if (prev.selectedId === next.selectedId && prev.cellId === next.cellId) {
+      return;
+    }
+    if (import.meta.env.DEV) {
+      console.warn('[SessionTrace] selected cell changed', {
+        prevSelectedId: prev.selectedId,
+        nextSelectedId: next.selectedId,
+        prevCellId: prev.cellId,
+        nextCellId: next.cellId,
+      });
+    }
+    selectionTraceRef.current = next;
+  }, [selectedCell?.id, selectedId]);
   const scopedCell = useMemo(() => {
     if (!projectReady || !selectedCell || selectedCell.isVirtual) {
       return null;

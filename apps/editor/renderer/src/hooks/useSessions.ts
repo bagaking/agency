@@ -9,6 +9,7 @@ import {
   disposeTerminal as disposeTerminalBridge,
   isAgencyMethodAvailable,
   listSessions as listSessionsBridge,
+  logRuntime as logRuntimeBridge,
   prepareSessionContinueOnMobile as prepareSessionContinueOnMobileBridge,
   renameSession as renameSessionBridge,
   updateSessionMeta as updateSessionMetaBridge,
@@ -39,6 +40,11 @@ export function useSessions(options: any = {}) {
     initialActiveSessions || {}
   );
   const activeSessionByCellIdRef = useRef(initialActiveSessions || {});
+  const activeSessionTraceRef = useRef(initialActiveSessions || {});
+  const derivedActiveTraceRef = useRef<{ cellId: string; sessionId: string }>({
+    cellId: '',
+    sessionId: '',
+  });
   const selectionVersionRef = useRef(0);
   const [sessionsByCellId, setSessionsByCellId] = useState({});
   const [sessionFontSizeByKey, setSessionFontSizeByKey] = useState({});
@@ -78,6 +84,35 @@ export function useSessions(options: any = {}) {
   useEffect(() => {
     activeSessionByCellIdRef.current = activeSessionByCellId;
   }, [activeSessionByCellId]);
+
+  useEffect(() => {
+    const previous = activeSessionTraceRef.current || {};
+    const next = activeSessionByCellId || {};
+    const keys = new Set([...Object.keys(previous), ...Object.keys(next)]);
+    keys.forEach((cellId) => {
+      const prevSessionId = previous[cellId];
+      const nextSessionId = next[cellId];
+      if (prevSessionId === nextSessionId) {
+        return;
+      }
+      const meta = {
+        source: 'active-session-state',
+        cellId,
+        prevSessionId: prevSessionId || '',
+        nextSessionId: nextSessionId || '',
+        selectedCellId: selectedCell?.id || '',
+      };
+      logRuntimeBridge({
+        level: 'info',
+        message: 'session active pointer updated',
+        meta,
+      });
+      if (import.meta.env.DEV) {
+        console.debug('[SessionTrace] session active pointer updated', meta);
+      }
+    });
+    activeSessionTraceRef.current = next;
+  }, [activeSessionByCellId, selectedCell?.id]);
 
   useEffect(() => {
     sessionActivityByKeyRef.current = sessionActivityByKey;
@@ -122,6 +157,35 @@ export function useSessions(options: any = {}) {
     : DEFAULT_FONT_SIZE;
   const lastActivityAt = activeSessionKey ? sessionActivityByKey[activeSessionKey] : null;
   const lastVisitedAt = activeSessionKey ? sessionVisitedByKey[activeSessionKey] : null;
+
+  useEffect(() => {
+    const next = {
+      cellId: selectedCell?.id || '',
+      sessionId: activeSessionId || '',
+    };
+    const prev = derivedActiveTraceRef.current;
+    if (prev.cellId === next.cellId && prev.sessionId === next.sessionId) {
+      return;
+    }
+    const meta = {
+      source: 'derived-active-session',
+      prevCellId: prev.cellId,
+      prevSessionId: prev.sessionId,
+      nextCellId: next.cellId,
+      nextSessionId: next.sessionId,
+      openSessionCount: Array.isArray(openSessions) ? openSessions.length : 0,
+      preferredSessionId: selectedCell?.id ? activeSessionByCellId[selectedCell.id] || '' : '',
+    };
+    logRuntimeBridge({
+      level: 'info',
+      message: 'session derived active changed',
+      meta,
+    });
+    if (import.meta.env.DEV) {
+      console.warn('[SessionTrace] session derived active changed', meta);
+    }
+    derivedActiveTraceRef.current = next;
+  }, [activeSessionByCellId, activeSessionId, openSessions, selectedCell?.id]);
 
   const loadSessionsForCell = useCallback(
     async (cell, { silent = false } = {}) => {
@@ -175,9 +239,35 @@ export function useSessions(options: any = {}) {
         const open = filterOpenSessions(nextSessions, preferred);
         const active = resolveActiveSession({ openSessions: open, preferredSessionId: preferred });
         if (selectionVersionRef.current !== selectionVersion) {
+          if (import.meta.env.DEV) {
+            console.debug('[SessionTrace] skip stale session load result', {
+              source: 'loadSessionsForCell',
+              cellId: cell.id,
+              preferredSessionId: preferred || '',
+              resolvedSessionId: active?.id || '',
+              selectionVersionAtRequest: selectionVersion,
+              selectionVersionCurrent: selectionVersionRef.current,
+            });
+          }
           return;
         }
         if (active?.id && active.id !== preferred) {
+          const meta = {
+            source: 'loadSessionsForCell-resolve',
+            cellId: cell.id,
+            preferredSessionId: preferred || '',
+            resolvedSessionId: active.id,
+            selectedCellId: selectedCell?.id || '',
+            sessionCount: nextSessions.length,
+          };
+          logRuntimeBridge({
+            level: 'info',
+            message: 'session active pointer resolved from loaded sessions',
+            meta,
+          });
+          if (import.meta.env.DEV) {
+            console.debug('[SessionTrace] session active pointer resolved from loaded sessions', meta);
+          }
           activeSessionByCellIdRef.current = {
             ...activeSessionByCellIdRef.current,
             [cell.id]: active.id,
@@ -217,7 +307,7 @@ export function useSessions(options: any = {}) {
         }
       }
     },
-    [tmuxStatus?.available, tmuxStatus?.error]
+    [selectedCell?.id, tmuxStatus?.available, tmuxStatus?.error]
   );
 
   const refreshSessionsForCells = useCallback(
@@ -321,6 +411,9 @@ export function useSessions(options: any = {}) {
       if (!cellId) {
         return;
       }
+      if (activeSessionByCellIdRef.current[cellId] === sessionId) {
+        return;
+      }
       selectionVersionRef.current += 1;
       activeSessionByCellIdRef.current = {
         ...activeSessionByCellIdRef.current,
@@ -331,6 +424,21 @@ export function useSessions(options: any = {}) {
         [cellId]: sessionId,
       }));
       updateSessionVisited({ cellId, sessionId });
+      const meta = {
+        source: 'selectSession',
+        cellId,
+        sessionId,
+        selectedCellId: selectedCell?.id || '',
+        selectionVersion: selectionVersionRef.current,
+      };
+      logRuntimeBridge({
+        level: 'info',
+        message: 'session selected',
+        meta,
+      });
+      if (import.meta.env.DEV) {
+        console.debug('[SessionTrace] session selected', meta);
+      }
     },
     [selectedCell?.id, updateSessionVisited]
   );
