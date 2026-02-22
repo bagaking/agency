@@ -1,66 +1,67 @@
 # <Article Title>
 
-## 1. Why this matters now
+> Use this file for publish narrative only. Planning contract, process fields, and stage metadata belong in `outline.md` / `execution_appendix.md` / `review_report.md`.
 
-### Reader contract
-- Reader:
-- Task after reading:
-- Scope:
-- Out of scope:
-- Success signal:
+## 1. Why This Matters Now
 
 ### Current failure pattern
-- Describe one concrete recurring failure.
-- Include who is impacted and where it appears.
+Describe one concrete recurring failure and who is blocked by it.
 
-### What goes wrong if unchanged
-- Describe operational or business consequence.
-- Add one boundary where this does not apply.
+### What breaks if unchanged
+Describe operational consequence and one explicit boundary where this does not apply.
 
-## 2. Proposed approach
+### Field case (recommended)
+Add one concrete scenario with role, symptom, and consequence timeline.
 
-### Mechanism overview
-- Explain how the approach works in 2-4 paragraphs.
-- Keep one local claim per paragraph.
+## 2. Core Mechanism
 
-### Key trade-offs
-- Compare at least two alternatives.
-- State why the chosen trade-off is acceptable now.
+### How the mechanism works
+Explain the approach in 2-4 paragraphs. Keep one local claim per paragraph.
 
-## 3. Execution path
+### Why this trade-off is acceptable now
+Compare at least two alternatives and state why this choice is practical now.
 
-### Minimal steps
-- Step 1:
-- Step 2:
-- Step 3:
-- Owner and expected output for each step.
+### Diagram for decision flow (recommended)
+Use one Mermaid diagram when sequence/loop/rollback matters for review speed.
 
-### Validation signals
-- Signal:
-- How measured:
-- Pass threshold:
+## 3. Evidence and Validation
 
-## 4. Risks and rollback
+### Evidence path
+Map claim to evidence (`experiment`, `docs`, `observed signal`).
 
-### Known risks
-- Risk:
-- Trigger:
-- Impact:
+### Concrete artifact anchor (recommended for medium/high complexity)
+Include at least one concrete artifact in body text:
+- command chain
+- path/hash/sample output
+- metric formula with threshold
 
-### Rollback strategy
-- Rollback trigger:
-- Rollback action:
-- Owner:
+### Full sample anchor (recommended for protocol/infrastructure topics)
+Keep one longer concrete sample in body text (for example a 12+ line message/template, or a 3+ command chain with expected signal).
 
-## 5. Decision package
+### Validation signal
+State how the result is measured and what threshold counts as pass.
 
-### Example or contrast (required)
-- Before:
-- After:
-- Evidence:
-- Decision impact:
+## 4. Adoption Path
 
-### Final decision and next action
-- One-line final decision:
-- Immediate next action:
-- Handoff destination:
+### Minimal rollout steps
+Describe the smallest viable rollout sequence and owner responsibilities.
+
+### Rollout checklist (recommended)
+List 5+ checks that define "ready to publish/adopt" and include at least one rollback trigger.
+
+### Fallback and recovery
+Describe rollback trigger and recovery action.
+
+## 5. Final Decision and Next Action
+
+### Before/after contrast (required)
+Document one concrete `Before` and `After` contrast and explain decision impact.
+
+### Anti-pattern and guardrail (recommended)
+Name one high-frequency anti-pattern and the guardrail/check that prevents it.
+
+### Scope boundary and portability note (recommended)
+State where this approach does not apply and how to migrate/adapt in other teams or repositories.
+
+### Immediate next action
+Write one-line decision and first deterministic action.

@@ -34,6 +34,11 @@ Out of scope:
 Success signal:
 ```
 
+Placement rule:
+
+- Keep this contract in planning artifacts (`outline.md`, `review_report.md`).
+- Do not leak raw planning labels into publish article headings.
+
 ## 3. Audience and Context Precision
 
 Weak audience labels create weak structure. Replace broad labels with scenario-based
@@ -196,6 +201,50 @@ When citing, explain contribution, not only source name.
 - Weak: "Source X says this is good."
 - Better: "Source X supports the transition pattern because it reduces scan ambiguity."
 
+## 12.1 Publish-Grade Evidence Pack
+
+For medium/high-complexity topics, avoid framework-only drafts by keeping a compact
+evidence pack in the article body.
+
+Recommended anchors:
+
+- one concrete contrast (`Before/After` or success/failure case)
+- one concrete artifact anchor (command, path, commit hash, sample output, or metric formula)
+- one anti-pattern/failure mode block
+- one rollout/checklist/next-action anchor
+
+Rule:
+
+- If rewrite removes anchors that existed in baseline, explain why in `review_report.md`.
+- If anchors are removed without rationale, treat as regression risk.
+
+## 12.2 Baseline Evidence Class Retention (Rewrite Mode)
+
+When rewriting an existing article, keep evidence by class rather than by sentence copy.
+
+Evidence classes to preserve:
+
+- full sample anchor (long example block or command chain)
+- hard evidence chain (command/path/hash/metric threshold linkage)
+- anti-pattern/failure-mode block
+- rollout/checklist/operational adoption anchor
+
+Retention rule:
+
+- dropping one class requires explicit rationale in `review_report.md`
+- dropping two or more classes is regression unless scope is intentionally narrowed and approved
+
+## 12.3 Information Density Floor (Protocol/Infrastructure Topics)
+
+For protocol/spec/infrastructure topics, avoid framework-only compression.
+
+Minimum recommended package:
+
+- one full sample block (for example 12+ lines or 3+ command chain)
+- one anti-pattern block with 3+ items
+- one rollout/checklist block with 5+ concrete checks
+- one boundary sentence that states where the method does not apply
+
 ## 13. Publication and Execution Layering
 
 Keep one source truth with two projections:
@@ -205,6 +254,11 @@ Keep one source truth with two projections:
 
 Do not bury execution fields inside narrative paragraphs unless the document is
 internal-only.
+
+Hard boundary:
+
+- Internal directives (for example `[[BAGAKIT]]`, stage/gate footer lines) are never part of publication text.
+- If traceability metadata is required, place it in appendix/report, not in article body.
 
 ## 14. Field-Level Constraint Writing
 
@@ -308,14 +362,41 @@ Rewrite tactics:
 - convert some list clusters back into explanatory paragraphs
 - replace vague labels with scenario-grounded statements
 
+## 19.1 First-Draft Expansion Protocol
+
+When quality target is first-draft publishability, expand by evidence depth, not filler.
+
+Minimum expansion moves:
+
+- add one concrete failure case and one recovery case
+- add one diagram that makes review order obvious
+- add one full sample block (12+ lines or 3+ command chain)
+- add one rollout checklist (5+ actionable checks)
+
+Section-level expansion pattern:
+
+1. What fails now (concrete symptom).
+2. Why this mechanism fixes it (causal explanation).
+3. What evidence proves it (artifact/signal/threshold).
+4. How to adopt safely (rollout + fallback).
+
+If draft grows in words but does not add these anchors, it is length inflation, not quality improvement.
+
 ## 20. Review Loop and Regression Control
 
 Before each new version:
 
 1. Read previous techniques, gap analysis, and review report.
-2. Preserve proven strengths explicitly.
-3. Tackle only 1-3 high-impact weaknesses.
-4. Record any regression and compensating action.
+2. Produce a `keep / add / tighten` checklist before rewriting.
+3. Preserve proven strengths explicitly.
+4. Tackle only 1-3 high-impact weaknesses.
+5. Record any regression and compensating action.
+
+Regression rule:
+
+- If readability increases while executability drops, the draft is not complete.
+- Any intentional content reduction must state scope cut and evidence in review report.
+- If rewrite compression removes baseline evidence classes, release readiness is not met.
 
 This rule applies to article text, technique docs, and skill docs.
 
@@ -328,6 +409,7 @@ Use these questions before release:
 - Is there at least one explicit failure path and fallback.
 - Are terms stable across article and appendix.
 - Can an implementer start without asking clarifying questions.
+- Is there a concrete evidence pack (not only framework narrative).
 
 If two or more answers are "no", the draft is not release-ready.
 
@@ -336,6 +418,7 @@ If two or more answers are "no", the draft is not release-ready.
 - [ ] Reader and task are explicit in opening.
 - [ ] `H2` count is in range and headings are independently meaningful.
 - [ ] Core sections include at least one concrete example or contrast.
+- [ ] Evidence pack includes at least two anchors (artifact / anti-pattern / rollout signal).
 - [ ] Major claims follow `phenomenon -> mechanism -> evidence -> signal -> action`.
 - [ ] Required execution fields exist with failure handling.
 - [ ] Metrics include sampling protocol.

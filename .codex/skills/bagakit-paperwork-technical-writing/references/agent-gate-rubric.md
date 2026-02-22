@@ -13,7 +13,22 @@ Score each dimension independently.
 | Trigger precision | scope and entry conditions are explicit | no ambiguous trigger overlap | trigger is broad/vague |
 | Standalone integrity | no mandatory hidden external dependency | full local path available | missing required dependency contract |
 | Information architecture | heading/section hierarchy supports fast scan | decision path reconstructable from headings | structure requires full linear reading |
+| Evidence package density | concrete examples + artifact anchors + operational signals | article has reviewable proof, not just framework outline | mostly framework narrative with weak concrete proof |
 | Publish suitability | language is objective, specific, and source-aware | publish-ready with minimal edit | heavy template tone or unsupported claims |
+| First-draft readiness | first draft already contains enough depth anchors | no major expansion needed before publish review | draft is still scaffold-level and needs bulk expansion |
+
+## 1.1 Weighted Final Score (Recommended)
+
+When comparing competing drafts, use a stable weighted formula:
+
+`Final = 0.35*专业性 + 0.30*可验证性 + 0.20*社区美誉度 + 0.15*(10 - AI嫌疑风险)`
+
+Mapping guidance:
+
+- 专业性: execution clarity + trigger precision + standalone integrity
+- 可验证性: evidence package density + explicit validation/threshold linkage
+- 社区美誉度: publish suitability + portability/adoptability
+- AI嫌疑风险: slogan density, template smell, unsupported abstraction level
 
 ## 2. Severity Model
 
@@ -56,17 +71,19 @@ fix: <smallest effective correction>
 
 ## 5. Review Procedure
 
-1. Score all five dimensions.
-2. Emit findings ordered by severity.
-3. Decide `approve` or `revise` using policy.
-4. Record open risks and owner.
-5. If revised, define next deterministic action.
+1. Score all six dimensions.
+2. For medium/high complexity topics, explicitly score evidence-pack retention vs baseline.
+3. Emit findings ordered by severity.
+4. Decide `approve` or `revise` using policy.
+5. Record open risks and owner.
+6. If revised, define next deterministic action.
 
 ## 6. Anti-Pattern Alerts
 
 Flag these as at least `P2` unless justified:
 
 - claims with no evidence path
+- framework-like structure with low evidence density
 - heading hierarchy that hides decision flow
 - ambiguous ownership in execution instructions
 - summary language that replaces operational detail

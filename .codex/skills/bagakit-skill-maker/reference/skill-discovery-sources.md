@@ -32,7 +32,7 @@ Create 2-3 keyword sets:
 
 ### A. Project-local and trusted local context first
 
-- current repo docs (`docs/`, `references/`, `catalog/`, existing `SKILL.md` files),
+- current repo docs (`docs/`, `reference/`, `catalog/`, existing `SKILL.md` files),
 - existing installed skill folders and payload files,
 - existing scripts that may already provide the capability.
 

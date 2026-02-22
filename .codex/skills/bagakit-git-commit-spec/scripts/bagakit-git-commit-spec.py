@@ -23,6 +23,14 @@ UTC_TIMESTAMP_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 SESSION_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$")
 COMMIT_SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")
 DRIVER_NAME_RE = re.compile(r"^[a-z][a-z0-9_-]*$")
+SESSION_ARTIFACTS_LOCAL = "local"
+SESSION_ARTIFACTS_TRACKED = "tracked"
+SESSION_GITIGNORE_TEXT = (
+    "# bagakit-git-commit-spec local mode\n"
+    "# Keep commit-spec session artifacts local by default.\n"
+    "*\n"
+    "!.gitignore\n"
+)
 
 
 def utc_now_iso() -> str:
@@ -87,6 +95,18 @@ def ensure_git_repo(root: Path) -> None:
 
 def skill_dir() -> Path:
     return Path(__file__).resolve().parents[1]
+
+
+def ensure_session_gitignore(root: Path, mode: str) -> Path | None:
+    if mode != SESSION_ARTIFACTS_LOCAL:
+        return None
+
+    ignore_path = root / ".bagakit" / "commit-spec" / ".gitignore"
+    if ignore_path.is_file():
+        return None
+
+    write_text(ignore_path, SESSION_GITIGNORE_TEXT)
+    return ignore_path
 
 
 def detect_driver_signals(root: Path) -> dict[str, bool]:
@@ -429,6 +449,7 @@ def cmd_init(args: argparse.Namespace) -> int:
 
     topic = args.topic.strip()
     slug = slugify(topic)
+    ignored = ensure_session_gitignore(root, args.session_artifacts)
     session = f"{utc_day()}-{slug}"
     session_dir = root / ".bagakit" / "commit-spec" / session
     if session_dir.exists() and not args.force:
@@ -481,6 +502,8 @@ def cmd_init(args: argparse.Namespace) -> int:
         "- archive: <pending>\n",
     )
 
+    if ignored:
+        print(f"wrote: {ignored}")
     print(f"initialized: {session_dir}")
 
     mode = args.install_hooks
@@ -944,6 +967,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_init.add_argument("--root", default=".", help="git repo root")
     p_init.add_argument("--topic", required=True, help="session topic")
     p_init.add_argument("--force", action="store_true", help="overwrite existing session directory")
+    p_init.add_argument(
+        "--session-artifacts",
+        default=SESSION_ARTIFACTS_LOCAL,
+        choices=[SESSION_ARTIFACTS_LOCAL, SESSION_ARTIFACTS_TRACKED],
+        help="local creates .bagakit/commit-spec/.gitignore; tracked keeps session artifacts visible to git",
+    )
     p_init.add_argument(
         "--install-hooks",
         default="ask",

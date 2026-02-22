@@ -14,6 +14,9 @@ Hard gate failure means the draft cannot be marked complete.
 | H1 uniqueness | exactly one H1 | prevents structural ambiguity |
 | H2 range | H2 count in `[3, 5]` by default | keeps scanability and scope control |
 | placeholder hygiene | no `TODO`, `TBD`, `{{...}}`, `待补充` | avoids implicit unfinished state |
+| publish metadata leakage | no `[[BAGAKIT]]` or `- PaperworkWriting:` line in article | prevents internal directive pollution in publish copy |
+| first-draft density floor | when `--profile` is set (non-general), satisfy profile floors for words/cases/diagrams/full-sample anchors | ensures first draft is publish-grade, not a short scaffold |
+| rewrite regression guard | if baseline exists, high-compression rewrite cannot drop multiple evidence classes (`full sample`, `hard evidence`, `anti-pattern`, `rollout/checklist`); and high-content baseline (`>=500` words) cannot be compressed `>45%` without explicit scope-cut note | blocks "clean but hollow" rewrites |
 | checker status | `scripts/check-article.py --strict` exits `0` | ensures objective baseline is met |
 
 ## 2. Warning Gates (human review required)
@@ -26,6 +29,12 @@ Warning gates do not auto-block release, but cannot be silently ignored.
 | generic headings | headings like `问题诊断`, `问题陈述`, `方案设计`, `总结` | rewrite to reader-question or scoped heading |
 | example absence | no explicit markers (`例如`, `比如`, `case`, `before`, `after`) | add at least one concrete example or rationale |
 | AI-tone phrase risk | phrases such as `打稳`, `抓手`, `返工机器`, `接得住` | rewrite into owner/action/signal language |
+| process scaffold leakage | publish article contains planning headings (`Reader contract`, `Task after reading`, `Out of scope`, `Success signal`) | move planning content to outline/review artifacts |
+| suspicious shrink vs baseline | article drops sharply compared with previous version (default threshold 35%) | explain intentional scope cut or recover missing substance |
+| evidence-pack thin | article lacks concrete evidence anchors and reads like framework-only outline | add concrete artifact anchor and operational proof signals |
+| evidence-pack drop vs baseline | baseline has richer evidence anchors than current rewrite | restore key evidence blocks or document intentional scope cut |
+| sample/checklist class drop | baseline has long sample block or rollout checklist but rewrite removes it | restore class-level evidence density or document explicit scope cut |
+| hard-evidence chain drop | baseline has command/path/hash/threshold linkage but rewrite drops that chain | recover traceability chain in body text |
 
 ## 3. Review Recording Contract
 
@@ -60,7 +69,8 @@ Escalation output should define:
 ## 6. Operational Command
 
 ```bash
-python3 scripts/check-article.py --input article.md --strict --report review_report.md
+python3 scripts/check-article.py --input article.md --strict --profile <profile> --report review_report.md
+python3 scripts/check-article.py --input article.md --strict --profile <profile> --baseline previous.md --report review_report.md
 ```
 
 ## 7. Minimal Reviewer Checklist

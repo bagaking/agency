@@ -1,6 +1,6 @@
 ---
 name: bagakit-skill-maker
-description: Create, improve, merge, or refactor portable skills with Bagakit-friendly defaults. Use when you need to scaffold a new skill repo, tighten trigger boundaries, split SKILL.md into scripts/references for progressive disclosure, enforce standalone-first contract rules, or validate runtime payload boundaries.
+description: Create, improve, merge, or refactor portable skills with Bagakit-friendly defaults. Use when you need to scaffold a new skill repo, tighten trigger boundaries, split SKILL.md into scripts/reference/tpl/gate layers for progressive disclosure, enforce standalone-first contract rules, or validate runtime payload boundaries.
 ---
 
 # Bagakit Skill Maker
@@ -62,6 +62,24 @@ Build skills that are:
 - If a strict gate is required regardless of who executes, and extra autonomy does not improve outcomes, escalate to programmatic validation or strict SOP.
 - Promote guidance to hard gates only when repeated production failures prove it is necessary.
 
+## Complexity Guardrails (Anti-Bloat Checks)
+
+- `预设偏多` / preset-heavy:
+  - Keep assumptions minimal; move scenario-specific presets to optional profiles/examples.
+  - Check: list all defaults in one place and justify each default briefly.
+- `实现偏重` / implementation-heavy:
+  - Do not solve reasoning quality by adding scripts first.
+  - Check: keep qualitative quality in prompt rubric/checklist review before adding code gates.
+- `默认行为太多` / too many defaults:
+  - Keep one default path and mark all other behaviors optional.
+  - Check: remove hidden defaults outside one declared default-route section.
+- `校验过硬` / over-hard validation:
+  - Scripts should gate objective invariants only, not qualitative depth.
+  - Check: qualitative checks remain warning/rubric-based and agent-reviewed.
+- `约束分散` / scattered constraints:
+  - Keep constraints under a single-source section and reference it elsewhere.
+  - Check: avoid duplicating must-rules across sections/scripts without single-source notes.
+
 ## Metadata Contract Principle (Semantic-First)
 
 - Prefer semantic generic keys over workflow-specific key proliferation.
@@ -73,10 +91,25 @@ Build skills that are:
 - For machine-readable metadata blocks embedded in Markdown artifacts, prefer TOML frontmatter (`+++`), not YAML frontmatter (`---`).
 - Exception: SKILL.md header/frontmatter stays YAML because runtime toolchains commonly expect YAML there.
 
+## Reference Layout Principle
+
+- Keep reference docs in `reference/`.
+- Keep reusable templates in `reference/tpl/`.
+- Avoid mixing templates into general docs; keep intent boundary clear for retrieval.
+
+## Gate Layout Principle (Validation Protocol)
+
+- Keep validation protocol assets in `gate/`.
+- Use one case directory per validation domain (for example `gate/anti-patterns/`).
+- Each case directory must include:
+  - `rules.toml` as single-source validation rules,
+  - at least one `check-*.py|sh|js|ts` script that reads `rules.toml`.
+- Keep runtime execution scripts in `scripts/`; keep validation scripts in `gate/`.
+
 ## Open Discovery Principle (Avoid Closed-Door Design)
 
 - For unresolved skill problems, discovery is mandatory before implementation.
-- Use `references/skill-discovery-sources.md` as the default discovery playbook:
+- Use `reference/skill-discovery-sources.md` as the default discovery playbook:
   1. define keyword sets,
   2. search ordered source layers,
   3. compare at least three candidates from the discovery yellow pages,
@@ -92,6 +125,7 @@ Build skills that are:
 | Granularity | Multiple unrelated workflows mixed | split or merge based on shared foundation |
 | Contract coupling | Required direct call to other skill scripts | convert to optional schema/signal contract |
 | Metadata contract | one key per adapter/system; hard-coded workflow fields | use semantic generic keys + parseable `*_meta`; prefer TOML frontmatter in machine-readable artifacts |
+| Capability layering | macro/process/tool/micro boundary is unclear | classify into macro-process, macro-tool, or micro-pack and choose the right host repo |
 | Payload boundary | runtime/dev files mixed together | trim `SKILL_PAYLOAD.json` to runtime-only payload |
 | Packaging contract | `package-skill` outputs unstable/non-deterministic path | enforce `<DIST_DIR>/<SKILL_NAME>.skill`, support `DIST_DIR` override |
 | Path portability | generated files leak local absolute paths | use relative paths or environment-variable-based paths |
@@ -102,7 +136,7 @@ Build skills that are:
 
 0) Search-first discovery before creation/improvement.
 - Do not start implementation immediately for unresolved problems.
-- Use `references/skill-discovery-sources.md` as the default discovery path.
+- Use `reference/skill-discovery-sources.md` as the default discovery path.
 - Do not assume any specific discovery skill/CLI is installed; keep discovery flow standalone.
 - Search in this order:
   1. project-local docs/contracts and known skill catalogs first,
@@ -122,6 +156,9 @@ Build skills that are:
 - Keep one skill focused on one operational job. Split if triggers diverge.
 - If user asks to improve one existing skill, keep compatible semantics but remove ambiguity and redundant instructions.
 - If user asks to merge multiple skills, combine overlapping workflows into one portable skill with clear sections and one validation contract.
+- Decide capability layer and hosting:
+  - `macro-process` / `macro-tool`: can be considered for core meta-repo onboarding.
+  - `micro-pack`: should be grouped into domain packs; avoid one-repo-per-micro-skill in core.
 
 3) Classify deliverable archetype and output routes.
 - Decide the skill's primary deliverable archetype (for example execution/result-heavy, process-driver, memory/governance).
@@ -139,19 +176,27 @@ Build skills that are:
 - If Bagakit profile is enabled, document concrete adapter mapping as optional examples only.
 - Route selection must be capability/contract-driven; avoid name-bound routing like "if feat-harness then ... else if openspec ...".
 - Reuse guidance pack checklists/examples before adding any new hard schema constraints.
+- Run complexity guardrails review before adding defaults/scripts/gates:
+  - reject preset-heavy drift,
+  - reject implementation-heavy drift,
+  - reject too-many-defaults drift,
+  - reject over-hard-validation drift,
+  - reject scattered-constraints drift.
 - Define archive gate: every output must have an explicit destination path/id before task can be marked complete.
 
 5) Plan progressive disclosure.
 - Keep SKILL.md as an execution map, not a giant handbook.
-- Move deep details into `references/`.
-- Put deterministic/fragile steps into executable scripts under `scripts/`.
+- Move deep details into `reference/`.
+- Put deterministic/fragile execution steps into `scripts/`.
+- Put validation rules + scripts into `gate/<case>/`.
 
 6) Scaffold and edit.
 - Run:
 ```bash
 sh scripts/bagakit_skill_maker.sh init --name <skill-name> --path <output-dir> [--with-agents]
 ```
-- Fill generated SKILL.md/references/scripts with project-specific content.
+- Fill generated `SKILL.md`, `reference/`, `reference/tpl/`, and `scripts/` with project-specific content.
+- Fill generated `gate/<case>/rules.toml` and `gate/<case>/check-*` files for each validation case.
 
 7) Enforce core constraints + Bagakit profile defaults.
 - Run:
@@ -159,8 +204,10 @@ sh scripts/bagakit_skill_maker.sh init --name <skill-name> --path <output-dir> [
 sh scripts/bagakit_skill_maker.sh validate --skill-dir <skill-dir>
 ```
 - Ensure `SKILL_PAYLOAD.json` excludes `README.md` and only ships runtime payload.
+- Ensure `SKILL_PAYLOAD.json` includes `gate/` as the validation protocol root.
 - Ensure cross-skill interaction is optional and schema/rule-driven, never mandatory direct flow-call.
 - Ensure `SKILL.md` keeps a bounded context budget (default hard gate: `<= 500` lines).
+- Ensure every validation case directory under `gate/` includes `rules.toml` + at least one `check-*` script.
 - Ensure `Makefile package-skill` honors `DIST_DIR` and emits artifact at `<DIST_DIR>/<SKILL_NAME>.skill`.
 - Ensure generated runtime/docs files do not contain absolute path literals; use relative/env-based paths only.
 - Ensure `SKILL.md` defines output routes + archive gate as completion criteria.
@@ -171,7 +218,7 @@ sh scripts/bagakit_skill_maker.sh validate --skill-dir <skill-dir>
 8) Iterate from production misses.
 - If over-triggering: narrow frontmatter description with stronger boundaries.
 - If under-triggering: add concrete trigger phrases and file/task examples.
-- Promote repeated manual fixes into scripts or references.
+- Promote repeated manual fixes into scripts or reference docs/templates.
 - If granularity drifts, trigger split/merge with an explicit improve plan + verification matrix.
 
 9) Project-local evolution.
@@ -209,13 +256,15 @@ sh scripts/bagakit_skill_maker.sh validate --skill-dir <skill-dir>
 
 ## Design Guide
 
-- Use progressive references:
-  - `references/core-design-guide.md` (portable core rules; always apply)
-  - `references/bagakit-profile-guide.md` (Bagakit profile overlay; required for `bagakit-*`)
-  - `references/skill-discovery-sources.md` (search-first sources and strategy)
-  - `references/guidance-pack-patterns.md` (recommended output/archive patterns)
-  - `references/guidance-pack-anti-patterns.md` (what to avoid)
-  - `references/guidance-pack-examples.md` (copy-ready examples)
+- Use progressive reference docs/templates:
+  - `reference/core-design-guide.md` (portable core rules; always apply)
+  - `reference/bagakit-profile-guide.md` (Bagakit profile overlay; required for `bagakit-*`)
+  - `reference/skill-discovery-sources.md` (search-first sources and strategy)
+  - `reference/guidance-pack/patterns.md` (recommended output/archive patterns)
+  - `reference/guidance-pack/anti-patterns.md` (what to avoid)
+  - `reference/guidance-pack/examples.md` (copy-ready examples)
+  - `gate/anti-patterns/rules.toml` (machine-readable anti-bloat validation rules)
+  - `gate/anti-patterns/check-anti-patterns.py` (rule-driven anti-bloat checker)
 - For generic/non-Bagakit skills, apply core guide only.
 
 ## `[[BAGAKIT]]` RFDP (Response Footer Driven Protocol)
@@ -243,7 +292,7 @@ Technique notes:
 
 ```text
 Result: created <skill-name> with clear trigger boundary.
-Checks: validate pass + payload gate pass.
+Checks: validate pass + payload gate pass + gate protocol pass.
 Next: run one positive and one negative trigger scenario.
 ```
 
@@ -251,7 +300,7 @@ Next: run one positive and one negative trigger scenario.
 
 ```text
 Result: improved <skill-name> by tightening scope and removing ambiguity.
-Checks: before/after trigger matrix + validate pass.
+Checks: before/after trigger matrix + validate pass + gate protocol pass.
 Next: observe one production round and collect misses.
 ```
 
@@ -259,7 +308,7 @@ Next: observe one production round and collect misses.
 
 ```text
 Result: merged <skill-a>/<skill-b>/... into one coherent skill.
-Checks: merge map + de-dup rationale + validate pass.
+Checks: merge map + de-dup rationale + validate pass + gate protocol pass.
 Next: run post-merge trigger matrix and adjust boundaries.
 ```
 
@@ -277,6 +326,7 @@ When asked to create/refactor a skill, output:
 - target folder layout,
 - final SKILL frontmatter + core workflow sections,
 - runtime payload decision (`SKILL_PAYLOAD.json`),
+- gate protocol decision (`gate/<case>/rules.toml` + `check-*` coverage),
 - output map (what outputs, default route, adapter routes),
 - archive gate design (completion criteria + destination reporting),
 - granularity decision (keep/split/merge + rationale),

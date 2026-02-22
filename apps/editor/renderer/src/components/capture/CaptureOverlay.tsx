@@ -10,6 +10,23 @@ const getCaptureParams = () => {
   };
 };
 
+const formatCaptureLoadError = (err) => {
+  const message = String(err?.message || '').trim();
+  if (!message) {
+    return 'Failed to load capture source.';
+  }
+  if (message.includes('Failed to get sources')) {
+    return `${message} Check Screen Recording permission and retry.`;
+  }
+  if (
+    message.includes('Screen Recording permission') ||
+    message.includes('Screen recording permission')
+  ) {
+    return `${message}`;
+  }
+  return message;
+};
+
 export function CaptureOverlay() {
   const { requestId, displayId } = useMemo(getCaptureParams, []);
   const canvasRef = useRef(null);
@@ -38,7 +55,7 @@ export function CaptureOverlay() {
       }
       setImageSrc(source.dataUrl);
     } catch (err) {
-      setError(err?.message || 'Failed to load capture source.');
+      setError(formatCaptureLoadError(err));
     } finally {
       setLoading(false);
     }
@@ -117,8 +134,24 @@ export function CaptureOverlay() {
           Preparing capture...
         </div>
       ) : error ? (
-        <div className="absolute inset-0 flex items-center justify-center text-rose-300 text-sm">
-          {error}
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm">
+          <div className="max-w-[640px] text-rose-300">{error}</div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={loadSource}
+              className="rounded border border-white/20 px-3 py-1 text-white/80 transition-colors hover:bg-white/10"
+            >
+              Retry
+            </button>
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="rounded border border-white/20 px-3 py-1 text-white/80 transition-colors hover:bg-white/10"
+            >
+              Close
+            </button>
+          </div>
         </div>
       ) : (
         <CaptureCanvas

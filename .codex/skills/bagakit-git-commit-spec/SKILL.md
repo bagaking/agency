@@ -148,6 +148,9 @@ Required GFM sections:
 ```bash
 sh scripts/bagakit-git-commit-spec.sh init --root . --topic "<topic>" --install-hooks ask
 ```
+- Default session artifact mode is `local`: the command writes
+  `.bagakit/commit-spec/.gitignore` to keep commit-spec session files local.
+  Use `--session-artifacts tracked` when these artifacts should be versioned.
 
 2) Build change inventory and split suggestion.
 - Run:
