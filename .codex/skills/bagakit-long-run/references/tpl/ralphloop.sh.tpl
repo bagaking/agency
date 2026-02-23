@@ -26,6 +26,11 @@ if [[ ! -f "$loop_tool" ]]; then
   exit 1
 fi
 
+msg_file="${harness_dir}/ralph-msg.md"
+if [[ ! -f "$msg_file" ]]; then
+  : > "$msg_file"
+fi
+
 command="$1"
 shift || true
 

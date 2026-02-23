@@ -54,6 +54,16 @@ It is not responsible for:
 - every detect/initializer/coding response ends with `[[BAGAKIT]]` and a peer line `- LongRun: Item=...; Status=...; Confidence=...; Evidence=...; Next=...`.
 - if you stop a session without continuing the loop right now, add a peer line `- LongRunStop: Reason=...; Retro=...` explaining why you stop (and why the plan cannot be fully completed if not done).
 
+## **Outer Orchestrator Runner** (Core Concept)
+
+- `outer orchestrator runner` 指项目内的外层调度器（默认 `.bagakit/long-run/ralphloop-runner.sh`），职责是循环调用 `ralphloop.sh run --endless`，而不是执行业务逻辑。
+- Runner 必须保持 orchestration-only：只做命令调度、失败停止、边界保护、日志观测。
+- Runner 必须支持安全边界参数（至少）：
+  - `RALPHLOOP_MAX_ROUNDS`：最大轮数（`0` 表示不限）。
+  - `RALPHLOOP_MAX_RUNTIME_SECONDS`：最大运行时长（秒，`0` 表示不限）。
+  - `RALPHLOOP_MAX_INTERVAL_SECONDS`：轮询最大间隔上限（用于约束 `RALPHLOOP_SLEEP_SECONDS`）。
+- Runner 必须输出可观测日志（终端 + 文件），默认日志文件建议：`.bagakit/long-run/logs/ralphloop-runner.log`。
+
 ## Outer Orchestrator Checklist (Required)
 
 Before claiming continuous-loop readiness, complete all steps:
@@ -68,6 +78,8 @@ Before claiming continuous-loop readiness, complete all steps:
 3. Script implementation:
 - keep `ralphloop.sh` as single-step (`pulse`/`run`) contract entry.
 - keep `ralphloop-runner.sh` as outer infinite loop orchestrator.
+- support safety params: `RALPHLOOP_MAX_ROUNDS`, `RALPHLOOP_MAX_RUNTIME_SECONDS`, `RALPHLOOP_MAX_INTERVAL_SECONDS`.
+- keep log output enabled (`RALPHLOOP_LOG_FILE`, optional `RALPHLOOP_JSON_MODE=1`).
 4. Dry-run verification:
 - run `bash .bagakit/long-run/ralphloop.sh run --endless --dry-run --json`.
 5. End-to-end smoke test:
@@ -115,9 +127,15 @@ Behavior:
 - if `BAGAKIT_AGENT_CMD`/`BAGAKIT_AGENT_CLI` is configured, loop continuously: pulse -> agent dispatch -> next round
 - `run` rejects interactive/TUI-looking commands for known CLIs; use non-interactive command forms.
 - if agent command is missing, runner falls back to one `pulse --endless`
+- runner safety/observability envs:
+  - `RALPHLOOP_MAX_ROUNDS`, `RALPHLOOP_MAX_RUNTIME_SECONDS`, `RALPHLOOP_MAX_INTERVAL_SECONDS`
+  - `RALPHLOOP_LOG_FILE` (default `.bagakit/long-run/logs/ralphloop-runner.log`), `RALPHLOOP_JSON_MODE=1`
 - `run` mode dispatches prompts by status:
   - `actionable` -> `initializer_prompt.md` then `coding_prompt.md`
   - `endless_prompt_ready` -> `endless_expand_prompt.md`
+- async message inbox:
+  - `.bagakit/long-run/ralph-msg.md` is lazily created.
+  - top segment (split by `---`) is injected into this round as user message and moved to `.bagakit/long-run/ralph-msg.consumed.md` (prepended with timestamp + ralph context).
 
 5) Pulse entry (single-step fallback)
 

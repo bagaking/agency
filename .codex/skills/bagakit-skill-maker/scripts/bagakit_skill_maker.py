@@ -132,6 +132,19 @@ COMPLEXITY_STRICT_THRESHOLD = 90
 COMPLEXITY_COMMAND_THRESHOLD = 30
 COMPLEXITY_CONSTRAINT_HEADING_THRESHOLD = 4
 COMPLEXITY_SINGLE_SOURCE_TERMS_DEFAULT = ("single source", "single-source", "单一来源", "单一约束源")
+DISCOVERY_DIR_NAME = "discovery"
+DISCOVERY_LOG_BASENAME = "discovery-log.md"
+DISCOVERY_TEMPLATE_BASENAME = "discovery-log-tpl.md"
+DISCOVERY_MIN_SOURCE_ENTRIES = 3
+DISCOVERY_SOURCE_LINE_RE = re.compile(r"(?im)^\s*-\s*(?:source|来源)\s*[:：]\s*\S")
+DISCOVERY_PLACEHOLDER_RE = re.compile(r"(?i)\b(?:todo|tbd|placeholder)\b|待补|待填写|待定")
+DISCOVERY_ENTRY_FIELD_PATTERNS: dict[str, re.Pattern[str]] = {
+    "checked": re.compile(r"(?im)^\s*-\s*(?:checked|what checked|查看内容|查看了什么)\s*[:：]\s*\S"),
+    "relevance": re.compile(r"(?im)^\s*-\s*(?:relevance|关联度)\s*[:：]\s*\S"),
+    "usefulness": re.compile(r"(?im)^\s*-\s*(?:usefulness|有用程度)\s*[:：]\s*\S"),
+    "value": re.compile(r"(?im)^\s*-\s*(?:value|价值|价值判断)\s*[:：]\s*\S"),
+    "reference-plan": re.compile(r"(?im)^\s*-\s*(?:reference plan|参考计划|如何参考|复用计划)\s*[:：]\s*\S"),
+}
 
 
 class TomlDecodeError(ValueError):
@@ -313,6 +326,7 @@ description: TODO: describe what this skill does and exactly when to use it.
 - Keep this skill focused on one coherent operational job.
 - Put "when to use" trigger details in frontmatter `description`.
 - Keep the skill standalone-first.
+- Enforce search-first discovery as a required gate before implementation.
 - Generated files should avoid absolute paths; use relative paths or env variables.
 - Keep references organized: docs under `reference/`, templates under `reference/tpl/`.
 - Keep validation protocol assets under `gate/<case>/` (`rules.toml` + `check-*.py|sh|js|ts`).
@@ -343,6 +357,7 @@ description: TODO: describe what this skill does and exactly when to use it.
 
 ## Workflow
 
+0. Run mandatory discovery first, then archive evidence at `reference/discovery/discovery-log.md`.
 1. Capture concrete triggering and non-triggering examples.
 2. Keep SKILL.md concise; move deep material to `reference/` and templates to `reference/tpl/`.
 3. Put deterministic/fragile execution steps into `scripts/`.
@@ -390,7 +405,23 @@ description: TODO: describe what this skill does and exactly when to use it.
 
 - Put explanatory docs and guides under `reference/`.
 - Put reusable templates under `reference/tpl/`.
+- Keep discovery evidence under `reference/discovery/`.
 - Avoid mixing templates into generic docs to keep reference hierarchy clean.
+
+## Discovery Evidence (Mandatory)
+
+- Discovery is a hard gate: do not proceed to implementation before search evidence is recorded.
+- Persist discovery evidence at `reference/discovery/discovery-log.md`.
+- Use template `reference/tpl/discovery-log-tpl.md` as the default format.
+- Category headings are task-driven and flexible (for example `skills`, `权威资料`, `论文`, `开源库`).
+- Under each category, record concrete inspected items and include:
+  - `Source/来源`,
+  - `Checked/查看内容`,
+  - `Relevance/关联度`,
+  - `Usefulness/有用程度`,
+  - `Value/价值`,
+  - `Reference Plan/参考计划`.
+- Minimum evidence: at least 3 source entries.
 
 ## Gate Layout (Validation Protocol)
 
@@ -432,7 +463,7 @@ description: TODO: describe what this skill does and exactly when to use it.
 
 ```text
 Result: created <skill-name> with clear trigger boundary.
-Checks: validate pass + payload gate pass + output/archive gate pass.
+Checks: discovery gate pass + validate pass + payload gate pass + output/archive gate pass.
 Next: run one positive and one negative trigger scenario.
 ```
 
@@ -440,7 +471,7 @@ Next: run one positive and one negative trigger scenario.
 
 ```text
 Result: improved existing skill by narrowing trigger scope and reducing ambiguity.
-Checks: before/after trigger matrix + validate pass + output/archive map verified.
+Checks: discovery gate pass + before/after trigger matrix + validate pass + output/archive map verified.
 Next: observe one production round and collect misses.
 ```
 
@@ -448,7 +479,7 @@ Next: observe one production round and collect misses.
 
 ```text
 Result: merged overlapping skills into one coherent scope and contract.
-Checks: merge map + de-dup rationale + validate pass + archive handoff path verified.
+Checks: discovery gate pass + merge map + de-dup rationale + validate pass + archive handoff path verified.
 Next: run post-merge trigger matrix and adjust boundaries.
 ```
 
@@ -477,6 +508,100 @@ def build_openai_yaml(name: str) -> str:
         "  short_description: \"TODO: short UI summary\"\n"
         "  default_prompt: \"TODO: one-line default instruction\"\n"
     )
+
+
+def build_discovery_log_template() -> str:
+    return """# Discovery Log Template
+
+Use this template before implementation. Category titles are task-driven; examples are only hints.
+
+## skills
+
+- Source: <skill path/url>
+- Checked: <what you inspected>
+- Relevance: <high|medium|low + reason>
+- Usefulness: <high|medium|low + reason>
+- Value: <expected impact and reuse value>
+- Reference Plan: <how to reuse/adapt/reject in target skill>
+
+## 权威资料
+
+- 来源: <官方文档/标准链接>
+- 查看内容: <阅读了哪些部分>
+- 关联度: <高/中/低 + 原因>
+- 有用程度: <高/中/低 + 原因>
+- 价值: <对当前任务的价值>
+- 参考计划: <如何落地到目标 skill>
+
+## 论文
+
+- Source: <paper url/path>
+- Checked: <abstract/method/eval sections>
+- Relevance: <high|medium|low + reason>
+- Usefulness: <high|medium|low + reason>
+- Value: <methodological value>
+- Reference Plan: <what to adopt or reject>
+
+## 开源库
+
+- 来源: <repo url/path>
+- 查看内容: <readme/docs/code areas>
+- 关联度: <高/中/低 + 原因>
+- 有用程度: <高/中/低 + 原因>
+- 价值: <engineering value>
+- 参考计划: <reuse/adapt/reject + rationale>
+"""
+
+
+def build_discovery_log_seed() -> str:
+    return """# Discovery Log
+
+> Discovery is mandatory. Do not implement before filling this log.
+
+## <category-1>
+
+- Source: TODO
+- Checked: TODO
+- Relevance: TODO
+- Usefulness: TODO
+- Value: TODO
+- Reference Plan: TODO
+
+## <category-2>
+
+- Source: TODO
+- Checked: TODO
+- Relevance: TODO
+- Usefulness: TODO
+- Value: TODO
+- Reference Plan: TODO
+
+## <category-3>
+
+- Source: TODO
+- Checked: TODO
+- Relevance: TODO
+- Usefulness: TODO
+- Value: TODO
+- Reference Plan: TODO
+"""
+
+
+def build_discovery_readme() -> str:
+    return """# Discovery Evidence
+
+Store mandatory search evidence here before implementation.
+
+- Required log file: `discovery-log.md`
+- Template: `../tpl/discovery-log-tpl.md`
+- Each entry must include:
+  - `Source/来源`
+  - `Checked/查看内容`
+  - `Relevance/关联度`
+  - `Usefulness/有用程度`
+  - `Value/价值`
+  - `Reference Plan/参考计划`
+"""
 
 
 def build_gate_anti_patterns_rules_toml() -> str:
@@ -774,6 +899,7 @@ def cmd_init(args: argparse.Namespace) -> int:
 
     skill_dir.mkdir(parents=True, exist_ok=False)
     (skill_dir / REFERENCE_DIR_CANONICAL / "tpl").mkdir(parents=True, exist_ok=True)
+    (skill_dir / REFERENCE_DIR_CANONICAL / DISCOVERY_DIR_NAME).mkdir(parents=True, exist_ok=True)
     (skill_dir / "scripts").mkdir(parents=True, exist_ok=True)
     (skill_dir / GATE_DIR / ANTI_PATTERNS_GATE_CASE).mkdir(parents=True, exist_ok=True)
 
@@ -790,6 +916,18 @@ def cmd_init(args: argparse.Namespace) -> int:
         skill_dir / REFERENCE_DIR_CANONICAL / "tpl" / "template-note.md",
         "# Template Note\n\nPut reusable markdown/json templates in this folder.\n",
     )
+    write_text(
+        skill_dir / REFERENCE_DIR_CANONICAL / "tpl" / DISCOVERY_TEMPLATE_BASENAME,
+        build_discovery_log_template(),
+    )
+    write_text(
+        skill_dir / REFERENCE_DIR_CANONICAL / DISCOVERY_DIR_NAME / "README.md",
+        build_discovery_readme(),
+    )
+    write_text(
+        skill_dir / REFERENCE_DIR_CANONICAL / DISCOVERY_DIR_NAME / DISCOVERY_LOG_BASENAME,
+        build_discovery_log_seed(),
+    )
     write_text(skill_dir / GATE_DIR / "README.md", build_gate_readme())
     write_text(
         skill_dir / GATE_DIR / ANTI_PATTERNS_GATE_CASE / ANTI_PATTERNS_GATE_RULES,
@@ -805,7 +943,11 @@ def cmd_init(args: argparse.Namespace) -> int:
     print(f"created: {skill_dir}")
     print("next:")
     print(f"  1) edit {skill_dir / 'SKILL.md'}")
-    print(f"  2) run: {Path(__file__).name} validate --skill-dir {skill_dir}")
+    print(
+        "  2) fill discovery evidence: "
+        f"{skill_dir / REFERENCE_DIR_CANONICAL / DISCOVERY_DIR_NAME / DISCOVERY_LOG_BASENAME}"
+    )
+    print(f"  3) run: {Path(__file__).name} validate --skill-dir {skill_dir}")
     return 0
 
 
@@ -1001,6 +1143,87 @@ def detect_reference_layout(skill_dir: Path) -> tuple[bool, bool]:
     has_canonical = (skill_dir / REFERENCE_DIR_CANONICAL).exists()
     has_legacy = (skill_dir / REFERENCE_DIR_LEGACY).exists()
     return has_canonical, has_legacy
+
+
+def resolve_reference_root(skill_dir: Path) -> Path | None:
+    canonical = skill_dir / REFERENCE_DIR_CANONICAL
+    legacy = skill_dir / REFERENCE_DIR_LEGACY
+    if canonical.is_dir():
+        return canonical
+    if legacy.is_dir():
+        return legacy
+    return None
+
+
+def scan_discovery_evidence(skill_dir: Path) -> tuple[list[str], list[str]]:
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    reference_root = resolve_reference_root(skill_dir)
+    if reference_root is None:
+        errors.append(
+            f"missing {REFERENCE_DIR_CANONICAL}/ (or legacy {REFERENCE_DIR_LEGACY}/); discovery evidence requires "
+            f"{REFERENCE_DIR_CANONICAL}/{DISCOVERY_DIR_NAME}/{DISCOVERY_LOG_BASENAME}"
+        )
+        return errors, warnings
+
+    discovery_dir = reference_root / DISCOVERY_DIR_NAME
+    rel_discovery_dir = discovery_dir.relative_to(skill_dir).as_posix()
+    if not discovery_dir.is_dir():
+        errors.append(f"missing mandatory discovery directory: {rel_discovery_dir}")
+        return errors, warnings
+
+    discovery_log = discovery_dir / DISCOVERY_LOG_BASENAME
+    rel_discovery_log = discovery_log.relative_to(skill_dir).as_posix()
+    if not discovery_log.is_file():
+        errors.append(f"missing mandatory discovery log: {rel_discovery_log}")
+        return errors, warnings
+
+    text = discovery_log.read_text(encoding="utf-8")
+    category_headings = re.findall(r"(?m)^##\s+\S", text)
+    if len(category_headings) < 1:
+        errors.append(f"{rel_discovery_log} must include task-driven category headings (use at least one `## <category>`)")
+    for heading in category_headings:
+        if DISCOVERY_PLACEHOLDER_RE.search(heading) or "<category" in heading.lower():
+            errors.append(
+                f"{rel_discovery_log} contains placeholder category heading: {heading.strip()}; "
+                "replace with task-specific category titles"
+            )
+
+    source_matches = list(DISCOVERY_SOURCE_LINE_RE.finditer(text))
+    if len(source_matches) < DISCOVERY_MIN_SOURCE_ENTRIES:
+        errors.append(
+            f"{rel_discovery_log} must include at least {DISCOVERY_MIN_SOURCE_ENTRIES} discovery source entries "
+            "(`- Source:` or `- 来源:`)"
+        )
+        return errors, warnings
+
+    for idx, match in enumerate(source_matches, start=1):
+        start = match.start()
+        end = source_matches[idx].start() if idx < len(source_matches) else len(text)
+        block = text[start:end]
+        missing_fields = [
+            field for field, pattern in DISCOVERY_ENTRY_FIELD_PATTERNS.items() if not pattern.search(block)
+        ]
+        if missing_fields:
+            errors.append(
+                f"{rel_discovery_log} entry #{idx} missing fields: {', '.join(missing_fields)} "
+                "(required: Source/Checked/Relevance/Usefulness/Value/Reference Plan)"
+            )
+        if DISCOVERY_PLACEHOLDER_RE.search(block):
+            errors.append(
+                f"{rel_discovery_log} entry #{idx} contains placeholder tokens (TODO/TBD/etc); "
+                "discovery gate requires concrete inspected content"
+            )
+
+    tpl_file = reference_root / "tpl" / DISCOVERY_TEMPLATE_BASENAME
+    rel_tpl_file = tpl_file.relative_to(skill_dir).as_posix()
+    if not tpl_file.is_file():
+        warnings.append(
+            f"missing discovery template: {rel_tpl_file}; add tpl for consistent search evidence capture"
+        )
+
+    return errors, warnings
 
 
 def scan_gate_layout(skill_dir: Path) -> tuple[list[str], list[str]]:
@@ -1355,6 +1578,10 @@ def cmd_validate(args: argparse.Namespace) -> int:
             warnings.append(
                 "both reference/ and references/ exist; prefer one canonical layout (reference/ + reference/tpl)"
             )
+
+    discovery_errors, discovery_warnings = scan_discovery_evidence(skill_dir)
+    errors.extend(discovery_errors)
+    warnings.extend(discovery_warnings)
 
     lines = skill_text.splitlines()
     if len(lines) > MAX_SKILL_LINES:

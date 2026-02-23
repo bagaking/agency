@@ -13,3 +13,11 @@ This project uses Bagakit memory (`docs/.bagakit/{inbox,memory}/`) to capture re
 
 ## Why SOP (no hooks)
 Agent runtimes may not provide reliable stop hooks. The SOP above is the default trigger mechanism.
+
+## Optional Skill Suggestions in Inbox
+
+When recurring work suggests a new skill or a skill update, capture it as a normal inbox note (no extra abstraction artifact required):
+
+```bash
+sh "$BAGAKIT_LIVING_DOCS_SKILL_DIR/scripts/living-docs-inbox.sh" suggest-skill update bagakit-living-docs --root . --kind decision --title "Improve memory recall workflow" --evidence "docs/.bagakit/inbox has repeated manual merge notes"
+```

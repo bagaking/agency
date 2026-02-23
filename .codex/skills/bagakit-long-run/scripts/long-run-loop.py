@@ -5,15 +5,19 @@ This runner intentionally stays small:
 - run check_and_resume
 - surface next actionable row
 - when no row and --endless, generate an expansion prompt for the agent
+- optionally consume async user message from .bagakit/long-run/ralph-msg.md and inject into run prompts
 """
 
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import os
+import re
 import shlex
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -35,6 +39,8 @@ NON_INTERACTIVE_HINTS = (
     " {prompt_file} ",
     " {prompt_text} ",
 )
+
+MESSAGE_SEPARATOR_RE = re.compile(r"(?m)^\s*---\s*$")
 
 
 def read_json(path: Path) -> Dict[str, Any]:
@@ -103,6 +109,110 @@ def read_project_profile(profile_file: Path) -> Dict[str, Any]:
         return {}
     data = read_json(profile_file)
     return data if isinstance(data, dict) else {}
+
+
+def ensure_async_message_file(harness_dir: Path) -> Path:
+    msg_file = harness_dir / "ralph-msg.md"
+    msg_file.parent.mkdir(parents=True, exist_ok=True)
+    if not msg_file.exists():
+        msg_file.write_text("", encoding="utf-8")
+    return msg_file
+
+
+def split_async_message_segments(text: str) -> List[str]:
+    return MESSAGE_SEPARATOR_RE.split(text)
+
+
+def join_async_message_segments(segments: List[str]) -> str:
+    normalized = [segment.strip("\n") for segment in segments if segment.strip()]
+    if not normalized:
+        return ""
+    return "\n\n---\n\n".join(normalized) + "\n"
+
+
+def render_consumed_message_entry(
+    message_text: str,
+    pulse_payload: Dict[str, Any],
+    prompt_files: List[Path],
+) -> str:
+    consumed_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    pulse_status = str(pulse_payload.get("status", "")).strip() or "unknown"
+    next_row_id = str(pulse_payload.get("next_row_id", "")).strip() or "-"
+    next_row_title = str(pulse_payload.get("next_row_title", "")).strip() or "-"
+    prompt_targets = ", ".join(path.name for path in prompt_files) if prompt_files else "-"
+    return (
+        f"## Consumed At {consumed_at}\n"
+        f"- pulse_status: {pulse_status}\n"
+        f"- next_row_id: {next_row_id}\n"
+        f"- next_row_title: {next_row_title}\n"
+        f"- prompt_targets: {prompt_targets}\n"
+        "\n"
+        "### User Message\n"
+        f"{message_text.strip()}\n"
+    )
+
+
+def consume_async_message(
+    harness_dir: Path,
+    pulse_payload: Dict[str, Any],
+    prompt_files: List[Path],
+) -> str:
+    msg_file = ensure_async_message_file(harness_dir)
+    raw = msg_file.read_text(encoding="utf-8")
+    segments = split_async_message_segments(raw)
+    if not segments:
+        return ""
+
+    first_non_empty = -1
+    for index, segment in enumerate(segments):
+        if segment.strip():
+            first_non_empty = index
+            break
+    if first_non_empty < 0:
+        return ""
+
+    message_text = segments[first_non_empty].strip()
+    remaining = segments[first_non_empty + 1 :]
+    msg_file.write_text(join_async_message_segments(remaining), encoding="utf-8")
+
+    consumed_file = harness_dir / "ralph-msg.consumed.md"
+    consumed_entry = render_consumed_message_entry(message_text, pulse_payload, prompt_files).strip() + "\n"
+    if consumed_file.exists():
+        existing = consumed_file.read_text(encoding="utf-8")
+    else:
+        existing = ""
+    if existing.strip():
+        merged = f"{consumed_entry}\n---\n\n{existing.lstrip()}"
+    else:
+        merged = consumed_entry
+    consumed_file.write_text(merged, encoding="utf-8")
+    return message_text
+
+
+def build_injected_prompt_content(prompt_file: Path, message_text: str) -> str:
+    original = prompt_file.read_text(encoding="utf-8")
+    return (
+        "# Async Ralph User Message\n\n"
+        "以下内容来自 `.bagakit/long-run/ralph-msg.md` 顶部留言，作为本轮 user messages 注入：\n\n"
+        f"{message_text.strip()}\n\n"
+        "---\n\n"
+        f"{original}"
+    )
+
+
+def materialize_injected_prompt(harness_dir: Path, prompt_file: Path, message_text: str) -> Path:
+    content = build_injected_prompt_content(prompt_file, message_text)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        delete=False,
+        prefix=f".{prompt_file.stem}.ralph-msg.",
+        suffix=".md",
+        dir=str(harness_dir),
+    ) as handle:
+        handle.write(content)
+        temp_path = Path(handle.name)
+    return temp_path
 
 
 def render_profile_section(profile: Dict[str, Any], cli_hint: str) -> str:
@@ -191,6 +301,12 @@ def emit(payload: Dict[str, Any], as_json: bool) -> int:
         print("executed_prompts:")
         for item in prompts:
             print(f"- {item}")
+    if payload.get("consumed_user_message"):
+        print("consumed_user_message: yes")
+    if payload.get("consumed_file"):
+        print(f"consumed_file: {payload.get('consumed_file')}")
+    if payload.get("consumed_user_message_preview"):
+        print(f"consumed_user_message_preview: {payload.get('consumed_user_message_preview')}")
     if payload.get("agent_command"):
         print(f"agent_command: {payload.get('agent_command')}")
     return int(payload.get("exit_code", 0))
@@ -198,6 +314,7 @@ def emit(payload: Dict[str, Any], as_json: bool) -> int:
 
 def build_pulse_payload(project_root: Path, endless: bool) -> Dict[str, Any]:
     harness_dir = project_root / ".bagakit" / "long-run"
+    ensure_async_message_file(harness_dir)
     next_action_file = harness_dir / "next-action.json"
     feature_file = harness_dir / "feature-list.json"
     profile_file = harness_dir / "project-profile.json"
@@ -378,6 +495,9 @@ def cmd_run(args: argparse.Namespace) -> int:
         "detected_cli": payload.get("detected_cli", ""),
         "executed_prompts": [],
         "agent_command": "",
+        "consumed_user_message": False,
+        "consumed_user_message_preview": "",
+        "consumed_file": "",
         "exit_code": 0,
     }
 
@@ -447,18 +567,45 @@ def cmd_run(args: argparse.Namespace) -> int:
         )
         return emit(result, args.json)
 
-    for prompt_file in prompt_files:
-        rc = run_agent_prompt(project_root, agent_command, prompt_file, verbose=args.verbose)
-        result["executed_prompts"].append(str(prompt_file))
-        if rc != 0:
-            result.update(
-                {
-                    "status": "run_failed",
-                    "reason": f"agent_command_failed:{prompt_file}",
-                    "exit_code": rc,
-                }
-            )
-            return emit(result, args.json)
+    async_message = consume_async_message(harness_dir, payload, prompt_files)
+    dispatch_prompt_files: List[Path] = list(prompt_files)
+    temp_prompt_files: List[Path] = []
+    if async_message:
+        dispatch_prompt_files = []
+        for prompt_file in prompt_files:
+            injected = materialize_injected_prompt(harness_dir, prompt_file, async_message)
+            dispatch_prompt_files.append(injected)
+            temp_prompt_files.append(injected)
+        preview = async_message.strip().replace("\n", " ")
+        if len(preview) > 120:
+            preview = preview[:117] + "..."
+        result.update(
+            {
+                "consumed_user_message": True,
+                "consumed_user_message_preview": preview,
+                "consumed_file": str(harness_dir / "ralph-msg.consumed.md"),
+            }
+        )
+
+    try:
+        for prompt_file, dispatch_prompt in zip(prompt_files, dispatch_prompt_files):
+            rc = run_agent_prompt(project_root, agent_command, dispatch_prompt, verbose=args.verbose)
+            result["executed_prompts"].append(str(prompt_file))
+            if rc != 0:
+                result.update(
+                    {
+                        "status": "run_failed",
+                        "reason": f"agent_command_failed:{prompt_file}",
+                        "exit_code": rc,
+                    }
+                )
+                return emit(result, args.json)
+    finally:
+        for temp_file in temp_prompt_files:
+            try:
+                temp_file.unlink()
+            except FileNotFoundError:
+                pass
 
     result.update(
         {

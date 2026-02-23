@@ -121,10 +121,11 @@ Required GFM sections:
   - default: Git commits on current branch + `.bagakit/commit-spec/<session>/split-plan.md`.
   - optional adapter: feat-task-harness task commit flow.
 - `memory-handoff`:
-  - default: `.bagakit/commit-spec/<session>/memory.md`.
+  - default: `.git/bagakit/commit-spec/memory/<session>.md`.
   - optional adapter: `docs/.bagakit/inbox/` or `docs/.bagakit/memory/` when living-docs exists.
 - `archive`:
-  - default: `.bagakit/commit-spec/<session>/archive.md`.
+  - default: `.git/bagakit/commit-spec/archive/<session>.md`.
+- archive default cleanup mode is `session`: migrate handoff files as needed, remove `.bagakit/commit-spec/<session>/`, then prune empty local scaffolding.
 - Routing stays rule-driven and fallback-safe.
 
 ## Archive Gate (Completion Handoff)
@@ -207,10 +208,11 @@ sh scripts/bagakit-git-commit-spec.sh archive \
   --root . \
   --dir <session-dir> \
   --action-dest "git:<branch>" \
-  --memory-dest ".bagakit/commit-spec/<session>/memory.md" \
+  --memory-dest ".git/bagakit/commit-spec/memory/<session>.md" \
   --commit <sha1> --commit <sha2> \
   --check-evidence "lint-message passed" \
-  --check-evidence "tests: <command>"
+  --check-evidence "tests: <command>" \
+  --cleanup session
 ```
 
 ## Fallback Path (No Clear Fit)

@@ -2,13 +2,19 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   MessageSquareText,
 } from 'lucide-react';
-import { createHilItem, listHilItems, updateHilItem } from '../services/agencyBridge';
+import {
+  confirmDelivery,
+  createHilItem,
+  listHilItems,
+  startDelivery,
+  updateHilItem,
+} from '../services/agencyBridge';
 import { AgentAvatarBadge } from './ui/AgentAvatarBadge';
 import { resolveAvatarId } from '../utils/agentAvatar';
 import { SessionReplyComposer } from './sessionReply/SessionReplyComposer';
 import { SessionReplyHistory } from './sessionReply/SessionReplyHistory';
 import { buildReplyPayload, formatReplyTimeTag, normalizeReplyTerminalPayload } from './sessionReply/sessionReplyShared';
-import { resolveReplyDispatchTarget, sendReplyPayload } from './sessionReply/sessionReplyRouting';
+import { resolveReplyDispatchTarget } from './sessionReply/sessionReplyRouting';
 
 export function SessionReplyPanel({
   cell,
@@ -19,7 +25,6 @@ export function SessionReplyPanel({
   resolvedQuickPrompts = [],
   sessionTargets = [],
   onClearSelection,
-  onSendSessionText,
   onJumpToSession,
   onJumpToMemo,
 }: any) {
@@ -237,7 +242,7 @@ export function SessionReplyPanel({
       });
 
       try {
-        await createHilItem({
+        const createdReply = await createHilItem({
           worktreePath,
           kind: 'reply',
           body: queryText,
@@ -260,15 +265,75 @@ export function SessionReplyPanel({
             },
           },
         });
-        sendReplyPayload({
-          effectiveAction,
-          targetMeta,
-          payload,
-          onSendSessionText,
-          cell,
-          session,
-          normalizePayload: normalizeReplyTerminalPayload,
-        });
+        const shouldDispatch = effectiveAction === 'current' || effectiveAction === 'other';
+        const targetCellId = targetMeta?.cellId || cell?.id || '';
+        const targetSessionId = targetMeta?.sessionId || session?.id || '';
+        if (shouldDispatch && targetSessionId) {
+          const dispatchPayload = normalizeReplyTerminalPayload(payload);
+          const run = await startDelivery({
+            request: {
+              worktreePath,
+              source: 'session',
+              mode: 'quick',
+              description: queryText,
+              sessionId: targetSessionId,
+              cellId: targetCellId,
+              selectedItems: [
+                {
+                  id: String(createdReply?.id || ''),
+                  kind: String(createdReply?.kind || 'reply'),
+                  body: String(createdReply?.body || queryText),
+                  anchor: createdReply?.anchor || null,
+                  references: Array.isArray(createdReply?.references) ? createdReply.references : [],
+                },
+              ],
+              metadata: {
+                command: dispatchPayload,
+                sourceKind: 'reply',
+                replyItemId: createdReply?.id || '',
+                promoted: true,
+                sourceSession: {
+                  cellId: cell?.id || '',
+                  sessionId: session?.id || '',
+                },
+                targetSession: targetMeta || null,
+                selection: {
+                  site: siteText || '',
+                  timeTag,
+                },
+              },
+              dispatch: {
+                label: 'Session Reply (quick)',
+                appendEnter: false,
+                doubleEnter: false,
+              },
+            },
+          });
+          const draftId = String(run?.draftId || '').trim();
+          if (!draftId) {
+            throw new Error('Failed to persist session delivery run.');
+          }
+          await confirmDelivery({
+            worktreePath,
+            draftId,
+          });
+          await updateHilItem({
+            worktreePath,
+            itemId: createdReply?.id,
+            patch: {
+              meta: {
+                ...(createdReply?.meta || {}),
+                deliverySource: 'session',
+                deliveryMode: 'quick',
+                deliveryDraftId: draftId,
+                deliverySession: {
+                  cellId: targetCellId,
+                  sessionId: targetSessionId,
+                },
+              },
+            },
+          });
+        }
         setReplyText('');
         setSendMenuOpen(false);
         await refreshReplies();
@@ -283,7 +348,6 @@ export function SessionReplyPanel({
       cell?.name,
       hasContent,
       hasSession,
-      onSendSessionText,
       queryText,
       refreshReplies,
       selectionContext,

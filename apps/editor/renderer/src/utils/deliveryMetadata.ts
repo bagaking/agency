@@ -1,4 +1,4 @@
-export const DELIVERY_SOURCES = ['promote', 'explorer'] as const;
+export const DELIVERY_SOURCES = ['promote', 'explorer', 'session'] as const;
 export const DELIVERY_MODES = ['quick', 'gated'] as const;
 
 export type DeliverySource = (typeof DELIVERY_SOURCES)[number];
@@ -32,7 +32,13 @@ export const normalizeDeliverySource = (
   fallback: DeliverySource = 'promote'
 ): DeliverySource => {
   const normalized = String(value || '').trim().toLowerCase();
-  return normalized === 'explorer' ? 'explorer' : fallback;
+  if (normalized === 'explorer') {
+    return 'explorer';
+  }
+  if (normalized === 'session') {
+    return 'session';
+  }
+  return fallback;
 };
 
 export const normalizeDeliveryMode = (

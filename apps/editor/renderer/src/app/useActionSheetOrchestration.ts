@@ -1,17 +1,16 @@
 import { useCallback } from 'react';
 
 import {
-  createHilItem as agencyCreateHilItem,
+  confirmDelivery as agencyConfirmDelivery,
+  getDeliveryStatus as agencyGetDeliveryStatus,
   getGates as agencyGetGates,
   readActionSheet as agencyReadActionSheet,
+  startDelivery as agencyStartDelivery,
   updateHilItem as agencyUpdateHilItem,
 } from '../services/agencyBridge';
-import { BASELINE_PROFILE_ID } from '../utils/terminusSettings';
 import { buildActionSheetCompletion, buildActionSheetPlan } from '../utils/actionSheetCompletion';
 import {
-  buildDeliveryMeta,
   normalizeDeliveryMode,
-  setDeliveryExecutionStatus,
   type DeliveryMode,
 } from '../utils/deliveryMetadata';
 import { buildExplorerDeliveryPromptText } from './explorerDeliveryPrompt';
@@ -258,7 +257,7 @@ export function useActionSheetOrchestration({
       mode?: DeliveryMode | string;
       references?: string[];
     } = {}) => {
-      if (!actionSheetsRoot) {
+      if (!hilWorktreePath) {
         setActionSheetInlineError('Select a project before dispatching feed.');
         return null;
       }
@@ -272,13 +271,14 @@ export function useActionSheetOrchestration({
       }
       const normalizedMode = normalizeDeliveryMode(mode);
       const requestedAt = new Date().toISOString();
-      const normalizedReferences = Array.from(
+      const normalizedReferencePaths = Array.from(
         new Set(
           (Array.isArray(references) ? references : [])
             .map((entry) => String(entry || '').trim())
             .filter(Boolean)
         )
-      ).map((targetPath) => ({
+      );
+      const normalizedReferences = normalizedReferencePaths.map((targetPath) => ({
         system: 'explorer',
         path: targetPath,
         line: null,
@@ -293,127 +293,80 @@ export function useActionSheetOrchestration({
         references: normalizedReferences,
       });
       const title = `Feed: ${trimmedDescription.slice(0, 32)}`;
-      const seedMeta = buildDeliveryMeta({
-        source: 'explorer',
-        mode: normalizedMode,
-        status: 'queued',
-        requestedAt,
-        sessionId,
-        cellId: selectedCell?.id || '',
-        actionSheetId: normalizedMode === 'gated' ? '(pending)' : '',
-        references: normalizedReferences,
-        existingMeta: {
-          sourceKind: 'explorer',
-          feedDescription: trimmedDescription,
-          feedContext: String(context || ''),
-          promoted: normalizedMode === 'quick',
-        },
-        timelineLabel: normalizedMode === 'gated' ? 'Queued gated explorer send' : 'Queued quick explorer send',
-      });
       try {
-        let createdSheet: any = null;
-        if (normalizedMode === 'gated') {
-          createdSheet = await createActionSheet({
-            title,
-            prompt: {
-              requirements: trimmedDescription,
-              context: promptText,
-              checks: '',
-              done: '',
+        const run = await agencyStartDelivery({
+          request: {
+            worktreePath: hilWorktreePath,
+            source: 'explorer',
+            mode: normalizedMode,
+            description: trimmedDescription,
+            sessionId,
+            cellId: selectedCell?.id || '',
+            selectedItems: normalizedReferencePaths.map((targetPath) => ({
+              id: `explorer:${targetPath}`,
+              kind: 'file',
+              body: targetPath,
+              anchor: {
+                file: targetPath,
+                line: 1,
+                column: 1,
+              },
+              references: [],
+            })),
+            metadata: {
+              command: promptText,
+              sourceKind: 'explorer',
+              feedDescription: trimmedDescription,
+              feedContext: String(context || ''),
+              promoted: normalizedMode === 'quick',
+              requestedAt,
+              sourceSession: {
+                cellId: selectedCell?.id || '',
+                sessionId: sessionId || '',
+              },
+              conditional: normalizedMode === 'gated' ? conditionalDefaults : undefined,
             },
-            checks: [],
-            conditional: conditionalDefaults,
-          });
-          if (!createdSheet?.id) {
-            throw new Error('Unable to create Action Sheet.');
-          }
-          const completion = buildActionSheetCompletion(createdSheet.id);
-          await updateActionSheetPlan(createdSheet.id, buildActionSheetPlan({ title, marker: completion.marker }));
-          await updateActionSheetPrompt(createdSheet.id, {
-            requirements: trimmedDescription,
-            context: promptText,
-            checks: '',
-            done: completion.done,
-          });
-          await updateActionSheetChecks(createdSheet.id, completion.checks);
-        }
-
-        const draft = await agencyCreateHilItem({
-          worktreePath: hilWorktreePath,
-          kind: 'draft',
-          body: trimmedDescription,
-          references: normalizedReferences,
-          meta: {
-            ...seedMeta,
-            actionSheetId: createdSheet?.id || '',
+            dispatch: {
+              label: `Explorer (${normalizedMode})`,
+              appendEnter: true,
+              doubleEnter: true,
+            },
           },
         });
-        if (!draft?.id) {
+        const draftId = String(run?.draftId || '').trim();
+        const actionSheetId = String(run?.actionSheetId || '').trim();
+        if (!draftId) {
           throw new Error('Unable to create delivery draft.');
         }
 
         if (normalizedMode === 'gated') {
           setActionSheetSessionId(sessionId);
-          await dispatchActionSheet({ id: createdSheet.id, sessionId });
+          if (actionSheetId) {
+            await dispatchActionSheet({ id: actionSheetId, sessionId });
+          }
         } else {
-          await dispatchSessionCommand({
-            command: promptText,
-            kind: 'dispatch',
-            label: `Explorer (quick): ${trimmedDescription.slice(0, 32)}`,
-            sessionId,
-            cellId: selectedCell?.id || '',
-            profileId: BASELINE_PROFILE_ID,
+          await agencyConfirmDelivery({
             worktreePath: hilWorktreePath,
-            appendEnter: true,
-            doubleEnter: true,
+            draftId,
           });
         }
 
-        const dispatchedAt = new Date().toISOString();
-        const runningMeta = setDeliveryExecutionStatus({
-          meta: draft.meta || seedMeta,
-          source: 'explorer',
-          mode: normalizedMode,
-          status: 'running',
-          at: dispatchedAt,
-          label: normalizedMode === 'gated' ? 'Gated explorer send dispatched' : 'Quick explorer send dispatched',
-          sessionId,
-          actionSheetId: createdSheet?.id || '',
-        });
-        const runningDraft = await agencyUpdateHilItem({
+        const status = await agencyGetDeliveryStatus({
           worktreePath: hilWorktreePath,
-          itemId: draft.id,
-          patch: { meta: runningMeta },
+          draftId,
         });
-        const nextDraft = runningDraft || draft;
+        const resolvedStatus = status?.executionStatus || (normalizedMode === 'quick' ? 'complete' : 'running');
+        const updatedAt = new Date().toISOString();
 
         if (normalizedMode === 'quick') {
-          const acknowledgedAt = new Date().toISOString();
-          const completedMeta = setDeliveryExecutionStatus({
-            meta: nextDraft.meta || runningMeta,
-            source: 'explorer',
-            mode: normalizedMode,
-            status: 'complete',
-            at: acknowledgedAt,
-            label: 'Quick explorer send acknowledged',
-            details: 'Explorer selection was consumed immediately after dispatch ACK.',
-            sessionId,
-            actionSheetId: createdSheet?.id || '',
-          });
-          completedMeta.executionAcknowledgedAt = acknowledgedAt;
-          const completedDraft = await agencyUpdateHilItem({
-            worktreePath: hilWorktreePath,
-            itemId: draft.id,
-            patch: { meta: completedMeta },
-          });
           setExplorerDeliverySummary({
             source: 'explorer',
             mode: normalizedMode,
             status: 'complete',
-            draftId: completedDraft?.id || draft.id,
-            actionSheetId: createdSheet?.id || '',
+            draftId,
+            actionSheetId,
             sessionId,
-            updatedAt: acknowledgedAt,
+            updatedAt,
             title,
             description: trimmedDescription,
             references: normalizedReferences,
@@ -423,8 +376,8 @@ export function useActionSheetOrchestration({
             source: 'explorer',
             mode: normalizedMode,
             status: 'complete',
-            draftId: completedDraft?.id || draft.id,
-            actionSheetId: createdSheet?.id || '',
+            draftId,
+            actionSheetId,
             consumed: true,
           };
         }
@@ -432,11 +385,11 @@ export function useActionSheetOrchestration({
         setExplorerDeliverySummary({
           source: 'explorer',
           mode: normalizedMode,
-          status: 'running',
-          draftId: nextDraft?.id || draft.id,
-          actionSheetId: createdSheet?.id || '',
+          status: resolvedStatus,
+          draftId,
+          actionSheetId,
           sessionId,
-          updatedAt: dispatchedAt,
+          updatedAt,
           title,
           description: trimmedDescription,
           references: normalizedReferences,
@@ -445,9 +398,9 @@ export function useActionSheetOrchestration({
         return {
           source: 'explorer',
           mode: normalizedMode,
-          status: 'running',
-          draftId: nextDraft?.id || draft.id,
-          actionSheetId: createdSheet?.id || '',
+          status: resolvedStatus,
+          draftId,
+          actionSheetId,
           consumed: false,
         };
       } catch (error: any) {
@@ -468,19 +421,13 @@ export function useActionSheetOrchestration({
       }
     },
     [
-      actionSheetsRoot,
       conditionalDefaults,
-      createActionSheet,
       dispatchActionSheet,
-      dispatchSessionCommand,
       hilWorktreePath,
       selectedCell?.id,
       setActionSheetInlineError,
       setActionSheetSessionId,
       setExplorerDeliverySummary,
-      updateActionSheetChecks,
-      updateActionSheetPlan,
-      updateActionSheetPrompt,
     ]
   );
 

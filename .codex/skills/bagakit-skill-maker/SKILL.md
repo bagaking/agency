@@ -95,6 +95,7 @@ Build skills that are:
 
 - Keep reference docs in `reference/`.
 - Keep reusable templates in `reference/tpl/`.
+- Keep discovery evidence in `reference/discovery/` as a standalone record set.
 - Avoid mixing templates into general docs; keep intent boundary clear for retrieval.
 
 ## Gate Layout Principle (Validation Protocol)
@@ -116,6 +117,11 @@ Build skills that are:
   4. log reuse/adapt/reject decisions.
 - If discovery finds a suitable skill, install/adapt first; create from scratch only with a recorded gap rationale.
 - If another discovery skill/tool is available, use it as an optional accelerator on top of the default standalone path.
+- Discovery evidence is a hard gate:
+  - Must persist to `reference/discovery/discovery-log.md`.
+  - Must start from template `reference/tpl/discovery-log-tpl.md`.
+  - Category headings are task-driven (for example `skills`, `权威资料`, `论文`, `开源库`), not fixed.
+  - Under each category, each entry must include: `Source/来源`, `Checked/查看内容`, `Relevance/关联度`, `Usefulness/有用程度`, `Value/价值`, `Reference Plan/参考计划`.
 
 ## Decision Categories
 
@@ -137,6 +143,7 @@ Build skills that are:
 0) Search-first discovery before creation/improvement.
 - Do not start implementation immediately for unresolved problems.
 - Use `reference/skill-discovery-sources.md` as the default discovery path.
+- Use `reference/tpl/discovery-log-tpl.md` to write `reference/discovery/discovery-log.md`.
 - Do not assume any specific discovery skill/CLI is installed; keep discovery flow standalone.
 - Search in this order:
   1. project-local docs/contracts and known skill catalogs first,
@@ -145,7 +152,8 @@ Build skills that are:
   4. experience-only writeups last.
 - Prefer ready-to-use skills/tools/code before designing from scratch.
 - If discovery finds a more suitable complementary skill, use it as an accelerator on top of this default search path.
-- Record useful findings (source + key takeaway + applicability) to avoid repeated search.
+- Record useful findings (source + checked + relevance + usefulness + value + reference plan) to avoid repeated search.
+- Discovery gate is incomplete unless `reference/discovery/discovery-log.md` has concrete inspected entries.
 
 1) Lock concrete use cases first.
 - Capture 3-5 real user prompts that should trigger the target skill.
@@ -212,6 +220,7 @@ sh scripts/bagakit_skill_maker.sh validate --skill-dir <skill-dir>
 - Ensure generated runtime/docs files do not contain absolute path literals; use relative/env-based paths only.
 - Ensure `SKILL.md` defines output routes + archive gate as completion criteria.
 - Ensure archive gate explicitly names action-handoff + memory-handoff destinations.
+- Ensure `reference/discovery/discovery-log.md` exists and includes structured discovery evidence.
 - Ensure qualitative quality checks are defined as prompt rubrics/checklists (agent-reviewed), not script-enforced pass/fail metrics.
 - If Bagakit profile is enabled, ensure `[[BAGAKIT]]` footer contract exists; otherwise keep generic mode.
 
@@ -260,6 +269,7 @@ sh scripts/bagakit_skill_maker.sh validate --skill-dir <skill-dir>
   - `reference/core-design-guide.md` (portable core rules; always apply)
   - `reference/bagakit-profile-guide.md` (Bagakit profile overlay; required for `bagakit-*`)
   - `reference/skill-discovery-sources.md` (search-first sources and strategy)
+  - `reference/tpl/discovery-log-tpl.md` (mandatory discovery evidence template)
   - `reference/guidance-pack/patterns.md` (recommended output/archive patterns)
   - `reference/guidance-pack/anti-patterns.md` (what to avoid)
   - `reference/guidance-pack/examples.md` (copy-ready examples)
@@ -292,7 +302,7 @@ Technique notes:
 
 ```text
 Result: created <skill-name> with clear trigger boundary.
-Checks: validate pass + payload gate pass + gate protocol pass.
+Checks: discovery gate pass + validate pass + payload gate pass + gate protocol pass.
 Next: run one positive and one negative trigger scenario.
 ```
 
@@ -300,7 +310,7 @@ Next: run one positive and one negative trigger scenario.
 
 ```text
 Result: improved <skill-name> by tightening scope and removing ambiguity.
-Checks: before/after trigger matrix + validate pass + gate protocol pass.
+Checks: discovery gate pass + before/after trigger matrix + validate pass + gate protocol pass.
 Next: observe one production round and collect misses.
 ```
 
@@ -308,7 +318,7 @@ Next: observe one production round and collect misses.
 
 ```text
 Result: merged <skill-a>/<skill-b>/... into one coherent skill.
-Checks: merge map + de-dup rationale + validate pass + gate protocol pass.
+Checks: discovery gate pass + merge map + de-dup rationale + validate pass + gate protocol pass.
 Next: run post-merge trigger matrix and adjust boundaries.
 ```
 
@@ -327,6 +337,7 @@ When asked to create/refactor a skill, output:
 - final SKILL frontmatter + core workflow sections,
 - runtime payload decision (`SKILL_PAYLOAD.json`),
 - gate protocol decision (`gate/<case>/rules.toml` + `check-*` coverage),
+- discovery evidence decision (`reference/discovery/discovery-log.md` + categories + per-entry value assessment),
 - output map (what outputs, default route, adapter routes),
 - archive gate design (completion criteria + destination reporting),
 - granularity decision (keep/split/merge + rationale),

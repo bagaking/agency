@@ -20,6 +20,7 @@ Recommended structure:
 ## Writing Rules
 - Keep entries short, but **standalone**: include enough context and reasoning so someone can understand it without the original chat/incident.
 - Prefer “what + why + when it applies” over long narratives or raw transcripts.
+- Write reusable rules/patterns directly in inbox/memory entries (context + rule + evidence). Do not require a separate abstraction artifact.
 - If an item is a stable policy or deep guide, promote it into `docs/` and link from memory.
 - Avoid fragmentation:
   - Before creating a new entry, search for an existing canonical entry and update/append instead of creating a near-duplicate.
@@ -46,6 +47,7 @@ Optional:
 Optional helper (automation):
 - Resolve tooling: `export BAGAKIT_LIVING_DOCS_SKILL_DIR="${BAGAKIT_LIVING_DOCS_SKILL_DIR:-${BAGAKIT_HOME:-$HOME/.bagakit}/skills/bagakit-living-docs}"`
 - Create inbox entry: `sh "$BAGAKIT_LIVING_DOCS_SKILL_DIR/scripts/living-docs-inbox.sh" new <kind> <topic> --root . --title '<title>'`
+- Create a skill suggestion inbox entry: `sh "$BAGAKIT_LIVING_DOCS_SKILL_DIR/scripts/living-docs-inbox.sh" suggest-skill <create|update> <skill-name> --root . --kind decision --title '<title>' --evidence '<command/log/path>'`
 - Promote inbox entry: `sh "$BAGAKIT_LIVING_DOCS_SKILL_DIR/scripts/living-docs-inbox.sh" promote docs/.bagakit/inbox/<file>.md --root .`
 - If the curated target already exists, merge into it: `sh "$BAGAKIT_LIVING_DOCS_SKILL_DIR/scripts/living-docs-inbox.sh" promote docs/.bagakit/inbox/<file>.md --root . --merge`
 

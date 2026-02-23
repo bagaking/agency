@@ -33,6 +33,12 @@ Then write a first-draft budget card in `review_report.md`:
 - case/example count
 - diagram count
 - full-sample requirement (`yes/no`)
+- H2 short proposition coverage target (default: `100%`)
+- anchor loop target (opening + middle + ending all present)
+- long sentence ratio target (default: `<25%`, sentence length threshold `>40` units)
+- memory-hook review target (`~1 per 350-450 words`, judged in agent gate)
+- short break sentence target (`10-16` units, default: `ceil(words/450)` when words >= 350)
+- brainstorm sampling metadata target (`sampling object`, `sample size`, `window`, `review role`)
 
 Suggested floor:
 
@@ -42,6 +48,16 @@ Suggested floor:
 | protocol | >=420 | >=2 | optional | required |
 | infrastructure | >=420 | >=2 | optional | required |
 | general | >=280 | >=1 | optional | optional |
+
+P0 readability floor for non-general profiles:
+
+- each `##` section has a short restatable proposition as first sentence (`<=16` units)
+- short anchors appear in opening, middle, and ending sections
+- long sentence ratio is below `25%` (sentences over `40` units count as long)
+- short break sentences (`10-16` units) appear at least once per 400-500 words
+- memory-hook quality is reviewed by agent gate (not script hard-fail)
+- avoid 3+ mechanical short sequence lines and clean fragment-like residual short lines
+- ending should use a recall-friendly close (`goal/status/next step` three-question close or one-line recap)
 
 ## Step 1: Run version baseline gate
 
@@ -151,6 +167,24 @@ Rule:
 
 - fix all hard-gate failures before proceeding
 - warning gates require explicit human judgment in report
+
+## Step 6.5: Run weighted self-check (recommended)
+
+Files:
+
+- `references/agent-gate-rubric.md`
+- `references/human-writing-patterns.md`
+
+Use the weighted formula as drafting self-check:
+
+`Final = 0.35*专业性 + 0.30*可验证性 + 0.20*社区美誉度 + 0.15*(10 - AI嫌疑风险)`
+
+Rule:
+
+- self-check is guidance, not a script hard gate
+- do not lower evidence density just to reduce AI-risk
+- record dimension scores, final score, and assumptions in `review_report.md`
+- if self-check `< 7.0`, revise before moving to final agent gate
 
 ## Step 7: Run agent gate review
 

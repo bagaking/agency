@@ -7,6 +7,9 @@ required=(
   "${ROOT_DIR}/SKILL.md"
   "${ROOT_DIR}/SKILL_PAYLOAD.json"
   "${ROOT_DIR}/README.md"
+  "${ROOT_DIR}/gate/anti-patterns/rules.toml"
+  "${ROOT_DIR}/gate/anti-patterns/check-anti-patterns.py"
+  "${ROOT_DIR}/gate/anti-patterns/ai-tone-terms.txt"
   "${ROOT_DIR}/references/quality-gates.md"
   "${ROOT_DIR}/references/writing-techniques.md"
   "${ROOT_DIR}/references/markdown-formatting.md"
@@ -19,6 +22,10 @@ for file in "${required[@]}"; do
     exit 1
   fi
 done
+
+python3 "${ROOT_DIR}/gate/anti-patterns/check-anti-patterns.py" \
+  --skill-md "${ROOT_DIR}/SKILL.md" \
+  --rules "${ROOT_DIR}/gate/anti-patterns/rules.toml"
 
 python3 "${ROOT_DIR}/scripts/check-article.py" \
   --input "${ROOT_DIR}/references/tpl/article-template.md" \

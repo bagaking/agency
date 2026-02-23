@@ -6,6 +6,7 @@ usage() {
 Usage:
   sh scripts/living-docs-inbox.sh list [--root <dir>]
   sh scripts/living-docs-inbox.sh new <kind> <topic> [--root <dir>] [--title <title>]
+  sh scripts/living-docs-inbox.sh suggest-skill <create|update> <skill-name> [--root <dir>] [--kind <kind>] [--title <title>] [--evidence <line>]
   sh scripts/living-docs-inbox.sh promote <inbox-path> [--root <dir>] [--topic <topic>] [--keep] [--merge]
 
 Kinds:
@@ -14,6 +15,7 @@ Kinds:
 Notes:
 - Default layout stores memory under docs/.bagakit/:
   - Creates inbox entries under: docs/.bagakit/inbox/<kind>-<topic>.md
+  - Skill suggestions use: docs/.bagakit/inbox/<kind>-skill-<create|update>-<skill>.md
   - Promotes inbox entries to: docs/.bagakit/memory/<kind>-<topic>.md
 - Promotion removes "status: inbox" and ensures updated/confidence fields exist.
 EOF
@@ -29,6 +31,7 @@ title=""
 topic_override=""
 keep=0
 merge=0
+evidence=""
 
 today_date() {
   date -u +%F
@@ -51,6 +54,13 @@ normalize_rel() {
 is_kind() {
   case "$1" in
     decision|preference|gotcha|glossary|howto) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+is_skill_action() {
+  case "$1" in
+    create|update) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -204,6 +214,97 @@ created: $d
 
 ## Candidate
 <Raw note from a task/PR/incident. OK to be messy.>
+
+## Promote To
+- \`$promote_target_hint\` (curated), or
+- \`docs/<type>-<topic>.md\` (normative/deep guide)
+EOF
+    echo "write: ${file#$root/}"
+    ;;
+
+  suggest-skill)
+    [ $# -ge 2 ] || usage
+    skill_action=$1
+    skill_name=$2
+    shift 2
+    kind="decision"
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --root)
+          shift; [ $# -gt 0 ] || usage
+          root=$1
+          ;;
+        --kind)
+          shift; [ $# -gt 0 ] || usage
+          kind=$1
+          ;;
+        --title)
+          shift; [ $# -gt 0 ] || usage
+          title=$1
+          ;;
+        --evidence)
+          shift; [ $# -gt 0 ] || usage
+          evidence=$1
+          ;;
+        -h|--help)
+          usage
+          ;;
+        *)
+          break
+          ;;
+      esac
+      shift
+    done
+
+    is_skill_action "$skill_action" || { echo "error: unknown skill action: $skill_action (expected: create|update)" >&2; exit 2; }
+    is_kind "$kind" || { echo "error: unknown kind: $kind" >&2; exit 2; }
+
+    safe_root
+    ensure_dir_kind "$kind"
+
+    skill_slug=$(slugify "$skill_name")
+    [ -n "$skill_slug" ] || { echo "error: empty skill-name" >&2; exit 2; }
+
+    topic_slug="skill-$skill_action-$skill_slug"
+    file="$root/docs/.bagakit/inbox/$kind-$topic_slug.md"
+    if [ -e "$file" ]; then
+      echo "error: already exists: ${file#$root/}" >&2
+      exit 2
+    fi
+
+    t="${title:-Skill $skill_action suggestion: $skill_name}"
+    d=$(now_utc_iso8601)
+    evidence_line="<command/log/path proving the need>"
+    if [ -n "${evidence:-}" ]; then
+      evidence_line="$evidence"
+    fi
+    promote_target_hint="docs/.bagakit/memory/$kind-$topic_slug.md"
+    cat >"$file" <<EOF
+---
+title: $t
+kind: $kind
+status: inbox
+tags:
+  - $kind
+  - skill-suggestion
+  - skill-$skill_action
+  - skill-$skill_slug
+sources:
+  - <path/to/file>
+  - <link/to/pr-or-issue>
+created: $d
+---
+
+## Candidate
+- action: $skill_action
+- target_skill: $skill_name
+- summary: <one-line expected improvement>
+- why_now: <recurring trigger or symptom>
+- proposal: <create/update scope and boundary>
+- acceptance: <checks/tests/docs that should pass>
+
+## Evidence
+- $evidence_line
 
 ## Promote To
 - \`$promote_target_hint\` (curated), or

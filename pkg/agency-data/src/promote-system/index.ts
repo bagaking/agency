@@ -20,7 +20,7 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
-export type DeliverySource = 'promote' | 'explorer';
+export type DeliverySource = 'promote' | 'explorer' | 'session';
 export type DeliveryMode = 'quick' | 'gated';
 
 export type DeliveryHostAdapter = {
@@ -51,6 +51,11 @@ export type DeliveryRequest = {
     references?: Array<Record<string, unknown>>;
   }>;
   metadata?: Record<string, unknown>;
+  dispatch?: {
+    label?: string;
+    appendEnter?: boolean;
+    doubleEnter?: boolean;
+  };
 };
 
 export type DeliveryRun = {
@@ -149,7 +154,16 @@ const toIsoTimestamp = (value: unknown) => {
 };
 
 const normalizeMode = (value: unknown): DeliveryMode => (String(value || '').trim().toLowerCase() === 'gated' ? 'gated' : 'quick');
-const normalizeSource = (value: unknown): DeliverySource => (String(value || '').trim().toLowerCase() === 'explorer' ? 'explorer' : 'promote');
+const normalizeSource = (value: unknown): DeliverySource => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'explorer') {
+    return 'explorer';
+  }
+  if (normalized === 'session') {
+    return 'session';
+  }
+  return 'promote';
+};
 
 const buildTimelineEntry = ({
   at,
@@ -359,7 +373,8 @@ export async function startDelivery({
 
   let actionSheetId = '';
   if (mode === 'gated') {
-    const title = `${source === 'explorer' ? 'Feed' : 'Promote'}: ${String(request.description).trim().slice(0, 32)}`;
+    const titlePrefix = source === 'explorer' ? 'Feed' : source === 'session' ? 'Session' : 'Promote';
+    const title = `${titlePrefix}: ${String(request.description).trim().slice(0, 32)}`;
     const promptText = resolveDispatchCommand({ ...request, source, mode });
     const sheet = await createActionSheet({
       worktreePath,
@@ -447,13 +462,14 @@ export async function startDelivery({
   });
 
   const dispatchCommand = resolveDispatchCommand({ ...request, source, mode });
+  const sourceLabel = source === 'explorer' ? 'Explorer' : source === 'session' ? 'Session' : 'Promote';
   const ack = await host.dispatchToSession({
     cellId: cellId || undefined,
     sessionId,
     command: dispatchCommand,
-    label: `${source === 'explorer' ? 'Explorer' : 'Promote'} (${mode})`,
-    appendEnter: true,
-    doubleEnter: true,
+    label: String(request.dispatch?.label || '').trim() || `${sourceLabel} (${mode})`,
+    appendEnter: request.dispatch?.appendEnter !== false,
+    doubleEnter: request.dispatch?.doubleEnter !== false,
   });
   const startedAt = new Date().toISOString();
   await markExecutionStatus({
@@ -556,6 +572,18 @@ export async function confirmDelivery({
     label: 'Delivery confirmed',
     details: 'Referenced items were marked processed.',
   });
+  const completedWithMeta = completed?.id
+    ? await updateHilItem({
+        worktreePath,
+        itemId: completed.id,
+        patch: {
+          meta: {
+            promoted: true,
+            executionAcknowledgedAt: promotedAt,
+          },
+        },
+      })
+    : completed;
 
   await appendDeliveryAuditEvent({
     worktreePath,
@@ -572,7 +600,7 @@ export async function confirmDelivery({
     },
   });
 
-  return completed;
+  return completedWithMeta || completed;
 }
 
 export async function getDeliveryStatus({

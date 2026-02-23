@@ -17,6 +17,7 @@ Optional mechanisms (adopt per the target project's own norms):
 
 Workflow helpers:
 If you capture a new durable memory during work, write it to `docs/.bagakit/inbox/` using `sh "$BAGAKIT_LIVING_DOCS_SKILL_DIR/scripts/living-docs-inbox.sh" new <kind> <topic> --root . --title '<title>'`, then promote after review with `sh "$BAGAKIT_LIVING_DOCS_SKILL_DIR/scripts/living-docs-inbox.sh" promote docs/.bagakit/inbox/<file>.md --root .` (use `--merge` if the curated target already exists).
+If recurring issues suggest creating/updating a skill, capture it with `sh "$BAGAKIT_LIVING_DOCS_SKILL_DIR/scripts/living-docs-inbox.sh" suggest-skill <create|update> <skill-name> --root . --kind decision --title '<title>' --evidence '<command/log/path>'`.
 If Bagakit docs/memory are missing, bootstrap/update the project by running: `bash "$BAGAKIT_LIVING_DOCS_SKILL_DIR/scripts/apply-living-docs.sh" .` (use `--force` only when you intend to overwrite templates).
 If you want to check whether the installed skill is up to date with a remote branch, run: `sh "$BAGAKIT_LIVING_DOCS_SKILL_DIR/scripts/living-docs-update.sh" status` (optionally pass `--repo <git_url>`).
 When you change docs/memory rules or tooling, run `sh "$BAGAKIT_LIVING_DOCS_SKILL_DIR/scripts/living-docs-doctor.sh" .` and either apply suggested fixes or record a decision in inbox.

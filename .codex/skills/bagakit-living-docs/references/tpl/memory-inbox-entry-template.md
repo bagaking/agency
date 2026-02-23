@@ -13,6 +13,15 @@ created: YYYY-MM-DDTHH:MM:SSZ
 ## Candidate
 <Raw note from a task/PR/incident. OK to be messy.>
 
+## Skill Suggestion (Optional)
+- action: create|update
+- target_skill: <skill-name>
+- summary: <one-line expected improvement>
+- why_now: <recurring trigger or symptom>
+- proposal: <create/update scope and boundary>
+- acceptance: <checks/tests/docs that should pass>
+- evidence: <command/log/path>
+
 ## Promote To
 - `docs/.bagakit/memory/<kind>-<topic>.md` (curated), or
 - `docs/<type>-<topic>.md` (normative/deep guide)

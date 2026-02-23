@@ -22,13 +22,24 @@ Loop Protocol (every round):
 6. Run coding pass with `.bagakit/long-run/coding_prompt.md`, execute exactly one item, and update status/check evidence.
 7. After each pass, re-run `bash .bagakit/long-run/check_and_resume.sh` to actively pick the next actionable item and continue.
 
+**Outer Orchestrator Runner**:
+- `ralphloop-runner.sh` is the outer orchestrator runner; keep it orchestration-only (dispatch/guardrail/log), do not embed domain implementation.
+- safety params:
+  - `RALPHLOOP_MAX_ROUNDS` (max loop rounds, `0` = unlimited)
+  - `RALPHLOOP_MAX_RUNTIME_SECONDS` (max runtime seconds, `0` = unlimited)
+  - `RALPHLOOP_MAX_INTERVAL_SECONDS` (max sleep cap for `RALPHLOOP_SLEEP_SECONDS`)
+- observability params:
+  - `RALPHLOOP_LOG_FILE` (default `.bagakit/long-run/logs/ralphloop-runner.log`)
+  - `RALPHLOOP_JSON_MODE=1` (optional)
+
 Orchestrator Setup Steps (must be explicit):
 1. select launcher route (`package.json` / `Makefile` / shell).
 2. select coding CLI command (`BAGAKIT_AGENT_CMD` preferred).
   - non-interactive command form only; avoid TUI entry commands.
-3. verify single-step dispatch: `bash .bagakit/long-run/ralphloop.sh run --endless --dry-run --json`.
-4. run continuous orchestrator: `bash .bagakit/long-run/ralphloop-runner.sh`.
-5. if loop fails, stop and inspect `resume_stderr_tail` before next retry.
+3. set safety/log parameters for runner (max rounds/runtime/interval + log path).
+4. verify single-step dispatch: `bash .bagakit/long-run/ralphloop.sh run --endless --dry-run --json`.
+5. run continuous orchestrator: `bash .bagakit/long-run/ralphloop-runner.sh`.
+6. if loop fails, stop and inspect `resume_stderr_tail` before next retry.
 
 Response Driver (every long-run pass):
 - End detect/initializer/coding responses with the project footer block `[[BAGAKIT]]`.
@@ -54,6 +65,9 @@ Detect Rules:
 - Map upstream systems to adapters (`bagakit-ft`, `openspec`, `manual`) in `.bagakit/long-run/bk-execution-table.json`.
 - Every execution row must include: why-now, binary acceptance criteria, files to touch, commands, and risk/rollback notes.
 - If no actionable row remains and loop is in `--endless` mode, use `.bagakit/long-run/endless_expand_prompt.md` to expand plan first, then continue.
+- Optional async message inbox:
+  - write message segments into `.bagakit/long-run/ralph-msg.md`, split by `---`.
+  - each run round consumes only the top segment and prepends consumed history to `.bagakit/long-run/ralph-msg.consumed.md`.
 
 Validation:
 - `bash "$BAGAKIT_LONG_RUN_SKILL_DIR/scripts/validate-long-run.sh" .`

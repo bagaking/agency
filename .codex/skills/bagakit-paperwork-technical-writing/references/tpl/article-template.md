@@ -4,6 +4,8 @@
 
 ## 1. Why This Matters Now
 
+短命题（<=16 units，可复述）：
+
 ### Current failure pattern
 Describe one concrete recurring failure and who is blocked by it.
 
@@ -15,6 +17,8 @@ Add one concrete scenario with role, symptom, and consequence timeline.
 
 ## 2. Core Mechanism
 
+短命题（<=16 units，可复述）：
+
 ### How the mechanism works
 Explain the approach in 2-4 paragraphs. Keep one local claim per paragraph.
 
@@ -25,6 +29,8 @@ Compare at least two alternatives and state why this choice is practical now.
 Use one Mermaid diagram when sequence/loop/rollback matters for review speed.
 
 ## 3. Evidence and Validation
+
+短命题（<=16 units，可复述）：
 
 ### Evidence path
 Map claim to evidence (`experiment`, `docs`, `observed signal`).
@@ -41,7 +47,19 @@ Keep one longer concrete sample in body text (for example a 12+ line message/tem
 ### Validation signal
 State how the result is measured and what threshold counts as pass.
 
+### Sampling protocol metadata (required for brainstorm profile)
+State:
+- sampling object
+- sample size / sampling count
+- sampling window
+- review role(s)
+
+### Memory anchor line (recommended)
+Add one recall-friendly anchor line around every 350-450 words (contrast line, recap line, or tri-question line).
+
 ## 4. Adoption Path
+
+短命题（<=16 units，可复述）：
 
 ### Minimal rollout steps
 Describe the smallest viable rollout sequence and owner responsibilities.
@@ -54,6 +72,8 @@ Describe rollback trigger and recovery action.
 
 ## 5. Final Decision and Next Action
 
+短命题（<=16 units，可复述）：
+
 ### Before/after contrast (required)
 Document one concrete `Before` and `After` contrast and explain decision impact.
 
@@ -65,3 +85,8 @@ State where this approach does not apply and how to migrate/adapt in other teams
 
 ### Immediate next action
 Write one-line decision and first deterministic action.
+
+### Ending closure (required)
+Use either:
+- three-question close: `goal / status / next step`
+- one-line key-claim recap for retellability

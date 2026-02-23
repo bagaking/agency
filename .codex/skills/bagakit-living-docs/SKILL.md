@@ -104,7 +104,7 @@ Scripts live under `scripts/`.
 - Apply templates + inject AGENTS block: `apply-living-docs.sh`
 - Generate `docs/must-sop.md` from doc frontmatter: `living-docs-generate-sop.sh`
 - Memory recall (search/get): `living-docs-memory.sh`
-- Inbox helper (new/promote): `living-docs-inbox.sh`
+- Inbox helper (new/suggest-skill/promote): `living-docs-inbox.sh`
 - Session-to-inbox learning extractor: `living-docs-learning.sh` (uses `living-docs-learning.py`)
 - Contract-signal exchange + evolution: `living-docs-learning-contract.sh` (uses `living-docs-learning-contract.py`)
 - Update helper (check remote vs local skill; apply into project): `living-docs-update.sh`

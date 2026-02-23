@@ -48,6 +48,9 @@ Before creating/improving/merging a skill for an unresolved problem:
 7. Discovery must remain standalone; do not require any single marketplace CLI/skill to exist.
 8. If discovery identifies a better complementary skill, use it as an optional accelerator, never as a required prerequisite.
 9. Compare at least three candidates before deciding `reuse` / `adapt` / `build-new` unless the first match is clearly authoritative and complete.
+10. Discovery evidence is mandatory and must be persisted at `reference/discovery/discovery-log.md`.
+11. Use template `reference/tpl/discovery-log-tpl.md`; category headings are task-driven (for example `skills`, `权威资料`, `论文`, `开源库`).
+12. Each discovery entry must include `Source/来源`, `Checked/查看内容`, `Relevance/关联度`, `Usefulness/有用程度`, `Value/价值`, and `Reference Plan/参考计划`.
 
 ## 5) Progressive Disclosure
 
@@ -65,6 +68,7 @@ Rule of thumb:
 Reference layout rule:
 - `reference/`: explanatory docs, guides, rationale.
 - `reference/tpl/`: reusable templates/examples.
+- `reference/discovery/`: discovery evidence logs for search-first gate.
 - Avoid mixing templates into generic docs.
 
 Gate layout rule:
@@ -189,6 +193,7 @@ Merge output must include:
 - granularity decision explicit and justified,
 - payload minimal and runtime-only,
 - gate protocol present and structured (`gate/<case>/rules.toml` + `check-*`),
+- discovery evidence present and structured (`reference/discovery/discovery-log.md`),
 - standalone behavior verified,
 - fallback path exists,
 - output routes explicit (default + optional adapters),
@@ -198,6 +203,8 @@ Merge output must include:
 
 Validation should fail on:
 - missing trigger semantics in frontmatter (`when/适用/用于`),
+- missing mandatory discovery evidence (`reference/discovery/discovery-log.md`),
+- discovery evidence missing required fields (`Source/Checked/Relevance/Usefulness/Value/Reference Plan`),
 - machine-readable metadata schema hardcodes adapter-specific key expansion where semantic generic keys are expected,
 - missing standalone-first wording,
 - missing `When to Use` / `When NOT to Use`,

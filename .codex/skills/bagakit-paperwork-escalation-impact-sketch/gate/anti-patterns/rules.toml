@@ -1,0 +1,17 @@
+[complexity_guardrails]
+section_heading = "Complexity Guardrails"
+min_bullet_count = 5
+review_min_hits = 2
+default_threshold = 35
+strict_threshold = 90
+command_threshold = 30
+constraint_heading_threshold = 4
+review_terms = ["check", "review", "audit", "验证", "检查", "审查"]
+single_source_terms = ["single source", "single-source", "单一来源", "单一约束源"]
+
+[complexity_guardrails.required_terms]
+"preset-heavy" = ["预设偏多", "preset-heavy", "preset", "assumption"]
+"implementation-heavy" = ["实现偏重", "implementation-heavy", "script-first", "implementation"]
+"too-many-defaults" = ["默认行为太多", "too many defaults", "default behavior", "default"]
+"over-hard-validation" = ["校验过硬", "over-hard validation", "strict gate", "strict"]
+"scattered-constraints" = ["约束分散", "scattered constraints", "single source", "single-source"]

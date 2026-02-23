@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bagakit Paperwork Escalation Impact Sketch"
+  short_description: "Write 15s organizational escalation sketches with cold-fact endings."
+  default_prompt: "Use bagakit-paperwork-escalation-impact-sketch workflow to produce sketch.md, execution_appendix.md, and review_report.md."

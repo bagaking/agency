@@ -25,6 +25,8 @@ COMMIT_SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")
 DRIVER_NAME_RE = re.compile(r"^[a-z][a-z0-9_-]*$")
 SESSION_ARTIFACTS_LOCAL = "local"
 SESSION_ARTIFACTS_TRACKED = "tracked"
+ARCHIVE_CLEANUP_SESSION = "session"
+ARCHIVE_CLEANUP_NONE = "none"
 SESSION_GITIGNORE_TEXT = (
     "# bagakit-git-commit-spec local mode\n"
     "# Keep commit-spec session artifacts local by default.\n"
@@ -75,6 +77,52 @@ def rel(root: Path, path: Path) -> str:
         return str(path.relative_to(root))
     except ValueError:
         return str(path)
+
+
+def resolve_user_path(root: Path, value: str) -> Path:
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        path = root / path
+    return path.resolve()
+
+
+def path_within(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+    return True
+
+
+def git_dir_path(root: Path) -> Path:
+    git_dir = Path(run_git(root, ["rev-parse", "--git-dir"]).strip())
+    if not git_dir.is_absolute():
+        git_dir = root / git_dir
+    return git_dir
+
+
+def prune_local_session_root(session_root: Path) -> None:
+    if not session_root.is_dir():
+        return
+
+    remaining_entries = [entry for entry in session_root.iterdir() if entry.name != ".gitignore"]
+    if remaining_entries:
+        return
+
+    ignore_path = session_root / ".gitignore"
+    if ignore_path.is_file():
+        ignore_path.unlink()
+        print(f"removed: {ignore_path}")
+
+    if any(session_root.iterdir()):
+        return
+    session_root.rmdir()
+    print(f"removed: {session_root}")
+
+    bagakit_root = session_root.parent
+    if bagakit_root.name == ".bagakit" and bagakit_root.is_dir() and not any(bagakit_root.iterdir()):
+        bagakit_root.rmdir()
+        print(f"removed: {bagakit_root}")
 
 
 def run_git(root: Path, args: list[str]) -> str:
@@ -408,9 +456,7 @@ def render_hook_from_template(template_path: Path, skill_hint: Path) -> str:
 
 def install_commit_msg_hook(root: Path, force: bool) -> Path:
     ensure_git_repo(root)
-    git_dir = Path(run_git(root, ["rev-parse", "--git-dir"]).strip())
-    if not git_dir.is_absolute():
-        git_dir = root / git_dir
+    git_dir = git_dir_path(root)
     hooks_dir = git_dir / "hooks"
     hooks_dir.mkdir(parents=True, exist_ok=True)
 
@@ -904,12 +950,39 @@ def cmd_archive(args: argparse.Namespace) -> int:
     if not action_dest:
         raise SystemExit("error: --action-dest is required")
 
+    cleanup_mode = args.cleanup.strip().lower()
+    if cleanup_mode not in {ARCHIVE_CLEANUP_SESSION, ARCHIVE_CLEANUP_NONE}:
+        raise SystemExit("error: --cleanup must be session|none")
+
+    session_root = root / ".bagakit" / "commit-spec"
+    local_store_root = git_dir_path(root) / "bagakit" / "commit-spec"
+    if cleanup_mode == ARCHIVE_CLEANUP_SESSION and not path_within(session_dir, session_root):
+        raise SystemExit(
+            "error: --cleanup session requires --dir under .bagakit/commit-spec; "
+            "use --cleanup none for custom session paths"
+        )
+
     if memory_dest.lower() == "none":
         if not args.memory_none_reason.strip():
             raise SystemExit("error: --memory-none-reason is required when --memory-dest none")
         memory_line = f"none ({args.memory_none_reason.strip()})"
     else:
-        memory_line = memory_dest
+        memory_path = resolve_user_path(root, memory_dest)
+        if cleanup_mode == ARCHIVE_CLEANUP_SESSION and path_within(memory_path, session_dir):
+            memory_target = local_store_root / "memory" / f"{session_dir.name}.md"
+            if memory_path.is_file():
+                write_text(memory_target, read_text(memory_path))
+            else:
+                write_text(
+                    memory_target,
+                    "# Commit Session Memory\n\n"
+                    f"- session: {session_dir.name}\n"
+                    "- note: source memory file missing at archive-time; created by auto-migration.\n",
+                )
+            print(f"migrated-memory: {memory_path} -> {memory_target}")
+            memory_line = rel(root, memory_target)
+        else:
+            memory_line = memory_dest
 
     commits: list[str] = []
     for raw_commit in args.commit:
@@ -932,7 +1005,11 @@ def cmd_archive(args: argparse.Namespace) -> int:
     if not checks:
         raise SystemExit("error: provide at least one --check-evidence item")
 
-    archive_path = Path(args.archive_path).resolve() if args.archive_path else session_dir / "archive.md"
+    archive_path = resolve_user_path(root, args.archive_path) if args.archive_path else session_dir / "archive.md"
+    if cleanup_mode == ARCHIVE_CLEANUP_SESSION and path_within(archive_path, session_dir):
+        relocated_archive = local_store_root / "archive" / f"{session_dir.name}.md"
+        print(f"migrated-archive: {archive_path} -> {relocated_archive}")
+        archive_path = relocated_archive
 
     lines = [
         "# Commit Session Archive",
@@ -956,6 +1033,11 @@ def cmd_archive(args: argparse.Namespace) -> int:
 
     write_text(archive_path, "\n".join(lines) + "\n")
     print(f"wrote: {archive_path}")
+
+    if cleanup_mode == ARCHIVE_CLEANUP_SESSION:
+        shutil.rmtree(session_dir)
+        print(f"cleaned-session: {session_dir}")
+        prune_local_session_root(session_root)
     return 0
 
 
@@ -1066,6 +1148,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="check/validation evidence (required, repeatable)",
     )
     p_arc.add_argument("--archive-path", default="", help="custom archive file path")
+    p_arc.add_argument(
+        "--cleanup",
+        default=ARCHIVE_CLEANUP_SESSION,
+        choices=[ARCHIVE_CLEANUP_SESSION, ARCHIVE_CLEANUP_NONE],
+        help="archive-time cleanup mode: session migrates archive/memory out of session dir then deletes session",
+    )
     p_arc.set_defaults(func=cmd_archive)
 
     return parser

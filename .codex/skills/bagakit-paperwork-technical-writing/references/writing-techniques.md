@@ -382,6 +382,52 @@ Section-level expansion pattern:
 
 If draft grows in words but does not add these anchors, it is length inflation, not quality improvement.
 
+## 19.2 P0 Memory and Restatement Protocol
+
+When audit shows strong executability but weak memorability, apply this P0 protocol first.
+
+P0.1 Section restatable proposition:
+
+- each `##` section begins with one short proposition sentence (`<=16` units)
+- the sentence should be independently restatable without reading the whole section
+
+P0.2 Anchor loop:
+
+- place short anchor sentences in opening, middle, and ending sections
+- anchors should echo the same central judgment, not three unrelated slogans
+
+P0.3 Long-sentence split:
+
+- split sentences over `40` units into `judgment sentence + evidence sentence`
+- keep long sentence ratio below `25%` for non-general profiles
+
+P0.4 Memory-hook cadence:
+
+- add one memory anchor roughly every `350-450` words
+- avoid fixed slogans; memory-hook quality is reviewed in agent gate, not hard-coded script pass/fail
+- valid forms include: short contrast line, compact recap line, or tri-question line
+
+P0.5 Ending closure:
+
+- close with either `goal/status/next step` three-question structure or one-line key-claim recap
+- ending should help readers retell the decision without re-reading full body
+
+P0.6 Brainstorm sampling metadata:
+
+- for brainstorm-profile drafts, include `sampling object`, `sample size`, `window`, and `review role`
+- this is required for operational trust; otherwise readers cannot reproduce forum-level judgments
+
+P0.7 Anti-mechanical rhythm:
+
+- avoid 3+ consecutive short sequence-style lines (for example `先X。再Y。最后Z。`)
+- clean fragment-like residual lines and merge them into causal sentences
+- keep AI-tone lexicon checks as warning-only lint; final rewrite decision belongs to agent review
+
+Implementation note:
+
+- do not trade away evidence density, checklist completeness, or command-chain traceability
+- P0 is additive to executability; it is not a rollback to lighter content
+
 ## 20. Review Loop and Regression Control
 
 Before each new version:

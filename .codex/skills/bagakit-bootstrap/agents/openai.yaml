@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bagakit Bootstrap"
+  short_description: "Install, sync, and migrate bagakit-series skills with a project-local contract."
+  default_prompt: "Use bagakit-bootstrap to set up or update bagakit-series skills in this project with version-pinned config."

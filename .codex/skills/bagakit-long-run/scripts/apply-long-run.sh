@@ -37,8 +37,9 @@ block_file="${tpl_dir}/agents-block-template.md"
 heartbeat_config_template="${tpl_dir}/heartbeat-config-template.json"
 heartbeat_schedules_template="${tpl_dir}/heartbeat-schedules-template.json"
 heartbeat_inbox_readme_template="${tpl_dir}/heartbeat-inbox-readme-template.md"
-ralphloop_template="${tpl_dir}/ralphloop-sh-template.md"
-ralphloop_runner_template="${tpl_dir}/ralphloop-runner-sh-template.md"
+ralphloop_template="${tpl_dir}/ralphloop.sh.tpl"
+ralphloop_runner_template="${tpl_dir}/ralphloop-runner.sh.tpl"
+check_and_resume_template="${tpl_dir}/check-and-resume.sh.tpl"
 start_tag="<!-- BAGAKIT:LONGRUN:START -->"
 end_tag="<!-- BAGAKIT:LONGRUN:END -->"
 launcher_start="# BAGAKIT:LONGRUN:LAUNCHER:START"
@@ -462,7 +463,7 @@ if [[ ! -f "$block_file" ]]; then
   echo "missing agents block template: ${block_file}" >&2
   exit 1
 fi
-for required_ref in "$heartbeat_config_template" "$heartbeat_schedules_template" "$heartbeat_inbox_readme_template" "$ralphloop_template" "$ralphloop_runner_template"; do
+for required_ref in "$heartbeat_config_template" "$heartbeat_schedules_template" "$heartbeat_inbox_readme_template" "$check_and_resume_template" "$ralphloop_template" "$ralphloop_runner_template"; do
   if [[ ! -f "$required_ref" ]]; then
     echo "missing reference template: ${required_ref}" >&2
     exit 1
@@ -478,9 +479,9 @@ copy_managed_template "${tpl_dir}/coding-prompt-template.md" "${harness_dir}/cod
 copy_template "${tpl_dir}/feature-list-template.json" "${harness_dir}/feature-list.json"
 copy_template "${tpl_dir}/bk-execution-handoff-template.md" "${harness_dir}/bk-execution-handoff.md"
 copy_template "${tpl_dir}/bk-execution-table-template.json" "${harness_dir}/bk-execution-table.json"
-copy_managed_template "${tpl_dir}/check-and-resume-sh-template.md" "${harness_dir}/check_and_resume.sh"
-copy_managed_template "${tpl_dir}/ralphloop-sh-template.md" "${harness_dir}/ralphloop.sh"
-copy_managed_template "${tpl_dir}/ralphloop-runner-sh-template.md" "${harness_dir}/ralphloop-runner.sh"
+copy_managed_template "${check_and_resume_template}" "${harness_dir}/check_and_resume.sh"
+copy_managed_template "${ralphloop_template}" "${harness_dir}/ralphloop.sh"
+copy_managed_template "${ralphloop_runner_template}" "${harness_dir}/ralphloop-runner.sh"
 copy_template "$heartbeat_config_template" "${harness_dir}/heartbeat.config.json"
 copy_template "$heartbeat_schedules_template" "${harness_dir}/heartbeat-schedules.json"
 copy_template "$heartbeat_inbox_readme_template" "${inbox_dir}/README.md"
@@ -538,6 +539,17 @@ if [[ ! -f "$gitignore_file" || $force -eq 1 ]]; then
 EOF
   echo "write: ${gitignore_file}"
 fi
+
+ensure_gitignore_entry() {
+  local entry="$1"
+  if ! grep -Fxq "$entry" "$gitignore_file"; then
+    printf "%s\n" "$entry" >> "$gitignore_file"
+    echo "update: ${gitignore_file} (+${entry})"
+  fi
+}
+
+ensure_gitignore_entry "ralph-msg.md"
+ensure_gitignore_entry "ralph-msg.consumed.md"
 
 if [[ -f "$agents_file" ]]; then
   if grep -q "${start_tag}" "$agents_file" && ! grep -q "${end_tag}" "$agents_file"; then
@@ -604,7 +616,10 @@ echo "  0) run detect pass with ${rel_harness}/detect_prompt.md and mark table d
 echo "  1) bash ${rel_harness}/check_and_resume.sh"
 echo "  1b) trigger one pulse: bash ${rel_harness}/ralphloop.sh pulse --endless"
 echo "  1c-setup) export BAGAKIT_AGENT_CMD='codex exec {prompt_text}'  # non-interactive required"
+echo "  1c-setup) export RALPHLOOP_MAX_ROUNDS=50 RALPHLOOP_MAX_RUNTIME_SECONDS=7200 RALPHLOOP_MAX_INTERVAL_SECONDS=30"
+echo "  1c-setup) export RALPHLOOP_LOG_FILE='.bagakit/long-run/logs/ralphloop-runner.log'"
 echo "  1c) start continuous loop: bash ${rel_harness}/ralphloop-runner.sh"
 echo "  2) run initializer -> coding loop"
+echo "  2b) optional async note inbox: write segments to ${rel_harness}/ralph-msg.md separated by ---"
 echo "  3) optional heartbeat tick: python3 \"\$BAGAKIT_LONG_RUN_SKILL_DIR/scripts/long-run-heartbeat.py\" tick . --json"
 echo "  4) optional schedule list: python3 \"\$BAGAKIT_LONG_RUN_SKILL_DIR/scripts/long-run-heartbeat.py\" schedule-list ."

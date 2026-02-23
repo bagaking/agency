@@ -7,6 +7,7 @@ Use this guide before creating/refactoring a skill for a problem that is not yet
 - Search first, build second.
 - If an existing reliable skill/tool solves the need, reuse/adapt before writing from scratch.
 - Keep discovery standalone: do not assume any specific marketplace skill or CLI is installed.
+- Discovery evidence is mandatory: implementation cannot start before discovery log is complete.
 
 ## How to Use This Guide (Avoid Closed-Door Design)
 
@@ -18,6 +19,7 @@ Use this guide before creating/refactoring a skill for a problem that is not yet
    - trust signal (maintainer type + ecosystem reputation).
 4. Record reuse/adapt/reject decisions with reasons (Section 5).
 5. Only create from scratch when the search log shows no good reusable/adaptable option.
+6. Persist the search log to `reference/discovery/discovery-log.md` using template `reference/tpl/discovery-log-tpl.md`.
 
 If another discovery skill/tool exists and is useful, treat it as an optional accelerator on top of this baseline, not a prerequisite.
 
@@ -85,14 +87,24 @@ Prefer in order:
 
 Capture at least:
 - source link/path,
-- what was found,
+- what was checked,
+- relevance,
+- usefulness,
+- value,
 - applicability decision (`reuse` / `adapt` / `reject`),
-- reason.
+- reference plan.
 
-Minimal template:
+Log structure:
+- Use task-driven category headings (`## <category>`), for example `skills`, `权威资料`, `论文`, `开源库`.
+- Under each category, record concrete entries.
+
+Minimal entry template:
 
 ```md
-| Source | Finding | Decision | Reason |
-| --- | --- | --- | --- |
-| <url/path> | <summary> | reuse/adapt/reject | <why> |
+- Source: <url/path>
+- Checked: <what you inspected>
+- Relevance: <high|medium|low + reason>
+- Usefulness: <high|medium|low + reason>
+- Value: <expected value/impact>
+- Reference Plan: <reuse/adapt/reject + how to apply>
 ```

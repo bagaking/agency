@@ -16,6 +16,7 @@ Score each dimension independently.
 | Evidence package density | concrete examples + artifact anchors + operational signals | article has reviewable proof, not just framework outline | mostly framework narrative with weak concrete proof |
 | Publish suitability | language is objective, specific, and source-aware | publish-ready with minimal edit | heavy template tone or unsupported claims |
 | First-draft readiness | first draft already contains enough depth anchors | no major expansion needed before publish review | draft is still scaffold-level and needs bulk expansion |
+| Memorability | section propositions, memory hooks, ending closure, and (for brainstorm) sampling metadata improve recall+replay | reader can restate key claims quickly after one pass | claims are correct but hard to recall or hard to replay |
 
 ## 1.1 Weighted Final Score (Recommended)
 
@@ -29,6 +30,22 @@ Mapping guidance:
 - 可验证性: evidence package density + explicit validation/threshold linkage
 - 社区美誉度: publish suitability + portability/adoptability
 - AI嫌疑风险: slogan density, template smell, unsupported abstraction level
+
+## 1.2 Draft Self-Check Mode (Recommended)
+
+During drafting, the same weighted formula can be used as a pre-gate self-check.
+
+Recommended usage:
+
+- run once after first full draft and once after major rewrite,
+- record four aggregate scores + assumptions in `review_report.md`,
+- treat `<7.0` as "revise before final review".
+
+Guardrails:
+
+- this is not a script hard gate,
+- final release still depends on hard gates + severity findings,
+- do not optimize by dropping concrete evidence only to reduce AI-risk.
 
 ## 2. Severity Model
 
@@ -71,12 +88,14 @@ fix: <smallest effective correction>
 
 ## 5. Review Procedure
 
-1. Score all six dimensions.
+1. Score all eight dimensions.
 2. For medium/high complexity topics, explicitly score evidence-pack retention vs baseline.
 3. Emit findings ordered by severity.
 4. Decide `approve` or `revise` using policy.
 5. Record open risks and owner.
 6. If revised, define next deterministic action.
+7. For memory hooks, provide human judgment with concrete line references; do not rely on fixed phrase matching only.
+8. For AI-tone warning lexicon hits, decide rewrite by context; do not treat lexicon hits as automatic rejection.
 
 ## 6. Anti-Pattern Alerts
 

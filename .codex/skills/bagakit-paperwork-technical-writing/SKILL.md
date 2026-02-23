@@ -16,6 +16,7 @@ Deliver technical writing that is readable for publication and actionable for ex
 - Prevent regression by carrying forward proven strengths from prior versions.
 - Prevent high-compression rewrites from dropping baseline evidence classes.
 - Default to full first-draft quality instead of incremental short scaffolds.
+- Reuse advanced human-writing patterns as in-skill guidance overlays, without creating child skills.
 
 ## When to Use This Skill
 
@@ -79,6 +80,8 @@ Deliver technical writing that is readable for publication and actionable for ex
 2. Select article profile and content budget before drafting.
 - Choose profile: `brainstorm` / `protocol` / `infrastructure` / `general`.
 - Write a compact budget card in `review_report.md`: target words, case count, diagram count, full-sample requirement.
+- Add readability budget: `H2 short proposition coverage`, `anchor loop (open/mid/end)`, `long sentence ratio`, `memory-hook review target`.
+- For `brainstorm` profile, also budget sampling protocol metadata (`sampling object`, `sample size`, `window`, `review role`).
 - First-draft rule: do not output framework-only short draft as final article.
 
 3. Run version baseline gate before drafting.
@@ -97,30 +100,43 @@ Deliver technical writing that is readable for publication and actionable for ex
 - Paragraph-level: evidence/mechanism first, then local conclusion.
 - End each major section with explicit action or validation signal.
 - Keep publish narrative continuous; avoid checklist-like process fields in body text.
+- Memory/readability rules:
+  - each `##` section starts with one short restatable proposition (<=16 units).
+  - split sentences longer than 40 units into `judgment sentence + evidence sentence`.
+  - keep long sentence ratio under 25% for non-general profiles.
+  - add one memory anchor every 350-450 words; quality is reviewed by agent gate (not hard-coded script pass/fail).
+  - avoid 3+ consecutive mechanical short sequence sentences (`先X。再Y。...`) and clean fragment-like residual short lines.
+  - AI-tone lexicon checks are warning-level lint only (see `gate/anti-patterns/ai-tone-terms.txt`); final rewrite judgment is human/agent review.
+  - ending uses either `three-question close (goal/status/next step)` or `one-line key-claim recap`.
 
-6. Split publication and execution content.
+6. Run pre-gate self-check (recommended, non-blocking).
+- Apply one writer loop from `references/human-writing-patterns.md`: context transfer, section option curation, and blind reader test.
+- Compute the weighted score from `references/agent-gate-rubric.md` and record assumptions in `review_report.md`.
+- This self-check is guidance for drafting quality and cannot override hard-gate failures.
+
+7. Split publication and execution content.
 - Main article explains why the approach is correct.
 - Execution appendix defines how to run, verify, and recover.
 - If process fields are needed for traceability, write them only in appendix/report.
 
-7. Run program hard gate checks.
+8. Run program hard gate checks.
 - Run `python3 scripts/check-article.py --input <article.md> --strict --profile <profile> --report <review_report.md>`.
 - Fix all `errors` before publishing.
 - For any rewrite task, `--baseline <previous_article.md>` is required; do not skip baseline comparison.
 - Treat high-compression + evidence-class drop as release-blocking regression.
 - For high-content baseline rewrites, compression over 45% requires explicit scope-cut note; otherwise block release.
 
-8. Run program warning review and agent gate.
+9. Run program warning review and agent gate.
 - Review warnings from checker with explicit decisions in `review_report.md`.
 - Score with `references/agent-gate-rubric.md` and emit findings (`P1/P2/P3` + file/line + fix direction).
 - If any `P1` remains open, status is `revise` and release is blocked.
 
-9. Run optional expert-forum review for high-stakes topics.
+10. Run optional expert-forum review for high-stakes topics.
 - Use `lightning_talk_forum` to converge quickly.
 - Use `deep_dive_forum` when one claim is controversial or high-risk.
 - Keep references, scoring, and claim/tool validation traceable.
 
-10. Final handoff.
+11. Final handoff.
 - Publish `article.md`.
 - Store `execution_appendix.md` and `review_report.md` for downstream implementation.
 
@@ -138,16 +154,39 @@ Deliver technical writing that is readable for publication and actionable for ex
   - No unresolved placeholders.
   - No internal directive leakage in publish article.
   - Profile density floor passed (`--profile`).
+  - Readability floor passed for non-general profiles (`restatable proposition`, `anchor loop`, `long sentence ratio<25%`, `short break density`).
   - No high-compression rewrite regression vs baseline evidence classes.
 - Warning gates:
   - Overloaded bullet sections (continuous list items > 5).
   - Generic headings with low semantic specificity.
   - No concrete example markers in body.
   - Evidence pack is thinner than baseline.
-  - AI-tone risk phrases requiring human rewrite judgment.
+  - AI-tone lexicon hits requiring human rewrite judgment.
   - Suspicious content shrink relative to baseline draft.
+  - Memory-anchor quality and ending recall closure are agent-reviewed warnings.
+  - `brainstorm` sampling metadata completeness is warning-reviewed (object/size/window/review role).
+  - Weighted score formula is for review/self-check guidance, not script-level pass/fail.
 
 See details in `references/quality-gates.md`.
+
+## Complexity Guardrails
+
+- `preset-heavy` / `预设偏多`:
+  - keep one default drafting route; put scenario variants into optional profile notes.
+  - check: list defaults in one place and keep each default justified.
+- `implementation-heavy` / `实现偏重`:
+  - do not solve narrative quality by adding scripts first.
+  - check: keep memory/readability quality primarily in rubric review before script hard gates.
+- `too-many-defaults` / `默认行为太多`:
+  - avoid hidden defaults outside profile budgets and hard-gate table.
+  - check: if a new default is added, document trigger and tradeoff explicitly.
+- `over-hard-validation` / `校验过硬`:
+  - avoid over-hard validation and strict gate expansion on qualitative writing dimensions.
+  - scripts should gate objective invariants; qualitative memory-hook quality stays warning + agent review.
+  - check: verify memory-hook decisions are review/audit records, not fixed phrase pass/fail.
+- `scattered-constraints` / `约束分散`:
+  - keep single-source constraint statements in `references/quality-gates.md` and reference from other docs.
+  - check: avoid duplicating must-rules without a single-source anchor.
 
 ## Commands
 
@@ -162,11 +201,14 @@ bash scripts/validate-skill.sh
 - `references/start-here.md`
 - `references/quality-gates.md`
 - `references/writing-techniques.md`
+- `references/human-writing-patterns.md`
 - `references/markdown-formatting.md`
 - `references/agent-gate-rubric.md`
+- `references/discovery/discovery-log.md`
 - `references/tpl/article-template.md`
 - `references/tpl/execution-appendix-template.md`
 - `references/tpl/review-report-template.md`
+- `gate/anti-patterns/ai-tone-terms.txt`
 
 ## `[[BAGAKIT]]` Footer (Non-Article Only)
 

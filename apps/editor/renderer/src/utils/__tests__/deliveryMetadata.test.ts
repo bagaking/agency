@@ -12,6 +12,7 @@ import {
 test('normalize delivery enums falls back safely', () => {
   assert.equal(normalizeDeliverySource('explorer'), 'explorer');
   assert.equal(normalizeDeliverySource('promote'), 'promote');
+  assert.equal(normalizeDeliverySource('session'), 'session');
   assert.equal(normalizeDeliverySource('unknown', 'explorer'), 'explorer');
 
   assert.equal(normalizeDeliveryMode('quick'), 'quick');
