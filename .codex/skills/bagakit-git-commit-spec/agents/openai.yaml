@@ -1,4 +1,0 @@
-interface:
-  display_name: "Bagakit-Git-Commit-Spec"
-  short_description: "Split mixed diffs into atomic commits and draft TOML-frontmatter commit specs"
-  default_prompt: "Analyze current git changes, propose an atomic split plan, and draft commit messages with fixed TOML frontmatter metadata, module references, driver context, and validation evidence."

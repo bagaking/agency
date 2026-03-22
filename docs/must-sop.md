@@ -77,6 +77,12 @@ Source: `docs/notes-gate-turn-workflow.md`
 - Update this doc when the recommended Turn patterns (Gate Create / Gate Execute) or examples change.
 - Regenerate docs/must-sop.md after updating this doc.
 
+### Promotion Delivery Mechanism
+Source: `docs/notes-promotion-delivery-mechanism.md`
+- Read this doc when changing Promote, Explorer feed dispatch, or Session Reply delivery flows.
+- Update this doc when delivery lifecycle, storage contract, or metadata schema changes.
+- Regenerate docs/must-sop.md after updating this doc.
+
 ### Reusable Items - Coding (Catalog)
 Source: `docs/notes-reusable-items-coding.md`
 - Update this list when you introduce or adopt a new reusable component/library/mechanism.
