@@ -106,6 +106,7 @@ The editor SHALL surface tmux availability in the status bar.
 
 ### Requirement: Per-Cell Multi-Session Terminals
 The editor SHALL allow multiple terminal sessions per Cell.
+The editor SHALL preserve parent-child relationships between sessions within the same Cell.
 
 #### Scenario: Create a new session
 - **WHEN** a user creates a new session in a Cell
@@ -114,6 +115,10 @@ The editor SHALL allow multiple terminal sessions per Cell.
 #### Scenario: Switch sessions
 - **WHEN** a user selects another session
 - **THEN** the editor shows the selected session output and input
+
+#### Scenario: Preserve topology after reparenting
+- **WHEN** a user reparents or reorders a session within a Cell
+- **THEN** the editor keeps the session in the same Cell and preserves the updated topology
 
 ### Requirement: Configurable Quick Actions
 The editor SHALL allow users to configure quick actions with `startCommand` and `resumeCommand`.
@@ -183,11 +188,16 @@ The editor SHALL create a new terminal session when a start action is executed.
 - **THEN** the editor creates a new session, selects it, and executes the start command in that session
 
 ### Requirement: Session Tabs
-The editor SHALL render sessions as nested list items under their parent Cell in the Agent Cells sidebar and highlight the active session.
+The editor SHALL render sessions as a tree of nested list items under their parent Cell in the Agent Cells sidebar and highlight the active session.
+The editor SHALL allow expanding and collapsing session groups in that tree.
 
-#### Scenario: Switch session via session list
+#### Scenario: Switch session via session tree
 - **WHEN** a user clicks a session entry under a Cell
 - **THEN** the editor activates that session and selects the parent Cell
+
+#### Scenario: Expand nested sessions
+- **WHEN** a session node has child sessions and the user expands that node
+- **THEN** the editor shows the child sessions in the Agent Cells sidebar
 
 ### Requirement: Closed Sessions Overflow
 The editor SHALL display detached and closed sessions in an overflow menu associated with the Cell's session list rather than the main session list.
@@ -195,6 +205,56 @@ The editor SHALL display detached and closed sessions in an overflow menu associ
 #### Scenario: View closed sessions
 - **WHEN** a user opens the sessions overflow menu on a Cell
 - **THEN** the editor lists detached/closed sessions and allows selecting/restoring them
+
+### Requirement: Session Hierarchy Reordering
+The editor SHALL allow users to reorder sessions among siblings, move a session under another session as a child, and promote a child session to a higher level within the same Cell.
+
+#### Scenario: Reorder among siblings
+- **WHEN** a user drags a session before or after another session with the same parent
+- **THEN** the editor updates sibling ordering and persists the new order
+
+#### Scenario: Reparent as child
+- **WHEN** a user drags a session onto another session's child drop target
+- **THEN** the editor reparents the dragged session under the target session and persists the new hierarchy
+
+#### Scenario: Promote to a higher level
+- **WHEN** a user drags a child session out onto one of its visible ancestor levels
+- **THEN** the editor reparents the session to that higher level and persists the new hierarchy
+
+### Requirement: Session Hierarchy Persistence
+The editor SHALL store session topology metadata in the per-worktree session registry and SHALL migrate existing flat registries without losing sessions or relative order.
+
+#### Scenario: Load legacy registry
+- **WHEN** the editor loads a session registry that lacks hierarchy metadata
+- **THEN** it treats all sessions as root nodes in their existing order
+
+#### Scenario: Reload preserved hierarchy
+- **WHEN** the editor relaunches after sessions were reordered or reparented
+- **THEN** it restores the same hierarchy and sibling order
+
+### Requirement: Invalid Session Hierarchy Protection
+The editor SHALL reject or repair topology changes that would create invalid session trees.
+
+#### Scenario: Prevent cyclic parentage
+- **WHEN** a user attempts to move a session under one of its descendants
+- **THEN** the editor rejects the change and preserves the previous hierarchy
+
+#### Scenario: Repair missing parent
+- **WHEN** the registry references a missing parent session
+- **THEN** the editor promotes the orphaned session to the root level and keeps it accessible
+
+### Requirement: Typed Child Session Creation
+The editor SHALL allow users to create typed child sessions from an existing session in Agent Cells.
+
+#### Scenario: Create sub terminal child
+- **WHEN** a user invokes `Sub Terminal` from a session row action menu
+- **THEN** the editor creates a child session under that session with `nodeKind=sub_terminal`
+- **AND** the child uses the shell baseline profile
+
+#### Scenario: Create fork child
+- **WHEN** a user invokes `Fork` from a session row action menu
+- **THEN** the editor creates a child session under that session with `nodeKind=fork`
+- **AND** the child preserves the parent session profile when available
 
 ### Requirement: Worktree Link Configuration
 The editor SHALL store a project-level worktree link configuration for ignored or untracked directories.
@@ -2100,13 +2160,13 @@ The action SHALL open the resolved prompt list and allow inserting a selected pr
 - **AND** the Reply editor remains focused for further editing.
 
 ### Requirement: Unified Multi-Source Send Semantics
-The editor SHALL treat Promote and Explorer send as one delivery system with different sources.
+The editor SHALL treat Promote, Explorer send, and session quick-dialog send as one delivery system with different sources.
 Delivery metadata SHALL include source identifiers for audit and filtering.
 
-#### Scenario: Promote and Explorer share delivery protocol
-- **WHEN** Promote or Explorer triggers a send
-- **THEN** both use the same delivery protocol and status lifecycle
-- **AND** each run records its source (`promote` or `explorer`)
+#### Scenario: Promote, Explorer, and session quick-dialog share delivery protocol
+- **WHEN** Promote, Explorer, or Session Reply send triggers a delivery
+- **THEN** all runs use the same delivery start/confirm/status lifecycle contract
+- **AND** each run records its source (`promote`, `explorer`, or `session`)
 
 ### Requirement: Explorer Send Quick Default
 Explorer selection send SHALL default to quick mode and dispatch without mandatory Action Sheet creation.
@@ -2128,18 +2188,73 @@ Gated explorer runs SHALL use Action Sheet linkage and gate-aware status.
 ### Requirement: Delivery Payload Source/Mode Tagging
 Quick and gated dispatch payloads SHALL include explicit source/mode tags and structured context references.
 
-#### Scenario: Payload includes source/mode tags
+#### Scenario: Payload includes source/mode tags for all delivery sources
 - **WHEN** any delivery run is dispatched
 - **THEN** payload metadata includes source and mode fields
-- **AND** references/anchors are preserved for auditability
+- **AND** references/anchors and session ownership fields are preserved for auditability
 
 ### Requirement: Quick Mode Immediate Consumption Policy
 Quick runs SHALL consume source selections/items immediately after dispatch ACK.
 
-#### Scenario: Quick ACK consumes source
+#### Scenario: Quick ACK consumes source for Promote/Explorer/Session
 - **WHEN** a quick run is acknowledged by host dispatch
-- **THEN** source items are marked consumed immediately
-- **AND** audit metadata records the ACK timestamp
+- **THEN** source items are marked consumed immediately when applicable
+- **AND** audit metadata records the ACK timestamp and session ownership context
+
+### Requirement: Delivery Runtime Path Convergence
+Renderer workflows for Promote and Explorer SHALL use the delivery facade APIs (`startDelivery`, `confirmDelivery`, `getDeliveryStatus`, `getDeliveryTimeline`) for delivery orchestration.
+Renderer workflows SHALL NOT duplicate draft lifecycle state transitions that are already owned by the delivery domain module.
+
+#### Scenario: Promote dispatch uses delivery APIs
+- **WHEN** a user dispatches Promote
+- **THEN** the renderer calls delivery facade APIs for run creation and status handling
+- **AND** draft/audit records are produced by the shared delivery module
+
+#### Scenario: Explorer dispatch uses delivery APIs
+- **WHEN** a user dispatches Explorer send
+- **THEN** the renderer calls delivery facade APIs for run creation and status handling
+- **AND** quick and gated runs follow the same shared lifecycle primitives
+
+### Requirement: Session Quick Delivery Persistence
+Session quick-dialog sends SHALL be persisted as delivery runs under the unified delivery storage contract.
+Each run SHALL carry session ownership metadata in record meta.
+
+#### Scenario: Session Reply send creates unified delivery records
+- **WHEN** a user sends content from Session Reply
+- **THEN** the system creates a unified delivery run with `source=session`
+- **AND** the record stores origin/target session ownership metadata in `meta`
+
+#### Scenario: Session Reply send auto-confirms dispatch
+- **WHEN** a user sends content from Session Reply
+- **THEN** the system dispatches the reply to the target session and triggers one explicit confirm action
+- **AND** the reply is not left as unsubmitted text in the target terminal by default
+
+### Requirement: Explicit Dispatch Confirmation Semantics
+Programmatic delivery and action-sheet dispatches SHALL use explicit confirm-key behavior for submit actions rather than relying only on raw newline-byte injection.
+
+#### Scenario: Programmatic dispatch submits with explicit confirm behavior
+- **WHEN** a delivery or action-sheet run is programmatically dispatched to a terminal session
+- **THEN** the host sends the command text to the session
+- **AND** submit confirmation is issued as explicit terminal key behavior
+
+### Requirement: Shared Session-Input Dispatch Primitive
+The editor SHALL expose one shared host-owned session-input dispatch primitive for programmatic terminal submissions.
+Compatibility wrappers MAY preserve legacy caller shapes, but the canonical execution contract SHALL be semantic (`text`, `confirm strategy`, optional settle delay) rather than transport-shaped newline flags.
+
+#### Scenario: Multiple send surfaces reuse one primitive
+- **WHEN** Delivery, Action Sheet, or future agent-send flows dispatch terminal input
+- **THEN** they route through the same host-owned session-input dispatch primitive
+- **AND** confirmation behavior is configured from that primitive instead of duplicated per surface
+
+### Requirement: Unified Promotion Storage Contract
+Delivery runs across all sources SHALL be stored in one converged contract:
+- Draft records in HIL draft storage.
+- Audit timeline entries in `.agency/delivery/events-<worktree>.jsonl`.
+
+#### Scenario: Multi-source runs are stored in the same contract
+- **WHEN** delivery runs are created from different sources
+- **THEN** each run is queryable from the same draft + timeline storage model
+- **AND** source and session ownership metadata differentiates runs without splitting storage locations
 
 ### Requirement: Agency Data Package Boundary
 The editor runtime SHALL host Agency data-domain logic in a root package `pkg/agency-data`.
