@@ -365,7 +365,7 @@ async function handleSecondaryLaunch(argv: string[] = [], workingDirectory = pro
 function setupAppLifecycle(): void {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      void createWindow();
+      void createWindow({ startEmpty: true });
       logRuntime('info', 'main window recreated');
     }
   });
