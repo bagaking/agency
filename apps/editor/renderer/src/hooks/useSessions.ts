@@ -10,6 +10,7 @@ import {
   isAgencyMethodAvailable,
   listSessions as listSessionsBridge,
   logRuntime as logRuntimeBridge,
+  moveSessionNode as moveSessionNodeBridge,
   prepareSessionContinueOnMobile as prepareSessionContinueOnMobileBridge,
   renameSession as renameSessionBridge,
   updateSessionMeta as updateSessionMetaBridge,
@@ -391,7 +392,15 @@ export function useSessions(options: any = {}) {
       setSessionLoading(true);
       setSessionError('');
       try {
-        const { name, sessionId, profileId, avatar } = options || {};
+        const {
+          name,
+          sessionId,
+          profileId,
+          avatar,
+          parentSessionId,
+          nodeKind,
+          sourceSessionId,
+        } = options || {};
         const preferredAvatar =
           avatar || pickSessionAvatarId(sessionsByCellId[targetCell.id] || []);
         const created = await createSessionBridge({
@@ -403,6 +412,9 @@ export function useSessions(options: any = {}) {
           avatar: preferredAvatar,
           cellName: targetCell.name,
           cellBranch: targetCell.branch,
+          parentSessionId: parentSessionId || null,
+          nodeKind: nodeKind || undefined,
+          sourceSessionId: sourceSessionId || null,
         });
         setSessionsByCellId((current) => {
           const currentSessions = current[targetCell.id] || [];
@@ -554,6 +566,33 @@ export function useSessions(options: any = {}) {
         }
       } catch (error) {
         setSessionError(error?.message || 'Failed to update session avatar.');
+      } finally {
+        setSessionLoading(false);
+      }
+    },
+    [loadSessionsForCell, resolveCell, selectedCell]
+  );
+
+  const moveSessionNode = useCallback(
+    async (sessionId, { parentSessionId = null, beforeSessionId = null } = {}, cellIdOverride) => {
+      const targetCell = resolveCell(cellIdOverride) || selectedCell;
+      if (!targetCell || !sessionId || !isAgencyMethodAvailable('moveSessionNode')) {
+        return null;
+      }
+      setSessionLoading(true);
+      setSessionError('');
+      try {
+        const moved = await moveSessionNodeBridge({
+          worktreePath: targetCell.worktreePath,
+          sessionId,
+          parentSessionId,
+          beforeSessionId,
+        });
+        await loadSessionsForCell(targetCell, { silent: true });
+        return moved || null;
+      } catch (error) {
+        setSessionError(error?.message || 'Failed to move session.');
+        return null;
       } finally {
         setSessionLoading(false);
       }
@@ -720,6 +759,7 @@ export function useSessions(options: any = {}) {
     detachSession,
     renameSession,
     updateSessionAvatar,
+    moveSessionNode,
     prepareSessionContinueOnMobile,
     selectSession,
     updateSessionActivity,

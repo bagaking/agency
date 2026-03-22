@@ -6,6 +6,7 @@ const {
   detachSessionById,
   renameSessionById,
   updateSessionMeta,
+  moveSessionNodeById,
   setSessionMouse,
 } = require('../../services/sessions');
 const { prepareSessionContinueOnMobile } = require('../../services/mobileSessionContinuation');
@@ -29,6 +30,9 @@ function setupSessionHandlers() {
       avatar,
       cellName,
       cellBranch,
+      parentSessionId,
+      nodeKind,
+      sourceSessionId,
     } = payload || {};
     if (!cellId || !worktreePath) {
       throw new Error('cellId and worktreePath are required.');
@@ -42,6 +46,9 @@ function setupSessionHandlers() {
       avatar,
       cellName,
       cellBranch,
+      parentSessionId,
+      nodeKind,
+      sourceSessionId,
     });
   });
 
@@ -75,6 +82,19 @@ function setupSessionHandlers() {
       throw new Error('worktreePath and sessionId are required.');
     }
     return updateSessionMeta({ worktreePath, sessionId, avatar });
+  });
+
+  ipcMain.handle('sessions:move', async (_event, payload) => {
+    const { worktreePath, sessionId, parentSessionId, beforeSessionId } = payload || {};
+    if (!worktreePath || !sessionId) {
+      throw new Error('worktreePath and sessionId are required.');
+    }
+    return moveSessionNodeById({
+      worktreePath,
+      sessionId,
+      parentSessionId: parentSessionId || null,
+      beforeSessionId: beforeSessionId || null,
+    });
   });
 
   ipcMain.handle('sessions:setMouse', async (_event, payload) => {

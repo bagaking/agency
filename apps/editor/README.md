@@ -70,8 +70,9 @@
 - tmux is required; session creation is blocked if tmux is missing.
 - Each worktree stores a session registry at `.agency/sessions-<worktree-name>.yaml`.
 - Each Cell can have multiple sessions; stale sessions are flagged when tmux is missing or detached.
-- Sessions render as tabs; the tab close (X) terminates tmux, and Detach is available via the session context menu.
-- Detached sessions remain available from the overflow menu, while closed sessions can be restarted.
+- Sessions render as a tree under each Cell in Agent Cells; rows support reorder/reparent drag-and-drop and root-level promotion.
+- Session nodes persist topology metadata (`parentSessionId`, `order`, `nodeKind`) to prepare for future fork/sub-terminal flows.
+- Detached sessions remain available from the overflow menu unless currently active; closed sessions can be restarted.
 - Sessions can be renamed from the session context menu.
 - On relaunch, the editor restores the last selected Cell and active session.
 - The terminal toolbar includes zoom controls and an idle timer.
@@ -215,6 +216,9 @@ make editor-dev
 - Open the editor with tmux installed, create a session, restart the editor, and confirm the session reattaches.
 - Remove or stop a tmux session, refresh sessions, and verify the session shows as stale.
 - Close a session, verify it appears under the overflow menu, and reopen it to create a new session.
+- Drag a session before another session and confirm sibling order persists after refresh/relaunch.
+- Drag a session onto another session and confirm it becomes a child node under that session.
+- Drag a child session out toward an ancestor level and confirm it is promoted to that higher level.
 - Add a quick action with both commands and verify start/resume run in the active session.
 - Switch to Project or Agent actions, confirm inherited actions are read-only, and verify Override/Reset behavior.
 - Configure reply quick prompts across multiple scopes, confirm resolved source badges in Hierarchy, and insert one from `快捷回复如何` in Session Reply composer.

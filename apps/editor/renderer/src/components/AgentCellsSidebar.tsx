@@ -27,6 +27,7 @@ export function AgentCellsSidebar({
   onDetachSession,
   onRenameSession,
   onUpdateSessionAvatar,
+  onMoveSessionNode,
   onContinueSessionOnMobile,
   onConfigureProfile,
   onOpenFileReference,
@@ -161,6 +162,7 @@ export function AgentCellsSidebar({
           onDetachSession={onDetachSession}
           onRenameSession={onRenameSession}
           onUpdateSessionAvatar={onUpdateSessionAvatar}
+          onMoveSessionNode={onMoveSessionNode}
           onContinueSessionOnMobile={onContinueSessionOnMobile}
           onConfigureProfile={onConfigureProfile}
         />

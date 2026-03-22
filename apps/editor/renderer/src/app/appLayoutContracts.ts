@@ -183,6 +183,7 @@ export type SessionsState = UnknownRecord & {
   detachSession?: FlexibleHandler;
   renameSession?: FlexibleHandler;
   updateSessionAvatar?: FlexibleHandler;
+  moveSessionNode?: FlexibleHandler;
   prepareSessionContinueOnMobile?: FlexibleHandler;
 };
 
@@ -455,6 +456,7 @@ export interface BuildAppLayoutInput {
   detachSession: FlexibleHandler;
   renameSession: FlexibleHandler;
   updateSessionAvatar: FlexibleHandler;
+  moveSessionNode: FlexibleHandler;
   prepareSessionContinueOnMobile?: FlexibleHandler;
   handleContinueSessionOnMobile?: FlexibleHandler;
   projectReady: boolean;

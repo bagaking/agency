@@ -26,6 +26,7 @@ export function buildAppLayoutProps({
   detachSession,
   renameSession,
   updateSessionAvatar,
+  moveSessionNode,
   prepareSessionContinueOnMobile,
   handleContinueSessionOnMobile,
   projectReady,
@@ -190,6 +191,7 @@ export function buildAppLayoutProps({
     onDetachSession: detachSession,
     onRenameSession: renameSession,
     onUpdateSessionAvatar: updateSessionAvatar,
+    onMoveSessionNode: moveSessionNode,
     onContinueSessionOnMobile:
       handleContinueSessionOnMobile || prepareSessionContinueOnMobile,
     projectReady,

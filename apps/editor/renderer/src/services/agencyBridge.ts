@@ -18,6 +18,7 @@ export const closeSession = createOptionalInvoke('closeSession');
 export const detachSession = createOptionalInvoke('detachSession');
 export const renameSession = createOptionalInvoke('renameSession');
 export const updateSessionMeta = createOptionalInvoke('updateSessionMeta');
+export const moveSessionNode = createOptionalInvoke('moveSessionNode');
 export const setSessionMouse = createOptionalInvoke('setSessionMouse');
 export const prepareSessionContinueOnMobile = createOptionalInvoke('prepareSessionContinueOnMobile');
 export const updateCellState = createOptionalInvoke('updateCellState');

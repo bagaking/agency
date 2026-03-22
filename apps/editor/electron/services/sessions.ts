@@ -8,6 +8,11 @@ const {
   upsertSession,
   removeSession,
 } = require('./sessionRegistry');
+const {
+  SESSION_NODE_KINDS,
+  buildNewSessionTopologyFields,
+  moveSessionNodeInRegistry,
+} = require('./sessionTopology');
 const { resolveProjectRoot } = require('./projectRoot');
 const {
   formatSessionName,
@@ -480,6 +485,9 @@ async function createNewSession({
   avatar,
   cellName,
   cellBranch,
+  parentSessionId,
+  nodeKind,
+  sourceSessionId,
 }) {
   ensureWorktreePath(worktreePath);
   await ensureTmuxAvailable();
@@ -515,6 +523,12 @@ async function createNewSession({
   if (!hasProvidedName) {
     resolvedName = ensureUniqueSessionName(resolvedName, registry.sessions);
   }
+  const topology = buildNewSessionTopologyFields({
+    registry,
+    parentSessionId: parentSessionId || null,
+    nodeKind: nodeKind || SESSION_NODE_KINDS.ROOT,
+    sourceSessionId: sourceSessionId || null,
+  });
 
   const isAlive = await hasSession(tmuxSession);
   if (isAlive) {
@@ -535,6 +549,7 @@ async function createNewSession({
       updatedAt: createdAt,
       lastAttachedAt: createdAt,
       metadataSyncedAt: createdAt,
+      ...topology,
     };
     await syncSessionTmuxMetadata({
       worktreePath,
@@ -565,6 +580,7 @@ async function createNewSession({
     createdAt,
     updatedAt: createdAt,
     metadataSyncedAt: createdAt,
+    ...topology,
   };
 
   await syncSessionTmuxMetadata({
@@ -608,6 +624,10 @@ async function recreateSession({ cellId, worktreePath, sessionId }) {
     name: existing?.name,
     sessionId,
     profileId: existing?.profileId || DEFAULT_PROFILE_ID,
+    avatar: existing?.avatar,
+    parentSessionId: existing?.parentSessionId || null,
+    nodeKind: existing?.nodeKind || SESSION_NODE_KINDS.ROOT,
+    sourceSessionId: existing?.sourceSessionId || null,
   });
 }
 
@@ -728,6 +748,33 @@ async function updateSessionMeta({ worktreePath, sessionId, avatar }) {
   return nextRegistry.sessions.find((session) => session.id === sessionId);
 }
 
+async function moveSessionNodeById({
+  worktreePath,
+  sessionId,
+  parentSessionId = null,
+  beforeSessionId = null,
+}) {
+  ensureWorktreePath(worktreePath);
+  const registry = await readRegistry(worktreePath);
+  const moved = moveSessionNodeInRegistry(registry, {
+    sessionId,
+    parentSessionId,
+    beforeSessionId,
+  });
+  if (!moved.changed) {
+    return registry.sessions.find((session) => session.id === sessionId) || null;
+  }
+  const updatedAt = new Date().toISOString();
+  const nextRegistry = {
+    ...moved.registry,
+    sessions: moved.registry.sessions.map((session) =>
+      session.id === sessionId ? { ...session, updatedAt } : session
+    ),
+  };
+  await writeRegistry(worktreePath, nextRegistry);
+  return nextRegistry.sessions.find((session) => session.id === sessionId) || null;
+}
+
 async function setSessionMouse({ worktreePath, sessionId, enabled = true }) {
   ensureWorktreePath(worktreePath);
   await ensureTmuxAvailable();
@@ -807,6 +854,7 @@ export {
   detachSessionById,
   renameSessionById,
   updateSessionMeta,
+  moveSessionNodeById,
   setSessionMouse,
   resolveSessionForAttach,
   resolveSessionForPreview,

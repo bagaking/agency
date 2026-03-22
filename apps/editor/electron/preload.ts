@@ -98,6 +98,7 @@ const INVOKE_CHANNELS: Record<string, string> = {
   detachSession: 'sessions:detach',
   renameSession: 'sessions:rename',
   updateSessionMeta: 'sessions:updateMeta',
+  moveSessionNode: 'sessions:move',
   setSessionMouse: 'sessions:setMouse',
   prepareSessionContinueOnMobile: 'sessions:continueOnMobile',
   getUiState: 'ui-state:get',

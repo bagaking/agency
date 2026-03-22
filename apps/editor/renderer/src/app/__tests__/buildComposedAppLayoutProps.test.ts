@@ -71,6 +71,7 @@ function createFixture() {
     detachSession: asyncNoop,
     renameSession: asyncNoop,
     updateSessionAvatar: asyncNoop,
+    moveSessionNode: asyncNoop,
     selectSession: noop,
     updateSessionActivity: noop,
     zoomIn: noop,
@@ -450,6 +451,7 @@ test('buildComposedAppLayoutProps wires editor and hierarchy wiring', () => {
     result.onContinueSessionOnMobile,
     fixture.refs.actionHandlers.handleContinueSessionOnMobile
   );
+  assert.equal(result.onMoveSessionNode, fixture.refs.sessionsState.moveSessionNode);
 });
 
 test('buildComposedAppLayoutProps preserves action sheets and explorer callbacks', () => {

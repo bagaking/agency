@@ -182,6 +182,7 @@ export function buildComposedAppLayoutProps({
     detachSession: sessionsState.detachSession,
     renameSession: sessionsState.renameSession,
     updateSessionAvatar: sessionsState.updateSessionAvatar,
+    moveSessionNode: sessionsState.moveSessionNode,
     prepareSessionContinueOnMobile: sessionsState.prepareSessionContinueOnMobile,
     terminusProfiles: sessionReplyContext.terminusProfiles,
     handleSelectSessionFromSidebar: navigationHandlers.handleSelectSessionFromSidebar,

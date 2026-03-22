@@ -12,6 +12,10 @@
 ## Terminal
 - [ ] Open a terminal session and verify output appears.
 - [ ] Start CLI and confirm Codex (or stub) launches in the embedded terminal.
+- [ ] Reorder two session nodes in Agent Cells and confirm the new order persists after refresh.
+- [ ] Drag a session onto another session and confirm it becomes a child node.
+- [ ] Drag a child session out toward an ancestor level and confirm it is promoted to that higher level.
+- [ ] Close a session and confirm it moves to overflow; restore it and confirm topology metadata is preserved.
 
 ## Softlinks
 - [ ] Open Softlinks view and confirm ignored/untracked candidates appear.

@@ -35,6 +35,7 @@ export function AppLayout({
   onDetachSession,
   onRenameSession,
   onUpdateSessionAvatar,
+  onMoveSessionNode,
   onContinueSessionOnMobile,
   projectReady,
   projectError,
@@ -217,6 +218,7 @@ export function AppLayout({
         onDetachSession,
         onRenameSession,
         onUpdateSessionAvatar,
+        onMoveSessionNode,
         onContinueSessionOnMobile,
         onConfigureProfile,
       }}

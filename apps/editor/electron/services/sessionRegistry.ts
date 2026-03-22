@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
+const { normalizeSessionRegistry } = require('./sessionTopology');
 
 const fsp = fs.promises;
 
@@ -20,18 +21,22 @@ function getSessionRegistryPath(worktreePath) {
 async function readRegistry(worktreePath) {
   const registryPath = getSessionRegistryPath(worktreePath);
   if (!fs.existsSync(registryPath)) {
-    return {
+    return normalizeSessionRegistry({
       version: 1,
       sessions: [],
-    };
+    }).registry;
   }
   try {
     const raw = await fsp.readFile(registryPath, 'utf-8');
     const parsed = (yaml.load(raw) || {}) as Record<string, any>;
-    return {
+    const normalized = normalizeSessionRegistry({
       version: parsed.version || 1,
       sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
-    };
+    });
+    if (normalized.changed) {
+      await writeRegistry(worktreePath, normalized.registry);
+    }
+    return normalized.registry;
   } catch (error) {
     const suffix = new Date().toISOString().replace(/[:.]/g, '-');
     const backupPath = `${registryPath}.corrupt-${suffix}`;
@@ -51,7 +56,8 @@ async function readRegistry(worktreePath) {
 async function writeRegistry(worktreePath, registry) {
   const registryPath = getSessionRegistryPath(worktreePath);
   await fsp.mkdir(path.dirname(registryPath), { recursive: true });
-  const content = yaml.dump(registry, { lineWidth: 120 });
+  const normalized = normalizeSessionRegistry(registry || {}).registry;
+  const content = yaml.dump(normalized, { lineWidth: 120 });
   const tempSuffix = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const tempPath = `${registryPath}.tmp-${tempSuffix}`;
   await fsp.writeFile(tempPath, content, 'utf-8');
