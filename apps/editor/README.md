@@ -72,6 +72,7 @@
 - Each Cell can have multiple sessions; stale sessions are flagged when tmux is missing or detached.
 - Sessions render as a tree under each Cell in Agent Cells; rows support reorder/reparent drag-and-drop and root-level promotion.
 - Session nodes persist topology metadata (`parentSessionId`, `order`, `nodeKind`) to prepare for future fork/sub-terminal flows.
+- Session row context menus can create typed child nodes for `Sub Terminal` and `Fork`.
 - Detached sessions remain available from the overflow menu unless currently active; closed sessions can be restarted.
 - Sessions can be renamed from the session context menu.
 - On relaunch, the editor restores the last selected Cell and active session.
@@ -219,6 +220,7 @@ make editor-dev
 - Drag a session before another session and confirm sibling order persists after refresh/relaunch.
 - Drag a session onto another session and confirm it becomes a child node under that session.
 - Drag a child session out toward an ancestor level and confirm it is promoted to that higher level.
+- Open a session row context menu and create both `Sub Terminal` and `Fork`; confirm each appears as a child node with the correct kind badge.
 - Add a quick action with both commands and verify start/resume run in the active session.
 - Switch to Project or Agent actions, confirm inherited actions are read-only, and verify Override/Reset behavior.
 - Configure reply quick prompts across multiple scopes, confirm resolved source badges in Hierarchy, and insert one from `快捷回复如何` in Session Reply composer.

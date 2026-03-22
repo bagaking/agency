@@ -76,6 +76,8 @@ export function SessionContextMenu({
   isOpen,
   position,
   containerRef,
+  onCreateSubTerminal,
+  onCreateFork,
   onDetach,
   onRename,
   onContinueOnMobileDirect,
@@ -93,6 +95,19 @@ export function SessionContextMenu({
       className="fixed z-[60] w-44 rounded-md border border-border bg-popover py-1 shadow-xl text-[11px]"
       style={{ top: position.y, left: position.x }}
     >
+      <button
+        onClick={onCreateSubTerminal}
+        className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+      >
+        Create Sub Terminal
+      </button>
+      <button
+        onClick={onCreateFork}
+        className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+      >
+        Create Fork
+      </button>
+      <div className="my-1 border-t border-border/70" />
       <button
         onClick={onDetach}
         className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"

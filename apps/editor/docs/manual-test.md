@@ -15,6 +15,7 @@
 - [ ] Reorder two session nodes in Agent Cells and confirm the new order persists after refresh.
 - [ ] Drag a session onto another session and confirm it becomes a child node.
 - [ ] Drag a child session out toward an ancestor level and confirm it is promoted to that higher level.
+- [ ] Use the session row context menu to create `Sub Terminal` and `Fork` child sessions and confirm they appear under the selected parent.
 - [ ] Close a session and confirm it moves to overflow; restore it and confirm topology metadata is preserved.
 
 ## Softlinks

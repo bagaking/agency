@@ -452,6 +452,30 @@ export function AgentCellsSessionsPanel({
     return ids;
   }, [avatarMenu?.cellId, avatarMenuCell, avatarMenuSessions]);
 
+  const createChildSession = useCallback(
+    async ({
+      cellId,
+      session,
+      nodeKind,
+    }: {
+      cellId: string;
+      session: any;
+      nodeKind: 'sub_terminal' | 'fork';
+    }) => {
+      const cell = cellsById.get(cellId);
+      if (!cell || !session) {
+        return;
+      }
+      await onCreateSession?.(cell, {
+        profileId: session.profileId || undefined,
+        parentSessionId: session.id,
+        nodeKind,
+        sourceSessionId: session.id,
+      });
+    },
+    [cellsById, onCreateSession]
+  );
+
   const clearDragState = useCallback(() => {
     setDraggingSession(null);
     setDropTarget(null);
@@ -1060,6 +1084,26 @@ export function AgentCellsSessionsPanel({
             contextMenuSession.status !== 'closed' &&
             contextMenuSession.status !== 'stale'
         )}
+        onCreateSubTerminal={() => {
+          if (contextMenu?.cellId && contextMenuSession) {
+            void createChildSession({
+              cellId: contextMenu.cellId,
+              session: contextMenuSession,
+              nodeKind: 'sub_terminal',
+            });
+          }
+          setContextMenu(null);
+        }}
+        onCreateFork={() => {
+          if (contextMenu?.cellId && contextMenuSession) {
+            void createChildSession({
+              cellId: contextMenu.cellId,
+              session: contextMenuSession,
+              nodeKind: 'fork',
+            });
+          }
+          setContextMenu(null);
+        }}
         onDetach={() => {
           if (contextMenu?.cellId && contextMenu?.sessionId) {
             onDetachSession?.(contextMenu.sessionId, contextMenu.cellId);
