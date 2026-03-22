@@ -18,12 +18,19 @@ function setupProjectHandlers() {
   ipcMain.handle('project:get', async (event) => {
     const ownerWindow = BrowserWindow.fromWebContents(event.sender);
     const allowStoredRoot = ownerWindow?.__agencyAllowStoredProjectRoot !== false;
-    return getProjectContext({ windowId: ownerWindow?.id, allowStoredRoot });
+    return getProjectContext({
+      windowId: ownerWindow?.id,
+      windowStateId: ownerWindow?.__agencyWindowStateId,
+      allowStoredRoot,
+    });
   });
 
   ipcMain.handle('project:select', async (event) => {
     const ownerWindow = BrowserWindow.fromWebContents(event.sender);
-    const result = await selectProjectRoot({ ownerWindow });
+    const result = await selectProjectRoot({
+      ownerWindow,
+      windowStateId: ownerWindow?.__agencyWindowStateId,
+    });
     if (result?.projectRoot && ownerWindow) {
       setWindowProjectRoot(ownerWindow.id, result.projectRoot);
       ownerWindow.webContents.send('project:updated', result);
@@ -37,9 +44,16 @@ function setupProjectHandlers() {
   ipcMain.handle('project:set', async (_event, payload) => {
     const ownerWindow = BrowserWindow.fromWebContents(_event.sender);
     const projectRoot = payload?.projectRoot || '';
-    const result = await setProjectRoot(projectRoot);
-    if (result?.projectRoot && ownerWindow) {
-      setWindowProjectRoot(ownerWindow.id, result.projectRoot);
+    const result = await setProjectRoot(projectRoot, {
+      windowId: ownerWindow?.id,
+      windowStateId: ownerWindow?.__agencyWindowStateId,
+    });
+    if (ownerWindow) {
+      if (result?.projectRoot) {
+        setWindowProjectRoot(ownerWindow.id, result.projectRoot);
+      } else {
+        clearWindowProjectRoot(ownerWindow.id);
+      }
       ownerWindow.webContents.send('project:updated', result);
     }
     if (result?.recentProjects) {
@@ -50,7 +64,10 @@ function setupProjectHandlers() {
 
   ipcMain.handle('project:clear', async (event) => {
     const ownerWindow = BrowserWindow.fromWebContents(event.sender);
-    const result = await clearProjectRoot();
+    const result = await clearProjectRoot({
+      windowId: ownerWindow?.id,
+      windowStateId: ownerWindow?.__agencyWindowStateId,
+    });
     if (ownerWindow) {
       clearWindowProjectRoot(ownerWindow.id);
       ownerWindow.webContents.send('project:updated', result);

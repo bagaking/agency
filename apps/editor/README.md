@@ -3,6 +3,7 @@
 ## Scope & Stack
 
 - v0.2 targets macOS first while keeping a path open for cross-platform support.
+- Agency uses a single desktop app instance with multiple independent editor windows.
 - Electron + React + Tailwind CSS + Rive (animation placeholder).
 - Embedded terminal via xterm.js and node-pty.
 - Session keepalive uses tmux (required).
@@ -133,7 +134,8 @@
 ## Project Selection
 
 - If no project directory is configured, the editor opens Explorer with an empty-state prompt.
-- Use **Select Project** to choose a repository; the path is stored locally and restored on relaunch.
+- Use **Select Project** to choose a repository for the current window.
+- The app keeps one desktop instance and routes additional launches into that instance as new windows instead of relying on isolated parallel app processes.
 - Recent projects are shown in the sidebar and Project settings when no project is open.
 - New windows start without a project context; use recent projects to switch.
 

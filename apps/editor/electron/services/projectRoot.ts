@@ -2,7 +2,12 @@ const { app, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { getRepoRoot } = require('./git');
-const { readUiState, updateUiState } = require('./uiState');
+const {
+  readAppUiState,
+  readWindowUiState,
+  updateAppUiState,
+  updateWindowUiState,
+} = require('./uiState');
 
 const ENV_PROJECT_ROOT = 'AGENCY_PROJECT_ROOT';
 const ENV_TEST_PROJECT_ROOT = 'AGENCY_TEST_PROJECT_ROOT';
@@ -10,6 +15,10 @@ const RECENT_PROJECTS_LIMIT = 8;
 const windowProjectRoots = new Map();
 
 function normalizeRoot(value) {
+  return String(value || '').trim();
+}
+
+function normalizeWindowStateId(value) {
   return String(value || '').trim();
 }
 
@@ -31,7 +40,7 @@ function normalizeRecentEntry(entry) {
 }
 
 async function readRecentProjects() {
-  const state = await readUiState();
+  const state = await readAppUiState();
   const raw = Array.isArray(state?.recentProjects) ? state.recentProjects : [];
   const normalized = raw.map(normalizeRecentEntry).filter(Boolean);
   const seen = new Set();
@@ -68,7 +77,7 @@ async function rememberRecentProject(repoRoot) {
     ...current.filter((entry) => entry.path !== normalized),
   ];
   const limited = merged.slice(0, RECENT_PROJECTS_LIMIT);
-  await updateUiState({ recentProjects: limited });
+  await updateAppUiState({ recentProjects: limited });
   return getRecentProjects();
 }
 
@@ -91,8 +100,12 @@ function getEnvProjectRoot() {
   return { value: '', explicit: false };
 }
 
-async function getStoredProjectRoot() {
-  const state = await readUiState();
+async function getStoredProjectRoot(windowStateId) {
+  const normalizedWindowStateId = normalizeWindowStateId(windowStateId);
+  if (!normalizedWindowStateId) {
+    return '';
+  }
+  const state = await readWindowUiState(normalizedWindowStateId);
   return normalizeRoot(state?.projectRoot);
 }
 
@@ -123,12 +136,13 @@ function clearWindowProjectRoot(windowId) {
 }
 
 async function resolveProjectRoot(params: any = {}) {
-  const { rootPath } = params || {};
+  const { rootPath, windowStateId } = params || {};
   const envRoot = getEnvProjectRoot();
   if (envRoot.explicit && !envRoot.value) {
     return '';
   }
-  const candidate = normalizeRoot(rootPath) || envRoot.value || (await getStoredProjectRoot());
+  const storedRoot = await getStoredProjectRoot(windowStateId);
+  const candidate = normalizeRoot(rootPath) || envRoot.value || storedRoot;
   if (!candidate) {
     return '';
   }
@@ -137,15 +151,30 @@ async function resolveProjectRoot(params: any = {}) {
   }
   try {
     return await getRepoRoot(candidate);
-  } catch (error) {
+  } catch (_error) {
     return '';
   }
 }
 
-async function setProjectRoot(projectRoot) {
+async function persistWindowProjectRoot({ windowId, windowStateId, projectRoot }) {
+  const normalizedWindowStateId = normalizeWindowStateId(windowStateId);
+  if (windowId) {
+    setWindowProjectRoot(windowId, projectRoot);
+  }
+  if (normalizedWindowStateId) {
+    await updateWindowUiState(normalizedWindowStateId, { projectRoot });
+  }
+}
+
+async function setProjectRoot(projectRoot, params: any = {}) {
+  const { windowId, windowStateId } = params || {};
   const normalized = normalizeRoot(projectRoot);
   if (!normalized) {
-    await updateUiState({ projectRoot: '' });
+    await persistWindowProjectRoot({
+      windowId,
+      windowStateId,
+      projectRoot: '',
+    });
     return {
       projectRoot: '',
       recentProjects: await getRecentProjects(),
@@ -153,7 +182,11 @@ async function setProjectRoot(projectRoot) {
   }
   const repoRoot = await getRepoRoot(normalized);
   const recentProjects = await rememberRecentProject(repoRoot);
-  await updateUiState({ projectRoot: repoRoot });
+  await persistWindowProjectRoot({
+    windowId,
+    windowStateId,
+    projectRoot: repoRoot,
+  });
   return {
     projectRoot: repoRoot,
     repoRoot,
@@ -161,8 +194,13 @@ async function setProjectRoot(projectRoot) {
   };
 }
 
-async function clearProjectRoot() {
-  await updateUiState({ projectRoot: '' });
+async function clearProjectRoot(params: any = {}) {
+  const { windowId, windowStateId } = params || {};
+  await persistWindowProjectRoot({
+    windowId,
+    windowStateId,
+    projectRoot: '',
+  });
   return {
     projectRoot: '',
     recentProjects: await getRecentProjects(),
@@ -170,17 +208,18 @@ async function clearProjectRoot() {
 }
 
 async function selectProjectRoot(params: any = {}) {
-  const { ownerWindow } = params || {};
+  const { ownerWindow, windowStateId } = params || {};
+  const ownerWindowId = ownerWindow?.id;
   if (process.env.AGENCY_TEST_MODE === '1') {
     if (Object.prototype.hasOwnProperty.call(process.env, ENV_TEST_PROJECT_ROOT)) {
       const candidate = normalizeRoot(process.env[ENV_TEST_PROJECT_ROOT]);
       if (!candidate) {
         return { canceled: true };
       }
-      const repoRoot = await getRepoRoot(candidate);
-      const recentProjects = await rememberRecentProject(repoRoot);
-      await updateUiState({ projectRoot: repoRoot });
-      return { projectRoot: repoRoot, repoRoot, recentProjects };
+      return setProjectRoot(candidate, {
+        windowId: ownerWindowId,
+        windowStateId,
+      });
     }
   }
   const options = {
@@ -192,11 +231,10 @@ async function selectProjectRoot(params: any = {}) {
   if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
     return { canceled: true };
   }
-  const selected = result.filePaths[0];
-  const repoRoot = await getRepoRoot(selected);
-  const recentProjects = await rememberRecentProject(repoRoot);
-  await updateUiState({ projectRoot: repoRoot });
-  return { projectRoot: repoRoot, repoRoot, recentProjects };
+  return setProjectRoot(result.filePaths[0], {
+    windowId: ownerWindowId,
+    windowStateId,
+  });
 }
 
 function getAppPaths() {
@@ -207,33 +245,50 @@ function getAppPaths() {
 }
 
 async function getProjectContext(params: any = {}) {
-  const { windowId, allowStoredRoot = true } = params || {};
+  const { windowId, windowStateId, allowStoredRoot = true } = params || {};
+  const normalizedWindowStateId = normalizeWindowStateId(windowStateId);
   const windowRoot = getWindowProjectRoot(windowId);
-  let resolvedRoot = windowRoot ? await resolveProjectRoot({ rootPath: windowRoot }) : '';
+  let resolvedRoot = windowRoot
+    ? await resolveProjectRoot({ rootPath: windowRoot, windowStateId: normalizedWindowStateId })
+    : '';
   if (!resolvedRoot && windowRoot) {
     clearWindowProjectRoot(windowId);
   }
-  const storedRoot = allowStoredRoot ? await getStoredProjectRoot() : '';
+
+  const storedRoot = allowStoredRoot
+    ? await getStoredProjectRoot(normalizedWindowStateId)
+    : '';
   if (!resolvedRoot && storedRoot) {
-    resolvedRoot = await resolveProjectRoot({ rootPath: storedRoot });
+    resolvedRoot = await resolveProjectRoot({
+      rootPath: storedRoot,
+      windowStateId: normalizedWindowStateId,
+    });
     if (windowId && resolvedRoot) {
       setWindowProjectRoot(windowId, resolvedRoot);
     }
   }
-  if (!resolvedRoot) {
+
+  if (!resolvedRoot && allowStoredRoot) {
     const envRoot = getEnvProjectRoot();
     const envCandidate = envRoot.explicit ? envRoot.value : '';
-    resolvedRoot = envCandidate ? await resolveProjectRoot({ rootPath: envCandidate }) : '';
+    resolvedRoot = envCandidate
+      ? await resolveProjectRoot({
+          rootPath: envCandidate,
+          windowStateId: normalizedWindowStateId,
+        })
+      : '';
     if (windowId && resolvedRoot) {
       setWindowProjectRoot(windowId, resolvedRoot);
     }
   }
+
   const valid = Boolean(resolvedRoot);
   return {
     projectRoot: resolvedRoot,
     storedRoot: allowStoredRoot ? storedRoot : '',
     valid,
     recentProjects: await getRecentProjects(),
+    windowStateId: normalizedWindowStateId,
     ...getAppPaths(),
   };
 }
