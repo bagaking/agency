@@ -46,6 +46,19 @@ type UseRendererBootstrapArgs = {
   setIpcAvailable: (value: boolean) => void;
 };
 
+export function resolveBootstrapActiveView({
+  projectRoot,
+  restoredActiveView,
+}: {
+  projectRoot: string;
+  restoredActiveView: ActiveView | null;
+}): ActiveView {
+  if (!String(projectRoot || '').trim()) {
+    return 'explorer';
+  }
+  return restoredActiveView || 'agent-cells';
+}
+
 export function useRendererBootstrap({
   projectRoot,
   selectedId,
@@ -202,8 +215,12 @@ export function useRendererBootstrap({
           if (typeof state?.sidebarCollapsed === 'boolean') {
             setSidebarCollapsed(state.sidebarCollapsed);
           }
-          const restoredActiveView = parseActiveView(state?.activeView) || 'agent-cells';
-          setActiveView(restoredActiveView);
+          const restoredActiveView = parseActiveView(state?.activeView);
+          const bootstrapActiveView = resolveBootstrapActiveView({
+            projectRoot: resolvedProjectRoot,
+            restoredActiveView,
+          });
+          setActiveView(bootstrapActiveView);
           if (typeof state?.hilDrawerOpen === 'boolean') {
             setHilDrawerOpen(state.hilDrawerOpen);
           }
@@ -217,10 +234,11 @@ export function useRendererBootstrap({
           if (Object.keys(restoredHilDrawerPanelByView).length > 0) {
             setHilDrawerPanelByView(restoredHilDrawerPanelByView);
           } else if (restoredHilDrawerPanel) {
-            setHilDrawerPanelByView({ [restoredActiveView]: restoredHilDrawerPanel });
+            setHilDrawerPanelByView({
+              [restoredActiveView || bootstrapActiveView]: restoredHilDrawerPanel,
+            });
           }
           if (!resolvedProjectRoot) {
-            setActiveView('agent-cells');
             setSelectedId('local-terminal');
             setTerminalOpen(true);
             setCells([]);
@@ -291,7 +309,7 @@ export function useRendererBootstrap({
       return;
     }
     if (!projectRoot) {
-      setActiveView('agent-cells');
+      setActiveView('explorer');
       setSelectedId('local-terminal');
       setTerminalOpen(true);
     }
