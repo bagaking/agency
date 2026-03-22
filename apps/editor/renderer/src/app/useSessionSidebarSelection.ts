@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useLayoutEffect } from 'react';
 
 type UseSessionSidebarSelectionArgs = {
   activeView: string;
@@ -19,7 +19,7 @@ export function useSessionSidebarSelection({
   setSelectedId,
   setTerminalOpen,
 }: UseSessionSidebarSelectionArgs) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (activeView !== 'agent-cells' || !projectReady || displayCells.length === 0) {
       return;
     }
@@ -38,13 +38,11 @@ export function useSessionSidebarSelection({
       setSelectedId(cellId);
       selectSession(sessionId, cellId);
       setTerminalOpen(true);
-      refreshSessionsForCells([targetCell], { silent: true });
     },
-    [displayCells, refreshSessionsForCells, selectSession, setSelectedId, setTerminalOpen]
+    [displayCells, selectSession, setSelectedId, setTerminalOpen]
   );
 
   return {
     handleSelectSessionFromSidebar,
   };
 }
-

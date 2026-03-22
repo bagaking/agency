@@ -45,11 +45,40 @@ const defaultIcons = {
   alert: Info,
   floating: Info,
   confirm: AlertTriangle,
+  prompt: Info,
   success: CheckCircle2,
 };
 
+function resolveDismissResult(modal) {
+  if (modal?.variant === 'prompt') {
+    return null;
+  }
+  return false;
+}
+
+function normalizePromptValue(modal, value) {
+  const raw = String(value ?? '');
+  if (typeof modal?.normalizeValue === 'function') {
+    return modal.normalizeValue(raw);
+  }
+  return raw;
+}
+
 function resolveTone(tone) {
   return toneStyles[tone] || toneStyles.info;
+}
+
+function resolveVariantLabel(variant) {
+  if (variant === 'confirm') {
+    return 'Confirm';
+  }
+  if (variant === 'notice') {
+    return 'Notice';
+  }
+  if (variant === 'prompt') {
+    return 'Prompt';
+  }
+  return 'Alert';
 }
 
 function ModalCard({ modal, onClose }: any) {
@@ -67,12 +96,42 @@ function ModalCard({ modal, onClose }: any) {
     showActions = true,
     showVariantLabel,
   } = modal;
+  const [promptValue, setPromptValue] = useState(() => String(modal?.defaultValue ?? ''));
+  const [promptError, setPromptError] = useState('');
   const styles = resolveTone(tone);
   const Icon = IconOverride || defaultIcons[variant] || AlertTriangle;
   const isFloating = variant === 'floating';
-  const showCancel = showActions && variant === 'confirm';
+  const isPrompt = variant === 'prompt';
+  const showCancel = showActions && (variant === 'confirm' || isPrompt);
   const showDismiss = showActions && (variant === 'notice' || variant === 'alert' || variant === 'floating');
   const showLabel = showVariantLabel ?? !isFloating;
+
+  useEffect(() => {
+    setPromptValue(String(modal?.defaultValue ?? ''));
+    setPromptError('');
+  }, [modal?.defaultValue, id]);
+
+  const submitPrompt = useCallback(() => {
+    const nextValue = normalizePromptValue(modal, promptValue);
+    const validationMessage =
+      typeof modal?.validateValue === 'function' ? modal.validateValue(nextValue) : '';
+    if (validationMessage) {
+      setPromptError(String(validationMessage));
+      return;
+    }
+    onClose(id, nextValue);
+  }, [id, modal, onClose, promptValue]);
+
+  const handlePromptKeyDown = useCallback(
+    (event) => {
+      if (event.key !== 'Enter' || event.shiftKey) {
+        return;
+      }
+      event.preventDefault();
+      submitPrompt();
+    },
+    [submitPrompt]
+  );
 
   return (
     <div className="relative w-full max-w-md animate-tab-in" data-testid={id}>
@@ -93,14 +152,14 @@ function ModalCard({ modal, onClose }: any) {
               <div>
                 {showLabel ? (
                   <div className="text-[12px] font-semibold uppercase tracking-[0.35em] text-muted-foreground/70">
-                    {variant === 'confirm' ? 'Confirm' : variant === 'notice' ? 'Notice' : 'Alert'}
+                    {resolveVariantLabel(variant)}
                   </div>
                 ) : null}
                 <div className="mt-1 text-[15px] font-semibold text-foreground">{title}</div>
               </div>
               <button
                 type="button"
-                onClick={() => onClose(id, false)}
+                onClick={() => onClose(id, resolveDismissResult(modal))}
                 className="rounded-full border border-border/40 p-1 text-muted-foreground/70 hover:text-foreground hover:border-primary/40 transition-colors"
                 aria-label="Close modal"
               >
@@ -117,6 +176,32 @@ function ModalCard({ modal, onClose }: any) {
                 {content}
               </div>
             ) : null}
+            {isPrompt ? (
+              <div className="pt-3">
+                {modal?.inputLabel ? (
+                  <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">
+                    {modal.inputLabel}
+                  </label>
+                ) : null}
+                <input
+                  autoFocus
+                  type={modal?.inputType || 'text'}
+                  value={promptValue}
+                  placeholder={modal?.placeholder || ''}
+                  onChange={(event) => {
+                    setPromptValue(event.target.value);
+                    if (promptError) {
+                      setPromptError('');
+                    }
+                  }}
+                  onKeyDown={handlePromptKeyDown}
+                  className="w-full rounded-xl border border-border/40 bg-background/80 px-3 py-2 text-[12px] text-foreground shadow-inner outline-none transition-colors placeholder:text-muted-foreground/35 focus:border-primary/40"
+                />
+                {promptError ? (
+                  <div className="mt-2 text-[10px] text-rose-300">{promptError}</div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
         {showCancel || showDismiss ? (
@@ -124,7 +209,7 @@ function ModalCard({ modal, onClose }: any) {
             {showCancel ? (
               <button
                 type="button"
-                onClick={() => onClose(id, false)}
+                onClick={() => onClose(id, resolveDismissResult(modal))}
                 className="rounded-xl border border-border/40 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all"
               >
                 {cancelLabel}
@@ -142,7 +227,13 @@ function ModalCard({ modal, onClose }: any) {
             {showCancel ? (
               <button
                 type="button"
-                onClick={() => onClose(id, true)}
+                onClick={() => {
+                  if (isPrompt) {
+                    submitPrompt();
+                    return;
+                  }
+                  onClose(id, true);
+                }}
                 className={`rounded-xl px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] ${styles.button}`}
               >
                 {confirmLabel}
@@ -222,7 +313,7 @@ function ModalHost({ stack, onClose }: any) {
         className="absolute inset-0 bg-slate-950/50 backdrop-blur-md"
         onClick={() => {
           if (dismissOnOverlay) {
-            onClose(modal.id, false);
+            onClose(modal.id, resolveDismissResult(modal));
           }
         }}
       />
@@ -282,14 +373,26 @@ export function ModalProvider({ children }: any) {
     [openModal]
   );
 
+  const prompt = useCallback(
+    (config) =>
+      openModal({
+        variant: 'prompt',
+        confirmLabel: 'Confirm',
+        cancelLabel: 'Cancel',
+        ...config,
+      }),
+    [openModal]
+  );
+
   const value = useMemo(
     () => ({
       openModal,
       confirm,
       notify,
+      prompt,
       closeModal,
     }),
-    [closeModal, confirm, notify, openModal]
+    [closeModal, confirm, notify, openModal, prompt]
   );
 
   return (

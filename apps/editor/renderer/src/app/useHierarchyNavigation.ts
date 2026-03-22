@@ -1,15 +1,20 @@
 import { useCallback } from 'react';
+import type {
+  ActiveView,
+  HierarchySection,
+  ScopedConfigScope,
+} from './appLayoutContracts';
 
 type UseHierarchyNavigationArgs = {
   sidebarCollapsed: boolean;
-  setActiveView: (view: string) => void;
+  setActiveView: (view: ActiveView) => void;
   setSidebarCollapsed: (value: boolean | ((value: boolean) => boolean)) => void;
-  setHierarchySection: (section: string) => void;
-  setActionsScope: (scope: string) => void;
-  setAppShortcutsScope: (scope: string) => void;
-  setReplyQuickPromptsScope: (scope: string) => void;
-  setGateScope: (scope: string) => void;
-  setSessionNamingScope: (scope: string) => void;
+  setHierarchySection: (section: HierarchySection) => void;
+  setActionsScope: (scope: ScopedConfigScope) => void;
+  setAppShortcutsScope: (scope: ScopedConfigScope) => void;
+  setReplyQuickPromptsScope: (scope: ScopedConfigScope) => void;
+  setGateScope: (scope: ScopedConfigScope) => void;
+  setSessionNamingScope: (scope: ScopedConfigScope) => void;
   clearTerminusError: () => void;
   clearAppShortcutsError: () => void;
   clearReplyQuickPromptsError: () => void;
@@ -36,7 +41,7 @@ export function useHierarchyNavigation({
   clearWorktreeLinksError,
 }: UseHierarchyNavigationArgs) {
   const handleSwitchView = useCallback(
-    (view: string) => {
+    (view: ActiveView) => {
       setActiveView(view);
       if (sidebarCollapsed) {
         setSidebarCollapsed(false);
@@ -46,7 +51,7 @@ export function useHierarchyNavigation({
   );
 
   const handleHierarchyJump = useCallback(
-    (target: string) => {
+    (target: HierarchySection) => {
       setHierarchySection(target);
       setActiveView('hierarchy');
       if (target === 'actions') {
@@ -81,7 +86,7 @@ export function useHierarchyNavigation({
   );
 
   const handleSelectActionsScope = useCallback(
-    (scope: string) => {
+    (scope: ScopedConfigScope) => {
       setHierarchySection('actions');
       setActionsScope(scope);
       clearTerminusError();
@@ -114,7 +119,7 @@ export function useHierarchyNavigation({
   );
 
   const handleSelectAppShortcutsScope = useCallback(
-    (scope: string) => {
+    (scope: ScopedConfigScope) => {
       setHierarchySection('app-shortcuts');
       setAppShortcutsScope(scope);
       clearAppShortcutsError();
@@ -123,7 +128,7 @@ export function useHierarchyNavigation({
   );
 
   const handleSelectReplyQuickPromptsScope = useCallback(
-    (scope: string) => {
+    (scope: ScopedConfigScope) => {
       setHierarchySection('reply-quick-prompts');
       setReplyQuickPromptsScope(scope);
       clearReplyQuickPromptsError();
@@ -132,7 +137,7 @@ export function useHierarchyNavigation({
   );
 
   const handleSelectGateScope = useCallback(
-    (scope: string) => {
+    (scope: ScopedConfigScope) => {
       setHierarchySection('gates');
       setGateScope(scope);
       clearGatesError();
@@ -141,7 +146,7 @@ export function useHierarchyNavigation({
   );
 
   const handleSelectSessionNamingScope = useCallback(
-    (scope: string) => {
+    (scope: ScopedConfigScope) => {
       setHierarchySection('session-naming');
       setSessionNamingScope(scope);
       clearSessionNamingError();
@@ -150,7 +155,7 @@ export function useHierarchyNavigation({
   );
 
   const handleSelectHierarchySection = useCallback(
-    (section: string) => {
+    (section: HierarchySection) => {
       setHierarchySection(section);
       if (section === 'softlinks') {
         clearWorktreeLinksError();
@@ -182,4 +187,3 @@ export function useHierarchyNavigation({
     handleToggleSidebar,
   };
 }
-

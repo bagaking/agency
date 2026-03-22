@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import type { ActiveView } from './appLayoutContracts';
 
 import { runFileIntent } from '../services/fileInteraction';
 
@@ -34,7 +35,7 @@ type UseWorkbenchFileNavigationArgs = {
   selectedCell: any | null;
   sidebarCollapsed: boolean;
   workbench: any;
-  setActiveView: (view: string) => void;
+  setActiveView: (view: ActiveView) => void;
   setSidebarCollapsed: (value: boolean) => void;
   setSelectedId: (value: any) => void;
   setPendingExplorerReveal: (value: any) => void;
@@ -372,4 +373,3 @@ export function useWorkbenchFileNavigation({
     importAgentCellFileReferences,
   };
 }
-

@@ -32,9 +32,10 @@ export function ProjectSettingsView({
   onOpenSoftlinks,
 }: any) {
   const hasProject = Boolean(projectRoot);
-  const projectName = hasProject ? basename(projectRoot) : 'No Workspace';
+  const projectName = hasProject ? basename(projectRoot) : 'No project selected';
   const tmuxLabel = tmuxStatus?.available ? tmuxStatus.version || 'tmux active' : 'tmux missing';
   const canAccessProjectConfig = Boolean(projectReady);
+  const projectActionLabel = hasProject ? 'Initialize' : 'Select Project';
 
   const configCards = [
     {
@@ -104,7 +105,7 @@ export function ProjectSettingsView({
             className="group flex items-center gap-2 rounded-full bg-foreground text-background px-4 py-1.5 text-[10px] font-black uppercase tracking-wider transition-all hover:bg-primary hover:text-white active:scale-95 shadow-xl"
           >
             <FolderOpen size={12} strokeWidth={3} />
-            Initialize
+            {projectActionLabel}
           </button>
         </div>
       </header>
@@ -126,6 +127,11 @@ export function ProjectSettingsView({
                     
                     <div className="flex flex-col min-w-0">
                         <h3 className="text-xl font-black tracking-tighter text-foreground mb-1 truncate uppercase">{projectName}</h3>
+                        {!hasProject ? (
+                          <div className="mb-2 text-[11px] font-medium text-muted-foreground/70">
+                            No project selected
+                          </div>
+                        ) : null}
                         <div className="flex items-center gap-3">
                             <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground bg-muted/10 px-2 py-0.5 rounded-md border border-border/10">
                                 <HardDrive size={10} className="text-muted-foreground/50" />

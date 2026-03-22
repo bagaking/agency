@@ -25,6 +25,7 @@ import { QuickOpenModal } from './QuickOpenModal';
 import { ProjectEmptyState } from '../ProjectEmptyState';
 import { Logo } from '../Logo';
 import { IconButton } from '../ui/IconButton';
+import { useModal } from '../modals/ModalSystem';
 import {
   isAgencyAvailable,
   isAgencyMethodAvailable,
@@ -35,13 +36,10 @@ import {
 } from './workbenchPaneHelpers';
 import { loadWorkbenchCodeState, loadWorkbenchTabState } from './workbenchPaneLoaders';
 import {
-  loadWorkbenchBlameLines,
-  loadWorkbenchDiffHunks,
-  normalizeWorkbenchSaveAsPath,
-  saveWorkbenchTabContent,
 } from './workbenchPaneCommands';
 import { useWorkbenchKeyboardShortcuts } from './useWorkbenchKeyboardShortcuts';
 import { useWorkbenchDiskSync } from './useWorkbenchDiskSync';
+import { useWorkbenchDocumentCommands } from './useWorkbenchDocumentCommands';
 
 
 export function WorkbenchPane({
@@ -103,6 +101,7 @@ function WorkbenchPaneContent({
   onJumpHandled,
   onRevealPathInExplorer,
 }: any) {
+  const modal = useModal();
   const { 
     tabs, 
     activeTab, 
@@ -208,57 +207,21 @@ function WorkbenchPaneContent({
   });
 
 
-  const handleSave = useCallback(async () => {
-    if (!activeTab || !activeState || !isAgencyMethodAvailable('writeWorkbenchEntry')) return;
-    updateTabState(activeTab.id, { saving: true });
-    try {
-      const content = activeState.content || '';
-      const result = await saveWorkbenchTabContent({
-        rootPath: activeTab.rootPath,
-        targetPath: activeTab.path,
-        content,
-      });
-      updateTabState(activeTab.id, {
-        saving: false,
-        isDirty: false,
-        syncedContent: content,
-        mtimeMs: result?.mtimeMs || activeState.mtimeMs,
-        needsReload: false,
-        diskMtimeMs: 0,
-      });
-    } catch (error) {
-      updateTabState(activeTab.id, { saving: false, error: 'Save failed' });
-    }
-  }, [activeState, activeTab, updateTabState]);
-  const handleSaveAs = useCallback(async () => {
-    if (!activeTab || !activeState || !isAgencyMethodAvailable('writeWorkbenchEntry')) {
-      return;
-    }
-    const nextPath = window.prompt('Save as…', activeTab.path);
-    if (!nextPath) {
-      return;
-    }
-    const normalizedPath = normalizeWorkbenchSaveAsPath(nextPath);
-    if (!normalizedPath) {
-      return;
-    }
-    updateTabState(activeTab.id, { saving: true });
-    try {
-      await saveWorkbenchTabContent({
-        rootPath: activeTab.rootPath,
-        targetPath: normalizedPath,
-        content: activeState.content || '',
-      });
-      updateTabState(activeTab.id, { saving: false });
-      openFile({ path: normalizedPath, mode: 'pinned', rootPath: activeTab.rootPath });
-    } catch (error) {
-      updateTabState(activeTab.id, { saving: false, error: 'Save as failed.' });
-    }
-  }, [activeState, activeTab, openFile, updateTabState]);
-
-  const handleReload = useCallback(() => {
-    if (activeTab) loadTab(activeTab);
-  }, [activeTab, loadTab]);
+  const {
+    handleSave,
+    handleSaveAs,
+    handleReload,
+    toggleDiff,
+    toggleBlame,
+    handleUnlock,
+  } = useWorkbenchDocumentCommands({
+    activeTab,
+    activeState,
+    modal,
+    openFile,
+    updateTabState,
+    loadTab,
+  });
 
   const registerActiveEditor = useCallback((editor) => {
     activeEditorRef.current = editor || null;
@@ -288,36 +251,6 @@ function WorkbenchPaneContent({
     onCloseActiveTab: closeActiveTab,
     runEditorAction,
   });
-
-  const toggleDiff = useCallback(async () => {
-    if (!activeTab || !isAgencyMethodAvailable('diffWorkbenchEntry')) return;
-    const enabled = !activeState.diffEnabled;
-    updateTabState(activeTab.id, { diffEnabled: enabled });
-    if (enabled && !activeState.diffHunks) {
-      try {
-        const hunks = await loadWorkbenchDiffHunks({
-          rootPath: activeTab.rootPath,
-          targetPath: activeTab.path,
-        });
-        updateTabState(activeTab.id, { diffHunks: hunks });
-      } catch (e) { console.error(e); }
-    }
-  }, [activeState, activeTab, updateTabState]);
-
-  const toggleBlame = useCallback(async () => {
-    if (!activeTab || !isAgencyMethodAvailable('blameWorkbenchEntry')) return;
-    const enabled = !activeState.blameEnabled;
-    updateTabState(activeTab.id, { blameEnabled: enabled });
-    if (enabled && !activeState.blameLines) {
-      try {
-        const lines = await loadWorkbenchBlameLines({
-          rootPath: activeTab.rootPath,
-          targetPath: activeTab.path,
-        });
-        updateTabState(activeTab.id, { blameLines: lines });
-      } catch (e) { console.error(e); }
-    }
-  }, [activeState, activeTab, updateTabState]);
 
   const handleCursorChange = useCallback(
     (position) => {
@@ -371,22 +304,6 @@ function WorkbenchPaneContent({
     onJumpHandled,
     pendingJump,
   ]);
-
-  const handleUnlock = async () => {
-    if (!activeTab) {
-      return;
-    }
-    updateTabState(activeTab.id, { loading: true });
-    try {
-      const nextState = await loadWorkbenchCodeState({
-        rootPath: activeTab.rootPath,
-        targetPath: activeTab.path,
-      });
-      updateTabState(activeTab.id, { ...nextState, error: '' });
-    } catch (_error) {
-      updateTabState(activeTab.id, { loading: false, error: 'Forced load failed.' });
-    }
-  };
 
   const breadcrumbs = activeTab ? buildWorkbenchBreadcrumbs(activeTab.path) : [];
 

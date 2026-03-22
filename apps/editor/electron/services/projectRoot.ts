@@ -8,6 +8,7 @@ const ENV_PROJECT_ROOT = 'AGENCY_PROJECT_ROOT';
 const ENV_TEST_PROJECT_ROOT = 'AGENCY_TEST_PROJECT_ROOT';
 const RECENT_PROJECTS_LIMIT = 8;
 const windowProjectRoots = new Map();
+let testProjectRootCleared = false;
 
 function normalizeRoot(value) {
   return String(value || '').trim();
@@ -74,6 +75,12 @@ async function rememberRecentProject(repoRoot) {
 
 function getEnvProjectRoot() {
   if (process.env.AGENCY_TEST_MODE === '1') {
+    if (testProjectRootCleared) {
+      return {
+        value: '',
+        explicit: true,
+      };
+    }
     if (Object.prototype.hasOwnProperty.call(process.env, ENV_TEST_PROJECT_ROOT)) {
       return {
         value: normalizeRoot(process.env[ENV_TEST_PROJECT_ROOT]),
@@ -145,6 +152,9 @@ async function resolveProjectRoot(params: any = {}) {
 async function setProjectRoot(projectRoot) {
   const normalized = normalizeRoot(projectRoot);
   if (!normalized) {
+    if (process.env.AGENCY_TEST_MODE === '1') {
+      testProjectRootCleared = true;
+    }
     await updateUiState({ projectRoot: '' });
     return {
       projectRoot: '',
@@ -152,6 +162,9 @@ async function setProjectRoot(projectRoot) {
     };
   }
   const repoRoot = await getRepoRoot(normalized);
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    testProjectRootCleared = false;
+  }
   const recentProjects = await rememberRecentProject(repoRoot);
   await updateUiState({ projectRoot: repoRoot });
   return {
@@ -162,6 +175,9 @@ async function setProjectRoot(projectRoot) {
 }
 
 async function clearProjectRoot() {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    testProjectRootCleared = true;
+  }
   await updateUiState({ projectRoot: '' });
   return {
     projectRoot: '',
@@ -178,6 +194,7 @@ async function selectProjectRoot(params: any = {}) {
         return { canceled: true };
       }
       const repoRoot = await getRepoRoot(candidate);
+      testProjectRootCleared = false;
       const recentProjects = await rememberRecentProject(repoRoot);
       await updateUiState({ projectRoot: repoRoot });
       return { projectRoot: repoRoot, repoRoot, recentProjects };

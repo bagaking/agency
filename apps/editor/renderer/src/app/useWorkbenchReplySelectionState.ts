@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react';
+import type { ActiveView, HilDrawerPanel } from './appLayoutContracts';
 
 type UseWorkbenchReplySelectionStateArgs = {
   selectedCellId: string;
-  activeView: string;
+  activeView: ActiveView;
   setHilDrawerOpen: (value: boolean) => void;
-  setHilDrawerPanel: (value: string) => void;
+  setHilDrawerPanel: (value: HilDrawerPanel) => void;
   setHilDrawerPanelByView: (updater: (current: Record<string, string>) => Record<string, string>) => void;
 };
 

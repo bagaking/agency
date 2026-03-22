@@ -30,6 +30,7 @@ import { useSessionReplyContext } from './app/useSessionReplyContext';
 import { useMemoNavigationHandlers } from './app/useMemoNavigationHandlers';
 import { useExplorerCommentRouting } from './app/useExplorerCommentRouting';
 import { useWorkbenchReplySelectionState } from './app/useWorkbenchReplySelectionState';
+import { useAppShellLayoutState } from './app/useAppShellLayoutState';
 import {
   buildMobileContinuationFeedback,
   resolveMobileContinuationErrorTitle,
@@ -71,22 +72,7 @@ function AppShell() {
   const [transitionError, setTransitionError] = useState('');
   const [transitionLoading, setTransitionLoading] = useState(false);
   const [uiStateLoaded, setUiStateLoaded] = useState(false);
-  const [activeView, setActiveView] = useState('agent-cells');
-  const [sidebarWidth, setSidebarWidth] = useState(320);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [hilDrawerOpen, setHilDrawerOpen] = useState(false);
-  const [hilDrawerPanel, setHilDrawerPanel] = useState('comments');
-  const [hilDrawerPanelByView, setHilDrawerPanelByView] = useState({});
-  const [hierarchySection, setHierarchySection] = useState('actions');
-  const [actionsScope, setActionsScope] = useState('global');
-  const [appShortcutsScope, setAppShortcutsScope] = useState('global');
-  const [replyQuickPromptsScope, setReplyQuickPromptsScope] = useState('global');
-  const [sessionNamingScope, setSessionNamingScope] = useState('global');
-  const [gateScope, setGateScope] = useState('global');
-  const [gateStage, setGateStage] = useState('active');
   const [memoFocusTarget, setMemoFocusTarget] = useState('');
-  const [terminalOpen, setTerminalOpen] = useState(false);
-  const [terminalMode, setTerminalMode] = useState('shell');
   const [tmuxStatus, setTmuxStatus] = useState({ available: true, error: '', version: '' });
   const [ipcAvailable, setIpcAvailable] = useState(true);
   const [initialActiveSessions, setInitialActiveSessions] = useState({});
@@ -96,6 +82,47 @@ function AppShell() {
   const [explorerDeliverySummary, setExplorerDeliverySummary] = useState<any>(null);
   const [actionSheetSessionId, setActionSheetSessionId] = useState('');
   const [actionSheetInlineError, setActionSheetInlineError] = useState('');
+  const {
+    activeView,
+    setActiveView,
+    setActiveViewCompat,
+    sidebarWidth,
+    setSidebarWidth,
+    sidebarCollapsed,
+    setSidebarCollapsed,
+    hilDrawerOpen,
+    setHilDrawerOpen,
+    hilDrawerPanel,
+    setHilDrawerPanel,
+    setHilDrawerPanelCompat,
+    hilDrawerPanelByView,
+    setHilDrawerPanelByView,
+    setHilDrawerPanelByViewCompat,
+    hierarchySection,
+    setHierarchySection,
+    setHierarchySectionCompat,
+    actionsScope,
+    setActionsScope,
+    setActionsScopeCompat,
+    appShortcutsScope,
+    setAppShortcutsScope,
+    setAppShortcutsScopeCompat,
+    replyQuickPromptsScope,
+    setReplyQuickPromptsScope,
+    setReplyQuickPromptsScopeCompat,
+    sessionNamingScope,
+    setSessionNamingScope,
+    setSessionNamingScopeCompat,
+    gateScope,
+    setGateScope,
+    setGateScopeCompat,
+    gateStage,
+    setGateStage,
+    terminalOpen,
+    setTerminalOpen,
+    terminalMode,
+    setTerminalMode,
+  } = useAppShellLayoutState();
   const projectReady = Boolean(projectRoot);
   const virtualCell = useMemo(() => {
     if (projectReady) {
@@ -167,10 +194,10 @@ function AppShell() {
     setInitialWorkbenchActiveTabs,
     setSidebarWidth,
     setSidebarCollapsed,
-    setActiveView,
+    setActiveView: setActiveViewCompat,
     setHilDrawerOpen,
-    setHilDrawerPanel,
-    setHilDrawerPanelByView,
+    setHilDrawerPanel: setHilDrawerPanelCompat,
+    setHilDrawerPanelByView: setHilDrawerPanelByViewCompat,
     setTerminalOpen,
     setUiStateLoaded,
     uiStateLoaded,
@@ -246,7 +273,7 @@ function AppShell() {
     selectSession: sessionsState.selectSession,
     setSelectedId,
     setTerminalOpen,
-    setActiveView,
+    setActiveView: setActiveViewCompat,
   });
 
   const sessionMapCenterSlot = (
@@ -267,7 +294,7 @@ function AppShell() {
     dispatchSessionCommand: sessionsState.dispatchSessionCommand,
     onOpenTerminal: handleOpenTerminal,
     onSelectSession: sessionsState.selectSession,
-    onSwitchView: setActiveView,
+    onSwitchView: setActiveViewCompat,
   });
   const workbench = useWorkbench({
     selectedCell: scopedCell,
@@ -327,15 +354,15 @@ function AppShell() {
     selectedCellId: selectedCell?.id || '',
     activeView,
     setHilDrawerOpen,
-    setHilDrawerPanel,
-    setHilDrawerPanelByView,
+    setHilDrawerPanel: setHilDrawerPanelCompat,
+    setHilDrawerPanelByView: setHilDrawerPanelByViewCompat,
   });
   const { openHilDrawer, handleSelectHilDrawerPanel } = useHilDrawerController({
     activeView,
     hilDrawerOpen,
     hilDrawerPanel,
     setHilDrawerOpen,
-    setHilDrawerPanel,
+    setHilDrawerPanel: setHilDrawerPanelCompat,
     setHilDrawerPanelByView,
   });
   const availableActionSessions = useMemo(
@@ -378,7 +405,7 @@ function AppShell() {
     setActionSheetSessionId,
     setActionSheetId: actionSheetsState.setSelectedId,
     setExplorerDeliverySummary,
-    setActiveView,
+    setActiveView: setActiveViewCompat,
     handleOpenTerminal,
     selectSession: sessionsState.selectSession,
     projectGatesPath: hierarchyConfig.projectGatesPath,
@@ -484,7 +511,7 @@ function AppShell() {
     selectedCell,
     sidebarCollapsed,
     workbench,
-    setActiveView,
+    setActiveView: setActiveViewCompat,
     setSidebarCollapsed,
     setSelectedId,
     setPendingExplorerReveal,
@@ -498,7 +525,7 @@ function AppShell() {
     replySelectionByKey,
     resolvedBindingsByProfile: hierarchyConfig.resolvedBindingsByProfile,
     projectRoot,
-    setActiveView,
+    setActiveView: setActiveViewCompat,
     sidebarCollapsed,
     setSidebarCollapsed,
     setReplySelectionByKey,
@@ -519,14 +546,14 @@ function AppShell() {
     handleToggleSidebar,
   } = useHierarchyNavigation({
     sidebarCollapsed,
-    setActiveView,
+    setActiveView: setActiveViewCompat,
     setSidebarCollapsed,
-    setHierarchySection,
-    setActionsScope,
-    setAppShortcutsScope,
-    setReplyQuickPromptsScope,
-    setGateScope,
-    setSessionNamingScope,
+    setHierarchySection: setHierarchySectionCompat,
+    setActionsScope: setActionsScopeCompat,
+    setAppShortcutsScope: setAppShortcutsScopeCompat,
+    setReplyQuickPromptsScope: setReplyQuickPromptsScopeCompat,
+    setGateScope: setGateScopeCompat,
+    setSessionNamingScope: setSessionNamingScopeCompat,
     clearTerminusError: hierarchyConfig.clearTerminusError,
     clearAppShortcutsError: hierarchyConfig.clearAppShortcutsError,
     clearReplyQuickPromptsError: hierarchyConfig.clearReplyQuickPromptsError,
@@ -568,7 +595,7 @@ function AppShell() {
     selectedCellId: selectedCell?.id || '',
     handleOpenWorkbenchFile,
     openCommentModal: hilCommentState.openCommentModal,
-    setActiveView,
+    setActiveView: setActiveViewCompat,
     openHilDrawer,
   });
   const handleFocusPromoteSession = useCallback(() => {

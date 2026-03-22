@@ -1,12 +1,13 @@
 import { useCallback } from 'react';
+import type { ActiveView, HilDrawerPanel } from './appLayoutContracts';
 
 type UseExplorerCommentRoutingArgs = {
   explorerRootPath: string;
   selectedCellId: string;
   handleOpenWorkbenchFile: (payload: any) => Promise<void>;
   openCommentModal: (payload?: { line?: number; column?: number }) => void;
-  setActiveView: (view: string) => void;
-  openHilDrawer: (panel?: string) => void;
+  setActiveView: (view: ActiveView) => void;
+  openHilDrawer: (panel?: HilDrawerPanel) => void;
 };
 
 export function useExplorerCommentRouting({
@@ -56,4 +57,3 @@ export function useExplorerCommentRouting({
     handleJumpToComments,
   };
 }
-

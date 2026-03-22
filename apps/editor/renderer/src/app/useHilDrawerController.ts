@@ -1,11 +1,12 @@
 import { useCallback, useEffect } from 'react';
+import type { ActiveView, HilDrawerPanel } from './appLayoutContracts';
 
 type UseHilDrawerControllerArgs = {
-  activeView: string;
+  activeView: ActiveView;
   hilDrawerOpen: boolean;
-  hilDrawerPanel: string;
+  hilDrawerPanel: HilDrawerPanel;
   setHilDrawerOpen: (value: boolean) => void;
-  setHilDrawerPanel: (value: string) => void;
+  setHilDrawerPanel: (value: HilDrawerPanel) => void;
   setHilDrawerPanelByView: (value: any) => void;
 };
 
@@ -31,7 +32,7 @@ export function useHilDrawerController({
   }, [activeView, hilDrawerOpen, hilDrawerPanel, setHilDrawerPanel]);
 
   const openHilDrawer = useCallback(
-    (panel = 'comments') => {
+    (panel: HilDrawerPanel = 'comments') => {
       setHilDrawerPanel(panel);
       setHilDrawerOpen(true);
     },
@@ -39,7 +40,7 @@ export function useHilDrawerController({
   );
 
   const handleSelectHilDrawerPanel = useCallback(
-    (panel: string) => {
+    (panel: HilDrawerPanel) => {
       if (!panel) {
         return;
       }
@@ -57,4 +58,3 @@ export function useHilDrawerController({
     handleSelectHilDrawerPanel,
   };
 }
-
