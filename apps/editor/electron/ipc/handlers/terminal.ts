@@ -1,5 +1,10 @@
 const { ipcMain } = require('electron');
-const { writeSession, resizeSession, disposeSession } = require('../../services/terminal');
+const {
+  writeSession,
+  dispatchSessionCommand,
+  resizeSession,
+  disposeSession,
+} = require('../../services/terminal');
 const { logRuntime } = require('../../services/runtimeLog');
 const {
   ensureDefaultSession,
@@ -115,6 +120,17 @@ function setupTerminalHandlers({ getMainWindow }) {
       return;
     }
     writeSession(payload.cellId, payload.sessionId, payload.data || '');
+  });
+
+  ipcMain.on('terminal:dispatchCommand', (_event, payload) => {
+    if (!payload) {
+      return;
+    }
+    void dispatchSessionCommand(payload.cellId, payload.sessionId, {
+      command: payload.command || '',
+      appendEnter: payload.appendEnter !== false,
+      doubleEnter: payload.doubleEnter === true,
+    });
   });
 
   ipcMain.on('terminal:resize', (_event, payload) => {

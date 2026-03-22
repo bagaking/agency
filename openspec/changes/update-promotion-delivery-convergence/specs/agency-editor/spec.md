@@ -50,6 +50,19 @@ Each run SHALL carry session ownership metadata in record meta.
 - **THEN** the system creates a unified delivery run with `source=session`
 - **AND** the record stores origin/target session ownership metadata in `meta`
 
+#### Scenario: Session Reply send auto-confirms dispatch
+- **WHEN** a user sends content from Session Reply
+- **THEN** the system dispatches the reply to the target session and triggers one explicit confirm action
+- **AND** the reply is not left as unsubmitted text in the target terminal by default
+
+### Requirement: Explicit Dispatch Confirmation Semantics
+Programmatic delivery and action-sheet dispatches SHALL use explicit confirm-key behavior for submit actions rather than relying only on raw newline-byte injection.
+
+#### Scenario: Programmatic dispatch submits with explicit confirm behavior
+- **WHEN** a delivery or action-sheet run is programmatically dispatched to a terminal session
+- **THEN** the host sends the command text to the session
+- **AND** submit confirmation is issued as explicit terminal key behavior
+
 ### Requirement: Unified Promotion Storage Contract
 Delivery runs across all sources SHALL be stored in one converged contract:
 - Draft records in HIL draft storage.

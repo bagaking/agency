@@ -13,6 +13,7 @@ This makes promotion records fragmented and weakens traceability across sources.
   - Audit timeline in `.agency/delivery/events-<worktree>.jsonl`.
 - Ensure each delivery record carries explicit session ownership metadata (session id, cell id, origin/target context when available).
 - Keep backward compatibility for existing draft metadata and timeline rendering.
+- Use explicit confirm-key dispatch for programmatic terminal submissions so delivery/action-sheet sends execute in target CLIs instead of only injecting raw newline bytes.
 
 ## Impact
 - Affected specs: `agency-editor`
@@ -26,4 +27,4 @@ This makes promotion records fragmented and weakens traceability across sources.
 - Risk:
   - Behavior drift in quick dispatch and session reply send semantics.
 - Mitigation:
-  - Preserve existing send payloads and explicitly control append-enter behavior per source.
+  - Preserve existing send payloads and explicitly control append-enter behavior per source while upgrading host dispatch from raw newline injection to explicit confirm keys.

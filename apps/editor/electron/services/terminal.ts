@@ -4,6 +4,7 @@ const path = require('path');
 const pty = require('node-pty');
 
 const { logRuntime } = require('./runtimeLog');
+const { sendKeys } = require('./tmux');
 
 const sessions = new Map();
 const sessionSizesByTmux = new Map();
@@ -212,6 +213,70 @@ function writeSession(cellId, sessionId, data) {
   session.ptyProcess.write(data);
 }
 
+function buildDispatchedInput(
+  command = '',
+  { appendEnter = true, doubleEnter = false } = {}
+) {
+  const text = String(command || '').replace(/\r\n/g, '\n');
+  const confirmCount = (appendEnter ? 1 : 0) + (doubleEnter ? 1 : 0);
+  if (!text && confirmCount <= 0) {
+    return '';
+  }
+  return `${text}${'\r'.repeat(confirmCount)}`;
+}
+
+async function sendSessionKeys(cellId, sessionId, keys = []) {
+  const session = sessions.get(buildSessionKey(cellId, sessionId));
+  if (!session) {
+    return;
+  }
+  const normalizedKeys = (Array.isArray(keys) ? keys : [keys])
+    .map((key) => String(key || '').trim())
+    .filter(Boolean);
+  if (!normalizedKeys.length) {
+    return;
+  }
+  if (!session.tmuxSession) {
+    normalizedKeys.forEach((key) => {
+      if (key === 'Enter') {
+        session.ptyProcess.write('\r');
+      }
+    });
+    return;
+  }
+  try {
+    await sendKeys(session.tmuxSession, normalizedKeys);
+  } catch (error) {
+    logRuntime('warn', 'terminal send-keys failed', {
+      cellId,
+      sessionId,
+      tmuxSession: session.tmuxSession,
+      keys: normalizedKeys,
+      error: error?.message || String(error),
+    });
+    normalizedKeys.forEach((key) => {
+      if (key === 'Enter') {
+        session.ptyProcess.write('\r');
+      }
+    });
+  }
+}
+
+async function dispatchSessionCommand(
+  cellId,
+  sessionId,
+  { command = '', appendEnter = true, doubleEnter = false } = {}
+) {
+  const payload = buildDispatchedInput(command, {
+    appendEnter,
+    doubleEnter,
+  });
+  if (!payload) {
+    return;
+  }
+  writeSession(cellId, sessionId, payload);
+}
+
 function resizeSession(cellId, sessionId, cols, rows) {
   const session = sessions.get(buildSessionKey(cellId, sessionId));
   if (!session) {
@@ -272,6 +337,9 @@ function getSessionSize(tmuxSession) {
 export {
   startSession,
   writeSession,
+  buildDispatchedInput,
+  sendSessionKeys,
+  dispatchSessionCommand,
   resizeSession,
   disposeSession,
   buildSessionKey,

@@ -13,6 +13,7 @@ import {
 } from '../terminal/terminalInputDispatcher';
 import {
   createHilItem,
+  dispatchTerminalCommand,
   logRuntime,
   onTerminalData,
   onTerminalError,
@@ -212,12 +213,13 @@ function TerminalPane({
     if (!command || !cellId) {
       return;
     }
-    const text = String(command).replace(/\r\n/g, '\n');
-    writeTerminal({ cellId, sessionId, data: text });
-    const enterCount = (appendEnter ? 1 : 0) + (doubleEnter ? 1 : 0);
-    for (let i = 0; i < enterCount; i += 1) {
-      writeTerminal({ cellId, sessionId, data: '\r' });
-    }
+    dispatchTerminalCommand({
+      cellId,
+      sessionId,
+      command,
+      appendEnter,
+      doubleEnter,
+    });
     if (onCommandSent) {
       onCommandSent({ cellId, command, appendEnter, doubleEnter });
     }

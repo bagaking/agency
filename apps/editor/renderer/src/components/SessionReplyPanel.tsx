@@ -304,7 +304,7 @@ export function SessionReplyPanel({
               },
               dispatch: {
                 label: 'Session Reply (quick)',
-                appendEnter: false,
+                appendEnter: true,
                 doubleEnter: false,
               },
             },

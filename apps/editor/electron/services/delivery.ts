@@ -6,7 +6,7 @@
  * persistence live in `@agency/agency-data/promote-system`.
  */
 
-const { writeSession } = require('./terminal');
+const { dispatchSessionCommand } = require('./terminal');
 
 const promoteSystem = require('@agency/agency-data/promote-system');
 
@@ -14,18 +14,15 @@ function normalizeCommand(value) {
   return String(value || '').replace(/\r\n/g, '\n');
 }
 
-function writeWithEnters({ cellId, sessionId, command, appendEnter, doubleEnter }) {
+async function writeWithEnters({ cellId, sessionId, command, appendEnter, doubleEnter }) {
   if (!cellId || !sessionId) {
     throw new Error('cellId and sessionId are required for session dispatch.');
   }
-  const text = normalizeCommand(command);
-  if (text) {
-    writeSession(cellId, sessionId, text);
-  }
-  const enterCount = (appendEnter ? 1 : 0) + (doubleEnter ? 1 : 0);
-  for (let i = 0; i < enterCount; i += 1) {
-    writeSession(cellId, sessionId, '\r');
-  }
+  await dispatchSessionCommand(cellId, sessionId, {
+    command: normalizeCommand(command),
+    appendEnter,
+    doubleEnter,
+  });
 }
 
 async function startDelivery(payload = {}) {
@@ -34,7 +31,7 @@ async function startDelivery(payload = {}) {
     dispatchToSession: async (input) => {
       const cellId = input?.cellId || request?.cellId || '';
       const sessionId = input?.sessionId || request?.sessionId || '';
-      writeWithEnters({
+      await writeWithEnters({
         cellId,
         sessionId,
         command: input?.command || '',
@@ -65,4 +62,3 @@ export {
   getDeliveryStatus,
   getDeliveryTimeline,
 };
-
