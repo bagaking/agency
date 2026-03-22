@@ -13,7 +13,7 @@ import {
 } from '../terminal/terminalInputDispatcher';
 import {
   createHilItem,
-  dispatchTerminalCommand,
+  dispatchTerminalInput,
   logRuntime,
   onTerminalData,
   onTerminalError,
@@ -213,12 +213,13 @@ function TerminalPane({
     if (!command || !cellId) {
       return;
     }
-    dispatchTerminalCommand({
+    dispatchTerminalInput({
       cellId,
       sessionId,
-      command,
-      appendEnter,
-      doubleEnter,
+      text: command,
+      confirm: {
+        mode: doubleEnter ? 'double-enter' : appendEnter ? 'enter' : 'none',
+      },
     });
     if (onCommandSent) {
       onCommandSent({ cellId, command, appendEnter, doubleEnter });

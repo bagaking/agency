@@ -40,14 +40,16 @@ sop:
 
 - Bridge：`apps/editor/renderer/src/services/agencyBridge.ts`
 - IPC handler：`apps/editor/electron/ipc/handlers/delivery.ts`
+- Shared terminal dispatch bridge: `dispatchTerminalInput` -> `terminal:dispatchInput`
 
-职责：把 renderer 调用映射到主进程 delivery 服务。
+职责：把 renderer delivery 调用映射到主进程 delivery 服务，并复用同一条标准 session-input dispatch 通道。
 
 ### 2.3 Electron host facade
 
 - `apps/editor/electron/services/delivery.ts`
+- `apps/editor/electron/services/terminal.ts#dispatchSessionInput`
 
-职责：调用 domain 层；把命令写入 terminal session；并把 `appendEnter` / `doubleEnter` 映射为显式确认按键发送（而不是仅追加原始 `\r` 字节）。
+职责：调用 domain 层；通过统一 `dispatchSessionInput` 原语把文本注入 terminal session，并把确认策略映射为显式提交行为。
 
 ### 2.4 Domain + Persistence（SSOT）
 

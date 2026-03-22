@@ -19,6 +19,8 @@ Delivery orchestration already exists in `pkg/agency-data/promote-system`, but r
   - Rationale: “Send” should behave like execution, not draft text injection; reply sends need the same operational semantics users expect from other dispatch surfaces.
 - Decision: Programmatic dispatch confirmation uses explicit tmux key sends instead of appending raw `\r` bytes through the PTY stream.
   - Rationale: target agent CLIs can treat “confirm/submit” as a key behavior distinct from pasted newline text.
+- Decision: Host + IPC expose a shared `session-input dispatch` primitive, while legacy `appendEnter`/`doubleEnter` callers are kept as a compatibility layer.
+  - Rationale: new send surfaces should target one semantic execution contract (`text + confirm strategy + settle delay`) instead of duplicating transport-shaped flags.
 - Decision: Canonical storage stays as HIL drafts + delivery JSONL timeline.
   - Rationale: Reuse existing package contracts; avoid migration-heavy new stores.
 
@@ -33,7 +35,8 @@ Delivery orchestration already exists in `pkg/agency-data/promote-system`, but r
 2. Refactor Promote and Explorer hooks to call delivery API.
 3. Integrate Session Reply send path as `source=session` quick delivery.
 4. Upgrade programmatic dispatch from raw newline injection to explicit confirm-key behavior in host/terminal plumbing.
-5. Run typechecks/tests and verify draft/audit persistence outputs.
+5. Introduce shared host/IPC session-input dispatch primitive and keep legacy dispatch callers as wrappers.
+6. Run typechecks/tests and verify draft/audit persistence outputs.
 
 ## Open Questions
 - None; this change keeps existing UI patterns and only converges runtime/storage behavior.

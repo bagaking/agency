@@ -26,6 +26,7 @@ export const updateCellMeta = createOptionalInvoke('updateCellMeta');
 // Runtime send actions
 export const logRuntime = createOptionalAction('logRuntime');
 export const writeTerminal = createOptionalAction('writeTerminal');
+export const dispatchTerminalInput = createOptionalAction('dispatchTerminalInput');
 export const dispatchTerminalCommand = createOptionalAction('dispatchTerminalCommand');
 export const resizeTerminal = createOptionalAction('resizeTerminal');
 export const disposeTerminal = createOptionalAction('disposeTerminal');

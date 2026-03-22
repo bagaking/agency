@@ -14,6 +14,7 @@ This makes promotion records fragmented and weakens traceability across sources.
 - Ensure each delivery record carries explicit session ownership metadata (session id, cell id, origin/target context when available).
 - Keep backward compatibility for existing draft metadata and timeline rendering.
 - Use explicit confirm-key dispatch for programmatic terminal submissions so delivery/action-sheet sends execute in target CLIs instead of only injecting raw newline bytes.
+- Introduce a shared session-input dispatch primitive at the host/IPC boundary so future agent-send flows reuse one execution contract.
 
 ## Impact
 - Affected specs: `agency-editor`
@@ -23,6 +24,9 @@ This makes promotion records fragmented and weakens traceability across sources.
   - `apps/editor/renderer/src/components/SessionReplyPanel.tsx`
   - `apps/editor/renderer/src/utils/deliveryMetadata.ts`
   - `apps/editor/electron/services/delivery.ts`
+  - `apps/editor/electron/services/terminal.ts`
+  - `apps/editor/electron/ipc/handlers/terminal.ts`
+  - `apps/editor/renderer/src/services/agencyBridge.ts`
   - `pkg/agency-data/src/promote-system/index.ts`
 - Risk:
   - Behavior drift in quick dispatch and session reply send semantics.

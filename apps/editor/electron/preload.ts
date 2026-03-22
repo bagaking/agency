@@ -187,6 +187,7 @@ const INVOKE_CHANNELS: Record<string, string> = {
 const SEND_CHANNELS: Record<string, string> = {
   logRuntime: 'runtime-log:write',
   writeTerminal: 'terminal:write',
+  dispatchTerminalInput: 'terminal:dispatchInput',
   dispatchTerminalCommand: 'terminal:dispatchCommand',
   resizeTerminal: 'terminal:resize',
   disposeTerminal: 'terminal:dispose',

@@ -10,6 +10,8 @@ const sessions = new Map();
 const sessionSizesByTmux = new Map();
 const MIN_BACKEND_COLS = 2;
 const MIN_BACKEND_ROWS = 2;
+const DEFAULT_CONFIRM_SETTLE_MS = 48;
+const MAX_CONFIRM_SETTLE_MS = 240;
 
 function splitCommand(command) {
   if (!command) {
@@ -213,16 +215,70 @@ function writeSession(cellId, sessionId, data) {
   session.ptyProcess.write(data);
 }
 
-function buildDispatchedInput(
-  command = '',
-  { appendEnter = true, doubleEnter = false } = {}
-) {
-  const text = String(command || '').replace(/\r\n/g, '\n');
-  const confirmCount = (appendEnter ? 1 : 0) + (doubleEnter ? 1 : 0);
-  if (!text && confirmCount <= 0) {
-    return '';
+function normalizeDispatchText(value = '') {
+  return String(value || '').replace(/\r\n/g, '\n');
+}
+
+function normalizeDispatchKeys(value) {
+  const list = Array.isArray(value) ? value : [value];
+  return list
+    .map((key) => String(key || '').trim())
+    .filter(Boolean);
+}
+
+function clampConfirmSettleMs(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_CONFIRM_SETTLE_MS;
   }
-  return `${text}${'\r'.repeat(confirmCount)}`;
+  return Math.max(0, Math.min(MAX_CONFIRM_SETTLE_MS, Math.floor(parsed)));
+}
+
+function resolveConfirmKeys(confirm = {}) {
+  const mode = String(confirm?.mode || 'none').trim().toLowerCase();
+  if (mode === 'enter') {
+    return ['Enter'];
+  }
+  if (mode === 'double-enter') {
+    return ['Enter', 'Enter'];
+  }
+  if (mode === 'keys') {
+    return normalizeDispatchKeys(confirm?.keys);
+  }
+  return [];
+}
+
+function resolveLegacyConfirmMode({ appendEnter = true, doubleEnter = false } = {}) {
+  const confirmCount = (appendEnter ? 1 : 0) + (doubleEnter ? 1 : 0);
+  if (confirmCount >= 2) {
+    return 'double-enter';
+  }
+  if (confirmCount === 1) {
+    return 'enter';
+  }
+  return 'none';
+}
+
+function buildDispatchInputPlan(input = {}) {
+  const text = normalizeDispatchText(input?.text || '');
+  const confirm = input?.confirm && typeof input.confirm === 'object' ? input.confirm : {};
+  const confirmKeys = resolveConfirmKeys(confirm);
+  const settleMs =
+    confirmKeys.length > 0
+      ? clampConfirmSettleMs(confirm?.settleMs)
+      : 0;
+  return {
+    text,
+    confirm: {
+      mode: String(confirm?.mode || 'none').trim().toLowerCase() || 'none',
+      keys: confirmKeys,
+      settleMs,
+    },
+  };
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
 }
 
 async function sendSessionKeys(cellId, sessionId, keys = []) {
@@ -262,19 +318,37 @@ async function sendSessionKeys(cellId, sessionId, keys = []) {
   }
 }
 
+async function dispatchSessionInput(
+  cellId,
+  sessionId,
+  input = {}
+) {
+  const plan = buildDispatchInputPlan(input);
+  if (!plan.text && plan.confirm.keys.length === 0) {
+    return;
+  }
+  if (plan.text) {
+    writeSession(cellId, sessionId, plan.text);
+  }
+  if (plan.confirm.keys.length > 0) {
+    if (plan.confirm.settleMs > 0 && plan.text) {
+      await sleep(plan.confirm.settleMs);
+    }
+    await sendSessionKeys(cellId, sessionId, plan.confirm.keys);
+  }
+}
+
 async function dispatchSessionCommand(
   cellId,
   sessionId,
   { command = '', appendEnter = true, doubleEnter = false } = {}
 ) {
-  const payload = buildDispatchedInput(command, {
-    appendEnter,
-    doubleEnter,
+  return dispatchSessionInput(cellId, sessionId, {
+    text: command,
+    confirm: {
+      mode: resolveLegacyConfirmMode({ appendEnter, doubleEnter }),
+    },
   });
-  if (!payload) {
-    return;
-  }
-  writeSession(cellId, sessionId, payload);
 }
 
 function resizeSession(cellId, sessionId, cols, rows) {
@@ -337,7 +411,9 @@ function getSessionSize(tmuxSession) {
 export {
   startSession,
   writeSession,
-  buildDispatchedInput,
+  normalizeDispatchText,
+  buildDispatchInputPlan,
+  dispatchSessionInput,
   sendSessionKeys,
   dispatchSessionCommand,
   resizeSession,

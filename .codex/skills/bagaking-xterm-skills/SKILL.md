@@ -50,12 +50,28 @@ Notes:
 - xterm maintains `line.isWrapped` on the renderer side; **use xterm buffer snapshot** to match Agent Cell line wrapping.
 - For sessions not loaded in the renderer, expect wrap mismatches unless you add a raw stream log (e.g., `tmux pipe-pane`) and render from that stream.
 
+### 6. Programmatic Dispatch vs. Real Submit
+- In tmux-backed TUI tools, **injecting text plus raw `\r` bytes is not always equivalent to a real submit/confirm gesture**.
+- Symptom: the target TUI shows the full payload in its input area, but the tool still waits for a manual confirmation key.
+- Preferred model:
+  1. inject the text body,
+  2. wait a short settle window if needed,
+  3. send an explicit confirm key (`Enter`, or a profile-specific key strategy) through the host dispatch path.
+- Prefer a **host-owned dispatch primitive** over duplicated renderer-side `appendEnter/doubleEnter` behavior. This keeps Delivery / Action Sheet / Quick Action / Session Reply on one execution contract.
+- Keep the abstraction semantic, not transport-shaped. Think in terms of:
+  - `text`
+  - `confirm strategy`
+  - optional `delay before confirm`
+  rather than “append raw newline bytes”.
+- If a specific CLI/TUI needs a different confirm gesture, extend the confirm strategy per profile/tool instead of adding more one-off renderer conditionals.
+
 ## Workflow Checklist
-1. Confirm xterm package and CSS import paths:
-   - `@xterm/xterm` in `apps/editor/package.json`.
-   - CSS import in `apps/editor/renderer/src/App.jsx`.
+1. Confirm xterm package and CSS import paths
 2. Update terminal initialization options (if needed) in `terminalManager.js`.
 3. Implement modifier-aware key sequences in `TerminalPane.jsx` (custom key handler).
 4. Verify shortcuts, paste, and key handling in a live terminal session.
 5. Verify tmux scrollback on trackpad/wheel (copy-mode should engage).
-6. Document behavior in the terminal experience note.
+6. For programmatic session dispatch, verify both:
+   - text appears in the target TUI input area
+   - the target tool actually executes/submits without manual confirmation
+7. Document behavior in the terminal experience note.

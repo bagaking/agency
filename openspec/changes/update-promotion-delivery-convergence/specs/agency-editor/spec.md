@@ -63,6 +63,15 @@ Programmatic delivery and action-sheet dispatches SHALL use explicit confirm-key
 - **THEN** the host sends the command text to the session
 - **AND** submit confirmation is issued as explicit terminal key behavior
 
+### Requirement: Shared Session-Input Dispatch Primitive
+The editor SHALL expose one shared host-owned session-input dispatch primitive for programmatic terminal submissions.
+Compatibility wrappers MAY preserve legacy caller shapes, but the canonical execution contract SHALL be semantic (`text`, `confirm strategy`, optional settle delay) rather than transport-shaped newline flags.
+
+#### Scenario: Multiple send surfaces reuse one primitive
+- **WHEN** Delivery, Action Sheet, or future agent-send flows dispatch terminal input
+- **THEN** they route through the same host-owned session-input dispatch primitive
+- **AND** confirmation behavior is configured from that primitive instead of duplicated per surface
+
 ### Requirement: Unified Promotion Storage Contract
 Delivery runs across all sources SHALL be stored in one converged contract:
 - Draft records in HIL draft storage.

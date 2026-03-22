@@ -1,6 +1,7 @@
 const { ipcMain } = require('electron');
 const {
   writeSession,
+  dispatchSessionInput,
   dispatchSessionCommand,
   resizeSession,
   disposeSession,
@@ -130,6 +131,16 @@ function setupTerminalHandlers({ getMainWindow }) {
       command: payload.command || '',
       appendEnter: payload.appendEnter !== false,
       doubleEnter: payload.doubleEnter === true,
+    });
+  });
+
+  ipcMain.on('terminal:dispatchInput', (_event, payload) => {
+    if (!payload) {
+      return;
+    }
+    void dispatchSessionInput(payload.cellId, payload.sessionId, {
+      text: payload.text || '',
+      confirm: payload.confirm || {},
     });
   });
 

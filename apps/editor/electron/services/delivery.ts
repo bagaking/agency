@@ -6,7 +6,7 @@
  * persistence live in `@agency/agency-data/promote-system`.
  */
 
-const { dispatchSessionCommand } = require('./terminal');
+const { dispatchSessionInput } = require('./terminal');
 
 const promoteSystem = require('@agency/agency-data/promote-system');
 
@@ -18,10 +18,11 @@ async function writeWithEnters({ cellId, sessionId, command, appendEnter, double
   if (!cellId || !sessionId) {
     throw new Error('cellId and sessionId are required for session dispatch.');
   }
-  await dispatchSessionCommand(cellId, sessionId, {
-    command: normalizeCommand(command),
-    appendEnter,
-    doubleEnter,
+  await dispatchSessionInput(cellId, sessionId, {
+    text: normalizeCommand(command),
+    confirm: {
+      mode: doubleEnter ? 'double-enter' : appendEnter ? 'enter' : 'none',
+    },
   });
 }
 
