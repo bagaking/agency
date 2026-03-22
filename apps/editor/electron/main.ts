@@ -15,6 +15,7 @@ import { applyAppMenu } from './main/appMenu';
 import { setupMainIpcHandlers } from './main/ipcSetup';
 import { createStartupTimeline, type StartupMeta } from './main/startupTimeline';
 
+const { getRepoRoot } = require('./services/git');
 const {
   getAppShortcuts,
   applyAppShortcuts,
@@ -24,9 +25,15 @@ const { resolveRendererUrl } = require('./services/rendererUrl');
 const { warmupVoiceCapture } = require('./services/voiceCapture');
 const {
   selectProjectRoot,
+  setProjectRoot,
   setWindowProjectRoot,
   clearWindowProjectRoot,
 } = require('./services/projectRoot');
+const {
+  createWindowStateId,
+  getLastActiveWindowStateId,
+  markLastActiveWindowState,
+} = require('./services/uiState');
 const {
   initRuntimeLogger,
   logRuntime,
@@ -36,6 +43,7 @@ const {
 
 type AgencyWindow = BrowserWindowType & {
   __agencyAllowStoredProjectRoot?: boolean;
+  __agencyWindowStateId?: string;
 };
 
 type RendererInfo = {
@@ -66,6 +74,11 @@ function configureTestUserDataPath(): string | null {
 }
 
 testUserDataPath = configureTestUserDataPath();
+
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) {
+  app.quit();
+}
 
 const startupTimeline = createStartupTimeline(({ stage, elapsedMs, meta }) => {
   logRuntime('info', 'startup stage', {
@@ -191,8 +204,57 @@ function attachWindowDiagnostics(win: BrowserWindow): void {
   });
 }
 
-function createWindow({ startEmpty = false }: { startEmpty?: boolean } = {}): void {
-  recordStartup('window-create-start', { startEmpty });
+async function resolveLaunchProjectRoot(
+  argv: string[] = [],
+  workingDirectory = process.cwd()
+): Promise<string> {
+  const candidates = Array.isArray(argv) ? argv : [];
+  for (const raw of candidates) {
+    const value = String(raw || '').trim();
+    if (!value || value.startsWith('-')) {
+      continue;
+    }
+    const candidatePath = path.isAbsolute(value)
+      ? value
+      : path.resolve(workingDirectory || process.cwd(), value);
+    let stats = null;
+    try {
+      stats = fs.statSync(candidatePath);
+    } catch (_error) {
+      stats = null;
+    }
+    if (!stats?.isDirectory()) {
+      continue;
+    }
+    try {
+      return await getRepoRoot(candidatePath);
+    } catch (_error) {
+      continue;
+    }
+  }
+  return '';
+}
+
+async function createWindow({
+  startEmpty = false,
+  projectRoot = '',
+}: {
+  startEmpty?: boolean;
+  projectRoot?: string;
+} = {}): Promise<AgencyWindow> {
+  const normalizedProjectRoot = String(projectRoot || '').trim();
+  const allowStoredProjectRoot = !startEmpty && !normalizedProjectRoot;
+  const preferredWindowStateId = allowStoredProjectRoot
+    ? await getLastActiveWindowStateId()
+    : '';
+  const windowStateId = preferredWindowStateId || createWindowStateId();
+
+  recordStartup('window-create-start', {
+    startEmpty,
+    hasProjectRoot: Boolean(normalizedProjectRoot),
+    allowStoredProjectRoot,
+    windowStateId,
+  });
 
   const iconImage = resolveIconImage();
   const win = new BrowserWindow({
@@ -212,15 +274,32 @@ function createWindow({ startEmpty = false }: { startEmpty?: boolean } = {}): vo
     },
   }) as AgencyWindow;
 
-  win.__agencyAllowStoredProjectRoot = !startEmpty;
+  win.__agencyAllowStoredProjectRoot = allowStoredProjectRoot;
+  win.__agencyWindowStateId = windowStateId;
+  if (normalizedProjectRoot) {
+    await setProjectRoot(normalizedProjectRoot, {
+      windowId: win.id,
+      windowStateId,
+    });
+  }
+  win.on('focus', () => {
+    mainWindow = win;
+    if (win.__agencyWindowStateId) {
+      void markLastActiveWindowState(win.__agencyWindowStateId);
+    }
+  });
   win.on('closed', () => {
     clearWindowProjectRoot(win.id);
   });
   recordStartup('window-created', { id: win.id });
 
+  if (windowStateId) {
+    await markLastActiveWindowState(windowStateId);
+  }
   loadRendererWindow(win);
   attachWindowDiagnostics(win);
   mainWindow = win;
+  return win;
 }
 
 function broadcastRecentProjects(recentProjects: unknown): void {
@@ -252,7 +331,10 @@ function setupAssetProtocol(): void {
 async function handleProjectSelection(): Promise<void> {
   try {
     const ownerWindow = (BrowserWindow.getFocusedWindow() || mainWindow) as AgencyWindow | undefined;
-    const result = await selectProjectRoot({ ownerWindow });
+    const result = await selectProjectRoot({
+      ownerWindow,
+      windowStateId: ownerWindow?.__agencyWindowStateId,
+    });
     if (result?.projectRoot && ownerWindow) {
       setWindowProjectRoot(ownerWindow.id, result.projectRoot);
       ownerWindow.webContents.send('project:updated', result);
@@ -267,10 +349,23 @@ async function handleProjectSelection(): Promise<void> {
   }
 }
 
+async function handleSecondaryLaunch(argv: string[] = [], workingDirectory = process.cwd()): Promise<void> {
+  const projectRoot = await resolveLaunchProjectRoot(argv, workingDirectory);
+  const win = await createWindow({
+    startEmpty: !projectRoot,
+    projectRoot,
+  });
+  if (win.isMinimized()) {
+    win.restore();
+  }
+  win.show();
+  win.focus();
+}
+
 function setupAppLifecycle(): void {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      void createWindow();
       logRuntime('info', 'main window recreated');
     }
   });
@@ -355,12 +450,15 @@ async function bootstrapApp(): Promise<void> {
       void handleProjectSelection();
     },
     onNewWindow: () => {
-      createWindow({ startEmpty: true });
+      void createWindow({ startEmpty: true });
     },
   });
   recordStartup('menu-built');
 
-  createWindow();
+  const launchProjectRoot = await resolveLaunchProjectRoot(process.argv);
+  await createWindow({
+    projectRoot: launchProjectRoot,
+  });
   recordStartup('window-create-requested');
 
   recordStartup('voice-helper-warmup-start');
@@ -391,5 +489,10 @@ async function bootstrapApp(): Promise<void> {
   setupAppLifecycle();
 }
 
-void app.whenReady().then(bootstrapApp);
+if (hasSingleInstanceLock) {
+  app.on('second-instance', (_event, argv, workingDirectory) => {
+    void handleSecondaryLaunch(argv, workingDirectory);
+  });
+  void app.whenReady().then(bootstrapApp);
+}
 setupProcessErrorHandlers();
