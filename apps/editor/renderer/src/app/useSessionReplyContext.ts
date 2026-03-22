@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import type { ActiveView } from './appLayoutContracts';
 
 import { BASELINE_PROFILE_ID } from '../utils/terminusSettings';
 
@@ -10,7 +11,7 @@ type UseSessionReplyContextArgs = {
   replySelectionByKey: Record<string, any>;
   resolvedBindingsByProfile: any;
   projectRoot: string;
-  setActiveView: (view: string) => void;
+  setActiveView: (view: ActiveView) => void;
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (value: boolean) => void;
   setReplySelectionByKey: (value: any) => void;
@@ -133,4 +134,3 @@ export function useSessionReplyContext({
     handleClearReplySelection,
   };
 }
-

@@ -88,6 +88,7 @@ export function AgentCellsSessionsPanel({
   const [editingSessionName, setEditingSessionName] = useState('');
   const [avatarMenu, setAvatarMenu] = useState<any>(null);
   const [collapsedCells, setCollapsedCells] = useState<Set<string>>(() => new Set());
+  const [pendingActiveSessionByCellId, setPendingActiveSessionByCellId] = useState<Record<string, string>>({});
 
   const closedMenuRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
@@ -179,6 +180,18 @@ export function AgentCellsSessionsPanel({
     });
   }, [cellsById]);
 
+  useEffect(() => {
+    setPendingActiveSessionByCellId((current) => {
+      const next = { ...current };
+      Object.keys(next).forEach((cellId) => {
+        if (activeSessionByCellId?.[cellId] === next[cellId]) {
+          delete next[cellId];
+        }
+      });
+      return next;
+    });
+  }, [activeSessionByCellId]);
+
   const beginRenameSession = (cellId: string, session: any) => {
     if (!cellId || !session) {
       return;
@@ -238,6 +251,20 @@ export function AgentCellsSessionsPanel({
   const resolveCellSessions = useCallback((cellId: string): any[] => sessionsByCellId?.[cellId] || [], [
     sessionsByCellId,
   ]);
+
+  const selectSessionTab = useCallback(
+    (cellId: string, sessionId: string) => {
+      if (!cellId || !sessionId) {
+        return;
+      }
+      setPendingActiveSessionByCellId((current) => ({
+        ...current,
+        [cellId]: sessionId,
+      }));
+      onSelectSession?.(cellId, sessionId);
+    },
+    [onSelectSession]
+  );
 
   const overflowSessions = useMemo(() => {
     if (!closedMenu?.cellId) {
@@ -317,7 +344,8 @@ export function AgentCellsSessionsPanel({
           <div className="space-y-2" data-testid="cell-list">
             {cells.map((cell: any) => {
               const cellSessions = resolveCellSessions(String(cell.id));
-              const activeSessionId = activeSessionByCellId?.[cell.id] || null;
+              const activeSessionId =
+                pendingActiveSessionByCellId[cell.id] || activeSessionByCellId?.[cell.id] || null;
               const isSelectedCell = selectedId === cell.id;
               const isCollapsed = collapsedCells.has(cell.id);
               const openSessions = cellSessions.filter((session) => {
@@ -464,7 +492,8 @@ export function AgentCellsSessionsPanel({
                             data-testid={`session-tab-${session.id}`}
                             data-active={isSelectedSession ? 'true' : 'false'}
                             data-cell-active={isCellActiveSession ? 'true' : 'false'}
-                            onClick={() => onSelectSession?.(cell.id, session.id)}
+                            onPointerDownCapture={() => selectSessionTab(cell.id, session.id)}
+                            onClick={() => selectSessionTab(cell.id, session.id)}
                             onDoubleClick={(event) => {
                               event.stopPropagation();
                               beginRenameSession(cell.id, session);
@@ -484,6 +513,7 @@ export function AgentCellsSessionsPanel({
                                 type="button"
                                 onClick={(event) => {
                                   event.stopPropagation();
+                                  selectSessionTab(cell.id, session.id);
                                   if (!onUpdateSessionAvatar) return;
                                   const rect = event.currentTarget.getBoundingClientRect();
                                   openAvatarMenu({ cellId: cell.id, sessionId: session.id }, rect);
@@ -587,7 +617,7 @@ export function AgentCellsSessionsPanel({
         cell={closedMenu?.cellId ? cellsById.get(closedMenu.cellId) : null}
         onSelectDetached={(session: any) => {
           if (closedMenu?.cellId) {
-            onSelectSession?.(closedMenu.cellId, session.id);
+            selectSessionTab(closedMenu.cellId, session.id);
           }
           setClosedMenu(null);
         }}

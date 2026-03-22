@@ -57,22 +57,18 @@ export function ActionSheetStatusPanel({
   const focusRingClass = focusRing.default;
 
   const handleDelete = async () => {
-    if (!sheet.id || !onDeleteSheet) {
+    if (!sheet.id || !onDeleteSheet || !modal?.confirm) {
       return;
     }
-    if (modal?.confirm) {
-      const confirmed = await modal.confirm({
-        title: 'Delete Action Sheet',
-        description: 'This Action Sheet will be removed from disk and cannot be restored.',
-        confirmLabel: 'Delete',
-        cancelLabel: 'Cancel',
-        tone: 'danger',
-        icon: Trash2,
-      });
-      if (!confirmed) {
-        return;
-      }
-    } else if (!window.confirm('Delete this Action Sheet? This cannot be undone.')) {
+    const confirmed = await modal.confirm({
+      title: 'Delete Action Sheet',
+      description: 'This Action Sheet will be removed from disk and cannot be restored.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      tone: 'danger',
+      icon: Trash2,
+    });
+    if (!confirmed) {
       return;
     }
     await onDeleteSheet(sheet.id);

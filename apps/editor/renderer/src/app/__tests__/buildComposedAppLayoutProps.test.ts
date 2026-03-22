@@ -10,6 +10,7 @@ function createFixture() {
   let toggledArchivedResult: boolean | null = null;
   let revealedExplorerPayload: any = undefined;
   let handledWorkbenchJumpPayload: any = undefined;
+  let hierarchyJumpTarget: string | null = null;
 
   const layoutState = {
     activeView: 'agent-cells',
@@ -319,7 +320,9 @@ function createFixture() {
   const navigationHandlers = {
     handleSwitchView: noop,
     handleSelectHierarchySection: noop,
-    handleHierarchyJump: noop,
+    handleHierarchyJump: (target: string) => {
+      hierarchyJumpTarget = target;
+    },
     handleSelectSessionFromSidebar: noop,
     handleSelectProjectRoot: asyncNoop,
     handleOpenRecentProject: asyncNoop,
@@ -426,6 +429,7 @@ function createFixture() {
       toggledArchivedResult: () => toggledArchivedResult,
       revealedExplorerPayload: () => revealedExplorerPayload,
       handledWorkbenchJumpPayload: () => handledWorkbenchJumpPayload,
+      hierarchyJumpTarget: () => hierarchyJumpTarget,
     },
   };
 }
@@ -467,4 +471,18 @@ test('buildComposedAppLayoutProps preserves action sheets and explorer callbacks
   assert.equal(result.memoDrawerProps.flashVoiceShortcut, fixture.refs.hierarchyConfig.memoVoiceShortcut);
   assert.equal(result.memoPaneProps.onDispatchActionSheet, fixture.refs.actionHandlers.handleDispatchActionSheet);
   assert.equal(result.explorerPaneProps.onCursorPositionChange, fixture.refs.workbenchState.setCursorPosition);
+});
+
+test('buildComposedAppLayoutProps keeps hierarchy jump shortcuts wired through layout props', () => {
+  const fixture = createFixture();
+  const result = buildComposedAppLayoutProps(fixture.args as any);
+
+  result.onOpenAppShortcuts();
+  assert.equal(fixture.refs.hierarchyJumpTarget(), 'app-shortcuts');
+
+  result.onOpenGates();
+  assert.equal(fixture.refs.hierarchyJumpTarget(), 'gates');
+
+  result.onOpenSoftlinks();
+  assert.equal(fixture.refs.hierarchyJumpTarget(), 'softlinks');
 });

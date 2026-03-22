@@ -2,10 +2,19 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { CaptureOverlay } from './components/capture/CaptureOverlay';
+import { ModalProvider } from './components/modals/ModalSystem';
 import 'monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.css';
 import './styles.css';
 
 const root = createRoot(document.getElementById('root'));
 const params = new URLSearchParams(window.location.search);
 const isCapture = params.get('capture') === '1';
-root.render(isCapture ? <CaptureOverlay /> : <App />);
+root.render(
+  isCapture ? (
+    <ModalProvider>
+      <CaptureOverlay />
+    </ModalProvider>
+  ) : (
+    <App />
+  )
+);

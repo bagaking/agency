@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { disposeTerminalEntry } from '../terminal/terminalManager';
 import { pickSessionAvatarId } from '../utils/agentAvatar';
 import { BASELINE_PROFILE_ID } from '../utils/terminusSettings';
@@ -16,17 +16,17 @@ import {
   writeTerminal as writeTerminalBridge,
 } from '../services/agencyBridge';
 import {
-  ACTIVITY_BOOTSTRAP_THRESHOLD_MS,
-  ATTACH_ACTIVITY_GRACE_MS,
   DEFAULT_FONT_SIZE,
   DETACHED_ACTIVITY_POLL_MS,
   buildSessionKey,
-  clampFontSize,
   filterOpenSessions,
   mergeSessionActivityTimestamps,
   normalizeTerminalText,
   resolveActiveSession,
 } from './shared/sessionRuntime';
+import { useSessionSelectionState } from './shared/useSessionSelectionState';
+import { useSessionTraceLogging } from './shared/useSessionTraceLogging';
+import { useSessionActivityState } from './shared/useSessionActivityState';
 
 export function useSessions(options: any = {}) {
   const {
@@ -36,23 +36,13 @@ export function useSessions(options: any = {}) {
     onOpenTerminal,
     initialActiveSessions,
   } = options;
-  const [activeSessionByCellId, setActiveSessionByCellId] = useState(
-    initialActiveSessions || {}
-  );
-  const activeSessionByCellIdRef = useRef(initialActiveSessions || {});
-  const activeSessionTraceRef = useRef(initialActiveSessions || {});
-  const derivedActiveTraceRef = useRef<{ cellId: string; sessionId: string }>({
-    cellId: '',
-    sessionId: '',
-  });
-  const selectionVersionRef = useRef(0);
+  const {
+    activeSessionByCellId,
+    setActiveSessionByCellId,
+    activeSessionByCellIdRef,
+    selectionVersionRef,
+  } = useSessionSelectionState(initialActiveSessions || {});
   const [sessionsByCellId, setSessionsByCellId] = useState({});
-  const [sessionFontSizeByKey, setSessionFontSizeByKey] = useState({});
-  const [sessionActivityByKey, setSessionActivityByKey] = useState({});
-  const [sessionVisitedByKey, setSessionVisitedByKey] = useState({});
-  const sessionActivityByKeyRef = useRef({});
-  const activityBootstrapByKeyRef = useRef({});
-  const activityIgnoreUntilByKeyRef = useRef({});
   const detachedPollBusyRef = useRef(false);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionError, setSessionError] = useState('');
@@ -73,50 +63,6 @@ export function useSessions(options: any = {}) {
     },
     [cellsById, selectedCell]
   );
-
-  useEffect(() => {
-    if (initialActiveSessions && typeof initialActiveSessions === 'object') {
-      setActiveSessionByCellId(initialActiveSessions);
-      activeSessionByCellIdRef.current = initialActiveSessions;
-    }
-  }, [initialActiveSessions]);
-
-  useEffect(() => {
-    activeSessionByCellIdRef.current = activeSessionByCellId;
-  }, [activeSessionByCellId]);
-
-  useEffect(() => {
-    const previous = activeSessionTraceRef.current || {};
-    const next = activeSessionByCellId || {};
-    const keys = new Set([...Object.keys(previous), ...Object.keys(next)]);
-    keys.forEach((cellId) => {
-      const prevSessionId = previous[cellId];
-      const nextSessionId = next[cellId];
-      if (prevSessionId === nextSessionId) {
-        return;
-      }
-      const meta = {
-        source: 'active-session-state',
-        cellId,
-        prevSessionId: prevSessionId || '',
-        nextSessionId: nextSessionId || '',
-        selectedCellId: selectedCell?.id || '',
-      };
-      logRuntimeBridge({
-        level: 'info',
-        message: 'session active pointer updated',
-        meta,
-      });
-      if (import.meta.env.DEV) {
-        console.debug('[SessionTrace] session active pointer updated', meta);
-      }
-    });
-    activeSessionTraceRef.current = next;
-  }, [activeSessionByCellId, selectedCell?.id]);
-
-  useEffect(() => {
-    sessionActivityByKeyRef.current = sessionActivityByKey;
-  }, [sessionActivityByKey]);
 
   const sessions = selectedCell ? sessionsByCellId[selectedCell.id] || [] : [];
   const detachedPollCells = useMemo(() => {
@@ -152,40 +98,34 @@ export function useSessions(options: any = {}) {
   const activeSessionId = activeSession?.id;
   const activeSessionKey =
     selectedCell && activeSessionId ? buildSessionKey(selectedCell.id, activeSessionId) : null;
-  const activeFontSize = activeSessionKey
-    ? sessionFontSizeByKey[activeSessionKey] || DEFAULT_FONT_SIZE
-    : DEFAULT_FONT_SIZE;
-  const lastActivityAt = activeSessionKey ? sessionActivityByKey[activeSessionKey] : null;
-  const lastVisitedAt = activeSessionKey ? sessionVisitedByKey[activeSessionKey] : null;
+  const {
+    sessionFontSizeByKey,
+    sessionActivityByKey,
+    sessionVisitedByKey,
+    sessionActivityByKeyRef,
+    activeFontSize,
+    lastActivityAt,
+    lastVisitedAt,
+    updateSessionActivity,
+    updateSessionVisited,
+    zoomIn,
+    zoomOut,
+    zoomReset,
+    markSessionAttached,
+    resetActivityState,
+    mergeSessionActivityState,
+  } = useSessionActivityState({
+    activeSessionKey,
+    selectedCellId: selectedCell?.id,
+    activeSessionId,
+  });
 
-  useEffect(() => {
-    const next = {
-      cellId: selectedCell?.id || '',
-      sessionId: activeSessionId || '',
-    };
-    const prev = derivedActiveTraceRef.current;
-    if (prev.cellId === next.cellId && prev.sessionId === next.sessionId) {
-      return;
-    }
-    const meta = {
-      source: 'derived-active-session',
-      prevCellId: prev.cellId,
-      prevSessionId: prev.sessionId,
-      nextCellId: next.cellId,
-      nextSessionId: next.sessionId,
-      openSessionCount: Array.isArray(openSessions) ? openSessions.length : 0,
-      preferredSessionId: selectedCell?.id ? activeSessionByCellId[selectedCell.id] || '' : '',
-    };
-    logRuntimeBridge({
-      level: 'info',
-      message: 'session derived active changed',
-      meta,
-    });
-    if (import.meta.env.DEV) {
-      console.warn('[SessionTrace] session derived active changed', meta);
-    }
-    derivedActiveTraceRef.current = next;
-  }, [activeSessionByCellId, activeSessionId, openSessions, selectedCell?.id]);
+  useSessionTraceLogging({
+    activeSessionByCellId,
+    selectedCellId: selectedCell?.id,
+    activeSessionId,
+    openSessions,
+  });
 
   const loadSessionsForCell = useCallback(
     async (cell, { silent = false } = {}) => {
@@ -209,6 +149,35 @@ export function useSessions(options: any = {}) {
         setSessionLoading(true);
         setSessionError('');
       }
+      setSessionsByCellId((current) => {
+        const existing = current[cell.id];
+        if (Array.isArray(existing) && existing.length > 0) {
+          return current;
+        }
+        return {
+          ...current,
+          [cell.id]: [
+            {
+              id: 'default',
+              name: 'Default',
+              status: 'active',
+              profileId: BASELINE_PROFILE_ID,
+            },
+          ],
+        };
+      });
+      activeSessionByCellIdRef.current = {
+        ...activeSessionByCellIdRef.current,
+        [cell.id]: activeSessionByCellIdRef.current[cell.id] || 'default',
+      };
+      setActiveSessionByCellId((current) =>
+        current[cell.id]
+          ? current
+          : {
+              ...current,
+              [cell.id]: 'default',
+            }
+      );
       try {
         let nextSessions = await listSessionsBridge({ worktreePath: cell.worktreePath });
         if (!Array.isArray(nextSessions)) {
@@ -227,7 +196,7 @@ export function useSessions(options: any = {}) {
           nextSessions = created ? [created] : nextSessions;
         }
         setSessionsByCellId((current) => ({ ...current, [cell.id]: nextSessions }));
-        setSessionActivityByKey((current) =>
+        mergeSessionActivityState((current: Record<string, number>) =>
           mergeSessionActivityTimestamps({
             current,
             cellId: cell.id,
@@ -347,32 +316,12 @@ export function useSessions(options: any = {}) {
     };
   }, [detachedPollCells, refreshSessionsForCells]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!selectedCell) {
       return;
     }
     loadSessionsForCell(selectedCell);
   }, [selectedCell?.id, tmuxStatus?.available, loadSessionsForCell]);
-
-  const updateSessionActivity = useCallback(({ cellId, sessionId }) => {
-    if (!cellId || !sessionId) {
-      return;
-    }
-    const key = buildSessionKey(cellId, sessionId);
-    const now = Date.now();
-    const ignoreUntil = activityIgnoreUntilByKeyRef.current[key];
-    if (Number.isFinite(ignoreUntil)) {
-      if (now < ignoreUntil) {
-        return;
-      }
-      delete activityIgnoreUntilByKeyRef.current[key];
-    }
-    if (activityBootstrapByKeyRef.current[key]) {
-      delete activityBootstrapByKeyRef.current[key];
-      return;
-    }
-    setSessionActivityByKey((current) => ({ ...current, [key]: now }));
-  }, []);
 
   const sendSessionText = useCallback(({ cellId, sessionId, text }) => {
     if (!cellId || !sessionId || !isAgencyMethodAvailable('writeTerminal')) {
@@ -384,25 +333,6 @@ export function useSessions(options: any = {}) {
     }
     writeTerminalBridge({ cellId, sessionId, data: payload });
     return true;
-  }, []);
-
-  const updateSessionVisited = useCallback(({ cellId, sessionId }) => {
-    if (!cellId || !sessionId) {
-      return;
-    }
-    const key = buildSessionKey(cellId, sessionId);
-    setSessionVisitedByKey((current) => ({ ...current, [key]: Date.now() }));
-  }, []);
-
-  const updateFontSizeForSession = useCallback(({ cellId, sessionId, nextSize }) => {
-    if (!cellId || !sessionId) {
-      return;
-    }
-    const key = buildSessionKey(cellId, sessionId);
-    setSessionFontSizeByKey((current) => ({
-      ...current,
-      [key]: clampFontSize(nextSize),
-    }));
   }, []);
 
   const selectSession = useCallback(
@@ -652,39 +582,6 @@ export function useSessions(options: any = {}) {
     [resolveCell, selectedCell]
   );
 
-  const zoomIn = useCallback(() => {
-    if (!selectedCell || !activeSessionId) {
-      return;
-    }
-    updateFontSizeForSession({
-      cellId: selectedCell.id,
-      sessionId: activeSessionId,
-      nextSize: activeFontSize + 1,
-    });
-  }, [activeFontSize, activeSessionId, selectedCell, updateFontSizeForSession]);
-
-  const zoomOut = useCallback(() => {
-    if (!selectedCell || !activeSessionId) {
-      return;
-    }
-    updateFontSizeForSession({
-      cellId: selectedCell.id,
-      sessionId: activeSessionId,
-      nextSize: activeFontSize - 1,
-    });
-  }, [activeFontSize, activeSessionId, selectedCell, updateFontSizeForSession]);
-
-  const zoomReset = useCallback(() => {
-    if (!selectedCell || !activeSessionId) {
-      return;
-    }
-    updateFontSizeForSession({
-      cellId: selectedCell.id,
-      sessionId: activeSessionId,
-      nextSize: DEFAULT_FONT_SIZE,
-    });
-  }, [activeSessionId, selectedCell, updateFontSizeForSession]);
-
   const dispatchSessionCommand = useCallback(
     async ({
       command,
@@ -779,25 +676,12 @@ export function useSessions(options: any = {}) {
 
   const handleSessionAttached = useCallback(
     ({ cellId, sessionId }: any = {}) => {
-      if (cellId && sessionId) {
-        const key = buildSessionKey(cellId, sessionId);
-        const lastActivity = sessionActivityByKeyRef.current[key];
-        if (
-          Number.isFinite(lastActivity) &&
-          Date.now() - lastActivity > ACTIVITY_BOOTSTRAP_THRESHOLD_MS
-        ) {
-          activityIgnoreUntilByKeyRef.current[key] = Date.now() + ATTACH_ACTIVITY_GRACE_MS;
-          activityBootstrapByKeyRef.current[key] = true;
-        } else {
-          delete activityIgnoreUntilByKeyRef.current[key];
-          delete activityBootstrapByKeyRef.current[key];
-        }
-      }
+      markSessionAttached({ cellId, sessionId });
       if (selectedCell) {
         loadSessionsForCell(selectedCell, { silent: true });
       }
     },
-    [loadSessionsForCell, selectedCell]
+    [loadSessionsForCell, markSessionAttached, selectedCell]
   );
 
   const clearSessionError = useCallback(() => setSessionError(''), []);
@@ -806,13 +690,10 @@ export function useSessions(options: any = {}) {
     setSessionsByCellId({});
     setActiveSessionByCellId({});
     activeSessionByCellIdRef.current = {};
-    setSessionFontSizeByKey({});
-    setSessionActivityByKey({});
-    setSessionVisitedByKey({});
-    activityIgnoreUntilByKeyRef.current = {};
+    resetActivityState();
     setSessionError('');
     setPendingCommand(null);
-  }, []);
+  }, [resetActivityState, setActiveSessionByCellId, activeSessionByCellIdRef]);
 
   return {
     sessions,

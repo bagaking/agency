@@ -1,6 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CaptureCanvas } from './CaptureCanvas';
 import { CaptureToolbar } from './CaptureToolbar';
+import {
+  cancelCapture,
+  completeCapture,
+  getCaptureDisplaySource,
+  isCaptureBridgeAvailable,
+  setCaptureIncludeAgencyWindows,
+} from '../../services/captureOverlayBridge';
 
 const getCaptureParams = () => {
   const params = new URLSearchParams(window.location.search);
@@ -39,14 +46,14 @@ export function CaptureOverlay() {
   const [includeAgencyWindows, setIncludeAgencyWindows] = useState(false);
 
   const loadSource = useCallback(async () => {
-    if (!window.agencyCapture?.getDisplaySource) {
+    if (!isCaptureBridgeAvailable()) {
       setError('Capture API unavailable.');
       return;
     }
     setLoading(true);
     setError('');
     try {
-      const source = await window.agencyCapture.getDisplaySource({
+      const source = await getCaptureDisplaySource({
         requestId,
         displayId,
       });
@@ -66,11 +73,11 @@ export function CaptureOverlay() {
   }, [loadSource]);
 
   const handleCancel = useCallback(() => {
-    window.agencyCapture?.cancelCapture({ requestId, reason: 'Canceled by user.' });
+    void cancelCapture({ requestId, reason: 'Canceled by user.' });
   }, [requestId]);
 
   const handleConfirm = useCallback(async () => {
-    if (!window.agencyCapture?.completeCapture) {
+    if (!isCaptureBridgeAvailable()) {
       setError('Capture API unavailable.');
       return;
     }
@@ -79,7 +86,7 @@ export function CaptureOverlay() {
       setError('Select a region before capturing.');
       return;
     }
-    await window.agencyCapture.completeCapture({
+    await completeCapture({
       requestId,
       payload: {
         displayId,
@@ -95,7 +102,7 @@ export function CaptureOverlay() {
   const handleToggleInclude = useCallback(async () => {
     const next = !includeAgencyWindows;
     setIncludeAgencyWindows(next);
-    await window.agencyCapture?.setIncludeAgencyWindows?.({
+    await setCaptureIncludeAgencyWindows({
       requestId,
       includeAgencyWindows: next,
     });

@@ -1,4 +1,13 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+import type {
+  ActiveView,
+  HilDrawerPanel,
+} from './appLayoutContracts';
+import {
+  parseActiveView,
+  parseHilDrawerPanel,
+  parseHilDrawerPanelByView,
+} from './appLayoutContracts';
 
 import {
   getProjectContext,
@@ -26,9 +35,9 @@ type UseRendererBootstrapArgs = {
   setInitialWorkbenchActiveTabs: (value: any) => void;
   setSidebarWidth: (value: number) => void;
   setSidebarCollapsed: (value: boolean) => void;
-  setActiveView: (value: string) => void;
+  setActiveView: (value: ActiveView) => void;
   setHilDrawerOpen: (value: boolean) => void;
-  setHilDrawerPanel: (value: string) => void;
+  setHilDrawerPanel: (value: HilDrawerPanel) => void;
   setHilDrawerPanelByView: (value: any) => void;
   setTerminalOpen: (value: boolean) => void;
   setUiStateLoaded: (value: boolean) => void;
@@ -36,15 +45,6 @@ type UseRendererBootstrapArgs = {
   setTmuxStatus: (value: any) => void;
   setIpcAvailable: (value: boolean) => void;
 };
-
-const ALLOWED_ACTIVE_VIEWS = new Set([
-  'agent-cells',
-  'action-sheets',
-  'explorer',
-  'hierarchy',
-  'settings',
-  'memo',
-]);
 
 export function useRendererBootstrap({
   projectRoot,
@@ -73,6 +73,7 @@ export function useRendererBootstrap({
   setTmuxStatus,
   setIpcAvailable,
 }: UseRendererBootstrapArgs) {
+  const loadCellsRequestIdRef = useRef(0);
   const resolveNextSelectedId = useCallback(
     ({
       currentSelectedId,
@@ -106,15 +107,23 @@ export function useRendererBootstrap({
 
   const loadCells = useCallback(
     async (preferredSelection: string | null = null, rootOverride = '') => {
+      const requestId = loadCellsRequestIdRef.current + 1;
+      loadCellsRequestIdRef.current = requestId;
       const effectiveRoot = rootOverride || projectRoot;
       setLoading(true);
       try {
         if (!effectiveRoot) {
+          if (loadCellsRequestIdRef.current !== requestId) {
+            return;
+          }
           setCells([]);
           setSelectedId((current: string | null) => current || 'local-terminal');
           return;
         }
         const result = await agencyListCells({ rootPath: effectiveRoot });
+        if (loadCellsRequestIdRef.current !== requestId) {
+          return;
+        }
         if (Array.isArray(result)) {
           setCells(result);
           setSelectedId((current: string | null) =>
@@ -129,6 +138,9 @@ export function useRendererBootstrap({
           setSelectedId((current: string | null) => current || defaultCells[0].id);
         }
       } catch (error: any) {
+        if (loadCellsRequestIdRef.current !== requestId) {
+          return;
+        }
         console.error(error);
         if (String(error?.message || '').includes('Project root is not configured')) {
           setCells([]);
@@ -138,7 +150,9 @@ export function useRendererBootstrap({
           setSelectedId((current: string | null) => current || defaultCells[0].id);
         }
       } finally {
-        setLoading(false);
+        if (loadCellsRequestIdRef.current === requestId) {
+          setLoading(false);
+        }
       }
     },
     [defaultCells, projectRoot, resolveNextSelectedId, setCells, setLoading, setSelectedId]
@@ -188,21 +202,22 @@ export function useRendererBootstrap({
           if (typeof state?.sidebarCollapsed === 'boolean') {
             setSidebarCollapsed(state.sidebarCollapsed);
           }
-          let restoredActiveView = 'agent-cells';
-          if (typeof state?.activeView === 'string' && ALLOWED_ACTIVE_VIEWS.has(state.activeView)) {
-            restoredActiveView = state.activeView;
-            setActiveView(state.activeView);
-          }
+          const restoredActiveView = parseActiveView(state?.activeView) || 'agent-cells';
+          setActiveView(restoredActiveView);
           if (typeof state?.hilDrawerOpen === 'boolean') {
             setHilDrawerOpen(state.hilDrawerOpen);
           }
-          if (typeof state?.hilDrawerPanel === 'string') {
-            setHilDrawerPanel(state.hilDrawerPanel);
+          const restoredHilDrawerPanel = parseHilDrawerPanel(state?.hilDrawerPanel);
+          if (restoredHilDrawerPanel) {
+            setHilDrawerPanel(restoredHilDrawerPanel);
           }
-          if (state?.hilDrawerPanelByView && typeof state.hilDrawerPanelByView === 'object') {
-            setHilDrawerPanelByView(state.hilDrawerPanelByView);
-          } else if (typeof state?.hilDrawerPanel === 'string') {
-            setHilDrawerPanelByView({ [restoredActiveView]: state.hilDrawerPanel });
+          const restoredHilDrawerPanelByView = parseHilDrawerPanelByView(
+            state?.hilDrawerPanelByView
+          );
+          if (Object.keys(restoredHilDrawerPanelByView).length > 0) {
+            setHilDrawerPanelByView(restoredHilDrawerPanelByView);
+          } else if (restoredHilDrawerPanel) {
+            setHilDrawerPanelByView({ [restoredActiveView]: restoredHilDrawerPanel });
           }
           if (!resolvedProjectRoot) {
             setActiveView('agent-cells');

@@ -1,3 +1,5 @@
+import type { BuildAppLayoutInput } from './appLayoutContracts';
+
 export function buildAppLayoutProps({
   activeView,
   handleSwitchView,
@@ -161,7 +163,7 @@ export function buildAppLayoutProps({
   appLayoutExplorerPaneProps,
   appLayoutMemoPaneProps,
   appLayoutMemoSidebarProps,
-}: any) {
+}: BuildAppLayoutInput) {
   return {
     activeView,
     onSwitchView: handleSwitchView,
@@ -333,3 +335,5 @@ export function buildAppLayoutProps({
     memoSidebarProps: appLayoutMemoSidebarProps,
   };
 }
+
+export type AppLayoutProps = ReturnType<typeof buildAppLayoutProps>;

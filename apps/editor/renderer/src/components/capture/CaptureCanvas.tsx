@@ -1,4 +1,5 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { useModal } from '../modals/ModalSystem';
 
 const normalizeRect = (start, end) => {
   const x = Math.min(start.x, end.x);
@@ -68,6 +69,7 @@ export const CaptureCanvas = forwardRef(function CaptureCanvas(
   { imageSrc, tool, selection, annotations, onSelectionChange, onAnnotationsChange }: any,
   ref
 ) {
+  const modal = useModal();
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
   const [draftSelection, setDraftSelection] = useState(null);
@@ -170,7 +172,7 @@ export const CaptureCanvas = forwardRef(function CaptureCanvas(
     }
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = async () => {
     if (draftSelection) {
       onSelectionChange?.(draftSelection);
       setDraftSelection(null);
@@ -178,8 +180,17 @@ export const CaptureCanvas = forwardRef(function CaptureCanvas(
     }
     if (draftAnnotation) {
       if (draftAnnotation.type === 'text') {
-        const text = window.prompt('Annotation text:');
-        if (text) {
+        const text = await modal?.prompt?.({
+          title: 'Annotation Text',
+          description: 'Enter the text to place on the capture.',
+          inputLabel: 'Text',
+          placeholder: 'Add an annotation…',
+          confirmLabel: 'Apply',
+          cancelLabel: 'Cancel',
+          validateValue: (value: string) => (value.trim() ? '' : 'Annotation text is required.'),
+          normalizeValue: (value: string) => value.trim(),
+        });
+        if (typeof text === 'string' && text) {
           onAnnotationsChange?.([...(annotations || []), { ...draftAnnotation, text }]);
         }
       } else {

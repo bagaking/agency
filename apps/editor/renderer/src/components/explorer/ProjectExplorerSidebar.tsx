@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle } from 'lucide-react';
 import { useProjectExplorer, explorerPathUtils } from '../../hooks/useProjectExplorer';
 import { RecentProjectsList } from '../RecentProjectsList';
+import { useModal } from '../modals/ModalSystem';
 import { ExplorerContextMenu } from './ExplorerContextMenu';
 import { ExplorerItem } from './ExplorerItem';
 import { ExplorerHeader } from './ExplorerHeader';
@@ -20,6 +21,7 @@ import { useExplorerClipboardActions } from './useExplorerClipboardActions';
 import { useExplorerChangedFilesActions } from './useExplorerChangedFilesActions';
 import { useExplorerDropHandlers } from './useExplorerDropHandlers';
 import { useExplorerExternalImport } from './useExplorerExternalImport';
+import { useExplorerEntryMutations } from './useExplorerEntryMutations';
 import { useExplorerPersistedUiState } from './useExplorerPersistedUiState';
 import {
   buildExplorerInternalDragPayload,
@@ -54,6 +56,7 @@ function ProjectExplorerSidebarContent({
   revealRequest,
   onRevealHandled,
 }: any) {
+  const modal = useModal();
   const listRef = useRef<HTMLDivElement | null>(null);
   const visiblePathsRef = useRef<string[]>([]);
   const {
@@ -425,77 +428,33 @@ function ProjectExplorerSidebarContent({
     openEntry: handleOpenEntry,
   });
 
-  const startDraft = (type) => { if (activeDir) expandPath(activeDir); setDraftEntry({ type, parentPath: activeDir || '', value: '' }); };
-  const handleDraftSubmit = async () => {
-    if (!draftEntry?.value) { setDraftEntry(null); return; }
-    try { await createEntry({ type: draftEntry.type, parentPath: draftEntry.parentPath, name: draftEntry.value }); clearError(); } 
-    catch (err) { setErrorMessage(err?.message || 'Failed to create.'); }
-    setDraftEntry(null);
-  };
-
-  const handleRenameSubmit = async () => {
-    if (!renameTarget?.path || !renameTarget?.value) { setRenameTarget(null); return; }
-    const parent = explorerPathUtils.dirname(renameTarget.path);
-    const nextPath = [parent, renameTarget.value].filter(Boolean).join('/');
-    if (nextPath === renameTarget.path) {
-      setRenameTarget(null);
-      return;
-    }
-    try { await renameEntry({ sourcePath: renameTarget.path, targetPath: nextPath }); clearError(); } 
-    catch (err) { setErrorMessage('Rename failed.'); }
-    setRenameTarget(null);
-  };
-
-  const handleDelete = async (targets) => {
-    const list = (Array.isArray(targets) ? targets : [targets]).filter(Boolean);
-    if (!list.length || !window.confirm(`Delete ${list.length} items?`)) return;
-    try {
-      for (const t of list) await deleteEntry({ targetPath: t });
-      setSelectedPaths(curr => curr.filter(it => !list.includes(it)));
-      clearError();
-    } catch (err) { setErrorMessage('Delete failed.'); }
-  };
-
-  const handleDuplicate = async (targetPath) => {
-    const name = explorerPathUtils.basename(targetPath);
-    const parent = explorerPathUtils.dirname(targetPath);
-    const nextName = window.prompt('Duplicate as:', `${name}-copy`);
-    if (!nextName) return;
-    try {
-      const nextPath = [parent, nextName].filter(Boolean).join('/');
-      await copyEntry({ sourcePath: targetPath, targetPath: nextPath });
-      await refreshAll();
-    } catch (err) { setErrorMessage('Duplicate failed.'); }
-  };
-
-  const handleReveal = async (targets) => {
-    const list = (Array.isArray(targets) ? targets : [targets]).filter(Boolean);
-    try { for (const t of list) await revealEntry({ targetPath: t }); } 
-    catch (err) {}
-  };
-
-  const handleMove = async (paths, targetDir) => {
-    try {
-      let didMove = false;
-      for (const sourcePath of paths) {
-        if (sourcePath === targetDir || targetDir.startsWith(`${sourcePath}/`)) {
-          setErrorMessage('Cannot move a folder into itself.');
-          continue;
-        }
-        const nextPath = [targetDir, explorerPathUtils.basename(sourcePath)].filter(Boolean).join('/');
-        if (sourcePath === nextPath) {
-          continue;
-        }
-        await renameEntry({ sourcePath, targetPath: nextPath });
-        didMove = true;
-      }
-      if (didMove) {
-        await refreshAll();
-      }
-    } catch (err) {
-      setErrorMessage('Move failed.');
-    }
-  };
+  const {
+    startDraft,
+    handleDraftSubmit,
+    handleRenameSubmit,
+    handleDelete,
+    handleDuplicate,
+    handleReveal,
+    handleMove,
+    requestRename,
+  } = useExplorerEntryMutations({
+    activeDir,
+    draftEntry,
+    renameTarget,
+    modal,
+    expandPath,
+    setDraftEntry,
+    setRenameTarget,
+    createEntry,
+    renameEntry,
+    deleteEntry,
+    copyEntry,
+    revealEntry,
+    refreshAll,
+    clearError,
+    setErrorMessage,
+    setSelectedPaths,
+  });
 
   const handleExternalImport = useExplorerExternalImport({
     importExternalEntries,
@@ -546,11 +505,6 @@ function ProjectExplorerSidebarContent({
     selectPathInExplorer(targetPath);
     clearError();
   }, [clearError, expandAncestorsForPath, semanticTagsByPath, selectPathInExplorer, setErrorMessage, visiblePaths]);
-  const requestRename = useCallback((path) => {
-    if (!path) return;
-    setRenameTarget({ path, value: explorerPathUtils.basename(path) });
-  }, []);
-
   const renderNodeRow = (item) => {
     if (item.draft) {
       return <ExplorerItem key={item.path} item={{ ...item, onBlur: handleDraftSubmit, onKeyDown: (e) => { if (e.key === 'Enter') handleDraftSubmit(); if (e.key === 'Escape') setDraftEntry(null); }, onChange: (e) => setDraftEntry(prev => ({ ...prev, value: e.target.value })), value: draftEntry?.value || '' }} />;
