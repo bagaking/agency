@@ -24,6 +24,7 @@ import {
   type AgentCellSessionTreeProjection,
   type AgentCellSessionTreeRow,
 } from '../../utils/agentCellSessionTree';
+import { buildAgentCellChildSessionOptions } from '../../utils/agentCellChildSession';
 
 const cellStateColors: Record<string, string> = {
   draft: 'text-muted-foreground',
@@ -466,12 +467,13 @@ export function AgentCellsSessionsPanel({
       if (!cell || !session) {
         return;
       }
-      await onCreateSession?.(cell, {
-        profileId: session.profileId || undefined,
-        parentSessionId: session.id,
-        nodeKind,
-        sourceSessionId: session.id,
-      });
+      await onCreateSession?.(
+        cell,
+        buildAgentCellChildSessionOptions({
+          parentSession: session,
+          nodeKind,
+        })
+      );
     },
     [cellsById, onCreateSession]
   );
