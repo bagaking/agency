@@ -74,6 +74,14 @@ export function QuickActionProfileCard({
   const isActiveProfile = activeProfileId === action.id;
   const startSummary = summarizeCommand(action.startCommand);
   const resumeSummary = summarizeCommand(action.resumeCommand);
+  const forkConfig = {
+    enabled: Boolean(action.fork?.enabled),
+    driver: String(action.fork?.driver || '').trim(),
+    launchTemplate: String(action.fork?.launchTemplate || '').trim(),
+    sourceIdleMs: Number(action.fork?.sourceIdleMs) || 1500,
+    forkAckTimeoutMs: Number(action.fork?.forkAckTimeoutMs) || 15000,
+    childReadyTimeoutMs: Number(action.fork?.childReadyTimeoutMs) || 20000,
+  };
 
   const inheritedFrom = meta.inheritedFrom ? formatScope(meta.inheritedFrom) : '';
   const overriddenBy = meta.overriddenBy ? formatScope(meta.overriddenBy) : '';
@@ -235,6 +243,161 @@ export function QuickActionProfileCard({
             </div>
           </div>
 
+          <div className="space-y-3 rounded-lg border border-border/50 bg-background/30 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                  Smart Fork
+                </div>
+                <div className="mt-1 text-[11px] text-muted-foreground/60">
+                  Host-orchestrated fork flow for tools like Codex.
+                </div>
+              </div>
+              <label className="inline-flex items-center gap-2 text-[11px] text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={forkConfig.enabled}
+                  disabled={!isEditable}
+                  onChange={(event) =>
+                    onUpdateAction?.(action.id, {
+                      fork: {
+                        ...forkConfig,
+                        enabled: event.target.checked,
+                      },
+                    })
+                  }
+                />
+                Enabled
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <label
+                  htmlFor={`terminus-fork-driver-${action.id}`}
+                  className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60"
+                >
+                  Fork Driver
+                </label>
+                <input
+                  id={`terminus-fork-driver-${action.id}`}
+                  className={`w-full rounded border border-border/50 bg-background/50 px-3 py-1.5 text-sm focus:border-primary disabled:opacity-50 ${focusRingClass}`}
+                  value={forkConfig.driver}
+                  onChange={(event) =>
+                    onUpdateAction?.(action.id, {
+                      fork: {
+                        ...forkConfig,
+                        driver: event.target.value,
+                      },
+                    })
+                  }
+                  disabled={!isEditable}
+                  placeholder="e.g. codex"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label
+                  htmlFor={`terminus-fork-idle-${action.id}`}
+                  className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60"
+                >
+                  Source Idle Ms
+                </label>
+                <input
+                  id={`terminus-fork-idle-${action.id}`}
+                  type="number"
+                  min={0}
+                  className={`w-full rounded border border-border/50 bg-background/50 px-3 py-1.5 text-sm focus:border-primary disabled:opacity-50 ${focusRingClass}`}
+                  value={forkConfig.sourceIdleMs}
+                  onChange={(event) =>
+                    onUpdateAction?.(action.id, {
+                      fork: {
+                        ...forkConfig,
+                        sourceIdleMs: Number(event.target.value) || 0,
+                      },
+                    })
+                  }
+                  disabled={!isEditable}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label
+                htmlFor={`terminus-fork-template-${action.id}`}
+                className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60"
+              >
+                Launch Template
+              </label>
+              <textarea
+                id={`terminus-fork-template-${action.id}`}
+                className={`min-h-[60px] w-full rounded border border-border/50 bg-background/50 px-3 py-2 text-xs font-mono focus:border-primary disabled:opacity-50 ${focusRingClass}`}
+                value={forkConfig.launchTemplate}
+                onChange={(event) =>
+                  onUpdateAction?.(action.id, {
+                    fork: {
+                      ...forkConfig,
+                      launchTemplate: event.target.value,
+                    },
+                  })
+                }
+                disabled={!isEditable}
+                spellCheck={false}
+                placeholder="e.g. codex --thread {thread_id}"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <label
+                  htmlFor={`terminus-fork-ack-${action.id}`}
+                  className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60"
+                >
+                  Ack Timeout Ms
+                </label>
+                <input
+                  id={`terminus-fork-ack-${action.id}`}
+                  type="number"
+                  min={0}
+                  className={`w-full rounded border border-border/50 bg-background/50 px-3 py-1.5 text-sm focus:border-primary disabled:opacity-50 ${focusRingClass}`}
+                  value={forkConfig.forkAckTimeoutMs}
+                  onChange={(event) =>
+                    onUpdateAction?.(action.id, {
+                      fork: {
+                        ...forkConfig,
+                        forkAckTimeoutMs: Number(event.target.value) || 0,
+                      },
+                    })
+                  }
+                  disabled={!isEditable}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label
+                  htmlFor={`terminus-fork-ready-${action.id}`}
+                  className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60"
+                >
+                  Child Ready Ms
+                </label>
+                <input
+                  id={`terminus-fork-ready-${action.id}`}
+                  type="number"
+                  min={0}
+                  className={`w-full rounded border border-border/50 bg-background/50 px-3 py-1.5 text-sm focus:border-primary disabled:opacity-50 ${focusRingClass}`}
+                  value={forkConfig.childReadyTimeoutMs}
+                  onChange={(event) =>
+                    onUpdateAction?.(action.id, {
+                      fork: {
+                        ...forkConfig,
+                        childReadyTimeoutMs: Number(event.target.value) || 0,
+                      },
+                    })
+                  }
+                  disabled={!isEditable}
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60">
@@ -289,4 +452,3 @@ export function QuickActionProfileCard({
     </div>
   );
 }
-

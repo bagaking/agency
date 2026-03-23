@@ -34,6 +34,7 @@ test('buildAgentCellChildSessionOptions keeps parent profile for fork', () => {
     parentSessionId: 'agent-session',
     nodeKind: 'fork',
     sourceSessionId: 'agent-session',
+    smartFork: true,
   });
 });
 
@@ -50,5 +51,6 @@ test('buildAgentCellChildSessionOptions falls back to shell when fork parent has
     parentSessionId: 'plain-session',
     nodeKind: 'fork',
     sourceSessionId: 'plain-session',
+    smartFork: true,
   });
 });

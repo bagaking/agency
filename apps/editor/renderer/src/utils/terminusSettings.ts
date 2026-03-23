@@ -1,4 +1,12 @@
 export const BASELINE_PROFILE_ID = 'shell';
+export const DEFAULT_PROFILE_FORK = {
+  enabled: false,
+  driver: '',
+  launchTemplate: '',
+  sourceIdleMs: 1500,
+  forkAckTimeoutMs: 15000,
+  childReadyTimeoutMs: 20000,
+};
 
 export const BASELINE_PROFILE = {
   id: BASELINE_PROFILE_ID,
@@ -8,6 +16,7 @@ export const BASELINE_PROFILE = {
   subcommands: [],
   locked: true,
   kind: 'shell',
+  fork: DEFAULT_PROFILE_FORK,
   shortcuts: {
     bindings: [],
   },

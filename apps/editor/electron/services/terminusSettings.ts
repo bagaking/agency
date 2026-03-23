@@ -8,6 +8,14 @@ const yaml = require('js-yaml');
 const fsp = fs.promises;
 
 const BASELINE_PROFILE_ID = 'shell';
+const DEFAULT_PROFILE_FORK = {
+  enabled: false,
+  driver: '',
+  launchTemplate: '',
+  sourceIdleMs: 1500,
+  forkAckTimeoutMs: 15000,
+  childReadyTimeoutMs: 20000,
+};
 
 const DEFAULT_PROFILES = [
   {
@@ -17,6 +25,7 @@ const DEFAULT_PROFILES = [
     resumeCommand: '',
     locked: true,
     kind: 'shell',
+    fork: DEFAULT_PROFILE_FORK,
     shortcuts: {
       bindings: [],
     },
@@ -27,6 +36,14 @@ const DEFAULT_PROFILES = [
     startCommand: 'codex',
     resumeCommand: '',
     kind: 'cli',
+    fork: {
+      enabled: true,
+      driver: 'codex',
+      launchTemplate: 'codex --thread {thread_id}',
+      sourceIdleMs: 1500,
+      forkAckTimeoutMs: 15000,
+      childReadyTimeoutMs: 20000,
+    },
     shortcuts: {
       bindings: [],
     },
@@ -37,6 +54,7 @@ const DEFAULT_PROFILES = [
     startCommand: 'gemini',
     resumeCommand: '',
     kind: 'cli',
+    fork: DEFAULT_PROFILE_FORK,
     shortcuts: {
       bindings: [],
     },
@@ -47,6 +65,7 @@ const DEFAULT_PROFILES = [
     startCommand: 'claude',
     resumeCommand: '',
     kind: 'cli',
+    fork: DEFAULT_PROFILE_FORK,
     shortcuts: {
       bindings: [],
     },
@@ -91,6 +110,34 @@ function getAgentSettingsPath(worktreePath) {
   return path.join(worktreePath, '.agency', `${AGENT_PREFIX}${worktreeName}${AGENT_EXT}`);
 }
 
+function normalizeFork(profile = {}) {
+  const fork = profile?.fork && typeof profile.fork === 'object' ? profile.fork : {};
+  const launchTemplate = String(
+    fork.launchTemplate || DEFAULT_PROFILE_FORK.launchTemplate
+  ).trim();
+  const normalizeTimeout = (value, fallback) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return fallback;
+    }
+    return Math.max(0, Math.floor(parsed));
+  };
+  return {
+    enabled: Boolean(fork.enabled),
+    driver: String(fork.driver || '').trim().toLowerCase(),
+    launchTemplate,
+    sourceIdleMs: normalizeTimeout(fork.sourceIdleMs, DEFAULT_PROFILE_FORK.sourceIdleMs),
+    forkAckTimeoutMs: normalizeTimeout(
+      fork.forkAckTimeoutMs,
+      DEFAULT_PROFILE_FORK.forkAckTimeoutMs
+    ),
+    childReadyTimeoutMs: normalizeTimeout(
+      fork.childReadyTimeoutMs,
+      DEFAULT_PROFILE_FORK.childReadyTimeoutMs
+    ),
+  };
+}
+
 function normalizeProfile(profile = {}) {
   const id = profile.id || generateId('profile');
   const rawBindings = profile.shortcuts?.bindings;
@@ -102,6 +149,7 @@ function normalizeProfile(profile = {}) {
     resumeCommand: String(profile.resumeCommand || ''),
     locked: Boolean(profile.locked),
     kind: profile.kind ? String(profile.kind) : undefined,
+    fork: normalizeFork(profile),
     shortcuts: {
       bindings,
     },
@@ -252,6 +300,44 @@ async function getTerminusSettings({ scope = 'resolved', worktreePath } = {}) {
   return { global: globalSettings, project: projectSettings, agent: agentSettings };
 }
 
+function mergeById(...scopes) {
+  const merged = [];
+  const indexById = new Map();
+  scopes.flat().forEach((item, index) => {
+    if (!item) {
+      return;
+    }
+    const id = item.id || `profile-${index}`;
+    if (indexById.has(id)) {
+      merged[indexById.get(id)] = normalizeProfile({
+        ...merged[indexById.get(id)],
+        ...item,
+      });
+      return;
+    }
+    indexById.set(id, merged.length);
+    merged.push(normalizeProfile(item));
+  });
+  return merged;
+}
+
+async function getResolvedTerminusSettings({ worktreePath } = {}) {
+  const [globalSettings, projectSettings, agentSettings] = await Promise.all([
+    readGlobalSettings(),
+    readProjectSettings(worktreePath),
+    readAgentSettings(worktreePath),
+  ]);
+  return {
+    profiles: ensureBaselineProfile(
+      mergeById(
+        globalSettings?.profiles || [],
+        projectSettings?.profiles || [],
+        agentSettings?.profiles || []
+      )
+    ),
+  };
+}
+
 async function setTerminusSettings({ scope = 'global', worktreePath, settings }) {
   if (scope === 'project') {
     return writeProjectSettings(worktreePath, settings);
@@ -264,8 +350,10 @@ async function setTerminusSettings({ scope = 'global', worktreePath, settings })
 
 export {
   BASELINE_PROFILE_ID,
+  DEFAULT_PROFILE_FORK,
   DEFAULT_SETTINGS,
   EMPTY_SETTINGS,
   getTerminusSettings,
+  getResolvedTerminusSettings,
   setTerminusSettings,
 };

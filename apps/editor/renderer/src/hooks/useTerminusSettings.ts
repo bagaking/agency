@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   BASELINE_PROFILE,
   BASELINE_PROFILE_ID,
+  DEFAULT_PROFILE_FORK,
   buildBindingRowsByProfile,
   buildProfileRows,
   mergeProfileBindings,
@@ -238,6 +239,7 @@ export function useTerminusSettings({ selectedCell, terminusScope }) {
         label: 'New Terminus',
         startCommand: '',
         resumeCommand: '',
+        fork: DEFAULT_PROFILE_FORK,
         shortcuts: { bindings: [] },
       },
     ]);

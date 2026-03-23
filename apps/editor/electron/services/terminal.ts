@@ -5,6 +5,7 @@ const pty = require('node-pty');
 
 const { logRuntime } = require('./runtimeLog');
 const { sendKeys } = require('./tmux');
+const { dispatchSessionRuntimeInput } = require('./sessionRuntime');
 
 const sessions = new Map();
 const sessionSizesByTmux = new Map();
@@ -188,7 +189,7 @@ function startSession({ cellId, sessionId, tmuxSession, cwd, mode }) {
       throw buildSpawnError(`Terminal spawn failed: ${error.message}.`, 'Install tmux and retry.');
     }
   }
-  const session = { cellId, sessionId, tmuxSession, ptyProcess, mode };
+  const session = { cellId, sessionId, tmuxSession, ptyProcess, mode, worktreePath: cwd };
   sessions.set(key, session);
   ptyProcess.onExit(() => {
     sessions.delete(key);
@@ -323,19 +324,29 @@ async function dispatchSessionInput(
   sessionId,
   input = {}
 ) {
-  const plan = buildDispatchInputPlan(input);
-  if (!plan.text && plan.confirm.keys.length === 0) {
+  const session = sessions.get(buildSessionKey(cellId, sessionId));
+  if (!session?.tmuxSession) {
+    const plan = buildDispatchInputPlan(input);
+    if (!plan.text && plan.confirm.keys.length === 0) {
+      return;
+    }
+    if (plan.text) {
+      writeSession(cellId, sessionId, plan.text);
+    }
+    if (plan.confirm.keys.length > 0) {
+      if (plan.confirm.settleMs > 0 && plan.text) {
+        await sleep(plan.confirm.settleMs);
+      }
+      await sendSessionKeys(cellId, sessionId, plan.confirm.keys);
+    }
     return;
   }
-  if (plan.text) {
-    writeSession(cellId, sessionId, plan.text);
-  }
-  if (plan.confirm.keys.length > 0) {
-    if (plan.confirm.settleMs > 0 && plan.text) {
-      await sleep(plan.confirm.settleMs);
-    }
-    await sendSessionKeys(cellId, sessionId, plan.confirm.keys);
-  }
+  await dispatchSessionRuntimeInput({
+    worktreePath: session.worktreePath || process.cwd(),
+    sessionId,
+    text: input?.text || '',
+    confirm: input?.confirm || {},
+  });
 }
 
 async function dispatchSessionCommand(

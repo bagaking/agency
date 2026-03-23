@@ -113,6 +113,7 @@ export const startDelivery = createOptionalInvoke('startDelivery');
 export const confirmDelivery = createOptionalInvoke('confirmDelivery');
 export const getDeliveryStatus = createOptionalInvoke('getDeliveryStatus');
 export const getDeliveryTimeline = createOptionalInvoke('getDeliveryTimeline');
+export const performSessionRuntimeIntent = createOptionalInvoke('performSessionRuntimeIntent');
 export const startScreenshotCapture = createOptionalInvoke('startScreenshotCapture');
 export const saveCaptureAsset = createOptionalInvoke('saveCaptureAsset');
 export const copyCaptureToClipboard = createOptionalInvoke('copyCaptureToClipboard');

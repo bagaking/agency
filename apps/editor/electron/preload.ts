@@ -170,6 +170,7 @@ const INVOKE_CHANNELS: Record<string, string> = {
   confirmDelivery: 'delivery:confirm',
   getDeliveryStatus: 'delivery:status',
   getDeliveryTimeline: 'delivery:timeline',
+  performSessionRuntimeIntent: 'session-runtime:perform',
   startScreenshotCapture: 'capture:start',
   saveCaptureAsset: 'capture:saveAsset',
   copyCaptureToClipboard: 'capture:copy',

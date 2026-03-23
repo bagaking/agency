@@ -16,6 +16,7 @@ import {
   updateSessionMeta as updateSessionMetaBridge,
   writeTerminal as writeTerminalBridge,
 } from '../services/agencyBridge';
+import { runSessionRuntimeIntent } from '../services/sessionRuntime';
 import {
   DEFAULT_FONT_SIZE,
   DETACHED_ACTIVITY_POLL_MS,
@@ -400,7 +401,37 @@ export function useSessions(options: any = {}) {
           parentSessionId,
           nodeKind,
           sourceSessionId,
+          smartFork,
         } = options || {};
+        if (smartFork) {
+          const sourceSessionIdValue = sourceSessionId || parentSessionId || sessionId;
+          if (!sourceSessionIdValue) {
+            throw new Error('Fork source session is required.');
+          }
+          const result = await runSessionRuntimeIntent({
+            intent: 'smart_fork',
+            sourceSurface: 'agent-cells',
+            callerType: 'renderer',
+            callerId: 'agent-cells-fork',
+            worktreePath: targetCell.worktreePath,
+            cellId: targetCell.id,
+            sessionId: sourceSessionIdValue,
+          });
+          const created = result?.data?.session || null;
+          await loadSessionsForCell(targetCell, { silent: true });
+          if (created?.id) {
+            selectionVersionRef.current += 1;
+            activeSessionByCellIdRef.current = {
+              ...activeSessionByCellIdRef.current,
+              [targetCell.id]: created.id,
+            };
+            setActiveSessionByCellId((current) => ({
+              ...current,
+              [targetCell.id]: created.id,
+            }));
+          }
+          return created;
+        }
         const preferredAvatar =
           avatar || pickSessionAvatarId(sessionsByCellId[targetCell.id] || []);
         const created = await createSessionBridge({
@@ -447,6 +478,7 @@ export function useSessions(options: any = {}) {
       sessionsByCellId,
       tmuxStatus?.available,
       tmuxStatus?.error,
+      loadSessionsForCell,
     ]
   );
 

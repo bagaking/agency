@@ -320,6 +320,64 @@ async function getLastPaneActivity(sessionName) {
   }
 }
 
+async function inspectPane(sessionName) {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    return {
+      paneId: String(sessionName || '').trim(),
+      currentCommand: '',
+      currentPath: '',
+      inMode: false,
+      alternateOn: false,
+    };
+  }
+  if (!sessionName) {
+    throw new Error('Session name is required.');
+  }
+  const target = await resolvePaneTarget(sessionName);
+  const result = await execFileAsync('tmux', [
+    'display-message',
+    '-p',
+    '-t',
+    target,
+    '#{pane_id}\t#{pane_current_command}\t#{pane_current_path}\t#{pane_in_mode}\t#{alternate_on}',
+  ]);
+  const [paneId, currentCommand, currentPath, inMode, alternateOn] = String(result.stdout || '')
+    .trim()
+    .split('\t');
+  return {
+    paneId: String(paneId || '').trim() || target,
+    currentCommand: String(currentCommand || '').trim(),
+    currentPath: String(currentPath || '').trim(),
+    inMode: String(inMode || '').trim() === '1',
+    alternateOn: String(alternateOn || '').trim() === '1',
+  };
+}
+
+async function sendText(sessionName, text = '') {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    return;
+  }
+  if (!sessionName) {
+    return;
+  }
+  const normalized = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  if (!normalized) {
+    return;
+  }
+  const lines = normalized.split('\n');
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (line) {
+      // eslint-disable-next-line no-await-in-loop
+      await execFileAsync('tmux', ['send-keys', '-l', '-t', sessionName, line]);
+    }
+    if (index < lines.length - 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await execFileAsync('tmux', ['send-keys', '-t', sessionName, 'Enter']);
+    }
+  }
+}
+
 async function sendKeys(sessionName, keys = [], { enter = false } = {}) {
   if (process.env.AGENCY_TEST_MODE === '1') {
     return;
@@ -357,6 +415,8 @@ export {
   capturePane,
   getPaneSize,
   getLastPaneActivity,
+  inspectPane,
+  sendText,
   sendKeys,
   setAgencySessionMetadata,
   listAgencySessionsWithMetadata,

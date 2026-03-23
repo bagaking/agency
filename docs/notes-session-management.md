@@ -17,6 +17,28 @@ Session 管理目标：
 - 所有终端 attach/preview/capture 都收口到 Session 层管理器，保证一致性与可控资源回收。
 - 提供“Continue on Mobile”远程续接路径：对选中 session 生成 `ssh + tmux attach` 指令，并附带 SSH 通道就绪诊断。
 
+## Session Runtime Orchestration Gateway
+Session Runtime Orchestration Gateway 是面向 main 进程的主机侧能力层，用来承接“读取 source session 状态 -> 在 source 执行动作 -> 创建/启动 child session -> 等待 ready”的确定性工作流。
+
+设计原则：
+- renderer 不直接脚本化 tmux；renderer 只请求高层 intent；
+- host 侧能力要同时适配 UI、CLI、未来 tool caller，以及后续可能出现的 Main-as-Agent Harness；
+- 对外 contract 保持 JSON-friendly，请求/响应/失败码/调用者 metadata 都稳定；
+- tool-specific 逻辑放在 driver 中，不放在 UI，也不散落在 ad-hoc shell 片段里。
+
+当前首个 driver：
+- `codex` smart fork：
+  - 检查 source session 是否仍在 Codex TUI 中；
+  - 等待 source 输出稳定到 idle 窗口；
+  - 在 source 里发送 `/fork`；
+  - 等待 fork acknowledgement，并提取 `thread_id` 等变量；
+  - 创建 `nodeKind=fork` child session；
+  - 用 profile `fork.launchTemplate` 渲染 child 启动命令；
+  - 等待 child session 进入 ready 状态后再向 UI 报告成功。
+
+这层的意义：
+- 让 `Fork` 不再只是“拓扑节点创建”，而是一个可观测、可失败、可重试、可被未来 harness 复用的 host orchestration。
+
 ## Session Reply Relay（跨会话回复资产）
 Session Reply Relay 是面向 Session 的“回复资产化”机制，强调 **跨多 agent 通信 / 不耦合具体 CLI 输入体验 / 同时形成资产**。
 
@@ -31,6 +53,7 @@ Session Reply Relay 是面向 Session 的“回复资产化”机制，强调 **
 
 ## Session 管理机制
 - **Attach Manager（统一入口）**：所有 attach 行为必须由 Session 层管理器统一调度（终端、hover 预览、快照/截图），避免重复逻辑与 idle 被误触发。
+- **智能 Fork**：`Fork` 动作通过 Session Runtime Gateway 执行；若当前 profile 未启用 smart fork driver，则退回 plain child creation；若启用 driver（当前内置 `codex`），则 host 负责 source 检查、source dispatch、child launch、ready wait 的完整闭环。
 - **Continue on Mobile（远程续接）**：
   - Agent Cells 的 session 右键菜单提供两种入口：
     - `Continue on Mobile (Direct)`：直达当前 session。

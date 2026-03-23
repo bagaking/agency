@@ -25,5 +25,6 @@ export function buildAgentCellChildSessionOptions({
     parentSessionId: sessionId,
     nodeKind,
     sourceSessionId: sessionId,
+    ...(nodeKind === 'fork' ? { smartFork: true } : {}),
   };
 }

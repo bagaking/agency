@@ -15,7 +15,9 @@
 - [ ] Reorder two session nodes in Agent Cells and confirm the new order persists after refresh.
 - [ ] Drag a session onto another session and confirm it becomes a child node.
 - [ ] Drag a child session out toward an ancestor level and confirm it is promoted to that higher level.
-- [ ] Use the session row context menu to create `Sub Terminal` and `Fork` child sessions, confirm they appear under the selected parent, confirm `Sub Terminal` uses the shell profile, and confirm `Fork` inherits the parent profile when available.
+- [ ] Use the session row context menu to create `Sub Terminal` and `Fork` child sessions, confirm they appear under the selected parent, confirm `Sub Terminal` uses the shell profile, and confirm `Fork` falls back cleanly when no smart fork driver is configured.
+- [ ] With the default `codex` Terminus profile, confirm `Fork` waits for the source session to become idle, issues `/fork` in the source session, creates a child session, launches the child with the rendered `launchTemplate`, and selects the child when Codex is ready.
+- [ ] Trigger a `Fork` failure case (for example source not running Codex or source still busy) and confirm the UI surfaces a structured error instead of silently creating a broken child session.
 - [ ] Close a session and confirm it moves to overflow; restore it and confirm topology metadata is preserved.
 
 ## Softlinks

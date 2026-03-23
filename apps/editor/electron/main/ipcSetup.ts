@@ -18,6 +18,7 @@ import { setupRuntimeLogHandlers } from "../ipc/handlers/runtimeLog";
 import { setupSessionMapHandlers } from "../ipc/handlers/sessionMap";
 import { setupSessionNamingHandlers } from "../ipc/handlers/sessionNaming";
 import { setupSessionHandlers } from "../ipc/handlers/sessions";
+import { setupSessionRuntimeHandlers } from "../ipc/handlers/sessionRuntime";
 import { setupSystemHandlers } from "../ipc/handlers/system";
 import { setupTerminalHandlers } from "../ipc/handlers/terminal";
 import { setupTerminusSettingsHandlers } from "../ipc/handlers/terminusSettings";
@@ -47,6 +48,7 @@ const IPC_REGISTRATIONS: IpcRegistration[] = [
   withoutDeps(setupWorktreeHandlers),
   withMainWindow(setupTerminalHandlers),
   withoutDeps(setupSessionHandlers),
+  withoutDeps(setupSessionRuntimeHandlers),
   withoutDeps(setupUiStateHandlers),
   withoutDeps(setupQuickActionsHandlers),
   withoutDeps(setupReplyQuickPromptsHandlers),

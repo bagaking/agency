@@ -52,6 +52,15 @@
   - tool mode: `{"intent":"copy","sourcePath":"a.txt","targetPath":"b.txt","callerId":"agent-1","traceId":"trace-1","capabilities":["file.write"]}`
   - classify mode envelope: `{"mode":"classify","request":{"paths":["Agency.md"]}}`
 
+## Session Runtime CLI (Gateway Wrapper)
+
+- Run:
+  - `pnpm -C apps/editor run session-runtime:cli -- --json '{"intent":"inspect","worktreePath":".","sessionId":"default"}'`
+- JSON-in / JSON-out wrapper over the host-owned session runtime gateway:
+  - inspect: `{"intent":"inspect","worktreePath":".","sessionId":"default"}`
+  - smart fork: `{"intent":"smart_fork","worktreePath":".","cellId":"cell-1","sessionId":"source","callerType":"tool","callerId":"negotiator"}`
+- The wrapper stays transport-thin so renderer, CLI, and future host-side harness callers can share the same runtime contract.
+
 ## Memo Drawer Interactions
 
 - Memo drawer shortcut cards are interactive capture surfaces and do not switch the main Memo panel when clicked.
@@ -72,7 +81,9 @@
 - Each Cell can have multiple sessions; stale sessions are flagged when tmux is missing or detached.
 - Sessions render as a tree under each Cell in Agent Cells; rows support reorder/reparent drag-and-drop and root-level promotion.
 - Session nodes persist topology metadata (`parentSessionId`, `order`, `nodeKind`) to prepare for future fork/sub-terminal flows.
-- Session row context menus can create typed child nodes for `Sub Terminal` and `Fork`; `Sub Terminal` always uses the shell baseline profile, while `Fork` inherits the parent profile when available.
+- Session row context menus can create typed child nodes for `Sub Terminal` and `Fork`; `Sub Terminal` always uses the shell baseline profile.
+- `Fork` now routes through a host-owned session runtime gateway: when the resolved profile enables smart fork orchestration, the host validates source state, performs the source-side fork workflow, creates the child session, renders the configured launch template, and waits for the child tool session to become ready before reporting success.
+- Terminus profiles can define optional `fork` settings (`enabled`, `driver`, `launchTemplate`, and timeout knobs) so tool-specific fork behavior stays declarative at the profile layer instead of being hard-coded in renderer UI.
 - Detached sessions remain available from the overflow menu unless currently active; closed sessions can be restarted.
 - Sessions can be renamed from the session context menu.
 - On relaunch, the editor restores the last selected Cell and active session.
@@ -220,7 +231,8 @@ make editor-dev
 - Drag a session before another session and confirm sibling order persists after refresh/relaunch.
 - Drag a session onto another session and confirm it becomes a child node under that session.
 - Drag a child session out toward an ancestor level and confirm it is promoted to that higher level.
-- Open a session row context menu and create both `Sub Terminal` and `Fork`; confirm each appears as a child node with the correct kind badge, and confirm `Sub Terminal` uses the shell profile while `Fork` preserves the parent profile.
+- Open a session row context menu and create both `Sub Terminal` and `Fork`; confirm each appears as a child node with the correct kind badge, confirm `Sub Terminal` uses the shell profile, and confirm `Fork` either falls back to a plain child session or runs the configured smart fork orchestration for the active profile.
+- For the default `codex` Terminus profile, confirm `Fork` waits for the source to go idle, issues `/fork`, launches the child with the rendered `launchTemplate`, and selects the ready child session.
 - Add a quick action with both commands and verify start/resume run in the active session.
 - Switch to Project or Agent actions, confirm inherited actions are read-only, and verify Override/Reset behavior.
 - Configure reply quick prompts across multiple scopes, confirm resolved source badges in Hierarchy, and insert one from `快捷回复如何` in Session Reply composer.
