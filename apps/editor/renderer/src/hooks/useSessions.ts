@@ -16,7 +16,10 @@ import {
   updateSessionMeta as updateSessionMetaBridge,
   writeTerminal as writeTerminalBridge,
 } from '../services/agencyBridge';
-import { runSessionRuntimeIntent } from '../services/sessionRuntime';
+import {
+  startMainAgentHarnessRun,
+  waitForMainAgentHarnessRun,
+} from '../services/mainAgentHarness';
 import {
   DEFAULT_FONT_SIZE,
   DETACHED_ACTIVITY_POLL_MS,
@@ -408,18 +411,58 @@ export function useSessions(options: any = {}) {
           if (!sourceSessionIdValue) {
             throw new Error('Fork source session is required.');
           }
-          const result = await runSessionRuntimeIntent({
-            intent: 'smart_fork',
+          const harnessRun = await startMainAgentHarnessRun({
             sourceSurface: 'agent-cells',
             callerType: 'renderer',
             callerId: 'agent-cells-fork',
-            worktreePath: targetCell.worktreePath,
-            cellId: targetCell.id,
-            cellName: targetCell.name,
-            cellBranch: targetCell.branch,
-            sessionId: sourceSessionIdValue,
+            goal: {
+              type: 'create_agent',
+              title: 'Create Agent via Fork',
+              instruction:
+                'Create a child execution lane from the selected session using a tool-native fork specialization when available.',
+            },
+            requestedCapabilities: ['session.runtime'],
+            contextRefs: [
+              {
+                type: 'cell',
+                cellId: targetCell.id,
+                worktreePath: targetCell.worktreePath,
+              },
+              {
+                type: 'session',
+                sessionId: sourceSessionIdValue,
+              },
+            ],
+            runner: {
+              adapterId: 'reference',
+              steps: [
+                {
+                  id: 'create-agent',
+                  kind: 'create_agent',
+                  title: 'Create Agent from selected session',
+                  skillPackId: 'session.tool-native-fork',
+                  agent: {
+                    strategy: 'tool_native_fork',
+                    sessionRuntime: {
+                      worktreePath: targetCell.worktreePath,
+                      cellId: targetCell.id,
+                      cellName: targetCell.name,
+                      cellBranch: targetCell.branch,
+                      sessionId: sourceSessionIdValue,
+                    },
+                  },
+                },
+              ],
+            },
           });
-          const created = result?.data?.session || null;
+          const settledRun = await waitForMainAgentHarnessRun({
+            runId: harnessRun?.runId,
+            timeoutMs: 30_000,
+          });
+          const created =
+            settledRun?.result?.agent?.session ||
+            settledRun?.progress?.outputsByStepId?.['create-agent']?.session ||
+            null;
           await loadSessionsForCell(targetCell, { silent: true });
           if (created?.id) {
             selectionVersionRef.current += 1;

@@ -43,6 +43,7 @@ export const onVoiceCaptureEvent = createOptionalSubscribe('onVoiceCaptureEvent'
 export const onProjectUpdated = createOptionalSubscribe('onProjectUpdated');
 export const onRecentProjectsUpdated = createOptionalSubscribe('onRecentProjectsUpdated');
 export const onExplorerChanged = createOptionalSubscribe('onExplorerChanged');
+export const onMainAgentHarnessProgress = createOptionalSubscribe('onMainAgentHarnessProgress');
 
 // UI state / map
 export const getUiState = createOptionalInvoke('getUiState');
@@ -114,6 +115,13 @@ export const confirmDelivery = createOptionalInvoke('confirmDelivery');
 export const getDeliveryStatus = createOptionalInvoke('getDeliveryStatus');
 export const getDeliveryTimeline = createOptionalInvoke('getDeliveryTimeline');
 export const performSessionRuntimeIntent = createOptionalInvoke('performSessionRuntimeIntent');
+export const startMainAgentHarnessRun = createOptionalInvoke('startMainAgentHarnessRun');
+export const inspectMainAgentHarnessRun = createOptionalInvoke('inspectMainAgentHarnessRun');
+export const cancelMainAgentHarnessRun = createOptionalInvoke('cancelMainAgentHarnessRun');
+export const resumeMainAgentHarnessRun = createOptionalInvoke('resumeMainAgentHarnessRun');
+export const listMainAgentHarnessRuns = createOptionalInvoke('listMainAgentHarnessRuns', {
+  fallback: [],
+});
 export const startScreenshotCapture = createOptionalInvoke('startScreenshotCapture');
 export const saveCaptureAsset = createOptionalInvoke('saveCaptureAsset');
 export const copyCaptureToClipboard = createOptionalInvoke('copyCaptureToClipboard');

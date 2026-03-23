@@ -27,6 +27,11 @@ The Harness SHALL invoke productized host-managed capabilities through a stable 
 - **THEN** it routes the request through the capability registry
 - **AND** the capability call is recorded as part of the Harness run timeline
 
+#### Scenario: Runner specialization uses approved skill pack
+- **WHEN** a runner needs a complex tool-native specialization such as terminal-aware fork/resume orchestration
+- **THEN** it uses an approved runner skill pack or playbook
+- **AND** the resulting side effects still flow through host-managed capabilities instead of raw tmux/file calls
+
 ### Requirement: Create Agent as Primary Child-Execution Semantic
 The editor SHALL treat `Create Agent` as the primary product semantic for creating and coordinating child execution lanes.
 
@@ -34,3 +39,8 @@ The editor SHALL treat `Create Agent` as the primary product semantic for creati
 - **WHEN** the Harness or UI requests child execution
 - **THEN** the product uses `Create Agent` semantics to create or prepare a child execution lane
 - **AND** tool-native fork behavior remains an optional specialized capability, not the default meaning of child execution
+
+#### Scenario: Agent Cells fork uses Create Agent specialization
+- **WHEN** a caller invokes `Fork` from Agent Cells
+- **THEN** the product starts a Harness run with `Create Agent` semantics
+- **AND** any tool-native fork behavior is modeled as a specialization under that run rather than as the Harness core contract

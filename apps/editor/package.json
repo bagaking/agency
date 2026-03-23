@@ -16,6 +16,7 @@
     "build:agency-data": "pnpm --filter @agency/agency-data run build",
     "file-intent:cli": "pnpm run build:electron && node .electron-build/cli/fileIntentCli.js",
     "session-runtime:cli": "pnpm run build:electron && node .electron-build/cli/sessionRuntimeCli.js",
+    "main-agent-harness:cli": "pnpm run build:electron && node .electron-build/cli/mainAgentHarnessCli.js",
     "build:speech-helper": "tsx scripts/build-speech-helper.ts",
     "package": "pnpm run build:renderer && pnpm run build:electron && pnpm run build:speech-helper && PNPM_BIN_DIR=$(pnpm bin -g) && PATH=\"$PNPM_BIN_DIR:$PATH\" PNPM_HOME=\"$PNPM_BIN_DIR\" TMPDIR=/tmp electron-builder --mac",
     "package:dir": "pnpm run build:renderer && pnpm run build:electron && pnpm run build:speech-helper && PNPM_BIN_DIR=$(pnpm bin -g) && PATH=\"$PNPM_BIN_DIR:$PATH\" PNPM_HOME=\"$PNPM_BIN_DIR\" TMPDIR=/tmp electron-builder --mac --dir",

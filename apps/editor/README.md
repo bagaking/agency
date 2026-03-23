@@ -61,6 +61,17 @@
   - smart fork: `{"intent":"smart_fork","worktreePath":".","cellId":"cell-1","sessionId":"source","callerType":"tool","callerId":"negotiator"}`
 - The wrapper stays transport-thin so renderer, CLI, and future host-side harness callers can share the same runtime contract.
 
+## Main Agent Harness CLI (Control Plane Wrapper)
+
+- Run:
+  - `pnpm -C apps/editor run main-agent-harness:cli -- --action start --json '{"goal":{"type":"create_agent"},"requestedCapabilities":["session.runtime"],"runner":{"adapterId":"reference","steps":[{"id":"create-agent","kind":"create_agent","skillPackId":"session.tool-native-fork","agent":{"strategy":"tool_native_fork","sessionRuntime":{"worktreePath":".","cellId":"cell-1","sessionId":"source"}}}]}}'`
+- JSON-in / JSON-out wrapper over the host-owned Harness control plane:
+  - start: `--action start` with structured goal + runner steps
+  - inspect: `--action inspect --json '{"runId":"run-..."}'`
+  - cancel: `--action cancel --json '{"runId":"run-...","reason":"user-requested"}'`
+  - resume: `--action resume --json '{"runId":"run-..."}'`
+- The Harness is the control plane: it owns `runId`, timeline, inspect/cancel/resume, and capability-call records, while session/file side effects still route through host-managed capabilities.
+
 ## Memo Drawer Interactions
 
 - Memo drawer shortcut cards are interactive capture surfaces and do not switch the main Memo panel when clicked.
@@ -82,7 +93,9 @@
 - Sessions render as a tree under each Cell in Agent Cells; rows support reorder/reparent drag-and-drop and root-level promotion.
 - Session nodes persist topology metadata (`parentSessionId`, `order`, `nodeKind`) to prepare for future fork/sub-terminal flows.
 - Session row context menus can create typed child nodes for `Sub Terminal` and `Fork`; `Sub Terminal` always uses the shell baseline profile.
-- `Fork` now routes through a host-owned session runtime gateway: when the resolved profile enables smart fork orchestration, the host validates source state, performs the source-side fork workflow, creates the child session, renders the configured launch template, and waits for the child tool session to become ready before reporting success.
+- `Create Agent` is the primary host semantic for child execution. The first control-plane implementation is the Main Agent Harness: it owns `runId`, step timeline, capability-call records, and `start / inspect / cancel / resume` lifecycle while delegating real side effects to host-managed capabilities.
+- Agent Cells `Fork` is now a Harness-driven `Create Agent` specialization instead of a renderer-local smart-fork shortcut. The renderer starts a Harness run, and the reference runner uses the bounded `session.tool-native-fork` skill pack to call the session runtime gateway.
+- Tool-native `Fork` remains a specialization, not the Harness core model. When the resolved profile enables smart fork orchestration, the host validates source state, performs the source-side fork workflow, creates the child session, renders the configured launch template, and waits for the child tool session to become ready before reporting success.
 - Terminus profiles can define optional `fork` settings (`enabled`, `driver`, `launchTemplate`, and timeout knobs) so tool-specific fork behavior stays declarative at the profile layer instead of being hard-coded in renderer UI.
 - Detached sessions remain available from the overflow menu unless currently active; closed sessions can be restarted.
 - Sessions can be renamed from the session context menu.
@@ -231,8 +244,9 @@ make editor-dev
 - Drag a session before another session and confirm sibling order persists after refresh/relaunch.
 - Drag a session onto another session and confirm it becomes a child node under that session.
 - Drag a child session out toward an ancestor level and confirm it is promoted to that higher level.
-- Open a session row context menu and create both `Sub Terminal` and `Fork`; confirm each appears as a child node with the correct kind badge, confirm `Sub Terminal` uses the shell profile, and confirm `Fork` either falls back to a plain child session or runs the configured smart fork orchestration for the active profile.
-- For the default `codex` Terminus profile, confirm `Fork` waits for the source to go idle, issues `/fork`, launches the child with the rendered `launchTemplate`, and selects the ready child session.
+- Open a session row context menu and create both `Sub Terminal` and `Fork`; confirm each appears as a child node with the correct kind badge, confirm `Sub Terminal` uses the shell profile, and confirm `Fork` starts a Harness run whose terminal result either falls back to a plain child session or runs the configured smart fork specialization for the active profile.
+- For the default `codex` Terminus profile, confirm `Fork` produces a Harness run with timeline/capability records, waits for the source to go idle, issues `/fork`, launches the child with the rendered `launchTemplate`, and selects the ready child session.
+- Use the Harness CLI or IPC inspect surface on a live run and confirm you can inspect step timeline, cancel a still-running run, and resume a cancelled/failed run without guessing from raw logs.
 - Add a quick action with both commands and verify start/resume run in the active session.
 - Switch to Project or Agent actions, confirm inherited actions are read-only, and verify Override/Reset behavior.
 - Configure reply quick prompts across multiple scopes, confirm resolved source badges in Hierarchy, and insert one from `快捷回复如何` in Session Reply composer.

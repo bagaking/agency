@@ -171,6 +171,11 @@ const INVOKE_CHANNELS: Record<string, string> = {
   getDeliveryStatus: 'delivery:status',
   getDeliveryTimeline: 'delivery:timeline',
   performSessionRuntimeIntent: 'session-runtime:perform',
+  startMainAgentHarnessRun: 'main-agent-harness:start',
+  inspectMainAgentHarnessRun: 'main-agent-harness:inspect',
+  cancelMainAgentHarnessRun: 'main-agent-harness:cancel',
+  resumeMainAgentHarnessRun: 'main-agent-harness:resume',
+  listMainAgentHarnessRuns: 'main-agent-harness:list',
   startScreenshotCapture: 'capture:start',
   saveCaptureAsset: 'capture:saveAsset',
   copyCaptureToClipboard: 'capture:copy',
@@ -206,6 +211,7 @@ const SUBSCRIBE_CHANNELS: Record<string, string> = {
   onTerminalDetached: 'terminal:detached',
   onCellsUpdated: 'cells:updated',
   onExplorerChanged: 'explorer:changed',
+  onMainAgentHarnessProgress: 'main-agent-harness:progress',
 };
 
 const agencyBridge = {

@@ -21,7 +21,8 @@ Agency should borrow those boundaries, not necessarily their concrete runtime st
   - keep the Harness as a control plane, not a bag of direct tmux/file/browser hacks;
   - route Harness actions through host-managed capabilities with stable contracts;
   - make `Create Agent` the default product semantic for child task execution;
-  - support future tool-specific enhancements such as true Codex fork without making them the Harness core.
+  - support future tool-specific enhancements such as true Codex fork without making them the Harness core;
+  - leave a clean seam for future runner agents to consume approved skill packs instead of improvising raw tmux/file operations.
 - Non-Goals:
   - do not implement a fully autonomous open-ended planner in v1;
   - do not expose arbitrary unrestricted tool execution to the Harness;
@@ -93,6 +94,22 @@ The Harness should have two distinct layers:
 
 This is the key lesson to borrow from `cclaw`: the scheduler/control plane and the execution runner should not be the same component.
 
+### Decision: Complex tool-native behaviors live in runner skill packs, not in the Harness core
+Some behaviors are too stateful to express as one raw capability call but still should not turn into open-ended agent improvisation. Examples:
+- inspect terminal runtime and confirm the source is still in the correct TUI;
+- perform a tool-native fork command;
+- wait for acknowledgement metadata;
+- create the child lane/session;
+- resume or reopen the child tool session.
+
+For these cases, the Harness should support encapsulated runner skill packs:
+- the Harness controller remains responsible for run state, authorization, timeline, and capability-call records;
+- the runner adapter selects an approved skill pack;
+- the skill pack can sequence multiple approved capabilities and runner-local logic;
+- the skill pack never bypasses the capability registry to call raw tmux/file internals directly.
+
+This keeps future agent runners honest: they can be given a bounded playbook/skill pack such as `session.tool-native-fork`, but the real side effects still flow through host-managed capabilities.
+
 ### Decision: Start with one structured run contract
 The Harness should use one structured run contract across UI, IPC, CLI, and future internal callers.
 
@@ -123,6 +140,8 @@ Recommended v1 scope:
   - session runtime gateway
   - file intent gateway
 - one reference runner adapter shape (Codex-oriented, but not Codex-only by contract)
+- one runner skill-pack registry for bounded specializations such as `session.tool-native-fork`
+- Agent Cells `Fork` calling Harness `Create Agent` with a tool-native specialization instead of calling session runtime directly from renderer
 
 Deferred:
 - richer planning strategies
@@ -147,6 +166,13 @@ Deferred:
 - `codexRunnerAdapter`
 - future `claudeRunnerAdapter`
 - future `geminiRunnerAdapter`
+
+### 3.5) Runner Skill Pack Layer
+- `session.create-child`
+- `session.tool-native-fork`
+- future browser/auth/inspection playbooks
+
+Skill packs are runner-facing playbooks, not a second capability plane. They orchestrate approved capabilities and may carry tool-specific heuristics, but they do not own persistence or authorization.
 
 ### 4) Run Store / Timeline
 - persistent run state
@@ -178,9 +204,10 @@ Deferred:
 1. Define the Harness run/state/timeline contract.
 2. Define the capability registry contract.
 3. Wire the Harness to existing host-managed gateways (`session runtime`, `file intent`).
-4. Add one reference runner adapter shape.
-5. Add run inspection/cancel/resume surfaces.
-6. Expand to more capabilities only after the first control plane is stable.
+4. Add one reference runner adapter shape and bounded runner skill-pack registry.
+5. Route Agent Cells `Fork` through Harness `Create Agent` specialization.
+6. Add run inspection/cancel/resume surfaces.
+7. Expand to more capabilities only after the first control plane is stable.
 
 ## Documentation Plan
 Implementation should update:
@@ -190,6 +217,8 @@ Implementation should update:
   - register the Harness controller and capability registry if adopted.
 - `apps/editor/README.md`
   - explain `Create Agent` as the main product semantic and position `Fork` as a specialized path.
+- `apps/editor/docs/manual-test.md`
+  - explain how Agent Cells `Fork` is now a Harness-driven `Create Agent` specialization and how to inspect/cancel runs.
 - optionally add `docs/architecture-main-agent-harness.md`
   - if the final implementation has enough independent architecture to warrant a dedicated doc.
 
@@ -199,6 +228,7 @@ Borrow from `cclaw`:
 - scheduler/control plane separate from runner
 - runner adapters with structured result objects
 - explicit state/timeline for long-running runs
+- skill/playbook boundaries that let complex flows stay reusable without promoting them into raw host internals
 
 Do not blindly copy:
 - container-heavy execution assumptions

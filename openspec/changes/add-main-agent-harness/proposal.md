@@ -24,6 +24,8 @@ Without that boundary, future complex automations will either:
   - file intent gateway;
   - future browser / delivery / worktree capabilities as explicit follow-ons.
 - Define the first runner/adaptor shape for tool-specific execution backends, with Codex as the initial reference adapter.
+- Introduce encapsulated runner skill packs for complex tool-native specializations so future agent runners can consume approved playbooks without bypassing host-managed capabilities.
+- Route the Agent Cells `Fork` entry through Harness `Create Agent` semantics, where `Fork` is modeled as a tool-native specialization instead of the Harness core concept.
 
 ## Impact
 - Affected specs: `agency-editor`
@@ -32,6 +34,7 @@ Without that boundary, future complex automations will either:
   - capability registry and authorization/policy layer
   - existing host-managed capability gateways (session runtime, file intent) as Harness dependencies
   - future UI/API surfaces that need to start/observe/interrupt Harness runs
+  - Agent Cells child-session creation paths that should hand off specialized flows to Harness
   - docs describing host-managed capabilities, runtime contracts, and product semantics
 - Risks:
   - starting too broad will create an opaque "agent in main" blob instead of a maintainable control plane;

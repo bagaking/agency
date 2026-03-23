@@ -39,6 +39,40 @@ Session Runtime Orchestration Gateway 是面向 main 进程的主机侧能力层
 这层的意义：
 - 让 `Fork` 不再只是“拓扑节点创建”，而是一个可观测、可失败、可重试、可被未来 harness 复用的 host orchestration。
 
+## Main Agent Harness（Create Agent Control Plane）
+Main Agent Harness 是更高一层的 host-owned control plane。
+
+语义边界：
+- Harness 的主语义是 `Create Agent`，不是 `Fork`；
+- Harness 负责 `runId`、timeline、capability-call record、inspect/cancel/resume；
+- Harness 不直接写 tmux / 文件 / 浏览器细节；
+- 真正的副作用仍然通过 host-managed capabilities 完成，当前首批接入：
+  - Session Runtime Gateway
+  - File Intent Gateway
+
+当前首版 runner 结构：
+- Harness controller：管理 run lifecycle、状态落盘、progress event。
+- Capability registry：定义哪些 host-managed capabilities 对 Harness 可见，以及 policy seam。
+- Reference runner adapter：执行结构化 steps，不做开放式自主规划。
+- Runner skill packs：给复杂 specialization 一个受控 playbook，目前先有：
+  - `session.create-child`
+  - `session.tool-native-fork`
+
+为什么要有 skill pack：
+- 有些行为比单个 capability call 更复杂，例如“识别当前 TUI -> 发 `/fork` -> 等 ack -> 建 child -> resume child tool session”；
+- 这些行为不应直接长在 Harness core 里；
+- 也不该让 future runner agent 自己拼 raw tmux/file 细节。
+
+所以当前约定是：
+- Harness 只调度；
+- skill pack 只编排批准过的 capability；
+- capability 自己仍然是副作用 owner。
+
+这意味着 Agent Cells 里的 `Fork` 现在应被理解为：
+- UI 入口仍叫 `Fork`；
+- 但 host 内部会启动一个 Harness `Create Agent` run；
+- `Fork` 只是该 run 选择了 `session.tool-native-fork` 这个 specialization。
+
 ## Session Reply Relay（跨会话回复资产）
 Session Reply Relay 是面向 Session 的“回复资产化”机制，强调 **跨多 agent 通信 / 不耦合具体 CLI 输入体验 / 同时形成资产**。
 
@@ -53,7 +87,7 @@ Session Reply Relay 是面向 Session 的“回复资产化”机制，强调 **
 
 ## Session 管理机制
 - **Attach Manager（统一入口）**：所有 attach 行为必须由 Session 层管理器统一调度（终端、hover 预览、快照/截图），避免重复逻辑与 idle 被误触发。
-- **智能 Fork**：`Fork` 动作通过 Session Runtime Gateway 执行；若当前 profile 未启用 smart fork driver，则退回 plain child creation；若启用 driver（当前内置 `codex`），则 host 负责 source 检查、source dispatch、child launch、ready wait 的完整闭环。
+- **智能 Fork**：`Fork` 动作由 Main Agent Harness 作为 `Create Agent` specialization 调度，具体副作用仍通过 Session Runtime Gateway 执行；若当前 profile 未启用 smart fork driver，则退回 plain child creation；若启用 driver（当前内置 `codex`），则 host 负责 source 检查、source dispatch、child launch、ready wait 的完整闭环。
 - **Continue on Mobile（远程续接）**：
   - Agent Cells 的 session 右键菜单提供两种入口：
     - `Continue on Mobile (Direct)`：直达当前 session。

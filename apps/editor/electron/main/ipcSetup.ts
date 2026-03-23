@@ -11,6 +11,7 @@ import { setupExplorerHandlers } from "../ipc/handlers/explorer";
 import { setupFileInteractionHandlers } from "../ipc/handlers/fileInteraction";
 import { setupGatesHandlers } from "../ipc/handlers/gates";
 import { setupHilHandlers } from "../ipc/handlers/hil";
+import { setupMainAgentHarnessHandlers } from "../ipc/handlers/mainAgentHarness";
 import { setupProjectHandlers } from "../ipc/handlers/project";
 import { setupQuickActionsHandlers } from "../ipc/handlers/quickActions";
 import { setupReplyQuickPromptsHandlers } from "../ipc/handlers/replyQuickPrompts";
@@ -49,6 +50,7 @@ const IPC_REGISTRATIONS: IpcRegistration[] = [
   withMainWindow(setupTerminalHandlers),
   withoutDeps(setupSessionHandlers),
   withoutDeps(setupSessionRuntimeHandlers),
+  withoutDeps(setupMainAgentHarnessHandlers),
   withoutDeps(setupUiStateHandlers),
   withoutDeps(setupQuickActionsHandlers),
   withoutDeps(setupReplyQuickPromptsHandlers),
