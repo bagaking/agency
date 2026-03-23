@@ -8,6 +8,7 @@ If we implement that workflow ad hoc in renderer components, the result will be 
 ## What Changes
 - Add a main-process-owned session runtime orchestration gateway for deterministic session inspection, input dispatch, wait conditions, child-session creation, and higher-level orchestration intents.
 - Implement driver-based smart fork orchestration, with Codex as the first driver.
+- Split terminal runtime sensing into dedicated host modules so the product can detect the actual foreground tool/process in a terminal session instead of relying only on stored profile metadata.
 - Extend resolved Terminus profile data with optional smart fork settings (driver, launch template, timeouts) so tools can declare their fork behavior without pushing raw tmux logic into the UI.
 - Package the gateway behind JSON-friendly IPC and CLI/tool wrappers, following the same thin-wrapper pattern used by file intents.
 - Clarify the documentation surface:
@@ -21,6 +22,7 @@ If we implement that workflow ad hoc in renderer components, the result will be 
   - `apps/editor/electron/services/tmux.ts`
   - `apps/editor/electron/services/terminal.ts`
   - `apps/editor/electron/services/sessions.ts`
+  - new terminal runtime detection helpers (pane inspection / foreground process resolution / tool runtime classification)
   - new session runtime/orchestration services + IPC/CLI wrappers
   - `apps/editor/renderer/src/hooks/useSessions.ts`
   - `apps/editor/renderer/src/components/agentCells/AgentCellsSessionsPanel.tsx`

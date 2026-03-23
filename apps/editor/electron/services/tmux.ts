@@ -324,6 +324,8 @@ async function inspectPane(sessionName) {
   if (process.env.AGENCY_TEST_MODE === '1') {
     return {
       paneId: String(sessionName || '').trim(),
+      panePid: null,
+      paneTty: '',
       currentCommand: '',
       currentPath: '',
       inMode: false,
@@ -339,13 +341,16 @@ async function inspectPane(sessionName) {
     '-p',
     '-t',
     target,
-    '#{pane_id}\t#{pane_current_command}\t#{pane_current_path}\t#{pane_in_mode}\t#{alternate_on}',
+    '#{pane_id}\t#{pane_pid}\t#{pane_tty}\t#{pane_current_command}\t#{pane_current_path}\t#{pane_in_mode}\t#{alternate_on}',
   ]);
-  const [paneId, currentCommand, currentPath, inMode, alternateOn] = String(result.stdout || '')
+  const [paneId, panePid, paneTty, currentCommand, currentPath, inMode, alternateOn] = String(result.stdout || '')
     .trim()
     .split('\t');
+  const parsedPanePid = Number(panePid);
   return {
     paneId: String(paneId || '').trim() || target,
+    panePid: Number.isFinite(parsedPanePid) && parsedPanePid > 0 ? parsedPanePid : null,
+    paneTty: String(paneTty || '').trim(),
     currentCommand: String(currentCommand || '').trim(),
     currentPath: String(currentPath || '').trim(),
     inMode: String(inMode || '').trim() === '1',

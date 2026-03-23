@@ -17,6 +17,7 @@ import {
   getBindingsForProfile,
   summarizeCommand,
 } from './quickActionsShared';
+import { normalizeProfileFork } from '../../utils/terminusSettings';
 
 type QuickActionProfileCardProps = {
   action: any;
@@ -74,14 +75,7 @@ export function QuickActionProfileCard({
   const isActiveProfile = activeProfileId === action.id;
   const startSummary = summarizeCommand(action.startCommand);
   const resumeSummary = summarizeCommand(action.resumeCommand);
-  const forkConfig = {
-    enabled: Boolean(action.fork?.enabled),
-    driver: String(action.fork?.driver || '').trim(),
-    launchTemplate: String(action.fork?.launchTemplate || '').trim(),
-    sourceIdleMs: Number(action.fork?.sourceIdleMs) || 1500,
-    forkAckTimeoutMs: Number(action.fork?.forkAckTimeoutMs) || 15000,
-    childReadyTimeoutMs: Number(action.fork?.childReadyTimeoutMs) || 20000,
-  };
+  const forkConfig = normalizeProfileFork(action.fork);
 
   const inheritedFrom = meta.inheritedFrom ? formatScope(meta.inheritedFrom) : '';
   const overriddenBy = meta.overriddenBy ? formatScope(meta.overriddenBy) : '';

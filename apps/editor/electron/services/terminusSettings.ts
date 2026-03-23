@@ -1,5 +1,5 @@
 // @ts-nocheck
-const { app } = require('electron');
+const os = require('os');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -91,8 +91,42 @@ const generateId = (prefix) => {
   return `${prefix}-${Date.now()}`;
 };
 
+function getElectronApp() {
+  try {
+    const electron = require('electron');
+    if (
+      electron &&
+      typeof electron === 'object' &&
+      electron.app &&
+      typeof electron.app.getPath === 'function'
+    ) {
+      return electron.app;
+    }
+  } catch (_error) {
+    // ignore
+  }
+  return null;
+}
+
+function getFallbackUserDataPath() {
+  const explicit = String(process.env.AGENCY_USER_DATA_PATH || '').trim();
+  if (explicit) {
+    return explicit;
+  }
+  const homePath = os.homedir() || process.cwd();
+  if (process.platform === 'darwin') {
+    return path.join(homePath, 'Library', 'Application Support', 'Agency');
+  }
+  if (process.platform === 'win32') {
+    return path.join(process.env.APPDATA || path.join(homePath, 'AppData', 'Roaming'), 'Agency');
+  }
+  return path.join(process.env.XDG_CONFIG_HOME || path.join(homePath, '.config'), 'Agency');
+}
+
 function getGlobalSettingsPath() {
-  return path.join(app.getPath('userData'), 'terminus-settings.json');
+  const electronApp = getElectronApp();
+  const userDataPath = electronApp ? electronApp.getPath('userData') : getFallbackUserDataPath();
+  return path.join(userDataPath, 'terminus-settings.json');
 }
 
 function getProjectSettingsPath(worktreePath) {

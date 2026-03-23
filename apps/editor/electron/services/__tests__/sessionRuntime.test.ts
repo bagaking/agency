@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const {
   extractCodexForkMetadata,
+  normalizeForkConfig,
   renderTemplate,
   performSessionRuntimeIntent,
 } = require('../sessionRuntime');
@@ -35,6 +36,7 @@ test('performSessionRuntimeIntent smart_fork falls back to plain child creation 
       intent: 'smart_fork',
       worktreePath: '/tmp/repo',
       cellId: 'cell-1',
+      cellBranch: 'feat/source',
       sessionId: 'source',
     },
     {
@@ -77,6 +79,7 @@ test('performSessionRuntimeIntent smart_fork falls back to plain child creation 
   assert.equal(createdChildren.length, 1);
   assert.equal(createdChildren[0].profileId, 'shell');
   assert.equal(createdChildren[0].nodeKind, 'fork');
+  assert.equal(createdChildren[0].cellBranch, 'feat/source');
 });
 
 test('performSessionRuntimeIntent smart_fork runs the codex driver and launches the child with thread_id', async () => {
@@ -163,6 +166,226 @@ test('performSessionRuntimeIntent smart_fork runs the codex driver and launches 
   assert.equal(result.data.metadata.threadId, 'thr-4242');
   assert.equal(dispatches[0].text, '/fork');
   assert.equal(dispatches[1].text, 'codex --thread thr-4242');
+});
+
+test('performSessionRuntimeIntent smart_fork selects the codex driver from runtime detection even when the stored profile is shell', async () => {
+  const dispatches = [];
+  let sourcePhase = 'ready';
+  let childPhase = 'shell';
+
+  const result = await performSessionRuntimeIntent(
+    {
+      intent: 'smart_fork',
+      worktreePath: '/tmp/repo',
+      cellId: 'cell-1',
+      sessionId: 'source',
+    },
+    {
+      inspectSessionPane: async ({ sessionId }) => {
+        if (sessionId === 'source') {
+          return {
+            session: {
+              id: 'source',
+              profileId: 'shell',
+            },
+            pane: {
+              currentCommand: 'zsh',
+              alternateOn: true,
+              inMode: false,
+              panePid: 100,
+              paneTty: '/dev/ttys001',
+            },
+            output:
+              sourcePhase === 'acked'
+                ? 'Thread forked from Runtime Thread\nthread_id: thr-runtime'
+                : 'Codex ready',
+            lastActivityAt: null,
+          };
+        }
+        return {
+          session: {
+            id: 'child-1',
+            profileId: 'codex',
+          },
+          pane: {
+            currentCommand: childPhase === 'ready' ? 'codex' : 'zsh',
+          },
+          output: childPhase === 'ready' ? 'Codex ready' : '',
+          lastActivityAt: null,
+        };
+      },
+      detectTerminalRuntime: async ({ inspection }) => {
+        if (inspection?.session?.id === 'source') {
+          return {
+            tool: 'codex',
+            mode: 'tui',
+            busy: false,
+            readyForFork: true,
+            confidence: 'high',
+            evidence: ['foreground-process=codex'],
+            process: {
+              command: 'codex',
+              confidence: 'high',
+            },
+          };
+        }
+        return {
+          tool: childPhase === 'ready' ? 'codex' : 'unknown',
+          mode: childPhase === 'ready' ? 'tui' : 'shell',
+          busy: false,
+          readyForFork: childPhase === 'ready',
+          confidence: 'high',
+          evidence: [],
+          process: {
+            command: childPhase === 'ready' ? 'codex' : '',
+            confidence: 'high',
+          },
+        };
+      },
+      dispatchSessionInput: async ({ sessionId, text }) => {
+        dispatches.push({ sessionId, text });
+        if (sessionId === 'source') {
+          sourcePhase = 'acked';
+        }
+        if (sessionId === 'child-1') {
+          childPhase = 'ready';
+        }
+        return {};
+      },
+      createChildSession: async () => ({
+        id: 'child-1',
+        profileId: 'codex',
+        nodeKind: 'fork',
+      }),
+      getResolvedTerminusSettings: async () => ({
+        profiles: [
+          {
+            id: 'shell',
+            fork: {
+              enabled: false,
+            },
+          },
+          {
+            id: 'codex',
+            fork: {
+              enabled: true,
+              driver: 'codex',
+              launchTemplate: 'codex --thread {thread_id}',
+              sourceIdleMs: 0,
+              forkAckTimeoutMs: 100,
+              childReadyTimeoutMs: 100,
+            },
+          },
+        ],
+      }),
+      sleep: async () => undefined,
+      logRuntime: async () => undefined,
+    }
+  );
+
+  assert.equal(result.success, true);
+  assert.equal(result.data.mode, 'smart_fork');
+  assert.equal(result.data.profileId, 'shell');
+  assert.equal(result.data.sourceRuntime.tool, 'codex');
+  assert.equal(dispatches[0].text, '/fork');
+  assert.equal(dispatches[1].text, 'codex --thread thr-runtime');
+});
+
+test('normalizeForkConfig preserves zero-valued source idle and timeout settings', () => {
+  const config = normalizeForkConfig({
+    enabled: true,
+    driver: 'codex',
+    sourceIdleMs: 0,
+    forkAckTimeoutMs: 0,
+    childReadyTimeoutMs: 0,
+  });
+
+  assert.equal(config.sourceIdleMs, 0);
+  assert.equal(config.forkAckTimeoutMs, 0);
+  assert.equal(config.childReadyTimeoutMs, 0);
+});
+
+test('performSessionRuntimeIntent smart_fork skips source-idle wait when sourceIdleMs is 0', async () => {
+  const dispatches = [];
+  let sourcePhase = 'ready';
+  let childPhase = 'shell';
+
+  const result = await performSessionRuntimeIntent(
+    {
+      intent: 'smart_fork',
+      worktreePath: '/tmp/repo',
+      cellId: 'cell-1',
+      sessionId: 'source',
+    },
+    {
+      inspectSessionPane: async ({ sessionId }) => {
+        if (sessionId === 'source') {
+          return {
+            session: {
+              id: 'source',
+              profileId: 'codex',
+            },
+            pane: {
+              currentCommand: 'codex',
+            },
+            output:
+              sourcePhase === 'acked'
+                ? 'Thread forked from Main Thread\nthread_id: thr-zero'
+                : `busy-${Math.random()}`,
+            lastActivityAt: null,
+          };
+        }
+        return {
+          session: {
+            id: 'child-1',
+            profileId: 'codex',
+          },
+          pane: {
+            currentCommand: childPhase === 'ready' ? 'codex' : 'zsh',
+          },
+          output: childPhase === 'ready' ? 'ready' : '',
+          lastActivityAt: null,
+        };
+      },
+      dispatchSessionInput: async ({ sessionId, text }) => {
+        dispatches.push({ sessionId, text });
+        if (sessionId === 'source') {
+          sourcePhase = 'acked';
+        }
+        if (sessionId === 'child-1') {
+          childPhase = 'ready';
+        }
+        return {};
+      },
+      createChildSession: async () => ({
+        id: 'child-1',
+        profileId: 'codex',
+        nodeKind: 'fork',
+      }),
+      getResolvedTerminusSettings: async () => ({
+        profiles: [
+          {
+            id: 'codex',
+            fork: {
+              enabled: true,
+              driver: 'codex',
+              launchTemplate: 'codex --thread {thread_id}',
+              sourceIdleMs: 0,
+              forkAckTimeoutMs: 0,
+              childReadyTimeoutMs: 0,
+            },
+          },
+        ],
+      }),
+      sleep: async () => undefined,
+      logRuntime: async () => undefined,
+    }
+  );
+
+  assert.equal(result.success, true);
+  assert.equal(result.data.steps[1]?.status, 'skipped');
+  assert.equal(dispatches[0]?.text, '/fork');
+  assert.equal(dispatches[1]?.text, 'codex --thread thr-zero');
 });
 
 test('performSessionRuntimeIntent smart_fork returns a structured error when the source is not codex', async () => {

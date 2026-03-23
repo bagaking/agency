@@ -28,7 +28,7 @@ Session Runtime Orchestration Gateway 是面向 main 进程的主机侧能力层
 
 当前首个 driver：
 - `codex` smart fork：
-  - 检查 source session 是否仍在 Codex TUI 中；
+  - 通过 terminal runtime detection 判断 source session 是否仍在 Codex TUI 中，而不是只看持久化 profile；
   - 等待 source 输出稳定到 idle 窗口；
   - 在 source 里发送 `/fork`；
   - 等待 fork acknowledgement，并提取 `thread_id` 等变量；

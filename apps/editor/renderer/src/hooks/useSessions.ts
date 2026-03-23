@@ -415,6 +415,8 @@ export function useSessions(options: any = {}) {
             callerId: 'agent-cells-fork',
             worktreePath: targetCell.worktreePath,
             cellId: targetCell.id,
+            cellName: targetCell.name,
+            cellBranch: targetCell.branch,
             sessionId: sourceSessionIdValue,
           });
           const created = result?.data?.session || null;

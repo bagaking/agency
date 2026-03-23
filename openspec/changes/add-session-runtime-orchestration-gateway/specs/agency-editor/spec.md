@@ -40,6 +40,7 @@ The editor SHALL let resolved Terminus profiles declare a smart fork driver and 
 #### Scenario: Codex smart fork completes
 - **WHEN** the resolved profile uses the `codex` smart fork driver and the source session is ready to fork
 - **THEN** the host validates the source pane state
+- **AND** the host can identify the effective Codex runtime from terminal process/runtime evidence even when the stored session profile is generic
 - **AND** submits the fork command in the source session
 - **AND** waits for fork acknowledgement and extracts the needed fork data
 - **AND** creates a `fork` child session

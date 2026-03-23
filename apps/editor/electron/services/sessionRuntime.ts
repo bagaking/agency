@@ -4,6 +4,7 @@ const path = require('path');
 
 const { createNewSession, resolveSessionForPreview } = require('./sessions');
 const { getResolvedTerminusSettings } = require('./terminusSettings');
+const { detectTerminalRuntime } = require('./terminalRuntimeDetection');
 const { capturePane, getLastPaneActivity, inspectPane, sendKeys, sendText } = require('./tmux');
 const { logRuntime } = require('./runtimeLog');
 
@@ -122,12 +123,12 @@ function normalizeForkConfig(value = {}) {
     forkAckTimeoutMs: normalizeNumber(
       value?.forkAckTimeoutMs,
       DEFAULT_CODEX_FORK_CONFIG.forkAckTimeoutMs,
-      100
+      0
     ),
     childReadyTimeoutMs: normalizeNumber(
       value?.childReadyTimeoutMs,
       DEFAULT_CODEX_FORK_CONFIG.childReadyTimeoutMs,
-      100
+      0
     ),
   };
 }
@@ -201,6 +202,19 @@ async function defaultInspectSessionPane(payload = {}) {
   };
 }
 
+async function defaultDetectTerminalRuntime(payload = {}) {
+  const inspection = payload?.inspection || (await defaultInspectSessionPane(payload));
+  const runtime = await detectTerminalRuntime({
+    pane: inspection?.pane,
+    output: inspection?.output,
+    profileId: inspection?.session?.profileId || payload?.profileId || '',
+  });
+  return {
+    inspection,
+    runtime,
+  };
+}
+
 async function defaultDispatchSessionInput(payload = {}) {
   const { worktreePath, sessionId } = payload || {};
   const text = String(payload?.text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
@@ -241,7 +255,16 @@ async function defaultDispatchSessionInput(payload = {}) {
 }
 
 async function defaultCreateChildSession(payload = {}) {
-  const { worktreePath, cellId, sourceSession, profileId, nodeKind, sourceSessionId } = payload || {};
+  const {
+    worktreePath,
+    cellId,
+    sourceSession,
+    profileId,
+    nodeKind,
+    sourceSessionId,
+    cellName,
+    cellBranch,
+  } = payload || {};
   if (!worktreePath || !cellId || !sourceSession?.id) {
     throw new Error('worktreePath, cellId, and sourceSession are required to create a child session.');
   }
@@ -249,8 +272,8 @@ async function defaultCreateChildSession(payload = {}) {
     cellId,
     worktreePath,
     profileId: profileId || sourceSession.profileId || 'shell',
-    cellName: sourceSession.cellName,
-    cellBranch: sourceSession.cellBranch,
+    cellName: cellName || sourceSession.cellName,
+    cellBranch: cellBranch || sourceSession.cellBranch,
     parentSessionId: sourceSession.id,
     nodeKind: nodeKind || 'fork',
     sourceSessionId: sourceSessionId || sourceSession.id,
@@ -260,6 +283,7 @@ async function defaultCreateChildSession(payload = {}) {
 function createRuntimeDeps(overrides = {}) {
   return {
     inspectSessionPane: defaultInspectSessionPane,
+    detectTerminalRuntime: defaultDetectTerminalRuntime,
     dispatchSessionInput: defaultDispatchSessionInput,
     createChildSession: defaultCreateChildSession,
     getResolvedTerminusSettings,
@@ -282,7 +306,7 @@ async function waitForSessionCondition(payload = {}, overrides = {}) {
   let stableSince = Date.now();
   let lastSnapshot = null;
 
-  while (Date.now() <= deadline) {
+  for (;;) {
     const snapshot = await deps.inspectSessionPane({
       worktreePath: payload?.worktreePath,
       sessionId: payload?.sessionId,
@@ -312,6 +336,14 @@ async function waitForSessionCondition(payload = {}, overrides = {}) {
       }
     } else if (type === 'quiet') {
       const quietMs = normalizeNumber(condition?.quietMs, DEFAULT_QUIET_WINDOW_MS, 0);
+      if (quietMs === 0) {
+        return {
+          matched: true,
+          type,
+          elapsedMs: Date.now() - startAt,
+          snapshot,
+        };
+      }
       if (previousOutput === output) {
         if (Date.now() - stableSince >= quietMs) {
           return {
@@ -343,55 +375,100 @@ async function waitForSessionCondition(payload = {}, overrides = {}) {
           snapshot,
         };
       }
+    } else if (type === 'runtime_tool') {
+      const expectedTool = basenameCommand(condition?.tool);
+      if (!expectedTool) {
+        throw new Error('wait_condition runtime_tool requires tool.');
+      }
+      const detected = await deps.detectTerminalRuntime({
+        inspection: snapshot,
+        worktreePath: payload?.worktreePath,
+        sessionId: payload?.sessionId,
+      });
+      const runtime = detected?.runtime || detected;
+      if (basenameCommand(runtime?.tool) === expectedTool) {
+        return {
+          matched: true,
+          type,
+          elapsedMs: Date.now() - startAt,
+          snapshot,
+          runtime,
+        };
+      }
     } else {
       throw new Error(`Unsupported wait_condition type: ${condition?.type || 'unknown'}`);
     }
 
+    if (Date.now() >= deadline) {
+      break;
+    }
     await deps.sleep(intervalMs);
   }
 
   throw new Error(`Timed out waiting for session condition: ${type || 'unknown'}.`);
 }
 
-async function resolveForkProfile({ worktreePath, profileId }, overrides = {}) {
+async function resolveForkProfile({ worktreePath, profileId, runtimeTool }, overrides = {}) {
   const deps = createRuntimeDeps(overrides);
   const settings = await deps.getResolvedTerminusSettings({ worktreePath });
   const profiles = Array.isArray(settings?.profiles) ? settings.profiles : [];
-  const match = profiles.find((profile) => String(profile?.id || '').trim() === String(profileId || '').trim());
-  return match || null;
+  const normalizedProfileId = String(profileId || '').trim();
+  const normalizedRuntimeTool = basenameCommand(runtimeTool);
+  const preferred = normalizedProfileId
+    ? profiles.find((profile) => String(profile?.id || '').trim() === normalizedProfileId)
+    : null;
+  if (preferred?.fork?.enabled) {
+    return preferred;
+  }
+  const runtimeMatch = normalizedRuntimeTool
+    ? profiles.find((profile) => basenameCommand(profile?.id) === normalizedRuntimeTool)
+    : null;
+  return runtimeMatch || preferred || null;
 }
 
 async function runCodexSmartFork(payload = {}, overrides = {}) {
   const deps = createRuntimeDeps(overrides);
-  const sourceSnapshot = await deps.inspectSessionPane({
+  const sourceInspection = payload?.sourceInspection || (await deps.inspectSessionPane({
     worktreePath: payload?.worktreePath,
     sessionId: payload?.sessionId,
     lines: DEFAULT_CAPTURE_LINES,
+  }));
+  const sourceSnapshot = sourceInspection;
+  const runtimePayload = await deps.detectTerminalRuntime({
+    inspection: sourceSnapshot,
+    worktreePath: payload?.worktreePath,
+    sessionId: payload?.sessionId,
   });
+  const sourceRuntime = runtimePayload?.runtime || runtimePayload;
   const config = normalizeForkConfig(payload?.forkConfig);
   const steps = [buildStep('inspect-source', 'completed', {
     currentCommand: sourceSnapshot?.pane?.currentCommand || '',
+    runtimeTool: sourceRuntime?.tool || '',
   })];
 
-  if (basenameCommand(sourceSnapshot?.pane?.currentCommand) !== 'codex') {
+  if (basenameCommand(sourceRuntime?.tool) !== 'codex') {
     throw Object.assign(new Error('Source session is not running the Codex TUI.'), {
       code: 'SOURCE_NOT_CODEX',
       steps,
     });
   }
 
-  await waitForSessionCondition({
-    worktreePath: payload?.worktreePath,
-    sessionId: payload?.sessionId,
-    condition: {
-      type: 'quiet',
-      quietMs: config.sourceIdleMs,
-      timeoutMs: Math.max(config.sourceIdleMs * 2, 5_000),
-      intervalMs: 200,
-      lines: DEFAULT_CAPTURE_LINES,
-    },
-  }, deps);
-  steps.push(buildStep('wait-source-idle', 'completed', { quietMs: config.sourceIdleMs }));
+  if (config.sourceIdleMs > 0) {
+    await waitForSessionCondition({
+      worktreePath: payload?.worktreePath,
+      sessionId: payload?.sessionId,
+      condition: {
+        type: 'quiet',
+        quietMs: config.sourceIdleMs,
+        timeoutMs: Math.max(config.sourceIdleMs * 2, 5_000),
+        intervalMs: 200,
+        lines: DEFAULT_CAPTURE_LINES,
+      },
+    }, deps);
+    steps.push(buildStep('wait-source-idle', 'completed', { quietMs: config.sourceIdleMs }));
+  } else {
+    steps.push(buildStep('wait-source-idle', 'skipped', { quietMs: 0 }));
+  }
 
   await deps.dispatchSessionInput({
     worktreePath: payload?.worktreePath,
@@ -433,6 +510,8 @@ async function runCodexSmartFork(payload = {}, overrides = {}) {
     cellId: payload?.cellId,
     sourceSession: sourceSnapshot.session,
     profileId: sourceSnapshot.session?.profileId || 'codex',
+    cellName: payload?.cellName,
+    cellBranch: payload?.cellBranch,
     nodeKind: 'fork',
     sourceSessionId: sourceSnapshot.session?.id,
   });
@@ -453,8 +532,8 @@ async function runCodexSmartFork(payload = {}, overrides = {}) {
     worktreePath: payload?.worktreePath,
     sessionId: childSession.id,
     condition: {
-      type: 'command',
-      command: 'codex',
+      type: 'runtime_tool',
+      tool: 'codex',
       timeoutMs: config.childReadyTimeoutMs,
       intervalMs: 250,
       lines: DEFAULT_CAPTURE_LINES,
@@ -462,12 +541,14 @@ async function runCodexSmartFork(payload = {}, overrides = {}) {
   }, deps);
   steps.push(buildStep('wait-child-ready', 'completed', {
     currentCommand: childReady?.snapshot?.pane?.currentCommand || '',
+    runtimeTool: childReady?.runtime?.tool || '',
   }));
 
   return {
     mode: 'smart_fork',
     session: childSession,
     sourceSession: sourceSnapshot.session,
+    sourceRuntime,
     steps,
     metadata,
     launch: {
@@ -490,6 +571,8 @@ async function createPlainForkChild(payload = {}, overrides = {}) {
     cellId: payload?.cellId,
     sourceSession: sourceSnapshot.session,
     profileId: sourceSnapshot.session?.profileId || 'shell',
+    cellName: payload?.cellName,
+    cellBranch: payload?.cellBranch,
     nodeKind: 'fork',
     sourceSessionId: sourceSnapshot.session?.id,
   });
@@ -513,8 +596,18 @@ async function performSessionRuntimeIntent(payload = {}, overrides = {}) {
 
   try {
     if (intent === 'inspect') {
-      const data = await deps.inspectSessionPane(payload);
-      return buildSuccess(intent, { operationId, caller, ...data });
+      const inspection = await deps.inspectSessionPane(payload);
+      const detected = await deps.detectTerminalRuntime({
+        inspection,
+        worktreePath: payload?.worktreePath,
+        sessionId: payload?.sessionId,
+      });
+      return buildSuccess(intent, {
+        operationId,
+        caller,
+        ...inspection,
+        runtime: detected?.runtime || detected,
+      });
     }
 
     if (intent === 'dispatch_input') {
@@ -534,6 +627,8 @@ async function performSessionRuntimeIntent(payload = {}, overrides = {}) {
         cellId: payload?.cellId,
         sourceSession: sourceSnapshot.session,
         profileId: payload?.profileId || sourceSnapshot.session?.profileId || 'shell',
+        cellName: payload?.cellName,
+        cellBranch: payload?.cellBranch,
         nodeKind: payload?.nodeKind || 'fork',
         sourceSessionId: payload?.sourceSessionId || sourceSnapshot.session?.id,
       });
@@ -547,21 +642,29 @@ async function performSessionRuntimeIntent(payload = {}, overrides = {}) {
 
     if (intent === 'smart_fork') {
       const sourceSnapshot = await deps.inspectSessionPane(payload);
+      const detected = await deps.detectTerminalRuntime({
+        inspection: sourceSnapshot,
+        worktreePath: payload?.worktreePath,
+        sessionId: payload?.sessionId,
+      });
+      const sourceRuntime = detected?.runtime || detected;
       const resolvedProfile = await resolveForkProfile({
         worktreePath: payload?.worktreePath,
         profileId: sourceSnapshot?.session?.profileId,
+        runtimeTool: sourceRuntime?.tool,
       }, deps);
       const forkConfig = normalizeForkConfig(
         payload?.forkConfig || resolvedProfile?.fork || DEFAULT_CODEX_FORK_CONFIG
       );
       const result =
         forkConfig.enabled && forkConfig.driver === 'codex'
-          ? await runCodexSmartFork({ ...payload, forkConfig }, deps)
+          ? await runCodexSmartFork({ ...payload, forkConfig, sourceInspection: sourceSnapshot }, deps)
           : await createPlainForkChild(payload, deps);
       return buildSuccess(intent, {
         operationId,
         caller,
         profileId: sourceSnapshot?.session?.profileId || '',
+        sourceRuntime,
         profileFork: forkConfig,
         ...result,
       });
@@ -600,4 +703,5 @@ export {
   waitForSessionCondition,
   performSessionRuntimeIntent,
   defaultDispatchSessionInput as dispatchSessionRuntimeInput,
+  defaultDetectTerminalRuntime as detectSessionRuntime,
 };

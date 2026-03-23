@@ -1,4 +1,3 @@
-const { app } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -22,8 +21,42 @@ const PROJECT_FILENAME = 'session-naming.yaml';
 const AGENT_PREFIX = 'session-naming-';
 const AGENT_EXT = '.yaml';
 
+function getElectronApp() {
+  try {
+    const electron = require('electron');
+    if (
+      electron &&
+      typeof electron === 'object' &&
+      electron.app &&
+      typeof electron.app.getPath === 'function'
+    ) {
+      return electron.app;
+    }
+  } catch (_error) {
+    // Ignore and fall back to a deterministic Node path.
+  }
+  return null;
+}
+
+function getFallbackUserDataPath() {
+  const explicit = String(process.env.AGENCY_USER_DATA_PATH || '').trim();
+  if (explicit) {
+    return explicit;
+  }
+  const homePath = os.homedir() || process.cwd();
+  if (process.platform === 'darwin') {
+    return path.join(homePath, 'Library', 'Application Support', 'Agency');
+  }
+  if (process.platform === 'win32') {
+    return path.join(process.env.APPDATA || path.join(homePath, 'AppData', 'Roaming'), 'Agency');
+  }
+  return path.join(process.env.XDG_CONFIG_HOME || path.join(homePath, '.config'), 'Agency');
+}
+
 function getGlobalSettingsPath() {
-  return path.join(app.getPath('userData'), 'session-naming.json');
+  const electronApp = getElectronApp();
+  const userDataPath = electronApp ? electronApp.getPath('userData') : getFallbackUserDataPath();
+  return path.join(userDataPath, 'session-naming.json');
 }
 
 function getProjectSettingsPath(worktreePath) {

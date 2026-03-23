@@ -8,6 +8,26 @@ export const DEFAULT_PROFILE_FORK = {
   childReadyTimeoutMs: 20000,
 };
 
+const normalizeForkNumber = (value, fallback) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+export const normalizeProfileFork = (fork) => ({
+  enabled: Boolean(fork?.enabled),
+  driver: String(fork?.driver || '').trim(),
+  launchTemplate: String(fork?.launchTemplate || '').trim(),
+  sourceIdleMs: normalizeForkNumber(fork?.sourceIdleMs, DEFAULT_PROFILE_FORK.sourceIdleMs),
+  forkAckTimeoutMs: normalizeForkNumber(
+    fork?.forkAckTimeoutMs,
+    DEFAULT_PROFILE_FORK.forkAckTimeoutMs
+  ),
+  childReadyTimeoutMs: normalizeForkNumber(
+    fork?.childReadyTimeoutMs,
+    DEFAULT_PROFILE_FORK.childReadyTimeoutMs
+  ),
+});
+
 export const BASELINE_PROFILE = {
   id: BASELINE_PROFILE_ID,
   label: 'Shell',
