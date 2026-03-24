@@ -229,6 +229,25 @@ function AppShell() {
     onOpenTerminal: handleOpenTerminal,
     initialActiveSessions,
   });
+  const lastSessionErrorNoticeRef = useRef('');
+  useEffect(() => {
+    const message = String(sessionsState.sessionError || '').trim();
+    if (!message) {
+      lastSessionErrorNoticeRef.current = '';
+      return;
+    }
+    if (lastSessionErrorNoticeRef.current === message) {
+      return;
+    }
+    lastSessionErrorNoticeRef.current = message;
+    const cancelled = /cancelled/i.test(message);
+    modal?.notify?.({
+      title: cancelled ? 'Session Action Cancelled' : 'Session Action Failed',
+      description: message,
+      tone: cancelled ? 'warning' : 'danger',
+      autoCloseMs: 5000,
+    });
+  }, [modal, sessionsState.sessionError]);
   const sessionTargets = useMemo(() => {
     const list = [];
     (displayCells || []).forEach((cell) => {
