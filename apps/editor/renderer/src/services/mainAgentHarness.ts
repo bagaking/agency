@@ -2,6 +2,7 @@ import {
   cancelMainAgentHarnessRun as invokeCancelMainAgentHarnessRun,
   inspectMainAgentHarnessRun as invokeInspectMainAgentHarnessRun,
   listMainAgentHarnessRuns as invokeListMainAgentHarnessRuns,
+  onMainAgentHarnessProgress as subscribeMainAgentHarnessProgress,
   resumeMainAgentHarnessRun as invokeResumeMainAgentHarnessRun,
   startMainAgentHarnessRun as invokeStartMainAgentHarnessRun,
 } from './agencyBridge';
@@ -10,41 +11,47 @@ type MainAgentHarnessRunPayload = Record<string, any>;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export const startMainAgentHarnessRun = async (payload: MainAgentHarnessRunPayload) => {
-  const response = await invokeStartMainAgentHarnessRun(payload);
+const unwrapHarnessResponse = (response: any, fallbackAction: string) => {
   if (!response) {
     throw new Error('Main Agent Harness is unavailable.');
   }
-  return response;
+  if (response.success === false) {
+    const message =
+      response?.failures?.[0]?.message ||
+      `Main Agent Harness action failed: ${fallbackAction}.`;
+    throw new Error(message);
+  }
+  return response?.data ?? null;
+};
+
+export const startMainAgentHarnessRun = async (payload: MainAgentHarnessRunPayload) => {
+  const response = await invokeStartMainAgentHarnessRun(payload);
+  return unwrapHarnessResponse(response, 'start');
 };
 
 export const inspectMainAgentHarnessRun = async (payload: { runId: string }) => {
   const response = await invokeInspectMainAgentHarnessRun(payload);
-  if (!response) {
-    throw new Error('Main Agent Harness is unavailable.');
-  }
-  return response;
+  return unwrapHarnessResponse(response, 'inspect');
 };
 
 export const cancelMainAgentHarnessRun = async (payload: { runId: string; reason?: string }) => {
   const response = await invokeCancelMainAgentHarnessRun(payload);
-  if (!response) {
-    throw new Error('Main Agent Harness is unavailable.');
-  }
-  return response;
+  return unwrapHarnessResponse(response, 'cancel');
 };
 
 export const resumeMainAgentHarnessRun = async (payload: { runId: string }) => {
   const response = await invokeResumeMainAgentHarnessRun(payload);
-  if (!response) {
-    throw new Error('Main Agent Harness is unavailable.');
-  }
-  return response;
+  return unwrapHarnessResponse(response, 'resume');
 };
 
 export const listMainAgentHarnessRuns = async (payload: { limit?: number } = {}) => {
-  return (await invokeListMainAgentHarnessRuns(payload)) || [];
+  const response = await invokeListMainAgentHarnessRuns(payload);
+  const data = unwrapHarnessResponse(response, 'list');
+  return Array.isArray(data) ? data : [];
 };
+
+export const onMainAgentHarnessProgress = (handler: any) =>
+  subscribeMainAgentHarnessProgress?.(handler);
 
 export const waitForMainAgentHarnessRun = async ({
   runId,

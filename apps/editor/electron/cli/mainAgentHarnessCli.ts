@@ -95,30 +95,61 @@ async function resolvePayload(args) {
 
 async function dispatch(action, payload) {
   const normalizedAction = String(action || payload?.action || 'start').trim().toLowerCase();
+  const request = {
+    callerType: payload?.callerType || 'cli',
+    callerId: payload?.callerId || 'main-agent-harness-cli',
+    sourceSurface: payload?.sourceSurface || 'main-agent-harness-cli',
+    ...payload,
+  };
   if (normalizedAction === 'inspect') {
-    return inspectMainAgentHarnessRun(payload || {});
+    return inspectMainAgentHarnessRun(request || {}, {
+      transportTrust: 'trusted_host_cli',
+      accessScope: 'process',
+    });
   }
   if (normalizedAction === 'cancel') {
-    return cancelMainAgentHarnessRun(payload || {});
+    return cancelMainAgentHarnessRun(request || {}, {
+      transportTrust: 'trusted_host_cli',
+      accessScope: 'process',
+    });
   }
   if (normalizedAction === 'resume') {
-    return resumeMainAgentHarnessRun(payload || {});
+    return resumeMainAgentHarnessRun(request || {}, {
+      transportTrust: 'trusted_host_cli',
+      accessScope: 'process',
+    });
   }
   if (normalizedAction === 'list') {
-    return listMainAgentHarnessRuns(payload || {});
+    return listMainAgentHarnessRuns(request || {}, {
+      transportTrust: 'trusted_host_cli',
+      accessScope: 'process',
+    });
   }
-  const started = await startMainAgentHarnessRun(payload || {});
-  if (payload?.wait === false) {
+  const trustedContext = {
+    transportTrust: 'trusted_host_cli',
+    accessScope: 'process',
+  };
+  const started = await startMainAgentHarnessRun(request || {}, trustedContext);
+  if (request?.wait === false || started?.success === false) {
     return started;
   }
-  const runId = String(started?.runId || '').trim();
+  const runId = String(started?.data?.runId || '').trim();
   if (!runId) {
     return started;
   }
   for (;;) {
-    const current = await inspectMainAgentHarnessRun({ runId });
-    if (['succeeded', 'failed', 'cancelled'].includes(String(current?.status || '').trim())) {
-      return current;
+    const current = await inspectMainAgentHarnessRun(
+      request ? { ...request, runId } : { runId },
+      trustedContext
+    );
+    const status = String(current?.data?.status || '').trim();
+    if (current?.success === false || ['succeeded', 'failed', 'cancelled'].includes(status)) {
+      return current?.success === false
+        ? current
+        : {
+            ...current,
+            action: 'start',
+          };
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
@@ -135,7 +166,7 @@ async function main() {
     }
     const result = await dispatch(args.action, payload);
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-    process.exit(0);
+    process.exit(result?.success === false ? 2 : 0);
   } catch (error) {
     const result = {
       success: false,

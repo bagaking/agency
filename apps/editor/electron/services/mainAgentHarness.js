@@ -6,24 +6,63 @@ const controller = createHarnessController({
   logRuntime,
 });
 
-async function startMainAgentHarnessRun(payload = {}) {
-  return controller.startRun(payload || {});
+function buildSuccess(action, data = null, warnings = []) {
+  return {
+    success: true,
+    action,
+    warnings: Array.isArray(warnings) ? warnings : [],
+    failures: [],
+    data,
+  };
 }
 
-async function inspectMainAgentHarnessRun(payload = {}) {
-  return controller.inspectRun(payload || {});
+function buildFailure(action, code, message, data = null) {
+  return {
+    success: false,
+    action,
+    warnings: [],
+    failures: [
+      {
+        code: String(code || 'FATAL'),
+        message: String(message || 'Main Agent Harness action failed.'),
+      },
+    ],
+    data,
+  };
 }
 
-async function cancelMainAgentHarnessRun(payload = {}) {
-  return controller.cancelRun(payload || {});
+async function runHarnessAction(action, executor) {
+  try {
+    const data = await executor();
+    return buildSuccess(action, data);
+  } catch (error) {
+    return buildFailure(
+      action,
+      error?.code || 'FATAL',
+      error?.message || String(error),
+      error?.data || null
+    );
+  }
 }
 
-async function resumeMainAgentHarnessRun(payload = {}) {
-  return controller.resumeRun(payload || {});
+async function startMainAgentHarnessRun(payload = {}, context = {}) {
+  return runHarnessAction('start', () => controller.startRun(payload || {}, context));
 }
 
-async function listMainAgentHarnessRuns(payload = {}) {
-  return controller.listRuns(payload || {});
+async function inspectMainAgentHarnessRun(payload = {}, context = {}) {
+  return runHarnessAction('inspect', () => controller.inspectRun(payload || {}, context));
+}
+
+async function cancelMainAgentHarnessRun(payload = {}, context = {}) {
+  return runHarnessAction('cancel', () => controller.cancelRun(payload || {}, context));
+}
+
+async function resumeMainAgentHarnessRun(payload = {}, context = {}) {
+  return runHarnessAction('resume', () => controller.resumeRun(payload || {}, context));
+}
+
+async function listMainAgentHarnessRuns(payload = {}, context = {}) {
+  return runHarnessAction('list', () => controller.listRuns(payload || {}, context));
 }
 
 function onMainAgentHarnessProgress(handler) {

@@ -1,0 +1,105 @@
+// @ts-nocheck
+const { normalizeRequestedCapabilities } = require('./capabilityRegistry');
+
+function normalizeOwnerContext(value = {}) {
+  return {
+    windowStateId: String(value?.ownerWindowStateId || value?.windowStateId || '').trim(),
+    accessScope: String(value?.accessScope || '').trim().toLowerCase() || 'process',
+    transportTrust: String(value?.transportTrust || '').trim().toLowerCase() || 'unknown',
+  };
+}
+
+function createDefaultHarnessPolicy() {
+  return {
+    resolveGrantedCapabilities({ caller, requestedCapabilities, owner }) {
+      const requested = normalizeRequestedCapabilities(requestedCapabilities);
+      const normalizedOwner = normalizeOwnerContext(owner);
+
+      if (
+        normalizedOwner.transportTrust === 'renderer_ipc' &&
+        caller?.callerType === 'renderer' &&
+        caller?.sourceSurface === 'agent-cells' &&
+        caller?.callerId === 'agent-cells-fork'
+      ) {
+        return requested.filter((capability) => capability === 'session.runtime');
+      }
+
+      if (normalizedOwner.transportTrust === 'trusted_host_cli') {
+        return requested;
+      }
+
+      return [];
+    },
+
+    describeGrant({ caller, requestedCapabilities, grantedCapabilities, owner }) {
+      const requested = normalizeRequestedCapabilities(requestedCapabilities);
+      const granted = normalizeRequestedCapabilities(grantedCapabilities);
+      const denied = requested.filter((capability) => !granted.includes(capability));
+      const normalizedOwner = normalizeOwnerContext(owner);
+      let strategy = 'deny_by_default';
+
+      if (
+        normalizedOwner.transportTrust === 'renderer_ipc' &&
+        caller?.callerType === 'renderer' &&
+        caller?.sourceSurface === 'agent-cells' &&
+        caller?.callerId === 'agent-cells-fork'
+      ) {
+        strategy = 'agent_cells_fork_fixed_allowlist';
+      } else if (normalizedOwner.transportTrust === 'trusted_host_cli') {
+        strategy = 'trusted_host_cli';
+      }
+
+      return {
+        strategy,
+        grantedCapabilities: granted,
+        deniedCapabilities: denied,
+      };
+    },
+
+    assertRunAccess({ run, owner }) {
+      const normalizedOwner = normalizeOwnerContext(owner);
+      const runOwnerScope = String(run?.owner?.accessScope || 'process').trim().toLowerCase();
+      const runOwnerWindowStateId = String(run?.owner?.windowStateId || '').trim();
+      if (normalizedOwner.transportTrust === 'renderer_ipc' && runOwnerScope !== 'window') {
+        const error = new Error('Harness run is not visible to renderer windows.');
+        error.code = 'PERMISSION_DENIED';
+        return error;
+      }
+      if (normalizedOwner.accessScope === 'window' && runOwnerScope !== 'window') {
+        const error = new Error('Harness run is not visible to renderer windows.');
+        error.code = 'PERMISSION_DENIED';
+        return error;
+      }
+      if (
+        normalizedOwner.accessScope === 'window' &&
+        runOwnerWindowStateId &&
+        normalizedOwner.windowStateId !== runOwnerWindowStateId
+      ) {
+        const error = new Error('Harness run is not owned by the current window.');
+        error.code = 'PERMISSION_DENIED';
+        return error;
+      }
+      return null;
+    },
+
+    filterRunsForAccess({ runs, owner }) {
+      const normalizedOwner = normalizeOwnerContext(owner);
+      const list = Array.isArray(runs) ? runs : [];
+      if (normalizedOwner.accessScope !== 'window') {
+        return list;
+      }
+      return list.filter((run) => {
+        const runOwnerWindowStateId = String(run?.owner?.windowStateId || '').trim();
+        if (!runOwnerWindowStateId) {
+          return false;
+        }
+        return runOwnerWindowStateId === normalizedOwner.windowStateId;
+      });
+    },
+  };
+}
+
+module.exports = {
+  createDefaultHarnessPolicy,
+  normalizeOwnerContext,
+};

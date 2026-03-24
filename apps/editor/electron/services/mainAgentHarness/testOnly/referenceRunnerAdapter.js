@@ -1,5 +1,5 @@
 // @ts-nocheck
-const { createRunnerSkillPackRegistry } = require('../runnerSkillPacks');
+const { createRunnerSkillPackRegistry } = require('../skillPacks');
 
 function normalizeStepKind(value) {
   const normalized = String(value || '').trim().toLowerCase();
@@ -52,7 +52,67 @@ function createReferenceRunnerAdapter({ skillPacks = createRunnerSkillPackRegist
                 `No runner skill pack is available for step: ${stepId}.`
               );
             }
-            output = await skillPack.execute(ctx, step);
+            const preparedContext = typeof skillPack.prepare === 'function'
+              ? await skillPack.prepare({
+                  run,
+                  step,
+                  invokeCapability: (payload) => ctx.invokeCapability(payload),
+                  createFailure: ctx.createFailure,
+                })
+              : {};
+            const decision =
+              typeof skillPack.buildDeterministicDecision === 'function'
+                ? skillPack.buildDeterministicDecision({
+                    run,
+                    step,
+                    preparedContext,
+                  })
+                : null;
+            if (!decision) {
+              throw ctx.createFailure(
+                'INVALID_RUNNER',
+                `Reference runner requires a deterministic skill pack decision: ${skillPack.id}.`
+              );
+            }
+            const plannedCalls = skillPack.buildCapabilityCalls({
+              run,
+              step,
+              preparedContext,
+              decision,
+            });
+            const capabilityResults = [];
+            for (const call of plannedCalls) {
+              const input =
+                typeof skillPack.resolveCapabilityInput === 'function'
+                  ? skillPack.resolveCapabilityInput({
+                      call,
+                      capabilityResults,
+                      preparedContext,
+                      decision,
+                    })
+                  : call.input;
+              const result = await ctx.invokeCapability({
+                step,
+                capabilityId: call.capabilityId,
+                title: call.title || call.capabilityId,
+                input,
+              });
+              capabilityResults.push({
+                capabilityId: call.capabilityId,
+                title: call.title || call.capabilityId,
+                input,
+                response: result?.response || null,
+                summary: result?.summary || null,
+              });
+            }
+            output = skillPack.finalize({
+              run,
+              step,
+              preparedContext,
+              decision,
+              capabilityResults,
+              providerDecision: null,
+            });
             if (output?.session?.id) {
               primaryAgentResult = {
                 session: output.session,

@@ -23,15 +23,18 @@ Without that boundary, future complex automations will either:
   - session runtime gateway;
   - file intent gateway;
   - future browser / delivery / worktree capabilities as explicit follow-ons.
-- Define the first runner/adaptor shape for tool-specific execution backends, with Codex as the initial reference adapter.
+- Introduce an agent-backed runner layer for tool-specific execution backends, with Codex as the first default provider path.
+- Keep the current reference runner only as a short-lived transitional/test path, not the long-term product default.
 - Introduce encapsulated runner skill packs for complex tool-native specializations so future agent runners can consume approved playbooks without bypassing host-managed capabilities.
 - Route the Agent Cells `Fork` entry through Harness `Create Agent` semantics, where `Fork` is modeled as a tool-native specialization instead of the Harness core concept.
+- Add a dedicated Harness settings/provider registry layer so runner selection and provider-specific knobs do not leak into Terminus profile settings or renderer-local code.
 
 ## Impact
 - Affected specs: `agency-editor`
 - Affected code:
   - new main-process harness controller / state model / IPC surface
   - capability registry and authorization/policy layer
+  - new agent-backed runner/provider registry and settings layer
   - existing host-managed capability gateways (session runtime, file intent) as Harness dependencies
   - future UI/API surfaces that need to start/observe/interrupt Harness runs
   - Agent Cells child-session creation paths that should hand off specialized flows to Harness
@@ -41,6 +44,8 @@ Without that boundary, future complex automations will either:
   - unclear boundaries between Harness, capability plane, and tool runners will cause duplication and hidden coupling;
   - using `Fork` as the core product primitive would entangle the Harness with tool-specific semantics too early.
 - Mitigation:
-  - keep v1 narrow: Harness controller + capability registry + run contract + one reference runner path;
+  - keep v1 narrow: Harness controller + capability registry + run contract + one bounded agent-backed provider path;
+  - switch to an agent-backed runner as early as possible so the transitional reference runner does not become product debt;
   - make `Create Agent` the primary user-facing semantic;
-  - require every Harness action to route through approved host-managed capabilities with explicit telemetry.
+  - require every Harness action to route through approved host-managed capabilities with explicit telemetry;
+  - derive trust from host transport context and keep payload caller metadata audit-only.

@@ -11,9 +11,28 @@ const {
 
 let progressRelayAttached = false;
 
+function buildOwnerContext(event) {
+  const ownerWindow = BrowserWindow.fromWebContents(event.sender);
+  const ownerWindowStateId = (ownerWindow as any)?.__agencyWindowStateId || '';
+  return {
+    ownerWindowStateId,
+    accessScope: ownerWindowStateId ? 'window' : 'process',
+    transportTrust: 'renderer_ipc',
+  };
+}
+
 function relayHarnessProgress(event) {
+  const ownerAccessScope = String(event?.owner?.accessScope || 'process').trim().toLowerCase();
+  if (ownerAccessScope !== 'window') {
+    return;
+  }
+  const ownerWindowStateId = String(event?.owner?.windowStateId || '').trim();
   BrowserWindow.getAllWindows().forEach((window) => {
     if (window.isDestroyed?.()) {
+      return;
+    }
+    const windowStateId = (window as any).__agencyWindowStateId || '';
+    if (ownerWindowStateId && windowStateId !== ownerWindowStateId) {
       return;
     }
     window.webContents.send('main-agent-harness:progress', event);
@@ -21,20 +40,20 @@ function relayHarnessProgress(event) {
 }
 
 function setupMainAgentHarnessHandlers() {
-  ipcMain.handle('main-agent-harness:start', async (_event, payload) => {
-    return startMainAgentHarnessRun(payload || {});
+  ipcMain.handle('main-agent-harness:start', async (event, payload) => {
+    return startMainAgentHarnessRun(payload || {}, buildOwnerContext(event));
   });
-  ipcMain.handle('main-agent-harness:inspect', async (_event, payload) => {
-    return inspectMainAgentHarnessRun(payload || {});
+  ipcMain.handle('main-agent-harness:inspect', async (event, payload) => {
+    return inspectMainAgentHarnessRun(payload || {}, buildOwnerContext(event));
   });
-  ipcMain.handle('main-agent-harness:cancel', async (_event, payload) => {
-    return cancelMainAgentHarnessRun(payload || {});
+  ipcMain.handle('main-agent-harness:cancel', async (event, payload) => {
+    return cancelMainAgentHarnessRun(payload || {}, buildOwnerContext(event));
   });
-  ipcMain.handle('main-agent-harness:resume', async (_event, payload) => {
-    return resumeMainAgentHarnessRun(payload || {});
+  ipcMain.handle('main-agent-harness:resume', async (event, payload) => {
+    return resumeMainAgentHarnessRun(payload || {}, buildOwnerContext(event));
   });
-  ipcMain.handle('main-agent-harness:list', async (_event, payload) => {
-    return listMainAgentHarnessRuns(payload || {});
+  ipcMain.handle('main-agent-harness:list', async (event, payload) => {
+    return listMainAgentHarnessRuns(payload || {}, buildOwnerContext(event));
   });
 
   if (!progressRelayAttached) {

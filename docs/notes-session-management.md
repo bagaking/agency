@@ -53,7 +53,9 @@ Main Agent Harness 是更高一层的 host-owned control plane。
 当前首版 runner 结构：
 - Harness controller：管理 run lifecycle、状态落盘、progress event。
 - Capability registry：定义哪些 host-managed capabilities 对 Harness 可见，以及 policy seam。
-- Reference runner adapter：执行结构化 steps，不做开放式自主规划。
+- Agent-backed runner adapter：默认执行面，负责消费受控 skill-pack descriptor，并把决策交给 provider。
+- Provider registry：当前默认 `codex_cli`，后续可扩 `claude_cli` 等，但 provider 永远不是副作用 owner。
+- Test-only reference runner：仅保留给 tests/debug，不再承载产品默认语义。
 - Runner skill packs：给复杂 specialization 一个受控 playbook，目前先有：
   - `session.create-child`
   - `session.tool-native-fork`
@@ -87,7 +89,9 @@ Session Reply Relay 是面向 Session 的“回复资产化”机制，强调 **
 
 ## Session 管理机制
 - **Attach Manager（统一入口）**：所有 attach 行为必须由 Session 层管理器统一调度（终端、hover 预览、快照/截图），避免重复逻辑与 idle 被误触发。
-- **智能 Fork**：`Fork` 动作由 Main Agent Harness 作为 `Create Agent` specialization 调度，具体副作用仍通过 Session Runtime Gateway 执行；若当前 profile 未启用 smart fork driver，则退回 plain child creation；若启用 driver（当前内置 `codex`），则 host 负责 source 检查、source dispatch、child launch、ready wait 的完整闭环。
+- **智能 Fork / Create Agent specialization**：`Fork` 动作由 Main Agent Harness 作为 `Create Agent` specialization 调度，默认执行面是 `agent_backed -> codex_cli -> session.tool-native-fork -> session.runtime`。provider 只能返回结构化 capability 决策，真正副作用仍通过 Session Runtime Gateway 执行。当前 specialization 有两类合法结果：
+  - true `smart_fork`：host 做 source 检查、source dispatch、child launch、ready wait 的完整闭环；
+  - `create_child` + `dispatch_input`：当 true fork 语义不可证明时，改为显式创建 child agent，而不是伪装成 fork 成功。
 - **Continue on Mobile（远程续接）**：
   - Agent Cells 的 session 右键菜单提供两种入口：
     - `Continue on Mobile (Direct)`：直达当前 session。

@@ -15,8 +15,10 @@
 - [ ] Reorder two session nodes in Agent Cells and confirm the new order persists after refresh.
 - [ ] Drag a session onto another session and confirm it becomes a child node.
 - [ ] Drag a child session out toward an ancestor level and confirm it is promoted to that higher level.
-- [ ] Use the session row context menu to create `Sub Terminal` and `Fork` child sessions, confirm they appear under the selected parent, confirm `Sub Terminal` uses the shell profile, and confirm `Fork` starts a Harness run instead of calling the session runtime gateway directly from renderer.
-- [ ] With the default `codex` Terminus profile, confirm `Fork` starts a Harness `Create Agent` run, waits for the source session to become idle, issues `/fork` in the source session, creates a child session, launches the child with the rendered `launchTemplate`, and selects the child when Codex is ready.
+- [ ] Use the session row context menu to create `Sub Terminal` and `Fork` child sessions, confirm they appear under the selected parent, confirm `Sub Terminal` uses the shell profile, and confirm `Fork` starts an `agent_backed` Harness run instead of calling the session runtime gateway directly from renderer.
+- [ ] With a Codex-backed profile, confirm `Fork` starts a Harness `Create Agent` run and the bounded `session.tool-native-fork` specialization chooses one of the two valid outcomes:
+  - true `smart_fork` via `session.runtime smart_fork`, or
+  - `create_child` + `dispatch_input` to start a fresh child Codex session.
 - [ ] Trigger a `Fork` failure case (for example source not running Codex or source still busy) and confirm the UI surfaces a structured error instead of silently creating a broken child session.
 - [ ] Inspect the live or completed Harness run (CLI or IPC-driven debug surface) and confirm it exposes `runId`, step timeline, and capability-call records for the `Fork` specialization.
 - [ ] Cancel a long-running Harness run and confirm its status becomes `cancelled` without relying on raw logs.
@@ -35,3 +37,4 @@
 ## Validation
 - [ ] Remove the spec folder and confirm warnings appear (temporary validation).
 - [ ] Restore spec folder and confirm warnings clear after refresh.
+- [ ] Run a pure Node smoke with `pnpm -C apps/editor run main-agent-harness:cli -- --action list --json '{"limit":5}'` and confirm the wrapper returns structured JSON without requiring an Electron renderer window.

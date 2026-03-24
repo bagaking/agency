@@ -22,6 +22,7 @@ Agency should borrow those boundaries, not necessarily their concrete runtime st
   - route Harness actions through host-managed capabilities with stable contracts;
   - make `Create Agent` the default product semantic for child task execution;
   - support future tool-specific enhancements such as true Codex fork without making them the Harness core;
+  - make agent-backed execution the default destination quickly, so a transitional JS reference runner does not become architecture debt;
   - leave a clean seam for future runner agents to consume approved skill packs instead of improvising raw tmux/file operations.
 - Non-Goals:
   - do not implement a fully autonomous open-ended planner in v1;
@@ -94,6 +95,50 @@ The Harness should have two distinct layers:
 
 This is the key lesson to borrow from `cclaw`: the scheduler/control plane and the execution runner should not be the same component.
 
+### Decision: Reference runner is transitional only
+The current `reference` runner is acceptable only as a checkpoint to prove:
+- run lifecycle,
+- capability registry contracts,
+- timeline/progress persistence,
+- `Create Agent` specialization wiring.
+
+It must not become the long-term default execution path.
+
+The production default should become an `agent-backed` runner as soon as the control-plane contracts are stable enough to support it.
+Once that path lands:
+- renderer/UI defaults should point to `agent_backed`;
+- the existing reference runner should move to a clearly non-default location such as `testOnly/` or `legacy/`;
+- no product semantics should depend on adding more logic to the reference runner.
+
+### Decision: Adopt a provider-backed agent runner instead of embedding model logic in the controller
+Agency does not currently have an in-process editor-side LLM runtime worth standardizing around.
+The most practical first production path is:
+- keep the Harness controller host-owned;
+- add an `agent-backed` runner adapter;
+- plug that runner into a small provider registry;
+- use locally available agent runtimes as providers, starting with Codex.
+
+For the first slice:
+- `codex-cli` is the default provider path because the workstation already has a real `codex` binary with non-interactive interfaces (`exec --json`, `fork`, `resume`, `mcp-server`);
+- `claude-cli` is a likely follow-on provider;
+- provider transport must stay isolated behind one provider seam so Agency can later switch Codex transport from CLI-first to SDK-backed without rewriting the Harness controller.
+
+### Decision: Runner skill packs become descriptors consumable by both JS and agent-backed paths
+Skill packs should stop being thought of as “logic bags living only inside JS adapters”.
+
+They should become stable descriptors with:
+- id
+- title
+- allowed capabilities
+- execution goal/prompt template
+- expected decision/result schema
+- optional provider hints
+
+This lets the same skill-pack contract serve:
+- the transitional JS path,
+- the future agent-backed runner,
+- later review/adjudication tools.
+
 ### Decision: Complex tool-native behaviors live in runner skill packs, not in the Harness core
 Some behaviors are too stateful to express as one raw capability call but still should not turn into open-ended agent improvisation. Examples:
 - inspect terminal runtime and confirm the source is still in the correct TUI;
@@ -129,19 +174,51 @@ Suggested shape:
 
 This contract should be transport-neutral and JSON-friendly.
 
+### Decision: Transport trust is host-derived, payload caller metadata is audit-only
+The Harness must separate:
+- transport-derived trust (`renderer_ipc`, `trusted_host_cli`, future provider lanes)
+- payload caller metadata (`callerType`, `callerId`, `sourceSurface`, `traceId`)
+
+The transport context decides:
+- capability grants
+- run visibility
+- inspect/list/cancel/resume access
+
+Payload caller metadata remains useful for:
+- audit
+- debugging
+- timeline provenance
+
+But it must never be a trust root.
+
+### Decision: Renderer reconciliation needs a stable client request id
+The run contract should carry both:
+- `runId` as the Harness-owned persistent identity
+- `clientRequestId` as the UI/request-owned correlation id
+
+Why both are needed:
+- `runId` is the source of truth after persistence
+- `clientRequestId` closes the race where a run can finish before a renderer has registered its `runId`
+
+This means:
+- renderer-side pending state is keyed by `clientRequestId`
+- progress events echo `clientRequestId`
+- final UI reconciliation uses either `runId` or `clientRequestId`, not “whichever event happened to arrive in time”
+
 ### Decision: Keep first implementation intentionally narrow
 v1 should prove the architecture, not solve every orchestration problem.
 
-Recommended v1 scope:
+Recommended implementation scope from here:
 - Harness run model and persistence
 - Harness controller lifecycle (`start`, `inspect`, `cancel`, `resume`)
 - capability registry for approved host-managed capabilities
-- one reference orchestration path using:
+- one agent-backed orchestration path using:
   - session runtime gateway
   - file intent gateway
-- one reference runner adapter shape (Codex-oriented, but not Codex-only by contract)
+- one provider registry with Codex as the first default provider
 - one runner skill-pack registry for bounded specializations such as `session.tool-native-fork`
 - Agent Cells `Fork` calling Harness `Create Agent` with a tool-native specialization instead of calling session runtime directly from renderer
+- keep the existing reference runner only for tests/debugging until the agent-backed runner is stable
 
 Deferred:
 - richer planning strategies
@@ -163,7 +240,8 @@ Deferred:
 - returns structured results only
 
 ### 3) Runner Adapter Layer
-- `codexRunnerAdapter`
+- `agentBackedRunnerAdapter`
+- test-only `referenceRunnerAdapter`
 - future `claudeRunnerAdapter`
 - future `geminiRunnerAdapter`
 
@@ -173,6 +251,54 @@ Deferred:
 - future browser/auth/inspection playbooks
 
 Skill packs are runner-facing playbooks, not a second capability plane. They orchestrate approved capabilities and may carry tool-specific heuristics, but they do not own persistence or authorization.
+
+### 3.6) Provider Registry Layer
+- `codexCliProvider`
+- future `claudeCliProvider`
+- future SDK-backed Codex provider
+
+Provider responsibilities:
+- run the chosen external agent runtime
+- enforce provider-local argument/env policy
+- stream structured events/results back into the Harness run
+- never own product side effects directly
+
+### Directory And Naming Plan
+The Harness code should converge on this split:
+
+```text
+apps/editor/electron/services/mainAgentHarness/
+  controller.js
+  policy.js
+  store.js
+  settings.js
+  capabilityRegistry.js
+  dedupe.js
+  eventBus.js
+  runnerAdapters/
+    agentBackedRunnerAdapter.js
+  runnerProviders/
+    index.js
+    codexCliProvider.js
+    claudeCliProvider.js
+    shared/
+      decisionSchema.js
+      promptBuilder.js
+      eventParser.js
+      providerProcess.js
+  skillPacks/
+    index.js
+    sessionCreateChild.js
+    sessionToolNativeFork.js
+  testOnly/
+    referenceRunnerAdapter.js
+```
+
+Naming rules:
+- `runnerAdapters/*Adapter.js` are Harness-facing execution lanes.
+- `runnerProviders/*Provider.js` are concrete external-runtime bridges.
+- `skillPacks/<name>.js` are stable descriptors/contracts, not ad-hoc host scripts.
+- anything under `testOnly/` must never be the default renderer/UI runner.
 
 ### 4) Run Store / Timeline
 - persistent run state
@@ -204,21 +330,24 @@ Skill packs are runner-facing playbooks, not a second capability plane. They orc
 1. Define the Harness run/state/timeline contract.
 2. Define the capability registry contract.
 3. Wire the Harness to existing host-managed gateways (`session runtime`, `file intent`).
-4. Add one reference runner adapter shape and bounded runner skill-pack registry.
-5. Route Agent Cells `Fork` through Harness `Create Agent` specialization.
-6. Add run inspection/cancel/resume surfaces.
-7. Expand to more capabilities only after the first control plane is stable.
+4. Add Harness settings + provider registry.
+5. Implement `agentBackedRunnerAdapter` with Codex as the first default provider.
+6. Convert current skill packs into stable descriptors consumed by the agent-backed runner.
+7. Route Agent Cells `Fork` through the new default `agent_backed` path.
+8. Move the reference runner to a non-default test/debug path.
+9. Add run inspection/cancel/resume surfaces.
+10. Expand to more capabilities only after the first control plane is stable.
 
 ## Documentation Plan
 Implementation should update:
 - `docs/notes-session-management.md`
   - explain how the Harness depends on session runtime capability rather than raw tmux logic.
 - `docs/notes-reusable-items-coding.md`
-  - register the Harness controller and capability registry if adopted.
+  - register the Harness controller, provider registry, and agent-backed runner modules if adopted.
 - `apps/editor/README.md`
-  - explain `Create Agent` as the main product semantic and position `Fork` as a specialized path.
+  - explain `Create Agent` as the main product semantic, position `Fork` as a specialized path, and document the default agent-backed runner/provider path.
 - `apps/editor/docs/manual-test.md`
-  - explain how Agent Cells `Fork` is now a Harness-driven `Create Agent` specialization and how to inspect/cancel runs.
+  - explain how Agent Cells `Fork` is now a Harness-driven `Create Agent` specialization via the default agent-backed runner, and how to inspect/cancel runs.
 - optionally add `docs/architecture-main-agent-harness.md`
   - if the final implementation has enough independent architecture to warrant a dedicated doc.
 
@@ -229,6 +358,7 @@ Borrow from `cclaw`:
 - runner adapters with structured result objects
 - explicit state/timeline for long-running runs
 - skill/playbook boundaries that let complex flows stay reusable without promoting them into raw host internals
+- Codex-backed execution as a real external agent runtime instead of a fake local “reference runner”
 
 Do not blindly copy:
 - container-heavy execution assumptions

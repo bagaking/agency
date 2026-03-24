@@ -17,8 +17,9 @@ import {
   writeTerminal as writeTerminalBridge,
 } from '../services/agencyBridge';
 import {
+  inspectMainAgentHarnessRun,
+  onMainAgentHarnessProgress,
   startMainAgentHarnessRun,
-  waitForMainAgentHarnessRun,
 } from '../services/mainAgentHarness';
 import {
   DEFAULT_FONT_SIZE,
@@ -49,6 +50,17 @@ export function useSessions(options: any = {}) {
   } = useSessionSelectionState(initialActiveSessions || {});
   const [sessionsByCellId, setSessionsByCellId] = useState({});
   const detachedPollBusyRef = useRef(false);
+  const pendingHarnessRunsRef = useRef<
+    Record<
+      string,
+      {
+        clientRequestId: string;
+        runId: string;
+        cellId: string;
+        sourceSessionId: string;
+      }
+    >
+  >({});
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionError, setSessionError] = useState('');
   const [pendingCommand, setPendingCommand] = useState(null);
@@ -297,6 +309,75 @@ export function useSessions(options: any = {}) {
     [loadSessionsForCell]
   );
 
+  const settlePendingHarnessRun = useCallback(
+    async ({
+      runId,
+      clientRequestId,
+      runSnapshot,
+    }: {
+      runId?: string;
+      clientRequestId?: string;
+      runSnapshot?: any;
+    }) => {
+      const normalizedClientRequestId = String(clientRequestId || '').trim();
+      const normalizedRunId = String(runId || runSnapshot?.runId || '').trim();
+      const pendingKey =
+        (normalizedClientRequestId &&
+          pendingHarnessRunsRef.current[normalizedClientRequestId] &&
+          normalizedClientRequestId) ||
+        Object.keys(pendingHarnessRunsRef.current).find(
+          (key) => pendingHarnessRunsRef.current[key]?.runId === normalizedRunId
+        ) ||
+        '';
+      if (!pendingKey) {
+        return false;
+      }
+      const pending = pendingHarnessRunsRef.current[pendingKey];
+      if (!pending?.cellId) {
+        return false;
+      }
+      const targetRunId = normalizedRunId || String(pending?.runId || '').trim();
+      if (!targetRunId) {
+        return false;
+      }
+      const run = runSnapshot || (await inspectMainAgentHarnessRun({ runId: targetRunId }));
+      const status = String(run?.status || '').trim().toLowerCase();
+      if (!['succeeded', 'failed', 'cancelled'].includes(status)) {
+        return false;
+      }
+      delete pendingHarnessRunsRef.current[pendingKey];
+      const targetCell = resolveCell(pending.cellId);
+      if (!targetCell) {
+        return true;
+      }
+      if (status !== 'succeeded') {
+        const failureMessage =
+          run?.failures?.[0]?.message ||
+          (status === 'cancelled' ? 'Harness run was cancelled.' : 'Harness run failed.');
+        setSessionError(failureMessage);
+        return true;
+      }
+      const created =
+        run?.result?.agent?.session ||
+        run?.progress?.outputsByStepId?.['create-agent']?.session ||
+        null;
+      await loadSessionsForCell(targetCell, { silent: true });
+      if (created?.id) {
+        selectionVersionRef.current += 1;
+        activeSessionByCellIdRef.current = {
+          ...activeSessionByCellIdRef.current,
+          [targetCell.id]: created.id,
+        };
+        setActiveSessionByCellId((current) => ({
+          ...current,
+          [targetCell.id]: created.id,
+        }));
+      }
+      return true;
+    },
+    [loadSessionsForCell, resolveCell, setActiveSessionByCellId]
+  );
+
   useEffect(() => {
     if (!detachedPollCells.length) {
       return undefined;
@@ -408,74 +489,115 @@ export function useSessions(options: any = {}) {
         } = options || {};
         if (smartFork) {
           const sourceSessionIdValue = sourceSessionId || parentSessionId || sessionId;
+          const clientRequestId = `fork-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
           if (!sourceSessionIdValue) {
             throw new Error('Fork source session is required.');
           }
-          const harnessRun = await startMainAgentHarnessRun({
-            sourceSurface: 'agent-cells',
-            callerType: 'renderer',
-            callerId: 'agent-cells-fork',
-            goal: {
-              type: 'create_agent',
-              title: 'Create Agent via Fork',
-              instruction:
-                'Create a child execution lane from the selected session using a tool-native fork specialization when available.',
+          const hasPendingFork = Object.values(pendingHarnessRunsRef.current).some(
+            (item) =>
+              item?.cellId === targetCell.id &&
+              item?.sourceSessionId === sourceSessionIdValue
+          );
+          if (hasPendingFork) {
+            throw new Error('A Fork run is already active for this session.');
+          }
+          pendingHarnessRunsRef.current = {
+            ...pendingHarnessRunsRef.current,
+            [clientRequestId]: {
+              clientRequestId,
+              runId: '',
+              cellId: targetCell.id,
+              sourceSessionId: sourceSessionIdValue,
             },
-            requestedCapabilities: ['session.runtime'],
-            contextRefs: [
-              {
-                type: 'cell',
-                cellId: targetCell.id,
-                worktreePath: targetCell.worktreePath,
+          };
+          try {
+            const harnessRun = await startMainAgentHarnessRun({
+              clientRequestId,
+              sourceSurface: 'agent-cells',
+              callerType: 'renderer',
+              callerId: 'agent-cells-fork',
+              goal: {
+                type: 'create_agent',
+                title: 'Create Agent via Fork',
+                instruction:
+                  'Create a child execution lane from the selected session using a tool-native fork specialization when available.',
               },
-              {
-                type: 'session',
-                sessionId: sourceSessionIdValue,
-              },
-            ],
-            runner: {
-              adapterId: 'reference',
-              steps: [
+              requestedCapabilities: ['session.runtime'],
+              contextRefs: [
                 {
-                  id: 'create-agent',
-                  kind: 'create_agent',
-                  title: 'Create Agent from selected session',
-                  skillPackId: 'session.tool-native-fork',
-                  agent: {
-                    strategy: 'tool_native_fork',
-                    sessionRuntime: {
-                      worktreePath: targetCell.worktreePath,
-                      cellId: targetCell.id,
-                      cellName: targetCell.name,
-                      cellBranch: targetCell.branch,
-                      sessionId: sourceSessionIdValue,
-                    },
-                  },
+                  type: 'cell',
+                  cellId: targetCell.id,
+                  worktreePath: targetCell.worktreePath,
+                },
+                {
+                  type: 'session',
+                  sessionId: sourceSessionIdValue,
                 },
               ],
-            },
-          });
-          const settledRun = await waitForMainAgentHarnessRun({
-            runId: harnessRun?.runId,
-            timeoutMs: 30_000,
-          });
-          const created =
-            settledRun?.result?.agent?.session ||
-            settledRun?.progress?.outputsByStepId?.['create-agent']?.session ||
-            null;
-          await loadSessionsForCell(targetCell, { silent: true });
-          if (created?.id) {
-            selectionVersionRef.current += 1;
-            activeSessionByCellIdRef.current = {
-              ...activeSessionByCellIdRef.current,
-              [targetCell.id]: created.id,
+              runner: {
+                adapterId: 'agent_backed',
+                providerId: 'codex_cli',
+                steps: [
+                  {
+                    id: 'create-agent',
+                    kind: 'create_agent',
+                    title: 'Create Agent from selected session',
+                    skillPackId: 'session.tool-native-fork',
+                    agent: {
+                      strategy: 'tool_native_fork',
+                      sessionRuntime: {
+                        worktreePath: targetCell.worktreePath,
+                        cellId: targetCell.id,
+                        cellName: targetCell.name,
+                        cellBranch: targetCell.branch,
+                        sessionId: sourceSessionIdValue,
+                      },
+                    },
+                  },
+                ],
+              },
+            });
+            const runId = String(harnessRun?.runId || '').trim();
+            if (!runId) {
+              throw new Error('Harness run did not return a runId.');
+            }
+            pendingHarnessRunsRef.current = {
+              ...pendingHarnessRunsRef.current,
+              [clientRequestId]: {
+                ...(pendingHarnessRunsRef.current[clientRequestId] || {
+                  clientRequestId,
+                  cellId: targetCell.id,
+                  sourceSessionId: sourceSessionIdValue,
+                }),
+                clientRequestId,
+                runId,
+                cellId: targetCell.id,
+                sourceSessionId: sourceSessionIdValue,
+              },
             };
-            setActiveSessionByCellId((current) => ({
-              ...current,
-              [targetCell.id]: created.id,
-            }));
+            if (
+              !(await settlePendingHarnessRun({
+                runId,
+                clientRequestId,
+                runSnapshot: harnessRun,
+              }))
+            ) {
+              const currentRun = await inspectMainAgentHarnessRun({ runId }).catch(() => null);
+              if (currentRun) {
+                await settlePendingHarnessRun({
+                  runId,
+                  clientRequestId,
+                  runSnapshot: currentRun,
+                });
+              }
+            }
+          } catch (error) {
+            const nextPending = { ...pendingHarnessRunsRef.current };
+            delete nextPending[clientRequestId];
+            pendingHarnessRunsRef.current = nextPending;
+            throw error;
           }
-          return created;
+          return null;
         }
         const preferredAvatar =
           avatar || pickSessionAvatarId(sessionsByCellId[targetCell.id] || []);
@@ -521,6 +643,7 @@ export function useSessions(options: any = {}) {
       resolveCell,
       selectedCell?.id,
       sessionsByCellId,
+      settlePendingHarnessRun,
       tmuxStatus?.available,
       tmuxStatus?.error,
       loadSessionsForCell,
@@ -803,6 +926,7 @@ export function useSessions(options: any = {}) {
   const clearSessionError = useCallback(() => setSessionError(''), []);
 
   const resetSessions = useCallback(() => {
+    pendingHarnessRunsRef.current = {};
     setSessionsByCellId({});
     setActiveSessionByCellId({});
     activeSessionByCellIdRef.current = {};
@@ -810,6 +934,22 @@ export function useSessions(options: any = {}) {
     setSessionError('');
     setPendingCommand(null);
   }, [resetActivityState, setActiveSessionByCellId, activeSessionByCellIdRef]);
+
+  useEffect(() => {
+    const unsubscribe = onMainAgentHarnessProgress?.((event: any) => {
+      const runId = String(event?.runId || '').trim();
+      const clientRequestId = String(event?.clientRequestId || '').trim();
+      if (!runId || !event?.terminal) {
+        return;
+      }
+      void settlePendingHarnessRun({ runId, clientRequestId }).catch((error: any) => {
+        setSessionError(error?.message || 'Harness run failed.');
+      });
+    });
+    return () => {
+      unsubscribe?.();
+    };
+  }, [settlePendingHarnessRun]);
 
   return {
     sessions,

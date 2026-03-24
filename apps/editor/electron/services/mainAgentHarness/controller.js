@@ -1,10 +1,16 @@
 // @ts-nocheck
 const crypto = require('crypto');
-const { EventEmitter } = require('events');
 
 const { createDefaultCapabilityRegistry, normalizeRequestedCapabilities } = require('./capabilityRegistry');
-const { createReferenceRunnerAdapter } = require('./runnerAdapters/referenceRunnerAdapter');
+const { createHarnessRunDedupeIndex, computeHarnessRunDedupeKeys } = require('./dedupe');
+const { createHarnessEventBus } = require('./eventBus');
+const { createDefaultHarnessPolicy, normalizeOwnerContext } = require('./policy');
+const { createAgentBackedRunnerAdapter } = require('./runnerAdapters/agentBackedRunnerAdapter');
+const { createRunnerProviderRegistry } = require('./runnerProviders');
+const { createDefaultHarnessSettings, resolveRunnerAdapterId } = require('./settings');
+const { createRunnerSkillPackRegistry } = require('./skillPacks');
 const { createFileHarnessRunStore } = require('./store');
+const { createReferenceRunnerAdapter } = require('./testOnly/referenceRunnerAdapter');
 
 function createId(prefix) {
   if (crypto.randomUUID) {
@@ -93,11 +99,12 @@ function normalizeRunnerStep(step = {}, index = 0) {
   };
 }
 
-function normalizeRunner(value = {}) {
+function normalizeRunner(value = {}, settings = undefined) {
   const raw = isPlainObject(value) ? value : {};
   const steps = Array.isArray(raw.steps) ? raw.steps.map((step, index) => normalizeRunnerStep(step, index)) : [];
   return {
-    adapterId: String(raw.adapterId || 'reference').trim().toLowerCase() || 'reference',
+    adapterId: resolveRunnerAdapterId(raw.adapterId, settings),
+    providerId: String(raw.providerId || '').trim().toLowerCase(),
     steps,
   };
 }
@@ -143,19 +150,40 @@ function appendUnique(list, item, predicate) {
 function createHarnessController({
   store = createFileHarnessRunStore(),
   capabilityRegistry = createDefaultCapabilityRegistry(),
-  runnerAdapters = [createReferenceRunnerAdapter()],
+  policy = createDefaultHarnessPolicy(),
+  settings = createDefaultHarnessSettings(),
+  providerRegistry = createRunnerProviderRegistry(),
+  skillPacks = createRunnerSkillPackRegistry(),
+  runnerAdapters,
   logRuntime = async () => undefined,
 } = {}) {
-  const progressEmitter = new EventEmitter();
+  const eventBus = createHarnessEventBus();
   const activeRuns = new Map();
+  const dedupeIndex = createHarnessRunDedupeIndex({
+    store,
+    isTerminalStatus,
+  });
+  const resolvedRunnerAdapters =
+    Array.isArray(runnerAdapters) && runnerAdapters.length > 0
+      ? runnerAdapters
+      : [
+          createAgentBackedRunnerAdapter({
+            providerRegistry,
+            skillPacks,
+            settings,
+          }),
+          createReferenceRunnerAdapter({
+            skillPacks,
+          }),
+        ];
   const adapterMap = new Map(
-    (Array.isArray(runnerAdapters) ? runnerAdapters : [])
+    resolvedRunnerAdapters
       .filter(Boolean)
       .map((adapter) => [String(adapter.id || '').trim().toLowerCase(), adapter])
   );
 
   function emitProgress(runId, entry, extra = {}) {
-    progressEmitter.emit('progress', {
+    eventBus.emitProgress({
       runId,
       entry: cloneValue(entry),
       ...cloneValue(extra),
@@ -173,23 +201,63 @@ function createHarnessController({
       status: next.status,
       currentStep: next.currentStep,
       progress: next.progress,
+      result: next.result,
+      failures: next.failures,
+      owner: next.owner,
+      clientRequestId: next.clientRequestId,
       terminal: isTerminalStatus(next.status),
       ...extra,
     });
     return next;
   }
 
-  async function startRun(payload = {}) {
+  async function startRun(payload = {}, context = {}) {
     const runId = createId('run');
     const createdAt = nowIso();
+    const caller = normalizeCaller(payload);
+    const owner = normalizeOwnerContext(context);
+    const runner = normalizeRunner(payload.runner, settings);
+    const requestedCapabilitiesRequested = normalizeRequestedCapabilities(
+      payload.requestedCapabilities
+    );
+    const requestedCapabilities = policy.resolveGrantedCapabilities({
+      caller,
+      requestedCapabilities: requestedCapabilitiesRequested,
+      owner,
+      goal: payload.goal,
+      payload,
+    });
+    const dedupeKeys = computeHarnessRunDedupeKeys({
+      runner,
+    });
+    for (const dedupeKey of dedupeKeys) {
+      const existingRun = await dedupeIndex.findActiveRunByKey(dedupeKey);
+      if (existingRun) {
+        throw createHarnessFailure('RUN_ALREADY_ACTIVE', 'A matching Harness run is already active.', {
+          runId: existingRun.runId,
+          dedupeKey,
+        });
+      }
+    }
+    const grant = policy.describeGrant({
+      caller,
+      requestedCapabilities: requestedCapabilitiesRequested,
+      grantedCapabilities: requestedCapabilities,
+      owner,
+    });
     const run = {
       runId,
+      clientRequestId: String(payload?.clientRequestId || createId('request')).trim(),
       goal: normalizeGoal(payload.goal),
       constraints: isPlainObject(payload.constraints) ? cloneValue(payload.constraints) : {},
-      requestedCapabilities: normalizeRequestedCapabilities(payload.requestedCapabilities),
+      requestedCapabilitiesRequested,
+      requestedCapabilities,
       contextRefs: normalizeContextRefs(payload.contextRefs),
-      caller: normalizeCaller(payload),
-      runner: normalizeRunner(payload.runner),
+      caller,
+      owner,
+      policy: grant,
+      runner,
+      dedupeKeys,
       status: 'queued',
       currentStep: null,
       timeline: [],
@@ -211,6 +279,7 @@ function createHarnessController({
       cancelReason: '',
     };
     await store.create(run);
+    dedupeIndex.register(run);
     await appendTimeline(
       runId,
       createTimelineEntry({
@@ -221,14 +290,15 @@ function createHarnessController({
         detail: {
           adapterId: run.runner.adapterId,
           goalType: run.goal?.type || '',
+          capabilityGrant: grant.strategy,
         },
       })
     );
     queueExecution(runId);
-    return inspectRun({ runId });
+    return inspectRun({ runId }, context);
   }
 
-  async function inspectRun({ runId } = {}) {
+  async function inspectRun({ runId } = {}, context = {}) {
     const normalizedRunId = String(runId || '').trim();
     if (!normalizedRunId) {
       throw createHarnessFailure('USER_ERROR', 'runId is required.');
@@ -237,15 +307,22 @@ function createHarnessController({
     if (!run) {
       throw createHarnessFailure('RUN_NOT_FOUND', `Harness run not found: ${normalizedRunId}.`);
     }
+    const accessError = policy.assertRunAccess({
+      run,
+      owner: normalizeOwnerContext(context),
+    });
+    if (accessError) {
+      throw createHarnessFailure(accessError.code || 'PERMISSION_DENIED', accessError.message);
+    }
     return run;
   }
 
-  async function cancelRun({ runId, reason = '' } = {}) {
+  async function cancelRun({ runId, reason = '' } = {}, context = {}) {
     const normalizedRunId = String(runId || '').trim();
     if (!normalizedRunId) {
       throw createHarnessFailure('USER_ERROR', 'runId is required.');
     }
-    const current = await inspectRun({ runId: normalizedRunId });
+    const current = await inspectRun({ runId: normalizedRunId }, context);
     if (isTerminalStatus(current.status)) {
       return current;
     }
@@ -263,6 +340,9 @@ function createHarnessController({
       }
       return run;
     });
+    if (next.status === 'cancelled') {
+      dedupeIndex.unregister(next);
+    }
 
     await appendTimeline(
       normalizedRunId,
@@ -281,10 +361,10 @@ function createHarnessController({
     if (active?.abortController) {
       active.abortController.abort();
     }
-    return inspectRun({ runId: normalizedRunId });
+    return inspectRun({ runId: normalizedRunId }, context);
   }
 
-  async function resumeRun({ runId } = {}) {
+  async function resumeRun({ runId } = {}, context = {}) {
     const normalizedRunId = String(runId || '').trim();
     if (!normalizedRunId) {
       throw createHarnessFailure('USER_ERROR', 'runId is required.');
@@ -292,7 +372,7 @@ function createHarnessController({
     if (activeRuns.has(normalizedRunId)) {
       throw createHarnessFailure('RUN_ACTIVE', 'Cannot resume an active Harness run.');
     }
-    const current = await inspectRun({ runId: normalizedRunId });
+    const current = await inspectRun({ runId: normalizedRunId }, context);
     if (!['failed', 'cancelled'].includes(String(current.status || '').trim().toLowerCase())) {
       throw createHarnessFailure(
         'RUN_NOT_RESUMABLE',
@@ -314,6 +394,7 @@ function createHarnessController({
       run.progress.resumeCount = Number(run.progress.resumeCount || 0) + 1;
       return run;
     });
+    dedupeIndex.register(current);
     await appendTimeline(
       normalizedRunId,
       createTimelineEntry({
@@ -324,7 +405,7 @@ function createHarnessController({
       })
     );
     queueExecution(normalizedRunId);
-    return inspectRun({ runId: normalizedRunId });
+    return inspectRun({ runId: normalizedRunId }, context);
   }
 
   async function updateCapabilityCall(runId, callId, updater) {
@@ -362,6 +443,7 @@ function createHarnessController({
     }
 
     return {
+      abortSignal,
       createFailure: createHarnessFailure,
       async getRun() {
         return loadRun();
@@ -603,7 +685,7 @@ function createHarnessController({
   async function finalizeRun(runId, status, detail = {}) {
     const normalizedStatus = String(status || '').trim().toLowerCase();
     const finalAt = nowIso();
-    await store.update(runId, (run) => {
+    const next = await store.update(runId, (run) => {
       run.status = normalizedStatus;
       run.currentStep = null;
       run.finishedAt = finalAt;
@@ -617,6 +699,9 @@ function createHarnessController({
       }
       return run;
     });
+    if (isTerminalStatus(normalizedStatus)) {
+      dedupeIndex.unregister(next);
+    }
     await appendTimeline(
       runId,
       createTimelineEntry({
@@ -732,14 +817,15 @@ function createHarnessController({
     inspectRun,
     cancelRun,
     resumeRun,
-    async listRuns(payload = {}) {
-      return store.list(payload || {});
+    async listRuns(payload = {}, context = {}) {
+      const runs = await store.list(payload || {});
+      return policy.filterRunsForAccess({
+        runs,
+        owner: normalizeOwnerContext(context),
+      });
     },
     onProgress(handler) {
-      progressEmitter.on('progress', handler);
-      return () => {
-        progressEmitter.off('progress', handler);
-      };
+      return eventBus.onProgress(handler);
     },
   };
 }
