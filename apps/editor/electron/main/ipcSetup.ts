@@ -27,11 +27,18 @@ import { setupTmuxHandlers } from "../ipc/handlers/tmux";
 import { setupUiStateHandlers } from "../ipc/handlers/uiState";
 import { setupVoiceCaptureHandlers } from "../ipc/handlers/voiceCapture";
 import { setupWorkbenchHandlers } from "../ipc/handlers/workbench";
+import { setupWindowShellHandlers } from "../ipc/handlers/windowShell";
 import { setupWorktreeHandlers } from "../ipc/handlers/worktrees";
 import { setupWorktreeLinksHandlers } from "../ipc/handlers/worktreeLinks";
 
 type MainWindowGetter = () => BrowserWindow | undefined;
-type HandlerDeps = { getMainWindow: MainWindowGetter };
+type CreateEditorWindow = (options?: {
+  startEmpty?: boolean;
+  projectRoot?: string;
+  windowStateId?: string;
+  allowStoredProjectRoot?: boolean;
+}) => Promise<BrowserWindow | undefined>;
+type HandlerDeps = { getMainWindow: MainWindowGetter; createEditorWindow: CreateEditorWindow };
 type IpcRegistration = (deps: HandlerDeps) => void;
 
 const withMainWindow = (
@@ -74,9 +81,13 @@ const IPC_REGISTRATIONS: IpcRegistration[] = [
   withoutDeps(setupVoiceCaptureHandlers),
   withoutDeps(setupSystemHandlers),
   withoutDeps(setupSessionMapHandlers),
+  withMainWindow(setupWindowShellHandlers),
 ];
 
-export function setupMainIpcHandlers(getMainWindow: MainWindowGetter): void {
-  const deps = { getMainWindow };
+export function setupMainIpcHandlers(
+  getMainWindow: MainWindowGetter,
+  createEditorWindow: CreateEditorWindow
+): void {
+  const deps = { getMainWindow, createEditorWindow };
   IPC_REGISTRATIONS.forEach((register) => register(deps));
 }

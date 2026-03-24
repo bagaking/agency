@@ -5,7 +5,7 @@ const path = require('path');
 
 const fsp = fs.promises;
 
-const STATE_VERSION = 2;
+const STATE_VERSION = 3;
 const LEGACY_WINDOW_STATE_ID = 'legacy-default';
 const WINDOW_STATE_KEYS = [
   'projectRoot',
@@ -19,6 +19,9 @@ const WINDOW_STATE_KEYS = [
   'hilDrawerOpen',
   'hilDrawerPanel',
   'hilDrawerPanelByView',
+  'windowBounds',
+  'windowMaximized',
+  'windowFullScreen',
 ];
 
 let stateCache = null;
@@ -36,6 +39,22 @@ function getStatePath() {
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function normalizeWindowStateIdList(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const seen = new Set();
+  return value
+    .map((entry) => String(entry || '').trim())
+    .filter((entry) => {
+      if (!entry || seen.has(entry)) {
+        return false;
+      }
+      seen.add(entry);
+      return true;
+    });
 }
 
 function createEmptyState() {
@@ -83,9 +102,10 @@ function normalizeStoredState(raw) {
     const hasLegacyWindowState = Object.keys(legacyWindowState).length > 0;
     return {
       version: STATE_VERSION,
-      appState: Array.isArray(raw.recentProjects)
-        ? { recentProjects: raw.recentProjects }
-        : {},
+      appState: {
+        ...(Array.isArray(raw.recentProjects) ? { recentProjects: raw.recentProjects } : {}),
+        ...(hasLegacyWindowState ? { openWindowStateIds: [LEGACY_WINDOW_STATE_ID] } : {}),
+      },
       windowStates: hasLegacyWindowState
         ? { [LEGACY_WINDOW_STATE_ID]: legacyWindowState }
         : {},
@@ -109,6 +129,16 @@ function normalizeStoredState(raw) {
   });
 
   const lastActiveWindowStateId = String(raw.lastActiveWindowStateId || '').trim();
+  const normalizedOpenWindowStateIds = normalizeWindowStateIdList(appState.openWindowStateIds).filter(
+    (windowStateId) => Boolean(windowStates[windowStateId])
+  );
+  if (normalizedOpenWindowStateIds.length > 0) {
+    appState.openWindowStateIds = normalizedOpenWindowStateIds;
+  } else if (lastActiveWindowStateId && windowStates[lastActiveWindowStateId]) {
+    appState.openWindowStateIds = [lastActiveWindowStateId];
+  } else {
+    delete appState.openWindowStateIds;
+  }
 
   return {
     version: STATE_VERSION,
@@ -254,6 +284,19 @@ async function getLastActiveWindowStateId() {
   return String(state.lastActiveWindowStateId || '').trim();
 }
 
+async function getOpenWindowStateIds() {
+  const state = await readStoredState();
+  return normalizeWindowStateIdList(state.appState?.openWindowStateIds).filter((windowStateId) =>
+    Boolean(state.windowStates?.[windowStateId])
+  );
+}
+
+async function setOpenWindowStateIds(windowStateIds) {
+  return updateAppUiState({
+    openWindowStateIds: normalizeWindowStateIdList(windowStateIds),
+  });
+}
+
 async function updateUiState(partial) {
   return updateAppUiState(partial);
 }
@@ -264,12 +307,14 @@ export {
   WINDOW_STATE_KEYS,
   createWindowStateId,
   getLastActiveWindowStateId,
+  getOpenWindowStateIds,
   getStatePath,
   markLastActiveWindowState,
   normalizeStoredState,
   readAppUiState,
   readUiState,
   readWindowUiState,
+  setOpenWindowStateIds,
   updateAppUiState,
   updateUiState,
   updateWindowUiState,

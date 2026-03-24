@@ -4,8 +4,10 @@ import {
   nativeImage,
   protocol,
   net,
+  screen,
   type BrowserWindow as BrowserWindowType,
   type NativeImage,
+  type Rectangle,
 } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -32,7 +34,11 @@ const {
 const {
   createWindowStateId,
   getLastActiveWindowStateId,
+  getOpenWindowStateIds,
   markLastActiveWindowState,
+  readWindowUiState,
+  setOpenWindowStateIds,
+  updateWindowUiState,
 } = require('./services/uiState');
 const {
   initRuntimeLogger,
@@ -40,6 +46,10 @@ const {
   closeRuntimeLogger,
   getRuntimeLogInfo,
 } = require('./services/runtimeLog');
+const {
+  broadcastWindowShellUpdated,
+  syncWindowTitle,
+} = require('./services/windowShell');
 
 type AgencyWindow = BrowserWindowType & {
   __agencyAllowStoredProjectRoot?: boolean;
@@ -53,6 +63,14 @@ type RendererInfo = {
 
 let mainWindow: AgencyWindow | undefined;
 let testUserDataPath: string | null = null;
+let isQuitting = false;
+const pendingWindowStateWrites = new Map<number, ReturnType<typeof setTimeout>>();
+
+const DEFAULT_WINDOW_WIDTH = 1280;
+const DEFAULT_WINDOW_HEIGHT = 820;
+const MIN_WINDOW_WIDTH = 1024;
+const MIN_WINDOW_HEIGHT = 700;
+const WINDOW_STATE_WRITE_DEBOUNCE_MS = 180;
 
 app.setName('Agency');
 
@@ -90,6 +108,130 @@ const startupTimeline = createStartupTimeline(({ stage, elapsedMs, meta }) => {
 
 function recordStartup(stage: string, meta: StartupMeta = {}): void {
   startupTimeline.record(stage, meta);
+}
+
+function normalizeWindowStateId(value: unknown): string {
+  return String(value || '').trim();
+}
+
+function normalizeStoredProjectRoot(value: unknown): string {
+  const normalized = String(value || '').trim();
+  if (!normalized || !fs.existsSync(normalized)) {
+    return '';
+  }
+  return normalized;
+}
+
+function clearPendingWindowStateWrite(windowId: number): void {
+  const handle = pendingWindowStateWrites.get(windowId);
+  if (!handle) {
+    return;
+  }
+  clearTimeout(handle);
+  pendingWindowStateWrites.delete(windowId);
+}
+
+async function syncOpenWindowStateIds(): Promise<void> {
+  if (isQuitting) {
+    return;
+  }
+  const openWindowStateIds = BrowserWindow.getAllWindows()
+    .filter((window) => !window.isDestroyed?.())
+    .map((window) => normalizeWindowStateId((window as AgencyWindow).__agencyWindowStateId))
+    .filter(Boolean);
+  await setOpenWindowStateIds(openWindowStateIds);
+}
+
+function sanitizeWindowBounds(bounds: unknown): Rectangle | null {
+  if (!bounds || typeof bounds !== 'object') {
+    return null;
+  }
+
+  const raw = bounds as Partial<Rectangle>;
+  const width = Math.max(MIN_WINDOW_WIDTH, Math.round(Number(raw.width) || 0));
+  const height = Math.max(MIN_WINDOW_HEIGHT, Math.round(Number(raw.height) || 0));
+  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+    return null;
+  }
+
+  const fallback = {
+    width: DEFAULT_WINDOW_WIDTH,
+    height: DEFAULT_WINDOW_HEIGHT,
+    x: undefined,
+    y: undefined,
+  };
+  const candidate = {
+    x: Number.isFinite(Number(raw.x)) ? Math.round(Number(raw.x)) : fallback.x,
+    y: Number.isFinite(Number(raw.y)) ? Math.round(Number(raw.y)) : fallback.y,
+    width,
+    height,
+  };
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const display = screen.getDisplayMatching({
+    x: candidate.x ?? primaryDisplay.workArea.x,
+    y: candidate.y ?? primaryDisplay.workArea.y,
+    width: candidate.width,
+    height: candidate.height,
+  });
+  const workArea = display?.workArea || primaryDisplay.workArea;
+  const nextWidth = Math.min(candidate.width, workArea.width);
+  const nextHeight = Math.min(candidate.height, workArea.height);
+  const centeredX = workArea.x + Math.max(0, Math.round((workArea.width - nextWidth) / 2));
+  const centeredY = workArea.y + Math.max(0, Math.round((workArea.height - nextHeight) / 2));
+  const maxX = workArea.x + Math.max(0, workArea.width - nextWidth);
+  const maxY = workArea.y + Math.max(0, workArea.height - nextHeight);
+
+  return {
+    x:
+      candidate.x === undefined
+        ? centeredX
+        : Math.min(Math.max(candidate.x, workArea.x), maxX),
+    y:
+      candidate.y === undefined
+        ? centeredY
+        : Math.min(Math.max(candidate.y, workArea.y), maxY),
+    width: nextWidth,
+    height: nextHeight,
+  };
+}
+
+async function persistWindowShellState(win: AgencyWindow): Promise<void> {
+  if (!win || win.isDestroyed?.()) {
+    return;
+  }
+  const windowStateId = normalizeWindowStateId(win.__agencyWindowStateId);
+  if (!windowStateId) {
+    return;
+  }
+  const geometrySource = win.isMaximized() || win.isFullScreen() ? win.getNormalBounds() : win.getBounds();
+  await updateWindowUiState(windowStateId, {
+    windowBounds: {
+      x: geometrySource.x,
+      y: geometrySource.y,
+      width: geometrySource.width,
+      height: geometrySource.height,
+    },
+    windowMaximized: win.isMaximized(),
+    windowFullScreen: win.isFullScreen(),
+  });
+}
+
+function scheduleWindowShellStatePersist(win: AgencyWindow): void {
+  if (!win || win.isDestroyed?.()) {
+    return;
+  }
+  clearPendingWindowStateWrite(win.id);
+  const handle = setTimeout(() => {
+    pendingWindowStateWrites.delete(win.id);
+    void persistWindowShellState(win).catch((error) => {
+      logRuntime('warn', 'window state persist failed', {
+        windowId: win.id,
+        windowStateId: normalizeWindowStateId(win.__agencyWindowStateId),
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }, WINDOW_STATE_WRITE_DEBOUNCE_MS);
+  pendingWindowStateWrites.set(win.id, handle);
 }
 
 recordStartup('process-start', {
@@ -235,37 +377,92 @@ async function resolveLaunchProjectRoot(
   return '';
 }
 
+function registerWindowShellTracking(win: AgencyWindow): void {
+  const markFocused = () => {
+    mainWindow = win;
+    if (win.__agencyWindowStateId) {
+      void markLastActiveWindowState(win.__agencyWindowStateId);
+    }
+    syncWindowTitle(win);
+    broadcastWindowShellUpdated();
+  };
+
+  win.on('focus', markFocused);
+  win.on('move', () => scheduleWindowShellStatePersist(win));
+  win.on('resize', () => scheduleWindowShellStatePersist(win));
+  win.on('maximize', () => scheduleWindowShellStatePersist(win));
+  win.on('unmaximize', () => scheduleWindowShellStatePersist(win));
+  win.on('enter-full-screen', () => scheduleWindowShellStatePersist(win));
+  win.on('leave-full-screen', () => scheduleWindowShellStatePersist(win));
+  win.on('show', () => broadcastWindowShellUpdated());
+  win.on('hide', () => broadcastWindowShellUpdated());
+  win.on('closed', () => {
+    clearPendingWindowStateWrite(win.id);
+    clearWindowProjectRoot(win.id);
+    if (mainWindow === win) {
+      mainWindow = undefined;
+    }
+    if (!isQuitting) {
+      void syncOpenWindowStateIds();
+    }
+    broadcastWindowShellUpdated();
+  });
+}
+
 async function createWindow({
   startEmpty = false,
   projectRoot = '',
+  windowStateId: requestedWindowStateId = '',
+  allowStoredProjectRoot,
 }: {
   startEmpty?: boolean;
   projectRoot?: string;
+  windowStateId?: string;
+  allowStoredProjectRoot?: boolean;
 } = {}): Promise<AgencyWindow> {
   const normalizedProjectRoot = String(projectRoot || '').trim();
-  const allowStoredProjectRoot = !startEmpty && !normalizedProjectRoot;
-  const preferredWindowStateId = allowStoredProjectRoot
+  const shouldAllowStoredProjectRoot =
+    allowStoredProjectRoot ?? (!startEmpty && !normalizedProjectRoot);
+  const normalizedRequestedWindowStateId = normalizeWindowStateId(requestedWindowStateId);
+  const preferredWindowStateId = normalizedRequestedWindowStateId || (shouldAllowStoredProjectRoot
     ? await getLastActiveWindowStateId()
-    : '';
+    : '');
   const windowStateId = preferredWindowStateId || createWindowStateId();
+  const storedWindowState = await readWindowUiState(windowStateId);
+  const storedProjectRoot = shouldAllowStoredProjectRoot
+    ? normalizeStoredProjectRoot(storedWindowState?.projectRoot)
+    : '';
+  const restoredBounds = sanitizeWindowBounds(storedWindowState?.windowBounds);
+  const shouldRestoreMaximized = Boolean(storedWindowState?.windowMaximized);
+  const shouldRestoreFullScreen = Boolean(storedWindowState?.windowFullScreen);
 
   recordStartup('window-create-start', {
     startEmpty,
     hasProjectRoot: Boolean(normalizedProjectRoot),
-    allowStoredProjectRoot,
+    allowStoredProjectRoot: shouldAllowStoredProjectRoot,
     windowStateId,
   });
 
   const iconImage = resolveIconImage();
   const win = new BrowserWindow({
-    width: 1280,
-    height: 820,
-    minWidth: 1024,
-    minHeight: 700,
+    width: restoredBounds?.width ?? DEFAULT_WINDOW_WIDTH,
+    height: restoredBounds?.height ?? DEFAULT_WINDOW_HEIGHT,
+    ...(restoredBounds ? { x: restoredBounds.x, y: restoredBounds.y } : {}),
+    minWidth: MIN_WINDOW_WIDTH,
+    minHeight: MIN_WINDOW_HEIGHT,
     backgroundColor: '#111318',
     autoHideMenuBar: true,
     ...(iconImage ? { icon: iconImage } : {}),
     title: 'Agency',
+    ...(process.platform === 'darwin'
+      ? {
+          titleBarStyle: 'hiddenInset' as const,
+          trafficLightPosition: {
+            x: 14,
+            y: 16,
+          },
+        }
+      : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -274,31 +471,35 @@ async function createWindow({
     },
   }) as AgencyWindow;
 
-  win.__agencyAllowStoredProjectRoot = allowStoredProjectRoot;
+  win.__agencyAllowStoredProjectRoot = shouldAllowStoredProjectRoot;
   win.__agencyWindowStateId = windowStateId;
   if (normalizedProjectRoot) {
     await setProjectRoot(normalizedProjectRoot, {
       windowId: win.id,
       windowStateId,
     });
+  } else if (storedProjectRoot) {
+    setWindowProjectRoot(win.id, storedProjectRoot);
   }
-  win.on('focus', () => {
-    mainWindow = win;
-    if (win.__agencyWindowStateId) {
-      void markLastActiveWindowState(win.__agencyWindowStateId);
-    }
-  });
-  win.on('closed', () => {
-    clearWindowProjectRoot(win.id);
-  });
+  syncWindowTitle(win);
+  registerWindowShellTracking(win);
   recordStartup('window-created', { id: win.id });
 
   if (windowStateId) {
     await markLastActiveWindowState(windowStateId);
   }
+  if (shouldRestoreMaximized) {
+    win.maximize();
+  }
+  if (shouldRestoreFullScreen) {
+    win.setFullScreen(true);
+  }
   loadRendererWindow(win);
   attachWindowDiagnostics(win);
   mainWindow = win;
+  await persistWindowShellState(win);
+  await syncOpenWindowStateIds();
+  broadcastWindowShellUpdated();
   return win;
 }
 
@@ -337,11 +538,13 @@ async function handleProjectSelection(): Promise<void> {
     });
     if (result?.projectRoot && ownerWindow) {
       setWindowProjectRoot(ownerWindow.id, result.projectRoot);
+      syncWindowTitle(ownerWindow);
       ownerWindow.webContents.send('project:updated', result);
     }
     if (result?.recentProjects) {
       broadcastRecentProjects(result.recentProjects);
     }
+    broadcastWindowShellUpdated();
   } catch (error) {
     logRuntime('error', 'project selection failed', {
       error: error instanceof Error ? error.message : String(error),
@@ -362,6 +565,36 @@ async function handleSecondaryLaunch(argv: string[] = [], workingDirectory = pro
   win.focus();
 }
 
+async function restoreInitialWindows(launchProjectRoot: string): Promise<void> {
+  if (launchProjectRoot) {
+    await createWindow({
+      projectRoot: launchProjectRoot,
+    });
+    return;
+  }
+
+  const openWindowStateIds = await getOpenWindowStateIds();
+  const lastActiveWindowStateId = normalizeWindowStateId(await getLastActiveWindowStateId());
+  const orderedWindowStateIds = [
+    ...openWindowStateIds.filter((windowStateId: string) => windowStateId && windowStateId !== lastActiveWindowStateId),
+    ...(lastActiveWindowStateId && openWindowStateIds.includes(lastActiveWindowStateId)
+      ? [lastActiveWindowStateId]
+      : []),
+  ];
+
+  if (orderedWindowStateIds.length === 0) {
+    await createWindow({ startEmpty: true });
+    return;
+  }
+
+  for (const windowStateId of orderedWindowStateIds) {
+    await createWindow({
+      windowStateId,
+      allowStoredProjectRoot: true,
+    });
+  }
+}
+
 function setupAppLifecycle(): void {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -374,10 +607,15 @@ function setupAppLifecycle(): void {
     if (process.platform !== 'darwin') {
       closeRuntimeLogger();
       app.quit();
+      return;
+    }
+    if (!isQuitting) {
+      void setOpenWindowStateIds([]);
     }
   });
 
   app.on('before-quit', () => {
+    isQuitting = true;
     clearRegisteredShortcuts();
     closeRuntimeLogger();
   });
@@ -419,7 +657,7 @@ async function bootstrapApp(): Promise<void> {
   });
 
   recordStartup('ipc-handlers-setup-start');
-  setupMainIpcHandlers(() => mainWindow);
+  setupMainIpcHandlers(() => mainWindow, createWindow);
   recordStartup('ipc-handlers-ready');
 
   recordStartup('asset-protocol-setup');
@@ -456,9 +694,7 @@ async function bootstrapApp(): Promise<void> {
   recordStartup('menu-built');
 
   const launchProjectRoot = await resolveLaunchProjectRoot(process.argv);
-  await createWindow({
-    projectRoot: launchProjectRoot,
-  });
+  await restoreInitialWindows(launchProjectRoot);
   recordStartup('window-create-requested');
 
   recordStartup('voice-helper-warmup-start');

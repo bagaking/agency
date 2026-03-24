@@ -4,6 +4,7 @@
 
 - v0.2 targets macOS first while keeping a path open for cross-platform support.
 - Agency uses a single desktop app instance with multiple independent editor windows.
+- Normal relaunch restores the previous editor window set and each window's saved geometry when no explicit target repo is provided.
 - Electron + React + Tailwind CSS + Rive (animation placeholder).
 - Embedded terminal via xterm.js and node-pty.
 - Session keepalive uses tmux (required).
@@ -11,6 +12,7 @@
 ## Navigation
 
 - The activity bar includes Explorer and Hierarchy entries; the home logo returns to Agent Cells.
+- The custom title bar shows the current project name, exposes `Open/Switch Project`, and uses the app icon as a window switcher / new-window launcher.
 - Settings provides a lightweight dashboard with project summary, recent projects, and entry cards for Actions, Gates, and Softlinks.
 - The docked sidebar supports resize/collapse and persists width state across launches.
 - Agent Cells focuses on Cell management and offers jump links to Actions, Gates, and Softlinks.
@@ -165,8 +167,12 @@
 - If no project directory is configured, the editor opens Explorer with an empty-state prompt.
 - Use **Select Project** to choose a repository for the current window.
 - The app keeps one desktop instance and routes additional launches into that instance as new windows instead of relying on isolated parallel app processes.
+- Clicking the custom title-bar app icon opens a window switcher for the currently open editor windows and also exposes `New Window`.
+- On macOS, the Dock menu also mirrors the currently open editor windows for quick focus switching.
+- The custom title bar always shows the active window's current project name (or an empty-project label).
 - Recent projects are shown in the sidebar and Project settings when no project is open.
 - New windows start without a project context; use recent projects to switch.
+- On relaunch without an explicit target repository, Agency restores the last open editor window set and each window's saved geometry.
 
 ## Packaging & Install (macOS)
 

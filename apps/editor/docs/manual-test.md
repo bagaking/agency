@@ -2,7 +2,11 @@
 
 ## Launch
 - [ ] Start the renderer and main process with `npm run dev`.
-- [ ] Verify the Agency window opens and renders the header.
+- [ ] Verify the Agency window opens, renders the custom title bar, and shows the current project name or an empty-project label.
+- [ ] Open a second window and confirm the title-bar app icon menu lists both windows and can switch focus between them.
+- [ ] On macOS, right-click the Dock icon and confirm the Dock menu lists the open editor windows and can focus the selected one.
+- [ ] Resize and move a window, relaunch the app, and confirm its geometry is restored.
+- [ ] Quit the app with multiple project windows open, relaunch it normally, and confirm the previous window set restores.
 
 ## Cells
 - [ ] Create a new Cell with a branch type + name and confirm the worktree directory is created.

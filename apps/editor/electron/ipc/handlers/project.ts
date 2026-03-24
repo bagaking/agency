@@ -7,6 +7,10 @@ const {
   setWindowProjectRoot,
   clearWindowProjectRoot,
 } = require('../../services/projectRoot');
+const {
+  broadcastWindowShellUpdated,
+  syncWindowTitle,
+} = require('../../services/windowShell');
 
 function setupProjectHandlers() {
   const broadcastRecentProjects = (recentProjects) => {
@@ -33,11 +37,13 @@ function setupProjectHandlers() {
     });
     if (result?.projectRoot && ownerWindow) {
       setWindowProjectRoot(ownerWindow.id, result.projectRoot);
+      syncWindowTitle(ownerWindow);
       ownerWindow.webContents.send('project:updated', result);
     }
     if (result?.recentProjects) {
       broadcastRecentProjects(result.recentProjects);
     }
+    broadcastWindowShellUpdated();
     return result;
   });
 
@@ -54,11 +60,13 @@ function setupProjectHandlers() {
       } else {
         clearWindowProjectRoot(ownerWindow.id);
       }
+      syncWindowTitle(ownerWindow);
       ownerWindow.webContents.send('project:updated', result);
     }
     if (result?.recentProjects) {
       broadcastRecentProjects(result.recentProjects);
     }
+    broadcastWindowShellUpdated();
     return result;
   });
 
@@ -70,11 +78,13 @@ function setupProjectHandlers() {
     });
     if (ownerWindow) {
       clearWindowProjectRoot(ownerWindow.id);
+      syncWindowTitle(ownerWindow);
       ownerWindow.webContents.send('project:updated', result);
     }
     if (result?.recentProjects) {
       broadcastRecentProjects(result.recentProjects);
     }
+    broadcastWindowShellUpdated();
     return result;
   });
 }

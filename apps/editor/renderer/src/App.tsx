@@ -31,11 +31,13 @@ import { useMemoNavigationHandlers } from './app/useMemoNavigationHandlers';
 import { useExplorerCommentRouting } from './app/useExplorerCommentRouting';
 import { useWorkbenchReplySelectionState } from './app/useWorkbenchReplySelectionState';
 import { useAppShellLayoutState } from './app/useAppShellLayoutState';
+import { useWindowShellState } from './app/useWindowShellState';
 import {
   buildMobileContinuationFeedback,
   resolveMobileContinuationErrorTitle,
 } from './app/mobileContinuationFeedback';
 import { AppShellChrome } from './app/AppShellChrome';
+import { WindowTitleBar } from './components/WindowTitleBar';
 import { SessionMapToggle } from './components/sessionMap/SessionMapToggle';
 import { writeTextToClipboard } from './utils/clipboard';
 const defaultCells = [
@@ -467,6 +469,7 @@ function AppShell() {
     hilDrawerPanel,
     hilDrawerPanelByView,
   });
+  const windowShellState = useWindowShellState();
   const gateDisplayStage = scopedCell?.state === 'archived' ? 'archived' : 'active';
   const gateResultsByStage = scopedCell ? hierarchyConfig.gateResultsByCellId[scopedCell.id] || {} : {};
   const gatesCheckingByStage = scopedCell ? hierarchyConfig.gatesCheckingByCellId[scopedCell.id] || {} : {};
@@ -853,6 +856,14 @@ function AppShell() {
 
   return (
     <div className="relative flex h-screen flex-col bg-background text-foreground overflow-hidden">
+      <WindowTitleBar
+        projectRoot={projectRoot}
+        projectError={projectError}
+        windows={windowShellState.windows}
+        onCreateWindow={windowShellState.handleCreateWindow}
+        onFocusWindow={windowShellState.handleFocusWindow}
+        onSelectProject={handleSelectProjectRoot}
+      />
       <AppLayout {...appLayoutProps} />
       <AppShellChrome
         sessionMapOpen={sessionMapOpen}

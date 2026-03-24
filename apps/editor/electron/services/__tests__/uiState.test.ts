@@ -65,6 +65,7 @@ test('normalizes legacy flat ui state into app/global and window-local scopes', 
     assert.equal(state.version, uiState.STATE_VERSION);
     assert.equal(state.lastActiveWindowStateId, uiState.LEGACY_WINDOW_STATE_ID);
     assert.deepEqual(state.appState.recentProjects, legacyPayload.recentProjects);
+    assert.deepEqual(state.appState.openWindowStateIds, [uiState.LEGACY_WINDOW_STATE_ID]);
     assert.equal(
       state.windowStates[uiState.LEGACY_WINDOW_STATE_ID]?.projectRoot,
       '/tmp/repo-a'
@@ -86,11 +87,18 @@ test('keeps window snapshots isolated while sharing app-global state', async () 
       projectRoot: '/tmp/repo-a',
       selectedId: 'cell-a',
       activeView: 'agent-cells',
+      windowBounds: {
+        x: 40,
+        y: 50,
+        width: 1200,
+        height: 800,
+      },
     });
     await uiState.updateWindowUiState('window-b', {
       projectRoot: '/tmp/repo-b',
       selectedId: 'cell-b',
       activeView: 'explorer',
+      windowMaximized: true,
     });
     await uiState.updateAppUiState({
       recentProjects: [
@@ -100,6 +108,7 @@ test('keeps window snapshots isolated while sharing app-global state', async () 
           lastOpenedAt: '2026-03-22T00:00:00.000Z',
         },
       ],
+      openWindowStateIds: ['window-a', 'window-b'],
     });
     await uiState.markLastActiveWindowState('window-b');
 
@@ -109,9 +118,17 @@ test('keeps window snapshots isolated while sharing app-global state', async () 
 
     assert.equal(windowA.projectRoot, '/tmp/repo-a');
     assert.equal(windowA.selectedId, 'cell-a');
+    assert.deepEqual(windowA.windowBounds, {
+      x: 40,
+      y: 50,
+      width: 1200,
+      height: 800,
+    });
     assert.equal(windowB.projectRoot, '/tmp/repo-b');
     assert.equal(windowB.selectedId, 'cell-b');
+    assert.equal(windowB.windowMaximized, true);
     assert.equal(state.lastActiveWindowStateId, 'window-b');
+    assert.deepEqual(state.appState.openWindowStateIds, ['window-a', 'window-b']);
     assert.deepEqual(state.appState.recentProjects, [
       {
         path: '/tmp/repo-b',

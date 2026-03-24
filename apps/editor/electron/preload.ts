@@ -92,6 +92,9 @@ const INVOKE_CHANNELS: Record<string, string> = {
   selectProjectRoot: 'project:select',
   setProjectRoot: 'project:set',
   clearProjectRoot: 'project:clear',
+  listWindowShells: 'window-shell:list',
+  createWindowShell: 'window-shell:new',
+  focusWindowShell: 'window-shell:focus',
   listSessions: 'sessions:list',
   createSession: 'sessions:create',
   closeSession: 'sessions:close',
@@ -204,6 +207,7 @@ const SEND_CHANNELS: Record<string, string> = {
 const SUBSCRIBE_CHANNELS: Record<string, string> = {
   onProjectUpdated: 'project:updated',
   onRecentProjectsUpdated: 'project:recents',
+  onWindowShellUpdated: 'window-shell:updated',
   onVoiceCaptureEvent: 'voice:capture:event',
   onAppShortcutTriggered: 'app-shortcuts:trigger',
   onTerminalData: 'terminal:data',

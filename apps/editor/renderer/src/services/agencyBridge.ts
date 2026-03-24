@@ -42,6 +42,7 @@ export const onCellsUpdated = createOptionalSubscribe('onCellsUpdated');
 export const onVoiceCaptureEvent = createOptionalSubscribe('onVoiceCaptureEvent');
 export const onProjectUpdated = createOptionalSubscribe('onProjectUpdated');
 export const onRecentProjectsUpdated = createOptionalSubscribe('onRecentProjectsUpdated');
+export const onWindowShellUpdated = createOptionalSubscribe('onWindowShellUpdated');
 export const onExplorerChanged = createOptionalSubscribe('onExplorerChanged');
 export const onMainAgentHarnessProgress = createOptionalSubscribe('onMainAgentHarnessProgress');
 
@@ -143,6 +144,9 @@ export const blameWorkbenchEntry = createOptionalInvoke('blameWorkbenchEntry');
 // Project-level helpers / OS
 export const selectProjectRoot = createOptionalInvoke('selectProjectRoot');
 export const setProjectRoot = createOptionalInvoke('setProjectRoot');
+export const listWindowShells = createOptionalInvoke('listWindowShells', { fallback: { windows: [] } });
+export const createWindowShell = createOptionalInvoke('createWindowShell');
+export const focusWindowShell = createOptionalInvoke('focusWindowShell');
 export const openSystemPermissions = createOptionalInvoke('openSystemPermissions');
 
 export const getPathForDroppedFile = (file: File): string =>
