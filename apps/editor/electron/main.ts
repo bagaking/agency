@@ -48,6 +48,10 @@ const {
 } = require('./services/runtimeLog');
 const {
   broadcastWindowShellUpdated,
+  collectEditorWindows,
+  focusEditorWindow,
+  orderEditorWindowsByStateId,
+  resolveActivatedEditorWindow,
   syncWindowTitle,
 } = require('./services/windowShell');
 
@@ -457,10 +461,6 @@ async function createWindow({
     ...(process.platform === 'darwin'
       ? {
           titleBarStyle: 'hiddenInset' as const,
-          trafficLightPosition: {
-            x: 14,
-            y: 16,
-          },
         }
       : {}),
     webPreferences: {
@@ -595,12 +595,48 @@ async function restoreInitialWindows(launchProjectRoot: string): Promise<void> {
   }
 }
 
+async function resolveEditorWindowsInCycleOrder(): Promise<AgencyWindow[]> {
+  const openWindowStateIds = await getOpenWindowStateIds();
+  const orderedRecords = orderEditorWindowsByStateId(collectEditorWindows(), openWindowStateIds);
+  return orderedRecords.map((record) => record.window as AgencyWindow);
+}
+
+async function handleAppActivate(hasVisibleWindows: boolean): Promise<void> {
+  const orderedEditorWindows = await resolveEditorWindowsInCycleOrder();
+  if (orderedEditorWindows.length === 0) {
+    await createWindow({ startEmpty: true });
+    logRuntime('info', 'main window recreated');
+    return;
+  }
+
+  const focusedWindow = BrowserWindow.getFocusedWindow() as AgencyWindow | undefined;
+  const focusedWindowStateId = normalizeWindowStateId(focusedWindow?.__agencyWindowStateId);
+  const targetWindow =
+    resolveActivatedEditorWindow(
+      orderedEditorWindows.map((window) => ({
+        window,
+        windowStateId: normalizeWindowStateId(window.__agencyWindowStateId),
+      })),
+      focusedWindowStateId,
+      hasVisibleWindows
+    )?.window || orderedEditorWindows[0];
+  const currentIndex = focusedWindowStateId
+    ? orderedEditorWindows.findIndex((window) => normalizeWindowStateId(window.__agencyWindowStateId) === focusedWindowStateId)
+    : -1;
+
+  logRuntime('info', 'app activate resolved editor window', {
+    hasVisibleWindows,
+    editorWindowCount: orderedEditorWindows.length,
+    currentIndex,
+    targetWindowId: targetWindow.id,
+    targetWindowStateId: normalizeWindowStateId(targetWindow.__agencyWindowStateId),
+  });
+  focusEditorWindow(targetWindow);
+}
+
 function setupAppLifecycle(): void {
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      void createWindow({ startEmpty: true });
-      logRuntime('info', 'main window recreated');
-    }
+  app.on('activate', (_event, hasVisibleWindows) => {
+    void handleAppActivate(Boolean(hasVisibleWindows));
   });
 
   app.on('window-all-closed', () => {

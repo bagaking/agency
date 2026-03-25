@@ -69,7 +69,7 @@ export function SidebarDock({
 
       {/* Modern Resizer & Toggle Handle */}
       <div
-        className={`absolute top-0 -right-[2px] z-50 h-full w-[4px] cursor-col-resize transition-colors duration-200 group ${
+        className={`absolute top-0 -right-[2px] z-20 h-full w-[4px] cursor-col-resize transition-colors duration-200 group ${
           collapsed ? 'cursor-default pointer-events-none' : 'hover:bg-primary/40'
         }`}
         onPointerDown={handlePointerDown}
@@ -100,7 +100,7 @@ export function SidebarDock({
       {/* Expand Trigger when collapsed: An ultra-slim floating line at the edge */}
       {collapsed && (
         <div 
-            className={`absolute top-0 left-0 z-[60] h-full w-1.5 group cursor-pointer ${focusRingClass}`}
+            className={`absolute top-0 left-0 z-20 h-full w-1.5 group cursor-pointer ${focusRingClass}`}
             onClick={onToggleCollapse}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {

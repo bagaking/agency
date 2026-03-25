@@ -20,6 +20,8 @@ The current implementation also stops short of the baseline desktop behaviors us
 - Persist window geometry (`bounds`, maximized/fullscreen state) per window and restore it on relaunch.
 - Replace the default top title bar with an app-owned window title bar on the desktop editor shell.
 - Show the current project name in that title bar and provide an app-icon-triggered window switcher / new-window entry point there.
+- Keep the macOS Dock on the native/default window-management path instead of replacing it with a custom app-defined menu.
+- Make Dock activation focus a meaningful editor window, and when multiple editor windows are already frontmost, cycle them in a stable order instead of doing nothing.
 - Keep project/repo-scoped configuration in `.agency/`.
 - Explicitly mark isolated multi-process profiles / separate `userData` directories as a future escape hatch, not the default product path.
 
@@ -29,6 +31,7 @@ The current implementation also stops short of the baseline desktop behaviors us
   - `apps/editor/electron/main.ts`
   - `apps/editor/electron/services/projectRoot.ts`
   - `apps/editor/electron/services/uiState.ts`
+  - `apps/editor/electron/services/windowShell.ts`
   - `apps/editor/electron/ipc/handlers/windowShell.ts`
   - `apps/editor/electron/ipc/handlers/project.ts`
   - `apps/editor/electron/preload.ts`

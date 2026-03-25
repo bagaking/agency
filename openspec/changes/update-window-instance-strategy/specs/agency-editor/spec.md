@@ -42,6 +42,23 @@ The editor SHALL restore persisted geometry on relaunch while keeping restored w
 - **WHEN** persisted geometry no longer fits the current display layout
 - **THEN** the editor adjusts the restored window bounds so the window remains visible
 
+### Requirement: macOS Dock Activation Uses Editor Windows
+On macOS, the editor SHALL keep the Dock on the native/default menu path instead of replacing it with an app-defined Dock window menu.
+When the application is activated from the Dock and editor windows already exist, the editor SHALL focus a meaningful editor window instead of doing nothing.
+If multiple editor windows are already frontmost, repeated Dock activation SHALL advance through those editor windows in a stable order.
+
+#### Scenario: Dock activation restores an editor window
+- **WHEN** the app is activated from the macOS Dock and editor windows exist but none is currently focused
+- **THEN** the editor restores and focuses an editor window
+
+#### Scenario: Dock activation cycles multiple frontmost editor windows
+- **WHEN** the app is already frontmost with multiple editor windows open and the user activates it again from the macOS Dock
+- **THEN** the editor focuses the next editor window in the stable cycle order
+
+#### Scenario: Dock menu keeps native/default behavior
+- **WHEN** the app is running on macOS
+- **THEN** the Dock menu remains on the native/default path instead of being replaced by an app-defined window list
+
 ## MODIFIED Requirements
 
 ### Requirement: Project Menu Actions

@@ -9,6 +9,7 @@
 - [x] 2.3 Ensure menu-driven `New Window` and OS/CLI secondary launch requests follow the same window-creation path.
 - [x] 2.4 Persist and restore the last open window set during normal relaunch.
 - [x] 2.5 Persist and restore per-window geometry, including visible-bounds clamping.
+- [x] 2.6 Restore native/default macOS Dock menu behavior and make Dock activation focus/cycle editor windows.
 
 ## 3. State Model Refactor
 - [x] 3.1 Split persisted UI state into app-global and window/workspace-local scopes.
@@ -30,3 +31,5 @@
 - [ ] 5.6 Verify that restored windows reopen with persisted geometry.
 - [ ] 5.7 Verify that the custom title bar shows the current project name and can switch/focus other windows.
 - [x] 5.8 Run automated verification (`typecheck`, unit tests, renderer build, electron build`) for the window-shell changes.
+- [ ] 5.9 Verify that macOS Dock activation restores a window when the app has open editor windows but no focused one.
+- [ ] 5.10 Verify that repeated macOS Dock activation cycles open editor windows in the expected stable order.

@@ -46,3 +46,23 @@ At the end of every response, include:
 <!-- BAGAKIT:LIVEDOCS:END -->
 
 Use pnpm for workspace Node dependencies and keep `pnpm-lock.yaml` committed.
+
+## Product Quality Bar
+
+- Treat VS Code as a floor for desktop-shell correctness, not as the target ceiling.
+- For overlapping desktop-editor behaviors, Agency should at least match macOS native expectations and VS Code-grade polish before adding custom product behavior.
+- When Agency introduces agentic workflows, multi-window, multi-session, or multi-worktree affordances, the shipped UX should be meaningfully clearer and stronger than generic editor patterns, not merely “good enough compared to VS Code”.
+
+## Quality Interrogation Loop
+
+- Before considering a UX or desktop-shell task complete, explicitly ask: `Is this good enough yet?`
+- If the answer is not a strong yes, keep refining semantics, polish, native behavior, hierarchy, and contextual clarity instead of stopping at “works”.
+- Do not treat “roughly like VS Code” as completion. Treat it as the point where Agency becomes eligible for another improvement pass.
+
+## Continuity And Memory Bar
+
+- Treat `AGENTS.md` as the minimum post-compact survival contract for the project.
+- After any important product, UX, architecture, or workflow decision, ask: `Could a future agent continue correctly by reading AGENTS.md alone?`
+- If the answer is no, update `AGENTS.md` and/or link the canonical project doc before stopping.
+- Do not leave critical standards as transient chat context. Durable standards must survive reset through repo instructions or project memory.
+- Aim for the strongest available reasoning on each important decision; if a thought matters, it should be preserved in a form that later agents can reliably recover.

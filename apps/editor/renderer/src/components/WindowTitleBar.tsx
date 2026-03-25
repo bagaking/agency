@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, FolderOpen, Plus, Rows3, Search } from 'lucide-react';
+import { ChevronDown, FolderOpen, Plus, Rows3, Search } from 'lucide-react';
 
 import { Logo } from './Logo';
 import { focusRing } from './ui/focusRing';
@@ -26,6 +26,7 @@ export function WindowTitleBar({
 }: WindowTitleBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [activeResultIndex, setActiveResultIndex] = useState(0);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const queryInputRef = useRef<HTMLInputElement | null>(null);
   const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
@@ -59,7 +60,6 @@ export function WindowTitleBar({
   }, [projectRoot]);
 
   const projectSubtitle = projectRoot || projectError || 'Open a repository to start an Agency workspace.';
-  const windowCountLabel = windows.length === 1 ? '1 window open' : `${windows.length} windows open`;
   const filteredWindows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) {
@@ -71,11 +71,40 @@ export function WindowTitleBar({
         .some((value) => value.toLowerCase().includes(normalizedQuery));
     });
   }, [query, windows]);
+  const currentWindowIndex = useMemo(
+    () => filteredWindows.findIndex((window) => window.isFocused),
+    [filteredWindows]
+  );
+  const currentWindow = currentWindowIndex >= 0 ? filteredWindows[currentWindowIndex] : null;
+  const otherWindows = useMemo(
+    () => filteredWindows.filter((window) => !window.isFocused),
+    [filteredWindows]
+  );
+  const navigableWindows = useMemo(
+    () => [...(currentWindow ? [currentWindow] : []), ...otherWindows],
+    [currentWindow, otherWindows]
+  );
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return;
+    }
+    if (!navigableWindows.length) {
+      setActiveResultIndex(0);
+      return;
+    }
+    setActiveResultIndex((current) => Math.min(current, navigableWindows.length - 1));
+  }, [menuOpen, navigableWindows]);
+
+  const handleSelectWindow = async (windowStateId: string) => {
+    setMenuOpen(false);
+    await onFocusWindow(windowStateId);
+  };
 
   return (
     <header
-      className={`app-drag-region relative z-20 flex h-10 shrink-0 items-center gap-2 border-b border-border/60 bg-[#171b22] text-foreground shadow-[inset_0_-1px_0_rgba(255,255,255,0.03)] ${
-        isMac ? 'pl-[82px]' : 'pl-2.5'
+      className={`app-drag-region relative z-40 flex h-10 shrink-0 items-center gap-2 border-b border-border/60 bg-[#171b22] text-foreground shadow-[inset_0_-1px_0_rgba(255,255,255,0.03)] ${
+        isMac ? 'pl-[78px]' : 'pl-2.5'
       } pr-2.5`}
     >
       <div ref={menuRef} className="app-no-drag relative flex items-center">
@@ -95,15 +124,13 @@ export function WindowTitleBar({
         </button>
 
         {menuOpen ? (
-          <div className="app-no-drag absolute left-0 top-[calc(100%+6px)] z-30 w-[22rem] overflow-hidden rounded-xl border border-white/[0.08] bg-popover/95 shadow-[0_24px_80px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+          <div className="app-no-drag absolute left-0 top-[calc(100%+6px)] z-50 w-[22rem] overflow-hidden rounded-xl border border-white/[0.08] bg-popover/95 shadow-[0_24px_80px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl">
             <div className="border-b border-border/60 px-3 py-2.5">
               <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 <Rows3 size={11} />
                 <span>Find Window</span>
               </div>
-              <div className="mt-1 text-[11px] text-foreground/85">
-                {windowCountLabel}. Current window is marked below.
-              </div>
+              <div className="mt-1 text-[11px] text-foreground/85">Current window is marked below.</div>
             </div>
 
             <div className="border-b border-border/60 p-2">
@@ -118,6 +145,27 @@ export function WindowTitleBar({
                     if (event.key === 'Escape') {
                       event.preventDefault();
                       setMenuOpen(false);
+                      return;
+                    }
+                    if (event.key === 'ArrowDown') {
+                      event.preventDefault();
+                      setActiveResultIndex((current) =>
+                        navigableWindows.length ? (current + 1) % navigableWindows.length : 0
+                      );
+                      return;
+                    }
+                    if (event.key === 'ArrowUp') {
+                      event.preventDefault();
+                      setActiveResultIndex((current) =>
+                        navigableWindows.length
+                          ? (current - 1 + navigableWindows.length) % navigableWindows.length
+                          : 0
+                      );
+                      return;
+                    }
+                    if (event.key === 'Enter' && navigableWindows[activeResultIndex]) {
+                      event.preventDefault();
+                      void handleSelectWindow(navigableWindows[activeResultIndex].windowStateId);
                     }
                   }}
                   placeholder="Filter by project or path"
@@ -141,39 +189,74 @@ export function WindowTitleBar({
             </div>
 
             <div className="max-h-[18rem] overflow-y-auto border-t border-border/60 p-2">
-              {filteredWindows.length ? (
-                filteredWindows.map((window) => (
-                  <button
-                    key={window.windowStateId}
-                    type="button"
-                    onClick={async () => {
-                      setMenuOpen(false);
-                      await onFocusWindow(window.windowStateId);
-                    }}
-                    className={`flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-white/[0.06] ${focusRingClass} ${
-                      window.isFocused ? 'bg-white/[0.06]' : ''
-                    }`}
-                  >
-                    <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
-                      {window.isFocused ? <Check size={14} className="text-primary" /> : null}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <div className="truncate text-[11px] font-medium text-foreground">
-                          {window.projectName}
+              {navigableWindows.length ? (
+                <div className="space-y-2">
+                  {currentWindow ? (
+                    <div className="space-y-1">
+                      <div className="px-2.5 pt-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">
+                        Current Window
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleSelectWindow(currentWindow.windowStateId);
+                        }}
+                        onMouseEnter={() => {
+                          setActiveResultIndex(0);
+                        }}
+                        className={`flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-white/[0.06] ${focusRingClass} ${
+                          activeResultIndex === 0 ? 'ring-1 ring-primary/30 bg-white/[0.05]' : 'bg-white/[0.04]'
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-[11px] font-medium text-foreground">
+                            {currentWindow.projectName}
+                          </div>
+                          <div className="truncate text-[10px] text-muted-foreground">
+                            {currentWindow.projectRoot || 'Empty project window'}
+                          </div>
                         </div>
-                        {window.isFocused ? (
-                          <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-1.5 py-[1px] text-[9px] font-semibold uppercase tracking-[0.14em] text-primary">
-                            Current
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="truncate text-[10px] text-muted-foreground">
-                        {window.projectRoot || 'Empty project window'}
-                      </div>
+                      </button>
                     </div>
-                  </button>
-                ))
+                  ) : null}
+
+                  {otherWindows.length ? (
+                    <div className="space-y-1">
+                      <div className="px-2.5 pt-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">
+                        Other Windows
+                      </div>
+                      {otherWindows.map((window, index) => {
+                        const navigationIndex = (currentWindow ? 1 : 0) + index;
+                        return (
+                          <button
+                            key={window.windowStateId}
+                            type="button"
+                            onClick={() => {
+                              void handleSelectWindow(window.windowStateId);
+                            }}
+                            onMouseEnter={() => {
+                              setActiveResultIndex(navigationIndex);
+                            }}
+                            className={`flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-white/[0.06] ${focusRingClass} ${
+                              activeResultIndex === navigationIndex
+                                ? 'ring-1 ring-primary/30 bg-white/[0.05]'
+                                : ''
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-[11px] font-medium text-foreground">
+                                {window.projectName}
+                              </div>
+                              <div className="truncate text-[10px] text-muted-foreground">
+                                {window.projectRoot || 'Empty project window'}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
               ) : (
                 <div className="px-2.5 py-4 text-[11px] text-muted-foreground">
                   {windows.length ? 'No windows match this filter.' : 'No windows available.'}
@@ -188,9 +271,6 @@ export function WindowTitleBar({
         <div className="truncate text-[11px] font-semibold tracking-[0.01em] text-foreground">
           {projectName}
         </div>
-        <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.04] px-1.5 py-[1px] text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          {windowCountLabel}
-        </span>
         <div className="truncate text-[10px] text-muted-foreground">{projectSubtitle}</div>
       </div>
 

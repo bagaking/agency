@@ -14,6 +14,7 @@ This change closes that ambiguity. The product model is not "many isolated deskt
   - Restore the previous multi-window workspace set on relaunch when the app restarts without an explicit target project.
   - Persist and restore per-window geometry so restored windows reopen where the user left them.
   - Replace the native title bar with an app-owned title bar that exposes current project identity and window switching.
+  - Make macOS Dock activation participate in editor-window navigation instead of being a dead-end when multiple windows are open.
 - Non-Goals:
   - Do not introduce fully isolated multi-profile support in this change.
   - Do not redesign project selection UX beyond what is needed for instance/window routing and the new title bar entry points.
@@ -40,6 +41,10 @@ This change closes that ambiguity. The product model is not "many isolated deskt
   - Rationale: Explicit launch intent should win over passive session restore.
 - Decision: Use an app-owned title bar with a draggable shell region and app-icon window switcher.
   - Rationale: Once the product is truly multi-window, the shell must surface project identity and window navigation directly instead of delegating that awareness to the default native title text.
+- Decision: Do not replace the default macOS Dock menu with an app-defined window list.
+  - Rationale: The native Dock menu already carries expected macOS window-management semantics; overriding it weakens the platform affordance instead of strengthening it.
+- Decision: Interpret Dock activation as a host-owned editor-window focus signal.
+  - Rationale: The app should always surface a meaningful editor window on activation, and repeated Dock activation while the app is already frontmost should advance through the open editor-window set in a stable order.
 - Decision: Keep isolated `userData` / profile mode as a future explicit opt-in only.
   - Rationale: It is useful as an escape hatch, but it is not the default product topology and should not shape the primary architecture.
 
@@ -54,6 +59,8 @@ This change closes that ambiguity. The product model is not "many isolated deskt
   - Mitigation: Clamp restored bounds against current display work areas before creating the window.
 - Risk: A custom title bar can accidentally swallow clicks or drag behavior.
   - Mitigation: Keep the drag region explicit and mark all interactive controls as no-drag.
+- Risk: Custom Dock activation cycling can feel arbitrary if the ordering is unstable.
+  - Mitigation: Cycle editor windows using a persisted open-window order rather than a focus-order heuristic that oscillates between only the last two windows.
 
 ## Migration Plan
 1. Add single-instance lock and secondary-launch routing in Electron main.
@@ -61,7 +68,8 @@ This change closes that ambiguity. The product model is not "many isolated deskt
 3. Refactor UI-state persistence from one flat global blob into app-global vs window/workspace-local slices.
 4. Persist current open-window ids plus per-window geometry and restore them during normal relaunch.
 5. Add an app-owned title bar with project identity and a window switcher backed by window-shell IPC.
-6. Add manual and automated verification for multi-window isolation, restore, and shell behavior.
+6. Restore native/default Dock menu behavior and implement explicit editor-window focus/cycle handling on app activation.
+7. Add manual and automated verification for multi-window isolation, restore, and shell behavior.
 
 ## Open Questions
 - Should the title bar eventually own custom minimize/maximize/close controls on non-macOS platforms?

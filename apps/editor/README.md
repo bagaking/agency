@@ -168,7 +168,8 @@
 - Use **Select Project** to choose a repository for the current window.
 - The app keeps one desktop instance and routes additional launches into that instance as new windows instead of relying on isolated parallel app processes.
 - Clicking the custom title-bar app icon opens a window switcher for the currently open editor windows and also exposes `New Window`.
-- On macOS, the Dock menu also mirrors the currently open editor windows for quick focus switching.
+- On macOS, Agency stays on the native/default Dock menu path instead of replacing it with an app-defined window list.
+- On macOS, Dock activation restores a meaningful editor window; when multiple editor windows are already frontmost, repeated Dock activation advances through them in a stable order.
 - The custom title bar always shows the active window's current project name (or an empty-project label).
 - Recent projects are shown in the sidebar and Project settings when no project is open.
 - New windows start without a project context; use recent projects to switch.

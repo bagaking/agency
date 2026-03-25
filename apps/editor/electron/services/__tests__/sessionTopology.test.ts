@@ -96,3 +96,5 @@ test('moveSessionNodeInRegistry rejects moving a node under its descendant', () 
     /descendants/i
   );
 });
+
+export {};
