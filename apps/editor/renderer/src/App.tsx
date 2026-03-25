@@ -229,25 +229,6 @@ function AppShell() {
     onOpenTerminal: handleOpenTerminal,
     initialActiveSessions,
   });
-  const lastSessionErrorNoticeRef = useRef('');
-  useEffect(() => {
-    const message = String(sessionsState.sessionError || '').trim();
-    if (!message) {
-      lastSessionErrorNoticeRef.current = '';
-      return;
-    }
-    if (lastSessionErrorNoticeRef.current === message) {
-      return;
-    }
-    lastSessionErrorNoticeRef.current = message;
-    const cancelled = /cancelled/i.test(message);
-    modal?.notify?.({
-      title: cancelled ? 'Session Action Cancelled' : 'Session Action Failed',
-      description: message,
-      tone: cancelled ? 'warning' : 'danger',
-      autoCloseMs: 5000,
-    });
-  }, [modal, sessionsState.sessionError]);
   const sessionTargets = useMemo(() => {
     const list = [];
     (displayCells || []).forEach((cell) => {
@@ -274,6 +255,7 @@ function AppShell() {
     sessionMapEnabled,
     sessionMapModel,
     sessionMapOpen,
+    openSessionMap,
     handleToggleSessionMap,
     resolveSessionMapFontSize,
     handleSelectSessionFromMap,
@@ -296,6 +278,45 @@ function AppShell() {
     setTerminalOpen,
     setActiveView: setActiveViewCompat,
   });
+  const activeHarnessRun = useMemo(
+    () =>
+      (sessionsState.harnessRuns || []).find((run: any) =>
+        ['queued', 'running', 'cancelling'].includes(String(run?.status || '').trim().toLowerCase())
+      ) || null,
+    [sessionsState.harnessRuns]
+  );
+  const lastAutoOpenedRunRef = useRef('');
+  const lastAutoOpenedErrorRef = useRef('');
+  useEffect(() => {
+    const activeRunId = String(activeHarnessRun?.runId || '').trim();
+    if (!activeRunId) {
+      return;
+    }
+    if (lastAutoOpenedRunRef.current === activeRunId) {
+      return;
+    }
+    if (!sessionMapOpen) {
+      openSessionMap();
+    }
+    lastAutoOpenedRunRef.current = activeRunId;
+  }, [activeHarnessRun, openSessionMap, sessionMapOpen]);
+  useEffect(() => {
+    const message = String(sessionsState.sessionError || '').trim();
+    if (!message) {
+      lastAutoOpenedErrorRef.current = '';
+      return;
+    }
+    if (!sessionMapEnabled) {
+      return;
+    }
+    if (lastAutoOpenedErrorRef.current === message) {
+      return;
+    }
+    if (!sessionMapOpen) {
+      openSessionMap();
+    }
+    lastAutoOpenedErrorRef.current = message;
+  }, [openSessionMap, sessionMapEnabled, sessionMapOpen, sessionsState.sessionError]);
 
   const sessionMapCenterSlot = (
     <SessionMapToggle
@@ -895,6 +916,10 @@ function AppShell() {
         dispatchSessionCommand={sessionsState.dispatchSessionCommand}
         renameSession={sessionsState.renameSession}
         updateSessionAvatar={sessionsState.updateSessionAvatar}
+        harnessRuns={sessionsState.harnessRuns || []}
+        sessionError={sessionsState.sessionError || ''}
+        onClearSessionError={sessionsState.clearSessionError}
+        onCancelHarnessRun={sessionsState.cancelHarnessRun}
         handleOpenSessionMapShortcut={handleOpenSessionMapShortcut}
         handleRevealSessionMapShortcut={handleRevealSessionMapShortcut}
         loading={loading}

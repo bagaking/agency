@@ -14,6 +14,10 @@ type AppShellChromeProps = {
   dispatchSessionCommand: (...args: any[]) => Promise<any>;
   renameSession: (...args: any[]) => Promise<any>;
   updateSessionAvatar: (...args: any[]) => Promise<any>;
+  harnessRuns: any[];
+  sessionError: string;
+  onClearSessionError: () => void;
+  onCancelHarnessRun: (runId: string) => Promise<any>;
   handleOpenSessionMapShortcut: (...args: any[]) => Promise<any>;
   handleRevealSessionMapShortcut: (...args: any[]) => Promise<any>;
   loading: boolean;
@@ -40,6 +44,10 @@ export function AppShellChrome({
   dispatchSessionCommand,
   renameSession,
   updateSessionAvatar,
+  harnessRuns,
+  sessionError,
+  onClearSessionError,
+  onCancelHarnessRun,
   handleOpenSessionMapShortcut,
   handleRevealSessionMapShortcut,
   loading,
@@ -67,6 +75,10 @@ export function AppShellChrome({
         onDispatchCommand={dispatchSessionCommand}
         onRenameSession={renameSession}
         onUpdateSessionAvatar={updateSessionAvatar}
+        harnessRuns={harnessRuns}
+        sessionError={sessionError}
+        onClearSessionError={onClearSessionError}
+        onCancelHarnessRun={onCancelHarnessRun}
         onOpenFileShortcut={handleOpenSessionMapShortcut}
         onRevealFileShortcut={handleRevealSessionMapShortcut}
         mode="dock"

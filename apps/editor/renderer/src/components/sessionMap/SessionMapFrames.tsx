@@ -21,30 +21,33 @@ export function PanelCorner({ position = 'top-left', color = 'currentColor' }: a
 export function TacticalFrame({ children, color, isHovered, title, subTitle, minHeight, actions }: any) {
   return (
     <div
-      className={`group relative flex flex-col rounded border transition-all duration-500 overflow-hidden ${
+      className={`group relative flex min-h-0 flex-col rounded-2xl transition-all duration-300 overflow-hidden ${
         isHovered
-          ? 'bg-white/[0.08] shadow-[0_0_25px_rgba(255,255,255,0.05)] z-10'
-          : 'border-white/10 bg-black/40'
+          ? 'bg-[linear-gradient(180deg,rgba(36,48,63,0.92),rgba(19,25,34,0.94))] shadow-[0_12px_28px_rgba(0,0,0,0.3)] z-10'
+          : 'bg-[linear-gradient(180deg,rgba(19,25,34,0.9),rgba(12,16,22,0.94))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.045)]'
       }`}
-      style={{ minHeight, borderColor: isHovered ? color : undefined }}
+      style={{ minHeight }}
     >
-      {/* Decorative Background Pattern */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{
-        backgroundImage: 'linear-gradient(45deg, #fff 25%, transparent 25%, transparent 50%, #fff 50%, #fff 75%, transparent 75%, transparent)',
-        backgroundSize: '4px 4px'
-      }} />
-      
+      <div
+        className="absolute inset-x-0 top-0 h-px opacity-70"
+        style={{
+          background: `linear-gradient(90deg, transparent, ${color || '#3b82f6'}66, transparent)`,
+        }}
+      />
       {/* Header */}
       <div
-        className="relative z-10 flex items-center justify-between border-b border-white/10 px-2 py-1 bg-black/40 backdrop-blur-sm"
-        style={{ borderLeft: `3px solid ${color || '#3b82f6'}` }}
+        className="relative z-10 flex items-center justify-between px-2.5 py-1.5 bg-black/18 backdrop-blur-sm"
       >
-        <div className="flex flex-col min-w-0">
-          <span className="truncate font-mono text-[9px] font-black text-white tracking-widest leading-none">
+        <div
+          className="absolute left-0 top-2 bottom-2 w-[2px] rounded-full opacity-80"
+          style={{ backgroundColor: color || '#3b82f6' }}
+        />
+        <div className="flex flex-col min-w-0 pl-1.5">
+          <span className="truncate font-mono text-[9px] font-black text-white/92 tracking-[0.16em] leading-none">
             {title?.toUpperCase()}
           </span>
           {subTitle && (
-            <span className="text-[6px] text-white/30 font-bold uppercase mt-0.5 tracking-tighter">
+            <span className="text-[6px] text-cyan-100/28 font-bold uppercase mt-0.5 tracking-[0.16em]">
               {subTitle}
             </span>
           )}
@@ -55,16 +58,8 @@ export function TacticalFrame({ children, color, isHovered, title, subTitle, min
       </div>
 
       {/* Content */}
-      <div className="relative z-10 flex flex-wrap items-start content-start gap-2 p-2 flex-1">
+      <div className="relative z-10 flex min-h-0 flex-wrap items-start content-start gap-2 p-2 flex-1">
         {children}
-      </div>
-
-      {/* Footer / Corner Tech Elements */}
-      <div className="absolute bottom-0 right-0 p-0.5 pointer-events-none opacity-20 group-hover:opacity-50 transition-opacity">
-        <div className="border-r border-b border-white h-1 w-1" />
-      </div>
-      <div className="absolute top-0 right-0 p-0.5 pointer-events-none opacity-20">
-        <div className="border-r border-t border-white h-1 w-1" />
       </div>
     </div>
   );

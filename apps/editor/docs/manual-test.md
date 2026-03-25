@@ -25,8 +25,11 @@
 - [ ] With a Codex-backed profile, confirm `Fork` starts a Harness `Create Agent` run and the bounded `session.tool-native-fork` specialization chooses one of the two valid outcomes:
   - true `smart_fork` via `session.runtime smart_fork`, or
   - `create_child` + `dispatch_input` to start a fresh child Codex session.
+- [ ] With Session Map closed, trigger `Fork` and confirm the docked Session Map opens automatically into the right-side `Command Ops` zone.
+- [ ] In `Command Ops`, confirm the commander/backend avatar is visible, the active Harness timeline is readable, a running run can be cancelled, and the run details can be copied.
 - [ ] Trigger a `Fork` failure case (for example source not running Codex or source still busy) and confirm the UI surfaces a structured error instead of silently creating a broken child session.
 - [ ] Inspect the live or completed Harness run (CLI or IPC-driven debug surface) and confirm it exposes `runId`, step timeline, and capability-call records for the `Fork` specialization.
+- [ ] Trigger a non-Harness session error and confirm the error stays visible in `Command Ops` until dismissed explicitly, and the full text can be copied.
 - [ ] Cancel a long-running Harness run and confirm its status becomes `cancelled` without relying on raw logs.
 - [ ] Resume a cancelled or failed Harness run and confirm completed steps stay recorded while the remaining work continues from the Harness state store.
 - [ ] Close a session and confirm it moves to overflow; restore it and confirm topology metadata is preserved.

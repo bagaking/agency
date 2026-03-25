@@ -2,8 +2,9 @@ import React from 'react';
 import { CircleOff, Landmark, MoreHorizontal, Plus } from 'lucide-react';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
 import { resolveSessionAvatarId } from '../../utils/agentAvatar';
-import { formatRelativeTime } from '../../utils/timeFormat';
-import { PanelCorner, TacticalFrame } from './SessionMapFrames';
+import { TacticalFrame } from './SessionMapFrames';
+import { SessionMapCommanderPanel } from './SessionMapCommanderPanel';
+import { SessionMapCommandPanel } from './SessionMapCommandPanel';
 
 export function SessionMapDockLayout({
   model,
@@ -19,34 +20,34 @@ export function SessionMapDockLayout({
   onOpenOfflineMenu,
   registerClusterRef,
   canCreateSession,
+  harnessRuns,
+  sessionError,
+  onClearSessionError,
+  onCancelHarnessRun,
 }: any) {
   return (
-    <div className="mt-2 grid flex-1 min-h-0 grid-cols-[140px_minmax(0,1fr)_180px] gap-2">
+    <div className="mt-2 grid flex-1 min-h-0 grid-cols-[128px_minmax(280px,420px)_128px_minmax(420px,1fr)] gap-2 overflow-hidden">
       {/* Radar Section */}
       <div
-        className="group relative flex h-full flex-col rounded bg-white/[0.05] p-2 transition-colors hover:bg-white/[0.08]"
+        className="group flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(14,20,28,0.94),rgba(8,12,17,0.96))] px-3 py-2.5 shadow-[inset_0_0_0_1px_rgba(125,211,252,0.08),0_10px_24px_rgba(0,0,0,0.22)] transition-colors hover:bg-[linear-gradient(180deg,rgba(18,25,34,0.96),rgba(8,12,17,0.98))]"
         onMouseLeave={() => setHoveredCellId(null)}
       >
-        <PanelCorner position="top-left" color="rgba(255,255,255,0.3)" />
-        <PanelCorner position="top-right" color="rgba(255,255,255,0.3)" />
-        <PanelCorner position="bottom-left" color="rgba(255,255,255,0.3)" />
-        <PanelCorner position="bottom-right" color="rgba(255,255,255,0.3)" />
-        <div className="flex items-center justify-between font-mono text-[8px] font-bold uppercase tracking-widest text-white/60">
-          <span>Strategic Radar</span>
+        <div className="flex items-center justify-between font-mono text-[8px] font-bold uppercase tracking-[0.24em] text-cyan-100/60">
+          <span>Radar</span>
         </div>
-        <div className="relative mt-2 aspect-square flex-1 overflow-hidden rounded-full border border-white/20 bg-black/60 shadow-inner">
+        <div className="relative mt-2 aspect-square flex-1 overflow-hidden rounded-[24px] bg-[radial-gradient(circle_at_50%_45%,rgba(12,20,28,0.86),rgba(4,7,10,0.98))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04),inset_0_0_40px_rgba(34,211,238,0.06)]">
           {/* Radar Grid */}
           <div className="absolute inset-0 opacity-30" style={{
-            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px), repeating-radial-gradient(circle, transparent 0, transparent 20px, rgba(255,255,255,0.1) 20px, rgba(255,255,255,0.1) 21px)',
+            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px), repeating-radial-gradient(circle, transparent 0, transparent 20px, rgba(125,211,252,0.08) 20px, rgba(125,211,252,0.08) 21px)',
             backgroundSize: '10px 10px, 100% 100%',
           }} />
           {/* Radar Sweep */}
           <div className="absolute inset-0 animate-spin-slow opacity-30" style={{
-            background: 'conic-gradient(from 0deg, transparent 0%, rgba(59,130,246,0.5) 100%)',
+            background: 'conic-gradient(from 0deg, transparent 0%, rgba(56,189,248,0.44) 100%)',
           }} />
           {/* Radar Crosshair */}
-          <div className="absolute left-1/2 top-0 h-full w-[1px] -translate-x-1/2 bg-white/10" />
-          <div className="absolute left-0 top-1/2 h-[1px] w-full -translate-y-1/2 bg-white/10" />
+          <div className="absolute left-1/2 top-3 bottom-3 w-px -translate-x-1/2 bg-cyan-100/8" />
+          <div className="absolute left-3 right-3 top-1/2 h-px -translate-y-1/2 bg-cyan-100/8" />
 
           {radarPoints.map((point) => {
             const isHovered = hoveredCellId === point.id;
@@ -61,8 +62,8 @@ export function SessionMapDockLayout({
                   left: `${point.x}%`,
                   top: `${point.y}%`,
                   backgroundColor: point.color,
-                  boxShadow: isHovered ? `0 0 10px ${point.color}` : `0 0 4px ${point.color}`,
-                  border: '1.5px solid rgba(255,255,255,0.3)',
+                  boxShadow: isHovered ? `0 0 12px ${point.color}` : `0 0 5px ${point.color}`,
+                  border: '1.5px solid rgba(255,255,255,0.18)',
                 }}
                 onMouseEnter={() => setHoveredCellId(point.id)}
                 onMouseLeave={() => setHoveredCellId(null)}
@@ -72,22 +73,21 @@ export function SessionMapDockLayout({
             );
           })}
         </div>
-        <div className="mt-2 flex justify-between font-mono text-[7px] text-white/50 uppercase font-bold">
-          <span>Hover: Focus</span>
-          <span>Click: Locate</span>
+        <div className="mt-2 flex justify-between font-mono text-[7px] text-cyan-100/32 uppercase font-bold">
+          <span>Focus</span>
+          <span>Locate</span>
         </div>
       </div>
 
-      {/* Command Center (The SLG Map) */}
-      <div className="relative flex h-full flex-col rounded bg-white/[0.02] p-1.5 border border-white/5">
-        <PanelCorner position="top-left" color="rgba(255,255,255,0.2)" />
-        <PanelCorner position="top-right" color="rgba(255,255,255,0.2)" />
-        <PanelCorner position="bottom-left" color="rgba(255,255,255,0.2)" />
-        <PanelCorner position="bottom-right" color="rgba(255,255,255,0.2)" />
+      {/* Command Center (Cells) */}
+      <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(18,23,31,0.95),rgba(9,12,18,0.96))] px-3 py-2.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.045),0_10px_24px_rgba(0,0,0,0.22)]">
+        <div className="mb-2 font-mono text-[8px] font-bold uppercase tracking-[0.24em] text-white/54">
+          Cells
+        </div>
         <div
-          className="grid gap-2 overflow-y-auto pr-1 no-scrollbar"
+          className="grid flex-1 min-h-0 gap-2 overflow-y-auto pr-1 no-scrollbar"
           style={{
-            gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+            gridTemplateColumns: '1fr',
             alignContent: 'start',
           }}
         >
@@ -102,7 +102,7 @@ export function SessionMapDockLayout({
                   subTitle={cluster.typeLabel}
                   color={cluster.color}
                   isHovered={hoveredCellId === cluster.cell.id}
-                  minHeight={124}
+                  minHeight={126}
                   actions={
                     canCreateSession ? (
                       <button
@@ -134,10 +134,10 @@ export function SessionMapDockLayout({
                           <button
                             key={session.id}
                             type="button"
-                            className={`group/token relative flex h-10 w-10 items-center justify-center rounded transition-all duration-300 shadow-lg ${
+                            className={`group/token relative flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-300 shadow-lg ${
                               isActive
-                                ? 'bg-primary/40 ring-1 ring-primary/60 scale-110 z-10 shadow-primary/20'
-                                : 'bg-white/5 border border-white/5 hover:bg-white/15 hover:border-white/20 hover:scale-105'
+                                ? 'bg-primary/32 ring-1 ring-primary/45 scale-110 z-10 shadow-primary/20'
+                                : 'bg-white/[0.04] border border-white/8 hover:bg-white/[0.12] hover:border-white/20 hover:scale-105'
                             }`}
                             onClick={() => onSelectSession(cluster.cell.id, session.id)}
                             onMouseEnter={(event) =>
@@ -173,7 +173,7 @@ export function SessionMapDockLayout({
                     {offlineSessions.length ? (
                       <button
                         type="button"
-                        className="flex h-8.5 w-8.5 items-center justify-center rounded bg-white/5 border border-dashed border-white/10 text-[9px] text-white/30 transition-all hover:bg-white/10 hover:text-white/70 hover:border-white/20"
+                        className="flex h-8.5 w-8.5 items-center justify-center rounded-lg bg-white/[0.04] border border-dashed border-white/10 text-[9px] text-white/30 transition-all hover:bg-white/[0.1] hover:text-white/70 hover:border-white/18"
                         onClick={(event) =>
                           onOpenOfflineMenu(event.currentTarget, cluster.cell, offlineSessions)
                         }
@@ -194,57 +194,17 @@ export function SessionMapDockLayout({
         </div>
       </div>
 
-      {/* Focus / Info Panel */}
-      <div className="relative flex h-full flex-col rounded bg-white/[0.05] p-2">
-        <PanelCorner position="top-left" color="rgba(255,255,255,0.3)" />
-        <PanelCorner position="bottom-right" color="rgba(255,255,255,0.3)" />
-        <div className="font-mono text-[8px] font-bold uppercase tracking-widest text-white/60">
-          <span>Unit Details</span>
-        </div>
-        <div className="mt-3 flex-1 overflow-hidden">
-          {focusData ? (
-            <div className="flex flex-col h-full">
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <AgentAvatarBadge
-                    avatarId={resolveSessionAvatarId(focusData.session, focusData.cell)}
-                    size={48}
-                    lastActivityAt={focusData.session?.lastActivityAt}
-                    isClosed={focusData.session?.isOffline}
-                  />
-                </div>
-                <div className="min-w-0">
-                  <div className="truncate font-mono text-[11px] font-bold text-white">
-                    {focusData.session?.name || focusData.session?.id || 'UNTITLED'}
-                  </div>
-                  <div className="truncate text-[9px] text-white/60 font-bold uppercase">
-                    {focusData.cell?.name || focusData.cell?.id || 'UNKNOWN'} // {focusData.typeLabel}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3 space-y-1.5 border-t border-white/10 pt-2 font-mono text-[8px]">
-                <div className="flex justify-between">
-                  <span className="text-white/40 font-bold">STATUS</span>
-                  <span className="text-white/80 font-bold">{focusData.session?.status?.toUpperCase() || 'UNKNOWN'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/40 font-bold">LAST_ACT</span>
-                  <span className="text-white/80 font-bold">
-                    {focusData.session?.lastActivityAt ? formatRelativeTime(focusData.session.lastActivityAt).toUpperCase() : 'NONE'}
-                  </span>
-                </div>
-              </div>
-              <div className="mt-auto rounded border border-white/10 bg-black/40 p-2 text-[7px] leading-tight text-white/50 font-medium">
-                SYSTEM READY. HOVER TOKEN TO PREVIEW TERMINAL STREAM. CLICK TO ESTABLISH CONNECTION.
-              </div>
-            </div>
-          ) : (
-            <div className="flex h-full items-center justify-center font-mono text-[8px] text-white/20 uppercase font-bold">
-              No unit in focus
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Commander */}
+      <SessionMapCommanderPanel harnessRuns={harnessRuns} />
+
+      {/* Functional Area */}
+      <SessionMapCommandPanel
+        focusData={focusData}
+        harnessRuns={harnessRuns}
+        sessionError={sessionError}
+        onClearSessionError={onClearSessionError}
+        onCancelHarnessRun={onCancelHarnessRun}
+      />
     </div>
   );
 }

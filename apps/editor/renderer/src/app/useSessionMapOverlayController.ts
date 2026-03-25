@@ -170,6 +170,10 @@ export function useSessionMapOverlayController({
     setSessionMapOpen((value) => !value);
   }, []);
 
+  const openSessionMap = useCallback(() => {
+    setSessionMapOpen(true);
+  }, []);
+
   const resolveSessionMapFontSize = useCallback(
     (cellId: string, sessionId: string) => {
       if (!cellId || !sessionId) {
@@ -212,9 +216,9 @@ export function useSessionMapOverlayController({
     sessionMapEnabled,
     sessionMapModel,
     sessionMapOpen,
+    openSessionMap,
     handleToggleSessionMap,
     resolveSessionMapFontSize,
     handleSelectSessionFromMap,
   };
 }
-

@@ -75,6 +75,12 @@ Main Agent Harness 是更高一层的 host-owned control plane。
 - 但 host 内部会启动一个 Harness `Create Agent` run；
 - `Fork` 只是该 run 选择了 `session.tool-native-fork` 这个 specialization。
 
+当前 UI 对应的可见化入口：
+- Docked Session Map 右侧不再只是窄的 `Unit Details`，而是更宽的 `Command Ops` 区；
+- `Fork` / Harness run 启动时，Session Map 会自动打开一次，把用户带到这块指挥区；
+- `Command Ops` 左侧固定展示 Agency backend 的指挥官头像，右侧展示当前 focus session、Harness timeline、取消/复制动作，以及未来可扩展的个性化 quick ops；
+- Session 错误也复用这块区域，避免依赖容易误触消失的临时 notice。
+
 ## Session Reply Relay（跨会话回复资产）
 Session Reply Relay 是面向 Session 的“回复资产化”机制，强调 **跨多 agent 通信 / 不耦合具体 CLI 输入体验 / 同时形成资产**。
 

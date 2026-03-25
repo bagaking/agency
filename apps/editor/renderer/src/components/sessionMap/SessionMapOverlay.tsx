@@ -31,6 +31,10 @@ export function SessionMapOverlay({
   onUpdateSessionAvatar,
   onOpenFileShortcut,
   onRevealFileShortcut,
+  harnessRuns,
+  sessionError,
+  onClearSessionError,
+  onCancelHarnessRun,
   mode = 'popover',
 }: any) {
   const [hovered, setHovered] = useState(null);
@@ -618,26 +622,26 @@ export function SessionMapOverlay({
     >
       <div
         ref={overlayRef}
-        className={`pointer-events-auto relative border border-white/20 bg-[#161b22]/95 px-3 py-2 shadow-2xl backdrop-blur-md overflow-hidden ${
-          isDocked ? 'flex h-full flex-col rounded-none border-x-0 border-b-0' : 'rounded-2xl'
+        className={`pointer-events-auto relative bg-[linear-gradient(180deg,rgba(20,25,33,0.97),rgba(10,14,19,0.98))] px-3 py-2 shadow-[0_18px_48px_rgba(0,0,0,0.32)] backdrop-blur-md overflow-hidden ${
+          isDocked ? 'flex h-full min-h-0 flex-col rounded-none shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]' : 'rounded-2xl shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06),0_18px_48px_rgba(0,0,0,0.32)]'
         }`}
       >
         <div
-          className="pointer-events-none absolute inset-0 z-[100] opacity-[0.04]"
+          className="pointer-events-none absolute inset-0 z-[100] opacity-[0.025]"
           style={{
             backgroundImage:
-              'linear-gradient(rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.05) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.04))',
+              'linear-gradient(rgba(255, 255, 255, 0) 50%, rgba(125,211,252,0.04) 50%), linear-gradient(90deg, rgba(0, 255, 255, 0.02), rgba(0, 255, 255, 0.005), rgba(0, 255, 255, 0.02))',
             backgroundSize: '100% 2px, 3px 100%',
           }}
         />
 
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-1.5">
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 pb-1.5">
           <div className="flex items-center gap-2 text-xs font-bold tracking-tighter text-white">
-            <div className="flex h-5 w-5 items-center justify-center rounded-sm bg-primary/30 text-primary-foreground shadow-[0_0_8px_rgba(59,130,246,0.3)]">
+            <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-cyan-500/12 text-cyan-100 shadow-[inset_0_0_0_1px_rgba(125,211,252,0.16),0_0_12px_rgba(34,211,238,0.12)]">
               <MapIcon size={12} />
             </div>
             <span className="uppercase">Tactical Session Interface</span>
-            <div className="ml-2 h-1 w-1 animate-pulse rounded-full bg-primary shadow-[0_0_4px_#3b82f6]" />
+            <div className="ml-2 h-1 w-1 animate-pulse rounded-full bg-cyan-300 shadow-[0_0_4px_#22d3ee]" />
           </div>
           <div className="flex flex-wrap items-center gap-3 text-[9px] font-mono text-white/70">
             <span className="font-bold text-emerald-300/90">ONLINE:{model.stats.online}</span>
@@ -650,7 +654,7 @@ export function SessionMapOverlay({
             {onClose ? (
               <button
                 type="button"
-                className="flex h-5 w-5 items-center justify-center rounded border border-white/20 bg-white/10 text-white/60 transition-colors hover:bg-rose-500/30 hover:text-rose-300"
+                className="flex h-5 w-5 items-center justify-center rounded-lg bg-white/[0.04] text-white/55 transition-colors hover:bg-rose-500/18 hover:text-rose-200"
                 onClick={onClose}
               >
                 <X size={12} />
@@ -674,6 +678,10 @@ export function SessionMapOverlay({
             onOpenOfflineMenu={handleOpenOfflineMenu}
             registerClusterRef={registerClusterRef}
             canCreateSession={canCreateSession}
+            harnessRuns={harnessRuns}
+            sessionError={sessionError}
+            onClearSessionError={onClearSessionError}
+            onCancelHarnessRun={onCancelHarnessRun}
           />
         ) : (
           <SessionMapGridLayout

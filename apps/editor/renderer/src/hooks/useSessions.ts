@@ -17,6 +17,7 @@ import {
   writeTerminal as writeTerminalBridge,
 } from '../services/agencyBridge';
 import {
+  cancelMainAgentHarnessRun,
   inspectMainAgentHarnessRun,
   onMainAgentHarnessProgress,
   startMainAgentHarnessRun,
@@ -63,6 +64,9 @@ export function useSessions(options: any = {}) {
   >({});
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionError, setSessionError] = useState('');
+  const [harnessRunsById, setHarnessRunsById] = useState<Record<string, any>>({});
+  const harnessRunsByIdRef = useRef<Record<string, any>>({});
+  const [harnessRunOrder, setHarnessRunOrder] = useState<string[]>([]);
   const [pendingCommand, setPendingCommand] = useState(null);
   const cellsById = useMemo(() => {
     const list = Array.isArray(cells) ? cells : [];
@@ -309,6 +313,97 @@ export function useSessions(options: any = {}) {
     [loadSessionsForCell]
   );
 
+  const upsertHarnessRun = useCallback((nextRun: any) => {
+    const runId = String(nextRun?.runId || '').trim();
+    if (!runId) {
+      return;
+    }
+    setHarnessRunsById((current) => {
+      const previous = current[runId] || null;
+      const previousTimeline = Array.isArray(previous?.timeline) ? previous.timeline : [];
+      const nextTimeline = Array.isArray(nextRun?.timeline) ? nextRun.timeline : previousTimeline;
+      return {
+        ...current,
+        [runId]: {
+          ...(previous || {}),
+          ...(nextRun || {}),
+          timeline: nextTimeline,
+        },
+      };
+    });
+    setHarnessRunOrder((current) => {
+      const next = [runId, ...current.filter((item) => item !== runId)];
+      return next.slice(0, 8);
+    });
+  }, []);
+
+  useEffect(() => {
+    harnessRunsByIdRef.current = harnessRunsById;
+  }, [harnessRunsById]);
+
+  const isHarnessEventRelevant = useCallback((event: any) => {
+    const runId = String(event?.runId || '').trim();
+    const clientRequestId = String(event?.clientRequestId || '').trim();
+    if (!runId) {
+      return false;
+    }
+    if (harnessRunsByIdRef.current[runId]) {
+      return true;
+    }
+    return Object.values(pendingHarnessRunsRef.current).some((pending) => {
+      return (
+        String(pending?.runId || '').trim() === runId ||
+        (clientRequestId && String(pending?.clientRequestId || '').trim() === clientRequestId)
+      );
+    });
+  }, []);
+
+  const applyHarnessProgressEvent = useCallback((event: any) => {
+    const runId = String(event?.runId || '').trim();
+    if (!runId) {
+      return;
+    }
+    const entry = event?.entry || null;
+    setHarnessRunsById((current) => {
+      const previous = current[runId] || {
+        runId,
+        timeline: [],
+      };
+      const previousTimeline = Array.isArray(previous?.timeline) ? previous.timeline : [];
+      const nextTimeline =
+        entry && !previousTimeline.some((item) => item?.id === entry?.id)
+          ? [...previousTimeline, entry]
+          : previousTimeline;
+      return {
+        ...current,
+        [runId]: {
+          ...previous,
+          status: event?.status || previous.status || '',
+          currentStep: event?.currentStep ?? previous.currentStep ?? null,
+          progress: event?.progress ?? previous.progress ?? null,
+          result: event?.result ?? previous.result ?? null,
+          failures: event?.failures ?? previous.failures ?? [],
+          owner: event?.owner ?? previous.owner ?? null,
+          clientRequestId: event?.clientRequestId || previous.clientRequestId || '',
+          timeline: nextTimeline,
+          updatedAt: entry?.at || previous.updatedAt || '',
+        },
+      };
+    });
+    setHarnessRunOrder((current) => {
+      const next = [runId, ...current.filter((item) => item !== runId)];
+      return next.slice(0, 8);
+    });
+  }, []);
+
+  const harnessRuns = useMemo(
+    () =>
+      harnessRunOrder
+        .map((runId) => harnessRunsById[runId])
+        .filter(Boolean),
+    [harnessRunOrder, harnessRunsById]
+  );
+
   const settlePendingHarnessRun = useCallback(
     async ({
       runId,
@@ -341,6 +436,7 @@ export function useSessions(options: any = {}) {
         return false;
       }
       const run = runSnapshot || (await inspectMainAgentHarnessRun({ runId: targetRunId }));
+      upsertHarnessRun(run);
       const status = String(run?.status || '').trim().toLowerCase();
       if (!['succeeded', 'failed', 'cancelled'].includes(status)) {
         return false;
@@ -375,7 +471,7 @@ export function useSessions(options: any = {}) {
       }
       return true;
     },
-    [loadSessionsForCell, resolveCell, setActiveSessionByCellId]
+    [loadSessionsForCell, resolveCell, setActiveSessionByCellId, upsertHarnessRun]
   );
 
   useEffect(() => {
@@ -557,6 +653,7 @@ export function useSessions(options: any = {}) {
                 ],
               },
             });
+            upsertHarnessRun(harnessRun);
             const runId = String(harnessRun?.runId || '').trim();
             if (!runId) {
               throw new Error('Harness run did not return a runId.');
@@ -646,6 +743,7 @@ export function useSessions(options: any = {}) {
       settlePendingHarnessRun,
       tmuxStatus?.available,
       tmuxStatus?.error,
+      upsertHarnessRun,
       loadSessionsForCell,
     ]
   );
@@ -925,8 +1023,31 @@ export function useSessions(options: any = {}) {
 
   const clearSessionError = useCallback(() => setSessionError(''), []);
 
+  const cancelHarnessRun = useCallback(
+    async (runId: string) => {
+      const normalizedRunId = String(runId || '').trim();
+      if (!normalizedRunId) {
+        return null;
+      }
+      try {
+        const nextRun = await cancelMainAgentHarnessRun({
+          runId: normalizedRunId,
+          reason: 'user-requested-from-panel',
+        });
+        upsertHarnessRun(nextRun);
+        return nextRun;
+      } catch (error: any) {
+        setSessionError(error?.message || 'Failed to cancel harness run.');
+        return null;
+      }
+    },
+    [upsertHarnessRun]
+  );
+
   const resetSessions = useCallback(() => {
     pendingHarnessRunsRef.current = {};
+    setHarnessRunsById({});
+    setHarnessRunOrder([]);
     setSessionsByCellId({});
     setActiveSessionByCellId({});
     activeSessionByCellIdRef.current = {};
@@ -939,6 +1060,10 @@ export function useSessions(options: any = {}) {
     const unsubscribe = onMainAgentHarnessProgress?.((event: any) => {
       const runId = String(event?.runId || '').trim();
       const clientRequestId = String(event?.clientRequestId || '').trim();
+      if (!isHarnessEventRelevant(event)) {
+        return;
+      }
+      applyHarnessProgressEvent(event);
       if (!runId || !event?.terminal) {
         return;
       }
@@ -949,7 +1074,7 @@ export function useSessions(options: any = {}) {
     return () => {
       unsubscribe?.();
     };
-  }, [settlePendingHarnessRun]);
+  }, [applyHarnessProgressEvent, isHarnessEventRelevant, settlePendingHarnessRun]);
 
   return {
     sessions,
@@ -964,6 +1089,7 @@ export function useSessions(options: any = {}) {
     sessionVisitedByKey,
     sessionLoading,
     sessionError,
+    harnessRuns,
     pendingCommand,
     activeSessionByCellId,
     setActiveSessionByCellId,
@@ -988,6 +1114,7 @@ export function useSessions(options: any = {}) {
     dispatchSessionCommand,
     acknowledgeCommandSent,
     handleSessionAttached,
+    cancelHarnessRun,
     clearSessionError,
     resetSessions,
   };

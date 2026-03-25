@@ -101,6 +101,8 @@
 - Tool-native `Fork` remains a specialization, not the Harness core model. The default specialization can either:
   - choose a true `session.runtime smart_fork` path when host facts prove it is supported, or
   - choose `create_child` + `dispatch_input` to start a fresh child agent when true fork semantics are unavailable.
+- The docked Session Map now promotes its right-side info panel into a `Command Ops` zone: a commander/backend avatar anchors Harness activity, selected-unit context, copyable run/error details, and future quick actions for the focused agent.
+- Session action failures no longer rely only on transient notices; `Command Ops` keeps the latest error visible until explicitly dismissed and supports copying the full text.
 - Terminus profiles can define optional `fork` settings (`enabled`, `driver`, `launchTemplate`, and timeout knobs) so tool-specific fork behavior stays declarative at the profile layer instead of being hard-coded in renderer UI.
 - Detached sessions remain available from the overflow menu unless currently active; closed sessions can be restarted.
 - Sessions can be renamed from the session context menu.
@@ -259,6 +261,9 @@ make editor-dev
   - chooses a true `smart_fork` path that issues `/fork` and launches the rendered child command, or
   - chooses `create_child` + `dispatch_input` and starts a fresh child Codex session when true fork semantics are not available.
 - Use the Harness CLI or IPC inspect surface on a live run and confirm you can inspect step timeline, cancel a still-running run, and resume a cancelled/failed run without guessing from raw logs.
+- With Session Map closed, trigger `Fork` and confirm the docked Session Map opens automatically to expose the `Command Ops` area.
+- In the Session Map `Command Ops` zone, confirm the commander/backend avatar is visible, the active Harness timeline can be inspected and copied, and a running run can be cancelled from the panel.
+- Trigger a session error and confirm it appears in `Command Ops`, does not auto-dismiss on a timer, and can be copied before explicit dismissal.
 - Add a quick action with both commands and verify start/resume run in the active session.
 - Switch to Project or Agent actions, confirm inherited actions are read-only, and verify Override/Reset behavior.
 - Configure reply quick prompts across multiple scopes, confirm resolved source badges in Hierarchy, and insert one from `快捷回复如何` in Session Reply composer.

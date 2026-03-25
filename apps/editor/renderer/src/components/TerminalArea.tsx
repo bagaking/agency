@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, RefreshCw, TerminalSquare } from 'lucide-react';
+import { RefreshCw, TerminalSquare } from 'lucide-react';
 import TerminalPane from './TerminalPane';
 import { RiveAnimation } from './RiveAnimation';
 
@@ -22,7 +22,6 @@ export function TerminalArea({
   onSessionAttached,
   isVisible,
   sessionLoading,
-  sessionError,
   onOpenTerminal,
   shortcutBindings,
 }: any) {
@@ -100,13 +99,6 @@ export function TerminalArea({
           >
             SPAWN AGENT SHELL
           </button>
-        </div>
-      )}
-
-      {sessionError && (
-        <div className="absolute bottom-4 right-4 max-w-xs rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[10px] text-rose-300 backdrop-blur-md shadow-lg flex items-start gap-2">
-          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-          <span>{sessionError}</span>
         </div>
       )}
     </div>
