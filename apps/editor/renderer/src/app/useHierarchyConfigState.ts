@@ -6,6 +6,7 @@ import { useReplyQuickPrompts } from '../hooks/useReplyQuickPrompts';
 import { useSessionNamingSettings } from '../hooks/useSessionNamingSettings';
 import { useGates } from '../hooks/useGates';
 import { useWorktreeLinks } from '../hooks/useWorktreeLinks';
+import { useMainAgentHarnessSettings } from '../hooks/useMainAgentHarnessSettings';
 
 type UseHierarchyConfigStateArgs = {
   scopedCell: any;
@@ -50,6 +51,9 @@ export function useHierarchyConfigState({
     userDataPath,
   });
   const gatesState = useGates({ selectedCell: scopedCell, gateScope, gateStage, repoRoot: projectRoot });
+  const mainAgentHarnessSettingsState = useMainAgentHarnessSettings({
+    userDataPath,
+  });
 
   const memoVoiceShortcut = useMemo(() => {
     const action = (appShortcutsState.resolvedActions || []).find((entry: any) => entry.id === 'memo.voice');
@@ -127,6 +131,16 @@ export function useHierarchyConfigState({
     saveTerminusSettings: terminusState.saveSettings,
     clearTerminusError: terminusState.clearError,
 
+    mainAgentHarnessSettings: mainAgentHarnessSettingsState.settings,
+    codexCliProviderSettings: mainAgentHarnessSettingsState.codexCliProvider,
+    harnessSettingsPath: mainAgentHarnessSettingsState.harnessSettingsPath,
+    harnessProvidersError: mainAgentHarnessSettingsState.error,
+    harnessProvidersSaving: mainAgentHarnessSettingsState.saving,
+    harnessProvidersDirty: mainAgentHarnessSettingsState.dirty,
+    updateCodexCliProvider: mainAgentHarnessSettingsState.updateCodexCliProvider,
+    saveMainAgentHarnessSettings: mainAgentHarnessSettingsState.saveSettings,
+    clearHarnessProvidersError: mainAgentHarnessSettingsState.clearError,
+
     appShortcutResolvedActions: appShortcutsState.resolvedActions,
     appShortcutRows: appShortcutsState.actionRows,
     appShortcutsScopeDisabled: appShortcutsState.scopeDisabled,
@@ -195,4 +209,3 @@ export function useHierarchyConfigState({
     resolvedRepoRoot,
   };
 }
-

@@ -18,6 +18,7 @@
 - [x] 4.1 Define a runner adapter interface for tool-specific execution backends.
 - [x] 4.2 Implement one transitional reference runner adapter shape using the current Codex-oriented stack.
 - [x] 4.3 Add a Harness settings/provider registry layer with stable names (`runnerProviders/`, `settings.js`) and Codex as the first default provider path.
+- [x] 4.3.1 Add a global Harness provider settings surface for `codex_cli` with required `base_url`, `model`, and `OPENAI_API_KEY`, plus optional reasoning/context/compact overrides.
 - [x] 4.4 Implement `agentBackedRunnerAdapter` and provider-shared decision/progress parsing modules.
 - [x] 4.5 Implement `codexCliProvider` as the first production default provider, aligned with cclaw-style Codex usage but without adopting its container runtime.
 - [x] 4.6 Convert the current runner skill packs into stable descriptors consumable by the agent-backed runner.

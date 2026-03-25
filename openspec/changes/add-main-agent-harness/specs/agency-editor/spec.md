@@ -60,6 +60,21 @@ The Harness SHALL support an agent-backed runner as the default production execu
 - **AND** the provider returns a structured capability decision instead of directly mutating tmux or files
 - **AND** the resulting session/file side effects still execute through host-managed capabilities
 
+### Requirement: Global Harness Provider Settings
+The editor SHALL expose a global Harness provider settings surface for the default Codex provider instead of requiring users to rely on unrelated shell or personal Codex config state.
+
+#### Scenario: User configures the global Codex provider
+- **WHEN** a user opens the Harness provider settings UI
+- **THEN** the product exposes global fields for `base_url`, `model`, and `OPENAI_API_KEY`
+- **AND** it also supports optional `model_reasoning_effort`, `model_context_window`, and `model_auto_compact_token_limit`
+- **AND** the resulting settings are persisted as Agency-owned global configuration
+
+#### Scenario: Codex provider uses Agency-owned settings instead of ambient provider env
+- **WHEN** the global Codex provider settings are complete
+- **THEN** the `codex_cli` provider launches with Agency-owned provider overrides
+- **AND** it does not depend on unrelated ambient provider env such as `PP_CODEX`
+- **AND** missing required settings fail with a user-facing configuration error rather than an opaque provider startup error
+
 ### Requirement: Create Agent as Primary Child-Execution Semantic
 The editor SHALL treat `Create Agent` as the primary product semantic for creating and coordinating child execution lanes.
 

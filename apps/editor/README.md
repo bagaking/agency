@@ -74,6 +74,10 @@
   - resume: `--action resume --json '{"runId":"run-..."}'`
 - The Harness is the control plane: it owns `runId`, timeline, inspect/cancel/resume, and capability-call records, while session/file side effects still route through host-managed capabilities.
 - The production default is `agent_backed` with `codex_cli`; `reference` now lives under `testOnly/` and should only be used for tests/debugging.
+- Global provider settings now live in Hierarchy -> Harness Providers. The first productized slice is global-only and configures `codex_cli` with:
+  - required: `base_url`, `model`, `OPENAI_API_KEY`
+  - optional: `model_reasoning_effort`, `model_context_window`, `model_auto_compact_token_limit`
+- This settings surface is the preferred product path for provider credentials/config. Terminus profiles still own session launch/fork semantics, but not Harness provider credentials.
 
 ## Memo Drawer Interactions
 
@@ -188,6 +192,7 @@ pnpm run package
 Artifacts are written to `apps/editor/dist/release` (DMG + ZIP). Install by opening the DMG or unzipping the app and dragging `Agency.app` to `/Applications`.
 Unsigned builds may require Gatekeeper bypass (right-click → Open once, or run `xattr -dr com.apple.quarantine /Applications/Agency.app`).
 Packaging uses `TMPDIR=/tmp` to avoid `hdiutil` failures on some macOS setups.
+Packaging now runs a disk-space preflight before build/sign/DMG work. If free space is below the safe threshold, the command fails fast with cleanup guidance instead of spending minutes before `hdiutil` errors.
 
 From repo root:
 
@@ -200,6 +205,10 @@ For an unpacked build (no DMG), run:
 ```bash
 pnpm run package:dir
 ```
+
+Optional overrides:
+- `AGENCY_PACKAGE_DMG_MIN_FREE_GIB=4` override the DMG packaging free-space threshold
+- `AGENCY_PACKAGE_DIR_MIN_FREE_GIB=2` override the unpacked packaging free-space threshold
 
 ## Development
 

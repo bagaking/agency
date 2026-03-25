@@ -12,6 +12,7 @@ import {
   ArrowRight,
   Command,
   MessageSquareText,
+  ServerCog,
 } from 'lucide-react';
 import { RecentProjectsList } from './RecentProjectsList';
 
@@ -26,6 +27,7 @@ export function ProjectSettingsView({
   onOpenProject,
   onOpenRecent,
   onOpenActions,
+  onOpenHarnessProviders,
   onOpenAppShortcuts,
   onOpenReplyQuickPrompts,
   onOpenGates,
@@ -47,6 +49,16 @@ export function ProjectSettingsView({
       disabled: false,
       color: 'text-blue-400',
       bg: 'group-hover:bg-blue-500/10'
+    },
+    {
+      id: 'harness-providers',
+      title: 'Harness Providers',
+      description: 'Configure the global Codex provider endpoint, model, and API key used by agent-backed runs.',
+      icon: ServerCog,
+      onClick: onOpenHarnessProviders,
+      disabled: false,
+      color: 'text-sky-400',
+      bg: 'group-hover:bg-sky-500/10'
     },
     {
       id: 'app-shortcuts',

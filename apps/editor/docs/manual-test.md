@@ -18,6 +18,7 @@
 ## Terminal
 - [ ] Open a terminal session and verify output appears.
 - [ ] Start CLI and confirm Codex (or stub) launches in the embedded terminal.
+- [ ] Open Hierarchy -> Harness Providers, set `base_url`, `model`, and `OPENAI_API_KEY`, save, then restart the app process if needed and confirm the values persist.
 - [ ] Reorder two session nodes in Agent Cells and confirm the new order persists after refresh.
 - [ ] Drag a session onto another session and confirm it becomes a child node.
 - [ ] Drag a child session out toward an ancestor level and confirm it is promoted to that higher level.

@@ -16,6 +16,7 @@ type UseHierarchyNavigationArgs = {
   setGateScope: (scope: ScopedConfigScope) => void;
   setSessionNamingScope: (scope: ScopedConfigScope) => void;
   clearTerminusError: () => void;
+  clearHarnessProvidersError: () => void;
   clearAppShortcutsError: () => void;
   clearReplyQuickPromptsError: () => void;
   clearGatesError: () => void;
@@ -34,6 +35,7 @@ export function useHierarchyNavigation({
   setGateScope,
   setSessionNamingScope,
   clearTerminusError,
+  clearHarnessProvidersError,
   clearAppShortcutsError,
   clearReplyQuickPromptsError,
   clearGatesError,
@@ -60,6 +62,9 @@ export function useHierarchyNavigation({
       if (target === 'app-shortcuts') {
         clearAppShortcutsError();
       }
+      if (target === 'harness-providers') {
+        clearHarnessProvidersError();
+      }
       if (target === 'reply-quick-prompts') {
         clearReplyQuickPromptsError();
       }
@@ -75,6 +80,7 @@ export function useHierarchyNavigation({
     },
     [
       clearAppShortcutsError,
+      clearHarnessProvidersError,
       clearGatesError,
       clearReplyQuickPromptsError,
       clearSessionNamingError,
@@ -93,6 +99,11 @@ export function useHierarchyNavigation({
     },
     [clearTerminusError, setActionsScope, setHierarchySection]
   );
+
+  const handleOpenHarnessProviders = useCallback(() => {
+    setHierarchySection('harness-providers');
+    clearHarnessProvidersError();
+  }, [clearHarnessProvidersError, setHierarchySection]);
 
   const handleConfigureProfile = useCallback(
     (profile: any) => {
@@ -166,8 +177,17 @@ export function useHierarchyNavigation({
       if (section === 'reply-quick-prompts') {
         clearReplyQuickPromptsError();
       }
+      if (section === 'harness-providers') {
+        clearHarnessProvidersError();
+      }
     },
-    [clearReplyQuickPromptsError, clearSessionNamingError, clearWorktreeLinksError, setHierarchySection]
+    [
+      clearHarnessProvidersError,
+      clearReplyQuickPromptsError,
+      clearSessionNamingError,
+      clearWorktreeLinksError,
+      setHierarchySection,
+    ]
   );
 
   const handleToggleSidebar = useCallback(() => {
@@ -178,6 +198,7 @@ export function useHierarchyNavigation({
     handleSwitchView,
     handleHierarchyJump,
     handleSelectActionsScope,
+    handleOpenHarnessProviders,
     handleConfigureProfile,
     handleSelectAppShortcutsScope,
     handleSelectReplyQuickPromptsScope,

@@ -179,6 +179,8 @@ const INVOKE_CHANNELS: Record<string, string> = {
   cancelMainAgentHarnessRun: 'main-agent-harness:cancel',
   resumeMainAgentHarnessRun: 'main-agent-harness:resume',
   listMainAgentHarnessRuns: 'main-agent-harness:list',
+  getMainAgentHarnessSettings: 'main-agent-harness-settings:get',
+  setMainAgentHarnessSettings: 'main-agent-harness-settings:set',
   startScreenshotCapture: 'capture:start',
   saveCaptureAsset: 'capture:saveAsset',
   copyCaptureToClipboard: 'capture:copy',

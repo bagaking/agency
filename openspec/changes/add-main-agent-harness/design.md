@@ -123,6 +123,25 @@ For the first slice:
 - `claude-cli` is a likely follow-on provider;
 - provider transport must stay isolated behind one provider seam so Agency can later switch Codex transport from CLI-first to SDK-backed without rewriting the Harness controller.
 
+### Decision: Provider credentials/config belong to a global Harness settings surface
+The default Codex provider must not rely on:
+- Terminus profile settings
+- Agent/Cell scoped settings
+- ambient shell-only env as the primary product path
+
+Instead, Agency should own a global Harness provider settings surface for `codex_cli`.
+
+For the first slice, that surface needs:
+- required: `base_url`, `model`, `OPENAI_API_KEY`
+- optional: `model_reasoning_effort`, `model_context_window`, `model_auto_compact_token_limit`
+
+Why global-only:
+- these are provider/runtime credentials, not session/profile behavior
+- the API key is user-level secret material
+- project/agent scopes would create unclear ownership and poor security ergonomics
+
+The provider may still support fallback behavior for legacy environments, but the productized path must be the Agency-owned global config.
+
 ### Decision: Runner skill packs become descriptors consumable by both JS and agent-backed paths
 Skill packs should stop being thought of as “logic bags living only inside JS adapters”.
 

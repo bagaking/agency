@@ -2,6 +2,7 @@ import React from 'react';
 import { WorkbenchPane } from '../workbench/WorkbenchPane';
 import { EditorPane } from '../EditorPane';
 import { QuickActionsView } from '../QuickActionsView';
+import { HarnessProviderSettingsView } from '../HarnessProviderSettingsView';
 import { AppShortcutsView } from '../AppShortcutsView';
 import { ReplyQuickPromptsView } from '../ReplyQuickPromptsView';
 import { SessionNamingView } from '../SessionNamingView';
@@ -22,6 +23,7 @@ export function AppMainPanels({
   memoPaneProps,
   actionSheetsProps,
   quickActionsViewProps,
+  harnessProviderSettingsViewProps,
   appShortcutsViewProps,
   replyQuickPromptsViewProps,
   sessionNamingViewProps,
@@ -48,6 +50,12 @@ export function AppMainPanels({
       {activeView === 'hierarchy' && hierarchySection === 'actions' ? (
         <div className="absolute inset-0">
           <QuickActionsView {...quickActionsViewProps} />
+        </div>
+      ) : null}
+
+      {activeView === 'hierarchy' && hierarchySection === 'harness-providers' ? (
+        <div className="absolute inset-0">
+          <HarnessProviderSettingsView {...harnessProviderSettingsViewProps} />
         </div>
       ) : null}
 

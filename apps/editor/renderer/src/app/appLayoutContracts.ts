@@ -10,6 +10,7 @@ export type ActiveView = (typeof ACTIVE_VIEWS)[number];
 
 export const HIERARCHY_SECTIONS = [
   'actions',
+  'harness-providers',
   'app-shortcuts',
   'reply-quick-prompts',
   'session-naming',
@@ -232,6 +233,7 @@ export type NavigationHandlers = UnknownRecord & {
   handleSelectSessionFromSidebar?: FlexibleHandler;
   handleOpenRecentProject?: FlexibleHandler<[string]>;
   handleSelectActionsScope?: FlexibleHandler<[ScopedConfigScope]>;
+  handleOpenHarnessProviders?: FlexibleHandler;
   handleConfigureProfile?: FlexibleHandler;
   handleSelectAppShortcutsScope?: FlexibleHandler<[ScopedConfigScope]>;
   handleSelectReplyQuickPromptsScope?: FlexibleHandler<[ScopedConfigScope]>;
@@ -385,6 +387,15 @@ export interface HierarchyConfigState {
   refreshWorktreeLinks: FlexibleHandler;
   resolvedRepoRoot: string;
   canUseScopedConfig: boolean;
+  mainAgentHarnessSettings: unknown;
+  codexCliProviderSettings: unknown;
+  harnessSettingsPath: string;
+  harnessProvidersError: string;
+  harnessProvidersSaving: boolean;
+  harnessProvidersDirty: boolean;
+  updateCodexCliProvider: FlexibleHandler;
+  saveMainAgentHarnessSettings: FlexibleHandler;
+  clearHarnessProvidersError: FlexibleHandler;
 }
 
 export interface AppLayoutCompositionInput {
@@ -468,6 +479,7 @@ export interface BuildAppLayoutInput {
   handleOpenRecentProject: FlexibleHandler<[string]>;
   actionsScope: ScopedConfigScope;
   handleSelectActionsScope: FlexibleHandler<[ScopedConfigScope]>;
+  handleOpenHarnessProviders: FlexibleHandler;
   handleConfigureProfile: FlexibleHandler;
   appShortcutsScope: ScopedConfigScope;
   handleSelectAppShortcutsScope: FlexibleHandler<[ScopedConfigScope]>;
@@ -477,6 +489,14 @@ export interface BuildAppLayoutInput {
   handleSelectSessionNamingScope: FlexibleHandler<[ScopedConfigScope]>;
   terminusScopeDisabled: boolean;
   terminusSummary: unknown;
+  harnessSettingsPath: string;
+  harnessProvidersError: string;
+  harnessProvidersSaving: boolean;
+  harnessProvidersDirty: boolean;
+  codexCliProviderSettings: unknown;
+  updateCodexCliProvider: FlexibleHandler;
+  saveMainAgentHarnessSettings: FlexibleHandler;
+  clearHarnessProvidersError: FlexibleHandler;
   appShortcutsScopeDisabled: boolean;
   appShortcutsSummary: unknown;
   replyQuickPromptsScopeDisabled: boolean;

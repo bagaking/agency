@@ -21,6 +21,13 @@ Unpacked build (skip DMG):
 pnpm run package:dir
 ```
 
+Packaging preflight:
+- `pnpm run package` now checks free disk space before the expensive build/sign/DMG stages.
+- `pnpm run package:dir` does the same with a lower threshold for unpacked builds.
+- Threshold env overrides:
+  - `AGENCY_PACKAGE_DMG_MIN_FREE_GIB`
+  - `AGENCY_PACKAGE_DIR_MIN_FREE_GIB`
+
 Artifacts:
 - `apps/editor/dist/release/Agency-<version>-arm64.dmg`
 - `apps/editor/dist/release/Agency-<version>-arm64-mac.zip`
@@ -70,6 +77,7 @@ Fix:
 If `electron-builder --mac` fails with `hdiutil` errors:
 - Use `TMPDIR=/tmp` for packaging (already in scripts).
 - Use `pnpm run package:dir` to validate packaging without DMG.
+- If the machine is low on free disk space, the packaging preflight should now fail before the long build/sign path and tell you to clean `apps/editor/dist/release` or `~/Library/Caches/electron-builder`.
 
 ### Native dependency issues (node-pty)
 If terminal fails in packaged builds:

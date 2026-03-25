@@ -5,6 +5,7 @@ import {
   User,
   Link2,
   ShieldCheck,
+  ServerCog,
   Command,
   Tag,
   MessageSquareText,
@@ -18,6 +19,7 @@ export function HierarchySidebar({
   sessionNamingScope,
   gateScope,
   onSelectActionsScope,
+  onSelectHarnessProviders,
   onSelectAppShortcutsScope,
   onSelectReplyQuickPromptsScope,
   onSelectSessionNamingScope,
@@ -26,6 +28,7 @@ export function HierarchySidebar({
   canUseProjectScope,
   canUseAgentScope,
   actionSummary,
+  harnessProvidersDirty,
   appShortcutsSummary,
   replyQuickPromptsSummary,
   sessionNamingSummary,
@@ -178,6 +181,13 @@ export function HierarchySidebar({
 
         <div className="mb-2 mt-6 px-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">SHARED STATE</div>
         <div className="space-y-0.5">
+          <ScopeItem
+            icon={ServerCog}
+            label="Harness Providers"
+            meta={harnessProvidersDirty ? 'Unsaved' : 'Global'}
+            selected={section === 'harness-providers'}
+            onClick={() => onSelectHarnessProviders?.()}
+          />
           <ScopeItem
             icon={Link2}
             label="Directory Softlinks"

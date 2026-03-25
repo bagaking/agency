@@ -55,6 +55,7 @@ Main Agent Harness 是更高一层的 host-owned control plane。
 - Capability registry：定义哪些 host-managed capabilities 对 Harness 可见，以及 policy seam。
 - Agent-backed runner adapter：默认执行面，负责消费受控 skill-pack descriptor，并把决策交给 provider。
 - Provider registry：当前默认 `codex_cli`，后续可扩 `claude_cli` 等，但 provider 永远不是副作用 owner。
+- Global provider settings：Agency 自己维护 provider 参数/credential，当前第一条产品化路径是全局 `codex_cli` 配置（`base_url`、`model`、`OPENAI_API_KEY` 必填，reasoning/context/compact 为可选覆盖），不再要求用户依赖 ambient shell provider env。
 - Test-only reference runner：仅保留给 tests/debug，不再承载产品默认语义。
 - Runner skill packs：给复杂 specialization 一个受控 playbook，目前先有：
   - `session.create-child`
