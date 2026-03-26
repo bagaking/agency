@@ -170,6 +170,8 @@ Session Map 的类 RTS 游戏操作界面设计：它是一个跨界面、始终
 - **角色头像**：Cell 创建时分配 `avatar`（存于 lifecycle 文件），使用 `@bagakit/open-agent-avatars/20260202` 作为唯一来源（无网络 fallback）；若缺失则按 Cell 名称/ID 回退计算。Session 创建时优先选择活跃会话中“未占用或占用最少”的头像，并按轮转策略分配；支持在编辑器头部菜单、Session Tab 与 Session Map 中自定义头像。
 - **头像选择器**：7x7 网格视图（可滚动但隐藏滚动条），第一行展示最近选择的头像（左→右排序），与第二行之间有分隔线。
 - **HUD 分区（Dock 模式）**：左侧 Radar、中央 Command Center、右侧 Focus（头像/状态）；Dock 使用固定高度（约原高度 2/3）。Command Center 以 SLG 网格卡片分组展示 Cell（每个卡片内为在线 sessions），离线/不活跃会话折叠到 “…” 菜单。Radar 点位与右侧卡片联动：hover 高亮对应城邦卡片，点击定位滚动到对应卡片。
+- **Cells 布局（Dock 模式）**：Command Center 中的 Cell 卡片应按内容宽度参与横向 wrap，而不是让单个 Cell 拉满整行；当 Cell 数量增多时，布局应优先扩展为多列多行卡片而不是不断增长单个长条。
+- **Active token 层级**：当前选中的 session token 必须成为同组中最显眼的视觉锚点；非选中 token 保持低噪声底座，避免靠一圈浅色边框和轻微放大来“假装高亮”。
 
 ## 交互规则
 - **点击 Session token**：仅切换 Cell + Session，不切换当前主界面视图。

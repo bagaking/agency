@@ -6,6 +6,58 @@ import { TacticalFrame } from './SessionMapFrames';
 import { SessionMapCommanderPanel } from './SessionMapCommanderPanel';
 import { SessionMapOperationsRail } from './SessionMapOperationsRail';
 
+const CELL_CARD_MIN_WIDTH = 280;
+const CELL_CARD_MAX_WIDTH = 420;
+
+function SessionTokenButton({
+  session,
+  cluster,
+  onSelectSession,
+  onTokenEnter,
+  onTokenLeave,
+}: any) {
+  const isActive = session.isActive;
+  const isClosed = session.isOffline;
+
+  return (
+    <button
+      type="button"
+      className={`group/token relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 ${
+        isActive
+          ? 'z-10 scale-[1.08] bg-[linear-gradient(180deg,rgba(34,211,238,0.24),rgba(24,36,50,0.92))] shadow-[0_0_0_1px_rgba(34,211,238,0.58),0_0_18px_rgba(34,211,238,0.28)]'
+          : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(9,13,18,0.96))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(15,20,28,0.98))] hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]'
+      }`}
+      onClick={() => onSelectSession(cluster.cell.id, session.id)}
+      onMouseEnter={(event) =>
+        onTokenEnter(event, {
+          cell: cluster.cell,
+          session,
+          color: cluster.color,
+          typeLabel: cluster.typeLabel,
+        })
+      }
+      onMouseLeave={onTokenLeave}
+      aria-label={`Session ${session.name || session.id}`}
+      data-session-token="true"
+    >
+      <AgentAvatarBadge
+        avatarId={resolveSessionAvatarId(session, cluster.cell)}
+        size={24}
+        ringSize={isActive ? 30 : 28}
+        lastActivityAt={session.lastActivityAt}
+        isClosed={isClosed}
+        ringClassName={isActive ? 'shadow-[0_0_10px_rgba(34,211,238,0.25)]' : ''}
+      />
+      {isActive ? (
+        <>
+          <div className="pointer-events-none absolute -inset-1 rounded-[14px] border border-cyan-300/55" />
+          <div className="pointer-events-none absolute -bottom-1 h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.75)]" />
+        </>
+      ) : null}
+    </button>
+  );
+}
+
 export function SessionMapDockLayout({
   model,
   radarPoints,
@@ -93,10 +145,9 @@ export function SessionMapDockLayout({
           Cells
         </div>
         <div
-          className="grid min-h-0 flex-1 gap-1.5 overflow-y-auto pr-1 no-scrollbar"
+          className="flex min-h-0 flex-1 flex-wrap content-start gap-1.5 overflow-y-auto pr-1 no-scrollbar"
           style={{
-            gridTemplateColumns: '1fr',
-            alignContent: 'start',
+            alignContent: 'flex-start',
           }}
         >
           {model.clusters.length ? (
@@ -106,11 +157,12 @@ export function SessionMapDockLayout({
               return (
                 <TacticalFrame
                   key={cluster.cell.id}
-                  title={cluster.cell.name || cluster.cell.id}
+                  title={(cluster.cell.name || cluster.cell.id || '').toUpperCase()}
                   subTitle={cluster.typeLabel}
                   color={cluster.color}
                   isHovered={hoveredCellId === cluster.cell.id}
-                  minHeight={110}
+                  minHeight={96}
+                  className="min-w-[280px] max-w-[420px] flex-[0_1_420px]"
                   actions={
                     canCreateSession ? (
                       <button
@@ -132,44 +184,23 @@ export function SessionMapDockLayout({
                     ref={(node) => registerClusterRef(cluster.cell.id, node)}
                     onMouseEnter={() => setHoveredCellId(cluster.cell.id)}
                     onMouseLeave={() => setHoveredCellId(null)}
-                    className={`flex w-full flex-wrap gap-1.5 ${cluster.isOffline ? 'opacity-60' : ''}`}
+                    className={`flex w-full flex-wrap items-start gap-1.5 ${cluster.isOffline ? 'opacity-60' : ''}`}
+                    style={{
+                      minWidth: `${CELL_CARD_MIN_WIDTH}px`,
+                      maxWidth: `${CELL_CARD_MAX_WIDTH}px`,
+                    }}
                   >
                     {activeSessions.length ? (
                       activeSessions.map((session) => {
-                        const isActive = session.isActive;
-                        const isClosed = session.isOffline;
                         return (
-                          <button
+                          <SessionTokenButton
                             key={session.id}
-                            type="button"
-                            className={`group/token relative flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-300 shadow-lg ${
-                              isActive
-                                ? 'bg-primary/32 ring-1 ring-primary/45 scale-110 z-10 shadow-primary/20'
-                                : 'bg-white/[0.04] border border-white/8 hover:bg-white/[0.12] hover:border-white/20 hover:scale-105'
-                            }`}
-                            onClick={() => onSelectSession(cluster.cell.id, session.id)}
-                            onMouseEnter={(event) =>
-                              onTokenEnter(event, {
-                                cell: cluster.cell,
-                                session,
-                                color: cluster.color,
-                                typeLabel: cluster.typeLabel,
-                              })
-                            }
-                            onMouseLeave={onTokenLeave}
-                            aria-label={`Session ${session.name || session.id}`}
-                            data-session-token="true"
-                          >
-                            <AgentAvatarBadge
-                              avatarId={resolveSessionAvatarId(session, cluster.cell)}
-                              size={28}
-                              lastActivityAt={session.lastActivityAt}
-                              isClosed={isClosed}
-                            />
-                            {isActive && (
-                              <div className="absolute -inset-1 rounded border border-primary/30 animate-pulse pointer-events-none" />
-                            )}
-                          </button>
+                            session={session}
+                            cluster={cluster}
+                            onSelectSession={onSelectSession}
+                            onTokenEnter={onTokenEnter}
+                            onTokenLeave={onTokenLeave}
+                          />
                         );
                       })
                     ) : (
@@ -181,7 +212,7 @@ export function SessionMapDockLayout({
                     {offlineSessions.length ? (
                       <button
                         type="button"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-dashed border-white/10 bg-white/[0.04] text-[8px] text-white/28 transition-all hover:bg-white/[0.1] hover:text-white/70 hover:border-white/18"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.03] text-[8px] text-white/28 transition-all hover:bg-white/[0.08] hover:text-white/70 hover:border-white/18"
                         onClick={(event) =>
                           onOpenOfflineMenu(event.currentTarget, cluster.cell, offlineSessions)
                         }

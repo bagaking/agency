@@ -30,6 +30,8 @@
 - [ ] In the Session Map dock, confirm the commander/backend avatar is visible and clicking it opens a separate `Briefing` popup above the map instead of replacing the right-side `Ops` panel.
 - [ ] In `Briefing`, confirm the dialog is bound to the current focus session/run, quick prompts work, typed questions return evidence-backed explanations, and `Cancel` / `Retry` / `Dismiss` actions route through the existing Harness/error flows.
 - [ ] Close `Briefing` and confirm the underlying `Ops` panel is still readable, a running run can be cancelled, a failed/cancelled run can be retried, and run details can be copied.
+- [ ] Create or load multiple Cells and confirm the `Cells` command-center area wraps them into multiple card columns instead of letting one Cell stretch across the full width.
+- [ ] In the `Cells` area, confirm Cell title and state chip do not overlap, non-active tokens avoid noisy white borders, and the selected token is the clearest visual anchor in the group.
 - [ ] Trigger a `Fork` failure case (for example source not running Codex or source still busy) and confirm the UI surfaces a structured error instead of silently creating a broken child session.
 - [ ] Inspect the live or completed Harness run (CLI or IPC-driven debug surface) and confirm it exposes `runId`, step timeline, and capability-call records for the `Fork` specialization.
 - [ ] Trigger a non-Harness session error and confirm the error stays visible in `Command Ops` until dismissed explicitly, and the full text can be copied.
