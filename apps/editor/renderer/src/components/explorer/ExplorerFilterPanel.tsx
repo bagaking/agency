@@ -41,7 +41,7 @@ export function ExplorerFilterPanel({
       id={menuId}
       ref={menuRef}
       data-explorer-filter-menu
-      className="absolute z-50 w-56 rounded-2xl border border-white/10 bg-[#1a1d23]/95 p-3 text-[11px] text-muted-foreground shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-2xl animate-tab-in ring-1 ring-white/5"
+      className="absolute z-50 max-h-[min(32rem,calc(100vh-9rem))] w-56 overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-[#1a1d23]/95 p-3 text-[11px] text-muted-foreground shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-2xl animate-tab-in ring-1 ring-white/5"
       style={menuStyle}
       role="menu"
       aria-label="Explorer filters"

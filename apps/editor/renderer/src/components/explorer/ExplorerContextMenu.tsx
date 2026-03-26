@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { 
+import {
   FilePlus2, 
   FolderPlus, 
   Pencil, 
@@ -14,7 +14,10 @@ import {
   MessageSquarePlus,
   Link
 } from 'lucide-react';
+import { focusRing } from '../ui/focusRing';
 import { useDismissibleLayer } from '../ui/useDismissibleLayer';
+
+const focusRingClass = focusRing.default;
 
 export function ExplorerContextMenu({
   x,
@@ -76,6 +79,8 @@ export function ExplorerContextMenu({
       ref={menuRef}
       className="fixed z-[9999] w-52 rounded-2xl border border-white/10 bg-[#1a1d23]/95 py-2 text-[11px] shadow-[0_25px_60px_rgba(0,0,0,0.6)] backdrop-blur-3xl animate-tab-in ring-1 ring-white/5 select-none"
       style={{ visibility: 'hidden' }}
+      role="menu"
+      aria-label="Explorer actions"
       onClick={(e) => e.stopPropagation()}
     >
       <div className="px-4 pb-2 mb-1 border-b border-white/5">
@@ -175,7 +180,7 @@ function ContextMenuItem({ icon: Icon, label, onClick, disabled, variant, shortc
   return (
     <button
       type="button"
-      className={`group flex w-full items-center justify-between px-3 py-1.5 rounded-lg transition-all duration-300 disabled:opacity-10 disabled:cursor-not-allowed ${
+      className={`group flex w-full items-center justify-between px-3 py-1.5 rounded-lg transition-all duration-300 disabled:opacity-10 disabled:cursor-not-allowed ${focusRingClass} ${
         variant === 'destructive'
           ? 'text-rose-400 hover:bg-rose-500/10'
           : 'text-muted-foreground/80 hover:bg-primary/10 hover:text-primary'
@@ -192,19 +197,21 @@ function ContextMenuItem({ icon: Icon, label, onClick, disabled, variant, shortc
         <Icon
           size={13}
           strokeWidth={2}
+          aria-hidden="true"
           className={`shrink-0 transition-transform duration-500 ${!disabled && 'group-hover:scale-125 group-hover:translate-x-0.5'}`}
         />
         <span className="truncate font-semibold tracking-tight">{label}</span>
       </div>
       <div className="flex items-center gap-2">
         {shortcut && (
-          <span className="text-[9px] font-black opacity-20 group-hover:opacity-40 transition-opacity uppercase tracking-widest font-mono">
+          <span aria-hidden="true" className="text-[9px] font-black opacity-20 group-hover:opacity-40 transition-opacity uppercase tracking-widest font-mono">
             {shortcut}
           </span>
         )}
         {!disabled && (
           <ChevronRight
             size={10}
+            aria-hidden="true"
             className="opacity-0 group-hover:opacity-40 translate-x-1 group-hover:translate-x-0 transition-all"
           />
         )}

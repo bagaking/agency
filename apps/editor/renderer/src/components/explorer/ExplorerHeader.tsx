@@ -85,7 +85,9 @@ export function ExplorerHeader({
           <input
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search files..."
+            name="explorerSearch"
+            autoComplete="off"
+            placeholder="Search files…"
             aria-label="Search files"
             className={`w-full rounded-full border border-border/40 bg-muted/10 px-8 py-1.5 text-[11px] text-foreground transition-colors placeholder:text-muted-foreground/30 focus:bg-background focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20 ${focusRingClass}`}
           />
