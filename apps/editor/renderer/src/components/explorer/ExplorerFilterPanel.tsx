@@ -43,7 +43,7 @@ export function ExplorerFilterPanel({
       data-explorer-filter-menu
       className="absolute z-50 max-h-[min(32rem,calc(100vh-9rem))] w-56 overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-[#1a1d23]/95 p-3 text-[11px] text-muted-foreground shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-2xl animate-tab-in ring-1 ring-white/5"
       style={menuStyle}
-      role="menu"
+      role="dialog"
       aria-label="Explorer filters"
     >
       <div className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/30">

@@ -109,7 +109,7 @@ export function ExplorerHeader({
           onClick={onToggleFilterMenu}
           aria-controls={filterMenuOpen ? filterMenuId : undefined}
           aria-expanded={filterMenuOpen}
-          aria-haspopup="menu"
+          aria-haspopup="dialog"
           aria-pressed={hasActiveFilters}
           className={`h-7 w-7 rounded-full border transition-colors ${
             hasActiveFilters ? 'border-primary/40 bg-primary/10 text-primary active-tab-glow' : 'border-border/40 text-muted-foreground/50 hover:border-border hover:text-foreground'
