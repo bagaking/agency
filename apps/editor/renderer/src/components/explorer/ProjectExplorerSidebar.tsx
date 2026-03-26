@@ -24,9 +24,14 @@ import { useExplorerExternalImport } from './useExplorerExternalImport';
 import { useExplorerEntryMutations } from './useExplorerEntryMutations';
 import { useExplorerPersistedUiState } from './useExplorerPersistedUiState';
 import {
+  DEFAULT_EXPLORER_FILTER_PREFERENCES,
+  useExplorerFilterPreferences,
+} from './useExplorerFilterPreferences';
+import {
   buildExplorerInternalDragPayload,
   writeExplorerInternalDragPaths,
 } from './explorerInternalDragPaths';
+import { useDismissibleLayer } from '../ui/useDismissibleLayer';
 
 const ROW_HEIGHT = 24;
 const OVERSCAN = 6;
@@ -58,6 +63,8 @@ function ProjectExplorerSidebarContent({
 }: any) {
   const modal = useModal();
   const listRef = useRef<HTMLDivElement | null>(null);
+  const filterMenuRef = useRef<HTMLDivElement | null>(null);
+  const filterMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const visiblePathsRef = useRef<string[]>([]);
   const {
     rootPath,
@@ -117,11 +124,13 @@ function ProjectExplorerSidebarContent({
   const [viewportHeight, setViewportHeight] = useState(0);
   const [changesPanelOpen, setChangesPanelOpen] = useState(true);
   const [changesPanelMode, setChangesPanelMode] = useState<ExplorerChangedFilesPanelMode>('flat');
+  const filterMenuId = 'explorer-filter-menu';
   const explorerStateKey = useMemo(() => {
     const base = scopeRootPath || rootPath || repoRoot;
     if (!base) return '';
     return `agency:explorer:${base}`;
   }, [scopeRootPath, rootPath, repoRoot]);
+  const filterLayerRefs = useMemo(() => [filterMenuRef, filterMenuButtonRef], []);
 
   const statusFilterSet = useMemo(() => new Set(statusFilters), [statusFilters]);
   const semanticFilterSet = useMemo(() => new Set(semanticFilters), [semanticFilters]);
@@ -131,8 +140,11 @@ function ProjectExplorerSidebarContent({
   const hasSemanticFilters = semanticFilterSet.size > 0;
   const hasChangeFilter = showChangesOnly || hasStatusFilters;
   const hasSemanticFilter = hasSemanticFilters;
-  const hasVisibilityFilters = !showHidden || !showIgnored;
-  const hasActiveFilters = hasChangeFilter || hasSemanticFilter || hasVisibilityFilters;
+  const hasVisibilityOverrides =
+    showHidden !== DEFAULT_EXPLORER_FILTER_PREFERENCES.showHidden ||
+    showIgnored !== DEFAULT_EXPLORER_FILTER_PREFERENCES.showIgnored ||
+    showChangesOnly !== DEFAULT_EXPLORER_FILTER_PREFERENCES.showChangesOnly;
+  const hasActiveFilters = hasStatusFilters || hasSemanticFilter || hasVisibilityOverrides;
 
   const activeRootLabel = rootLabel || 'Project';
   const hasCells = cells && cells.length > 0;
@@ -171,6 +183,26 @@ function ProjectExplorerSidebarContent({
     expandPath,
     setSelectedPaths,
     setFocusedPath,
+  });
+
+  useExplorerFilterPreferences({
+    stateKey: explorerStateKey,
+    showHidden,
+    setShowHidden,
+    showIgnored,
+    setShowIgnored,
+    showChangesOnly,
+    setShowChangesOnly,
+    statusFilters,
+    setStatusFilters,
+    semanticFilters,
+    setSemanticFilters,
+  });
+
+  useDismissibleLayer({
+    open: filterMenuOpen,
+    onDismiss: () => setFilterMenuOpen(false),
+    refs: filterLayerRefs,
   });
 
   useEffect(() => {
@@ -593,12 +625,18 @@ function ProjectExplorerSidebarContent({
         activeRootLabel={activeRootLabel} onJumpToAgents={onJumpToAgents} onNewFile={() => startDraft('file')} onNewFolder={() => startDraft('dir')}
         onRefresh={() => refreshAll({ forceStatus: true, reloadExpanded: true })} isLoading={loadingPaths.size > 0} hasCells={hasCells} cells={cells} selectedId={selectedId} onSelectCell={onSelectCell}
         searchQuery={searchQuery} onSearchChange={setSearchQuery} onClearSearch={() => setSearchQuery('')}
-        hasActiveFilters={hasActiveFilters} onToggleFilterMenu={() => setFilterMenuOpen(!filterMenuOpen)}
+        hasActiveFilters={hasActiveFilters}
+        filterMenuOpen={filterMenuOpen}
+        filterMenuId={filterMenuId}
+        filterMenuButtonRef={filterMenuButtonRef}
+        onToggleFilterMenu={() => setFilterMenuOpen((current) => !current)}
         searchTruncated={searchTruncated}
       />
 
       {filterMenuOpen && (
         <ExplorerFilterPanel
+          menuId={filterMenuId}
+          menuRef={filterMenuRef}
           showHidden={showHidden} setShowHidden={setShowHidden} showIgnored={showIgnored} setShowIgnored={setShowIgnored}
           showChangesOnly={showChangesOnly} setShowChangesOnly={setShowChangesOnly} statusFilterSet={statusFilterSet}
           toggleStatusFilter={toggleStatusFilter} clearStatusFilters={() => setStatusFilters([])} statusFiltersCount={statusFilters.length}

@@ -19,6 +19,7 @@ const WINDOW_STATE_KEYS = [
   'hilDrawerOpen',
   'hilDrawerPanel',
   'hilDrawerPanelByView',
+  'explorerFilterStateByRootKey',
   'windowBounds',
   'windowMaximized',
   'windowFullScreen',

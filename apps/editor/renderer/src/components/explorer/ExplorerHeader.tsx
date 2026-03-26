@@ -30,6 +30,9 @@ export function ExplorerHeader({
   onSearchChange,
   onClearSearch,
   hasActiveFilters,
+  filterMenuOpen,
+  filterMenuId,
+  filterMenuButtonRef,
   onToggleFilterMenu,
   searchTruncated,
   selectionCount,
@@ -98,9 +101,13 @@ export function ExplorerHeader({
           )}
         </div>
         <IconButton
+          ref={filterMenuButtonRef}
           label="Explorer filters"
           data-testid="explorer-filter-toggle"
           onClick={onToggleFilterMenu}
+          aria-controls={filterMenuOpen ? filterMenuId : undefined}
+          aria-expanded={filterMenuOpen}
+          aria-haspopup="menu"
           aria-pressed={hasActiveFilters}
           className={`h-7 w-7 rounded-full border transition-colors ${
             hasActiveFilters ? 'border-primary/40 bg-primary/10 text-primary active-tab-glow' : 'border-border/40 text-muted-foreground/50 hover:border-border hover:text-foreground'
