@@ -81,12 +81,14 @@ Main Agent Harness 是更高一层的 host-owned control plane。
 - `Fork` / Harness run 启动时，Session Map 会自动打开一次，把用户带到这块指挥区；
 - `Command Ops` 左侧固定展示 Agency backend 的指挥官头像，右侧展示当前 focus session、Harness timeline、取消/复制动作，以及未来可扩展的个性化 quick ops；
 - 点击 `Commander` 会打开一个独立的 `Briefing` 弹窗，而不是把右侧 `Ops` 面板改造成聊天视图。
-- `Briefing` 是有边界的 backend 对话：默认绑定当前 focus session、active Harness run 和最新错误/时间线证据，负责解释、建议和触发受限操作，但不复用 Session Reply 的语义。
+- `Briefing` 是有边界的 backend 简报：默认展示一张当前 context briefing 卡，并只保留一张最新回应卡；切换 focus session / relevant run 时必须重绑并清掉旧回应，避免累积聊天历史污染当前证据范围。
+- `Briefing` 负责解释、建议和触发受限操作，但不复用 Session Reply 的语义，也不应演化成通用聊天记录面板。
 - Session 错误也复用这块区域，避免依赖容易误触消失的临时 notice。
 - Dock 模式应把更多横向空间优先让给 `Cells`，`Radar / Commander / Command Ops` 保持辅助区而不是主视觉负担。
 - `Command Ops` 内容区必须支持纵向滚动；当 timeline 或错误详情超过 dock 高度时，用户仍应能完整查看与复制。
 - Dock HUD 的标题、卡片内边距和状态条应保持紧凑，优先信息密度而不是装饰性留白。
 - `Command Ops` 外层的 context strip 应优先展示当前聚焦 session 的头像与 session 名称，避免重复塞入像 `MAIN · DRAFT` 这类低价值上下文文字。
+- `Command Ops` 的主动作必须单点清晰：运行中显示 `Cancel`，失败/取消后显示 `Retry`，不要在同一面板里重复放多个语义等价的停止/重试入口。
 - `Briefing` 中的 `Cancel / Retry / Dismiss` 等动作必须继续走现有 Harness 或 host-managed capability；对话不能退化成 renderer 侧自由操作入口。
 - `Briefing` 弹窗关闭后，右侧 `Ops` 面板应保持原位和原上下文，不因为聊天交互而被替换或重排。
 
@@ -175,11 +177,13 @@ Session Map 的类 RTS 游戏操作界面设计：它是一个跨界面、始终
 
 ## 交互规则
 - **点击 Session token**：仅切换 Cell + Session，不切换当前主界面视图。
+- **Token 焦点语义**：Dock/Grid 中的 session token 在键盘 focus 时必须触发与 hover 同级的上下文预览反馈；不能让键盘用户只能“激活”而看不到同等预读信息。
 - **Hover**：带短延迟以避免抖动；显示动态详情 + 终端实时预览。预览画面可滚动，点击预览跳转到该 Session。Radar 区域 hover 仅强调联动，不触发跳转。
 - **预览信息条**：底部信息条不触发跳转；点击名称可直接改名，右侧 “…” 菜单可更换头像。
 - **首次进入**：自动打开地图（每个项目仅一次），之后由用户开关控制。
 - **Esc**：关闭 Session Map。
 - **键盘**：方向键在 token 间移动焦点，Enter/点击跳转。
+- **右侧 Ops/Commander 键盘性**：任何标注为 menu / action surface 的区域都必须至少支持初始焦点、可见 focus、`Escape` 退出，以及与视觉顺序一致的键盘移动。
 - **Dock 模式**：Session Map 作为底部面板出现，会把 Status Bar 顶上去；点击空白不自动关闭；当前为固定高度（约原高度的 2/3）。
 - **点击跳转反馈**：点击 token 仅切换当前 Cell + Session，不关闭 Map；点击缩略图预览后关闭 Map 并切换到 Agent Cells 视图，便于立即进入目标会话。
 - **创建会话**：在 Session Map 与 Agent Cells 的「+」菜单中可直接创建新 Session；同一 Terminus Profile 以单行聚合展示，并以子按钮触发 Start / Resume / Subcommand。

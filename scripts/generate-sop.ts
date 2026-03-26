@@ -78,7 +78,7 @@ function renderSop(items) {
   lines.push('This SOP is generated from docs frontmatter. Do not edit manually.');
   lines.push('');
   lines.push('## Update Requirements');
-  lines.push('- When a document with SOP frontmatter changes, regenerate this file with `node scripts/generate-sop.mjs` and commit `docs/must-sop.md`.');
+  lines.push('- When a document with SOP frontmatter changes, regenerate this file with `pnpm exec tsx scripts/generate-sop.ts` and commit `docs/must-sop.md`.');
   lines.push('- Add new SOP items by updating the `sop` list in the source document frontmatter.');
   lines.push('- Keep SOP items small and actionable; use the source document for details.');
   lines.push('');

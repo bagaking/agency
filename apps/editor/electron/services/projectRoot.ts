@@ -107,6 +107,14 @@ function getEnvProjectRoot() {
   return { value: '', explicit: false };
 }
 
+function getExplicitProjectRootOverride() {
+  const envRoot = getEnvProjectRoot();
+  if (!envRoot.explicit) {
+    return '';
+  }
+  return envRoot.value;
+}
+
 async function getStoredProjectRoot(windowStateId) {
   const normalizedWindowStateId = normalizeWindowStateId(windowStateId);
   if (!normalizedWindowStateId) {
@@ -310,6 +318,7 @@ async function getProjectContext(params: any = {}) {
 }
 
 export {
+  getExplicitProjectRootOverride,
   resolveProjectRoot,
   setProjectRoot,
   clearProjectRoot,

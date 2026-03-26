@@ -27,6 +27,7 @@ export function SessionMapOperationsRail({
   sessionError,
   onClearSessionError,
   onCancelHarnessRun,
+  onResumeHarnessRun,
 }: any) {
   const context = resolveCommanderContext({
     focusData,
@@ -74,6 +75,7 @@ export function SessionMapOperationsRail({
           sessionError={sessionError}
           onClearSessionError={onClearSessionError}
           onCancelHarnessRun={onCancelHarnessRun}
+          onResumeHarnessRun={onResumeHarnessRun}
         />
       </div>
     </div>

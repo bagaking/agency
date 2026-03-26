@@ -59,3 +59,5 @@ test('session tool-native fork validateDecision rejects legacy create_child_only
     /Invalid|decision/i
   );
 });
+
+export {};

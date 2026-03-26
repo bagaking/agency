@@ -103,6 +103,7 @@ export function WindowTitleBar({
 
   return (
     <header
+      data-testid="window-titlebar"
       className={`app-drag-region relative z-40 flex h-10 shrink-0 items-center gap-2 border-b border-border/60 bg-[#171b22] text-foreground shadow-[inset_0_-1px_0_rgba(255,255,255,0.03)] ${
         isMac ? 'pl-[78px]' : 'pl-2.5'
       } pr-2.5`}
@@ -113,6 +114,7 @@ export function WindowTitleBar({
           aria-label="Find window"
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((value) => !value)}
+          data-testid="window-titlebar-menu-button"
           className={`inline-flex h-7 items-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.04] px-2 text-[10px] font-medium text-foreground/90 transition-colors hover:bg-white/[0.08] hover:text-foreground ${focusRingClass}`}
         >
           <Logo size={14} className="shrink-0" />
@@ -124,7 +126,10 @@ export function WindowTitleBar({
         </button>
 
         {menuOpen ? (
-          <div className="app-no-drag absolute left-0 top-[calc(100%+6px)] z-50 w-[22rem] overflow-hidden rounded-xl border border-white/[0.08] bg-popover/95 shadow-[0_24px_80px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+          <div
+            data-testid="window-titlebar-menu"
+            className="app-no-drag absolute left-0 top-[calc(100%+6px)] z-50 w-[22rem] overflow-hidden rounded-xl border border-white/[0.08] bg-popover/95 shadow-[0_24px_80px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl"
+          >
             <div className="border-b border-border/60 px-3 py-2.5">
               <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 <Rows3 size={11} />
@@ -201,6 +206,7 @@ export function WindowTitleBar({
                         onClick={() => {
                           void handleSelectWindow(currentWindow.windowStateId);
                         }}
+                        data-testid={`window-switcher-item-${currentWindow.windowStateId}`}
                         onMouseEnter={() => {
                           setActiveResultIndex(0);
                         }}
@@ -234,6 +240,7 @@ export function WindowTitleBar({
                             onClick={() => {
                               void handleSelectWindow(window.windowStateId);
                             }}
+                            data-testid={`window-switcher-item-${window.windowStateId}`}
                             onMouseEnter={() => {
                               setActiveResultIndex(navigationIndex);
                             }}
@@ -269,7 +276,7 @@ export function WindowTitleBar({
 
       <div className="min-w-0 flex flex-1 items-center gap-2 overflow-hidden">
         <div className="truncate text-[11px] font-semibold tracking-[0.01em] text-foreground">
-          {projectName}
+          <span data-testid="window-titlebar-project-name">{projectName}</span>
         </div>
         <div className="truncate text-[10px] text-muted-foreground">{projectSubtitle}</div>
       </div>

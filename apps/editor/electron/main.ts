@@ -26,6 +26,7 @@ const {
 const { resolveRendererUrl } = require('./services/rendererUrl');
 const { warmupVoiceCapture } = require('./services/voiceCapture');
 const {
+  getExplicitProjectRootOverride,
   selectProjectRoot,
   setProjectRoot,
   setWindowProjectRoot,
@@ -97,7 +98,9 @@ function configureTestUserDataPath(): string | null {
 
 testUserDataPath = configureTestUserDataPath();
 
-const hasSingleInstanceLock = app.requestSingleInstanceLock();
+const shouldUseSingleInstanceLock =
+  process.env.AGENCY_TEST_MODE !== '1' || process.env.AGENCY_TEST_SINGLE_INSTANCE === '1';
+const hasSingleInstanceLock = shouldUseSingleInstanceLock ? app.requestSingleInstanceLock() : true;
 if (!hasSingleInstanceLock) {
   app.quit();
 }
@@ -376,6 +379,14 @@ async function resolveLaunchProjectRoot(
       return await getRepoRoot(candidatePath);
     } catch (_error) {
       continue;
+    }
+  }
+  const envProjectRoot = String(getExplicitProjectRootOverride() || '').trim();
+  if (envProjectRoot) {
+    try {
+      return await getRepoRoot(envProjectRoot);
+    } catch (_error) {
+      return '';
     }
   }
   return '';
@@ -765,6 +776,6 @@ if (hasSingleInstanceLock) {
   app.on('second-instance', (_event, argv, workingDirectory) => {
     void handleSecondaryLaunch(argv, workingDirectory);
   });
-  void app.whenReady().then(bootstrapApp);
 }
+void app.whenReady().then(bootstrapApp);
 setupProcessErrorHandlers();

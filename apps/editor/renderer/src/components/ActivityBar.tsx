@@ -21,14 +21,14 @@ export function ActivityBar({ activeView, onSwitchView }: any) {
   };
 
   const items = [
-    { id: 'explorer', icon: Folder, label: 'Explorer' },
-    { id: 'memo', icon: Brain, label: 'Memo' },
-    { id: 'action-sheets', icon: ClipboardList, label: 'Action Sheets' },
+    { id: 'explorer', icon: Folder, label: 'Explorer', testId: 'activity-explorer' },
+    { id: 'memo', icon: Brain, label: 'Memo', testId: 'activity-memo' },
+    { id: 'action-sheets', icon: ClipboardList, label: 'Action Sheets', testId: 'activity-action-sheets' },
   ];
 
   const bottomItems = [
-    { id: 'hierarchy', icon: ListTree, label: 'Hierarchy' },
-    { id: 'settings', icon: Settings, label: 'Settings' },
+    { id: 'hierarchy', icon: ListTree, label: 'Hierarchy', testId: 'activity-hierarchy' },
+    { id: 'settings', icon: Settings, label: 'Settings', testId: 'activity-settings' },
   ];
 
   return (
@@ -48,6 +48,7 @@ export function ActivityBar({ activeView, onSwitchView }: any) {
             key={item.id}
             icon={item.icon}
             label={item.label}
+            testId={item.testId}
             active={activeView === item.id}
             onClick={() => onSwitchView(item.id)}
           />
@@ -59,6 +60,7 @@ export function ActivityBar({ activeView, onSwitchView }: any) {
             key={item.id}
             icon={item.icon}
             label={item.label}
+            testId={item.testId}
             active={activeView === item.id}
             onClick={() => onSwitchView(item.id)}
           />

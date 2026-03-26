@@ -24,7 +24,7 @@ function splitCommand(command) {
 function resolveCliCommandString() {
   if (process.env.AGENCY_TEST_MODE === '1' || process.env.AGENCY_CLI_STUB === '1') {
     const nodeBinary = resolveNodeBinary();
-    return `${nodeBinary} ${path.join(__dirname, '../../scripts/cli_stub.js')}`;
+    return `${nodeBinary} ${path.join(__dirname, '../cli/cliStub.js')}`;
   }
   return process.env.AGENCY_CLI_COMMAND || 'codex';
 }

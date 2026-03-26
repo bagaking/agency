@@ -687,6 +687,7 @@ export function SessionMapOverlay({
             sessionError={sessionError}
             onClearSessionError={onClearSessionError}
             onCancelHarnessRun={onCancelHarnessRun}
+            onResumeHarnessRun={onResumeHarnessRun}
             onOpenCommanderDialog={() => setCommanderDialogOpen((current) => !current)}
             commanderDialogOpen={commanderDialogOpen}
             commanderTriggerRef={commanderTriggerRef}

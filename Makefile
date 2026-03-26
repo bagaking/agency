@@ -8,6 +8,7 @@ export CODEX_HOME_PUB := $(PWD)/.codex_pub
 
 # Lint/check basics: catches unused imports via build and common vet checks
 lint:
+	$(PNPM) run check:governed-js
 	@if command -v $(GOLANGCI_LINT) >/dev/null 2>&1; then \
 		$(GOLANGCI_LINT) run; \
 	else \

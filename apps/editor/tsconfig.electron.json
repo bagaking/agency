@@ -9,8 +9,8 @@
       "electron"
     ],
     "outDir": ".electron-build",
-    "rootDir": "electron",
-    "allowJs": true,
+    "rootDir": ".",
+    "allowJs": false,
     "checkJs": false,
     "noEmit": false,
     "isolatedModules": false,
@@ -19,7 +19,7 @@
   },
   "include": [
     "electron/**/*.ts",
-    "electron/**/*.js"
+    "shared/**/*.ts"
   ],
   "exclude": [
     ".electron-build",

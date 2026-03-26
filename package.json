@@ -5,6 +5,8 @@
   "packageManager": "pnpm@9.15.1",
   "scripts": {
     "build:agency-data": "pnpm --filter @agency/agency-data run build",
-    "typecheck:agency-data": "pnpm --filter @agency/agency-data run typecheck"
+    "typecheck:agency-data": "pnpm --filter @agency/agency-data run typecheck",
+    "generate:sop": "pnpm --dir apps/editor exec tsx ../scripts/generate-sop.ts",
+    "check:governed-js": "sh scripts/check_no_governed_js.sh ."
   }
 }

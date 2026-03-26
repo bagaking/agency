@@ -6,7 +6,7 @@ import { runElectronBuild } from "./electronBuild";
 import { readRendererPortFile, resolveRendererPortFile } from "./rendererDevServer";
 
 const electronPath = require("electron") as string;
-const mainPath = path.join(__dirname, "..", ".electron-build", "main.js");
+const mainPath = path.join(__dirname, "..", ".electron-build", "electron", "main.js");
 const portFile = resolveRendererPortFile();
 const WAIT_TIMEOUT_MS = 20_000;
 const WAIT_INTERVAL_MS = 250;

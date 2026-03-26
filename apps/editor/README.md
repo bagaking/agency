@@ -224,6 +224,13 @@ If the embedded terminal fails on macOS, run:
 pnpm run postinstall
 ```
 
+Governed repo-authored source under `apps/`, `pkg/`, and `scripts/` is TypeScript-only.
+Validate that rule from the repo root with:
+
+```bash
+pnpm run check:governed-js
+```
+
 ## Makefile (from repo root)
 
 ```bash

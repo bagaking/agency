@@ -6,8 +6,8 @@ import { TacticalFrame } from './SessionMapFrames';
 import { SessionMapCommanderPanel } from './SessionMapCommanderPanel';
 import { SessionMapOperationsRail } from './SessionMapOperationsRail';
 
-const CELL_CARD_MIN_WIDTH = 280;
-const CELL_CARD_MAX_WIDTH = 420;
+const CELL_CARD_MIN_WIDTH = 248;
+const CELL_CARD_MAX_WIDTH = 396;
 
 function SessionTokenButton({
   session,
@@ -22,7 +22,7 @@ function SessionTokenButton({
   return (
     <button
       type="button"
-      className={`group/token relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 ${
+      className={`group/token relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/55 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b1118] ${
         isActive
           ? 'z-10 scale-[1.08] bg-[linear-gradient(180deg,rgba(34,211,238,0.24),rgba(24,36,50,0.92))] shadow-[0_0_0_1px_rgba(34,211,238,0.58),0_0_18px_rgba(34,211,238,0.28)]'
           : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(9,13,18,0.96))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(15,20,28,0.98))] hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]'
@@ -37,6 +37,20 @@ function SessionTokenButton({
         })
       }
       onMouseLeave={onTokenLeave}
+      onFocus={(event) =>
+        onTokenEnter(
+          event,
+          {
+            cell: cluster.cell,
+            session,
+            color: cluster.color,
+            typeLabel: cluster.typeLabel,
+          },
+          { immediate: true }
+        )
+      }
+      onBlur={onTokenLeave}
+      aria-pressed={isActive}
       aria-label={`Session ${session.name || session.id}`}
       data-session-token="true"
     >
@@ -76,6 +90,7 @@ export function SessionMapDockLayout({
   sessionError,
   onClearSessionError,
   onCancelHarnessRun,
+  onResumeHarnessRun,
   onOpenCommanderDialog,
   commanderDialogOpen = false,
   commanderTriggerRef,
@@ -84,7 +99,7 @@ export function SessionMapDockLayout({
     <div
       className="mt-1.5 grid min-h-0 flex-1 gap-1.5 overflow-hidden"
       style={{
-        gridTemplateColumns: '104px minmax(340px, 1.55fr) 104px minmax(280px, 0.95fr)',
+        gridTemplateColumns: '92px minmax(0,1.65fr) 92px minmax(248px,0.95fr)',
       }}
     >
       {/* Radar Section */}
@@ -157,12 +172,12 @@ export function SessionMapDockLayout({
               return (
                 <TacticalFrame
                   key={cluster.cell.id}
-                  title={(cluster.cell.name || cluster.cell.id || '').toUpperCase()}
+                  title={cluster.cell.name || cluster.cell.id}
                   subTitle={cluster.typeLabel}
                   color={cluster.color}
                   isHovered={hoveredCellId === cluster.cell.id}
                   minHeight={96}
-                  className="min-w-[280px] max-w-[420px] flex-[0_1_420px]"
+                  className="min-w-[248px] max-w-[396px] flex-[1_1_320px]"
                   actions={
                     canCreateSession ? (
                       <button
@@ -248,6 +263,7 @@ export function SessionMapDockLayout({
         sessionError={sessionError}
         onClearSessionError={onClearSessionError}
         onCancelHarnessRun={onCancelHarnessRun}
+        onResumeHarnessRun={onResumeHarnessRun}
       />
     </div>
   );

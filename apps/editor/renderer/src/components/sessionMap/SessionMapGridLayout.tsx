@@ -71,7 +71,7 @@ export function SessionMapGridLayout({
                             <button
                               key={session.id}
                               type="button"
-                              className={`group relative flex h-12 w-12 items-center justify-center rounded-sm transition-all shadow-sm ${
+                              className={`group relative flex h-12 w-12 items-center justify-center rounded-sm transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1c2128] ${
                                 session.isActive
                                   ? 'bg-primary/40 ring-1 ring-primary/60'
                                   : 'bg-black/60 border border-white/10 hover:bg-white/10'
@@ -86,6 +86,20 @@ export function SessionMapGridLayout({
                                 })
                               }
                               onMouseLeave={onTokenLeave}
+                              onFocus={(event) =>
+                                onTokenEnter(
+                                  event,
+                                  {
+                                    cell: cluster.cell,
+                                    session,
+                                    color: cluster.color,
+                                    typeLabel: cluster.typeLabel,
+                                  },
+                                  { immediate: true }
+                                )
+                              }
+                              onBlur={onTokenLeave}
+                              aria-pressed={Boolean(session.isActive)}
                               aria-label={`Session ${session.name || session.id}`}
                               data-session-token="true"
                             >

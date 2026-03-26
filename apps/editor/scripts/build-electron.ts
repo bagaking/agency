@@ -28,7 +28,11 @@ function copyNativeAssets(): void {
 }
 
 function assertOutput(): void {
-  const requiredFiles = [path.join(outDir, "main.js"), path.join(outDir, "preload.js")];
+  const requiredFiles = [
+    path.join(outDir, "electron", "main.js"),
+    path.join(outDir, "electron", "preload.js"),
+    path.join(outDir, "shared", "sessionNamingCore.js"),
+  ];
 
   requiredFiles.forEach((filePath) => {
     if (!fs.existsSync(filePath)) {

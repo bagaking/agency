@@ -4,6 +4,7 @@ required: true
 sop:
   - Read docs/must-guidebook.md before working.
   - Use pnpm for workspace dependencies and keep pnpm-lock.yaml committed.
+  - Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeScript-only; do not add checked-in `.js`/`.cjs`/`.mjs` there.
   - Renderer IPC must go through apps/editor/renderer/src/services/agencyBridge.ts.
   - Avoid direct window.agency usage in React components.
   - When changing voice input, rescore behavior, or language handling, update docs/notes-voice-input.md.
@@ -22,6 +23,7 @@ This document collects core engineering norms that must stay aligned with projec
 
 ## Quality
 - Keep the architecture clean and favor DRY and SOLID; refactor when a file exceeds 800 lines.
+- Repo-authored source under `apps/`, `pkg/`, and `scripts/` is TypeScript-only. Generated output and vendored code are excluded, but checked-in JS/CJS/MJS is not allowed in those governed roots.
 - For important UI/UX work, review the result against four bars before calling it done:
   - design quality: does the surface feel coherent instead of assembled from unrelated parts;
   - originality: does it reflect Agency-specific decisions instead of template or library-default structure;

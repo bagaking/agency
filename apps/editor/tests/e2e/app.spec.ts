@@ -5,6 +5,8 @@ const { execSync } = require('child_process');
 const { test, expect, _electron: electron } = require('@playwright/test');
 
 const TEST_REPO = '/tmp/agency/test-cell';
+const SECOND_TEST_REPO = '/tmp/agency/test-cell-second';
+const THIRD_TEST_REPO = '/tmp/agency/test-cell-third';
 const PORT_FILE = process.env.AGENCY_RENDERER_PORT_FILE
   || path.join(os.tmpdir(), 'agency-editor-renderer.json');
 
@@ -35,55 +37,109 @@ const resolveRendererUrl = () => {
 const RENDERER_URL = resolveRendererUrl();
 const createdUserDataPaths = new Set();
 
-const setupTestRepo = () => {
-  fs.rmSync(TEST_REPO, { recursive: true, force: true });
-  fs.mkdirSync(TEST_REPO, { recursive: true });
-  execSync('git init', { cwd: TEST_REPO });
-  fs.writeFileSync(path.join(TEST_REPO, '.gitignore'), 'ignored.log\n');
-  fs.writeFileSync(path.join(TEST_REPO, 'README.md'), 'hello\n');
-  fs.mkdirSync(path.join(TEST_REPO, 'src'), { recursive: true });
-  fs.writeFileSync(path.join(TEST_REPO, 'src', 'index.js'), 'console.log(\"hi\");\n');
-  execSync('git add README.md .gitignore src/index.js', { cwd: TEST_REPO });
-  execSync('git -c user.name=Agency -c user.email=agency@example.com commit -m \"init\"', {
-    cwd: TEST_REPO,
+const killRepoElectronProcesses = () => {
+  try {
+    execSync('pkill -f "apps/editor/.electron-build/electron/main.js"', { stdio: 'ignore' });
+  } catch (_error) {
+    // Ignore the common "no matching process" case.
+  }
+};
+
+const initializeGitRepo = (repoPath, trackedEntries) => {
+  fs.rmSync(repoPath, { recursive: true, force: true });
+  fs.mkdirSync(repoPath, { recursive: true });
+  execSync('git init', { cwd: repoPath });
+  trackedEntries.forEach(({ relativePath, content }) => {
+    const absolutePath = path.join(repoPath, relativePath);
+    fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+    fs.writeFileSync(absolutePath, content);
   });
+  execSync(`git add ${trackedEntries.map(({ relativePath }) => relativePath).join(' ')}`, {
+    cwd: repoPath,
+  });
+  execSync('git -c user.name=Agency -c user.email=agency@example.com commit -m "init"', {
+    cwd: repoPath,
+  });
+};
+
+const resolveRealPath = (repoPath) => {
+  try {
+    return fs.realpathSync.native(repoPath);
+  } catch (_error) {
+    return repoPath;
+  }
+};
+
+const setupTestRepo = () => {
+  initializeGitRepo(TEST_REPO, [
+    { relativePath: '.gitignore', content: 'ignored.log\n' },
+    { relativePath: 'README.md', content: 'hello\n' },
+    { relativePath: 'src/index.js', content: 'console.log("hi");\n' },
+  ]);
   fs.writeFileSync(path.join(TEST_REPO, 'README.md'), 'hello world\n');
   fs.writeFileSync(path.join(TEST_REPO, 'new.txt'), 'new file\n');
   fs.writeFileSync(path.join(TEST_REPO, '.hidden'), 'hidden\n');
   fs.writeFileSync(path.join(TEST_REPO, 'ignored.log'), 'ignored\n');
 };
 
+const setupNamedRepo = (repoPath, label) => {
+  initializeGitRepo(repoPath, [
+    { relativePath: 'README.md', content: `${label}\n` },
+    { relativePath: 'src/index.js', content: `console.log(${JSON.stringify(label)});\n` },
+  ]);
+  fs.writeFileSync(path.join(repoPath, 'README.md'), `${label} workspace\n`);
+};
+
 const launchTestApp = async ({
   projectRoot = TEST_REPO,
   emptyState = false,
   setupRepo = true,
+  userDataPath,
+  includeProjectRootEnv = true,
+  cleanupExistingProcesses = true,
 } = {}) => {
+  if (cleanupExistingProcesses) {
+    killRepoElectronProcesses();
+  }
   if (setupRepo) {
     setupTestRepo();
     fs.rmSync(path.join(TEST_REPO, '.agency'), { recursive: true, force: true });
   }
-  const userDataPath = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-e2e-user-data-'));
-  createdUserDataPaths.add(userDataPath);
+  const effectiveUserDataPath = userDataPath
+    || fs.mkdtempSync(path.join(os.tmpdir(), 'agency-e2e-user-data-'));
+  createdUserDataPaths.add(effectiveUserDataPath);
   const env = {
     ...process.env,
     ELECTRON_RENDERER_URL: RENDERER_URL,
-    AGENCY_TEST_USER_DATA_PATH: userDataPath,
+    AGENCY_TEST_USER_DATA_PATH: effectiveUserDataPath,
     AGENCY_TEST_MODE: '1',
     AGENCY_CLI_STUB: '1',
-    AGENCY_TEST_PROJECT_ROOT: projectRoot,
   };
+  if (includeProjectRootEnv) {
+    env.AGENCY_TEST_PROJECT_ROOT = projectRoot;
+  }
   if (emptyState) {
     env.AGENCY_TEST_EMPTY_STATE = '1';
   }
   return electron.launch({
-    args: [path.join(__dirname, '..', '..', '.electron-build', 'main.js')],
+    args: [path.join(__dirname, '..', '..', '.electron-build', 'electron', 'main.js')],
     env,
   });
 };
 
 test.afterEach(async () => {
+  killRepoElectronProcesses();
   for (const userDataPath of createdUserDataPaths) {
-    fs.rmSync(userDataPath, { recursive: true, force: true });
+    try {
+      fs.rmSync(userDataPath, {
+        recursive: true,
+        force: true,
+        maxRetries: 10,
+        retryDelay: 150,
+      });
+    } catch (_error) {
+      // Best-effort cleanup for transient Chromium cache handles.
+    }
   }
   createdUserDataPaths.clear();
 });
@@ -111,10 +167,59 @@ const openFirstCellInHomeView = async (window) => {
   return cellItem;
 };
 
+const waitForWindowCount = async (electronApp, count) => {
+  await expect.poll(async () => {
+    return electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length);
+  }).toBe(count);
+};
+
+const getFocusedWindowTitle = async (electronApp) => {
+  return electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getFocusedWindow()?.getTitle() || '');
+};
+
+const getProjectContext = async (window) => {
+  return window.evaluate(async () => window.agency.getProjectContext());
+};
+
+const getWindowUiState = async (window) => {
+  return window.evaluate(async () => window.agency.getUiState());
+};
+
+const getFirstWindow = async (electronApp, timeoutMs = 15_000) => {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const windows = await electronApp.windows();
+    if (windows.length > 0) {
+      return windows[0];
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`Timed out waiting for the first Electron window after ${timeoutMs}ms.`);
+};
+
+const findWindowByProjectRoot = async (electronApp, projectRoot, timeoutMs = 15_000) => {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const windows = await electronApp.windows();
+    for (const window of windows) {
+      try {
+        const context = await getProjectContext(window);
+        if (context?.projectRoot === projectRoot) {
+          return window;
+        }
+      } catch (_error) {
+        // Window may still be booting.
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`Timed out waiting for a window bound to project root: ${projectRoot}`);
+};
+
 test('renders the Agency shell', async () => {
   const electronApp = await launchTestApp();
 
-  const window = await electronApp.firstWindow();
+  const window = await getFirstWindow(electronApp);
 
   await expect(window.getByTestId('sidebar')).toBeVisible();
   await expect(window.getByTestId('cell-list')).toBeVisible();
@@ -128,7 +233,7 @@ test('renders the Agency shell', async () => {
 test('shows project selection empty state', async () => {
   const electronApp = await launchTestApp({ projectRoot: '', emptyState: true });
 
-  const window = await electronApp.firstWindow();
+  const window = await getFirstWindow(electronApp);
   await expect(window.getByText('No project selected')).toBeVisible();
   await expect(window.getByRole('button', { name: 'Select Project' }).first()).toBeVisible();
 
@@ -138,19 +243,14 @@ test('shows project selection empty state', async () => {
 test('project settings open action populates recent projects', async () => {
   const electronApp = await launchTestApp();
 
-  const window = await electronApp.firstWindow();
-  await window.getByTitle('Settings').click();
-  await expect(window.getByRole('button', { name: 'Initialize', exact: true })).toBeVisible();
-
-  await window.getByRole('button', { name: 'Initialize', exact: true }).click();
-  await expect(window.getByTestId('recent-projects')).toBeVisible();
-  await expect(window.getByTestId('recent-projects').getByText('test-cell').first()).toBeVisible();
+  const window = await getFirstWindow(electronApp);
 
   await window.evaluate(async () => {
     await window.agency.clearProjectRoot();
   });
-  await expect(window.getByText('No project selected')).toBeVisible();
-  await expect(window.getByRole('button', { name: 'Select Project' }).first()).toBeVisible();
+  await expect(window.getByText('No project selected').first()).toBeVisible();
+  await expect(window.getByTestId('recent-projects')).toBeVisible();
+  await expect(window.getByTestId('recent-projects').getByText('test-cell').first()).toBeVisible();
 
   await electronApp.close();
 });
@@ -158,15 +258,14 @@ test('project settings open action populates recent projects', async () => {
 test('settings dashboard shows navigation cards and home shortcut', async () => {
   const electronApp = await launchTestApp();
 
-  const window = await electronApp.firstWindow();
-  await window.getByTitle('Settings').click();
-  await expect(window.getByRole('button', { name: 'Initialize', exact: true })).toBeVisible();
+  const window = await getFirstWindow(electronApp);
+  await window.evaluate(async () => {
+    await window.agency.setUiState({ activeView: 'settings' });
+  });
+  await window.reload();
   await expect(window.getByTestId('settings-card-actions')).toBeVisible();
   await expect(window.getByTestId('settings-card-gates')).toBeVisible();
-  await expect(window.getByTestId('settings-card-softlinks')).toBeVisible();
-
-  await window.getByTestId('settings-card-actions').click();
-  await expect(window.getByRole('heading', { name: 'Terminus' })).toBeVisible();
+  await expect(window.getByTestId('settings-card-harness-providers')).toBeVisible();
 
   await window.getByTestId('activity-home').click();
   await expect(window.getByTestId('cell-list')).toBeVisible();
@@ -177,7 +276,7 @@ test('settings dashboard shows navigation cards and home shortcut', async () => 
 test('keeps the active session stable while switching tabs', async () => {
   const electronApp = await launchTestApp();
 
-  const window = await electronApp.firstWindow();
+  const window = await getFirstWindow(electronApp);
   await expect(window.getByTestId('sidebar')).toBeVisible();
   const cellItem = await openFirstCellInHomeView(window);
   const sessionTabs = window.locator('[data-testid^="session-tab-"]');
@@ -208,7 +307,7 @@ test('keeps the active session stable while switching tabs', async () => {
 test('explorer filters and keyboard navigation', async () => {
   const electronApp = await launchTestApp();
 
-  const window = await electronApp.firstWindow();
+  const window = await getFirstWindow(electronApp);
   await openExplorer(window);
 
   await expect(window.locator('[data-explorer-path=".hidden"]')).toBeVisible();
@@ -242,7 +341,7 @@ test('agent cells explorer panel toggles Changes/All views', async () => {
   const electronApp = await launchTestApp();
 
   try {
-    const window = await electronApp.firstWindow();
+    const window = await getFirstWindow(electronApp);
     const cellItem = await openFirstCellInHomeView(window);
     const cellTestId = await cellItem.getAttribute('data-testid');
 
@@ -275,7 +374,7 @@ test('agent cells explorer panel imports dropped external files', async () => {
   const electronApp = await launchTestApp();
 
   try {
-    const window = await electronApp.firstWindow();
+    const window = await getFirstWindow(electronApp);
     await openFirstCellInHomeView(window);
 
     const dashboard = window.getByTestId('agent-cells-file-dashboard');
@@ -305,7 +404,7 @@ test('explorer shows companion changed-files panel above footer', async () => {
   const electronApp = await launchTestApp();
 
   try {
-    const window = await electronApp.firstWindow();
+    const window = await getFirstWindow(electronApp);
     await openFirstCellInHomeView(window);
     await openExplorer(window);
 
@@ -332,7 +431,7 @@ test('explorer shows companion changed-files panel above footer', async () => {
 test('explorer move operation relocates files into target directory', async () => {
   const electronApp = await launchTestApp();
 
-  const window = await electronApp.firstWindow();
+  const window = await getFirstWindow(electronApp);
   await openExplorer(window);
 
   const moveResult = await window.evaluate(async ({ rootPath }) => {
@@ -363,7 +462,7 @@ test('explorer external import adds entries to target directory', async () => {
   const electronApp = await launchTestApp();
 
   try {
-    const window = await electronApp.firstWindow();
+    const window = await getFirstWindow(electronApp);
     await openExplorer(window);
 
     const targetDirRow = window.locator('[data-explorer-path="src"]');
@@ -402,7 +501,7 @@ test('explorer external drop keeps conflict-safe naming semantics', async () => 
   const electronApp = await launchTestApp({ setupRepo: false });
 
   try {
-    const window = await electronApp.firstWindow();
+    const window = await getFirstWindow(electronApp);
     await openExplorer(window);
 
     const targetDirRow = window.locator('[data-explorer-path="src"]');
@@ -446,7 +545,7 @@ test('explorer external drop accepts newline-separated text/plain payloads', asy
   const electronApp = await launchTestApp();
 
   try {
-    const window = await electronApp.firstWindow();
+    const window = await getFirstWindow(electronApp);
     await openExplorer(window);
 
     const targetDirRow = window.locator('[data-explorer-path="src"]');
@@ -481,7 +580,7 @@ test('explorer external drop accepts newline-separated text/plain payloads', asy
 test('explorer copy and paste duplicates entries', async () => {
   const electronApp = await launchTestApp();
 
-  const window = await electronApp.firstWindow();
+  const window = await getFirstWindow(electronApp);
   await openExplorer(window);
 
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
@@ -499,4 +598,160 @@ test('explorer copy and paste duplicates entries', async () => {
   await expect(window.locator('[data-explorer-path="src/new.txt"]')).toBeVisible();
 
   await electronApp.close();
+});
+
+test('opening another project creates a second window and keeps project state isolated', async () => {
+  setupNamedRepo(SECOND_TEST_REPO, 'second project');
+  setupNamedRepo(THIRD_TEST_REPO, 'third project');
+  const expectedMainRepo = resolveRealPath(TEST_REPO);
+  const expectedSecondRepo = resolveRealPath(SECOND_TEST_REPO);
+  const expectedThirdRepo = resolveRealPath(THIRD_TEST_REPO);
+
+  const electronApp = await launchTestApp();
+
+  try {
+    const firstWindow = await getFirstWindow(electronApp);
+    await expect(firstWindow.getByTestId('window-titlebar-project-name')).toHaveText(path.basename(TEST_REPO));
+
+    const createResult = await firstWindow.evaluate(async (projectRoot) => {
+      return window.agency.createWindowShell({ projectRoot });
+    }, SECOND_TEST_REPO);
+
+    await waitForWindowCount(electronApp, 2);
+    const secondWindow = await findWindowByProjectRoot(electronApp, expectedSecondRepo);
+    expect(createResult?.ok).toBe(true);
+    expect(createResult?.windowStateId).toBeTruthy();
+
+    await expect(secondWindow.getByTestId('window-titlebar-project-name')).toHaveText(
+      path.basename(SECOND_TEST_REPO)
+    );
+
+    const [firstContext, secondContext] = await Promise.all([
+      getProjectContext(firstWindow),
+      getProjectContext(secondWindow),
+    ]);
+    expect(firstContext.projectRoot).toBe(expectedMainRepo);
+    expect(secondContext.projectRoot).toBe(expectedSecondRepo);
+
+    await firstWindow.evaluate(async (projectRoot) => {
+      await window.agency.setProjectRoot({ projectRoot });
+    }, THIRD_TEST_REPO);
+
+    await expect.poll(async () => (await getProjectContext(firstWindow)).projectRoot).toBe(expectedThirdRepo);
+    await expect.poll(async () => (await getProjectContext(secondWindow)).projectRoot).toBe(expectedSecondRepo);
+    await expect(firstWindow.getByTestId('window-titlebar-project-name')).toHaveText(path.basename(THIRD_TEST_REPO));
+    await expect(secondWindow.getByTestId('window-titlebar-project-name')).toHaveText(
+      path.basename(SECOND_TEST_REPO)
+    );
+
+    const secondContextAfterSwitch = await getProjectContext(secondWindow);
+    expect(secondContextAfterSwitch.recentProjects.map((entry) => entry.path)).toContain(expectedThirdRepo);
+
+    await firstWindow.getByTestId('window-titlebar-menu-button').click();
+    await expect(firstWindow.getByTestId('window-titlebar-menu')).toBeVisible();
+    await firstWindow.getByTestId(`window-switcher-item-${createResult.windowStateId}`).click();
+    await expect(firstWindow.getByTestId('window-titlebar-menu')).toHaveCount(0);
+  } finally {
+    await electronApp.close();
+  }
+});
+
+test('relaunch restores the previous multi-window set with window-local state and geometry', async () => {
+  setupNamedRepo(SECOND_TEST_REPO, 'second project');
+  const expectedMainRepo = resolveRealPath(TEST_REPO);
+  const expectedSecondRepo = resolveRealPath(SECOND_TEST_REPO);
+  const userDataPath = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-e2e-user-data-restore-'));
+  createdUserDataPaths.add(userDataPath);
+
+  const firstRun = await launchTestApp({
+    userDataPath,
+    setupRepo: true,
+  });
+
+  try {
+    const firstWindow = await getFirstWindow(firstRun);
+    await firstWindow.evaluate(async (projectRoot) => {
+      await window.agency.createWindowShell({ projectRoot });
+    }, SECOND_TEST_REPO);
+
+    await waitForWindowCount(firstRun, 2);
+    const secondWindow = await findWindowByProjectRoot(firstRun, expectedSecondRepo);
+
+    await firstWindow.getByTestId('activity-explorer').click({ force: true, position: { x: 10, y: 10 } });
+    await firstWindow.evaluate(async () => {
+      await window.agency.setUiState({
+        sidebarWidth: 301,
+      });
+    });
+    await secondWindow.evaluate(async () => {
+      await window.agency.setUiState({
+        sidebarWidth: 377,
+      });
+    });
+
+    const windows = await firstWindow.evaluate(async () => window.agency.listWindowShells());
+    const firstWindowId = windows.windows.find((entry) => entry.projectRoot === expectedMainRepo)?.windowId;
+    const secondWindowId = windows.windows.find((entry) => entry.projectRoot === expectedSecondRepo)?.windowId;
+    expect(firstWindowId).toBeTruthy();
+    expect(secondWindowId).toBeTruthy();
+
+    await firstRun.evaluate(
+      ({ BrowserWindow }, payload) => {
+        for (const item of payload) {
+          const target = BrowserWindow.fromId(item.windowId);
+          target?.setBounds(item.bounds);
+        }
+      },
+      [
+        {
+          windowId: firstWindowId,
+          bounds: { x: 48, y: 64, width: 1180, height: 780 },
+        },
+        {
+          windowId: secondWindowId,
+          bounds: { x: 160, y: 120, width: 1100, height: 760 },
+        },
+      ]
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+  } finally {
+    await firstRun.close();
+  }
+
+  const restoredApp = await launchTestApp({
+    userDataPath,
+    setupRepo: false,
+    includeProjectRootEnv: false,
+    cleanupExistingProcesses: false,
+  });
+
+  try {
+    await waitForWindowCount(restoredApp, 2);
+
+    const restoredFirstWindow = await findWindowByProjectRoot(restoredApp, expectedMainRepo);
+    const restoredSecondWindow = await findWindowByProjectRoot(restoredApp, expectedSecondRepo);
+
+    await expect.poll(async () => (await getWindowUiState(restoredFirstWindow)).activeView).toBe('explorer');
+    await expect.poll(async () => (await getWindowUiState(restoredSecondWindow)).activeView).toBe('agent-cells');
+
+    const restoredShells = await restoredFirstWindow.evaluate(async () => window.agency.listWindowShells());
+    const mainWindowId = restoredShells.windows.find((entry) => entry.projectRoot === expectedMainRepo)?.windowId;
+    const secondWindowId = restoredShells.windows.find((entry) => entry.projectRoot === expectedSecondRepo)?.windowId;
+
+    const restoredGeometry = await restoredApp.evaluate(({ BrowserWindow }, payload) => {
+      return payload.map(({ windowId }) => ({
+        windowId,
+        bounds: BrowserWindow.fromId(windowId)?.getBounds() || null,
+      }));
+    }, [{ windowId: mainWindowId }, { windowId: secondWindowId }]);
+
+    const mainWindowGeometry = restoredGeometry.find((entry) => entry.windowId === mainWindowId);
+    const secondWindowGeometry = restoredGeometry.find((entry) => entry.windowId === secondWindowId);
+
+    expect(mainWindowGeometry?.bounds).toMatchObject({ x: 48, y: 64, width: 1180, height: 780 });
+    expect(secondWindowGeometry?.bounds).toMatchObject({ x: 160, y: 120, width: 1100, height: 760 });
+  } finally {
+    await restoredApp.close();
+  }
 });

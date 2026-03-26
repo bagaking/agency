@@ -12,6 +12,11 @@ import {
 } from '../services/agencyBridge';
 import { pathBaseName, useScopedSettingsState } from './shared/scopedSettingsState';
 
+type SessionNamingSettingsState = {
+  rule: string;
+  nameLists: Record<string, string[]>;
+};
+
 const ensureName = (value) => String(value || '').trim();
 
 const hasOverrides = (settings) => {
@@ -24,9 +29,9 @@ const hasOverrides = (settings) => {
 };
 
 export function useSessionNamingSettings({ selectedCell, sessionNamingScope, userDataPath }) {
-  const [globalSettings, setGlobalSettings] = useState(DEFAULT_SETTINGS);
-  const [projectSettings, setProjectSettings] = useState(EMPTY_SETTINGS);
-  const [agentSettings, setAgentSettings] = useState(EMPTY_SETTINGS);
+  const [globalSettings, setGlobalSettings] = useState<SessionNamingSettingsState>(DEFAULT_SETTINGS);
+  const [projectSettings, setProjectSettings] = useState<SessionNamingSettingsState>(EMPTY_SETTINGS);
+  const [agentSettings, setAgentSettings] = useState<SessionNamingSettingsState>(EMPTY_SETTINGS);
   const {
     error,
     setError,

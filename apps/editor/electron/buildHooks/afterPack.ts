@@ -1,13 +1,13 @@
-const { execFile } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+import { execFile } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 
-function execFileAsync(command, args) {
-  return new Promise((resolve, reject) => {
+function execFileAsync(command: string, args: string[]) {
+  return new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
     execFile(command, args, (error, stdout, stderr) => {
       if (error) {
-        error.stdout = stdout;
-        error.stderr = stderr;
+        (error as NodeJS.ErrnoException & { stdout?: string; stderr?: string }).stdout = stdout;
+        (error as NodeJS.ErrnoException & { stdout?: string; stderr?: string }).stderr = stderr;
         reject(error);
         return;
       }
@@ -38,13 +38,13 @@ async function resolveSigningIdentity() {
         return name;
       }
     }
-  } catch (error) {
+  } catch (_error) {
     // Fall through to null identity.
   }
   return null;
 }
 
-async function signHelperApp({ appOutDir, appName }) {
+async function signHelperApp({ appOutDir, appName }: { appOutDir: string; appName: string }) {
   const helperPath = path.join(
     appOutDir,
     `${appName}.app`,
@@ -56,7 +56,7 @@ async function signHelperApp({ appOutDir, appName }) {
   if (!fs.existsSync(helperPath)) {
     return;
   }
-  const entitlementsPath = path.join(__dirname, '..', 'entitlements.mac.plist');
+  const entitlementsPath = path.join(__dirname, '..', '..', 'entitlements.mac.plist');
   const identity = await resolveSigningIdentity();
   if (!identity) {
     console.warn('[after-pack] codesign identity not found; skipping speech helper signing');
@@ -77,7 +77,7 @@ async function signHelperApp({ appOutDir, appName }) {
   await execFileAsync('/usr/bin/codesign', args);
 }
 
-exports.default = async function afterPack(context) {
+export default async function afterPack(context: any) {
   if (process.platform !== 'darwin') {
     return;
   }
@@ -86,4 +86,4 @@ exports.default = async function afterPack(context) {
     return;
   }
   await signHelperApp({ appOutDir: context.appOutDir, appName });
-};
+}

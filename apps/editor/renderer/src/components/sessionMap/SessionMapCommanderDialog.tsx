@@ -20,9 +20,6 @@ import {
 
 const COMMANDER_AVATAR_ID = 'AGENCY_BACKEND_COMMANDER';
 
-const buildMessageId = (prefix: string) =>
-  `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-
 const toneClasses = {
   info: {
     border: 'border-cyan-300/15',
@@ -54,6 +51,55 @@ function renderActionIcon(kind: CommanderAction['kind']) {
   return <Radar size={10} />;
 }
 
+function CommanderTurnCard({
+  title,
+  body,
+  tone = 'info',
+  actions = [],
+  pendingActionId,
+  onAction,
+  label,
+}: any) {
+  const resolvedTone = toneClasses[tone || 'info'] || toneClasses.info;
+
+  return (
+    <div
+      className={`rounded-2xl border px-3 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] ${resolvedTone.border} ${resolvedTone.bg}`}
+    >
+      {label ? (
+        <div className="text-[7px] font-bold uppercase tracking-[0.14em] text-white/34">
+          {label}
+        </div>
+      ) : null}
+      <div className={`mt-1 text-[7px] font-bold uppercase tracking-[0.14em] ${resolvedTone.label}`}>
+        {title}
+      </div>
+      <div className="mt-1 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-white/84">
+        {body}
+      </div>
+      {Array.isArray(actions) && actions.length ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {actions.map((action: CommanderAction) => {
+            const isPending = pendingActionId === action.id;
+            return (
+              <button
+                key={action.id}
+                type="button"
+                onClick={() => void onAction?.(action)}
+                disabled={Boolean(pendingActionId)}
+                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/28 px-2.5 py-1 text-[7px] font-bold uppercase tracking-[0.12em] text-white/72 transition-colors hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {renderActionIcon(action.kind)}
+                <span>{isPending ? 'Working' : action.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function SessionMapCommanderDialog({
   focusData,
   harnessRuns,
@@ -73,80 +119,38 @@ export function SessionMapCommanderDialog({
     [focusData, harnessRuns, sessionError]
   );
   const quickPrompts = useMemo(() => buildCommanderQuickPrompts(context), [context]);
-  const [messages, setMessages] = useState<any[]>([]);
   const [draft, setDraft] = useState('');
+  const [latestPrompt, setLatestPrompt] = useState('');
+  const [latestResponse, setLatestResponse] = useState<any>(null);
   const [boundContextKey, setBoundContextKey] = useState('');
   const [pendingActionId, setPendingActionId] = useState('');
-  const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const briefing = useMemo(() => buildCommanderWelcomeTurn(context, 'initial'), [context]);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
   useEffect(() => {
-    if (!messages.length) {
-      const welcome = buildCommanderWelcomeTurn(context, 'initial');
-      setMessages([
-        {
-          id: buildMessageId('assistant'),
-          role: 'assistant',
-          ...welcome,
-        },
-      ]);
-      setBoundContextKey(context.contextKey);
-      return;
-    }
-    if (boundContextKey && boundContextKey !== context.contextKey) {
-      const rebound = buildCommanderWelcomeTurn(context, 'updated');
-      setMessages((current) => [
-        ...current,
-        {
-          id: buildMessageId('assistant'),
-          role: 'assistant',
-          ...rebound,
-        },
-      ]);
-      setBoundContextKey(context.contextKey);
-      return;
-    }
     if (!boundContextKey) {
       setBoundContextKey(context.contextKey);
-    }
-  }, [boundContextKey, context, messages.length]);
-
-  useEffect(() => {
-    if (!scrollRef.current) {
       return;
     }
-    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages, pendingActionId]);
-
-  const appendAssistantTurn = (turn: any) => {
-    setMessages((current) => [
-      ...current,
-      {
-        id: buildMessageId('assistant'),
-        role: 'assistant',
-        ...turn,
-      },
-    ]);
-  };
+    if (boundContextKey !== context.contextKey) {
+      setBoundContextKey(context.contextKey);
+      setLatestPrompt('');
+      setLatestResponse(null);
+      setDraft('');
+    }
+  }, [boundContextKey, context.contextKey]);
 
   const handleSubmitPrompt = (input: string) => {
     const trimmed = String(input || '').trim();
     if (!trimmed) {
       return;
     }
-    setMessages((current) => [
-      ...current,
-      {
-        id: buildMessageId('user'),
-        role: 'user',
-        body: trimmed,
-      },
-    ]);
-    appendAssistantTurn(buildCommanderAssistantTurn(trimmed, context));
+    setLatestPrompt(trimmed);
+    setLatestResponse(buildCommanderAssistantTurn(trimmed, context));
     setDraft('');
   };
 
@@ -163,7 +167,8 @@ export function SessionMapCommanderDialog({
     try {
       if (action.kind === 'dismiss_error') {
         onClearSessionError?.();
-        appendAssistantTurn({
+        setLatestPrompt(action.label);
+        setLatestResponse({
           title: 'Visible Error Dismissed',
           body: 'I cleared the visible session error. Ops still retains run evidence if you need it.',
           tone: 'success',
@@ -175,7 +180,8 @@ export function SessionMapCommanderDialog({
       if (action.kind === 'cancel_run') {
         const runId = String(action.runId || context.activeRun?.runId || '').trim();
         const result = await onCancelHarnessRun?.(runId);
-        appendAssistantTurn({
+        setLatestPrompt(action.label);
+        setLatestResponse({
           title: result ? 'Cancellation Requested' : 'Cancellation Did Not Complete',
           body: result
             ? 'The run is back under Harness control. Watch Ops for the transition to cancelling or cancelled.'
@@ -189,7 +195,8 @@ export function SessionMapCommanderDialog({
       if (action.kind === 'resume_run') {
         const runId = String(action.runId || context.relevantRun?.runId || '').trim();
         const result = await onResumeHarnessRun?.(runId);
-        appendAssistantTurn({
+        setLatestPrompt(action.label);
+        setLatestResponse({
           title: result ? 'Retry Requested' : 'Retry Did Not Start',
           body: result
             ? 'The resumable run has been handed back to the Harness lifecycle. Switch to Ops if you want to watch the step timeline live.'
@@ -227,15 +234,14 @@ export function SessionMapCommanderDialog({
           <button
             type="button"
             onClick={() => {
-              const latestMessage = messages[messages.length - 1];
-              const payload = latestMessage?.body || '';
+              const payload = latestResponse?.body || briefing.body || '';
               if (!payload) {
                 return;
               }
               void navigator.clipboard?.writeText(payload);
             }}
             className="rounded-lg bg-white/[0.04] p-1 text-white/46 transition-colors hover:bg-white/[0.08] hover:text-cyan-100"
-            aria-label="Copy latest briefing message"
+            aria-label="Copy active commander briefing"
           >
             <Copy size={12} />
           </button>
@@ -250,67 +256,45 @@ export function SessionMapCommanderDialog({
         </div>
       </div>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2.5 py-2 pr-1.5">
-        {messages.map((message) => {
-          if (message.role === 'user') {
-            return (
-              <div key={message.id} className="ml-8 flex justify-end">
-                <div className="max-w-[88%] rounded-2xl border border-white/8 bg-white/[0.05] px-3 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)]">
-                  <div className="text-[7px] font-bold uppercase tracking-[0.14em] text-white/36">
-                    You
-                  </div>
-                  <div className="mt-1 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-white/88">
-                    {message.body}
-                  </div>
-                </div>
-              </div>
-            );
-          }
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2.5 py-2 pr-1.5">
+        <div className="flex items-start gap-2">
+          <AgentAvatarBadge
+            avatarId={COMMANDER_AVATAR_ID}
+            size={16}
+            ringSize={20}
+            showRing={false}
+            className="mt-1 shrink-0 rounded-full bg-black/45 p-0.5"
+          />
+          <div className="min-w-0 flex-1">
+            <CommanderTurnCard
+              label="Current Briefing"
+              title={briefing.title}
+              body={briefing.body}
+              tone={briefing.tone}
+              actions={briefing.actions}
+              pendingActionId={pendingActionId}
+              onAction={handleAction}
+            />
+          </div>
+        </div>
 
-          const tone = toneClasses[message.tone || 'info'];
-          return (
-            <div key={message.id} className="mr-4">
-              <div className="flex items-start gap-2">
-                <AgentAvatarBadge
-                  avatarId={COMMANDER_AVATAR_ID}
-                  size={16}
-                  ringSize={20}
-                  showRing={false}
-                  className="mt-1 shrink-0 rounded-full bg-black/45 p-0.5"
-                />
-                <div
-                  className={`min-w-0 flex-1 rounded-2xl border px-3 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] ${tone.border} ${tone.bg}`}
-                >
-                  <div className={`text-[7px] font-bold uppercase tracking-[0.14em] ${tone.label}`}>
-                    {message.title}
-                  </div>
-                  <div className="mt-1 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-white/84">
-                    {message.body}
-                  </div>
-                  {Array.isArray(message.actions) && message.actions.length ? (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {message.actions.map((action: CommanderAction) => {
-                        const isPending = pendingActionId === action.id;
-                        return (
-                          <button
-                            key={action.id}
-                            type="button"
-                            onClick={() => void handleAction(action)}
-                            disabled={Boolean(pendingActionId)}
-                            className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/28 px-2.5 py-1 text-[7px] font-bold uppercase tracking-[0.12em] text-white/72 transition-colors hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {renderActionIcon(action.kind)}
-                            <span>{isPending ? 'Working' : action.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {latestResponse ? (
+          <div className="ml-8">
+            <CommanderTurnCard
+              label={latestPrompt ? `Latest Response · ${latestPrompt}` : 'Latest Response'}
+              title={latestResponse.title}
+              body={latestResponse.body}
+              tone={latestResponse.tone}
+              actions={latestResponse.actions}
+              pendingActionId={pendingActionId}
+              onAction={handleAction}
+            />
+          </div>
+        ) : (
+          <div className="ml-8 rounded-2xl border border-dashed border-white/8 bg-white/[0.03] px-3 py-2 text-[8px] uppercase tracking-[0.14em] text-white/28">
+            Use a quick prompt or ask one focused question. This panel stays bound to the current session and run context instead of accumulating chat history.
+          </div>
+        )}
       </div>
 
       <div className="border-t border-white/6 px-2.5 py-2">
@@ -355,7 +339,7 @@ export function SessionMapCommanderDialog({
           </button>
         </div>
         <div className="mt-2 text-[7px] uppercase tracking-[0.12em] text-white/30">
-          Bound to current session identity, Harness evidence, and approved operational actions.
+          Rebinding to a different session or run resets prior replies so the briefing stays scoped to current evidence.
         </div>
       </div>
     </div>

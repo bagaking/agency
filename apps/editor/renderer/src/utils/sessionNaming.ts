@@ -1,12 +1,4 @@
-import * as sessionNamingCoreModule from '../../../shared/sessionNamingCore.cjs';
-
-const sessionNamingCoreAny = sessionNamingCoreModule as any;
-const sessionNamingCore =
-  sessionNamingCoreAny.default ||
-  sessionNamingCoreAny.__AGENCY_SESSION_NAMING_CORE__ ||
-  (globalThis as any)?.__AGENCY_SESSION_NAMING_CORE__ ||
-  sessionNamingCoreAny;
-
+import sessionNamingCore from '../../../shared/sessionNamingCore';
 
 if (!sessionNamingCore || typeof sessionNamingCore.formatSessionName !== 'function') {
   throw new Error('sessionNamingCore failed to load in renderer runtime.');

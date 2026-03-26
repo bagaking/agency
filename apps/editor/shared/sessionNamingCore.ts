@@ -1,21 +1,21 @@
-const DEFAULT_RULE = 'Session {seq:absolute:02} · {time:HHmm}';
-const DEFAULT_NAME_LISTS = {
+export const DEFAULT_RULE = 'Session {seq:absolute:02} · {time:HHmm}';
+export const DEFAULT_NAME_LISTS = {
   myth: ['Athena', 'Apollo', 'Artemis', 'Hera', 'Hermes', 'Poseidon', 'Zeus'],
   constellation: ['Orion', 'Lyra', 'Cygnus', 'Draco', 'Phoenix', 'Aquila', 'Vela'],
   animals: ['Fox', 'Wolf', 'Raven', 'Otter', 'Hawk', 'Lynx', 'Stag'],
 };
 
-const DEFAULT_SETTINGS = {
+export const DEFAULT_SETTINGS = {
   rule: DEFAULT_RULE,
   nameLists: DEFAULT_NAME_LISTS,
 };
 
-const EMPTY_SETTINGS = {
+export const EMPTY_SETTINGS = {
   rule: '',
   nameLists: {},
 };
 
-const normalizeList = (value) => {
+const normalizeList = (value: unknown): string[] | null => {
   if (!Array.isArray(value)) {
     return null;
   }
@@ -24,8 +24,8 @@ const normalizeList = (value) => {
     .filter((item) => item.length > 0);
 };
 
-const normalizeNameLists = (lists = {}) => {
-  const next = {};
+const normalizeNameLists = (lists: Record<string, unknown> = {}): Record<string, string[]> => {
+  const next: Record<string, string[]> = {};
   Object.entries(lists || {}).forEach(([key, value]) => {
     const name = String(key || '').trim();
     if (!name) {
@@ -39,7 +39,10 @@ const normalizeNameLists = (lists = {}) => {
   return next;
 };
 
-const normalizeSettings = (settings = {}, { includeDefaults = false } = {}) => {
+export const normalizeSettings = (
+  settings: { rule?: unknown; nameLists?: Record<string, unknown> } = {},
+  { includeDefaults = false }: { includeDefaults?: boolean } = {}
+) => {
   const rule = String(settings.rule || '').trim();
   const nameLists = normalizeNameLists(settings.nameLists);
   if (!includeDefaults) {
@@ -54,7 +57,15 @@ const normalizeSettings = (settings = {}, { includeDefaults = false } = {}) => {
   };
 };
 
-const resolveSessionNaming = ({ globalSettings, projectSettings, agentSettings }) => {
+export const resolveSessionNaming = ({
+  globalSettings,
+  projectSettings,
+  agentSettings,
+}: {
+  globalSettings: any;
+  projectSettings: any;
+  agentSettings: any;
+}) => {
   const global = normalizeSettings(globalSettings || DEFAULT_SETTINGS, { includeDefaults: true });
   const project = normalizeSettings(projectSettings || EMPTY_SETTINGS);
   const agent = normalizeSettings(agentSettings || EMPTY_SETTINGS);
@@ -68,7 +79,7 @@ const resolveSessionNaming = ({ globalSettings, projectSettings, agentSettings }
   };
 };
 
-const padNumber = (value, width) => {
+const padNumber = (value: unknown, width?: unknown) => {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
     return '';
@@ -80,7 +91,7 @@ const padNumber = (value, width) => {
   return str.padStart(Number(width), '0');
 };
 
-const expandShorthandFormat = (format) => {
+const expandShorthandFormat = (format: unknown) => {
   const trimmed = String(format || '');
   if (!/^[yMdHhms]+$/.test(trimmed)) {
     return trimmed;
@@ -101,7 +112,7 @@ const expandShorthandFormat = (format) => {
     .join('');
 };
 
-const formatDateTime = (date, format) => {
+const formatDateTime = (date: Date, format: unknown) => {
   const token = expandShorthandFormat(format);
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
@@ -129,7 +140,7 @@ const formatDateTime = (date, format) => {
   });
 };
 
-const normalizeSelectionPosition = (position) => {
+export const normalizeSelectionPosition = (position: any) => {
   if (!position) {
     return null;
   }
@@ -158,12 +169,18 @@ const normalizeSelectionPosition = (position) => {
   return null;
 };
 
-const formatSessionName = ({
+export const formatSessionName = ({
   rule,
   sequences = {},
   nameLists = {},
   context = {},
   now = new Date(),
+}: {
+  rule?: unknown;
+  sequences?: Record<string, number>;
+  nameLists?: Record<string, string[]>;
+  context?: Record<string, unknown>;
+  now?: Date;
 } = {}) => {
   const template = String(rule || DEFAULT_RULE);
   if (!template) {
@@ -222,7 +239,7 @@ const formatSessionName = ({
   });
 };
 
-const sessionNamingCore = {
+export const sessionNamingCore = {
   DEFAULT_RULE,
   DEFAULT_NAME_LISTS,
   DEFAULT_SETTINGS,
@@ -233,10 +250,4 @@ const sessionNamingCore = {
   formatSessionName,
 };
 
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = sessionNamingCore;
-}
-
-if (typeof globalThis !== 'undefined') {
-  globalThis.__AGENCY_SESSION_NAMING_CORE__ = sessionNamingCore;
-}
+export default sessionNamingCore;

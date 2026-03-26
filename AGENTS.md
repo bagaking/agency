@@ -46,6 +46,7 @@ At the end of every response, include:
 <!-- BAGAKIT:LIVEDOCS:END -->
 
 Use pnpm for workspace Node dependencies and keep `pnpm-lock.yaml` committed.
+Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeScript-only; do not add checked-in `.js`/`.cjs`/`.mjs` there. Generated output and vendor code are excluded, but source-of-truth JS is not allowed.
 
 ## Product Quality Bar
 

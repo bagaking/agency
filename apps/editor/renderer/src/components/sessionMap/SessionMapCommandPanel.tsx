@@ -48,6 +48,7 @@ export function SessionMapCommandPanel({
   sessionError,
   onClearSessionError,
   onCancelHarnessRun,
+  onResumeHarnessRun,
 }: any) {
   const [collapsed, setCollapsed] = useState(false);
   const [copiedKind, setCopiedKind] = useState('');
@@ -190,6 +191,16 @@ export function SessionMapCommandPanel({
                     >
                       Cancel
                     </button>
+                  ) : ['failed', 'cancelled'].includes(
+                      String(activeRun?.status || '').trim().toLowerCase()
+                    ) ? (
+                    <button
+                      type="button"
+                      onClick={() => onResumeHarnessRun?.(activeRun.runId)}
+                      className="rounded-lg bg-emerald-500/10 px-2 py-1 text-[7px] font-bold uppercase tracking-[0.12em] text-emerald-100 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.2)] transition-colors hover:bg-emerald-500/18"
+                    >
+                      Retry
+                    </button>
                   ) : null}
                   <button
                     type="button"
@@ -248,30 +259,16 @@ export function SessionMapCommandPanel({
               </div>
 
               <div className="mt-2 rounded-xl bg-white/[0.03] px-2 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
-                <div className="text-[7px] font-bold uppercase tracking-[0.14em] text-white/42">
-                  Quick Ops
-                </div>
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                <div className="flex items-center justify-between gap-2 text-[7px] font-bold uppercase tracking-[0.14em] text-white/42">
+                  <span>Panel State</span>
                   <button
                     type="button"
                     onClick={() => setCollapsed(true)}
                     className="rounded-lg bg-black/28 px-2 py-1 text-[7px] font-bold uppercase tracking-[0.12em] text-white/70 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] transition-colors hover:bg-white/10"
                   >
                     <ChevronUp size={10} className="mr-1 inline" />
-                    Minimize
+                    Collapse
                   </button>
-                  {['queued', 'running', 'cancelling'].includes(
-                    String(activeRun?.status || '').trim().toLowerCase()
-                  ) ? (
-                    <button
-                      type="button"
-                      onClick={() => onCancelHarnessRun?.(activeRun.runId)}
-                      className="rounded-lg bg-amber-500/10 px-2 py-1 text-[7px] font-bold uppercase tracking-[0.12em] text-amber-100 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.18)] transition-colors hover:bg-amber-500/20"
-                    >
-                      <Square size={10} className="mr-1 inline" />
-                      Halt Run
-                    </button>
-                  ) : null}
                 </div>
                 {copiedKind === 'run' ? (
                   <div className="mt-2 text-[7px] font-bold uppercase tracking-[0.12em] text-cyan-200">

@@ -23,13 +23,13 @@
 - [x] 4.3 Add a title-bar app menu for open-window switching and new-window creation.
 
 ## 5. Validation
-- [ ] 5.1 Verify that opening a second project uses a new window in the existing app instance.
-- [ ] 5.2 Verify that switching project in one window does not change Cells/Explorer/workbench state in another window.
+- [x] 5.1 Verify that opening a second project uses a new window in the existing app instance.
+- [x] 5.2 Verify that switching project in one window does not change Cells/Explorer/workbench state in another window.
 - [x] 5.3 Verify that recent projects stay shared while active project context stays window-local.
-- [ ] 5.4 Verify that app-level shortcuts still dispatch to the focused window only.
-- [ ] 5.5 Verify that relaunch restores multiple windows with their prior project/workspace state.
-- [ ] 5.6 Verify that restored windows reopen with persisted geometry.
-- [ ] 5.7 Verify that the custom title bar shows the current project name and can switch/focus other windows.
+- [x] 5.4 Verify that app-level shortcuts still dispatch to the focused window only.
+- [x] 5.5 Verify that relaunch restores multiple windows with their prior project/workspace state.
+- [x] 5.6 Verify that restored windows reopen with persisted geometry.
+- [x] 5.7 Verify that the custom title bar shows the current project name and can switch/focus other windows.
 - [x] 5.8 Run automated verification (`typecheck`, unit tests, renderer build, electron build`) for the window-shell changes.
-- [ ] 5.9 Verify that macOS Dock activation restores a window when the app has open editor windows but no focused one.
-- [ ] 5.10 Verify that repeated macOS Dock activation cycles open editor windows in the expected stable order.
+- [x] 5.9 Verify that macOS Dock activation restores a window when the app has open editor windows but no focused one.
+- [x] 5.10 Verify that repeated macOS Dock activation cycles open editor windows in the expected stable order.

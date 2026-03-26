@@ -60,7 +60,7 @@ export function TacticalFrame({
           style={{ backgroundColor: accentColor }}
         />
         <div className="flex min-w-0 items-center gap-1.5 pl-1.5">
-          <span className="truncate font-mono text-[8px] font-black uppercase leading-none tracking-[0.16em] text-white/92">
+          <span className="truncate font-mono text-[8px] font-black leading-none tracking-[0.14em] text-white/92">
             {title}
           </span>
           {subTitle ? (
