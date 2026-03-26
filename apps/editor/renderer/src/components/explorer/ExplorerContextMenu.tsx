@@ -39,10 +39,27 @@ export function ExplorerContextMenu({
   onDelete,
   onAddComment,
 }: any) {
-  const menuRef = useRef(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const wrapAction = (action) => () => {
     action?.();
     onClose?.();
+  };
+
+  const focusEnabledItem = (startIndex: number, direction: 1 | -1 = 1) => {
+    const items = itemRefs.current;
+    if (!items.length) {
+      return;
+    }
+    const count = items.length;
+    for (let offset = 0; offset < count; offset += 1) {
+      const index = (startIndex + offset * direction + count) % count;
+      const item = items[index];
+      if (item && !item.disabled) {
+        item.focus();
+        return;
+      }
+    }
   };
 
   useDismissibleLayer({
@@ -72,6 +89,14 @@ export function ExplorerContextMenu({
     menu.style.left = `${nextX}px`;
     menu.style.top = `${nextY}px`;
     menu.style.visibility = 'visible';
+
+    const frameId = window.requestAnimationFrame(() => {
+      focusEnabledItem(0, 1);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
   }, [x, y]);
 
   return createPortal(
@@ -82,18 +107,42 @@ export function ExplorerContextMenu({
       role="menu"
       aria-label="Explorer actions"
       onClick={(e) => e.stopPropagation()}
+      onKeyDown={(event) => {
+        const items = itemRefs.current.filter(Boolean) as HTMLButtonElement[];
+        if (!items.length) {
+          return;
+        }
+        const currentIndex = items.findIndex((item) => item === document.activeElement);
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          focusEnabledItem(currentIndex >= 0 ? currentIndex + 1 : 0, 1);
+        } else if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          focusEnabledItem(currentIndex >= 0 ? currentIndex - 1 : items.length - 1, -1);
+        } else if (event.key === 'Home') {
+          event.preventDefault();
+          focusEnabledItem(0, 1);
+        } else if (event.key === 'End') {
+          event.preventDefault();
+          focusEnabledItem(items.length - 1, -1);
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          onClose?.();
+        }
+      }}
     >
       <div className="px-4 pb-2 mb-1 border-b border-white/5">
         <div className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/30">Object System</div>
       </div>
 
       <div className="px-1.5 space-y-0.5">
-        <ContextMenuItem icon={FilePlus2} label="New File" onClick={wrapAction(onNewFile)} />
-        <ContextMenuItem icon={FolderPlus} label="New Folder" onClick={wrapAction(onNewFolder)} />
+        <ContextMenuItem itemRef={(node) => (itemRefs.current[0] = node)} icon={FilePlus2} label="New File" onClick={wrapAction(onNewFile)} />
+        <ContextMenuItem itemRef={(node) => (itemRefs.current[1] = node)} icon={FolderPlus} label="New Folder" onClick={wrapAction(onNewFolder)} />
 
         <div className="h-px bg-white/5 my-1.5 mx-2" />
 
         <ContextMenuItem
+          itemRef={(node) => (itemRefs.current[2] = node)}
           icon={Pencil}
           label="Rename"
           shortcut="F2"
@@ -101,6 +150,7 @@ export function ExplorerContextMenu({
           disabled={selectionTargets.length !== 1}
         />
         <ContextMenuItem 
+          itemRef={(node) => (itemRefs.current[3] = node)}
           icon={Copy} 
           label="Duplicate" 
           onClick={wrapAction(onDuplicate)} 
@@ -110,6 +160,7 @@ export function ExplorerContextMenu({
         <div className="h-px bg-white/5 my-1.5 mx-2" />
 
         <ContextMenuItem 
+          itemRef={(node) => (itemRefs.current[4] = node)}
           icon={Copy} 
           label="Copy" 
           shortcut="⌘C" 
@@ -117,18 +168,21 @@ export function ExplorerContextMenu({
           disabled={!selectionTargets.length} 
         />
         <ContextMenuItem 
+          itemRef={(node) => (itemRefs.current[5] = node)}
           icon={Link} 
           label="Copy Relative Path" 
           onClick={wrapAction(onCopyRelativePath)} 
           disabled={!selectionTargets.length} 
         />
         <ContextMenuItem 
+          itemRef={(node) => (itemRefs.current[6] = node)}
           icon={Link} 
           label="Copy Absolute Path" 
           onClick={wrapAction(onCopyAbsolutePath)} 
           disabled={!selectionTargets.length} 
         />
         <ContextMenuItem 
+          itemRef={(node) => (itemRefs.current[7] = node)}
           icon={Scissors} 
           label="Cut" 
           shortcut="⌘X" 
@@ -136,6 +190,7 @@ export function ExplorerContextMenu({
           disabled={!selectionTargets.length} 
         />
         <ContextMenuItem 
+          itemRef={(node) => (itemRefs.current[8] = node)}
           icon={ClipboardPaste} 
           label="Paste" 
           shortcut="⌘V" 
@@ -143,6 +198,7 @@ export function ExplorerContextMenu({
           disabled={!canPaste} 
         />
         <ContextMenuItem 
+          itemRef={(node) => (itemRefs.current[9] = node)}
           icon={FileText} 
           label="Paste as MD" 
           onClick={wrapAction(onPasteMarkdown)} 
@@ -151,18 +207,21 @@ export function ExplorerContextMenu({
         <div className="h-px bg-white/5 my-1.5 mx-2" />
 
         <ContextMenuItem 
+          itemRef={(node) => (itemRefs.current[10] = node)}
           icon={Eye} 
           label="Reveal" 
           onClick={wrapAction(onReveal)} 
           disabled={!selectionTargets.length} 
         />
         <ContextMenuItem
+            itemRef={(node) => (itemRefs.current[11] = node)}
             icon={MessageSquarePlus}
             label="Add Comment"
             onClick={wrapAction(onAddComment)}
             disabled={selectionTargets.length !== 1}
         />
         <ContextMenuItem
+          itemRef={(node) => (itemRefs.current[12] = node)}
           icon={Trash2}
           label={selectionTargets.length > 1 ? `Delete ${selectionTargets.length} Items` : 'Delete Object'}
           shortcut="⌫"
@@ -176,10 +235,13 @@ export function ExplorerContextMenu({
   );
 }
 
-function ContextMenuItem({ icon: Icon, label, onClick, disabled, variant, shortcut }: any) {
+function ContextMenuItem({ itemRef, icon: Icon, label, onClick, disabled, variant, shortcut }: any) {
   return (
     <button
+      ref={itemRef}
       type="button"
+      role="menuitem"
+      tabIndex={disabled ? -1 : 0}
       className={`group flex w-full items-center justify-between px-3 py-1.5 rounded-lg transition-all duration-300 disabled:opacity-10 disabled:cursor-not-allowed ${focusRingClass} ${
         variant === 'destructive'
           ? 'text-rose-400 hover:bg-rose-500/10'
