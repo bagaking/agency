@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { useProjectExplorer, explorerPathUtils } from '../../hooks/useProjectExplorer';
 import { RecentProjectsList } from '../RecentProjectsList';
@@ -62,6 +62,7 @@ function ProjectExplorerSidebarContent({
   onRevealHandled,
 }: any) {
   const modal = useModal();
+  const sidebarRef = useRef<HTMLElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const filterMenuRef = useRef<HTMLDivElement | null>(null);
   const filterMenuButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -124,6 +125,9 @@ function ProjectExplorerSidebarContent({
   const [viewportHeight, setViewportHeight] = useState(0);
   const [changesPanelOpen, setChangesPanelOpen] = useState(true);
   const [changesPanelMode, setChangesPanelMode] = useState<ExplorerChangedFilesPanelMode>('flat');
+  const [filterMenuPosition, setFilterMenuPosition] = useState<{ top: number; left: number } | null>(
+    null
+  );
   const filterMenuId = 'explorer-filter-menu';
   const explorerStateKey = useMemo(() => {
     const base = scopeRootPath || rootPath || repoRoot;
@@ -204,6 +208,61 @@ function ProjectExplorerSidebarContent({
     onDismiss: () => setFilterMenuOpen(false),
     refs: filterLayerRefs,
   });
+
+  const updateFilterMenuPosition = useCallback(() => {
+    const sidebar = sidebarRef.current;
+    const menu = filterMenuRef.current;
+    const trigger = filterMenuButtonRef.current;
+    if (!sidebar || !menu || !trigger) {
+      return;
+    }
+    const sidebarRect = sidebar.getBoundingClientRect();
+    const triggerRect = trigger.getBoundingClientRect();
+    const menuWidth = menu.offsetWidth || 224;
+    const gap = 6;
+    const edgePadding = 8;
+    const maxLeft = Math.max(edgePadding, sidebarRect.width - menuWidth - edgePadding);
+    const nextLeft = Math.min(
+      Math.max(triggerRect.right - sidebarRect.left - menuWidth, edgePadding),
+      maxLeft
+    );
+    const nextTop = triggerRect.bottom - sidebarRect.top + gap;
+    setFilterMenuPosition({ top: Math.round(nextTop), left: Math.round(nextLeft) });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!filterMenuOpen) {
+      setFilterMenuPosition(null);
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      updateFilterMenuPosition();
+    });
+
+    const handleWindowChange = () => updateFilterMenuPosition();
+    window.addEventListener('resize', handleWindowChange);
+
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => updateFilterMenuPosition());
+      if (sidebarRef.current) {
+        observer.observe(sidebarRef.current);
+      }
+      if (filterMenuButtonRef.current) {
+        observer.observe(filterMenuButtonRef.current);
+      }
+      if (filterMenuRef.current) {
+        observer.observe(filterMenuRef.current);
+      }
+    }
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener('resize', handleWindowChange);
+      observer?.disconnect();
+    };
+  }, [filterMenuOpen, updateFilterMenuPosition]);
 
   useEffect(() => {
     const availableRuleIds = new Set(
@@ -617,6 +676,7 @@ function ProjectExplorerSidebarContent({
 
   return (
     <aside
+      ref={sidebarRef}
       className="relative flex h-full w-full flex-col bg-sidebar select-none"
       onDragOver={handleSidebarDragOver}
       onDrop={handleSidebarDrop}
@@ -637,6 +697,7 @@ function ProjectExplorerSidebarContent({
         <ExplorerFilterPanel
           menuId={filterMenuId}
           menuRef={filterMenuRef}
+          menuStyle={filterMenuPosition || undefined}
           showHidden={showHidden} setShowHidden={setShowHidden} showIgnored={showIgnored} setShowIgnored={setShowIgnored}
           showChangesOnly={showChangesOnly} setShowChangesOnly={setShowChangesOnly} statusFilterSet={statusFilterSet}
           toggleStatusFilter={toggleStatusFilter} clearStatusFilters={() => setStatusFilters([])} statusFiltersCount={statusFilters.length}

@@ -14,6 +14,7 @@ import {
   MessageSquarePlus,
   Link
 } from 'lucide-react';
+import { useDismissibleLayer } from '../ui/useDismissibleLayer';
 
 export function ExplorerContextMenu({
   x,
@@ -41,6 +42,12 @@ export function ExplorerContextMenu({
     onClose?.();
   };
 
+  useDismissibleLayer({
+    open: true,
+    onDismiss: () => onClose?.(),
+    refs: [menuRef],
+  });
+
   useEffect(() => {
     const menu = menuRef.current;
     if (!menu) return;
@@ -63,26 +70,6 @@ export function ExplorerContextMenu({
     menu.style.top = `${nextY}px`;
     menu.style.visibility = 'visible';
   }, [x, y]);
-
-  // Close on escape
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
-  useEffect(() => {
-    const handlePointerDown = (event) => {
-      const menu = menuRef.current;
-      if (!menu) return;
-      if (menu.contains(event.target)) return;
-      onClose();
-    };
-    window.addEventListener('mousedown', handlePointerDown);
-    return () => window.removeEventListener('mousedown', handlePointerDown);
-  }, [onClose]);
 
   return createPortal(
     <div
