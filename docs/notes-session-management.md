@@ -80,7 +80,15 @@ Main Agent Harness 是更高一层的 host-owned control plane。
 - Docked Session Map 右侧不再只是窄的 `Unit Details`，而是更宽的 `Command Ops` 区；
 - `Fork` / Harness run 启动时，Session Map 会自动打开一次，把用户带到这块指挥区；
 - `Command Ops` 左侧固定展示 Agency backend 的指挥官头像，右侧展示当前 focus session、Harness timeline、取消/复制动作，以及未来可扩展的个性化 quick ops；
+- 点击 `Commander` 会打开一个独立的 `Briefing` 弹窗，而不是把右侧 `Ops` 面板改造成聊天视图。
+- `Briefing` 是有边界的 backend 对话：默认绑定当前 focus session、active Harness run 和最新错误/时间线证据，负责解释、建议和触发受限操作，但不复用 Session Reply 的语义。
 - Session 错误也复用这块区域，避免依赖容易误触消失的临时 notice。
+- Dock 模式应把更多横向空间优先让给 `Cells`，`Radar / Commander / Command Ops` 保持辅助区而不是主视觉负担。
+- `Command Ops` 内容区必须支持纵向滚动；当 timeline 或错误详情超过 dock 高度时，用户仍应能完整查看与复制。
+- Dock HUD 的标题、卡片内边距和状态条应保持紧凑，优先信息密度而不是装饰性留白。
+- `Command Ops` 外层的 context strip 应优先展示当前聚焦 session 的头像与 session 名称，避免重复塞入像 `MAIN · DRAFT` 这类低价值上下文文字。
+- `Briefing` 中的 `Cancel / Retry / Dismiss` 等动作必须继续走现有 Harness 或 host-managed capability；对话不能退化成 renderer 侧自由操作入口。
+- `Briefing` 弹窗关闭后，右侧 `Ops` 面板应保持原位和原上下文，不因为聊天交互而被替换或重排。
 
 ## Session Reply Relay（跨会话回复资产）
 Session Reply Relay 是面向 Session 的“回复资产化”机制，强调 **跨多 agent 通信 / 不耦合具体 CLI 输入体验 / 同时形成资产**。
@@ -99,6 +107,7 @@ Session Reply Relay 是面向 Session 的“回复资产化”机制，强调 **
 - **智能 Fork / Create Agent specialization**：`Fork` 动作由 Main Agent Harness 作为 `Create Agent` specialization 调度，默认执行面是 `agent_backed -> codex_cli -> session.tool-native-fork -> session.runtime`。provider 只能返回结构化 capability 决策，真正副作用仍通过 Session Runtime Gateway 执行。当前 specialization 有两类合法结果：
   - true `smart_fork`：host 做 source 检查、source dispatch、child launch、ready wait 的完整闭环；
   - `create_child` + `dispatch_input`：当 true fork 语义不可证明时，改为显式创建 child agent，而不是伪装成 fork 成功。
+  - 若既没有 true `smart_fork` 路径，也没有 concrete child launch / resume 命令，则 `Fork` 必须直接失败；`create_child_only` 不是合法成功结果。
 - **Continue on Mobile（远程续接）**：
   - Agent Cells 的 session 右键菜单提供两种入口：
     - `Continue on Mobile (Direct)`：直达当前 session。

@@ -923,6 +923,7 @@ function AppShell() {
         sessionError={sessionsState.sessionError || ''}
         onClearSessionError={sessionsState.clearSessionError}
         onCancelHarnessRun={sessionsState.cancelHarnessRun}
+        onResumeHarnessRun={sessionsState.resumeHarnessRun}
         handleOpenSessionMapShortcut={handleOpenSessionMapShortcut}
         handleRevealSessionMapShortcut={handleRevealSessionMapShortcut}
         loading={loading}

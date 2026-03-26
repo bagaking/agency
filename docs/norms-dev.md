@@ -22,6 +22,12 @@ This document collects core engineering norms that must stay aligned with projec
 
 ## Quality
 - Keep the architecture clean and favor DRY and SOLID; refactor when a file exceeds 800 lines.
+- For important UI/UX work, review the result against four bars before calling it done:
+  - design quality: does the surface feel coherent instead of assembled from unrelated parts;
+  - originality: does it reflect Agency-specific decisions instead of template or library-default structure;
+  - craft: are typography, spacing, color, contrast, and state treatment consistently executed;
+  - functionality: can users understand the current context and primary actions without guessing.
+- If a user-facing surface fails one of those bars, keep refining hierarchy, identity, and interaction clarity instead of stopping at “works”.
 
 ## Debugging Protocol
 - In the final response, output a compact attempt summary in the format: `<问题>: 尝试 <次数> - <一句话描述方法>`.

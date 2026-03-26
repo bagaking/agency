@@ -53,6 +53,14 @@ Use pnpm for workspace Node dependencies and keep `pnpm-lock.yaml` committed.
 - For overlapping desktop-editor behaviors, Agency should at least match macOS native expectations and VS Code-grade polish before adding custom product behavior.
 - When Agency introduces agentic workflows, multi-window, multi-session, or multi-worktree affordances, the shipped UX should be meaningfully clearer and stronger than generic editor patterns, not merely “good enough compared to VS Code”.
 
+## Interaction Design Bar
+
+- Design quality: a shipped interaction must feel like one coherent system, not a pile of cards. Color, typography, spacing, iconography, motion, and hierarchy should reinforce one product identity.
+- Originality: prefer deliberate product-specific composition over library-default or AI-default layouts. If a surface looks like stock dashboard scaffolding, keep pushing.
+- Craft: typography hierarchy, spacing rhythm, contrast, and state treatment must be internally consistent. This is baseline execution quality, not optional polish.
+- Functionality: the primary action, current context, and system status must be legible without guessing. Beauty does not excuse ambiguity.
+- For important UX work, explicitly review the result against these four questions before stopping: `Does it feel whole?`, `Does it show intent?`, `Is the craft clean?`, `Can the user operate it without hesitation?`
+
 ## Quality Interrogation Loop
 
 - Before considering a UX or desktop-shell task complete, explicitly ask: `Is this good enough yet?`

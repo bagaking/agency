@@ -6,6 +6,7 @@ import { AvatarPickerMenu } from '../ui/AvatarPickerMenu';
 import { resolveSessionAvatarId } from '../../utils/agentAvatar';
 import { DEBUG_FLAGS, getDebugFlag } from '../../utils/debugFlags';
 import { SessionMapDockLayout } from './SessionMapDockLayout';
+import { SessionMapCommanderPopup } from './SessionMapCommanderPopup';
 import { SessionMapGridLayout } from './SessionMapGridLayout';
 import { SessionMapHoverCard } from './SessionMapHoverCard';
 import { SessionMapOfflineMenu } from './SessionMapOfflineMenu';
@@ -35,6 +36,7 @@ export function SessionMapOverlay({
   sessionError,
   onClearSessionError,
   onCancelHarnessRun,
+  onResumeHarnessRun,
   mode = 'popover',
 }: any) {
   const [hovered, setHovered] = useState(null);
@@ -43,6 +45,7 @@ export function SessionMapOverlay({
   const [offlineMenu, setOfflineMenu] = useState(null);
   const [createMenu, setCreateMenu] = useState(null);
   const [avatarMenu, setAvatarMenu] = useState(null);
+  const [commanderDialogOpen, setCommanderDialogOpen] = useState(false);
   const hoverLockRef = useRef(false);
   const clearTimerRef = useRef(null);
   const openTimerRef = useRef(null);
@@ -52,6 +55,7 @@ export function SessionMapOverlay({
   const offlineMenuRef = useRef(null);
   const createMenuRef = useRef(null);
   const avatarMenuRef = useRef(null);
+  const commanderTriggerRef = useRef(null);
   const isDocked = mode === 'dock';
   const isDebugEnabled = useCallback(() => getDebugFlag(DEBUG_FLAGS.sessionMapPreview), []);
   const logDebug = useCallback(
@@ -246,6 +250,7 @@ export function SessionMapOverlay({
     setAvatarMenu(null);
     setCreateMenu(null);
     setOfflineMenu(null);
+    setCommanderDialogOpen(false);
   }, [open]);
 
   useEffect(() => {
@@ -622,7 +627,7 @@ export function SessionMapOverlay({
     >
       <div
         ref={overlayRef}
-        className={`pointer-events-auto relative bg-[linear-gradient(180deg,rgba(20,25,33,0.97),rgba(10,14,19,0.98))] px-3 py-2 shadow-[0_18px_48px_rgba(0,0,0,0.32)] backdrop-blur-md overflow-hidden ${
+        className={`pointer-events-auto relative overflow-hidden bg-[linear-gradient(180deg,rgba(20,25,33,0.97),rgba(10,14,19,0.98))] px-2.5 py-1.5 shadow-[0_18px_48px_rgba(0,0,0,0.32)] backdrop-blur-md ${
           isDocked ? 'flex h-full min-h-0 flex-col rounded-none shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]' : 'rounded-2xl shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06),0_18px_48px_rgba(0,0,0,0.32)]'
         }`}
       >
@@ -635,15 +640,15 @@ export function SessionMapOverlay({
           }}
         />
 
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 pb-1.5">
-          <div className="flex items-center gap-2 text-xs font-bold tracking-tighter text-white">
-            <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-cyan-500/12 text-cyan-100 shadow-[inset_0_0_0_1px_rgba(125,211,252,0.16),0_0_12px_rgba(34,211,238,0.12)]">
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 pb-1">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold tracking-tight text-white">
+            <div className="flex h-4.5 w-4.5 items-center justify-center rounded-lg bg-cyan-500/12 text-cyan-100 shadow-[inset_0_0_0_1px_rgba(125,211,252,0.16),0_0_12px_rgba(34,211,238,0.12)]">
               <MapIcon size={12} />
             </div>
             <span className="uppercase">Tactical Session Interface</span>
-            <div className="ml-2 h-1 w-1 animate-pulse rounded-full bg-cyan-300 shadow-[0_0_4px_#22d3ee]" />
+            <div className="ml-1.5 h-1 w-1 animate-pulse rounded-full bg-cyan-300 shadow-[0_0_4px_#22d3ee]" />
           </div>
-          <div className="flex flex-wrap items-center gap-3 text-[9px] font-mono text-white/70">
+          <div className="flex flex-wrap items-center gap-2.5 text-[8px] font-mono text-white/66">
             <span className="font-bold text-emerald-300/90">ONLINE:{model.stats.online}</span>
             <span className="text-white/60">OFFLINE:{model.stats.offline}</span>
             <span className="text-white/20">|</span>
@@ -654,7 +659,7 @@ export function SessionMapOverlay({
             {onClose ? (
               <button
                 type="button"
-                className="flex h-5 w-5 items-center justify-center rounded-lg bg-white/[0.04] text-white/55 transition-colors hover:bg-rose-500/18 hover:text-rose-200"
+                className="flex h-4.5 w-4.5 items-center justify-center rounded-lg bg-white/[0.04] text-white/55 transition-colors hover:bg-rose-500/18 hover:text-rose-200"
                 onClick={onClose}
               >
                 <X size={12} />
@@ -682,6 +687,9 @@ export function SessionMapOverlay({
             sessionError={sessionError}
             onClearSessionError={onClearSessionError}
             onCancelHarnessRun={onCancelHarnessRun}
+            onOpenCommanderDialog={() => setCommanderDialogOpen((current) => !current)}
+            commanderDialogOpen={commanderDialogOpen}
+            commanderTriggerRef={commanderTriggerRef}
           />
         ) : (
           <SessionMapGridLayout
@@ -697,6 +705,18 @@ export function SessionMapOverlay({
             canCreateSession={canCreateSession}
           />
         )}
+
+        <SessionMapCommanderPopup
+          open={isDocked && commanderDialogOpen}
+          focusData={focusData}
+          harnessRuns={harnessRuns}
+          sessionError={sessionError}
+          onCancelHarnessRun={onCancelHarnessRun}
+          onResumeHarnessRun={onResumeHarnessRun}
+          onClearSessionError={onClearSessionError}
+          onClose={() => setCommanderDialogOpen(false)}
+          triggerRef={commanderTriggerRef}
+        />
       </div>
 
       <SessionMapOfflineMenu

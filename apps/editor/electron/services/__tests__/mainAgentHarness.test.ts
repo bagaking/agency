@@ -1,5 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 
 const { createHarnessController } = require('../mainAgentHarness/controller');
 const { createMemoryHarnessRunStore } = require('../mainAgentHarness/store');
@@ -185,7 +188,27 @@ function createFakeProviderRegistry(decideStep) {
   };
 }
 
-test('main agent harness records create_agent specialization and capability calls', async () => {
+test('main agent harness records create_agent specialization and capability calls', async (t) => {
+  const worktreePath = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-reference-fork-worktree-'));
+  fs.mkdirSync(path.join(worktreePath, '.agency'), { recursive: true });
+  fs.writeFileSync(
+    path.join(worktreePath, '.agency', 'terminus-settings.yaml'),
+    [
+      'profiles:',
+      '  - id: codex',
+      '    label: codex',
+      '    startCommand: codex',
+      '    fork:',
+      '      enabled: true',
+      '      driver: codex',
+      '      launchTemplate: "codex --thread {thread_id}"',
+    ].join('\n'),
+    'utf8'
+  );
+  t.after(() => {
+    fs.rmSync(worktreePath, { recursive: true, force: true });
+  });
+
   const store = createMemoryHarnessRunStore();
   const registry = createFakeCapabilityRegistry();
   const controller = createHarnessController({
@@ -216,11 +239,12 @@ test('main agent harness records create_agent specialization and capability call
           agent: {
             strategy: 'tool_native_fork',
             sessionRuntime: {
-              worktreePath: '/tmp/repo',
+              worktreePath,
               cellId: 'cell-1',
               cellName: 'Cell 1',
               cellBranch: 'feat/test',
               sessionId: 'source',
+              profileId: 'codex',
             },
           },
         },
@@ -247,10 +271,10 @@ test('main agent harness records create_agent specialization and capability call
   const settled = await waitForStatus(controller, started.runId, 'succeeded');
   assert.equal(settled.result.agent.session.id, 'child-1');
   assert.equal(settled.result.agent.specialization.strategy, 'tool_native_fork');
-  assert.equal(settled.capabilityCalls.length, 3);
+  assert.equal(settled.capabilityCalls.length, 4);
   assert.deepEqual(
     settled.capabilityCalls.map((item) => item.capabilityId),
-    ['session.runtime', 'session.runtime', 'file.intent']
+    ['session.runtime', 'session.runtime', 'session.runtime', 'file.intent']
   );
   assert.ok(settled.timeline.some((entry) => entry.type === 'step' && entry.stepId === 'create-agent'));
   assert.ok(
@@ -497,7 +521,27 @@ test('main agent harness does not trust CLI identity claimed from renderer trans
   assert.equal(started.policy.strategy, 'deny_by_default');
 });
 
-test('main agent harness rejects duplicate active tool-native fork runs for the same source session', async () => {
+test('main agent harness rejects duplicate active tool-native fork runs for the same source session', async (t) => {
+  const worktreePath = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-duplicate-fork-worktree-'));
+  fs.mkdirSync(path.join(worktreePath, '.agency'), { recursive: true });
+  fs.writeFileSync(
+    path.join(worktreePath, '.agency', 'terminus-settings.yaml'),
+    [
+      'profiles:',
+      '  - id: codex',
+      '    label: codex',
+      '    startCommand: codex',
+      '    fork:',
+      '      enabled: true',
+      '      driver: codex',
+      '      launchTemplate: "codex --thread {thread_id}"',
+    ].join('\n'),
+    'utf8'
+  );
+  t.after(() => {
+    fs.rmSync(worktreePath, { recursive: true, force: true });
+  });
+
   const store = createMemoryHarnessRunStore();
   const blocker = createDeferred();
   const controller = createHarnessController({
@@ -544,9 +588,10 @@ test('main agent harness rejects duplicate active tool-native fork runs for the 
           agent: {
             strategy: 'tool_native_fork',
             sessionRuntime: {
-              worktreePath: '/tmp/repo',
+              worktreePath,
               cellId: 'cell-1',
               sessionId: 'source',
+              profileId: 'codex',
             },
           },
         },
@@ -824,6 +869,163 @@ test('main agent harness defaults create-agent runs to agent_backed with codex p
   assert.deepEqual(
     settled.capabilityCalls.map((item) => item.request.intent),
     ['inspect', 'create_child', 'dispatch_input']
+  );
+});
+
+test('main agent harness bypasses provider and uses deterministic smart_fork when runtime proves codex but stored profile is shell', async (t) => {
+  const worktreePath = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-fork-worktree-'));
+  fs.mkdirSync(path.join(worktreePath, '.agency'), { recursive: true });
+  fs.writeFileSync(
+    path.join(worktreePath, '.agency', 'terminus-settings.yaml'),
+    [
+      'profiles:',
+      '  - id: shell',
+      '    label: Shell',
+      '    startCommand: ""',
+      '    fork:',
+      '      enabled: false',
+      '  - id: codex',
+      '    label: codex',
+      '    startCommand: codex',
+      '    fork:',
+      '      enabled: true',
+      '      driver: codex',
+      '      launchTemplate: "codex --thread {thread_id}"',
+    ].join('\n'),
+    'utf8'
+  );
+  t.after(() => {
+    fs.rmSync(worktreePath, { recursive: true, force: true });
+  });
+
+  const store = createMemoryHarnessRunStore();
+  const registry = createFakeCapabilityRegistry({
+    sessionRuntimeInvoke: async ({ input }) => {
+      if (input.intent === 'inspect') {
+        return {
+          response: {
+            success: true,
+            intent: 'inspect',
+            warnings: [],
+            failures: [],
+            data: {
+              session: {
+                id: input.sessionId || 'source',
+                profileId: 'shell',
+              },
+              runtime: {
+                tool: 'codex',
+                mode: 'shell',
+                readyForFork: true,
+              },
+            },
+          },
+          summary: {
+            success: true,
+            intent: 'inspect',
+          },
+        };
+      }
+      if (input.intent === 'smart_fork') {
+        return {
+          response: {
+            success: true,
+            intent: 'smart_fork',
+            warnings: [],
+            failures: [],
+            data: {
+              mode: 'smart_fork',
+              session: {
+                id: 'child-smart-fork',
+                profileId: input.profileId || 'codex',
+                nodeKind: 'fork',
+              },
+              sourceSession: {
+                id: input.sourceSessionId || input.sessionId || 'source',
+                profileId: 'shell',
+              },
+              sourceRuntime: {
+                tool: 'codex',
+                mode: 'shell',
+                readyForFork: true,
+              },
+              metadata: {
+                threadId: 'thr-runtime',
+              },
+              launch: {
+                command: 'codex --thread thr-runtime',
+              },
+            },
+          },
+          summary: {
+            success: true,
+            intent: 'smart_fork',
+            data: {
+              session: {
+                id: 'child-smart-fork',
+              },
+            },
+          },
+        };
+      }
+      throw new Error(`Unexpected session runtime intent: ${input.intent}`);
+    },
+  });
+  let providerGetCalls = 0;
+  const providerRegistry = {
+    get() {
+      providerGetCalls += 1;
+      throw new Error('Provider should not be used for deterministic smart_fork mismatch recovery.');
+    },
+  };
+  const controller = createHarnessController({
+    store,
+    capabilityRegistry: registry,
+    providerRegistry,
+    logRuntime: async () => undefined,
+  });
+
+  const started = await controller.startRun(
+    {
+      sourceSurface: 'agent-cells',
+      callerType: 'renderer',
+      callerId: 'agent-cells-fork',
+      requestedCapabilities: ['session.runtime'],
+      runner: {
+        steps: [
+          {
+            id: 'create-agent',
+            kind: 'create_agent',
+            title: 'Create Agent from selected session',
+            skillPackId: 'session.tool-native-fork',
+            agent: {
+              strategy: 'tool_native_fork',
+              sessionRuntime: {
+                worktreePath,
+                cellId: 'cell-1',
+                cellName: 'Cell 1',
+                cellBranch: 'main',
+                sessionId: 'source',
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      transportTrust: 'renderer_ipc',
+      ownerWindowStateId: 'window-a',
+      accessScope: 'window',
+    }
+  );
+
+  const settled = await waitForStatus(controller, started.runId, 'succeeded');
+  assert.equal(providerGetCalls, 0);
+  assert.equal(settled.result.agent.mode, 'smart_fork');
+  assert.equal(settled.result.agent.session.id, 'child-smart-fork');
+  assert.deepEqual(
+    settled.capabilityCalls.map((item) => item.request.intent),
+    ['inspect', 'smart_fork']
   );
 });
 

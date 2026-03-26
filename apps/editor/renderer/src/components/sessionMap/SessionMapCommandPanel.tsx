@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Activity, Bot, ChevronDown, ChevronUp, Copy, Radar, ShieldAlert, Square, X } from 'lucide-react';
+import { Activity, ChevronDown, ChevronUp, Copy, Radar, ShieldAlert, Square, X } from 'lucide-react';
 import { writeTextToClipboard } from '../../utils/clipboard';
 import { formatRelativeTime } from '../../utils/timeFormat';
 
@@ -107,9 +107,9 @@ export function SessionMapCommandPanel({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(13,18,25,0.98),rgba(7,10,16,0.96))] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),0_12px_28px_rgba(0,0,0,0.24)]">
-      <div className="flex items-center justify-between px-3 py-2.5">
-        <div className="font-mono text-[8px] font-bold uppercase tracking-[0.28em] text-cyan-100/75">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(13,18,25,0.98),rgba(7,10,16,0.96))] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),0_12px_28px_rgba(0,0,0,0.24)]">
+      <div className="flex items-center justify-between px-2.5 py-2">
+        <div className="font-mono text-[7px] font-bold uppercase tracking-[0.22em] text-cyan-100/72">
           Command Ops
         </div>
         <div className="flex items-center gap-1">
@@ -124,27 +124,13 @@ export function SessionMapCommandPanel({
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-3 pb-3">
-          <div className="rounded-xl bg-white/[0.04] px-3 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="truncate font-mono text-[11px] font-black uppercase tracking-[0.08em] text-white">
-                  {focusData?.session?.name || focusData?.session?.id || 'No Unit Selected'}
-                </div>
-                <div className="mt-1 truncate text-[9px] uppercase tracking-[0.16em] text-white/45">
-                  {focusData?.cell?.name || focusData?.cell?.id || 'No Active Cell'} ·{' '}
-                  {focusData?.typeLabel || 'Command View'}
-                </div>
-              </div>
-              <Bot size={16} className="shrink-0 text-cyan-300" />
-            </div>
-          </div>
-
+      <div className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-2 pr-1.5">
+        <div className="flex flex-col gap-2">
           {sessionError ? (
-            <div className="max-h-40 overflow-y-auto rounded-xl bg-rose-500/10 px-3 py-2 shadow-[inset_0_0_0_1px_rgba(251,113,133,0.2)]">
+            <div className="max-h-40 overflow-y-auto rounded-xl bg-rose-500/10 px-2.5 py-2 shadow-[inset_0_0_0_1px_rgba(251,113,133,0.2)]">
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.18em] text-rose-100">
-                  <ShieldAlert size={13} className="text-rose-300" />
+                <div className="flex items-center gap-2 text-[8px] font-bold uppercase tracking-[0.14em] text-rose-100">
+                  <ShieldAlert size={12} className="text-rose-300" />
                   Session Error
                 </div>
                 <div className="flex items-center gap-1">
@@ -169,11 +155,11 @@ export function SessionMapCommandPanel({
                   </button>
                 </div>
               </div>
-              <pre className="mt-2 whitespace-pre-wrap break-words text-[10px] leading-relaxed text-rose-100/90 select-text">
+              <pre className="mt-2 whitespace-pre-wrap break-words text-[9px] leading-relaxed text-rose-100/90 select-text">
                 {sessionError}
               </pre>
               {copiedKind === 'error' ? (
-                <div className="mt-2 text-[8px] font-bold uppercase tracking-[0.16em] text-rose-200">
+                <div className="mt-2 text-[7px] font-bold uppercase tracking-[0.12em] text-rose-200">
                   Error copied
                 </div>
               ) : null}
@@ -181,13 +167,13 @@ export function SessionMapCommandPanel({
           ) : null}
 
           {activeRun ? (
-            <div className="min-h-0 flex-1 overflow-hidden rounded-xl bg-black/26 px-3 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
+            <div className="min-w-0 rounded-xl bg-black/26 px-2.5 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-white">
+                  <div className="truncate font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-white">
                     {activeRun?.goal?.title || activeRun?.goal?.type || 'Harness Run'}
                   </div>
-                  <div className="mt-1 truncate text-[9px] text-white/50">
+                  <div className="mt-0.5 truncate text-[8px] text-white/46">
                     {activeRun?.runner?.adapterId || 'agent_backed'} /{' '}
                     {activeRun?.runner?.providerId || 'auto'} /{' '}
                     {activeRun?.clientRequestId || activeRun?.runId}
@@ -200,7 +186,7 @@ export function SessionMapCommandPanel({
                     <button
                       type="button"
                       onClick={() => onCancelHarnessRun?.(activeRun.runId)}
-                      className="rounded-lg bg-amber-500/10 px-2 py-1 text-[8px] font-bold uppercase tracking-[0.15em] text-amber-100 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.2)] transition-colors hover:bg-amber-500/18"
+                      className="rounded-lg bg-amber-500/10 px-2 py-1 text-[7px] font-bold uppercase tracking-[0.12em] text-amber-100 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.2)] transition-colors hover:bg-amber-500/18"
                     >
                       Cancel
                     </button>
@@ -219,7 +205,7 @@ export function SessionMapCommandPanel({
                 </div>
               </div>
 
-              <div className="mt-2 flex items-center gap-2 text-[8px] font-bold uppercase tracking-[0.16em] text-white/50">
+              <div className="mt-2 flex items-center gap-2 text-[7px] font-bold uppercase tracking-[0.12em] text-white/46">
                 <Activity size={12} className={tone.icon} />
                 <span>{String(activeRun?.currentStep?.title || activeRun?.status || 'Idle')}</span>
                 {activeRun?.updatedAt ? (
@@ -229,7 +215,7 @@ export function SessionMapCommandPanel({
                 ) : null}
               </div>
 
-              <div className="mt-3 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+              <div className="mt-2 max-h-44 space-y-1 overflow-y-auto pr-1">
                 {timeline.length ? (
                   timeline.map((entry: any) => {
                     const entryTone = statusTone(entry?.status || entry?.phase || '');
@@ -238,7 +224,7 @@ export function SessionMapCommandPanel({
                         key={entry?.id || `${entry?.phase}-${entry?.at}`}
                         className="rounded-xl bg-white/[0.03] px-2 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
                       >
-                        <div className="flex items-center gap-2 text-[8px] font-bold uppercase tracking-[0.16em]">
+                        <div className="flex items-center gap-2 text-[7px] font-bold uppercase tracking-[0.12em]">
                           <span className={`rounded border px-1.5 py-0.5 ${entryTone.pill}`}>
                             {entry?.phase || entryTone.label}
                           </span>
@@ -247,7 +233,7 @@ export function SessionMapCommandPanel({
                           </span>
                         </div>
                         {entry?.detail ? (
-                          <pre className="mt-1 whitespace-pre-wrap break-words text-[9px] leading-relaxed text-white/45 select-text">
+                          <pre className="mt-1 whitespace-pre-wrap break-words text-[8px] leading-relaxed text-white/45 select-text">
                             {JSON.stringify(entry.detail, null, 2)}
                           </pre>
                         ) : null}
@@ -255,21 +241,21 @@ export function SessionMapCommandPanel({
                     );
                   })
                 ) : (
-                  <div className="rounded border border-dashed border-white/10 px-2 py-3 text-center text-[9px] uppercase tracking-[0.18em] text-white/25">
+                  <div className="rounded border border-dashed border-white/10 px-2 py-2.5 text-center text-[8px] uppercase tracking-[0.14em] text-white/25">
                     Awaiting command telemetry
                   </div>
                 )}
               </div>
 
-              <div className="mt-3 rounded-xl bg-white/[0.03] px-2 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
-                <div className="text-[8px] font-bold uppercase tracking-[0.18em] text-white/45">
+              <div className="mt-2 rounded-xl bg-white/[0.03] px-2 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+                <div className="text-[7px] font-bold uppercase tracking-[0.14em] text-white/42">
                   Quick Ops
                 </div>
-                <div className="mt-2 flex flex-wrap gap-1.5">
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
                   <button
                     type="button"
                     onClick={() => setCollapsed(true)}
-                    className="rounded-lg bg-black/28 px-2 py-1 text-[8px] font-bold uppercase tracking-[0.15em] text-white/70 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] transition-colors hover:bg-white/10"
+                    className="rounded-lg bg-black/28 px-2 py-1 text-[7px] font-bold uppercase tracking-[0.12em] text-white/70 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] transition-colors hover:bg-white/10"
                   >
                     <ChevronUp size={10} className="mr-1 inline" />
                     Minimize
@@ -280,7 +266,7 @@ export function SessionMapCommandPanel({
                     <button
                       type="button"
                       onClick={() => onCancelHarnessRun?.(activeRun.runId)}
-                      className="rounded-lg bg-amber-500/10 px-2 py-1 text-[8px] font-bold uppercase tracking-[0.15em] text-amber-100 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.18)] transition-colors hover:bg-amber-500/20"
+                      className="rounded-lg bg-amber-500/10 px-2 py-1 text-[7px] font-bold uppercase tracking-[0.12em] text-amber-100 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.18)] transition-colors hover:bg-amber-500/20"
                     >
                       <Square size={10} className="mr-1 inline" />
                       Halt Run
@@ -288,17 +274,18 @@ export function SessionMapCommandPanel({
                   ) : null}
                 </div>
                 {copiedKind === 'run' ? (
-                  <div className="mt-2 text-[8px] font-bold uppercase tracking-[0.16em] text-cyan-200">
+                  <div className="mt-2 text-[7px] font-bold uppercase tracking-[0.12em] text-cyan-200">
                     Run details copied
                   </div>
                 ) : null}
               </div>
             </div>
           ) : (
-            <div className="flex flex-1 items-center justify-center rounded border border-dashed border-white/10 bg-white/[0.03] text-center font-mono text-[9px] uppercase tracking-[0.18em] text-white/25">
+            <div className="flex min-h-24 items-center justify-center rounded border border-dashed border-white/10 bg-white/[0.03] px-2 text-center font-mono text-[8px] uppercase tracking-[0.14em] text-white/25">
               No active backend directive
             </div>
           )}
+        </div>
       </div>
     </div>
   );

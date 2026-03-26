@@ -20,7 +20,7 @@ export const HUD_TILE_GAP = 8;
 export const HUD_GRID_HEIGHT = HUD_ROW_COUNT * HUD_TILE_HEIGHT + (HUD_ROW_COUNT - 1) * HUD_TILE_GAP;
 export const HUD_HEADER_HEIGHT = 32;
 export const HUD_COLLAPSED_HEIGHT = HUD_HEADER_HEIGHT + HUD_GRID_HEIGHT + 32;
-export const HUD_FIXED_HEIGHT = Math.round(HUD_COLLAPSED_HEIGHT * 0.67);
+export const HUD_FIXED_HEIGHT = Math.round(HUD_COLLAPSED_HEIGHT * 0.58);
 
 export const CARD_GAP = 10;
 export const CARD_MARGIN = 12;

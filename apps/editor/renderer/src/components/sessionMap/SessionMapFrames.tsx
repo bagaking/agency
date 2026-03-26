@@ -35,19 +35,17 @@ export function TacticalFrame({ children, color, isHovered, title, subTitle, min
         }}
       />
       {/* Header */}
-      <div
-        className="relative z-10 flex items-center justify-between px-2.5 py-1.5 bg-black/18 backdrop-blur-sm"
-      >
+      <div className="relative z-10 flex items-center justify-between bg-black/16 px-2.5 py-1.25 backdrop-blur-sm">
         <div
           className="absolute left-0 top-2 bottom-2 w-[2px] rounded-full opacity-80"
           style={{ backgroundColor: color || '#3b82f6' }}
         />
         <div className="flex flex-col min-w-0 pl-1.5">
-          <span className="truncate font-mono text-[9px] font-black text-white/92 tracking-[0.16em] leading-none">
+          <span className="truncate font-mono text-[8px] font-black leading-none tracking-[0.14em] text-white/90">
             {title?.toUpperCase()}
           </span>
           {subTitle && (
-            <span className="text-[6px] text-cyan-100/28 font-bold uppercase mt-0.5 tracking-[0.16em]">
+            <span className="mt-0.5 text-[6px] font-bold uppercase tracking-[0.14em] text-cyan-100/24">
               {subTitle}
             </span>
           )}
@@ -58,7 +56,7 @@ export function TacticalFrame({ children, color, isHovered, title, subTitle, min
       </div>
 
       {/* Content */}
-      <div className="relative z-10 flex min-h-0 flex-wrap items-start content-start gap-2 p-2 flex-1">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-wrap items-start content-start gap-1.5 p-1.5">
         {children}
       </div>
     </div>

@@ -73,11 +73,32 @@ function createAgentBackedRunnerAdapter({
               step?.agent?.providerId || run?.runner?.providerId || '';
             let decision = null;
             let providerDecision = null;
+            const deterministicDecision =
+              typeof skillPack.buildDeterministicDecision === 'function'
+                ? skillPack.buildDeterministicDecision({
+                    run,
+                    step,
+                    preparedContext,
+                  })
+                : null;
+            const shouldUseDeterministicDecision =
+              typeof skillPack.shouldUseDeterministicDecision === 'function'
+                ? Boolean(
+                    skillPack.shouldUseDeterministicDecision({
+                      run,
+                      step,
+                      preparedContext,
+                      deterministicDecision,
+                    })
+                  )
+                : false;
             const hintedProviderId =
               explicitProviderId ||
               skillPack?.providerHints?.defaultProviderId ||
               '';
-            if (hintedProviderId) {
+            if (shouldUseDeterministicDecision && deterministicDecision) {
+              decision = deterministicDecision;
+            } else if (hintedProviderId) {
               const providerId = resolveRunnerProviderId({
                 requestedProviderId: hintedProviderId,
                 adapterId: run?.runner?.adapterId,
@@ -99,12 +120,8 @@ function createAgentBackedRunnerAdapter({
                 abortSignal: ctx.abortSignal,
               });
               decision = providerDecision?.decision || null;
-            } else if (typeof skillPack.buildDeterministicDecision === 'function') {
-              decision = skillPack.buildDeterministicDecision({
-                run,
-                step,
-                preparedContext,
-              });
+            } else if (deterministicDecision) {
+              decision = deterministicDecision;
             }
 
             if (!decision) {

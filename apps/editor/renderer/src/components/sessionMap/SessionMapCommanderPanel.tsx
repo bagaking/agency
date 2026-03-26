@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Bot, Cpu, Radar, Sparkles } from 'lucide-react';
+import { Bot, Cpu, MessageSquareText, Radar } from 'lucide-react';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
 
 const statusTone = (status: string) => {
@@ -39,7 +39,12 @@ const statusTone = (status: string) => {
   };
 };
 
-export function SessionMapCommanderPanel({ harnessRuns }: any) {
+export function SessionMapCommanderPanel({
+  harnessRuns,
+  dialogOpen = false,
+  onOpenDialog,
+  buttonRef,
+}: any) {
   const runList = Array.isArray(harnessRuns) ? harnessRuns : [];
   const activeRun = useMemo(
     () =>
@@ -52,66 +57,74 @@ export function SessionMapCommanderPanel({ harnessRuns }: any) {
   const commanderAvatarId = 'AGENCY_BACKEND_COMMANDER';
 
   return (
-    <div className={`flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(11,17,24,0.96),rgba(7,10,15,0.95))] px-3 py-3 ${tone.glow} shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),0_10px_24px_rgba(0,0,0,0.22)]`}>
-      <div className="text-[8px] font-black uppercase tracking-[0.28em] text-cyan-100/72">
+    <button
+      ref={buttonRef}
+      type="button"
+      onClick={() => onOpenDialog?.()}
+      aria-pressed={dialogOpen}
+      className={`flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(11,17,24,0.96),rgba(7,10,15,0.95))] px-2.5 py-2 text-left transition-colors ${tone.glow} shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),0_10px_24px_rgba(0,0,0,0.22)] hover:bg-[linear-gradient(180deg,rgba(13,20,28,0.98),rgba(8,12,18,0.98))] ${
+        dialogOpen ? 'ring-1 ring-cyan-300/28 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14),0_0_0_1px_rgba(34,211,238,0.12),0_10px_24px_rgba(0,0,0,0.22)]' : ''
+      }`}
+    >
+      <div className="text-[7px] font-black uppercase tracking-[0.22em] text-cyan-100/68">
         Commander
       </div>
 
-      <div className="relative mt-3">
+      <div className="relative mt-2">
         <div className="absolute inset-0 rounded-full bg-cyan-500/20 blur-2xl" />
         <AgentAvatarBadge
           avatarId={commanderAvatarId}
-          size={64}
+          size={52}
           showRing={false}
-          className="relative rounded-full bg-black/55 p-1.5"
+          className="relative rounded-full bg-black/55 p-1"
         />
       </div>
 
-      <div className="mt-3 text-center">
-        <div className="font-mono text-[10px] font-black uppercase tracking-[0.16em] text-white">
+      <div className="mt-2 text-center">
+        <div className="font-mono text-[9px] font-black uppercase tracking-[0.12em] text-white">
           Agency
         </div>
-        <div className="mt-1 text-[8px] uppercase tracking-[0.18em] text-white/42">
+        <div className="mt-0.5 text-[7px] uppercase tracking-[0.14em] text-white/40">
           Agent Backend
         </div>
       </div>
 
-      <div className={`mt-3 rounded border px-2 py-1 text-[8px] font-bold uppercase tracking-[0.18em] ${tone.pill}`}>
+      <div className={`mt-2 rounded border px-2 py-1 text-[7px] font-bold uppercase tracking-[0.14em] ${tone.pill}`}>
         {tone.label}
       </div>
 
-      <div className="mt-3 min-h-0 w-full flex-1 space-y-2 overflow-y-auto pr-1 text-[8px] font-bold uppercase tracking-[0.14em] text-white/50">
-        <div className="rounded-xl bg-white/[0.035] px-2 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.045)]">
+      <div className="mt-2 min-h-0 w-full flex-1 space-y-1.5 overflow-y-auto pr-1 text-[7px] font-bold uppercase tracking-[0.12em] text-white/48">
+        <div className="rounded-xl bg-white/[0.035] px-2 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.045)]">
           <div className="flex items-center gap-1.5 text-white/38">
-            <Radar size={11} className="text-cyan-300/80" />
+            <Radar size={10} className="text-cyan-300/80" />
             Directive
           </div>
-          <div className="mt-1.5 text-[8px] leading-relaxed text-white/78">
+          <div className="mt-1 text-[7px] leading-relaxed text-white/74">
             {activeRun?.goal?.title || 'Awaiting command'}
           </div>
         </div>
 
-        <div className="rounded-xl bg-white/[0.035] px-2 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.045)]">
+        <div className="rounded-xl bg-white/[0.035] px-2 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.045)]">
           <div className="flex items-center gap-1.5 text-white/38">
-            <Cpu size={11} className="text-cyan-300/80" />
+            <Cpu size={10} className="text-cyan-300/80" />
             Provider
           </div>
-          <div className="mt-1.5 text-[8px] text-white/78">
+          <div className="mt-1 text-[7px] text-white/74">
             {activeRun?.runner?.providerId || activeRun?.result?.agent?.metadata?.providerThreadId ? 'CODEX CLI' : 'STANDBY'}
           </div>
         </div>
 
-        <div className="rounded-xl bg-white/[0.035] px-2 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.045)]">
+        <div className="rounded-xl bg-white/[0.035] px-2 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.045)]">
           <div className="flex items-center gap-1.5 text-white/38">
-            <Sparkles size={11} className="text-cyan-300/80" />
-            Link
+            <MessageSquareText size={10} className="text-cyan-300/80" />
+            Dialog
           </div>
-          <div className="mt-1.5 flex items-center gap-1.5 text-[7px] text-white/72">
+          <div className="mt-1 flex items-center gap-1.5 text-[7px] text-white/70">
             <Bot size={10} className="text-cyan-200/70" />
-            <span>Ops panel synced</span>
+            <span>{dialogOpen ? 'Dialog open' : 'Open commander popup'}</span>
           </div>
         </div>
       </div>
-    </div>
+    </button>
   );
 }

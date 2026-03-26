@@ -509,7 +509,11 @@ async function runCodexSmartFork(payload = {}, overrides = {}) {
     worktreePath: payload?.worktreePath,
     cellId: payload?.cellId,
     sourceSession: sourceSnapshot.session,
-    profileId: sourceSnapshot.session?.profileId || 'codex',
+    profileId:
+      payload?.profileId ||
+      payload?.resolvedProfileId ||
+      sourceSnapshot.session?.profileId ||
+      'codex',
     cellName: payload?.cellName,
     cellBranch: payload?.cellBranch,
     nodeKind: 'fork',
@@ -658,7 +662,13 @@ async function performSessionRuntimeIntent(payload = {}, overrides = {}) {
       );
       const result =
         forkConfig.enabled && forkConfig.driver === 'codex'
-          ? await runCodexSmartFork({ ...payload, forkConfig, sourceInspection: sourceSnapshot }, deps)
+          ? await runCodexSmartFork({
+              ...payload,
+              profileId: payload?.profileId || resolvedProfile?.id || sourceSnapshot?.session?.profileId || '',
+              resolvedProfileId: resolvedProfile?.id || '',
+              forkConfig,
+              sourceInspection: sourceSnapshot,
+            }, deps)
           : await createPlainForkChild(payload, deps);
       return buildSuccess(intent, {
         operationId,

@@ -172,6 +172,7 @@ test('performSessionRuntimeIntent smart_fork selects the codex driver from runti
   const dispatches = [];
   let sourcePhase = 'ready';
   let childPhase = 'shell';
+  let createdChildPayload = null;
 
   const result = await performSessionRuntimeIntent(
     {
@@ -252,11 +253,14 @@ test('performSessionRuntimeIntent smart_fork selects the codex driver from runti
         }
         return {};
       },
-      createChildSession: async () => ({
-        id: 'child-1',
-        profileId: 'codex',
-        nodeKind: 'fork',
-      }),
+      createChildSession: async (payload) => {
+        createdChildPayload = payload;
+        return {
+          id: 'child-1',
+          profileId: 'codex',
+          nodeKind: 'fork',
+        };
+      },
       getResolvedTerminusSettings: async () => ({
         profiles: [
           {
@@ -287,6 +291,7 @@ test('performSessionRuntimeIntent smart_fork selects the codex driver from runti
   assert.equal(result.data.mode, 'smart_fork');
   assert.equal(result.data.profileId, 'shell');
   assert.equal(result.data.sourceRuntime.tool, 'codex');
+  assert.equal(createdChildPayload?.profileId, 'codex');
   assert.equal(dispatches[0].text, '/fork');
   assert.equal(dispatches[1].text, 'codex --thread thr-runtime');
 });

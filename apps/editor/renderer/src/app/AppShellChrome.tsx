@@ -18,6 +18,7 @@ type AppShellChromeProps = {
   sessionError: string;
   onClearSessionError: () => void;
   onCancelHarnessRun: (runId: string) => Promise<any>;
+  onResumeHarnessRun: (runId: string) => Promise<any>;
   handleOpenSessionMapShortcut: (...args: any[]) => Promise<any>;
   handleRevealSessionMapShortcut: (...args: any[]) => Promise<any>;
   loading: boolean;
@@ -48,6 +49,7 @@ export function AppShellChrome({
   sessionError,
   onClearSessionError,
   onCancelHarnessRun,
+  onResumeHarnessRun,
   handleOpenSessionMapShortcut,
   handleRevealSessionMapShortcut,
   loading,
@@ -79,6 +81,7 @@ export function AppShellChrome({
         sessionError={sessionError}
         onClearSessionError={onClearSessionError}
         onCancelHarnessRun={onCancelHarnessRun}
+        onResumeHarnessRun={onResumeHarnessRun}
         onOpenFileShortcut={handleOpenSessionMapShortcut}
         onRevealFileShortcut={handleRevealSessionMapShortcut}
         mode="dock"

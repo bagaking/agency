@@ -1,10 +1,10 @@
 import React from 'react';
-import { CircleOff, Landmark, MoreHorizontal, Plus } from 'lucide-react';
+import { CircleOff, MoreHorizontal, Plus } from 'lucide-react';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
 import { resolveSessionAvatarId } from '../../utils/agentAvatar';
 import { TacticalFrame } from './SessionMapFrames';
 import { SessionMapCommanderPanel } from './SessionMapCommanderPanel';
-import { SessionMapCommandPanel } from './SessionMapCommandPanel';
+import { SessionMapOperationsRail } from './SessionMapOperationsRail';
 
 export function SessionMapDockLayout({
   model,
@@ -24,18 +24,26 @@ export function SessionMapDockLayout({
   sessionError,
   onClearSessionError,
   onCancelHarnessRun,
+  onOpenCommanderDialog,
+  commanderDialogOpen = false,
+  commanderTriggerRef,
 }: any) {
   return (
-    <div className="mt-2 grid flex-1 min-h-0 grid-cols-[128px_minmax(280px,420px)_128px_minmax(420px,1fr)] gap-2 overflow-hidden">
+    <div
+      className="mt-1.5 grid min-h-0 flex-1 gap-1.5 overflow-hidden"
+      style={{
+        gridTemplateColumns: '104px minmax(340px, 1.55fr) 104px minmax(280px, 0.95fr)',
+      }}
+    >
       {/* Radar Section */}
       <div
-        className="group flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(14,20,28,0.94),rgba(8,12,17,0.96))] px-3 py-2.5 shadow-[inset_0_0_0_1px_rgba(125,211,252,0.08),0_10px_24px_rgba(0,0,0,0.22)] transition-colors hover:bg-[linear-gradient(180deg,rgba(18,25,34,0.96),rgba(8,12,17,0.98))]"
+        className="group flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(14,20,28,0.94),rgba(8,12,17,0.96))] px-2.5 py-2 shadow-[inset_0_0_0_1px_rgba(125,211,252,0.08),0_10px_24px_rgba(0,0,0,0.22)] transition-colors hover:bg-[linear-gradient(180deg,rgba(18,25,34,0.96),rgba(8,12,17,0.98))]"
         onMouseLeave={() => setHoveredCellId(null)}
       >
-        <div className="flex items-center justify-between font-mono text-[8px] font-bold uppercase tracking-[0.24em] text-cyan-100/60">
+        <div className="flex items-center justify-between font-mono text-[7px] font-bold uppercase tracking-[0.2em] text-cyan-100/54">
           <span>Radar</span>
         </div>
-        <div className="relative mt-2 aspect-square flex-1 overflow-hidden rounded-[24px] bg-[radial-gradient(circle_at_50%_45%,rgba(12,20,28,0.86),rgba(4,7,10,0.98))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04),inset_0_0_40px_rgba(34,211,238,0.06)]">
+        <div className="relative mt-1.5 aspect-square flex-1 overflow-hidden rounded-[22px] bg-[radial-gradient(circle_at_50%_45%,rgba(12,20,28,0.86),rgba(4,7,10,0.98))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04),inset_0_0_40px_rgba(34,211,238,0.06)]">
           {/* Radar Grid */}
           <div className="absolute inset-0 opacity-30" style={{
             backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px), repeating-radial-gradient(circle, transparent 0, transparent 20px, rgba(125,211,252,0.08) 20px, rgba(125,211,252,0.08) 21px)',
@@ -73,19 +81,19 @@ export function SessionMapDockLayout({
             );
           })}
         </div>
-        <div className="mt-2 flex justify-between font-mono text-[7px] text-cyan-100/32 uppercase font-bold">
+        <div className="mt-1.5 flex justify-between font-mono text-[6px] font-bold uppercase text-cyan-100/28">
           <span>Focus</span>
           <span>Locate</span>
         </div>
       </div>
 
       {/* Command Center (Cells) */}
-      <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(18,23,31,0.95),rgba(9,12,18,0.96))] px-3 py-2.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.045),0_10px_24px_rgba(0,0,0,0.22)]">
-        <div className="mb-2 font-mono text-[8px] font-bold uppercase tracking-[0.24em] text-white/54">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(18,23,31,0.95),rgba(9,12,18,0.96))] px-2.5 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.045),0_10px_24px_rgba(0,0,0,0.22)]">
+        <div className="mb-1.5 font-mono text-[7px] font-bold uppercase tracking-[0.2em] text-white/48">
           Cells
         </div>
         <div
-          className="grid flex-1 min-h-0 gap-2 overflow-y-auto pr-1 no-scrollbar"
+          className="grid min-h-0 flex-1 gap-1.5 overflow-y-auto pr-1 no-scrollbar"
           style={{
             gridTemplateColumns: '1fr',
             alignContent: 'start',
@@ -102,7 +110,7 @@ export function SessionMapDockLayout({
                   subTitle={cluster.typeLabel}
                   color={cluster.color}
                   isHovered={hoveredCellId === cluster.cell.id}
-                  minHeight={126}
+                  minHeight={110}
                   actions={
                     canCreateSession ? (
                       <button
@@ -111,11 +119,11 @@ export function SessionMapDockLayout({
                           event.stopPropagation();
                           onOpenCreateMenu(event.currentTarget, cluster.cell);
                         }}
-                        className="flex h-5 w-5 items-center justify-center rounded border border-white/20 bg-black/40 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+                        className="flex h-4.5 w-4.5 items-center justify-center rounded border border-white/16 bg-black/36 text-white/55 transition-colors hover:bg-white/10 hover:text-white"
                         title="Create session"
                         data-session-create-anchor="true"
                       >
-                        <Plus size={12} />
+                        <Plus size={11} />
                       </button>
                     ) : null
                   }
@@ -134,7 +142,7 @@ export function SessionMapDockLayout({
                           <button
                             key={session.id}
                             type="button"
-                            className={`group/token relative flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-300 shadow-lg ${
+                            className={`group/token relative flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-300 shadow-lg ${
                               isActive
                                 ? 'bg-primary/32 ring-1 ring-primary/45 scale-110 z-10 shadow-primary/20'
                                 : 'bg-white/[0.04] border border-white/8 hover:bg-white/[0.12] hover:border-white/20 hover:scale-105'
@@ -154,7 +162,7 @@ export function SessionMapDockLayout({
                           >
                             <AgentAvatarBadge
                               avatarId={resolveSessionAvatarId(session, cluster.cell)}
-                              size={32}
+                              size={28}
                               lastActivityAt={session.lastActivityAt}
                               isClosed={isClosed}
                             />
@@ -173,7 +181,7 @@ export function SessionMapDockLayout({
                     {offlineSessions.length ? (
                       <button
                         type="button"
-                        className="flex h-8.5 w-8.5 items-center justify-center rounded-lg bg-white/[0.04] border border-dashed border-white/10 text-[9px] text-white/30 transition-all hover:bg-white/[0.1] hover:text-white/70 hover:border-white/18"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-dashed border-white/10 bg-white/[0.04] text-[8px] text-white/28 transition-all hover:bg-white/[0.1] hover:text-white/70 hover:border-white/18"
                         onClick={(event) =>
                           onOpenOfflineMenu(event.currentTarget, cluster.cell, offlineSessions)
                         }
@@ -195,10 +203,15 @@ export function SessionMapDockLayout({
       </div>
 
       {/* Commander */}
-      <SessionMapCommanderPanel harnessRuns={harnessRuns} />
+      <SessionMapCommanderPanel
+        harnessRuns={harnessRuns}
+        dialogOpen={commanderDialogOpen}
+        onOpenDialog={onOpenCommanderDialog}
+        buttonRef={commanderTriggerRef}
+      />
 
       {/* Functional Area */}
-      <SessionMapCommandPanel
+      <SessionMapOperationsRail
         focusData={focusData}
         harnessRuns={harnessRuns}
         sessionError={sessionError}

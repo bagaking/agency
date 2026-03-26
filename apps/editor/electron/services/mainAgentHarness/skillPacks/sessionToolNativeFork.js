@@ -1,7 +1,12 @@
 // @ts-nocheck
+const path = require('path');
 const { BASELINE_PROFILE_ID, getResolvedTerminusSettings } = require('../../terminusSettings');
 const { buildDecisionSchema } = require('../runnerProviders/shared/decisionSchema');
 const { buildSessionRuntimePayload } = require('./sessionCreateChild');
+
+function normalizeToolId(value) {
+  return path.basename(String(value || '').trim()).toLowerCase();
+}
 
 function resolveProfile(profiles = [], profileId = '') {
   return (
@@ -9,6 +14,20 @@ function resolveProfile(profiles = [], profileId = '') {
       (profile) => String(profile?.id || '').trim() === String(profileId || '').trim()
     ) || null
   );
+}
+
+function resolveProfileForRuntime(profiles = [], profileId = '', runtimeTool = '') {
+  const preferred = resolveProfile(profiles, profileId);
+  if (preferred?.fork?.enabled) {
+    return preferred;
+  }
+  const normalizedRuntimeTool = normalizeToolId(runtimeTool);
+  const runtimeMatch = normalizedRuntimeTool
+    ? (Array.isArray(profiles) ? profiles : []).find(
+        (profile) => normalizeToolId(profile?.id) === normalizedRuntimeTool
+      ) || null
+    : null;
+  return runtimeMatch || preferred || null;
 }
 
 function normalizeLaunchCommand(value) {
@@ -24,11 +43,12 @@ function createSessionToolNativeForkSkillPack() {
       defaultProviderId: 'codex_cli',
     },
     instruction:
-      'Create a child execution lane from the selected source session. Allowed decision modes are: smart_fork, create_child_start, create_child_only, or fail. Prefer a true tool-native fork only when the host facts prove that it is supported. Otherwise create a child session and launch a fresh agent command when one is available. Never pretend a fork succeeded when the host did not confirm it.',
+      'Create a child execution lane from the selected source session. Allowed decision modes are: smart_fork, create_child_start, or fail. Prefer a true tool-native fork only when the host facts prove that it is supported. Otherwise create a child session and launch a fresh agent command when one is available. If neither path is possible, fail instead of creating an empty child session. Never pretend a fork succeeded when the host did not confirm it.',
     rules: [
       'Only use the session.runtime capability.',
       'If true smart fork is not supported, do not emit smart_fork.',
       'If you fall back to create_child, start the child with a concrete command only when one is available.',
+      'If no concrete child launch command exists, emit fail instead of create_child_only.',
       'Use resumeCommand only when you have a concrete resume target; otherwise prefer startCommand.',
       'Do not emit raw tmux or file operations.',
     ],
@@ -49,17 +69,21 @@ function createSessionToolNativeForkSkillPack() {
       const sourceRuntime = inspectData?.runtime || null;
       const settings = await getResolvedTerminusSettings({ worktreePath: payload.worktreePath });
       const profiles = Array.isArray(settings?.profiles) ? settings.profiles : [];
-      const profileId =
+      const storedProfileId =
         String(sourceSession?.profileId || payload.profileId || '').trim() || BASELINE_PROFILE_ID;
-      const profile = resolveProfile(profiles, profileId);
+      const profile = resolveProfileForRuntime(profiles, storedProfileId, sourceRuntime?.tool);
+      const effectiveProfileId =
+        String(profile?.id || storedProfileId).trim() || BASELINE_PROFILE_ID;
       const smartForkConfig = profile?.fork || {};
       const startCommand = normalizeLaunchCommand(profile?.startCommand);
       const resumeCommand = normalizeLaunchCommand(profile?.resumeCommand);
       return {
         payload: {
           ...payload,
-          profileId,
+          profileId: effectiveProfileId,
         },
+        storedProfileId,
+        resolvedProfileId: effectiveProfileId,
         sourceSession,
         sourceRuntime,
         profile: profile
@@ -77,10 +101,16 @@ function createSessionToolNativeForkSkillPack() {
           : null,
       };
     },
+    shouldUseDeterministicDecision({ preparedContext }) {
+      const storedProfileId = String(preparedContext?.storedProfileId || '').trim().toLowerCase();
+      const resolvedProfileId = String(preparedContext?.resolvedProfileId || '').trim().toLowerCase();
+      const runtimeTool = String(preparedContext?.sourceRuntime?.tool || '').trim().toLowerCase();
+      return Boolean(runtimeTool && resolvedProfileId && resolvedProfileId !== storedProfileId);
+    },
     buildDecisionSchema() {
       return buildDecisionSchema({
         allowedCapabilityIds: ['session.runtime'],
-        modeEnum: ['smart_fork', 'create_child_start', 'create_child_only', 'fail'],
+        modeEnum: ['smart_fork', 'create_child_start', 'fail'],
         maxCapabilityCalls: 2,
       });
     },
@@ -91,7 +121,8 @@ function createSessionToolNativeForkSkillPack() {
       const smartForkEnabled =
         Boolean(profile?.fork?.enabled) &&
         String(profile?.fork?.driver || '').trim().toLowerCase() === 'codex' &&
-        String(sourceRuntime?.tool || '').trim().toLowerCase() === 'codex';
+        String(sourceRuntime?.tool || '').trim().toLowerCase() === 'codex' &&
+        sourceRuntime?.readyForFork !== false;
       if (smartForkEnabled) {
         return {
           mode: 'smart_fork',
@@ -108,6 +139,7 @@ function createSessionToolNativeForkSkillPack() {
                 cellBranch: payload.cellBranch,
                 sessionId: payload.sessionId,
                 sourceSessionId: payload.sourceSessionId || payload.sessionId,
+                profileId: payload.profileId || BASELINE_PROFILE_ID,
               },
             },
           ],
@@ -152,30 +184,23 @@ function createSessionToolNativeForkSkillPack() {
         };
       }
       return {
-        mode: 'create_child_only',
-        summary: 'Create a child session without a launch command.',
-        capabilityCalls: [
-          {
-            capabilityId: 'session.runtime',
-            title: 'Create child session',
-            input: {
-              intent: 'create_child',
-              worktreePath: payload.worktreePath,
-              cellId: payload.cellId,
-              cellName: payload.cellName,
-              cellBranch: payload.cellBranch,
-              sessionId: payload.sessionId,
-              sourceSessionId: payload.sourceSessionId || payload.sessionId,
-              profileId: payload.profileId || BASELINE_PROFILE_ID,
-              nodeKind: 'fork',
-            },
-          },
-        ],
+        mode: 'fail',
+        summary: 'Fail because no true smart fork or concrete child launch path is available.',
+        failure: {
+          code: 'FORK_UNSUPPORTED_NO_LAUNCH_PATH',
+          message:
+            'Fork cannot degrade to create_child_only. No true smart fork path or concrete child launch command is available.',
+        },
       };
     },
     validateDecision(decision) {
       const mode = String(decision?.mode || '').trim();
       const calls = Array.isArray(decision?.capabilityCalls) ? decision.capabilityCalls : [];
+      if (!['smart_fork', 'create_child_start', 'fail'].includes(mode)) {
+        const error = new Error(`tool-native fork decision mode is not supported: ${mode || 'unknown'}.`);
+        error.code = 'INVALID_PROVIDER_DECISION';
+        throw error;
+      }
       if (mode === 'fail') {
         if (!decision?.failure?.message) {
           const error = new Error('tool-native fork failure decisions require failure metadata.');
@@ -198,13 +223,6 @@ function createSessionToolNativeForkSkillPack() {
       if (mode === 'smart_fork') {
         if (calls.length !== 1 || intents[0] !== 'smart_fork') {
           const error = new Error('smart_fork decisions must emit exactly one session.runtime smart_fork call.');
-          error.code = 'INVALID_PROVIDER_DECISION';
-          throw error;
-        }
-      }
-      if (mode === 'create_child_only') {
-        if (calls.length !== 1 || intents[0] !== 'create_child') {
-          const error = new Error('create_child_only decisions must emit exactly one create_child call.');
           error.code = 'INVALID_PROVIDER_DECISION';
           throw error;
         }
@@ -288,6 +306,8 @@ function createSessionToolNativeForkSkillPack() {
         metadata: {
           ...(primaryData?.metadata || {}),
           providerThreadId: providerDecision?.threadId || '',
+          providerFallbackUsed: Boolean(providerDecision?.fallbackUsed),
+          providerFallbackReason: providerDecision?.fallbackReason || '',
           fallback:
             String(decision?.mode || '').trim().startsWith('create_child') ||
             String(primaryData?.mode || '').trim() === 'create_child',
@@ -309,4 +329,5 @@ function createSessionToolNativeForkSkillPack() {
 
 module.exports = {
   createSessionToolNativeForkSkillPack,
+  resolveProfileForRuntime,
 };

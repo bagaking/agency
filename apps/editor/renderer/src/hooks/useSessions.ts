@@ -20,6 +20,7 @@ import {
   cancelMainAgentHarnessRun,
   inspectMainAgentHarnessRun,
   onMainAgentHarnessProgress,
+  resumeMainAgentHarnessRun,
   startMainAgentHarnessRun,
 } from '../services/mainAgentHarness';
 import {
@@ -1044,6 +1045,27 @@ export function useSessions(options: any = {}) {
     [upsertHarnessRun]
   );
 
+  const resumeHarnessRun = useCallback(
+    async (runId: string) => {
+      const normalizedRunId = String(runId || '').trim();
+      if (!normalizedRunId) {
+        return null;
+      }
+      try {
+        const nextRun = await resumeMainAgentHarnessRun({
+          runId: normalizedRunId,
+        });
+        upsertHarnessRun(nextRun);
+        setSessionError('');
+        return nextRun;
+      } catch (error: any) {
+        setSessionError(error?.message || 'Failed to resume harness run.');
+        return null;
+      }
+    },
+    [upsertHarnessRun]
+  );
+
   const resetSessions = useCallback(() => {
     pendingHarnessRunsRef.current = {};
     setHarnessRunsById({});
@@ -1115,6 +1137,7 @@ export function useSessions(options: any = {}) {
     acknowledgeCommandSent,
     handleSessionAttached,
     cancelHarnessRun,
+    resumeHarnessRun,
     clearSessionError,
     resetSessions,
   };

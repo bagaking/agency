@@ -21,6 +21,7 @@ Recommended structure:
 - Keep entries short and factual; link to sources (files/PRs/issues/docs).
 - Prefer “what + why + when it applies” over long narratives.
 - If an item is a stable policy or deep guide, promote it into `docs/` and link from memory.
+- Redact sensitive values in inbox/memory entries by default, including secrets, private tokens, and non-public network addresses such as internal IPs or hostnames; keep only the minimum placeholder needed for recall.
 - Avoid fragmentation:
   - Before creating a new entry, search for an existing canonical entry and update/append instead of creating a near-duplicate.
   - Prefer one canonical entry + links over multiple partial entries.
