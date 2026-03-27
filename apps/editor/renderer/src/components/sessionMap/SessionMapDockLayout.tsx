@@ -99,7 +99,7 @@ export function SessionMapDockLayout({
     <div
       className="mt-1.5 grid min-h-0 flex-1 gap-1.5 overflow-hidden"
       style={{
-        gridTemplateColumns: '92px minmax(0,1.65fr) 92px minmax(248px,0.95fr)',
+        gridTemplateColumns: '92px minmax(0,1.75fr) minmax(264px,1fr) 108px',
       }}
     >
       {/* Radar Section */}
@@ -248,14 +248,6 @@ export function SessionMapDockLayout({
         </div>
       </div>
 
-      {/* Commander */}
-      <SessionMapCommanderPanel
-        harnessRuns={harnessRuns}
-        dialogOpen={commanderDialogOpen}
-        onOpenDialog={onOpenCommanderDialog}
-        buttonRef={commanderTriggerRef}
-      />
-
       {/* Functional Area */}
       <SessionMapOperationsRail
         focusData={focusData}
@@ -264,6 +256,14 @@ export function SessionMapDockLayout({
         onClearSessionError={onClearSessionError}
         onCancelHarnessRun={onCancelHarnessRun}
         onResumeHarnessRun={onResumeHarnessRun}
+      />
+
+      {/* Commander Anchor */}
+      <SessionMapCommanderPanel
+        harnessRuns={harnessRuns}
+        dialogOpen={commanderDialogOpen}
+        onOpenDialog={onOpenCommanderDialog}
+        buttonRef={commanderTriggerRef}
       />
     </div>
   );

@@ -79,8 +79,9 @@ Main Agent Harness 是更高一层的 host-owned control plane。
 当前 UI 对应的可见化入口：
 - Docked Session Map 右侧不再只是窄的 `Unit Details`，而是更宽的 `Command Ops` 区；
 - `Fork` / Harness run 启动时，Session Map 会自动打开一次，把用户带到这块指挥区；
-- `Command Ops` 左侧固定展示 Agency backend 的指挥官头像，右侧展示当前 focus session、Harness timeline、取消/复制动作，以及未来可扩展的个性化 quick ops；
-- 点击 `Commander` 会打开一个独立的 `Briefing` 弹窗，而不是把右侧 `Ops` 面板改造成聊天视图。
+- `Command Ops` 保持为稳定证据层，展示当前 focus session、Harness timeline、取消/复制动作，以及未来可扩展的个性化 quick ops；
+- `Commander` 头像/入口位于这块操作站的最右缘，作为 backend/operator 的终端锚点；
+- 点击 `Commander` 会从 Session Map 右缘拉出一个独立的 `Briefing` 抽屉，而不是把右侧 `Ops` 面板改造成聊天视图，也不是升级成窗口级全局抽屉。
 - `Briefing` 是有边界的 backend 简报：默认展示一张当前 context briefing 卡，并只保留一张最新回应卡；切换 focus session / relevant run 时必须重绑并清掉旧回应，避免累积聊天历史污染当前证据范围。
 - `Briefing` 负责解释、建议和触发受限操作，但不复用 Session Reply 的语义，也不应演化成通用聊天记录面板。
 - Session 错误也复用这块区域，避免依赖容易误触消失的临时 notice。

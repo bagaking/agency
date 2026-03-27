@@ -211,8 +211,14 @@ export function SessionMapCommanderDialog({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[24px] border border-cyan-300/12 bg-[linear-gradient(180deg,rgba(14,20,29,0.985),rgba(7,10,16,0.985))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03),0_24px_80px_rgba(0,0,0,0.45)]">
-      <div className="flex items-center justify-between gap-3 border-b border-white/6 px-3 py-2.5">
+    <div
+      id="session-map-commander-drawer"
+      role="dialog"
+      aria-modal="false"
+      aria-label="Commander briefing"
+      className="flex h-full min-h-0 w-full max-w-[500px] flex-col overflow-hidden rounded-l-[28px] rounded-r-none border border-cyan-300/12 border-r-0 bg-[linear-gradient(180deg,rgba(14,20,29,0.992),rgba(7,10,16,0.99))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03),-24px_0_72px_rgba(0,0,0,0.4)]"
+    >
+      <div className="flex items-start justify-between gap-3 border-b border-white/6 px-3.5 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <AgentAvatarBadge
             avatarId={COMMANDER_AVATAR_ID}
@@ -225,8 +231,18 @@ export function SessionMapCommanderDialog({
             <div className="truncate font-mono text-[8px] font-black uppercase tracking-[0.16em] text-cyan-100/86">
               Commander Briefing
             </div>
-            <div className="truncate text-[7px] uppercase tracking-[0.12em] text-white/38">
-              Evidence-bound to current session and Harness state
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <span className="rounded-full border border-cyan-300/16 bg-cyan-500/[0.08] px-2 py-0.5 text-[6px] font-bold uppercase tracking-[0.12em] text-cyan-100/74">
+                Session Map Scope
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[6px] font-bold uppercase tracking-[0.12em] text-white/56">
+                {context.sessionName || 'No Focus Session'}
+              </span>
+              {context.runStatusLabel ? (
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[6px] font-bold uppercase tracking-[0.12em] text-white/56">
+                  {context.runStatusLabel}
+                </span>
+              ) : null}
             </div>
           </div>
         </div>
@@ -256,7 +272,7 @@ export function SessionMapCommanderDialog({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2.5 py-2 pr-1.5">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3 pr-2">
         <div className="flex items-start gap-2">
           <AgentAvatarBadge
             avatarId={COMMANDER_AVATAR_ID}
@@ -292,12 +308,12 @@ export function SessionMapCommanderDialog({
           </div>
         ) : (
           <div className="ml-8 rounded-2xl border border-dashed border-white/8 bg-white/[0.03] px-3 py-2 text-[8px] uppercase tracking-[0.14em] text-white/28">
-            Use a quick prompt or ask one focused question. This panel stays bound to the current session and run context instead of accumulating chat history.
+            Use a quick prompt or ask one focused question. This drawer stays bound to the current session and run context instead of accumulating chat history.
           </div>
         )}
       </div>
 
-      <div className="border-t border-white/6 px-2.5 py-2">
+      <div className="border-t border-white/6 px-3 py-3">
         <div className="mb-2 flex flex-wrap gap-1.5">
           {quickPrompts.map((prompt) => (
             <button
@@ -339,7 +355,7 @@ export function SessionMapCommanderDialog({
           </button>
         </div>
         <div className="mt-2 text-[7px] uppercase tracking-[0.12em] text-white/30">
-          Rebinding to a different session or run resets prior replies so the briefing stays scoped to current evidence.
+          Rebinding to a different session or run resets prior replies so the briefing stays scoped to current Session Map evidence.
         </div>
       </div>
     </div>

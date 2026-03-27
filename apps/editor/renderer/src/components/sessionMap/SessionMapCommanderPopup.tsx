@@ -30,10 +30,14 @@ export function SessionMapCommanderPopup({
   }
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-20 flex items-start justify-end px-3 pb-3 pt-10">
+    <div
+      data-commander-drawer="true"
+      className="pointer-events-none absolute inset-y-0 right-0 z-20 flex w-[min(500px,calc(100%-72px))] max-w-full justify-end"
+    >
+      <div className="pointer-events-none absolute inset-y-0 left-0 right-0 bg-[linear-gradient(90deg,rgba(4,7,11,0)_0%,rgba(4,7,11,0.16)_18%,rgba(4,7,11,0.44)_52%,rgba(4,7,11,0.78)_100%)]" />
       <div
         ref={popupRef}
-        className="pointer-events-auto h-full max-h-full w-[min(480px,calc(100%-24px))] max-w-[480px]"
+        className="pointer-events-auto relative flex h-full w-full max-w-[500px] justify-end pl-6"
       >
         <SessionMapCommanderDialog
           focusData={focusData}

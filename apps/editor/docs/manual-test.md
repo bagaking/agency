@@ -27,7 +27,7 @@
   - true `smart_fork` via `session.runtime smart_fork`, or
   - `create_child` + `dispatch_input` to start a fresh child Codex session.
 - [ ] With Session Map closed, trigger `Fork` and confirm the docked Session Map opens automatically into the right-side `Command Ops` zone.
-- [ ] In the Session Map dock, confirm the commander/backend avatar is visible and clicking it opens a separate `Briefing` popup above the map instead of replacing the right-side `Ops` panel.
+- [ ] In the Session Map dock, confirm the commander/backend avatar is visible at the far-right edge and clicking it opens a separate `Briefing` right-edge drawer inside Session Map instead of replacing the right-side `Ops` panel.
 - [ ] In `Briefing`, confirm the dialog is bound to the current focus session/run, quick prompts work, typed questions return evidence-backed explanations, and `Cancel` / `Retry` / `Dismiss` actions route through the existing Harness/error flows.
 - [ ] Close `Briefing` and confirm the underlying `Ops` panel is still readable, a running run can be cancelled, a failed/cancelled run can be retried, and run details can be copied.
 - [ ] Create or load multiple Cells and confirm the `Cells` command-center area wraps them into multiple card columns instead of letting one Cell stretch across the full width.
