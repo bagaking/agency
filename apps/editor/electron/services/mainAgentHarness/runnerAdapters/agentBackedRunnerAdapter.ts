@@ -1,10 +1,123 @@
-// @ts-nocheck
 const {
   resolveRunnerProviderId,
-} = require('../settings');
-const { createRunnerSkillPackRegistry } = require('../skillPacks');
+} = require('../settings') as {
+  resolveRunnerProviderId: (input: {
+    requestedProviderId?: unknown;
+    adapterId?: unknown;
+    skillPackId?: unknown;
+    settings?: unknown;
+  }) => string;
+};
+const { createRunnerSkillPackRegistry } = require('../skillPacks') as {
+  createRunnerSkillPackRegistry: () => RunnerSkillPackRegistry;
+};
 
-function normalizeStepKind(value) {
+type HarnessStep = {
+  id?: string;
+  kind?: string;
+  title?: string;
+  label?: string;
+  capabilityId?: string;
+  input?: Record<string, any>;
+  skillPackId?: string;
+  agent?: {
+    providerId?: string;
+    strategy?: string;
+  } & Record<string, any>;
+} & Record<string, any>;
+
+type HarnessRun = {
+  runner?: {
+    adapterId?: string;
+    providerId?: string;
+    steps?: HarnessStep[];
+  };
+  result?: {
+    agent?: Record<string, any> | null;
+  };
+  progress?: {
+    outputsByStepId?: Record<string, unknown>;
+  };
+};
+
+type CapabilityExecutionResult = {
+  response?: { data?: any } | null;
+  summary?: any;
+};
+
+type SkillPack = {
+  id: string;
+  title?: string;
+  providerHints?: {
+    defaultProviderId?: string;
+  };
+  prepare?: (input: {
+    run: HarnessRun;
+    step: HarnessStep;
+    invokeCapability: (payload: Record<string, any>) => Promise<CapabilityExecutionResult>;
+    createFailure: RunnerContext['createFailure'];
+  }) => Promise<Record<string, any>>;
+  buildDeterministicDecision?: (input: {
+    run: HarnessRun;
+    step: HarnessStep;
+    preparedContext: Record<string, any>;
+  }) => any;
+  shouldUseDeterministicDecision?: (input: {
+    run: HarnessRun;
+    step: HarnessStep;
+    preparedContext: Record<string, any>;
+    deterministicDecision: any;
+  }) => boolean;
+  buildCapabilityCalls?: (input: {
+    run: HarnessRun;
+    step: HarnessStep;
+    preparedContext: Record<string, any>;
+    decision: any;
+  }) => Array<{ capabilityId: string; title?: string; input?: Record<string, any> }>;
+  resolveCapabilityInput?: (input: {
+    call: { capabilityId: string; title?: string; input?: Record<string, any> };
+    capabilityResults: Array<Record<string, any>>;
+    preparedContext: Record<string, any>;
+    decision: any;
+  }) => Record<string, any>;
+  finalize: (input: {
+    run: HarnessRun;
+    step: HarnessStep;
+    preparedContext: Record<string, any>;
+    decision: any;
+    capabilityResults: Array<Record<string, any>>;
+    providerDecision: any;
+  }) => Record<string, any>;
+};
+
+type RunnerSkillPackRegistry = {
+  resolve: (step?: HarnessStep) => SkillPack | null;
+};
+
+type ProviderRegistry = {
+  get?: (providerId: string) => {
+    decideStep: (input: {
+      run: HarnessRun;
+      step: HarnessStep;
+      skillPack: SkillPack;
+      preparedContext: Record<string, any>;
+      abortSignal: AbortSignal | null | undefined;
+    }) => Promise<any>;
+  } | undefined;
+};
+
+type RunnerContext = {
+  abortSignal?: AbortSignal | null;
+  getRun: () => Promise<HarnessRun>;
+  createFailure: (code: string, message: string, detail?: Record<string, any>) => Error;
+  isStepCompleted: (stepId: string) => boolean;
+  stepStarted: (step: HarnessStep, detail: Record<string, any>) => Promise<void>;
+  stepCompleted: (step: HarnessStep, output: Record<string, any>) => Promise<void>;
+  stepFailed: (step: HarnessStep, error: unknown) => Promise<void>;
+  invokeCapability: (payload: Record<string, any>) => Promise<CapabilityExecutionResult>;
+};
+
+function normalizeStepKind(value: unknown): 'create_agent' | 'capability_call' {
   const normalized = String(value || '').trim().toLowerCase();
   if (normalized === 'create_agent') {
     return 'create_agent';
@@ -12,26 +125,30 @@ function normalizeStepKind(value) {
   return 'capability_call';
 }
 
-function normalizeCapabilityId(value) {
+function normalizeCapabilityId(value: unknown): string {
   return String(value || '').trim().toLowerCase();
 }
 
-function createAgentBackedRunnerAdapter({
+export function createAgentBackedRunnerAdapter({
   providerRegistry,
   skillPacks = createRunnerSkillPackRegistry(),
   settings,
+}: {
+  providerRegistry?: ProviderRegistry;
+  skillPacks?: RunnerSkillPackRegistry;
+  settings?: unknown;
 } = {}) {
   return {
     id: 'agent_backed',
     title: 'Agent-Backed Harness Runner',
-    async execute(ctx) {
+    async execute(ctx: RunnerContext) {
       const run = await ctx.getRun();
       const steps = Array.isArray(run?.runner?.steps) ? run.runner.steps : [];
       if (!steps.length) {
         throw ctx.createFailure('INVALID_RUNNER', 'Agent-backed runner requires at least one step.');
       }
 
-      let primaryAgentResult = run?.result?.agent || null;
+      let primaryAgentResult: Record<string, any> | null = run?.result?.agent || null;
       for (const rawStep of steps) {
         const step = rawStep && typeof rawStep === 'object' ? rawStep : {};
         const stepId = String(step.id || '').trim();
@@ -52,7 +169,7 @@ function createAgentBackedRunnerAdapter({
         });
 
         try {
-          let output = null;
+          let output: Record<string, any> | null = null;
           if (stepKind === 'create_agent') {
             const skillPack = skillPacks.resolve(step);
             if (!skillPack) {
@@ -71,8 +188,8 @@ function createAgentBackedRunnerAdapter({
               : {};
             const explicitProviderId =
               step?.agent?.providerId || run?.runner?.providerId || '';
-            let decision = null;
-            let providerDecision = null;
+            let decision: any = null;
+            let providerDecision: any = null;
             const deterministicDecision =
               typeof skillPack.buildDeterministicDecision === 'function'
                 ? skillPack.buildDeterministicDecision({
@@ -131,7 +248,7 @@ function createAgentBackedRunnerAdapter({
               );
             }
 
-            const capabilityResults = [];
+            const capabilityResults: Array<Record<string, any>> = [];
             const plannedCalls = typeof skillPack.buildCapabilityCalls === 'function'
               ? skillPack.buildCapabilityCalls({
                   run,
@@ -220,7 +337,3 @@ function createAgentBackedRunnerAdapter({
     },
   };
 }
-
-module.exports = {
-  createAgentBackedRunnerAdapter,
-};

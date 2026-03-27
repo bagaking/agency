@@ -1,17 +1,35 @@
-// @ts-nocheck
-const DEFAULT_RUNNER_ADAPTER_ID = 'agent_backed';
-const TEST_ONLY_RUNNER_ADAPTER_ID = 'reference';
-const DEFAULT_AGENT_PROVIDER_ID = 'codex_cli';
-const DEFAULT_PROVIDER_HINTS_BY_SKILL_PACK = {
+export const DEFAULT_RUNNER_ADAPTER_ID = 'agent_backed';
+export const TEST_ONLY_RUNNER_ADAPTER_ID = 'reference';
+export const DEFAULT_AGENT_PROVIDER_ID = 'codex_cli';
+const DEFAULT_PROVIDER_HINTS_BY_SKILL_PACK: Record<string, string> = {
   'session.tool-native-fork': DEFAULT_AGENT_PROVIDER_ID,
 };
 
-function normalizeId(value, fallback = '') {
+export type HarnessSettings = {
+  defaultRunnerAdapterId: string;
+  defaultAgentProviderId: string;
+  testOnlyRunnerAdapterId: string;
+};
+
+type RunnerProviderResolutionInput = {
+  requestedProviderId?: unknown;
+  adapterId?: unknown;
+  skillPackId?: unknown;
+  settings?: HarnessSettings;
+};
+
+function normalizeId(value: unknown, fallback = ''): string {
   const normalized = String(value || '').trim().toLowerCase();
   return normalized || fallback;
 }
 
-function createDefaultHarnessSettings(overrides = {}) {
+function valueOrEmpty(value: unknown): string {
+  return value === undefined || value === null ? '' : String(value);
+}
+
+export function createDefaultHarnessSettings(
+  overrides: Partial<HarnessSettings> = {}
+): HarnessSettings {
   return {
     defaultRunnerAdapterId: normalizeId(
       overrides?.defaultRunnerAdapterId || process.env.AGENCY_MAIN_AGENT_HARNESS_DEFAULT_RUNNER,
@@ -28,16 +46,19 @@ function createDefaultHarnessSettings(overrides = {}) {
   };
 }
 
-function resolveRunnerAdapterId(value, settings = createDefaultHarnessSettings()) {
+export function resolveRunnerAdapterId(
+  value: unknown,
+  settings = createDefaultHarnessSettings()
+): string {
   return normalizeId(value, settings.defaultRunnerAdapterId || DEFAULT_RUNNER_ADAPTER_ID);
 }
 
-function resolveRunnerProviderId({
+export function resolveRunnerProviderId({
   requestedProviderId,
   adapterId,
   skillPackId,
   settings = createDefaultHarnessSettings(),
-} = {}) {
+}: RunnerProviderResolutionInput = {}): string {
   const normalizedAdapterId = resolveRunnerAdapterId(valueOrEmpty(adapterId), settings);
   if (normalizedAdapterId !== DEFAULT_RUNNER_ADAPTER_ID) {
     return '';
@@ -52,16 +73,3 @@ function resolveRunnerProviderId({
   }
   return normalizeId(settings.defaultAgentProviderId, DEFAULT_AGENT_PROVIDER_ID);
 }
-
-function valueOrEmpty(value) {
-  return value === undefined || value === null ? '' : value;
-}
-
-module.exports = {
-  DEFAULT_RUNNER_ADAPTER_ID,
-  DEFAULT_AGENT_PROVIDER_ID,
-  TEST_ONLY_RUNNER_ADAPTER_ID,
-  createDefaultHarnessSettings,
-  resolveRunnerAdapterId,
-  resolveRunnerProviderId,
-};

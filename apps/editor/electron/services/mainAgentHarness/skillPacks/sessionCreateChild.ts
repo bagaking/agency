@@ -1,8 +1,72 @@
-// @ts-nocheck
-const { BASELINE_PROFILE_ID, getResolvedTerminusSettings } = require('../../terminusSettings');
-const { buildDecisionSchema } = require('../runnerProviders/shared/decisionSchema');
+const { BASELINE_PROFILE_ID, getResolvedTerminusSettings } = require('../../terminusSettings') as {
+  BASELINE_PROFILE_ID: string;
+  getResolvedTerminusSettings: (input: { worktreePath: string }) => Promise<{ profiles?: unknown[] } | null>;
+};
+const { buildDecisionSchema } = require('../runnerProviders/shared/decisionSchema') as {
+  buildDecisionSchema: (input: {
+    allowedCapabilityIds?: string[];
+    modeEnum?: string[];
+    maxCapabilityCalls?: number;
+  }) => Record<string, unknown>;
+};
 
-function getProfileForSessionRuntime({ settings, profileId }) {
+type SessionRuntimePayload = {
+  worktreePath: string;
+  cellId: string;
+  cellName: string;
+  cellBranch: string;
+  sessionId: string;
+  profileId: string;
+  nodeKind: string;
+  sourceSessionId: string;
+};
+
+type LaunchInput = {
+  text: string;
+  confirm: {
+    mode: string;
+    settleMs: number;
+    keys: string[];
+  };
+};
+
+type DecisionCapabilityCall = {
+  capabilityId: string;
+  title: string;
+  input: Record<string, any>;
+};
+
+type ProfileRecord = {
+  id?: string;
+  startCommand?: string;
+};
+
+type SkillPackStep = {
+  agent?: {
+    sessionRuntime?: Partial<SessionRuntimePayload>;
+    launchInput?: {
+      text?: string;
+      confirm?: {
+        mode?: string;
+        settleMs?: number;
+        keys?: unknown[];
+      };
+    };
+  };
+};
+
+type PreparedContext = {
+  payload: SessionRuntimePayload;
+  launchInput: LaunchInput;
+};
+
+function getProfileForSessionRuntime({
+  settings,
+  profileId,
+}: {
+  settings?: { profiles?: ProfileRecord[] } | null;
+  profileId?: string;
+}): ProfileRecord | null {
   const profiles = Array.isArray(settings?.profiles) ? settings.profiles : [];
   return (
     profiles.find((profile) => String(profile?.id || '').trim() === String(profileId || '').trim()) ||
@@ -11,7 +75,9 @@ function getProfileForSessionRuntime({ settings, profileId }) {
   );
 }
 
-function normalizeLaunchInput(value = {}) {
+function normalizeLaunchInput(
+  value: SkillPackStep['agent'] extends { launchInput?: infer T } ? T : never = {}
+): LaunchInput {
   const text = String(value?.text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
   const confirm = value?.confirm && typeof value.confirm === 'object' ? value.confirm : {};
   return {
@@ -19,12 +85,12 @@ function normalizeLaunchInput(value = {}) {
     confirm: {
       mode: String(confirm?.mode || 'none').trim().toLowerCase() || 'none',
       settleMs: Number.isFinite(Number(confirm?.settleMs)) ? Number(confirm.settleMs) : 0,
-      keys: Array.isArray(confirm?.keys) ? confirm.keys : [],
+      keys: Array.isArray(confirm?.keys) ? confirm.keys.map((key) => String(key)) : [],
     },
   };
 }
 
-function buildSessionRuntimePayload(step = {}) {
+export function buildSessionRuntimePayload(step: SkillPackStep = {}): SessionRuntimePayload {
   const agent = step?.agent && typeof step.agent === 'object' ? step.agent : {};
   const sessionRuntime = agent?.sessionRuntime && typeof agent.sessionRuntime === 'object'
     ? agent.sessionRuntime
@@ -41,7 +107,7 @@ function buildSessionRuntimePayload(step = {}) {
   };
 }
 
-function createSessionCreateChildSkillPack() {
+export function createSessionCreateChildSkillPack() {
   return {
     id: 'session.create-child',
     title: 'Session Create Child',
@@ -53,7 +119,7 @@ function createSessionCreateChildSkillPack() {
       'Do not emit dispatch_input unless you have a concrete launch command.',
       'Create the child session before any launch input.',
     ],
-    async prepare({ step }) {
+    async prepare({ step }: { step?: SkillPackStep }): Promise<PreparedContext> {
       const payload = buildSessionRuntimePayload(step);
       const launchInput = normalizeLaunchInput(step?.agent?.launchInput);
       let profile = null;
@@ -82,10 +148,13 @@ function createSessionCreateChildSkillPack() {
         },
       };
     },
-    buildDeterministicDecision({ preparedContext }) {
-      const payload = preparedContext?.payload || {};
-      const launchInput = preparedContext?.launchInput || { text: '', confirm: { mode: 'none' } };
-      const capabilityCalls = [
+    buildDeterministicDecision({ preparedContext }: { preparedContext?: PreparedContext }) {
+      const payload: SessionRuntimePayload = preparedContext?.payload || buildSessionRuntimePayload();
+      const launchInput: LaunchInput = preparedContext?.launchInput || {
+        text: '',
+        confirm: { mode: 'none', settleMs: 0, keys: [] },
+      };
+      const capabilityCalls: DecisionCapabilityCall[] = [
         {
           capabilityId: 'session.runtime',
           title: 'Create child session',
@@ -133,16 +202,28 @@ function createSessionCreateChildSkillPack() {
     validateDecision() {
       return null;
     },
-    resolveWorkingDirectory({ preparedContext }) {
+    resolveWorkingDirectory({ preparedContext }: { preparedContext?: PreparedContext }) {
       return preparedContext?.payload?.worktreePath || process.cwd();
     },
-    buildCapabilityCalls({ decision, preparedContext }) {
+    buildCapabilityCalls({
+      decision,
+      preparedContext,
+    }: {
+      decision?: { capabilityCalls?: DecisionCapabilityCall[] };
+      preparedContext?: PreparedContext;
+    }) {
       if (decision?.capabilityCalls?.length) {
         return decision.capabilityCalls;
       }
       return this.buildDeterministicDecision({ preparedContext }).capabilityCalls;
     },
-    finalize({ capabilityResults, decision }) {
+    finalize({
+      capabilityResults,
+      decision,
+    }: {
+      capabilityResults?: Array<{ response?: { data?: any }; input?: { text?: string } }>;
+      decision?: { mode?: string };
+    }) {
       const createResult = capabilityResults[0]?.response?.data || {};
       const childSession = createResult?.session || null;
       const launchCall = capabilityResults[1] || null;
@@ -164,8 +245,3 @@ function createSessionCreateChildSkillPack() {
     },
   };
 }
-
-module.exports = {
-  createSessionCreateChildSkillPack,
-  buildSessionRuntimePayload,
-};

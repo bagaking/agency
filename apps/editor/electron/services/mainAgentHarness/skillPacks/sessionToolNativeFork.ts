@@ -1,14 +1,109 @@
-// @ts-nocheck
-const path = require('path');
-const { BASELINE_PROFILE_ID, getResolvedTerminusSettings } = require('../../terminusSettings');
-const { buildDecisionSchema } = require('../runnerProviders/shared/decisionSchema');
-const { buildSessionRuntimePayload } = require('./sessionCreateChild');
+import path from 'node:path';
 
-function normalizeToolId(value) {
+const { BASELINE_PROFILE_ID, getResolvedTerminusSettings } = require('../../terminusSettings') as {
+  BASELINE_PROFILE_ID: string;
+  getResolvedTerminusSettings: (input: { worktreePath: string }) => Promise<{ profiles?: unknown[] } | null>;
+};
+const { buildDecisionSchema } = require('../runnerProviders/shared/decisionSchema') as {
+  buildDecisionSchema: (input: {
+    allowedCapabilityIds?: string[];
+    modeEnum?: string[];
+    maxCapabilityCalls?: number;
+  }) => Record<string, unknown>;
+};
+const { buildSessionRuntimePayload } = require('./sessionCreateChild') as {
+  buildSessionRuntimePayload: (step?: SkillPackStep) => SessionRuntimePayload;
+};
+
+type SessionRuntimePayload = {
+  worktreePath: string;
+  cellId: string;
+  cellName: string;
+  cellBranch: string;
+  sessionId: string;
+  profileId: string;
+  nodeKind: string;
+  sourceSessionId: string;
+};
+
+type SourceRuntime = {
+  tool?: string;
+  readyForFork?: boolean;
+};
+
+type SessionRecord = {
+  profileId?: string;
+};
+
+type ForkProfile = {
+  enabled: boolean;
+  driver: string;
+  launchTemplate: string;
+};
+
+type PreparedProfile = {
+  id: string;
+  label: string;
+  startCommand: string;
+  resumeCommand: string;
+  fork: ForkProfile;
+};
+
+type PreparedContext = {
+  payload: SessionRuntimePayload;
+  storedProfileId: string;
+  resolvedProfileId: string;
+  sourceSession: SessionRecord | null;
+  sourceRuntime: SourceRuntime | null;
+  profile: PreparedProfile | null;
+};
+
+type SkillPackStep = {
+  skillPackId?: string;
+  agent?: {
+    providerId?: string;
+    strategy?: string;
+    sessionRuntime?: Partial<SessionRuntimePayload>;
+  };
+};
+
+type TerminusProfile = {
+  id?: string;
+  label?: string;
+  startCommand?: string;
+  resumeCommand?: string;
+  fork?: Partial<ForkProfile>;
+};
+
+type CapabilityResult = {
+  capabilityId?: string;
+  title?: string;
+  input?: any;
+  response?: { data?: any };
+  summary?: { data?: any };
+};
+
+type SkillDecision = {
+  mode?: string;
+  summary?: string;
+  capabilityCalls?: Array<{
+    capabilityId?: string;
+    title?: string;
+    input?: Record<string, any>;
+  }>;
+  failure?: {
+    code?: string;
+    message?: string;
+  };
+};
+
+type DecisionCapabilityCall = NonNullable<SkillDecision['capabilityCalls']>[number];
+
+function normalizeToolId(value: unknown): string {
   return path.basename(String(value || '').trim()).toLowerCase();
 }
 
-function resolveProfile(profiles = [], profileId = '') {
+function resolveProfile(profiles: TerminusProfile[] = [], profileId = ''): TerminusProfile | null {
   return (
     (Array.isArray(profiles) ? profiles : []).find(
       (profile) => String(profile?.id || '').trim() === String(profileId || '').trim()
@@ -16,7 +111,11 @@ function resolveProfile(profiles = [], profileId = '') {
   );
 }
 
-function resolveProfileForRuntime(profiles = [], profileId = '', runtimeTool = '') {
+export function resolveProfileForRuntime(
+  profiles: TerminusProfile[] = [],
+  profileId = '',
+  runtimeTool = ''
+): TerminusProfile | null {
   const preferred = resolveProfile(profiles, profileId);
   if (preferred?.fork?.enabled) {
     return preferred;
@@ -30,11 +129,11 @@ function resolveProfileForRuntime(profiles = [], profileId = '', runtimeTool = '
   return runtimeMatch || preferred || null;
 }
 
-function normalizeLaunchCommand(value) {
+function normalizeLaunchCommand(value: unknown): string {
   return String(value || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
 }
 
-function createSessionToolNativeForkSkillPack() {
+export function createSessionToolNativeForkSkillPack() {
   return {
     id: 'session.tool-native-fork',
     title: 'Session Tool-Native Fork',
@@ -52,7 +151,18 @@ function createSessionToolNativeForkSkillPack() {
       'Use resumeCommand only when you have a concrete resume target; otherwise prefer startCommand.',
       'Do not emit raw tmux or file operations.',
     ],
-    async prepare({ step, invokeCapability }) {
+    async prepare({
+      step,
+      invokeCapability,
+    }: {
+      step?: SkillPackStep;
+      invokeCapability: (payload: {
+        step?: SkillPackStep;
+        capabilityId: string;
+        title: string;
+        input: Record<string, any>;
+      }) => Promise<{ response?: { data?: any } }>;
+    }): Promise<PreparedContext> {
       const payload = buildSessionRuntimePayload(step);
       const inspect = await invokeCapability({
         step,
@@ -68,7 +178,7 @@ function createSessionToolNativeForkSkillPack() {
       const sourceSession = inspectData?.session || null;
       const sourceRuntime = inspectData?.runtime || null;
       const settings = await getResolvedTerminusSettings({ worktreePath: payload.worktreePath });
-      const profiles = Array.isArray(settings?.profiles) ? settings.profiles : [];
+      const profiles = Array.isArray(settings?.profiles) ? settings.profiles as TerminusProfile[] : [];
       const storedProfileId =
         String(sourceSession?.profileId || payload.profileId || '').trim() || BASELINE_PROFILE_ID;
       const profile = resolveProfileForRuntime(profiles, storedProfileId, sourceRuntime?.tool);
@@ -101,7 +211,7 @@ function createSessionToolNativeForkSkillPack() {
           : null,
       };
     },
-    shouldUseDeterministicDecision({ preparedContext }) {
+    shouldUseDeterministicDecision({ preparedContext }: { preparedContext?: PreparedContext }): boolean {
       const storedProfileId = String(preparedContext?.storedProfileId || '').trim().toLowerCase();
       const resolvedProfileId = String(preparedContext?.resolvedProfileId || '').trim().toLowerCase();
       const runtimeTool = String(preparedContext?.sourceRuntime?.tool || '').trim().toLowerCase();
@@ -114,10 +224,10 @@ function createSessionToolNativeForkSkillPack() {
         maxCapabilityCalls: 2,
       });
     },
-    buildDeterministicDecision({ preparedContext }) {
-      const payload = preparedContext?.payload || {};
-      const sourceRuntime = preparedContext?.sourceRuntime || {};
-      const profile = preparedContext?.profile || {};
+    buildDeterministicDecision({ preparedContext }: { preparedContext?: PreparedContext }): SkillDecision {
+      const payload: SessionRuntimePayload = preparedContext?.payload || buildSessionRuntimePayload();
+      const sourceRuntime: SourceRuntime = preparedContext?.sourceRuntime || {};
+      const profile: PreparedProfile | null = preparedContext?.profile || null;
       const smartForkEnabled =
         Boolean(profile?.fork?.enabled) &&
         String(profile?.fork?.driver || '').trim().toLowerCase() === 'codex' &&
@@ -193,62 +303,80 @@ function createSessionToolNativeForkSkillPack() {
         },
       };
     },
-    validateDecision(decision) {
+    validateDecision(decision: SkillDecision) {
       const mode = String(decision?.mode || '').trim();
-      const calls = Array.isArray(decision?.capabilityCalls) ? decision.capabilityCalls : [];
+      const calls = (Array.isArray(decision?.capabilityCalls) ? decision.capabilityCalls : []) as DecisionCapabilityCall[];
       if (!['smart_fork', 'create_child_start', 'fail'].includes(mode)) {
-        const error = new Error(`tool-native fork decision mode is not supported: ${mode || 'unknown'}.`);
+        const error = new Error(
+          `tool-native fork decision mode is not supported: ${mode || 'unknown'}.`
+        ) as Error & { code?: string };
         error.code = 'INVALID_PROVIDER_DECISION';
         throw error;
       }
       if (mode === 'fail') {
         if (!decision?.failure?.message) {
-          const error = new Error('tool-native fork failure decisions require failure metadata.');
+          const error = new Error(
+            'tool-native fork failure decisions require failure metadata.'
+          ) as Error & { code?: string };
           error.code = 'INVALID_PROVIDER_DECISION';
           throw error;
         }
         return null;
       }
       if (!calls.length) {
-        const error = new Error('tool-native fork decisions require at least one capability call.');
+        const error = new Error(
+          'tool-native fork decisions require at least one capability call.'
+        ) as Error & { code?: string };
         error.code = 'INVALID_PROVIDER_DECISION';
         throw error;
       }
       if (calls.some((call) => String(call?.capabilityId || '').trim() !== 'session.runtime')) {
-        const error = new Error('tool-native fork decisions may only invoke session.runtime.');
+        const error = new Error(
+          'tool-native fork decisions may only invoke session.runtime.'
+        ) as Error & { code?: string };
         error.code = 'INVALID_PROVIDER_DECISION';
         throw error;
       }
       const intents = calls.map((call) => String(call?.input?.intent || '').trim().toLowerCase());
       if (mode === 'smart_fork') {
         if (calls.length !== 1 || intents[0] !== 'smart_fork') {
-          const error = new Error('smart_fork decisions must emit exactly one session.runtime smart_fork call.');
+          const error = new Error(
+            'smart_fork decisions must emit exactly one session.runtime smart_fork call.'
+          ) as Error & { code?: string };
           error.code = 'INVALID_PROVIDER_DECISION';
           throw error;
         }
       }
       if (mode === 'create_child_start') {
         if (calls.length !== 2 || intents[0] !== 'create_child' || intents[1] !== 'dispatch_input') {
-          const error = new Error('create_child_start decisions must emit create_child followed by dispatch_input.');
+          const error = new Error(
+            'create_child_start decisions must emit create_child followed by dispatch_input.'
+          ) as Error & { code?: string };
           error.code = 'INVALID_PROVIDER_DECISION';
           throw error;
         }
       }
       return null;
     },
-    resolveWorkingDirectory({ preparedContext }) {
+    resolveWorkingDirectory({ preparedContext }: { preparedContext?: PreparedContext }) {
       return preparedContext?.payload?.worktreePath || process.cwd();
     },
-    buildCapabilityCalls({ decision, preparedContext }) {
+    buildCapabilityCalls({
+      decision,
+      preparedContext,
+    }: {
+      decision?: SkillDecision;
+      preparedContext?: PreparedContext;
+    }) {
       const mode = String(decision?.mode || '').trim();
       if (mode === 'fail') {
         const error = new Error(
           decision?.failure?.message || 'tool-native fork decision failed before execution.'
-        );
+        ) as Error & { code?: string };
         error.code = String(decision?.failure?.code || 'SKILL_PACK_DECISION_FAILED');
         throw error;
       }
-      const calls = Array.isArray(decision?.capabilityCalls) ? decision.capabilityCalls : [];
+      const calls = (Array.isArray(decision?.capabilityCalls) ? decision.capabilityCalls : []) as DecisionCapabilityCall[];
       return calls.map((call, index) => {
         const nextInput = { ...(call?.input || {}) };
         if (
@@ -268,7 +396,13 @@ function createSessionToolNativeForkSkillPack() {
         };
       });
     },
-    resolveCapabilityInput({ call, capabilityResults }) {
+    resolveCapabilityInput({
+      call,
+      capabilityResults,
+    }: {
+      call?: { input?: Record<string, any> };
+      capabilityResults?: CapabilityResult[];
+    }) {
       const nextInput = { ...(call?.input || {}) };
       const sourceIndex = Number(nextInput.__sessionIdFromPreviousCallIndex);
       if (Number.isFinite(sourceIndex) && sourceIndex >= 0) {
@@ -282,7 +416,22 @@ function createSessionToolNativeForkSkillPack() {
       }
       return nextInput;
     },
-    finalize({ capabilityResults, preparedContext, decision, providerDecision }) {
+    finalize({
+      capabilityResults,
+      preparedContext,
+      decision,
+      providerDecision,
+    }: {
+      capabilityResults?: CapabilityResult[];
+      preparedContext?: PreparedContext;
+      decision?: SkillDecision;
+      providerDecision?: {
+        threadId?: string;
+        fallbackUsed?: boolean;
+        fallbackReason?: string;
+        providerId?: string;
+      } | null;
+    }) {
       const primaryCall = capabilityResults[0] || {};
       const primaryData = primaryCall?.response?.data || {};
       const childSession =
@@ -326,8 +475,3 @@ function createSessionToolNativeForkSkillPack() {
     },
   };
 }
-
-module.exports = {
-  createSessionToolNativeForkSkillPack,
-  resolveProfileForRuntime,
-};
