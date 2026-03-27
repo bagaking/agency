@@ -181,6 +181,7 @@ const INVOKE_CHANNELS: Record<string, string> = {
   listMainAgentHarnessRuns: 'main-agent-harness:list',
   getMainAgentHarnessSettings: 'main-agent-harness-settings:get',
   setMainAgentHarnessSettings: 'main-agent-harness-settings:set',
+  getCommanderStatus: 'commander:status',
   startScreenshotCapture: 'capture:start',
   saveCaptureAsset: 'capture:saveAsset',
   copyCaptureToClipboard: 'capture:copy',

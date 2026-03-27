@@ -125,6 +125,7 @@ export const listMainAgentHarnessRuns = createOptionalInvoke('listMainAgentHarne
 });
 export const getMainAgentHarnessSettings = createOptionalInvoke('getMainAgentHarnessSettings');
 export const setMainAgentHarnessSettings = createOptionalInvoke('setMainAgentHarnessSettings');
+export const getCommanderStatus = createOptionalInvoke('getCommanderStatus');
 export const startScreenshotCapture = createOptionalInvoke('startScreenshotCapture');
 export const saveCaptureAsset = createOptionalInvoke('saveCaptureAsset');
 export const copyCaptureToClipboard = createOptionalInvoke('copyCaptureToClipboard');

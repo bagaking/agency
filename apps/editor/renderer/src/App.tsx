@@ -287,6 +287,7 @@ function AppShell() {
   );
   const lastAutoOpenedRunRef = useRef('');
   const lastAutoOpenedErrorRef = useRef('');
+  const lastNotifiedSessionErrorRef = useRef('');
   useEffect(() => {
     const activeRunId = String(activeHarnessRun?.runId || '').trim();
     if (!activeRunId) {
@@ -304,6 +305,7 @@ function AppShell() {
     const message = String(sessionsState.sessionError || '').trim();
     if (!message) {
       lastAutoOpenedErrorRef.current = '';
+      lastNotifiedSessionErrorRef.current = '';
       return;
     }
     if (!sessionMapEnabled) {
@@ -317,6 +319,23 @@ function AppShell() {
     }
     lastAutoOpenedErrorRef.current = message;
   }, [openSessionMap, sessionMapEnabled, sessionMapOpen, sessionsState.sessionError]);
+  useEffect(() => {
+    const message = String(sessionsState.sessionError || '').trim();
+    if (!message) {
+      lastNotifiedSessionErrorRef.current = '';
+      return;
+    }
+    if (lastNotifiedSessionErrorRef.current === message) {
+      return;
+    }
+    modal.notify({
+      tone: 'danger',
+      title: 'Session Action Failed',
+      description: message,
+      autoCloseMs: 2600,
+    });
+    lastNotifiedSessionErrorRef.current = message;
+  }, [modal, sessionsState.sessionError]);
 
   const sessionMapCenterSlot = (
     <SessionMapToggle

@@ -683,7 +683,28 @@ test('main agent harness hides process-scoped CLI runs from renderer callers', a
   );
 });
 
-test('main agent harness defaults create-agent runs to agent_backed with codex provider decisions', async () => {
+test('main agent harness defaults create-agent runs to agent_backed with codex provider decisions', async (t) => {
+  const worktreePath = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-provider-fork-worktree-'));
+  fs.mkdirSync(path.join(worktreePath, '.agency'), { recursive: true });
+  fs.writeFileSync(
+    path.join(worktreePath, '.agency', 'terminus-settings.yaml'),
+    [
+      'profiles:',
+      '  - id: codex',
+      '    label: codex',
+      '    startCommand: codex',
+      '    resumeCommand: codex resume',
+      '    fork:',
+      '      enabled: false',
+      '      driver: ""',
+      '      launchTemplate: ""',
+    ].join('\n'),
+    'utf8'
+  );
+  t.after(() => {
+    fs.rmSync(worktreePath, { recursive: true, force: true });
+  });
+
   const store = createMemoryHarnessRunStore();
   const registry = createFakeCapabilityRegistry({
     sessionRuntimeInvoke: async ({ input }) => {
@@ -842,7 +863,7 @@ test('main agent harness defaults create-agent runs to agent_backed with codex p
             agent: {
               strategy: 'tool_native_fork',
               sessionRuntime: {
-                worktreePath: '/tmp/repo',
+                worktreePath,
                 cellId: 'cell-1',
                 cellName: 'Cell 1',
                 cellBranch: 'main',
@@ -1027,6 +1048,194 @@ test('main agent harness bypasses provider and uses deterministic smart_fork whe
     settled.capabilityCalls.map((item) => item.request.intent),
     ['inspect', 'smart_fork']
   );
+});
+
+test('main agent harness bypasses provider and fails immediately when tool-native fork has no launch path', async (t) => {
+  const worktreePath = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-fork-no-launch-'));
+  t.after(() => {
+    fs.rmSync(worktreePath, { recursive: true, force: true });
+  });
+  const store = createMemoryHarnessRunStore();
+  const registry = createFakeCapabilityRegistry({
+    sessionRuntimeInvoke: async ({ input }) => {
+      if (input.intent === 'inspect') {
+        return {
+          response: {
+            success: true,
+            intent: 'inspect',
+            warnings: [],
+            failures: [],
+            data: {
+              session: {
+                id: input.sessionId || 'source',
+                profileId: 'shell',
+              },
+              runtime: null,
+            },
+          },
+          summary: {
+            success: true,
+            intent: 'inspect',
+          },
+        };
+      }
+      throw new Error(`Unexpected session runtime intent: ${input.intent}`);
+    },
+  });
+  let providerGetCalls = 0;
+  const providerRegistry = {
+    get() {
+      providerGetCalls += 1;
+      throw new Error('Provider should not be used when no valid fork launch path exists.');
+    },
+  };
+  const controller = createHarnessController({
+    store,
+    capabilityRegistry: registry,
+    providerRegistry,
+    logRuntime: async () => undefined,
+  });
+
+  const started = await controller.startRun(
+    {
+      sourceSurface: 'agent-cells',
+      callerType: 'renderer',
+      callerId: 'agent-cells-fork',
+      requestedCapabilities: ['session.runtime'],
+      runner: {
+        steps: [
+          {
+            id: 'create-agent',
+            kind: 'create_agent',
+            title: 'Create Agent from selected session',
+            skillPackId: 'session.tool-native-fork',
+            agent: {
+              strategy: 'tool_native_fork',
+              sessionRuntime: {
+                worktreePath,
+                cellId: 'cell-1',
+                cellName: 'Cell 1',
+                cellBranch: 'main',
+                sessionId: 'source',
+                profileId: 'shell',
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      transportTrust: 'renderer_ipc',
+      ownerWindowStateId: 'window-a',
+      accessScope: 'window',
+    }
+  );
+
+  const settled = await waitForStatus(controller, started.runId, 'failed');
+  assert.equal(providerGetCalls, 0);
+  assert.equal(settled.failures[0]?.code, 'FORK_UNSUPPORTED_NO_LAUNCH_PATH');
+  assert.deepEqual(
+    settled.capabilityCalls.map((item) => item.request.intent),
+    ['inspect']
+  );
+});
+
+test('main agent harness can run smart-name agent tasks and return suggestions', async (t) => {
+  const worktreePath = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-smart-name-worktree-'));
+  t.after(() => {
+    fs.rmSync(worktreePath, { recursive: true, force: true });
+  });
+
+  const store = createMemoryHarnessRunStore();
+  const registry = createFakeCapabilityRegistry({
+    sessionRuntimeInvoke: async ({ input }) => {
+      if (input.intent === 'inspect') {
+        return {
+          response: {
+            success: true,
+            intent: 'inspect',
+            warnings: [],
+            failures: [],
+            data: {
+              session: {
+                id: input.sessionId || 'source',
+                name: 'Investigate naming',
+                profileId: 'shell',
+              },
+              runtime: {
+                tool: 'shell',
+              },
+              pane: {
+                currentCommand: 'bash',
+              },
+              output: 'Investigating why smart session names are missing from the commander path.',
+            },
+          },
+          summary: {
+            success: true,
+            intent: 'inspect',
+          },
+        };
+      }
+      throw new Error(`Unexpected session runtime intent: ${input.intent}`);
+    },
+  });
+  const providerRegistry = createFakeProviderRegistry(async () => ({
+    mode: 'suggest',
+    summary: 'Suggest concise session names based on current context.',
+    candidates: ['Commander Naming', 'Investigate Smart Names', 'Harness Name Flow'],
+  }));
+  const controller = createHarnessController({
+    store,
+    capabilityRegistry: registry,
+    providerRegistry,
+    logRuntime: async () => undefined,
+  });
+
+  const started = await controller.startRun(
+    {
+      sourceSurface: 'agent-cells',
+      callerType: 'renderer',
+      callerId: 'agent-cells-smart-name',
+      requestedCapabilities: ['session.runtime'],
+      runner: {
+        steps: [
+          {
+            id: 'smart-name',
+            kind: 'agent_task',
+            title: 'Suggest session name from current context',
+            skillPackId: 'session.smart-name',
+            agent: {
+              strategy: 'smart_name',
+              sessionRuntime: {
+                worktreePath,
+                cellId: 'cell-1',
+                cellName: 'Cell 1',
+                cellBranch: 'main',
+                sessionId: 'source',
+                sessionName: 'Investigate naming',
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      transportTrust: 'trusted_host_cli',
+      accessScope: 'process',
+    }
+  );
+
+  const settled = await waitForStatus(controller, started.runId, 'succeeded');
+  assert.deepEqual(
+    settled.capabilityCalls.map((item) => item.request.intent),
+    ['inspect']
+  );
+  assert.deepEqual(settled.result.stepOutputs['smart-name'].candidates, [
+    'Commander Naming',
+    'Investigate Smart Names',
+    'Harness Name Flow',
+  ]);
 });
 
 export {};

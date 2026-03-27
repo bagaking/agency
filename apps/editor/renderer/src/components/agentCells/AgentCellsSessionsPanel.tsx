@@ -25,6 +25,13 @@ import {
   type AgentCellSessionTreeRow,
 } from '../../utils/agentCellSessionTree';
 import { buildAgentCellChildSessionOptions } from '../../utils/agentCellChildSession';
+import { useModal } from '../modals/ModalSystem';
+import { SmartSessionNameSuggestions } from '../modals/SmartSessionNameSuggestions';
+import { useCommanderStatus } from '../../hooks/useCommanderStatus';
+import {
+  startMainAgentHarnessRun,
+  waitForMainAgentHarnessRun,
+} from '../../services/mainAgentHarness';
 
 const cellStateColors: Record<string, string> = {
   draft: 'text-muted-foreground',
@@ -167,6 +174,7 @@ export function AgentCellsSessionsPanel({
   onContinueSessionOnMobile,
   onConfigureProfile,
 }: AgentCellsSessionsPanelProps) {
+  const modal = useModal();
   const [idleNow, setIdleNow] = useState(Date.now());
   const [closedMenu, setClosedMenu] = useState<any>(null);
   const [contextMenu, setContextMenu] = useState<any>(null);
@@ -424,6 +432,10 @@ export function AgentCellsSessionsPanel({
     }
     return resolveCellSessions(contextMenu.cellId).find((session) => session.id === contextMenu.sessionId);
   }, [contextMenu?.cellId, contextMenu?.sessionId, resolveCellSessions]);
+  const contextMenuCell = contextMenu?.cellId ? cellsById.get(contextMenu.cellId) : null;
+  const { commanderReady } = useCommanderStatus({
+    worktreePath: contextMenuCell?.worktreePath || '',
+  });
 
   const avatarMenuSessions = useMemo(() => {
     if (!avatarMenu?.cellId) {
@@ -601,6 +613,123 @@ export function AgentCellsSessionsPanel({
     },
     [clearDragState, onMoveSessionNode, suppressSelectionTemporarily]
   );
+
+  const handleSmartNameByCommander = useCallback(async () => {
+    if (!contextMenu?.cellId || !contextMenu?.sessionId || !contextMenuCell || !contextMenuSession) {
+      setContextMenu(null);
+      return;
+    }
+    setContextMenu(null);
+    if (!commanderReady) {
+      return;
+    }
+
+    const clientRequestId = `smart-name-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+    try {
+      const startedRun = await startMainAgentHarnessRun({
+        clientRequestId,
+        sourceSurface: 'agent-cells',
+        callerType: 'renderer',
+        callerId: 'agent-cells-smart-name',
+        goal: {
+          type: 'suggest_session_name',
+          title: 'Suggest Session Name',
+          instruction: 'Suggest short session names from recent session context.',
+        },
+        requestedCapabilities: ['session.runtime'],
+        contextRefs: [
+          {
+            type: 'cell',
+            cellId: contextMenuCell.id,
+            worktreePath: contextMenuCell.worktreePath,
+          },
+          {
+            type: 'session',
+            sessionId: contextMenuSession.id,
+          },
+        ],
+        runner: {
+          adapterId: 'agent_backed',
+          providerId: 'codex_cli',
+          steps: [
+            {
+              id: 'smart-name',
+              kind: 'agent_task',
+              title: 'Suggest session name from current context',
+              skillPackId: 'session.smart-name',
+              agent: {
+                strategy: 'smart_name',
+                sessionRuntime: {
+                  worktreePath: contextMenuCell.worktreePath,
+                  cellId: contextMenuCell.id,
+                  cellName: contextMenuCell.name,
+                  cellBranch: contextMenuCell.branch,
+                  sessionId: contextMenuSession.id,
+                  sessionName: contextMenuSession.name,
+                },
+              },
+            },
+          ],
+        },
+      });
+      const runId = String(startedRun?.runId || '').trim();
+      if (!runId) {
+        throw new Error('Harness run did not return a runId.');
+      }
+      const settledRun = await waitForMainAgentHarnessRun({
+        runId,
+        timeoutMs: 45000,
+      });
+      const suggestions = Array.isArray(settledRun?.result?.stepOutputs?.['smart-name']?.candidates)
+        ? settledRun.result.stepOutputs['smart-name'].candidates
+        : Array.isArray(settledRun?.progress?.outputsByStepId?.['smart-name']?.candidates)
+          ? settledRun.progress.outputsByStepId['smart-name'].candidates
+          : [];
+      if (!suggestions.length) {
+        throw new Error('Commander did not return any session name suggestions.');
+      }
+      const modalId = `smart-session-name-${contextMenuSession.id}`;
+      const selectedName = await modal.openModal({
+        id: modalId,
+        variant: 'alert',
+        tone: 'info',
+        title: 'Smart Session Names',
+        description: 'Choose a suggested session name.',
+        showActions: false,
+        content: (
+          <SmartSessionNameSuggestions
+            modalId={modalId}
+            currentName={contextMenuSession.name || ''}
+            suggestions={suggestions}
+          />
+        ),
+      });
+      const nextName = String(selectedName || '').trim();
+      if (!nextName) {
+        return;
+      }
+      await Promise.resolve(onRenameSession?.(contextMenuSession.id, nextName, contextMenuCell.id));
+      modal.notify({
+        tone: 'success',
+        title: 'Session Renamed',
+        description: `Renamed to ${nextName}.`,
+      });
+    } catch (error: any) {
+      modal.notify({
+        tone: 'danger',
+        title: 'Smart Name Failed',
+        description: error?.message || 'Failed to suggest a session name.',
+      });
+    }
+  }, [
+    commanderReady,
+    contextMenu?.cellId,
+    contextMenu?.sessionId,
+    contextMenuCell,
+    contextMenuSession,
+    modal,
+    onRenameSession,
+  ]);
 
   return (
     <>
@@ -1081,6 +1210,11 @@ export function AgentCellsSessionsPanel({
         isOpen={Boolean(contextMenu && contextMenuSession)}
         position={contextMenu || { x: 0, y: 0 }}
         containerRef={contextMenuRef}
+        showSmartForkByCommander={commanderReady}
+        showSmartNameByCommander={commanderReady}
+        onSmartNameByCommander={() => {
+          void handleSmartNameByCommander();
+        }}
         canContinueOnMobile={Boolean(
           contextMenuSession &&
             contextMenuSession.status !== 'closed' &&

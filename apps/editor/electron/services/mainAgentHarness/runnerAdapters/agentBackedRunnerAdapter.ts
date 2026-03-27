@@ -117,10 +117,13 @@ type RunnerContext = {
   invokeCapability: (payload: Record<string, any>) => Promise<CapabilityExecutionResult>;
 };
 
-function normalizeStepKind(value: unknown): 'create_agent' | 'capability_call' {
+function normalizeStepKind(value: unknown): 'create_agent' | 'agent_task' | 'capability_call' {
   const normalized = String(value || '').trim().toLowerCase();
   if (normalized === 'create_agent') {
     return 'create_agent';
+  }
+  if (normalized === 'agent_task') {
+    return 'agent_task';
   }
   return 'capability_call';
 }
@@ -170,7 +173,7 @@ export function createAgentBackedRunnerAdapter({
 
         try {
           let output: Record<string, any> | null = null;
-          if (stepKind === 'create_agent') {
+          if (stepKind === 'create_agent' || stepKind === 'agent_task') {
             const skillPack = skillPacks.resolve(step);
             if (!skillPack) {
               throw ctx.createFailure(
@@ -290,7 +293,7 @@ export function createAgentBackedRunnerAdapter({
               capabilityResults,
               providerDecision,
             });
-            if (output?.session?.id) {
+            if (stepKind === 'create_agent' && output?.session?.id) {
               primaryAgentResult = {
                 session: output.session,
                 mode: output.mode || '',

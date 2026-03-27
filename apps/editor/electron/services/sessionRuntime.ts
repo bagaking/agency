@@ -95,7 +95,23 @@ function basenameCommand(command) {
   if (!value) {
     return '';
   }
-  return path.basename(value).toLowerCase();
+  const firstToken = value.split(/\s+/)[0] || '';
+  return path.basename(firstToken).toLowerCase();
+}
+
+function profileMatchesRuntimeTool(profile = {}, runtimeTool = '') {
+  const normalizedRuntimeTool = basenameCommand(runtimeTool);
+  if (!normalizedRuntimeTool) {
+    return false;
+  }
+  const candidates = [
+    profile?.id,
+    profile?.label,
+    profile?.startCommand,
+    profile?.resumeCommand,
+    profile?.fork?.driver,
+  ];
+  return candidates.some((candidate) => basenameCommand(candidate) === normalizedRuntimeTool);
 }
 
 function buildStep(id, status, detail = {}) {
@@ -420,9 +436,10 @@ async function resolveForkProfile({ worktreePath, profileId, runtimeTool }, over
   if (preferred?.fork?.enabled) {
     return preferred;
   }
-  const runtimeMatch = normalizedRuntimeTool
-    ? profiles.find((profile) => basenameCommand(profile?.id) === normalizedRuntimeTool)
-    : null;
+  const runtimeMatches = normalizedRuntimeTool
+    ? profiles.filter((profile) => profileMatchesRuntimeTool(profile, normalizedRuntimeTool))
+    : [];
+  const runtimeMatch = runtimeMatches.length ? runtimeMatches[runtimeMatches.length - 1] : null;
   return runtimeMatch || preferred || null;
 }
 

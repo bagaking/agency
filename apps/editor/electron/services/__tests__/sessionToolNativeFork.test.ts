@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const {
   createSessionToolNativeForkSkillPack,
+  resolveProfileForRuntime,
 } = require('../mainAgentHarness/skillPacks/sessionToolNativeFork');
 
 test('session tool-native fork fails instead of create_child_only when no launch path exists', () => {
@@ -58,6 +59,39 @@ test('session tool-native fork validateDecision rejects legacy create_child_only
       }),
     /Invalid|decision/i
   );
+});
+
+test('resolveProfileForRuntime can match a codex runtime against a UUID profile via label and launch command', () => {
+  const profile = resolveProfileForRuntime(
+    [
+      {
+        id: 'shell',
+        label: 'Shell',
+        startCommand: '',
+        resumeCommand: '',
+        fork: {
+          enabled: false,
+          driver: '',
+          launchTemplate: '',
+        },
+      },
+      {
+        id: 'ee735eb6-0676-46d9-b546-d4d19bb2e120',
+        label: 'codex',
+        startCommand: 'codexL --dangerously-bypass-approvals-and-sandbox',
+        resumeCommand: 'codex resume',
+        fork: {
+          enabled: false,
+          driver: '',
+          launchTemplate: '',
+        },
+      },
+    ],
+    'shell',
+    'codex'
+  );
+
+  assert.equal(profile?.id, 'ee735eb6-0676-46d9-b546-d4d19bb2e120');
 });
 
 export {};

@@ -100,7 +100,27 @@ type SkillDecision = {
 type DecisionCapabilityCall = NonNullable<SkillDecision['capabilityCalls']>[number];
 
 function normalizeToolId(value: unknown): string {
-  return path.basename(String(value || '').trim()).toLowerCase();
+  const normalized = String(value || '').trim();
+  if (!normalized) {
+    return '';
+  }
+  const firstToken = normalized.split(/\s+/)[0] || '';
+  return path.basename(firstToken).toLowerCase();
+}
+
+function matchesRuntimeTool(profile: TerminusProfile | null | undefined, runtimeTool = ''): boolean {
+  const normalizedRuntimeTool = normalizeToolId(runtimeTool);
+  if (!normalizedRuntimeTool || !profile) {
+    return false;
+  }
+  const candidates = [
+    profile.id,
+    profile.label,
+    profile.startCommand,
+    profile.resumeCommand,
+    profile.fork?.driver,
+  ];
+  return candidates.some((candidate) => normalizeToolId(candidate) === normalizedRuntimeTool);
 }
 
 function resolveProfile(profiles: TerminusProfile[] = [], profileId = ''): TerminusProfile | null {
@@ -121,11 +141,12 @@ export function resolveProfileForRuntime(
     return preferred;
   }
   const normalizedRuntimeTool = normalizeToolId(runtimeTool);
-  const runtimeMatch = normalizedRuntimeTool
-    ? (Array.isArray(profiles) ? profiles : []).find(
-        (profile) => normalizeToolId(profile?.id) === normalizedRuntimeTool
-      ) || null
-    : null;
+  const runtimeMatches = normalizedRuntimeTool
+    ? (Array.isArray(profiles) ? profiles : []).filter(
+        (profile) => matchesRuntimeTool(profile, normalizedRuntimeTool)
+      )
+    : [];
+  const runtimeMatch = runtimeMatches.length ? runtimeMatches[runtimeMatches.length - 1] : null;
   return runtimeMatch || preferred || null;
 }
 
@@ -211,7 +232,17 @@ export function createSessionToolNativeForkSkillPack() {
           : null,
       };
     },
-    shouldUseDeterministicDecision({ preparedContext }: { preparedContext?: PreparedContext }): boolean {
+    shouldUseDeterministicDecision({
+      preparedContext,
+      deterministicDecision,
+    }: {
+      preparedContext?: PreparedContext;
+      deterministicDecision?: SkillDecision;
+    }): boolean {
+      const mode = String(deterministicDecision?.mode || '').trim().toLowerCase();
+      if (mode === 'fail') {
+        return true;
+      }
       const storedProfileId = String(preparedContext?.storedProfileId || '').trim().toLowerCase();
       const resolvedProfileId = String(preparedContext?.resolvedProfileId || '').trim().toLowerCase();
       const runtimeTool = String(preparedContext?.sourceRuntime?.tool || '').trim().toLowerCase();

@@ -1,5 +1,6 @@
 // @ts-nocheck
 const { createSessionCreateChildSkillPack } = require('./sessionCreateChild');
+const { createSessionSmartNameSkillPack } = require('./sessionSmartName');
 const { createSessionToolNativeForkSkillPack } = require('./sessionToolNativeFork');
 
 function normalizeStrategy(value) {
@@ -13,6 +14,7 @@ function normalizeStrategy(value) {
 function createRunnerSkillPackRegistry({
   skillPacks = [
     createSessionCreateChildSkillPack(),
+    createSessionSmartNameSkillPack(),
     createSessionToolNativeForkSkillPack(),
   ],
 } = {}) {

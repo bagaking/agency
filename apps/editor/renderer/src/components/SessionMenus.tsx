@@ -76,6 +76,9 @@ export function SessionContextMenu({
   isOpen,
   position,
   containerRef,
+  showSmartForkByCommander = false,
+  showSmartNameByCommander = false,
+  onSmartNameByCommander,
   onCreateSubTerminal,
   onCreateFork,
   onDetach,
@@ -101,12 +104,22 @@ export function SessionContextMenu({
       >
         Create Sub Terminal
       </button>
-      <button
-        onClick={onCreateFork}
-        className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-      >
-        Create Fork
-      </button>
+      {showSmartForkByCommander ? (
+        <button
+          onClick={onCreateFork}
+          className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        >
+          Smart Fork [by commander]
+        </button>
+      ) : null}
+      {showSmartNameByCommander ? (
+        <button
+          onClick={onSmartNameByCommander}
+          className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        >
+          Smart Name [by commander]
+        </button>
+      ) : null}
       <div className="my-1 border-t border-border/70" />
       <button
         onClick={onDetach}

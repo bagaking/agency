@@ -315,4 +315,74 @@ test('codex provider does not retry invalid api key failures', async () => {
   assert.equal(attempts, 1);
 });
 
+test('codex provider times out hung attempts and falls back to deterministic skill-pack decisions', async (t) => {
+  const previousMaxAttempts = process.env.AGENCY_HARNESS_PROVIDER_MAX_ATTEMPTS;
+  const previousTimeoutMs = process.env.AGENCY_HARNESS_PROVIDER_TIMEOUT_MS;
+  process.env.AGENCY_HARNESS_PROVIDER_MAX_ATTEMPTS = '1';
+  process.env.AGENCY_HARNESS_PROVIDER_TIMEOUT_MS = '20';
+  t.after(() => {
+    if (previousMaxAttempts === undefined) {
+      delete process.env.AGENCY_HARNESS_PROVIDER_MAX_ATTEMPTS;
+    } else {
+      process.env.AGENCY_HARNESS_PROVIDER_MAX_ATTEMPTS = previousMaxAttempts;
+    }
+    if (previousTimeoutMs === undefined) {
+      delete process.env.AGENCY_HARNESS_PROVIDER_TIMEOUT_MS;
+    } else {
+      process.env.AGENCY_HARNESS_PROVIDER_TIMEOUT_MS = previousTimeoutMs;
+    }
+  });
+
+  let attempts = 0;
+  const provider = createCodexCliProvider({
+    getSettings: async () => ({
+      providers: {
+        codex_cli: {
+          baseUrl: 'https://api.example.com/v1',
+          model: 'gpt-5.4',
+          openAIApiKey: 'sk-test',
+        },
+      },
+    }),
+    runProcess: async ({ abortSignal }) => {
+      attempts += 1;
+      await new Promise((resolve, reject) => {
+        const onAbort = () => {
+          const error = new Error('Provider execution was cancelled.') as Error & {
+            code?: string;
+          };
+          error.code = 'RUN_CANCELLED';
+          reject(error);
+        };
+        abortSignal?.addEventListener?.('abort', onAbort, { once: true });
+      });
+      return null;
+    },
+  });
+
+  const result = await provider.decideStep({
+    run: {},
+    step: {},
+    skillPack: {
+      buildDecisionSchema: () => ({
+        type: 'object',
+        properties: {
+          ok: { type: 'boolean' },
+        },
+        required: ['ok'],
+      }),
+      buildDeterministicDecision: () => ({ ok: true }),
+      validateDecision: () => undefined,
+      resolveWorkingDirectory: () => process.cwd(),
+    },
+    preparedContext: {},
+    abortSignal: null,
+  });
+
+  assert.equal(attempts, 1);
+  assert.deepEqual(result.decision, { ok: true });
+  assert.equal(result.fallbackUsed, true);
+  assert.match(String(result.fallbackReason || ''), /timed out/i);
+});
+
 export {};

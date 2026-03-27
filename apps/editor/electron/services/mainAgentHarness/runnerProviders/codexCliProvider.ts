@@ -12,6 +12,7 @@ const { runJsonProviderProcess } = require('./shared/providerProcess');
 
 const DEFAULT_RETRYABLE_PROVIDER_ATTEMPTS = 3;
 const DEFAULT_RETRY_BASE_DELAY_MS = 400;
+const DEFAULT_PROVIDER_TIMEOUT_MS = 45000;
 
 function resolveRealHome(baseEnv = process.env) {
   const candidates = [
@@ -170,6 +171,46 @@ function getCodexProviderRetryConfig(baseEnv = process.env) {
       baseEnv.AGENCY_HARNESS_PROVIDER_RETRY_BASE_DELAY_MS,
       DEFAULT_RETRY_BASE_DELAY_MS
     ),
+    timeoutMs: normalizePositiveInteger(
+      baseEnv.AGENCY_HARNESS_PROVIDER_TIMEOUT_MS,
+      DEFAULT_PROVIDER_TIMEOUT_MS
+    ),
+  };
+}
+
+function createProviderAttemptAbortController(parentAbortSignal, timeoutMs) {
+  const attemptAbortController = new AbortController();
+  let timeoutHandle = null;
+  let timeoutTriggered = false;
+
+  const abortFromParent = () => {
+    attemptAbortController.abort();
+  };
+
+  if (parentAbortSignal?.aborted) {
+    abortFromParent();
+  } else {
+    parentAbortSignal?.addEventListener?.('abort', abortFromParent, { once: true });
+  }
+
+  if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
+    timeoutHandle = setTimeout(() => {
+      timeoutTriggered = true;
+      attemptAbortController.abort();
+    }, timeoutMs);
+  }
+
+  return {
+    abortSignal: attemptAbortController.signal,
+    get timeoutTriggered() {
+      return timeoutTriggered;
+    },
+    cleanup() {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+      parentAbortSignal?.removeEventListener?.('abort', abortFromParent);
+    },
   };
 }
 
@@ -198,6 +239,7 @@ function isRetryableCodexProviderError(error) {
     return false;
   }
   return (
+    error?.code === 'PROVIDER_PROCESS_TIMEOUT' ||
     /\b502 Bad Gateway\b/i.test(text) ||
     /\b503 Service Unavailable\b/i.test(text) ||
     /\b504 Gateway Timeout\b/i.test(text) ||
@@ -270,6 +312,10 @@ function createCodexCliProvider({
       const retryConfig = getCodexProviderRetryConfig(process.env);
       let finalDecision = null;
       for (let attempt = 1; attempt <= retryConfig.maxAttempts; attempt += 1) {
+        const attemptAbort = createProviderAttemptAbortController(
+          abortSignal,
+          retryConfig.timeoutMs
+        );
         try {
           const processResult = await runProcess({
             command: 'codex',
@@ -288,7 +334,7 @@ function createCodexCliProvider({
             input: prompt,
             cwd,
             env,
-            abortSignal,
+            abortSignal: attemptAbort.abortSignal,
             parseJsonlOutput,
           });
           const extracted = extractProviderDecision(processResult.events);
@@ -304,7 +350,17 @@ function createCodexCliProvider({
           };
           break;
         } catch (error) {
-          const wrapped = wrapCodexProviderError(error);
+          let wrapped = error;
+          if (attemptAbort.timeoutTriggered && error?.code === 'RUN_CANCELLED') {
+            wrapped = new Error(
+              `Provider process timed out after ${retryConfig.timeoutMs}ms.`
+            );
+            wrapped.code = 'PROVIDER_PROCESS_TIMEOUT';
+            wrapped.data = {
+              timeoutMs: retryConfig.timeoutMs,
+            };
+          }
+          wrapped = wrapCodexProviderError(wrapped);
           const canRetry =
             attempt < retryConfig.maxAttempts && isRetryableCodexProviderError(wrapped);
           if (!canRetry) {
@@ -331,6 +387,8 @@ function createCodexCliProvider({
             break;
           }
           await sleepWithAbort(retryConfig.baseDelayMs * attempt, abortSignal);
+        } finally {
+          attemptAbort.cleanup();
         }
       }
       if (!finalDecision?.decision) {

@@ -10,17 +10,22 @@ function normalizeOwnerContext(value = {}) {
 }
 
 function createDefaultHarnessPolicy() {
+  const isAllowedAgentCellsRendererCaller = (caller, owner) => {
+    const normalizedOwner = normalizeOwnerContext(owner);
+    return (
+      normalizedOwner.transportTrust === 'renderer_ipc' &&
+      caller?.callerType === 'renderer' &&
+      caller?.sourceSurface === 'agent-cells' &&
+      ['agent-cells-fork', 'agent-cells-smart-name'].includes(caller?.callerId)
+    );
+  };
+
   return {
     resolveGrantedCapabilities({ caller, requestedCapabilities, owner }) {
       const requested = normalizeRequestedCapabilities(requestedCapabilities);
       const normalizedOwner = normalizeOwnerContext(owner);
 
-      if (
-        normalizedOwner.transportTrust === 'renderer_ipc' &&
-        caller?.callerType === 'renderer' &&
-        caller?.sourceSurface === 'agent-cells' &&
-        caller?.callerId === 'agent-cells-fork'
-      ) {
+      if (isAllowedAgentCellsRendererCaller(caller, owner)) {
         return requested.filter((capability) => capability === 'session.runtime');
       }
 
@@ -38,13 +43,8 @@ function createDefaultHarnessPolicy() {
       const normalizedOwner = normalizeOwnerContext(owner);
       let strategy = 'deny_by_default';
 
-      if (
-        normalizedOwner.transportTrust === 'renderer_ipc' &&
-        caller?.callerType === 'renderer' &&
-        caller?.sourceSurface === 'agent-cells' &&
-        caller?.callerId === 'agent-cells-fork'
-      ) {
-        strategy = 'agent_cells_fork_fixed_allowlist';
+      if (isAllowedAgentCellsRendererCaller(caller, owner)) {
+        strategy = 'agent_cells_fixed_allowlist';
       } else if (normalizedOwner.transportTrust === 'trusted_host_cli') {
         strategy = 'trusted_host_cli';
       }
