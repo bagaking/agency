@@ -168,6 +168,93 @@ test('performSessionRuntimeIntent smart_fork runs the codex driver and launches 
   assert.equal(dispatches[1].text, 'codex --thread thr-4242');
 });
 
+test('performSessionRuntimeIntent smart_fork accepts alternate fork acknowledgement wording', async () => {
+  const dispatches = [];
+  let sourcePhase = 'idle';
+  let childPhase = 'shell';
+
+  const result = await performSessionRuntimeIntent(
+    {
+      intent: 'smart_fork',
+      worktreePath: '/tmp/repo',
+      cellId: 'cell-1',
+      sessionId: 'source',
+    },
+    {
+      inspectSessionPane: async ({ sessionId }) => {
+        if (sessionId === 'source') {
+          return {
+            session: {
+              id: 'source',
+              profileId: 'codex',
+              cellName: 'Cell 1',
+            },
+            pane: {
+              currentCommand: 'codex',
+            },
+            output:
+              sourcePhase === 'acked'
+                ? 'Forked from thread Runtime Thread\nthread_id: thr-alt'
+                : 'Codex ready',
+            lastActivityAt: null,
+          };
+        }
+        return {
+          session: {
+            id: 'child-1',
+            profileId: 'codex',
+            cellName: 'Cell 1',
+          },
+          pane: {
+            currentCommand: childPhase === 'ready' ? 'codex' : 'zsh',
+          },
+          output: childPhase === 'ready' ? 'Codex child ready' : '',
+          lastActivityAt: null,
+        };
+      },
+      dispatchSessionInput: async ({ sessionId, text }) => {
+        dispatches.push({ sessionId, text });
+        if (sessionId === 'source' && text === '/fork') {
+          sourcePhase = 'acked';
+        }
+        if (sessionId === 'child-1' && text.includes('thr-alt')) {
+          childPhase = 'ready';
+        }
+        return {};
+      },
+      createChildSession: async () => ({
+        id: 'child-1',
+        profileId: 'codex',
+        nodeKind: 'fork',
+      }),
+      getResolvedTerminusSettings: async () => ({
+        profiles: [
+          {
+            id: 'codex',
+            fork: {
+              enabled: true,
+              driver: 'codex',
+              launchTemplate: 'codex --thread {thread_id}',
+              sourceIdleMs: 0,
+              forkAckTimeoutMs: 100,
+              childReadyTimeoutMs: 100,
+            },
+          },
+        ],
+      }),
+      sleep: async () => undefined,
+      logRuntime: async () => undefined,
+    }
+  );
+
+  assert.equal(result.success, true);
+  assert.equal(result.data.mode, 'smart_fork');
+  assert.equal(result.data.metadata.threadId, 'thr-alt');
+  assert.equal(result.data.metadata.threadName, 'Runtime Thread');
+  assert.equal(dispatches[0].text, '/fork');
+  assert.equal(dispatches[1].text, 'codex --thread thr-alt');
+});
+
 test('performSessionRuntimeIntent smart_fork selects the codex driver from runtime detection even when the stored profile is shell', async () => {
   const dispatches = [];
   let sourcePhase = 'ready';
@@ -391,6 +478,77 @@ test('performSessionRuntimeIntent smart_fork skips source-idle wait when sourceI
   assert.equal(result.data.steps[1]?.status, 'skipped');
   assert.equal(dispatches[0]?.text, '/fork');
   assert.equal(dispatches[1]?.text, 'codex --thread thr-zero');
+});
+
+test('performSessionRuntimeIntent smart_fork returns timeout diagnostics when fork acknowledgement is missing', async () => {
+  let sourcePhase = 'ready';
+
+  const result = await performSessionRuntimeIntent(
+    {
+      intent: 'smart_fork',
+      worktreePath: '/tmp/repo',
+      cellId: 'cell-1',
+      sessionId: 'source',
+    },
+    {
+      inspectSessionPane: async ({ sessionId }) => {
+        if (sessionId !== 'source') {
+          throw new Error('child session should not be inspected before fork acknowledgement');
+        }
+        return {
+          session: {
+            id: 'source',
+            profileId: 'codex',
+          },
+          pane: {
+            currentCommand: 'codex',
+            paneTty: '/dev/ttys001',
+          },
+          output:
+            sourcePhase === 'waiting'
+              ? 'Codex is waiting for fork confirmation without exposing a thread id'
+              : 'Codex ready',
+          lastActivityAt: '2026-03-27T18:00:20.000Z',
+        };
+      },
+      dispatchSessionInput: async ({ sessionId, text }) => {
+        if (sessionId === 'source' && text === '/fork') {
+          sourcePhase = 'waiting';
+        }
+        return {};
+      },
+      getResolvedTerminusSettings: async () => ({
+        profiles: [
+          {
+            id: 'codex',
+            fork: {
+              enabled: true,
+              driver: 'codex',
+              launchTemplate: 'codex --thread {thread_id}',
+              sourceIdleMs: 0,
+              forkAckTimeoutMs: 50,
+              childReadyTimeoutMs: 50,
+            },
+          },
+        ],
+      }),
+      sleep: async () => undefined,
+      logRuntime: async () => undefined,
+    }
+  );
+
+  assert.equal(result.success, false);
+  assert.equal(result.failures[0]?.code, 'FORK_ACK_TIMEOUT');
+  assert.deepEqual(
+    (result.data?.steps || []).map((step) => step.id),
+    ['inspect-source', 'wait-source-idle', 'dispatch-source-fork']
+  );
+  assert.equal(result.data?.metadata?.condition?.type, 'pattern');
+  assert.match(result.data?.metadata?.expectedAckPattern || '', /Forked from thread/);
+  assert.match(
+    result.data?.metadata?.lastSnapshot?.outputExcerpt || '',
+    /waiting for fork confirmation/i
+  );
 });
 
 test('performSessionRuntimeIntent smart_fork returns a structured error when the source is not codex', async () => {

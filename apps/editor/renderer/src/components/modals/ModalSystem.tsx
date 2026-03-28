@@ -15,28 +15,44 @@ const buildId = () =>
 
 const toneStyles = {
   info: {
-    ring: 'ring-sky-500/30',
-    glow: 'bg-sky-500/10',
-    icon: 'text-sky-300',
-    button: 'bg-sky-500 text-slate-950 hover:bg-sky-400',
+    shell: 'border-cyan-300/16 bg-[radial-gradient(circle_at_top_left,rgba(103,232,249,0.1),transparent_52%),linear-gradient(180deg,rgba(28,34,43,0.98),rgba(18,22,30,0.99))]',
+    iconShell: 'bg-cyan-400/10 text-cyan-100 shadow-[inset_0_0_0_1px_rgba(103,232,249,0.12)]',
+    eyebrow: 'text-cyan-100/44',
+    title: 'text-white',
+    body: 'text-white/62',
+    primaryButton: 'bg-cyan-300 text-slate-950 hover:bg-cyan-200',
+    secondaryButton: 'bg-white/[0.04] text-white/70 hover:bg-white/[0.08] hover:text-white',
+    closeButton: 'text-white/34 hover:bg-white/[0.05] hover:text-white/78',
   },
   success: {
-    ring: 'ring-emerald-500/30',
-    glow: 'bg-emerald-500/10',
-    icon: 'text-emerald-300',
-    button: 'bg-emerald-500 text-slate-950 hover:bg-emerald-400',
+    shell: 'border-emerald-300/16 bg-[radial-gradient(circle_at_top_left,rgba(110,231,183,0.1),transparent_52%),linear-gradient(180deg,rgba(28,34,43,0.98),rgba(18,22,30,0.99))]',
+    iconShell: 'bg-emerald-400/10 text-emerald-100 shadow-[inset_0_0_0_1px_rgba(110,231,183,0.12)]',
+    eyebrow: 'text-emerald-100/44',
+    title: 'text-white',
+    body: 'text-white/62',
+    primaryButton: 'bg-emerald-300 text-slate-950 hover:bg-emerald-200',
+    secondaryButton: 'bg-white/[0.04] text-white/70 hover:bg-white/[0.08] hover:text-white',
+    closeButton: 'text-white/34 hover:bg-white/[0.05] hover:text-white/78',
   },
   warning: {
-    ring: 'ring-amber-500/30',
-    glow: 'bg-amber-500/10',
-    icon: 'text-amber-300',
-    button: 'bg-amber-400 text-slate-950 hover:bg-amber-300',
+    shell: 'border-amber-300/18 bg-[radial-gradient(circle_at_top_left,rgba(253,224,71,0.1),transparent_52%),linear-gradient(180deg,rgba(30,28,24,0.98),rgba(21,19,16,0.99))]',
+    iconShell: 'bg-amber-400/10 text-amber-100 shadow-[inset_0_0_0_1px_rgba(252,211,77,0.14)]',
+    eyebrow: 'text-amber-100/48',
+    title: 'text-white',
+    body: 'text-white/64',
+    primaryButton: 'bg-amber-300 text-slate-950 hover:bg-amber-200',
+    secondaryButton: 'bg-white/[0.04] text-white/70 hover:bg-white/[0.08] hover:text-white',
+    closeButton: 'text-white/34 hover:bg-white/[0.05] hover:text-white/78',
   },
   danger: {
-    ring: 'ring-rose-500/30',
-    glow: 'bg-rose-500/10',
-    icon: 'text-rose-300',
-    button: 'bg-rose-500 text-white hover:bg-rose-400',
+    shell: 'border-rose-300/18 bg-[radial-gradient(circle_at_top_left,rgba(251,113,133,0.11),transparent_52%),linear-gradient(180deg,rgba(32,24,28,0.98),rgba(22,17,20,0.99))]',
+    iconShell: 'bg-rose-400/10 text-rose-100 shadow-[inset_0_0_0_1px_rgba(251,113,133,0.14)]',
+    eyebrow: 'text-rose-100/48',
+    title: 'text-white',
+    body: 'text-white/64',
+    primaryButton: 'bg-rose-500 text-white hover:bg-rose-400',
+    secondaryButton: 'bg-white/[0.04] text-white/70 hover:bg-white/[0.08] hover:text-white',
+    closeButton: 'text-white/34 hover:bg-white/[0.05] hover:text-white/78',
   },
 };
 
@@ -133,53 +149,57 @@ function ModalCard({ modal, onClose }: any) {
     [submitPrompt]
   );
 
+  if (variant === 'commander-task') {
+    return <div className="animate-tab-in">{content}</div>;
+  }
+
   return (
-    <div className="relative w-full max-w-md animate-tab-in" data-testid={id}>
-      <div className="absolute -top-8 right-6 h-20 w-20 rounded-full bg-primary/20 blur-3xl" />
-      <div className="absolute -bottom-10 left-6 h-24 w-24 rounded-full bg-emerald-500/15 blur-3xl" />
+    <div className="relative w-full max-w-[42rem] animate-tab-in" data-testid={id}>
       <div
-        className={`relative overflow-hidden rounded-2xl border border-border/40 bg-card/95 px-6 py-5 shadow-[0_25px_60px_rgba(0,0,0,0.45)] ring-1 ${styles.ring}`}
+        className={`relative overflow-hidden rounded-[28px] border shadow-[0_32px_96px_rgba(0,0,0,0.42)] ring-1 ring-black/35 ${styles.shell}`}
       >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.06),_transparent_55%)]" />
-        <div className="relative flex items-start gap-4">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/18 to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.05),transparent_32%)]" />
+        <div className="relative px-7 py-6 sm:px-8 sm:py-7">
+          <div className="flex items-start gap-4">
           <div
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border/40 ${styles.glow}`}
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] ${styles.iconShell}`}
           >
-            <Icon size={20} className={styles.icon} />
+            <Icon size={21} />
           </div>
-          <div className="flex-1 space-y-2">
+          <div className="flex-1 min-w-0 space-y-2">
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 {showLabel ? (
-                  <div className="text-[12px] font-semibold uppercase tracking-[0.35em] text-muted-foreground/70">
+                  <div className={`text-[11px] font-semibold uppercase tracking-[0.34em] ${styles.eyebrow}`}>
                     {resolveVariantLabel(variant)}
                   </div>
                 ) : null}
-                <div className="mt-1 text-[15px] font-semibold text-foreground">{title}</div>
+                <div className={`mt-2 text-[18px] font-semibold tracking-[-0.02em] ${styles.title}`}>{title}</div>
               </div>
               <button
                 type="button"
                 onClick={() => onClose(id, resolveDismissResult(modal))}
-                className="rounded-full border border-border/40 p-1 text-muted-foreground/70 hover:text-foreground hover:border-primary/40 transition-colors"
+                className={`mt-0.5 rounded-full p-2 transition-colors ${styles.closeButton}`}
                 aria-label="Close modal"
               >
                 <X size={14} />
               </button>
             </div>
             {description ? (
-              <div className="text-[12px] leading-relaxed text-muted-foreground/80 whitespace-pre-wrap max-h-[50vh] overflow-y-auto pr-1">
+              <div className={`max-h-[50vh] overflow-y-auto whitespace-pre-wrap pr-1 text-[14px] leading-7 ${styles.body}`}>
                 {description}
               </div>
             ) : null}
             {content ? (
-              <div className="pt-3">
+              <div className="pt-4">
                 {content}
               </div>
             ) : null}
             {isPrompt ? (
-              <div className="pt-3">
+              <div className="pt-4">
                 {modal?.inputLabel ? (
-                  <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">
+                  <label className={`mb-2 block text-[10px] font-semibold uppercase tracking-[0.18em] ${styles.eyebrow}`}>
                     {modal.inputLabel}
                   </label>
                 ) : null}
@@ -195,22 +215,22 @@ function ModalCard({ modal, onClose }: any) {
                     }
                   }}
                   onKeyDown={handlePromptKeyDown}
-                  className="w-full rounded-xl border border-border/40 bg-background/80 px-3 py-2 text-[12px] text-foreground shadow-inner outline-none transition-colors placeholder:text-muted-foreground/35 focus:border-primary/40"
+                  className="w-full rounded-2xl border border-white/10 bg-black/20 px-3.5 py-3 text-[13px] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] outline-none transition-colors placeholder:text-white/24 focus:border-white/18"
                 />
                 {promptError ? (
-                  <div className="mt-2 text-[10px] text-rose-300">{promptError}</div>
+                  <div className="mt-2 text-[10px] text-rose-200">{promptError}</div>
                 ) : null}
               </div>
             ) : null}
           </div>
-        </div>
+          </div>
         {showCancel || showDismiss ? (
-          <div className="relative mt-5 flex items-center justify-end gap-2">
+          <div className="relative mt-6 flex items-center justify-end gap-2">
             {showCancel ? (
               <button
                 type="button"
                 onClick={() => onClose(id, resolveDismissResult(modal))}
-                className="rounded-xl border border-border/40 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all"
+                className={`rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors ${styles.secondaryButton}`}
               >
                 {cancelLabel}
               </button>
@@ -219,7 +239,7 @@ function ModalCard({ modal, onClose }: any) {
               <button
                 type="button"
                 onClick={() => onClose(id, true)}
-                className={`rounded-xl px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] ${styles.button}`}
+                className={`rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-[0_16px_30px_-16px_rgba(0,0,0,0.45)] ${styles.primaryButton}`}
               >
                 {dismissLabel}
               </button>
@@ -234,13 +254,14 @@ function ModalCard({ modal, onClose }: any) {
                   }
                   onClose(id, true);
                 }}
-                className={`rounded-xl px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] ${styles.button}`}
+                className={`rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-[0_16px_30px_-16px_rgba(0,0,0,0.45)] ${styles.primaryButton}`}
               >
                 {confirmLabel}
               </button>
             ) : null}
           </div>
         ) : null}
+        </div>
       </div>
     </div>
   );
@@ -294,7 +315,8 @@ function ModalHost({ stack, onClose }: any) {
     return null;
   }
 
-  const dismissOnOverlay = modal.dismissOnOverlay ?? modal.variant !== 'confirm';
+  const dismissOnOverlay =
+    modal.dismissOnOverlay ?? (modal.variant !== 'confirm' && modal.variant !== 'commander-task');
 
   if (isFloating) {
     return createPortal(
@@ -310,7 +332,7 @@ function ModalHost({ stack, onClose }: any) {
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4">
       <div
-        className="absolute inset-0 bg-slate-950/50 backdrop-blur-md"
+        className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(22,28,38,0.2),rgba(6,8,12,0.78))] backdrop-blur-[12px]"
         onClick={() => {
           if (dismissOnOverlay) {
             onClose(modal.id, resolveDismissResult(modal));

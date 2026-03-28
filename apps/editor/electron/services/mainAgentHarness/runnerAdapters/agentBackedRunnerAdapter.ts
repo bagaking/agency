@@ -50,6 +50,11 @@ type SkillPack = {
   title?: string;
   providerHints?: {
     defaultProviderId?: string;
+    retryPolicy?: {
+      maxAttempts?: number;
+      baseDelayMs?: number;
+      timeoutMs?: number;
+    };
   };
   prepare?: (input: {
     run: HarnessRun;

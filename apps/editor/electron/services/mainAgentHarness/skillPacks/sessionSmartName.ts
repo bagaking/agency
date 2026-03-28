@@ -32,6 +32,11 @@ type PreparedContext = {
   projectName: string;
 };
 
+const GENERIC_SESSION_NAME_PATTERNS = [
+  /^(session|new session|untitled)$/i,
+  /^(cli|shell|terminal|codex|claude|gemini)(\s*[-:/]\s*(cli|shell|terminal|codex|claude|gemini))*$/i,
+];
+
 function normalizeText(value: unknown, maxLength = 900): string {
   const text = String(value || '')
     .replace(/\r\n/g, '\n')
@@ -44,6 +49,89 @@ function normalizeText(value: unknown, maxLength = 900): string {
     return text;
   }
   return `${text.slice(0, maxLength - 1)}…`;
+}
+
+function toNameCandidate(value: unknown, maxLength = 48): string {
+  const text = String(value || '')
+    .replace(/\r\n/g, ' ')
+    .replace(/\r/g, ' ')
+    .replace(/\n/g, ' ')
+    .replace(/[<>{}[\]()`"'“”‘’]/g, ' ')
+    .replace(/[\/:_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!text) {
+    return '';
+  }
+  const compact = text.length <= maxLength ? text : text.slice(0, maxLength).trim();
+  return compact.replace(/\s+/g, ' ');
+}
+
+function isGenericSessionName(value: unknown): boolean {
+  const text = toNameCandidate(value);
+  if (!text) {
+    return true;
+  }
+  return GENERIC_SESSION_NAME_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+function titleCaseWords(value: unknown): string {
+  return toNameCandidate(value)
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function extractBranchTail(value: unknown): string {
+  const raw = String(value || '').trim();
+  if (!raw) {
+    return '';
+  }
+  const tail = raw.split('/').pop() || raw;
+  return titleCaseWords(tail);
+}
+
+function buildFallbackCandidates(preparedContext: PreparedContext | null | undefined): string[] {
+  const sessionName = toNameCandidate(preparedContext?.payload?.sessionName || preparedContext?.session?.name || '');
+  const runtimeTool = titleCaseWords(preparedContext?.runtime?.tool || '');
+  const branchTail = extractBranchTail(preparedContext?.payload?.cellBranch || '');
+  const cellNameTail = extractBranchTail(preparedContext?.payload?.cellName || '');
+  const projectName = titleCaseWords(preparedContext?.projectName || '');
+  const candidates = new Set<string>();
+
+  if (sessionName && !isGenericSessionName(sessionName)) {
+    candidates.add(sessionName);
+  }
+
+  if (branchTail) {
+    candidates.add(branchTail);
+    if (runtimeTool) {
+      candidates.add(`${branchTail} ${runtimeTool}`);
+    }
+  }
+
+  if (cellNameTail) {
+    candidates.add(cellNameTail);
+    if (runtimeTool) {
+      candidates.add(`${cellNameTail} ${runtimeTool}`);
+    }
+  }
+
+  if (projectName && runtimeTool) {
+    candidates.add(`${projectName} ${runtimeTool}`);
+  } else if (projectName) {
+    candidates.add(projectName);
+  }
+
+  if (runtimeTool && !candidates.size) {
+    candidates.add(`${runtimeTool} Session`);
+  }
+
+  return Array.from(candidates)
+    .map((item) => toNameCandidate(item))
+    .filter((item) => item && !isGenericSessionName(item))
+    .slice(0, 3);
 }
 
 function buildSessionRuntimePayload(step: SkillPackStep = {}): SessionRuntimePayload {
@@ -157,6 +245,11 @@ export function createSessionSmartNameSkillPack() {
     allowedCapabilities: ['session.runtime'],
     providerHints: {
       defaultProviderId: 'codex_cli',
+      retryPolicy: {
+        maxAttempts: 1,
+        baseDelayMs: 100,
+        timeoutMs: 12_000,
+      },
     },
     instruction:
       'Suggest short session names based on current session context and recent visible output. Prefer concrete, recognizable names over generic labels. Never return more than 3 candidates.',
@@ -209,6 +302,29 @@ export function createSessionSmartNameSkillPack() {
     },
     buildDecisionSchema() {
       return buildSmartNameDecisionSchema();
+    },
+    buildDeterministicDecision({
+      preparedContext,
+    }: {
+      preparedContext?: PreparedContext;
+    }) {
+      const candidates = buildFallbackCandidates(preparedContext);
+      if (!candidates.length) {
+        return {
+          mode: 'fail',
+          summary: 'Fallback naming could not derive useful candidates.',
+          candidates: [],
+          failure: {
+            code: 'SMART_NAME_NO_FALLBACK_CANDIDATES',
+            message: 'Commander fallback could not derive useful session names from the current context.',
+          },
+        };
+      }
+      return {
+        mode: 'suggest',
+        summary: 'Fallback naming suggestions derived from current session context.',
+        candidates,
+      };
     },
     validateDecision(decision: Record<string, any>) {
       validateSmartNameDecision(decision);

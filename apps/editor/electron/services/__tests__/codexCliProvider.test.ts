@@ -385,4 +385,64 @@ test('codex provider times out hung attempts and falls back to deterministic ski
   assert.match(String(result.fallbackReason || ''), /timed out/i);
 });
 
+test('codex provider honors skill-pack retry policy overrides', async () => {
+  let attempts = 0;
+  const provider = createCodexCliProvider({
+    getSettings: async () => ({
+      providers: {
+        codex_cli: {
+          baseUrl: 'https://api.example.com/v1',
+          model: 'gpt-5.4',
+          openAIApiKey: 'sk-test',
+        },
+      },
+    }),
+    runProcess: async ({ abortSignal }) => {
+      attempts += 1;
+      await new Promise((resolve, reject) => {
+        const onAbort = () => {
+          const error = new Error('Provider execution was cancelled.') as Error & {
+            code?: string;
+          };
+          error.code = 'RUN_CANCELLED';
+          reject(error);
+        };
+        abortSignal?.addEventListener?.('abort', onAbort, { once: true });
+      });
+      return null;
+    },
+  });
+
+  const result = await provider.decideStep({
+    run: {},
+    step: {},
+    skillPack: {
+      providerHints: {
+        retryPolicy: {
+          maxAttempts: 1,
+          baseDelayMs: 50,
+          timeoutMs: 20,
+        },
+      },
+      buildDecisionSchema: () => ({
+        type: 'object',
+        properties: {
+          ok: { type: 'boolean' },
+        },
+        required: ['ok'],
+      }),
+      buildDeterministicDecision: () => ({ ok: true }),
+      validateDecision: () => undefined,
+      resolveWorkingDirectory: () => process.cwd(),
+    },
+    preparedContext: {},
+    abortSignal: null,
+  });
+
+  assert.equal(attempts, 1);
+  assert.deepEqual(result.decision, { ok: true });
+  assert.equal(result.fallbackUsed, true);
+  assert.match(String(result.fallbackReason || ''), /timed out/i);
+});
+
 export {};

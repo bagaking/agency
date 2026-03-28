@@ -20,6 +20,8 @@ const DEFAULT_CAPTURE_LINES = 160;
 const DEFAULT_WAIT_INTERVAL_MS = 250;
 const DEFAULT_WAIT_TIMEOUT_MS = 10_000;
 const DEFAULT_QUIET_WINDOW_MS = 1_500;
+const CODEX_FORK_ACK_PATTERN =
+  '(?:Thread forked from|Forked from thread|thread[_ -]?id\\b\\s*[:=]\\s*["\']?[a-z0-9._:-]+["\']?)';
 const DEFAULT_CODEX_FORK_CONFIG = {
   enabled: false,
   driver: '',
@@ -151,8 +153,11 @@ function normalizeForkConfig(value = {}) {
 
 function extractCodexForkMetadata(output = '') {
   const text = String(output || '');
+  const threadNameMatch =
+    text.match(/Thread forked from\s+(.+?)(?:\r?\n|$)/i) ||
+    text.match(/Forked from thread\s+(.+?)(?:\r?\n|$)/i);
   const metadata = {
-    acknowledged: /thread forked from/i.test(text),
+    acknowledged: Boolean(threadNameMatch),
     threadId: '',
     threadName: '',
   };
@@ -170,11 +175,12 @@ function extractCodexForkMetadata(output = '') {
     }
   }
 
-  const threadNameMatch =
-    text.match(/Thread forked from\s+(.+?)(?:\r?\n|$)/i) ||
-    text.match(/Forked from thread\s+(.+?)(?:\r?\n|$)/i);
   if (threadNameMatch?.[1]) {
     metadata.threadName = String(threadNameMatch[1] || '').trim();
+  }
+
+  if (!metadata.acknowledged && metadata.threadId) {
+    metadata.acknowledged = true;
   }
 
   metadata.variables = {
@@ -182,6 +188,35 @@ function extractCodexForkMetadata(output = '') {
     thread_name: metadata.threadName,
   };
   return metadata;
+}
+
+function buildOutputExcerpt(output = '', maxLines = 24, maxChars = 2000) {
+  const recent = String(output || '')
+    .split(/\r?\n/)
+    .slice(-Math.max(1, Number(maxLines) || 1))
+    .join('\n')
+    .trim();
+  if (!recent) {
+    return '';
+  }
+  if (recent.length <= maxChars) {
+    return recent;
+  }
+  return recent.slice(-maxChars);
+}
+
+function summarizeSnapshot(snapshot = null) {
+  if (!snapshot || typeof snapshot !== 'object') {
+    return null;
+  }
+  return {
+    sessionId: String(snapshot?.session?.id || '').trim(),
+    profileId: String(snapshot?.session?.profileId || '').trim(),
+    currentCommand: String(snapshot?.pane?.currentCommand || '').trim(),
+    paneTty: String(snapshot?.pane?.paneTty || '').trim(),
+    lastActivityAt: snapshot?.lastActivityAt || null,
+    outputExcerpt: buildOutputExcerpt(snapshot?.output || ''),
+  };
 }
 
 function renderTemplate(template = '', variables = {}) {
@@ -421,7 +456,23 @@ async function waitForSessionCondition(payload = {}, overrides = {}) {
     await deps.sleep(intervalMs);
   }
 
-  throw new Error(`Timed out waiting for session condition: ${type || 'unknown'}.`);
+  throw Object.assign(
+    new Error(`Timed out waiting for session condition: ${type || 'unknown'}.`),
+    {
+      code: 'WAIT_CONDITION_TIMEOUT',
+      condition: {
+        type,
+        pattern: String(condition?.pattern || '').trim(),
+        flags: String(condition?.flags || '').trim(),
+        command: condition?.command || '',
+        tool: String(condition?.tool || '').trim(),
+        timeoutMs,
+        intervalMs,
+        lines,
+      },
+      snapshot: lastSnapshot,
+    }
+  );
 }
 
 async function resolveForkProfile({ worktreePath, profileId, runtimeTool }, overrides = {}) {
@@ -441,6 +492,14 @@ async function resolveForkProfile({ worktreePath, profileId, runtimeTool }, over
     : [];
   const runtimeMatch = runtimeMatches.length ? runtimeMatches[runtimeMatches.length - 1] : null;
   return runtimeMatch || preferred || null;
+}
+
+function buildWaitFailureMetadata(error, extraMetadata = {}) {
+  return {
+    ...extraMetadata,
+    condition: error?.condition || null,
+    lastSnapshot: summarizeSnapshot(error?.snapshot),
+  };
 }
 
 async function runCodexSmartFork(payload = {}, overrides = {}) {
@@ -471,17 +530,30 @@ async function runCodexSmartFork(payload = {}, overrides = {}) {
   }
 
   if (config.sourceIdleMs > 0) {
-    await waitForSessionCondition({
-      worktreePath: payload?.worktreePath,
-      sessionId: payload?.sessionId,
-      condition: {
-        type: 'quiet',
-        quietMs: config.sourceIdleMs,
-        timeoutMs: Math.max(config.sourceIdleMs * 2, 5_000),
-        intervalMs: 200,
-        lines: DEFAULT_CAPTURE_LINES,
-      },
-    }, deps);
+    try {
+      await waitForSessionCondition({
+        worktreePath: payload?.worktreePath,
+        sessionId: payload?.sessionId,
+        condition: {
+          type: 'quiet',
+          quietMs: config.sourceIdleMs,
+          timeoutMs: Math.max(config.sourceIdleMs * 2, 5_000),
+          intervalMs: 200,
+          lines: DEFAULT_CAPTURE_LINES,
+        },
+      }, deps);
+    } catch (error) {
+      throw Object.assign(
+        new Error(error?.message || 'Timed out waiting for source session idle window.'),
+        {
+          code: error?.code === 'WAIT_CONDITION_TIMEOUT' ? 'SOURCE_IDLE_TIMEOUT' : error?.code || 'FATAL',
+          steps: steps.slice(),
+          metadata: buildWaitFailureMetadata(error, {
+            sourceRuntime,
+          }),
+        }
+      );
+    }
     steps.push(buildStep('wait-source-idle', 'completed', { quietMs: config.sourceIdleMs }));
   } else {
     steps.push(buildStep('wait-source-idle', 'skipped', { quietMs: 0 }));
@@ -498,18 +570,33 @@ async function runCodexSmartFork(payload = {}, overrides = {}) {
   });
   steps.push(buildStep('dispatch-source-fork', 'completed'));
 
-  const ack = await waitForSessionCondition({
-    worktreePath: payload?.worktreePath,
-    sessionId: payload?.sessionId,
-    condition: {
-      type: 'pattern',
-      pattern: 'Thread forked from',
-      flags: 'i',
-      timeoutMs: config.forkAckTimeoutMs,
-      intervalMs: 250,
-      lines: DEFAULT_CAPTURE_LINES,
-    },
-  }, deps);
+  let ack = null;
+  try {
+    ack = await waitForSessionCondition({
+      worktreePath: payload?.worktreePath,
+      sessionId: payload?.sessionId,
+      condition: {
+        type: 'pattern',
+        pattern: CODEX_FORK_ACK_PATTERN,
+        flags: 'i',
+        timeoutMs: config.forkAckTimeoutMs,
+        intervalMs: 250,
+        lines: DEFAULT_CAPTURE_LINES,
+      },
+    }, deps);
+  } catch (error) {
+    throw Object.assign(
+      new Error(error?.message || 'Timed out waiting for Codex fork acknowledgement.'),
+      {
+        code: error?.code === 'WAIT_CONDITION_TIMEOUT' ? 'FORK_ACK_TIMEOUT' : error?.code || 'FATAL',
+        steps: steps.slice(),
+        metadata: buildWaitFailureMetadata(error, {
+          sourceRuntime,
+          expectedAckPattern: CODEX_FORK_ACK_PATTERN,
+        }),
+      }
+    );
+  }
   steps.push(buildStep('wait-fork-ack', 'completed', { match: ack?.match || '' }));
 
   const metadata = extractCodexForkMetadata(ack?.snapshot?.output || '');
@@ -549,17 +636,32 @@ async function runCodexSmartFork(payload = {}, overrides = {}) {
   });
   steps.push(buildStep('dispatch-child-launch', 'completed', { command: rendered.text }));
 
-  const childReady = await waitForSessionCondition({
-    worktreePath: payload?.worktreePath,
-    sessionId: childSession.id,
-    condition: {
-      type: 'runtime_tool',
-      tool: 'codex',
-      timeoutMs: config.childReadyTimeoutMs,
-      intervalMs: 250,
-      lines: DEFAULT_CAPTURE_LINES,
-    },
-  }, deps);
+  let childReady = null;
+  try {
+    childReady = await waitForSessionCondition({
+      worktreePath: payload?.worktreePath,
+      sessionId: childSession.id,
+      condition: {
+        type: 'runtime_tool',
+        tool: 'codex',
+        timeoutMs: config.childReadyTimeoutMs,
+        intervalMs: 250,
+        lines: DEFAULT_CAPTURE_LINES,
+      },
+    }, deps);
+  } catch (error) {
+    throw Object.assign(
+      new Error(error?.message || 'Timed out waiting for child session runtime readiness.'),
+      {
+        code: error?.code === 'WAIT_CONDITION_TIMEOUT' ? 'CHILD_READY_TIMEOUT' : error?.code || 'FATAL',
+        steps: steps.slice(),
+        metadata: buildWaitFailureMetadata(error, {
+          sourceRuntime,
+          childSessionId: childSession?.id || '',
+        }),
+      }
+    );
+  }
   steps.push(buildStep('wait-child-ready', 'completed', {
     currentCommand: childReady?.snapshot?.pane?.currentCommand || '',
     runtimeTool: childReady?.runtime?.tool || '',

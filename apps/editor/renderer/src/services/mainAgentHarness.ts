@@ -63,6 +63,7 @@ export const waitForMainAgentHarnessRun = async ({
   timeoutMs?: number;
 }) => {
   const startedAt = Date.now();
+  const hasTimeout = Number.isFinite(timeoutMs) && Number(timeoutMs) > 0;
   for (;;) {
     const run = await inspectMainAgentHarnessRun({ runId });
     const status = String(run?.status || '').trim().toLowerCase();
@@ -76,7 +77,7 @@ export const waitForMainAgentHarnessRun = async ({
     if (status === 'cancelled') {
       throw new Error('Harness run was cancelled.');
     }
-    if (Date.now() - startedAt >= timeoutMs) {
+    if (hasTimeout && Date.now() - startedAt >= timeoutMs) {
       throw new Error(`Timed out waiting for Harness run: ${runId}.`);
     }
     await sleep(intervalMs);

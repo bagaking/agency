@@ -178,6 +178,16 @@ function getCodexProviderRetryConfig(baseEnv = process.env) {
   };
 }
 
+function resolveCodexProviderRetryConfig(skillPack = null, baseEnv = process.env) {
+  const defaults = getCodexProviderRetryConfig(baseEnv);
+  const hintPolicy = skillPack?.providerHints?.retryPolicy || {};
+  return {
+    maxAttempts: normalizePositiveInteger(hintPolicy?.maxAttempts, defaults.maxAttempts),
+    baseDelayMs: normalizePositiveInteger(hintPolicy?.baseDelayMs, defaults.baseDelayMs),
+    timeoutMs: normalizePositiveInteger(hintPolicy?.timeoutMs, defaults.timeoutMs),
+  };
+}
+
 function createProviderAttemptAbortController(parentAbortSignal, timeoutMs) {
   const attemptAbortController = new AbortController();
   let timeoutHandle = null;
@@ -309,7 +319,7 @@ function createCodexCliProvider({
         }),
         ...overrides.env,
       };
-      const retryConfig = getCodexProviderRetryConfig(process.env);
+      const retryConfig = resolveCodexProviderRetryConfig(skillPack, process.env);
       let finalDecision = null;
       for (let attempt = 1; attempt <= retryConfig.maxAttempts; attempt += 1) {
         const attemptAbort = createProviderAttemptAbortController(

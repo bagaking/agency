@@ -328,11 +328,14 @@ function AppShell() {
     if (lastNotifiedSessionErrorRef.current === message) {
       return;
     }
-    modal.notify({
+    void modal.openModal({
+      id: `session-error-${Date.now().toString(36)}`,
+      variant: 'alert',
       tone: 'danger',
       title: 'Session Action Failed',
       description: message,
-      autoCloseMs: 2600,
+      dismissLabel: 'Close',
+      dismissOnOverlay: false,
     });
     lastNotifiedSessionErrorRef.current = message;
   }, [modal, sessionsState.sessionError]);

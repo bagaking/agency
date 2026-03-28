@@ -13,9 +13,11 @@ import {
 } from 'lucide-react';
 
 import { RecentProjectsList } from '../RecentProjectsList';
+import { CommanderTaskSheet } from '../commander/CommanderTaskSheet';
 import { SessionContextMenu, SessionCreateMenu, SessionOverflowMenu } from '../SessionMenus';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
 import { AvatarPickerMenu } from '../ui/AvatarPickerMenu';
+import { IconButton } from '../ui/IconButton';
 import { formatIdleShort } from '../../utils/timeFormat';
 import { resolveSessionAvatarId } from '../../utils/agentAvatar';
 import {
@@ -26,11 +28,9 @@ import {
 } from '../../utils/agentCellSessionTree';
 import { buildAgentCellChildSessionOptions } from '../../utils/agentCellChildSession';
 import { useModal } from '../modals/ModalSystem';
-import { SmartSessionNameSuggestions } from '../modals/SmartSessionNameSuggestions';
 import { useCommanderStatus } from '../../hooks/useCommanderStatus';
 import {
   startMainAgentHarnessRun,
-  waitForMainAgentHarnessRun,
 } from '../../services/mainAgentHarness';
 
 const cellStateColors: Record<string, string> = {
@@ -38,6 +38,13 @@ const cellStateColors: Record<string, string> = {
   active: 'text-emerald-400',
   paused: 'text-amber-400',
   archived: 'text-slate-500',
+};
+
+const cellStateBadgeTone: Record<string, string> = {
+  draft: 'border-white/10 bg-white/[0.04] text-white/65',
+  active: 'border-emerald-400/25 bg-emerald-500/10 text-emerald-200',
+  paused: 'border-amber-300/25 bg-amber-500/10 text-amber-100',
+  archived: 'border-slate-500/20 bg-slate-500/10 text-slate-300/75',
 };
 
 const EMPTY_TREE: AgentCellSessionTreeProjection = {
@@ -51,7 +58,6 @@ const EMPTY_TREE: AgentCellSessionTreeProjection = {
 
 const DRAG_EDGE_RATIO = 0.26;
 const OUTDENT_DROP_ZONE_WIDTH = 52;
-
 const buildSessionKey = (cellId: string, sessionId: string) => `${cellId}:${sessionId}`;
 const buildTreeNodeKey = (cellId: string, sessionId: string) => `${cellId}:${sessionId}`;
 
@@ -108,6 +114,88 @@ function SessionKindBadge({ nodeKind }: { nodeKind?: string }) {
     <span className="rounded border border-primary/20 bg-primary/10 px-1 py-0.5 text-[8px] font-bold uppercase tracking-widest text-primary/80">
       {label}
     </span>
+  );
+}
+
+function CellStateBadge({ state }: { state?: string }) {
+  const normalized = String(state || 'draft').trim().toLowerCase();
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] ${
+        cellStateBadgeTone[normalized] || cellStateBadgeTone.draft
+      }`}
+    >
+      <Circle size={6} className={cellStateColors[normalized] || cellStateColors.draft} fill="currentColor" />
+      <span>{normalized}</span>
+    </span>
+  );
+}
+
+function SessionStatusMeta({
+  session,
+  idleLabel,
+  isCellActiveSession,
+}: {
+  session: any;
+  idleLabel: string;
+  isCellActiveSession: boolean;
+}) {
+  const status = String(session?.status || '').trim().toLowerCase();
+  const toneClass =
+    status === 'detached'
+      ? 'bg-amber-400/60'
+      : status === 'stale'
+        ? 'bg-rose-400/70'
+        : isCellActiveSession
+          ? 'bg-emerald-400/70'
+          : 'bg-slate-400/35';
+  const statusLabel =
+    status === 'detached'
+      ? 'Detached'
+      : status === 'stale'
+        ? 'Stale'
+        : isCellActiveSession
+          ? 'Live'
+          : 'Idle';
+
+  return (
+    <div className="flex items-center gap-1.5 opacity-70 transition-opacity group-hover:opacity-95">
+      <span className={`h-1.5 w-1.5 rounded-full ${toneClass}`} />
+      <span className="truncate text-[9px] font-medium tracking-wide">{statusLabel}</span>
+      <span className="text-[8px] text-muted-foreground/60">•</span>
+      <span className="truncate text-[9px] font-medium tabular-nums tracking-wide">{idleLabel === '—' ? 'now' : idleLabel}</span>
+    </div>
+  );
+}
+
+function SessionTreeGuides({
+  depth,
+  rowPaddingLeft,
+}: {
+  depth: number;
+  rowPaddingLeft: number;
+}) {
+  if (depth <= 0) {
+    return null;
+  }
+
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {Array.from({ length: depth }).map((_, index) => (
+        <div
+          key={index}
+          className="absolute bottom-0 top-0 w-px bg-white/[0.05]"
+          style={{ left: `${18 + index * SESSION_TREE_INDENT_PX}px` }}
+        />
+      ))}
+      <div
+        className="absolute top-1/2 h-px -translate-y-1/2 bg-white/[0.08]"
+        style={{
+          left: `${Math.max(18, rowPaddingLeft - 10)}px`,
+          width: '12px',
+        }}
+      />
+    </div>
   );
 }
 
@@ -187,6 +275,7 @@ export function AgentCellsSessionsPanel({
   const [pendingActiveSessionByCellId, setPendingActiveSessionByCellId] = useState<Record<string, string>>({});
   const [draggingSession, setDraggingSession] = useState<{ cellId: string; sessionId: string } | null>(null);
   const [dropTarget, setDropTarget] = useState<SessionDropTarget | null>(null);
+  const [smartNamingSessionKey, setSmartNamingSessionKey] = useState('');
 
   const closedMenuRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
@@ -624,7 +713,14 @@ export function AgentCellsSessionsPanel({
       return;
     }
 
+    const pendingKey = buildSessionKey(contextMenuCell.id, contextMenuSession.id);
+    if (smartNamingSessionKey === pendingKey) {
+      return;
+    }
+
     const clientRequestId = `smart-name-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+    const taskModalId = `commander-smart-name-${contextMenuSession.id}`;
+    setSmartNamingSessionKey(pendingKey);
     try {
       const startedRun = await startMainAgentHarnessRun({
         clientRequestId,
@@ -676,35 +772,29 @@ export function AgentCellsSessionsPanel({
       if (!runId) {
         throw new Error('Harness run did not return a runId.');
       }
-      const settledRun = await waitForMainAgentHarnessRun({
-        runId,
-        timeoutMs: 45000,
-      });
-      const suggestions = Array.isArray(settledRun?.result?.stepOutputs?.['smart-name']?.candidates)
-        ? settledRun.result.stepOutputs['smart-name'].candidates
-        : Array.isArray(settledRun?.progress?.outputsByStepId?.['smart-name']?.candidates)
-          ? settledRun.progress.outputsByStepId['smart-name'].candidates
-          : [];
-      if (!suggestions.length) {
-        throw new Error('Commander did not return any session name suggestions.');
-      }
-      const modalId = `smart-session-name-${contextMenuSession.id}`;
-      const selectedName = await modal.openModal({
-        id: modalId,
-        variant: 'alert',
-        tone: 'info',
-        title: 'Smart Session Names',
-        description: 'Choose a suggested session name.',
+
+      const taskResult = await modal.openModal({
+        id: taskModalId,
+        variant: 'commander-task',
+        dismissOnOverlay: false,
         showActions: false,
         content: (
-          <SmartSessionNameSuggestions
-            modalId={modalId}
-            currentName={contextMenuSession.name || ''}
-            suggestions={suggestions}
+          <CommanderTaskSheet
+            modalId={taskModalId}
+            runId={runId}
+            stepId="smart-name"
+            taskTitle="Smart Rename"
+            sessionName={contextMenuSession.name || contextMenuSession.id}
+            cellName={contextMenuCell.name || contextMenuCell.id}
           />
         ),
       });
-      const nextName = String(selectedName || '').trim();
+
+      if (taskResult?.type !== 'apply') {
+        return;
+      }
+
+      const nextName = String(taskResult?.value || '').trim();
       if (!nextName) {
         return;
       }
@@ -715,11 +805,16 @@ export function AgentCellsSessionsPanel({
         description: `Renamed to ${nextName}.`,
       });
     } catch (error: any) {
-      modal.notify({
+      await modal.openModal({
+        variant: 'alert',
         tone: 'danger',
-        title: 'Smart Name Failed',
+        title: 'Smart Rename Failed',
         description: error?.message || 'Failed to suggest a session name.',
+        dismissLabel: 'Close',
+        dismissOnOverlay: false,
       });
+    } finally {
+      setSmartNamingSessionKey((current) => (current === pendingKey ? '' : current));
     }
   }, [
     commanderReady,
@@ -729,6 +824,7 @@ export function AgentCellsSessionsPanel({
     contextMenuSession,
     modal,
     onRenameSession,
+    smartNamingSessionKey,
   ]);
 
   return (
@@ -760,7 +856,7 @@ export function AgentCellsSessionsPanel({
         {cells.length === 0 ? (
           <div className="px-4 py-8 text-center text-xs text-muted-foreground">No active cells</div>
         ) : (
-          <div className="space-y-2" data-testid="cell-list">
+          <div className="space-y-3" data-testid="cell-list" role="tree" aria-label="Agent Cells">
             {cells.map((cell: any) => {
               const projection = projectionsByCellId[cell.id] || EMPTY_TREE;
               const visibleRows = visibleRowsByCellId[cell.id] || [];
@@ -774,22 +870,40 @@ export function AgentCellsSessionsPanel({
               const showRootDropZone = draggingSession?.cellId === cell.id && Boolean(onMoveSessionNode);
 
               return (
-                <div key={cell.id} className="rounded-md">
+                <div
+                  key={cell.id}
+                  className={`overflow-hidden rounded-xl border transition-colors ${
+                    isSelectedCell
+                      ? 'border-primary/25 bg-primary/[0.045] shadow-[0_8px_24px_-18px_rgba(59,130,246,0.55)]'
+                      : 'border-border/40 bg-background/20 hover:border-border/70'
+                  }`}
+                >
                   <div
-                    role="button"
+                    role="treeitem"
+                    aria-level={1}
+                    aria-expanded={!isCollapsed}
+                    aria-selected={isSelectedCell}
                     tabIndex={0}
                     onClick={() => onSelect?.(cell.id)}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
                         onSelect?.(cell.id);
+                        return;
+                      }
+                      if (event.key === 'ArrowLeft' && !isCollapsed) {
+                        event.preventDefault();
+                        toggleCellCollapse(cell.id);
+                        return;
+                      }
+                      if (event.key === 'ArrowRight' && isCollapsed) {
+                        event.preventDefault();
+                        toggleCellCollapse(cell.id);
                       }
                     }}
                     data-testid={`cell-item-${cell.id}`}
-                    className={`group flex w-full items-center gap-2 rounded px-2 py-1 text-sm transition-colors ${
-                      isSelectedCell
-                        ? 'bg-primary/10 text-foreground'
-                        : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'
+                    className={`group flex w-full items-start gap-2.5 px-2.5 py-2 text-left transition-colors ${
+                      isSelectedCell ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     <button
@@ -798,7 +912,7 @@ export function AgentCellsSessionsPanel({
                         event.stopPropagation();
                         toggleCellCollapse(cell.id);
                       }}
-                      className="rounded p-0.5 text-muted-foreground/60 hover:text-foreground hover:bg-muted/30"
+                      className="mt-0.5 rounded p-0.5 text-muted-foreground/60 hover:bg-muted/30 hover:text-foreground"
                       title={isCollapsed ? 'Expand sessions' : 'Collapse sessions'}
                     >
                       {isCollapsed ? (
@@ -807,32 +921,65 @@ export function AgentCellsSessionsPanel({
                         <ChevronDown size={12} strokeWidth={1.5} />
                       )}
                     </button>
-                    {cell.isVirtual ? (
-                      <SquareTerminal size={14} strokeWidth={1.5} className="opacity-70" />
-                    ) : (
-                      <GitBranch size={14} strokeWidth={1.5} className="opacity-70" />
-                    )}
-                    <span className="truncate">{cell.name}</span>
                     <div
-                      className={`ml-auto flex items-center gap-1 transition-opacity ${
-                        isSelectedCell ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                      className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border ${
+                        cell.isVirtual
+                          ? 'border-primary/20 bg-primary/10 text-primary/85'
+                          : 'border-white/[0.08] bg-white/[0.04] text-foreground/75'
                       }`}
                     >
+                      {cell.isVirtual ? (
+                        <SquareTerminal size={14} strokeWidth={1.6} />
+                      ) : (
+                        <GitBranch size={14} strokeWidth={1.6} />
+                      )}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="truncate text-[12px] font-semibold tracking-[0.01em]">
+                          {cell.name}
+                        </span>
+                        {cell.isVirtual ? (
+                          <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-primary/80">
+                            Local
+                          </span>
+                        ) : (
+                          <CellStateBadge state={cell.state} />
+                        )}
+                      </div>
+                      <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[9px] text-muted-foreground/72">
+                        {cell.isVirtual ? (
+                          <SquareTerminal size={10} strokeWidth={1.7} className="shrink-0" />
+                        ) : (
+                          <GitBranch size={10} strokeWidth={1.7} className="shrink-0" />
+                        )}
+                        <span className="truncate">
+                          {cell.isVirtual
+                            ? cell.worktreePath || 'Local shell'
+                            : cell.branch || cell.worktreePath || 'Detached worktree'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="ml-auto flex items-center gap-1 self-center opacity-100">
                       {!cell.isVirtual ? (
-                        <button
-                          type="button"
-                          className="rounded p-1 text-muted-foreground/60 hover:text-foreground hover:bg-muted/30"
+                        <IconButton
+                          label="Open in Explorer"
+                          focusRing="sidebar"
+                          className="h-7 w-7 rounded-md text-muted-foreground/65 transition-colors hover:bg-white/[0.06] hover:text-foreground"
                           onClick={(event) => {
                             event.stopPropagation();
                             onOpenExplorer?.(cell.id);
                           }}
-                          title="Open in Explorer"
                         >
-                          <FolderOpen size={12} strokeWidth={1.5} />
-                        </button>
+                          <FolderOpen size={13} strokeWidth={1.7} aria-hidden="true" />
+                        </IconButton>
                       ) : null}
-                      <button
-                        type="button"
+                      <IconButton
+                        label="New Session"
+                        focusRing="sidebar"
+                        className="h-7 w-7 rounded-md text-primary transition-colors hover:bg-primary/12 hover:text-primary"
                         onClick={(event) => {
                           event.stopPropagation();
                           const rect = event.currentTarget.getBoundingClientRect();
@@ -845,14 +992,14 @@ export function AgentCellsSessionsPanel({
                             openUpwards,
                           });
                         }}
-                        className="rounded p-1 text-muted-foreground/60 hover:text-foreground hover:bg-muted/30"
-                        title="New Session"
                       >
-                        <Plus size={12} strokeWidth={1.5} />
-                      </button>
+                        <Plus size={14} strokeWidth={1.8} aria-hidden="true" />
+                      </IconButton>
                       {hasOverflow ? (
-                        <button
-                          type="button"
+                        <IconButton
+                          label="Detached and closed sessions"
+                          focusRing="sidebar"
+                          className="h-7 w-7 rounded-md text-muted-foreground/65 transition-colors hover:bg-white/[0.06] hover:text-foreground"
                           onClick={(event) => {
                             event.stopPropagation();
                             const rect = event.currentTarget.getBoundingClientRect();
@@ -862,24 +1009,15 @@ export function AgentCellsSessionsPanel({
                               y: rect.bottom + 6,
                             });
                           }}
-                          className="rounded p-1 text-muted-foreground/60 hover:text-foreground hover:bg-muted/30"
-                          title="Detached/closed sessions"
                         >
-                          <MoreHorizontal size={12} strokeWidth={1.5} />
-                        </button>
-                      ) : null}
-                      {!cell.isVirtual ? (
-                        <Circle
-                          size={8}
-                          className={cellStateColors[cell.state] || cellStateColors.draft}
-                          fill="currentColor"
-                        />
+                          <MoreHorizontal size={13} strokeWidth={1.7} aria-hidden="true" />
+                        </IconButton>
                       ) : null}
                     </div>
                   </div>
 
                   {!isCollapsed ? (
-                    <div className="mt-1 space-y-0.5 pl-3">
+                    <div className="space-y-1 border-t border-white/[0.06] px-2 pb-1.5 pt-1.5" role="group">
                       {visibleRows.map((row) => {
                         const session = row.session;
                         const isCellActiveSession = session.id === activeSessionId;
@@ -934,12 +1072,17 @@ export function AgentCellsSessionsPanel({
                             </div>
                             <div
                               draggable={!isEditing}
+                              role="treeitem"
+                              aria-level={row.depth + 2}
+                              aria-expanded={hasChildren ? !isNodeCollapsed : undefined}
+                              aria-selected={isSelectedSession}
+                              tabIndex={0}
                               data-session-tab-id={session.id}
                               data-cell-id={cell.id}
-                              className={`group relative flex w-full min-w-0 items-center gap-2.5 rounded-lg py-1.5 pr-2 text-left text-[11px] transition-all duration-200 select-none ${
+                              className={`group relative flex w-full min-w-0 items-center gap-2.5 rounded-xl border border-transparent py-1.5 pr-2 text-left text-[11px] transition-all duration-200 select-none ${
                                 isSelectedSession
-                                  ? 'bg-primary/10 text-foreground ring-1 ring-primary/20 shadow-sm'
-                                  : 'bg-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                                  ? 'border-primary/20 bg-primary/10 text-foreground shadow-[0_8px_18px_-16px_rgba(59,130,246,0.7)]'
+                                  : 'bg-transparent text-muted-foreground hover:border-white/[0.06] hover:bg-white/[0.03] hover:text-foreground'
                               } ${
                                 activeDropTarget?.intent === 'into'
                                   ? 'ring-1 ring-primary/30 bg-primary/5'
@@ -958,6 +1101,22 @@ export function AgentCellsSessionsPanel({
                                   return;
                                 }
                                 selectSessionTab(cell.id, session.id);
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                  event.preventDefault();
+                                  selectSessionTab(cell.id, session.id);
+                                  return;
+                                }
+                                if (event.key === 'ArrowLeft' && hasChildren && !isNodeCollapsed) {
+                                  event.preventDefault();
+                                  toggleSessionNodeCollapse(cell.id, row.id);
+                                  return;
+                                }
+                                if (event.key === 'ArrowRight' && hasChildren && isNodeCollapsed) {
+                                  event.preventDefault();
+                                  toggleSessionNodeCollapse(cell.id, row.id);
+                                }
                               }}
                               onDoubleClick={(event) => {
                                 event.stopPropagation();
@@ -1012,6 +1171,7 @@ export function AgentCellsSessionsPanel({
                                 await commitDropTarget(nextTarget);
                               }}
                             >
+                              <SessionTreeGuides depth={row.depth} rowPaddingLeft={rowPaddingLeft} />
                               {hasChildren ? (
                                 <button
                                   type="button"
@@ -1029,7 +1189,7 @@ export function AgentCellsSessionsPanel({
                                   )}
                                 </button>
                               ) : (
-                                <div className="absolute left-[7px] top-1/2 h-2 w-2 -translate-y-1/2 rounded-full border border-border/30 bg-background/40" />
+                                <div className="absolute left-[7px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border border-white/[0.09] bg-background/70 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]" />
                               )}
 
                               <div className="relative flex shrink-0 items-center justify-center">
@@ -1089,37 +1249,31 @@ export function AgentCellsSessionsPanel({
                                 )}
 
                                 {!isEditing ? (
-                                  <div className="flex items-center gap-1.5 opacity-60 transition-opacity group-hover:opacity-90">
-                                    <span
-                                      className={`h-1 w-1 rounded-full ${
-                                        session.status === 'detached'
-                                          ? 'bg-amber-400/50'
-                                          : session.status === 'stale'
-                                            ? 'bg-rose-400/50'
-                                            : isCellActiveSession
-                                              ? 'bg-emerald-400/50'
-                                              : 'bg-slate-400/30'
-                                      }`}
-                                    />
-                                    <span className="truncate text-[9px] font-medium tabular-nums tracking-wide">
-                                      {idleLabel === '—' ? 'Active' : idleLabel}
-                                    </span>
-                                  </div>
+                                  <SessionStatusMeta
+                                    session={session}
+                                    idleLabel={idleLabel}
+                                    isCellActiveSession={isCellActiveSession}
+                                  />
                                 ) : null}
                               </div>
 
                               {!isEditing ? (
-                                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 transition-all duration-200 group-hover:opacity-100">
-                                  <button
+                                <div
+                                  className={`absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 transition-all duration-200 ${
+                                    isSelectedSession ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                                  }`}
+                                >
+                                  <IconButton
+                                    label="Terminate Session"
+                                    focusRing="sidebar"
+                                    className="h-6 w-6 rounded-md text-muted-foreground/45 transition-colors hover:bg-destructive/10 hover:text-destructive"
                                     onClick={(event) => {
                                       event.stopPropagation();
                                       onCloseSession?.(session.id, cell.id);
                                     }}
-                                    className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors"
-                                    title="Terminate Session"
                                   >
-                                    <X size={10} strokeWidth={2.5} />
-                                  </button>
+                                    <X size={10} strokeWidth={2.5} aria-hidden="true" />
+                                  </IconButton>
                                 </div>
                               ) : null}
                             </div>
