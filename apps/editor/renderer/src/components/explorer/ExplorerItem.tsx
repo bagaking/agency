@@ -119,7 +119,7 @@ export function ExplorerItem({
       aria-setsize={item.setSize || undefined}
       aria-posinset={item.posInSet || undefined}
       data-explorer-path={item.path}
-      className={`group relative flex min-h-7 items-center gap-2 rounded-md border border-transparent border-l-2 px-2 py-1 text-xs transition-colors select-none ${
+      className={`group relative flex h-7 items-center gap-2 rounded-md border border-transparent border-l-2 px-2 py-1 text-xs transition-colors select-none ${
         isSelected
           ? 'border-l-primary border-white/10 bg-primary/[0.16] text-foreground shadow-[inset_0_0_0_1px_rgba(59,130,246,0.12)]'
           : isFocused

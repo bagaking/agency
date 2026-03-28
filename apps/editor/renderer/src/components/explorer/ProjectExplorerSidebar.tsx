@@ -33,7 +33,7 @@ import {
 } from './explorerInternalDragPaths';
 import { useDismissibleLayer } from '../ui/useDismissibleLayer';
 
-const ROW_HEIGHT = 24;
+const ROW_HEIGHT = 28;
 const OVERSCAN = 6;
 const VIRTUALIZE_THRESHOLD = 200;
 

@@ -417,14 +417,21 @@ test('explorer shows companion changed-files panel above footer', async () => {
 
     const changesPanel = window.getByTestId('explorer-changes-panel');
     const changesList = window.getByTestId('explorer-changes-panel-list');
+    const disclosure = changesPanel.getByRole('button', { name: 'Collapse', exact: true });
 
     await expect(changesPanel).toBeVisible();
     await expect(changesPanel).toContainText('Changed Files');
+    await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
     await changesPanel.getByRole('button', { name: 'Refresh changed files', exact: true }).click();
     await expect(changesList).toBeVisible();
     await expect
       .poll(async () => (await changesList.textContent() || '').trim().length > 0)
       .toBe(true);
+
+    await disclosure.click();
+    await expect(changesPanel.getByRole('button', { name: 'Expand', exact: true })).toHaveAttribute('aria-expanded', 'false');
+    await changesPanel.getByRole('button', { name: 'Expand', exact: true }).click();
+    await expect(changesList).toBeVisible();
 
     await changesPanel.getByRole('button', { name: 'Tree', exact: true }).click();
     await expect
