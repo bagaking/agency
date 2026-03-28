@@ -11,12 +11,21 @@ import {
   FolderPlus,
   FilePlus2
 } from 'lucide-react';
-import { getFileIcon, getFolderIcon, statusColors, statusBadges } from './explorerUtils';
+import {
+  getFileIcon,
+  getFolderIcon,
+  statusBadgeStyles,
+  statusBadges,
+  statusColors,
+  statusLabels,
+} from './explorerUtils';
 import { Tooltip } from '../ui/Tooltip';
+import { focusRing } from '../ui/focusRing';
 
 export function ExplorerItem({
   item,
   node,
+  treeItemId,
   isSelected,
   isFocused,
   isLoading,
@@ -40,7 +49,6 @@ export function ExplorerItem({
   onDragStart,
   onDragOver,
   onDrop,
-  onRequestRename,
   renameTarget,
   handleRenameSubmit,
   setRenameTarget,
@@ -52,12 +60,27 @@ export function ExplorerItem({
   const hasComments = Number(commentCount) > 0;
   const primarySemanticTag = Array.isArray(semanticTags) ? semanticTags[0] : null;
   const semanticOverflowCount = Array.isArray(semanticTags) && semanticTags.length > 1 ? semanticTags.length - 1 : 0;
+  const focusRingClass = focusRing.sidebar;
 
   const iconInfo = isDir ? null : getFileIcon(node.name, isLink);
   const FileIcon = isDir ? getFolderIcon(node.name, isExpanded) : iconInfo.icon;
   const iconColor = isDir ? 'text-primary/70' : iconInfo.color;
 
   const paddingLeft = `${depth * 12 + 8}px`;
+  const ariaLevel = depth + 1;
+  const statusLabel = status ? statusLabels[status] || status : '';
+  const rowAriaLabel = [
+    node.name,
+    isDir ? 'folder' : 'file',
+    statusLabel ? `${statusLabel} git status` : '',
+    isIgnored ? 'ignored' : '',
+    isOpen ? 'open in workbench' : '',
+    isDirty ? 'has unsaved changes' : '',
+    primarySemanticTag ? `semantic file ${primarySemanticTag.label || primarySemanticTag.id}` : '',
+    hasComments ? `${commentCount} comment${commentCount === 1 ? '' : 's'}` : '',
+  ]
+    .filter(Boolean)
+    .join(', ');
 
   if (item.draft) {
     return (
@@ -70,6 +93,7 @@ export function ExplorerItem({
         </span>
       <input
           autoFocus
+          aria-label={item.type === 'dir' ? 'New folder name' : 'New file name'}
           className="flex-1 rounded border border-border bg-transparent px-1 text-xs text-foreground focus:outline-none select-text"
           placeholder={item.type === 'dir' ? 'New folder' : 'New file'}
           onBlur={item.onBlur}
@@ -85,10 +109,23 @@ export function ExplorerItem({
 
   return (
     <div
+      id={treeItemId}
+      role="treeitem"
+      aria-label={rowAriaLabel || node.name}
+      aria-level={ariaLevel}
+      aria-selected={isSelected}
+      aria-expanded={isDir ? isExpanded : undefined}
+      aria-busy={isLoading || undefined}
+      aria-setsize={item.setSize || undefined}
+      aria-posinset={item.posInSet || undefined}
       data-explorer-path={item.path}
-      className={`group flex items-center gap-2 rounded px-2 py-1 text-xs transition-colors relative select-none ${
-        isSelected ? 'bg-primary/20 text-foreground' : 'text-muted-foreground hover:text-foreground'
-      } ${isIgnored ? 'opacity-80' : ''} ${isFocused ? 'ring-1 ring-primary/30' : ''}`}
+      className={`group relative flex min-h-7 items-center gap-2 rounded-md border border-transparent border-l-2 px-2 py-1 text-xs transition-colors select-none ${
+        isSelected
+          ? 'border-l-primary border-white/10 bg-primary/[0.16] text-foreground shadow-[inset_0_0_0_1px_rgba(59,130,246,0.12)]'
+          : isFocused
+            ? 'border-l-primary/60 bg-white/[0.045] text-foreground'
+            : 'border-l-transparent text-muted-foreground/90 hover:bg-white/[0.04] hover:text-foreground'
+      } ${isIgnored ? 'opacity-90' : ''}`}
       style={{ paddingLeft }}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
@@ -103,7 +140,10 @@ export function ExplorerItem({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggle(); }}
-          className="text-muted-foreground/60 hover:text-foreground shrink-0"
+          aria-label={isExpanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
+          aria-expanded={isExpanded}
+          tabIndex={-1}
+          className={`shrink-0 rounded-sm text-muted-foreground/70 transition-colors hover:bg-white/5 hover:text-foreground ${focusRingClass}`}
         >
           {isExpanded ? <ChevronDown size={14} strokeWidth={1.5} /> : <ChevronRight size={14} strokeWidth={1.5} />}
         </button>
@@ -137,6 +177,7 @@ export function ExplorerItem({
       {renameTarget ? (
         <input
           autoFocus
+          aria-label={`Rename ${node.name}`}
           className="flex-1 rounded border border-border bg-transparent px-1 text-xs text-foreground focus:outline-none select-text"
           value={renameTarget.value}
           onChange={(e) => setRenameTarget(prev => ({ ...prev, value: e.target.value }))}
@@ -149,91 +190,103 @@ export function ExplorerItem({
           onClick={(event) => event.stopPropagation()}
         />
       ) : (
-        <div className="flex flex-1 items-center gap-2 min-w-0">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <span
-            className={`truncate ${isIgnored ? 'text-muted-foreground/60 line-through decoration-muted-foreground/30' : ''}`}
-            onDoubleClick={(event) => {
-              event.stopPropagation();
-              onRequestRename?.(item.path);
-            }}
+            title={node.name}
+            className={`truncate font-medium ${isIgnored ? 'text-muted-foreground/70 line-through decoration-muted-foreground/40' : ''}`}
           >
             {node.name}
           </span>
-          {isOpen && <span className="h-1 w-1 rounded-full bg-sky-400/60" title="Open" />}
-          {isDirty && <span className="h-1 w-1 rounded-full bg-amber-400/60 shadow-[0_0_5px_rgba(251,191,36,0.3)]" title="Dirty" />}
+        </div>
+      )}
+
+      {!renameTarget ? (
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 pl-2">
+          {isOpen && (
+            <span className="shrink-0 rounded-full border border-sky-400/20 bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-sky-200">
+              Open
+            </span>
+          )}
+          {isDirty && (
+            <span className="shrink-0 rounded-full border border-amber-400/20 bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-200">
+              Dirty
+            </span>
+          )}
           {isLink && (
-            <span className="shrink-0 px-1 rounded-[2px] bg-sky-500/10 border border-sky-500/20 text-[8px] font-bold uppercase tracking-tighter text-sky-400">
+            <span className="shrink-0 rounded-[3px] border border-sky-500/20 bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tight text-sky-300">
               Link
             </span>
           )}
           {isIgnored && (
-              <span className="shrink-0 text-[8px] font-bold uppercase tracking-widest text-muted-foreground/60 italic">
-                  Ignored
-              </span>
+            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground/75 italic">
+              Ignored
+            </span>
           )}
           {isUntracked && !isIgnored && (
-            <span className="shrink-0 text-[8px] font-black uppercase tracking-tighter text-lime-400/60">
-              untracked
+            <span className="shrink-0 rounded-[3px] border border-lime-500/20 bg-lime-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tight text-lime-300">
+              Untracked
             </span>
           )}
           {isAdded && !isIgnored && (
-            <span className="shrink-0 text-[8px] font-black uppercase tracking-tighter text-emerald-400/60">
-              added
+            <span className="shrink-0 rounded-[3px] border border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tight text-emerald-300">
+              Added
             </span>
           )}
           {primarySemanticTag && (
-            <span className="shrink-0 rounded-[2px] border border-sky-400/30 bg-sky-500/10 px-1 text-[8px] font-bold uppercase tracking-tighter text-sky-200">
+            <span className="shrink-0 rounded-[3px] border border-sky-400/30 bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tight text-sky-100">
               {primarySemanticTag.label || primarySemanticTag.id}
             </span>
           )}
           {semanticOverflowCount > 0 && (
-            <span className="shrink-0 text-[8px] font-bold uppercase tracking-tighter text-sky-300/70">
+            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-tight text-sky-200/80">
               +{semanticOverflowCount}
             </span>
           )}
-        </div>
-      )}
 
-      {/* Git Status Badge */}
-      {status && (
-        <div className="flex items-center pr-1 opacity-40 group-hover:opacity-100 transition-opacity">
-            <span className={`text-[9px] font-black uppercase tracking-tighter ${statusColors[status]}`}>
-                {statusBadges[status]}
+          {/* Git Status Badge */}
+          {status && (
+            <span
+              className={`inline-flex rounded-[3px] border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] ${statusColors[status]} ${statusBadgeStyles[status] || ''}`}
+              title={statusLabel}
+            >
+              {statusBadges[status]}
             </span>
+          )}
+
+          {/* Diff Counts */}
+          {(added > 0 || deleted > 0) && (
+            <div className="flex items-center gap-1 text-[9px] font-semibold">
+              {added > 0 && <span className="text-emerald-300">+{added}</span>}
+              {deleted > 0 && <span className="text-rose-300">-{deleted}</span>}
+            </div>
+          )}
+
+          {/* Agent Badges */}
+          {cellBadges}
+
+          {/* Comment Indicator */}
+          {hasComments && !isDir && (
+            <Tooltip label={`View ${commentCount} comment${commentCount === 1 ? '' : 's'}`}>
+              <button
+                type="button"
+                tabIndex={isFocused ? 0 : -1}
+                className={`flex items-center gap-1 rounded-md border border-white/10 px-1.5 py-0.5 text-muted-foreground/70 transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary ${focusRingClass}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onJumpToComments?.(item.path);
+                }}
+                aria-label={`View ${commentCount} comment${commentCount === 1 ? '' : 's'} for ${node.name}`}
+              >
+                <MessageSquare size={12} strokeWidth={1.5} />
+                <span className="text-[9px] font-semibold tabular-nums">{commentCount}</span>
+              </button>
+            </Tooltip>
+          )}
+
+          {/* Loading Indicator */}
+          {isLoading && <RefreshCw size={12} className="animate-spin text-muted-foreground/70" />}
         </div>
-      )}
-
-      {/* Diff Counts */}
-      {(added > 0 || deleted > 0) && (
-        <div className="flex items-center gap-0.5 text-[8px] font-bold opacity-40 group-hover:opacity-100 transition-opacity">
-          {added > 0 && <span className="text-emerald-500/50">+{added}</span>}
-          {deleted > 0 && <span className="text-rose-500/50">-{deleted}</span>}
-        </div>
-      )}
-
-      {/* Agent Badges */}
-      {cellBadges}
-
-      {/* Comment Indicator */}
-      {hasComments && !isDir && (
-        <Tooltip label={`View ${commentCount} comment${commentCount === 1 ? '' : 's'}`}>
-          <button
-            type="button"
-            className="flex items-center gap-1 rounded px-1 py-0.5 text-muted-foreground/40 hover:text-primary/80 hover:bg-primary/10 transition-colors"
-            onClick={(event) => {
-              event.stopPropagation();
-              onJumpToComments?.(item.path);
-            }}
-            aria-label="View comments"
-          >
-            <MessageSquare size={12} strokeWidth={1.5} />
-            <span className="text-[9px] font-semibold tabular-nums">{commentCount}</span>
-          </button>
-        </Tooltip>
-      )}
-
-      {/* Loading Indicator */}
-      {isLoading && <RefreshCw size={12} className="animate-spin text-muted-foreground/50" />}
+      ) : null}
     </div>
   );
 }

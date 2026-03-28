@@ -37,6 +37,9 @@ const ROW_HEIGHT = 24;
 const OVERSCAN = 6;
 const VIRTUALIZE_THRESHOLD = 200;
 
+const getExplorerTreeItemId = (path: string) =>
+  `explorer-treeitem-${encodeURIComponent(path).replace(/%/g, '_')}`;
+
 function ProjectExplorerSidebarContent({
   rootPath: scopeRootPath,
   rootLabel: scopeRootLabel,
@@ -263,6 +266,16 @@ function ProjectExplorerSidebarContent({
       observer?.disconnect();
     };
   }, [filterMenuOpen, updateFilterMenuPosition]);
+
+  useEffect(() => {
+    if (!filterMenuOpen) {
+      return;
+    }
+    const frameId = window.requestAnimationFrame(() => {
+      filterMenuRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [filterMenuOpen]);
 
   useEffect(() => {
     const availableRuleIds = new Set(
@@ -594,6 +607,7 @@ function ProjectExplorerSidebarContent({
       return;
     }
     selectPathInExplorer(targetPath);
+    setFilterMenuOpen(false);
     clearError();
   }, [clearError, expandAncestorsForPath, semanticTagsByPath, selectPathInExplorer, setErrorMessage, visiblePaths]);
   const renderNodeRow = (item) => {
@@ -607,15 +621,26 @@ function ProjectExplorerSidebarContent({
     const isRenaming = renameTarget?.path === item.path;
     const sorted = Object.values((entry?.cells || {}) as Record<string, any>).sort((a: any, b: any) => (b.added + b.deleted) - (a.added + a.deleted));
     const cellBadges = sorted.length > 0 && (
-        <div className="flex items-center gap-1 opacity-[0.15] group-hover:opacity-60 transition-opacity pr-1">
-            <div key={sorted[0].id} className="px-1 py-0.5 rounded-[2px] bg-white/10 text-[7px] font-black uppercase tracking-tighter">{sorted[0].name}</div>
-            {sorted.length > 1 && <span className="text-[7px] font-bold">+{sorted.length - 1}</span>}
+        <div className="flex items-center gap-1 pr-1 opacity-60 transition-opacity group-hover:opacity-90">
+            <div
+              key={sorted[0].id}
+              className="rounded-[3px] border border-white/10 bg-white/[0.08] px-1.5 py-0.5 text-[8px] font-black uppercase tracking-tight text-muted-foreground/90"
+            >
+              {sorted[0].name}
+            </div>
+            {sorted.length > 1 && <span className="text-[8px] font-bold text-muted-foreground/80">+{sorted.length - 1}</span>}
         </div>
     );
 
     return (
       <ExplorerItem
-        key={item.path} item={item} node={node} isSelected={selectionSet.has(item.path)} isFocused={focusedPath === item.path} isLoading={loadingPaths.has(item.path)}
+        key={item.path}
+        item={item}
+        node={node}
+        treeItemId={getExplorerTreeItemId(item.path)}
+        isSelected={selectionSet.has(item.path)}
+        isFocused={focusedPath === item.path}
+        isLoading={loadingPaths.has(item.path)}
         isExpanded={expandedPaths.has(item.path) || isSearchActive} isSearchActive={isSearchActive} isOpen={!isDir && openFiles.has(item.path)}
         isDirty={!isDir && dirtyFiles.has(item.path)} isIgnored={isPathIgnored(item.path)} status={entry?.status} added={entry?.added} deleted={entry?.deleted}
         semanticTags={semanticTagsByPath?.[item.path] || []}
@@ -631,7 +656,6 @@ function ProjectExplorerSidebarContent({
         }}
         onDragOver={(e) => handleRowDragOver(e, item.path, isDir)}
         onDrop={(e) => handleRowDrop(e, item.path, isDir)}
-        onRequestRename={requestRename}
         renameTarget={renameTarget?.path === item.path ? renameTarget : null} handleRenameSubmit={handleRenameSubmit} setRenameTarget={setRenameTarget}
       />
     );
@@ -663,16 +687,15 @@ function ProjectExplorerSidebarContent({
     if ((event.key === 'Delete' || event.key === 'Backspace') && selectionTargets.length) { event.preventDefault(); handleDelete(selectionTargets); }
   };
 
-  const scopedAgentsCount = useMemo(() => {
-    const agents = new Set();
-    selectedPaths.forEach(path => {
-      const entry = tree.nodes[path]?.type === 'dir' ? folderStatusByPath[path] : statusByPath[path];
-      if (entry?.cells) {
-        Object.keys(entry.cells).forEach(id => agents.add(id));
-      }
-    });
-    return agents.size;
-  }, [selectedPaths, tree.nodes, folderStatusByPath, statusByPath]);
+  const focusedTreeItemId =
+    focusedPath && visiblePaths.includes(focusedPath)
+      ? getExplorerTreeItemId(focusedPath)
+      : undefined;
+  const emptyStateMessage = searchQuery.trim()
+    ? 'No files match the current search.'
+    : hasActiveFilters
+      ? 'No files match the current filters.'
+      : 'No files to display.';
 
   return (
     <aside
@@ -711,21 +734,33 @@ function ProjectExplorerSidebarContent({
       )}
 
       {error && (
-        <div className="mx-2 mt-2 flex items-start gap-2 rounded border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-[11px] text-rose-300 animate-tab-in">
+        <div
+          role="status"
+          aria-live="polite"
+          className="mx-2 mt-2 flex items-start gap-2 rounded border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-[11px] text-rose-300 animate-tab-in"
+        >
           <AlertCircle size={14} className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       <div
-        ref={listRef} data-testid="explorer-tree" className="flex-1 overflow-y-auto px-1 py-2 focus:outline-none scrollbar-hide" tabIndex={0}
+        ref={listRef}
+        data-testid="explorer-tree"
+        role="tree"
+        aria-label={`${activeRootLabel} file tree`}
+        aria-multiselectable="true"
+        aria-activedescendant={focusedTreeItemId}
+        aria-busy={loadingPaths.size > 0}
+        className="flex-1 overflow-y-auto px-1 py-2 scrollbar-hide focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/20 focus-visible:ring-inset"
+        tabIndex={0}
         onClick={() => closeContextMenu()} onKeyDown={handleKeyDown}
         onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
         onDragOver={handleTreeDragOver}
         onDrop={handleTreeDrop}
       >
         {visibleItems.length === 0 ? (
-          <div className="px-3 py-2 text-xs text-muted-foreground/60">No files to display.</div>
+          <div className="px-3 py-2 text-xs text-muted-foreground/70">{emptyStateMessage}</div>
         ) : (
           <div style={{ height: totalHeight, position: 'relative' }}>
             <div style={{ transform: `translateY(${offsetY}px)` }}>

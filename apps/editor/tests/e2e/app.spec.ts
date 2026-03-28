@@ -310,6 +310,8 @@ test('explorer filters and keyboard navigation', async () => {
   const window = await getFirstWindow(electronApp);
   await openExplorer(window);
 
+  await expect(window.getByRole('tree', { name: /file tree/i })).toBeVisible();
+
   await expect(window.locator('[data-explorer-path=".hidden"]')).toBeVisible();
   await expect(window.locator('[data-explorer-path="ignored.log"]')).toHaveCount(0);
 
@@ -325,7 +327,12 @@ test('explorer filters and keyboard navigation', async () => {
 
   await filterMenu.getByText('Changes only').click();
   await expect(window.locator('[data-explorer-path="src"]')).toHaveCount(0);
+  await filterMenu.press('Escape');
+  await expect(filterMenu).toHaveCount(0);
+
   await window.getByTestId('explorer-filter-toggle').click();
+  await expect(filterMenu).toBeVisible();
+  await window.getByTestId('explorer-tree').click();
   await expect(filterMenu).toHaveCount(0);
 
   const tree = window.getByTestId('explorer-tree');

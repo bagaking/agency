@@ -2,7 +2,7 @@ import React from 'react';
 import { STATUS_FILTERS, statusBadgeStyles, statusColors, statusBadges, statusLabels } from './explorerUtils';
 import { focusRing } from '../ui/focusRing';
 
-const focusRingClass = focusRing.default;
+const focusRingClass = focusRing.sidebar;
 
 export function ExplorerFilterPanel({
   menuId,
@@ -45,6 +45,7 @@ export function ExplorerFilterPanel({
       style={menuStyle}
       role="dialog"
       aria-label="Explorer filters"
+      tabIndex={-1}
     >
       <div className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/30">
         Visibility

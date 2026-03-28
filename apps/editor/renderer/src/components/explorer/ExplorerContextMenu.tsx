@@ -132,7 +132,7 @@ export function ExplorerContextMenu({
       }}
     >
       <div className="px-4 pb-2 mb-1 border-b border-white/5">
-        <div className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/30">Object System</div>
+        <div className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/30">Explorer Actions</div>
       </div>
 
       <div className="px-1.5 space-y-0.5">
@@ -200,7 +200,7 @@ export function ExplorerContextMenu({
         <ContextMenuItem 
           itemRef={(node) => (itemRefs.current[9] = node)}
           icon={FileText} 
-          label="Paste as MD" 
+          label="Paste as Markdown" 
           onClick={wrapAction(onPasteMarkdown)} 
         />
 
@@ -223,7 +223,7 @@ export function ExplorerContextMenu({
         <ContextMenuItem
           itemRef={(node) => (itemRefs.current[12] = node)}
           icon={Trash2}
-          label={selectionTargets.length > 1 ? `Delete ${selectionTargets.length} Items` : 'Delete Object'}
+          label={selectionTargets.length > 1 ? `Delete ${selectionTargets.length} Items` : 'Delete'}
           shortcut="⌫"
           onClick={wrapAction(onDelete)}
           disabled={!selectionTargets.length}
@@ -242,10 +242,10 @@ function ContextMenuItem({ itemRef, icon: Icon, label, onClick, disabled, varian
       type="button"
       role="menuitem"
       tabIndex={disabled ? -1 : 0}
-      className={`group flex w-full items-center justify-between px-3 py-1.5 rounded-lg transition-all duration-300 disabled:opacity-10 disabled:cursor-not-allowed ${focusRingClass} ${
+      className={`group flex w-full items-center justify-between rounded-lg px-3 py-1.5 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-45 ${focusRingClass} ${
         variant === 'destructive'
           ? 'text-rose-400 hover:bg-rose-500/10'
-          : 'text-muted-foreground/80 hover:bg-primary/10 hover:text-primary'
+          : 'text-muted-foreground/85 hover:bg-primary/10 hover:text-primary'
       }`}
       onClick={(e) => {
         e.stopPropagation();

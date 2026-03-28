@@ -3,6 +3,8 @@ export type ExplorerVisibleItem = {
   depth: number;
   type: 'dir' | 'file';
   isSymbolicLink?: boolean;
+  setSize?: number;
+  posInSet?: number;
   draft?: boolean;
 };
 
@@ -118,7 +120,12 @@ export const buildExplorerVisibleItems = ({
     return matched;
   };
 
-  const walk = (path: string, depth: number) => {
+  const walk = (
+    path: string,
+    depth: number,
+    setSize = 0,
+    posInSet = 0
+  ) => {
     const node = tree.nodes[path];
     if (!node || !isVisible(path, node)) {
       return;
@@ -136,15 +143,21 @@ export const buildExplorerVisibleItems = ({
         depth,
         type: isDir ? 'dir' : 'file',
         isSymbolicLink: node.isSymbolicLink,
+        setSize,
+        posInSet,
       });
     }
 
     if (isDir && shouldShow && (isSearchActive || expandedPaths.has(path))) {
-      children.forEach((child) => walk(child, depth + 1));
+      const visibleChildren = children.filter((child) => checkMatch(child));
+      visibleChildren.forEach((child, index) =>
+        walk(child, depth + 1, visibleChildren.length, index + 1)
+      );
     }
   };
 
-  walk('', 0);
+  const rootChildren = (tree.children[''] || []).filter((child) => checkMatch(child));
+  rootChildren.forEach((child, index) => walk(child, 0, rootChildren.length, index + 1));
 
   if (draftEntry?.parentPath) {
     const idx = items.findIndex((it) => it.path === draftEntry.parentPath);

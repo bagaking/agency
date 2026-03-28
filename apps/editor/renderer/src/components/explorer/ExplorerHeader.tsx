@@ -13,7 +13,7 @@ import {
 import { IconButton } from '../ui/IconButton';
 import { focusRing } from '../ui/focusRing';
 
-const focusRingClass = focusRing.default;
+const focusRingClass = focusRing.sidebar;
 
 export function ExplorerHeader({
   activeRootLabel,
@@ -132,8 +132,9 @@ function HeaderButton({ icon: Icon, onClick, title, className = "" }: any) {
   return (
     <IconButton
       label={title}
+      focusRing="sidebar"
       onClick={onClick}
-      className={`p-1 text-muted-foreground/60 hover:text-foreground transition-colors rounded hover:bg-muted/30 ${className}`}
+      className={`h-7 w-7 rounded-md p-1 text-muted-foreground/70 transition-colors hover:bg-muted/30 hover:text-foreground ${className}`}
     >
       <Icon size={14} strokeWidth={1.5} aria-hidden="true" />
     </IconButton>
