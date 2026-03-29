@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ensureAvatarCatalogLoaded,
+  ensureAvatarUrlLoaded,
   getAvatarUrl,
   resolveAvatarId,
 } from '../../utils/agentAvatar';
@@ -40,7 +40,7 @@ export function AgentAvatar({
       return undefined;
     }
     setAvatarUrl(null);
-    void ensureAvatarCatalogLoaded().then(() => {
+    void ensureAvatarUrlLoaded(resolved).then(() => {
       if (cancelled) {
         return;
       }

@@ -1,4 +1,5 @@
 // @ts-nocheck
+const crypto = require('crypto');
 const fs = require('fs');
 const net = require('net');
 const os = require('os');
@@ -15,6 +16,14 @@ function sanitizePipeSegment(value) {
   return normalizeText(value).replace(/[^a-zA-Z0-9-_]+/g, '-');
 }
 
+function hashNamespace(value) {
+  const normalized = normalizeText(value);
+  if (!normalized) {
+    return 'default';
+  }
+  return crypto.createHash('sha1').update(normalized).digest('hex').slice(0, 12);
+}
+
 function isWindowsNamedPipe(socketPath) {
   return normalizeText(socketPath).startsWith(WINDOWS_PIPE_PREFIX);
 }
@@ -24,15 +33,20 @@ function getDefaultControlBusSocketPath(options = {}) {
   if (explicit) {
     return explicit;
   }
+  const namespaceHash = hashNamespace(
+    options?.namespacePath ||
+      process.env.AGENCY_CONTROL_BUS_NAMESPACE ||
+      path.resolve(__dirname, '..', '..')
+  );
   if (process.platform === 'win32') {
     const suffix = sanitizePipeSegment(process.env.USERNAME || process.env.USER || 'user') || 'user';
-    return `${WINDOWS_PIPE_PREFIX}agency-control-bus-${suffix}`;
+    return `${WINDOWS_PIPE_PREFIX}agency-control-bus-${suffix}-${namespaceHash}`;
   }
   const uid =
     typeof process.getuid === 'function'
       ? String(process.getuid())
       : sanitizePipeSegment(process.env.USER || process.env.UID || 'user') || 'user';
-  return path.join(os.tmpdir(), `agency-control-bus-${uid}.sock`);
+  return path.join(os.tmpdir(), `agency-control-bus-${uid}-${namespaceHash}.sock`);
 }
 
 function buildSocketFailure(message, code = 'SOCKET_ERROR') {

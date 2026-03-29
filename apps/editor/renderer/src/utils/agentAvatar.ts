@@ -1,43 +1,3 @@
-const AVATAR_ANIMALS = [
-  'CAPYBARA',
-  'CAT',
-  'DOG',
-  'DRAGON',
-  'ELEPHANT',
-  'FOX',
-  'GOAT',
-  'MOUSE',
-  'OWL',
-  'OX',
-  'PANDA',
-  'RABBIT',
-  'RHINO',
-  'SHARK',
-  'SHEEP',
-  'SNAKE',
-  'WHALE',
-] as const;
-
-const AVATAR_ACTIONS = [
-  'CRAFTING',
-  'DESIGNING',
-  'FIGHTING',
-  'PAPER_WORKING',
-  'PLANNING',
-  'PROGRAMMING',
-  'RESEARCHING',
-  'SPEAKING',
-  'SPELLING',
-  'STUDYING',
-] as const;
-
-export const AVATAR_IDS = AVATAR_ANIMALS.flatMap((animal) =>
-  AVATAR_ACTIONS.map((action) => `${animal}_${action}`)
-).sort();
-
-const AVATAR_ID_SET = new Set(AVATAR_IDS);
-let avatarCatalog: Record<string, string> | null = null;
-let avatarCatalogPromise: Promise<Record<string, string>> | null = null;
 const RECENT_STORAGE_KEY = 'agency.avatar.recents';
 const RECENT_LIMIT = 9;
 let avatarCursor = 0;
@@ -59,27 +19,65 @@ const normalizeAvatarId = (value) => {
   return raw.replace(/[\s/\\-]+/g, '_').toUpperCase();
 };
 
+const avatarImporters = import.meta.glob(
+  '../../../../node_modules/@bagakit/open-agent-avatars/20260202/*.svg',
+  {
+    query: '?url',
+    import: 'default',
+  }
+) as Record<string, () => Promise<string>>;
+
+const avatarImporterEntries = Object.entries(avatarImporters)
+  .map(([filePath, loader]) => {
+    const match = filePath.match(/\/([^/]+)\.svg$/);
+    return [normalizeAvatarId(match?.[1] || ''), loader] as const;
+  })
+  .filter(([avatarId]) => Boolean(avatarId))
+  .sort(([left], [right]) => left.localeCompare(right));
+
+export const AVATAR_IDS = avatarImporterEntries.map(([avatarId]) => avatarId);
+
+const AVATAR_ID_SET = new Set(AVATAR_IDS);
+const avatarImporterById = new Map(avatarImporterEntries);
+const avatarCatalog = new Map<string, string>();
+const avatarCatalogPromises = new Map<string, Promise<string | null>>();
+
 export const getAvatarUrl = (avatarId) => {
   const key = normalizeAvatarId(avatarId);
-  return avatarCatalog?.[key] || null;
+  return avatarCatalog.get(key) || null;
 };
 
-export const ensureAvatarCatalogLoaded = async () => {
-  if (avatarCatalog) {
-    return avatarCatalog;
+export const ensureAvatarUrlLoaded = async (avatarId) => {
+  const key = normalizeAvatarId(avatarId);
+  if (!key || !AVATAR_ID_SET.has(key)) {
+    return null;
   }
-  if (!avatarCatalogPromise) {
-    avatarCatalogPromise = import('@bagakit/open-agent-avatars/20260202').then((avatarBatch) => {
-      avatarCatalog = Object.entries(avatarBatch).reduce((acc, [key, value]) => {
-        if (typeof value === 'string') {
-          acc[key] = value;
-        }
-        return acc;
-      }, {} as Record<string, string>);
-      return avatarCatalog;
+  const cached = avatarCatalog.get(key);
+  if (cached) {
+    return cached;
+  }
+  const existingPromise = avatarCatalogPromises.get(key);
+  if (existingPromise) {
+    return existingPromise;
+  }
+  const importer = avatarImporterById.get(key);
+  if (!importer) {
+    return null;
+  }
+  const nextPromise = importer()
+    .then((url) => {
+      const normalizedUrl = String(url || '').trim();
+      if (normalizedUrl) {
+        avatarCatalog.set(key, normalizedUrl);
+        return normalizedUrl;
+      }
+      return null;
+    })
+    .finally(() => {
+      avatarCatalogPromises.delete(key);
     });
-  }
-  return avatarCatalogPromise;
+  avatarCatalogPromises.set(key, nextPromise);
+  return nextPromise;
 };
 
 export const getRecentAvatarIds = () => {

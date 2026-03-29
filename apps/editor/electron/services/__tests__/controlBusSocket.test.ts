@@ -6,8 +6,20 @@ const path = require('path');
 
 const {
   createControlBusSocketServer,
+  getDefaultControlBusSocketPath,
   requestControlBusSocket,
 } = require('../controlBusSocket');
+
+test('default control bus socket path varies by namespace path', () => {
+  const left = getDefaultControlBusSocketPath({
+    namespacePath: '/tmp/agency-a',
+  });
+  const right = getDefaultControlBusSocketPath({
+    namespacePath: '/tmp/agency-b',
+  });
+
+  assert.notEqual(left, right);
+});
 
 test('control bus socket server dispatches a request and returns the normalized response', async () => {
   const socketPath = path.join(
