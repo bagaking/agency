@@ -318,6 +318,13 @@ function resolveIconImage(): NativeImage | null {
   return image;
 }
 
+function resolveRendererHtmlPath(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'app.asar', 'dist', 'renderer', 'index.html');
+  }
+  return path.join(__dirname, '../../dist/renderer/index.html');
+}
+
 function loadRendererWindow(win: BrowserWindow): void {
   const rendererInfo = (resolveRendererUrl() || {}) as RendererInfo;
   const rendererUrl = rendererInfo.url || '';
@@ -333,7 +340,7 @@ function loadRendererWindow(win: BrowserWindow): void {
   }
 
   recordStartup('renderer-load-start', { url: 'file://dist/renderer/index.html' });
-  void win.loadFile(path.join(__dirname, '../dist/renderer/index.html'));
+  void win.loadFile(resolveRendererHtmlPath());
 }
 
 function attachWindowDiagnostics(win: BrowserWindow): void {
@@ -354,7 +361,16 @@ function attachWindowDiagnostics(win: BrowserWindow): void {
     if (!app.isPackaged && rendererInfo.url) {
       return;
     }
-    void win.loadFile(path.join(__dirname, '../dist/renderer/index.html'));
+    const fallbackRendererPath = resolveRendererHtmlPath();
+    const fallbackRendererUrl = pathToFileURL(fallbackRendererPath).toString();
+    if (validatedURL && validatedURL === fallbackRendererUrl) {
+      logRuntime('error', 'renderer fallback aborted after repeated failure', {
+        validatedURL,
+        fallbackRendererPath,
+      });
+      return;
+    }
+    void win.loadFile(fallbackRendererPath);
   });
 
   win.webContents.on('render-process-gone', (_event, details) => {
