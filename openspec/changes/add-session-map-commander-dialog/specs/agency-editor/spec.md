@@ -1,3 +1,9 @@
+> Superseded by `refactor-commander-unified-station`.
+>
+> Keep this delta only as historical context. The canonical Commander delta now lives under the unified Commander station change.
+>
+> The detailed body below intentionally preserves obsolete popup/dialog wording and MUST NOT be treated as an active delta.
+
 ## ADDED Requirements
 
 ### Requirement: Session Map Commander Dialog

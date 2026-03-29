@@ -1,3 +1,9 @@
+> Superseded by `refactor-commander-unified-station`.
+>
+> This change captured an earlier Commander slice. Keep it only as historical context; do not review or implement it independently anymore.
+>
+> The detailed body below intentionally preserves obsolete popup/dialog wording and MUST NOT be treated as the current Commander source of truth.
+
 # Change: Add Session Map Commander Dialog
 
 ## Why

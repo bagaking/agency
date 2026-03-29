@@ -16,6 +16,7 @@ import {
   resolveCommanderContext,
   type CommanderAction,
 } from '../../utils/sessionMapCommander';
+import { writeTextToClipboard } from '../../utils/clipboard';
 import {
   SessionMapCommanderAvatar,
 } from './SessionMapCommanderAvatar';
@@ -104,7 +105,7 @@ function CommanderTurnCard({
   );
 }
 
-export function SessionMapCommanderDialog({
+export function SessionMapCommanderBriefing({
   focusData,
   harnessRuns,
   sessionError,
@@ -225,10 +226,9 @@ export function SessionMapCommanderDialog({
 
   return (
     <div
-      id="session-map-commander-drawer"
-      role="dialog"
-      aria-modal="false"
-      aria-label="Commander briefing"
+      id="session-map-commander-briefing"
+      role="region"
+      aria-labelledby="session-map-commander-briefing-title"
       className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cyan-300/12 bg-[linear-gradient(180deg,rgba(14,20,29,0.992),rgba(7,10,16,0.99))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03),0_16px_36px_rgba(0,0,0,0.28)]"
     >
       <div className="flex items-start justify-between gap-3 border-b border-white/6 px-4 py-4">
@@ -240,7 +240,10 @@ export function SessionMapCommanderDialog({
             className="shrink-0"
           />
           <div className="min-w-0">
-            <div className="truncate font-mono text-[8px] font-black uppercase tracking-[0.16em] text-cyan-100/86">
+            <div
+              id="session-map-commander-briefing-title"
+              className="truncate font-mono text-[8px] font-black uppercase tracking-[0.16em] text-cyan-100/86"
+            >
               Commander Briefing
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -266,7 +269,7 @@ export function SessionMapCommanderDialog({
               if (!payload) {
                 return;
               }
-              void navigator.clipboard?.writeText(payload);
+              void writeTextToClipboard(payload);
             }}
             className="rounded-lg bg-white/[0.04] p-1 text-white/46 transition-colors hover:bg-white/[0.08] hover:text-cyan-100"
             aria-label="Copy active commander briefing"
@@ -277,7 +280,7 @@ export function SessionMapCommanderDialog({
             type="button"
             onClick={() => onClose?.()}
             className="rounded-lg bg-white/[0.04] p-1 text-white/46 transition-colors hover:bg-rose-500/14 hover:text-rose-100"
-            aria-label="Close commander dialog"
+            aria-label="Close commander briefing"
           >
             <X size={12} />
           </button>
@@ -325,7 +328,7 @@ export function SessionMapCommanderDialog({
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-white/8 bg-white/[0.03] px-3.5 py-3 text-[8px] uppercase tracking-[0.14em] text-white/28">
-            Use a quick prompt or ask one focused question. This drawer stays bound to the current session and run context instead of accumulating chat history.
+            Use a quick prompt or ask one focused question. This briefing stays bound to the current session and run context instead of accumulating chat history.
           </div>
         )}
       </div>

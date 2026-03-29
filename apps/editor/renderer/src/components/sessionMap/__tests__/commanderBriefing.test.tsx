@@ -4,7 +4,7 @@ import React, { createRef } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { SessionMapCommanderPanel } from '../SessionMapCommanderPanel';
-import { SessionMapCommanderPopup } from '../SessionMapCommanderPopup';
+import { SessionMapCommanderBriefingPanel } from '../SessionMapCommanderBriefingPanel';
 
 const runningRun = {
   runId: 'run-1',
@@ -48,12 +48,12 @@ const focusData = {
   },
 };
 
-test('commander panel exposes a right-edge drawer affordance', () => {
+test('commander panel exposes a right-edge briefing affordance', () => {
   const html = renderToStaticMarkup(
     <SessionMapCommanderPanel
       harnessRuns={[runningRun]}
-      dialogOpen={false}
-      onOpenDialog={() => undefined}
+      briefingOpen={false}
+      onOpenBriefing={() => undefined}
       buttonRef={createRef()}
     />
   );
@@ -67,8 +67,8 @@ test('commander panel shows a progress bar for active commander tasks', () => {
   const html = renderToStaticMarkup(
     <SessionMapCommanderPanel
       harnessRuns={[runningRun]}
-      dialogOpen={false}
-      onOpenDialog={() => undefined}
+      briefingOpen={false}
+      onOpenBriefing={() => undefined}
       buttonRef={createRef()}
     />
   );
@@ -80,8 +80,8 @@ test('commander panel stays in standby language when only non-commander runs are
   const html = renderToStaticMarkup(
     <SessionMapCommanderPanel
       harnessRuns={[nonCommanderRunningRun]}
-      dialogOpen={false}
-      onOpenDialog={() => undefined}
+      briefingOpen={false}
+      onOpenBriefing={() => undefined}
       buttonRef={createRef()}
     />
   );
@@ -90,9 +90,9 @@ test('commander panel stays in standby language when only non-commander runs are
   assert.match(html, /Standby/);
 });
 
-test('commander popup renders a Session Map scoped drawer when open', () => {
+test('commander briefing panel renders a Session Map scoped briefing region when open', () => {
   const html = renderToStaticMarkup(
-    <SessionMapCommanderPopup
+    <SessionMapCommanderBriefingPanel
       open={true}
       focusData={focusData}
       harnessRuns={[runningRun]}
@@ -104,14 +104,14 @@ test('commander popup renders a Session Map scoped drawer when open', () => {
     />
   );
 
-  assert.match(html, /data-commander-drawer="true"/);
+  assert.match(html, /data-commander-briefing="true"/);
   assert.match(html, /Commander Briefing/);
   assert.match(html, /Session Map Scope/);
 });
 
-test('commander popup returns no markup when closed', () => {
+test('commander briefing panel returns no markup when closed', () => {
   const html = renderToStaticMarkup(
-    <SessionMapCommanderPopup
+    <SessionMapCommanderBriefingPanel
       open={false}
       focusData={focusData}
       harnessRuns={[runningRun]}

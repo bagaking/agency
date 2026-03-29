@@ -1,3 +1,9 @@
+> Superseded by `refactor-commander-unified-station`.
+>
+> Keep this as historical context only; the canonical Commander station design now lives in the unified Commander change.
+>
+> The detailed body below intentionally preserves obsolete popup/drawer wording and MUST NOT be treated as the current Commander source of truth.
+
 ## Context
 Commander already exists as a bounded operational surface inside docked Session Map, but its current presentation is still a popup layered over the map. That shape is safe, yet it undersells the backend/operator role and makes the interaction feel transient.
 

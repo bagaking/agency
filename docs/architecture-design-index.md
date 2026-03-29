@@ -16,6 +16,8 @@ This is a lightweight index that points to the authoritative design sources. It 
 - Product requirements/specification: `openspec/specs/agency-editor/spec.md`
 - Change proposals and detailed designs: `openspec/changes/*/proposal.md`, `openspec/changes/*/design.md`
 - Archived historical designs: `openspec/changes/archive/**`
+- Canonical object model (active): `openspec/changes/refactor-canonical-object-model/`
+- Commander unified station (active): `openspec/changes/refactor-commander-unified-station/`
 - Unified file interaction system (delivered): `openspec/changes/archive/2026-02-10-add-agent-centric-file-interaction-system/`
 - Unified file interaction evolution (delivered): `openspec/changes/archive/2026-02-16-update-agent-cells-embedded-explorer/`
 - Window instance strategy (active): `openspec/changes/update-window-instance-strategy/`

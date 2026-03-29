@@ -1,3 +1,9 @@
+> Superseded by `refactor-commander-unified-station`.
+>
+> The active implementation plan has moved to the unified Commander station change.
+>
+> The checklist below belongs to the superseded slice and MUST NOT override the unified Commander station plan.
+
 ## 1. Spec And Docs
 - [x] 1.1 Add `agency-editor` requirements for right-edge Commander entry placement and Session Map-scoped drawer presentation.
 - [x] 1.2 Update `docs/notes-session-management.md` to describe the drawer presentation and continued Session Map scope.

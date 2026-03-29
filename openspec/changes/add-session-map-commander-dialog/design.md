@@ -1,3 +1,9 @@
+> Superseded by `refactor-commander-unified-station`.
+>
+> This design described an earlier Commander slice before the station package was consolidated.
+>
+> The detailed body below intentionally preserves obsolete popup/dialog wording and MUST NOT be treated as the current Commander source of truth.
+
 ## Context
 Session Map dock already has a right-side operational cluster:
 - `Commander` shows backend identity and coarse status.

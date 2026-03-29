@@ -44,7 +44,7 @@ export function SessionMapOverlay({
   const [offlineMenu, setOfflineMenu] = useState(null);
   const [createMenu, setCreateMenu] = useState(null);
   const [avatarMenu, setAvatarMenu] = useState(null);
-  const [commanderDialogOpen, setCommanderDialogOpen] = useState(false);
+  const [commanderBriefingOpen, setCommanderBriefingOpen] = useState(false);
   const hoverLockRef = useRef(false);
   const clearTimerRef = useRef(null);
   const openTimerRef = useRef(null);
@@ -56,14 +56,14 @@ export function SessionMapOverlay({
   const avatarMenuRef = useRef(null);
   const commanderTriggerRef = useRef(null);
   const isDocked = mode === 'dock';
-  const closeCommanderDialog = useCallback(() => {
-    setCommanderDialogOpen(false);
+  const closeCommanderBriefing = useCallback(() => {
+    setCommanderBriefingOpen(false);
     requestAnimationFrame(() => {
       commanderTriggerRef.current?.focus?.();
     });
   }, []);
-  const toggleCommanderDialog = useCallback(() => {
-    setCommanderDialogOpen((current) => !current);
+  const toggleCommanderBriefing = useCallback(() => {
+    setCommanderBriefingOpen((current) => !current);
   }, []);
   const isDebugEnabled = useCallback(() => getDebugFlag(DEBUG_FLAGS.sessionMapPreview), []);
   const logDebug = useCallback(
@@ -258,7 +258,7 @@ export function SessionMapOverlay({
     setAvatarMenu(null);
     setCreateMenu(null);
     setOfflineMenu(null);
-    setCommanderDialogOpen(false);
+    setCommanderBriefingOpen(false);
   }, [open]);
 
   useEffect(() => {
@@ -477,8 +477,8 @@ export function SessionMapOverlay({
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
-        if (commanderDialogOpen) {
-          closeCommanderDialog();
+        if (commanderBriefingOpen) {
+          closeCommanderBriefing();
           return;
         }
         onClose();
@@ -591,7 +591,7 @@ export function SessionMapOverlay({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [closeCommanderDialog, commanderDialogOpen, onClose, open]);
+  }, [closeCommanderBriefing, commanderBriefingOpen, onClose, open]);
 
   if (!open || !model) {
     return null;
@@ -702,9 +702,9 @@ export function SessionMapOverlay({
             onClearSessionError={onClearSessionError}
             onCancelHarnessRun={onCancelHarnessRun}
             onResumeHarnessRun={onResumeHarnessRun}
-            onOpenCommanderDialog={toggleCommanderDialog}
-            onCloseCommanderDialog={closeCommanderDialog}
-            commanderDialogOpen={commanderDialogOpen}
+            onOpenCommanderBriefing={toggleCommanderBriefing}
+            onCloseCommanderBriefing={closeCommanderBriefing}
+            commanderBriefingOpen={commanderBriefingOpen}
             commanderTriggerRef={commanderTriggerRef}
           />
         ) : (

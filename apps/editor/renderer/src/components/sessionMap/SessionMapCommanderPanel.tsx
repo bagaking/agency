@@ -49,8 +49,8 @@ const statusTone = (status: string) => {
 
 export function SessionMapCommanderPanel({
   harnessRuns,
-  dialogOpen = false,
-  onOpenDialog,
+  briefingOpen = false,
+  onOpenBriefing,
   buttonRef,
 }: any) {
   const runList = Array.isArray(harnessRuns) ? harnessRuns : [];
@@ -67,15 +67,14 @@ export function SessionMapCommanderPanel({
     <button
       ref={buttonRef}
       type="button"
-      onClick={() => onOpenDialog?.()}
-      aria-expanded={dialogOpen}
-      aria-haspopup="dialog"
-      aria-controls="session-map-commander-drawer"
-      aria-label="Open commander briefing drawer"
+      onClick={() => onOpenBriefing?.()}
+      aria-expanded={briefingOpen}
+      aria-controls="session-map-commander-briefing"
+      aria-label="Open commander briefing"
       data-commander-trigger="true"
       title={directiveLabel}
       className={`group flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(11,17,24,0.97),rgba(6,9,14,0.97))] px-3 py-3 text-left transition-colors ${tone.glow} shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),0_10px_24px_rgba(0,0,0,0.22)] hover:bg-[linear-gradient(180deg,rgba(13,20,28,0.99),rgba(8,12,18,0.99))] ${
-        dialogOpen ? 'ring-1 ring-cyan-300/28 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14),0_0_0_1px_rgba(34,211,238,0.12),0_10px_24px_rgba(0,0,0,0.22)]' : ''
+        briefingOpen ? 'ring-1 ring-cyan-300/28 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14),0_0_0_1px_rgba(34,211,238,0.12),0_10px_24px_rgba(0,0,0,0.22)]' : ''
       }`}
     >
       <div className="flex items-center justify-between gap-2">
@@ -85,7 +84,7 @@ export function SessionMapCommanderPanel({
         <div
           className={`rounded-full border px-1.5 py-0.5 text-[6px] font-bold uppercase tracking-[0.12em] ${tone.pill}`}
         >
-          {dialogOpen ? 'OPEN' : tone.label}
+          {briefingOpen ? 'OPEN' : tone.label}
         </div>
       </div>
 
@@ -124,7 +123,7 @@ export function SessionMapCommanderPanel({
         <div className="mt-auto rounded-2xl border border-white/8 bg-white/[0.035] px-2.5 py-2.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
           <div className="inline-flex items-center gap-1.5 text-[7px] font-bold uppercase tracking-[0.12em] text-cyan-100/76">
             <MessageSquareText size={10} className="text-cyan-300/80" />
-            <span>{dialogOpen ? 'Briefing open' : 'Open briefing'}</span>
+            <span>{briefingOpen ? 'Briefing open' : 'Open briefing'}</span>
           </div>
           <div className="mt-2 flex items-center justify-between text-[7px] uppercase tracking-[0.14em] text-white/34">
             <span>{activeCommanderRun ? 'Commander task live' : 'Standby'}</span>

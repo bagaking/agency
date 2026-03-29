@@ -1,3 +1,9 @@
+> Superseded by `refactor-commander-unified-station`.
+>
+> This change described Commander-backed session actions as a standalone slice. That scope is now folded into the unified Commander station change.
+>
+> The detailed body below is historical only and MUST NOT be treated as the current Commander source of truth.
+
 # Change: Add Commander Smart Session Actions
 
 ## Why

@@ -4,7 +4,7 @@ import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
 import { resolveSessionAvatarId } from '../../utils/agentAvatar';
 import { TacticalFrame } from './SessionMapFrames';
 import { SessionMapCommanderPanel } from './SessionMapCommanderPanel';
-import { SessionMapCommanderPopup } from './SessionMapCommanderPopup';
+import { SessionMapCommanderBriefingPanel } from './SessionMapCommanderBriefingPanel';
 import { SessionMapOperationsRail } from './SessionMapOperationsRail';
 
 const CELL_CARD_MIN_WIDTH = 248;
@@ -92,12 +92,12 @@ export function SessionMapDockLayout({
   onClearSessionError,
   onCancelHarnessRun,
   onResumeHarnessRun,
-  onOpenCommanderDialog,
-  onCloseCommanderDialog,
-  commanderDialogOpen = false,
+  onOpenCommanderBriefing,
+  onCloseCommanderBriefing,
+  commanderBriefingOpen = false,
   commanderTriggerRef,
 }: any) {
-  const dockGridTemplateColumns = commanderDialogOpen
+  const dockGridTemplateColumns = commanderBriefingOpen
     ? '92px minmax(0,1.18fr) minmax(320px,0.92fr) minmax(448px,1.08fr)'
     : '92px minmax(0,1.52fr) minmax(316px,0.96fr) 176px';
 
@@ -266,8 +266,8 @@ export function SessionMapDockLayout({
 
       {/* Commander Column */}
       <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
-        {commanderDialogOpen ? (
-          <SessionMapCommanderPopup
+        {commanderBriefingOpen ? (
+          <SessionMapCommanderBriefingPanel
             open={true}
             focusData={focusData}
             harnessRuns={harnessRuns}
@@ -275,13 +275,19 @@ export function SessionMapDockLayout({
             onCancelHarnessRun={onCancelHarnessRun}
             onResumeHarnessRun={onResumeHarnessRun}
             onClearSessionError={onClearSessionError}
-            onClose={() => onCloseCommanderDialog?.() || onOpenCommanderDialog?.()}
+            onClose={() => {
+              if (onCloseCommanderBriefing) {
+                onCloseCommanderBriefing();
+                return;
+              }
+              onOpenCommanderBriefing?.();
+            }}
           />
         ) : (
           <SessionMapCommanderPanel
             harnessRuns={harnessRuns}
-            dialogOpen={false}
-            onOpenDialog={onOpenCommanderDialog}
+            briefingOpen={false}
+            onOpenBriefing={onOpenCommanderBriefing}
             buttonRef={commanderTriggerRef}
           />
         )}

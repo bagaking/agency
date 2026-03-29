@@ -160,14 +160,14 @@ test('Escape closes commander briefing before closing the whole Session Map', as
       trigger?.click();
     });
 
-    assert.ok(document.querySelector('[data-commander-drawer="true"]'));
+    assert.ok(document.querySelector('[data-commander-briefing="true"]'));
 
     await act(async () => {
       window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
 
     assert.equal(closeCount, 0);
-    assert.equal(document.querySelector('[data-commander-drawer="true"]'), null);
+    assert.equal(document.querySelector('[data-commander-briefing="true"]'), null);
     assert.ok(document.querySelector('[aria-label="Session map"]'));
 
     await act(async () => {
@@ -175,6 +175,71 @@ test('Escape closes commander briefing before closing the whole Session Map', as
     });
 
     assert.equal(closeCount, 1);
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});
+
+test('close button dismisses commander briefing without closing the whole Session Map', async () => {
+  const env = setupDom();
+  try {
+    const root = createRoot(document.getElementById('root')!);
+    let closeCount = 0;
+
+    await act(async () => {
+      root.render(
+        <SessionMapOverlay
+          open={true}
+          mode="dock"
+          model={model}
+          onSelectSession={() => undefined}
+          onClose={() => {
+            closeCount += 1;
+          }}
+          resolveFontSize={() => 13}
+          terminusProfiles={[]}
+          onCreateSession={async () => undefined}
+          onDispatchCommand={() => undefined}
+          onRenameSession={() => undefined}
+          onUpdateSessionAvatar={() => undefined}
+          onOpenFileShortcut={() => undefined}
+          onRevealFileShortcut={() => undefined}
+          harnessRuns={[]}
+          sessionError=""
+          onClearSessionError={() => undefined}
+          onCancelHarnessRun={async () => undefined}
+          onResumeHarnessRun={async () => undefined}
+        />
+      );
+    });
+
+    const trigger = document.querySelector(
+      '[data-commander-trigger="true"]'
+    ) as HTMLButtonElement | null;
+    assert.ok(trigger);
+
+    await act(async () => {
+      trigger?.click();
+    });
+
+    assert.ok(document.querySelector('[data-commander-briefing="true"]'));
+
+    const closeButton = document.querySelector(
+      'button[aria-label="Close commander briefing"]'
+    ) as HTMLButtonElement | null;
+    assert.ok(closeButton);
+
+    await act(async () => {
+      closeButton?.click();
+    });
+
+    assert.equal(closeCount, 0);
+    assert.equal(document.querySelector('[data-commander-briefing="true"]'), null);
+    assert.ok(document.querySelector('[aria-label="Session map"]'));
 
     await act(async () => {
       root.unmount();

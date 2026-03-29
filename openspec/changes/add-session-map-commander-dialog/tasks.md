@@ -1,3 +1,9 @@
+> Superseded by `refactor-commander-unified-station`.
+>
+> The implementation plan now lives under the unified Commander change. Keep this checklist only as historical context.
+>
+> The checklist below belongs to the superseded slice and MUST NOT override the unified Commander station plan.
+
 ## 1. Spec And Interaction Model
 - [x] 1.1 Add `agency-editor` requirements for the Commander dialog entrypoint, right-rail presentation, and scope.
 - [x] 1.2 Define how Commander dialog composes with `Command Ops` in docked Session Map.

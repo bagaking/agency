@@ -1,3 +1,9 @@
+> Superseded by `refactor-commander-unified-station`.
+>
+> Keep this file only as historical context for the earlier smart-action slice.
+>
+> The detailed body below is historical only and MUST NOT be treated as the current Commander source of truth.
+
 ## Context
 Agency already has:
 - a host-owned Main Agent Harness;

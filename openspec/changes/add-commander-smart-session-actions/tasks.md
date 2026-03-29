@@ -1,3 +1,9 @@
+> Superseded by `refactor-commander-unified-station`.
+>
+> The active implementation plan has moved to the unified Commander station change.
+>
+> The checklist below belongs to the superseded slice and MUST NOT override the unified Commander station plan.
+
 ## 1. Spec
 - [ ] 1.1 Add `agency-editor` requirements for Commander-backed session context actions and readiness gating.
 - [ ] 1.2 Define bounded Smart Name behavior and confirmation semantics.

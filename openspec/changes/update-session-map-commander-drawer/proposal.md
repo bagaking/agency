@@ -1,3 +1,9 @@
+> Superseded by `refactor-commander-unified-station`.
+>
+> This change captured a later Commander presentation slice, but the canonical Commander plan now lives under the unified station change.
+>
+> The detailed body below intentionally preserves obsolete popup/drawer wording and MUST NOT be treated as the current Commander source of truth.
+
 # Change: Optimize Session Map Commander As Right-Edge Drawer
 
 ## Why

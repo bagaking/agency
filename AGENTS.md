@@ -83,3 +83,6 @@ Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeSc
 - `Create Cell` is the worktree-bound workspace action.
 - `Create Agent` is the bounded child-execution action owned by a run.
 - `Fork` is a specialized `Create Agent` strategy, not the default noun for workspace creation or child execution.
+- `Commander` is one bounded operator capability over session/run context.
+- In Session Map, `Ops` is the persistent evidence rail and `Briefing` is the reveal panel in the same station.
+- Do not model `Commander` as a window-global assistant or reuse HIL/Reply drawer semantics for it.
