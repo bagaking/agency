@@ -1,4 +1,5 @@
 // @ts-nocheck
+const path = require('path');
 const {
   listCells,
 } = require('./cells');
@@ -7,6 +8,7 @@ const {
 } = require('./sessions');
 const {
   getProjectContext,
+  resolveProjectRoot,
 } = require('./projectRoot');
 const {
   describeEditorWindows,
@@ -59,12 +61,20 @@ function normalizeText(value) {
   return String(value || '').trim();
 }
 
+function hasText(value) {
+  return normalizeText(value).length > 0;
+}
+
 function normalizeInteger(value) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) {
     return 0;
   }
   return Math.floor(parsed);
+}
+
+function hasInteger(value) {
+  return normalizeInteger(value) > 0;
 }
 
 function normalizeOp(value) {
@@ -96,6 +106,14 @@ function normalizeCaller(value = {}) {
     sourceSurface: normalizeText(value?.sourceSurface) || DEFAULT_SOURCE_SURFACE,
     capabilities,
   };
+}
+
+function normalizePathRef(value) {
+  const normalized = normalizeText(value);
+  if (!normalized) {
+    return '';
+  }
+  return path.resolve(normalized);
 }
 
 function buildSuccess(op, data = null, warnings = []) {
@@ -172,6 +190,112 @@ function normalizeRequestEnvelope(request = {}) {
   };
 }
 
+function selectScopeRefs(refs = {}, keys = []) {
+  const normalizedRefs = normalizeRefs(refs);
+  const next = {};
+  (keys || []).forEach((key) => {
+    next[key] = normalizedRefs[key];
+  });
+  return normalizeRefs(next);
+}
+
+function hasAnyScopeRef(refs = {}) {
+  return Boolean(
+    hasInteger(refs.windowId) ||
+      hasText(refs.windowStateId) ||
+      hasText(refs.projectRoot) ||
+      hasText(refs.cellId) ||
+      hasText(refs.sessionId) ||
+      hasText(refs.worktreePath)
+  );
+}
+
+function assertCanonicalAuthority({
+  label,
+  refValue,
+  argValue,
+  normalizer = normalizeText,
+}) {
+  const normalizedRefValue = normalizer(refValue);
+  const normalizedArgValue = normalizer(argValue);
+  if (!normalizedRefValue || !normalizedArgValue) {
+    return;
+  }
+  if (normalizedRefValue !== normalizedArgValue) {
+    throw createControlBusError(
+      'REF_MISMATCH',
+      `${label} in args must match canonical refs.`
+    );
+  }
+}
+
+function normalizeContextRefs(value = []) {
+  const list = Array.isArray(value) ? value : [];
+  return list
+    .map((entry) => {
+      const normalized = {
+        type: normalizeText(entry?.type),
+      };
+      const projectRoot = normalizeText(entry?.projectRoot);
+      const cellId = normalizeText(entry?.cellId);
+      const worktreePath = normalizeText(entry?.worktreePath);
+      const sessionId = normalizeText(entry?.sessionId);
+      if (projectRoot) {
+        normalized.projectRoot = projectRoot;
+      }
+      if (cellId) {
+        normalized.cellId = cellId;
+      }
+      if (worktreePath) {
+        normalized.worktreePath = worktreePath;
+      }
+      if (sessionId) {
+        normalized.sessionId = sessionId;
+      }
+      return normalized;
+    })
+    .filter((entry) => entry.type);
+}
+
+function buildCanonicalContextRefs(scope, refs) {
+  const contextRefs = [];
+  if (scope.projectRoot) {
+    contextRefs.push({
+      type: 'project',
+      projectRoot: scope.projectRoot,
+    });
+  }
+  if (scope.cell) {
+    contextRefs.push({
+      type: 'cell',
+      cellId: scope.cell.id,
+      worktreePath: scope.cell.worktreePath,
+    });
+  }
+  if (refs.sessionId) {
+    contextRefs.push({
+      type: 'session',
+      sessionId: refs.sessionId,
+    });
+  }
+  return contextRefs;
+}
+
+function assertCanonicalContextRefs(args, scope, refs) {
+  const argContextRefs = normalizeContextRefs(args?.contextRefs);
+  const canonicalContextRefs = normalizeContextRefs(buildCanonicalContextRefs(scope, refs));
+  if (!argContextRefs.length || !canonicalContextRefs.length) {
+    return canonicalContextRefs;
+  }
+  if (JSON.stringify(argContextRefs) !== JSON.stringify(canonicalContextRefs)) {
+    throw createControlBusError(
+      'REF_MISMATCH',
+      'args.contextRefs must match canonical refs.'
+    );
+  }
+  return canonicalContextRefs;
+}
+
 function normalizeServiceWarnings(value) {
   return Array.isArray(value) ? value : [];
 }
@@ -212,8 +336,19 @@ function adaptUnderlyingEnvelope(op, result) {
 
 function findTargetWindow({ refs, args, getAllWindows = defaultGetAllWindows }) {
   const windows = (getAllWindows() || []).filter((window) => !window?.isDestroyed?.());
-  const targetWindowId = normalizeInteger(args?.windowId || refs?.windowId);
-  const targetWindowStateId = normalizeText(args?.windowStateId || refs?.windowStateId);
+  assertCanonicalAuthority({
+    label: 'windowId',
+    refValue: refs?.windowId,
+    argValue: args?.windowId,
+    normalizer: normalizeInteger,
+  });
+  assertCanonicalAuthority({
+    label: 'windowStateId',
+    refValue: refs?.windowStateId,
+    argValue: args?.windowStateId,
+  });
+  const targetWindowId = normalizeInteger(refs?.windowId || args?.windowId);
+  const targetWindowStateId = normalizeText(refs?.windowStateId || args?.windowStateId);
   if (targetWindowId > 0) {
     const matched = windows.find((window) => window.id === targetWindowId);
     if (matched) {
@@ -233,7 +368,12 @@ function findTargetWindow({ refs, args, getAllWindows = defaultGetAllWindows }) 
 
 async function resolveProjectRootFromRefs(refs, deps) {
   if (refs.projectRoot) {
-    return refs.projectRoot;
+    return normalizeText(
+      await deps.resolveProjectRoot({
+        rootPath: refs.projectRoot,
+        windowStateId: refs.windowStateId,
+      })
+    );
   }
   if (refs.windowStateId) {
     const windows = deps.describeEditorWindows();
@@ -348,15 +488,28 @@ function buildHarnessContext(context, refs) {
 }
 
 function buildSessionRuntimePayload(args, refs, scope, caller) {
+  const canonicalWorktreePath = normalizeText(scope.sessionWorktreePath);
+  const canonicalSessionId = normalizeText(refs.sessionId);
+  assertCanonicalAuthority({
+    label: 'worktreePath',
+    refValue: canonicalWorktreePath,
+    argValue: args?.worktreePath,
+    normalizer: normalizePathRef,
+  });
+  assertCanonicalAuthority({
+    label: 'sessionId',
+    refValue: canonicalSessionId,
+    argValue: args?.sessionId,
+  });
   const payload = {
     ...(args || {}),
     ...buildCallerPayload(caller),
   };
-  if (!payload.worktreePath) {
-    payload.worktreePath = scope.sessionWorktreePath;
+  if (canonicalWorktreePath) {
+    payload.worktreePath = canonicalWorktreePath;
   }
-  if (!payload.sessionId && refs.sessionId) {
-    payload.sessionId = refs.sessionId;
+  if (canonicalSessionId) {
+    payload.sessionId = canonicalSessionId;
   }
   if (!payload.worktreePath) {
     throw createControlBusError(
@@ -367,47 +520,41 @@ function buildSessionRuntimePayload(args, refs, scope, caller) {
   return payload;
 }
 
-function buildFileRootPath(args, scope) {
+function buildCanonicalFileRoot(scope) {
   return (
-    normalizeText(args?.rootPath) ||
     normalizeText(scope?.sessionWorktreePath) ||
     normalizeText(scope?.cell?.worktreePath) ||
     normalizeText(scope?.projectRoot)
   );
 }
 
+function resolveFileRootPath(args, scope) {
+  const canonicalRoot = buildCanonicalFileRoot(scope);
+  assertCanonicalAuthority({
+    label: 'rootPath',
+    refValue: canonicalRoot,
+    argValue: args?.rootPath,
+    normalizer: normalizePathRef,
+  });
+  return canonicalRoot || normalizeText(args?.rootPath);
+}
+
 function buildHarnessPayload(args, refs, scope, caller) {
+  assertCanonicalAuthority({
+    label: 'runId',
+    refValue: refs?.runId,
+    argValue: args?.runId,
+  });
   const payload = {
     ...(args || {}),
     ...buildCallerPayload(caller),
   };
-  if (!payload.runId && refs.runId) {
+  if (refs.runId) {
     payload.runId = refs.runId;
   }
-  if (!payload.contextRefs && (scope.projectRoot || scope.cell || refs.sessionId)) {
-    const contextRefs = [];
-    if (scope.projectRoot) {
-      contextRefs.push({
-        type: 'project',
-        projectRoot: scope.projectRoot,
-      });
-    }
-    if (scope.cell) {
-      contextRefs.push({
-        type: 'cell',
-        cellId: scope.cell.id,
-        worktreePath: scope.cell.worktreePath,
-      });
-    }
-    if (refs.sessionId) {
-      contextRefs.push({
-        type: 'session',
-        sessionId: refs.sessionId,
-      });
-    }
-    if (contextRefs.length) {
-      payload.contextRefs = contextRefs;
-    }
+  const canonicalContextRefs = assertCanonicalContextRefs(args, scope, refs);
+  if (canonicalContextRefs.length) {
+    payload.contextRefs = canonicalContextRefs;
   }
   return payload;
 }
@@ -417,6 +564,7 @@ function createControlBusService(customDeps = {}) {
     listCells,
     listSessions,
     getProjectContext,
+    resolveProjectRoot,
     describeEditorWindows,
     focusEditorWindow,
     broadcastWindowShellUpdated,
@@ -435,8 +583,10 @@ function createControlBusService(customDeps = {}) {
     ...customDeps,
   };
 
-  const operationHandlers = {
-    [CONTROL_BUS_OPS.projectGet]: async ({ refs, scope }) => {
+  const operationRegistry = {
+    [CONTROL_BUS_OPS.projectGet]: {
+      scopeRefKeys: ['windowStateId', 'projectRoot'],
+      execute: async ({ refs, scope }) => {
       const context = await deps.getProjectContext({
         windowStateId: refs.windowStateId,
         allowStoredRoot: true,
@@ -447,13 +597,19 @@ function createControlBusService(customDeps = {}) {
         valid: Boolean(scope.projectRoot || context?.projectRoot),
         windowStateId: refs.windowStateId || normalizeText(context?.windowStateId),
       };
+      },
     },
-    [CONTROL_BUS_OPS.cellList]: async ({ scope }) => {
+    [CONTROL_BUS_OPS.cellList]: {
+      scopeRefKeys: ['windowStateId', 'projectRoot'],
+      execute: async ({ scope }) => {
       return deps.listCells({
         rootPath: scope.projectRoot || undefined,
       });
+      },
     },
-    [CONTROL_BUS_OPS.sessionList]: async ({ scope }) => {
+    [CONTROL_BUS_OPS.sessionList]: {
+      scopeRefKeys: ['windowStateId', 'projectRoot', 'cellId', 'worktreePath'],
+      execute: async ({ scope }) => {
       if (scope.cell?.worktreePath) {
         return {
           cell: scope.cell,
@@ -482,20 +638,33 @@ function createControlBusService(customDeps = {}) {
       return {
         cells: items,
       };
+      },
     },
-    [CONTROL_BUS_OPS.windowList]: async () => {
+    [CONTROL_BUS_OPS.windowList]: {
+      scopeRefKeys: [],
+      execute: async () => {
       return {
         windows: deps.describeEditorWindows(),
       };
+      },
     },
-    [CONTROL_BUS_OPS.windowNew]: async ({ scope, args }) => {
+    [CONTROL_BUS_OPS.windowNew]: {
+      scopeRefKeys: ['windowStateId', 'projectRoot'],
+      execute: async ({ scope, args, refs }) => {
       if (typeof deps.createEditorWindow !== 'function') {
         throw createControlBusError(
           'UNAVAILABLE',
           'Window creation is unavailable in this control bus context.'
         );
       }
-      const projectRoot = normalizeText(args?.projectRoot) || normalizeText(scope.projectRoot);
+      assertCanonicalAuthority({
+        label: 'projectRoot',
+        refValue: scope.projectRoot || refs.projectRoot,
+        argValue: args?.projectRoot,
+        normalizer: normalizePathRef,
+      });
+      const projectRoot =
+        normalizeText(scope.projectRoot) || normalizeText(args?.projectRoot);
       const createdWindow = await deps.createEditorWindow({
         startEmpty: !projectRoot,
         projectRoot,
@@ -505,8 +674,11 @@ function createControlBusService(customDeps = {}) {
         windows: deps.describeEditorWindows(),
         windowStateId: normalizeText(createdWindow?.__agencyWindowStateId),
       };
+      },
     },
-    [CONTROL_BUS_OPS.windowFocus]: async ({ refs, args }) => {
+    [CONTROL_BUS_OPS.windowFocus]: {
+      scopeRefKeys: [],
+      execute: async ({ refs, args }) => {
       const targetWindow = findTargetWindow({ refs, args, getAllWindows: deps.getAllWindows });
       if (!targetWindow) {
         throw createControlBusError('NOT_FOUND', 'Target window was not found.');
@@ -520,15 +692,21 @@ function createControlBusService(customDeps = {}) {
         windows: deps.describeEditorWindows(),
         windowStateId: normalizeText(targetWindow?.__agencyWindowStateId),
       };
+      },
     },
-    [CONTROL_BUS_OPS.fileIntent]: async ({ args, scope }) => {
+    [CONTROL_BUS_OPS.fileIntent]: {
+      scopeRefKeys: ['windowStateId', 'projectRoot', 'cellId', 'sessionId', 'worktreePath'],
+      execute: async ({ args, scope }) => {
       const payload = {
         ...(args || {}),
-        rootPath: buildFileRootPath(args, scope),
+        rootPath: resolveFileRootPath(args, scope),
       };
       return deps.performFileIntent(payload);
+      },
     },
-    [CONTROL_BUS_OPS.fileToolIntent]: async ({ args, scope, caller }) => {
+    [CONTROL_BUS_OPS.fileToolIntent]: {
+      scopeRefKeys: ['windowStateId', 'projectRoot', 'cellId', 'sessionId', 'worktreePath'],
+      execute: async ({ args, scope, caller }) => {
       const payload = {
         ...(args || {}),
         ...buildCallerPayload(caller),
@@ -536,53 +714,87 @@ function createControlBusService(customDeps = {}) {
           Array.isArray(args?.capabilities) && args.capabilities.length
             ? args.capabilities
             : caller.capabilities,
-        rootPath: buildFileRootPath(args, scope),
+        rootPath: resolveFileRootPath(args, scope),
       };
       return deps.performToolFileIntent(payload);
+      },
     },
-    [CONTROL_BUS_OPS.fileClassify]: async ({ args, scope }) => {
+    [CONTROL_BUS_OPS.fileClassify]: {
+      scopeRefKeys: ['windowStateId', 'projectRoot', 'cellId', 'sessionId', 'worktreePath'],
+      execute: async ({ args, scope }) => {
       const payload = {
         ...(args || {}),
-        rootPath: buildFileRootPath(args, scope),
+        rootPath: resolveFileRootPath(args, scope),
       };
       return deps.classifyAgentFiles(payload);
+      },
     },
-    [CONTROL_BUS_OPS.sessionPerform]: async ({ args, refs, scope, caller }) => {
+    [CONTROL_BUS_OPS.sessionPerform]: {
+      scopeRefKeys: ['windowStateId', 'projectRoot', 'cellId', 'sessionId', 'worktreePath'],
+      execute: async ({ args, refs, scope, caller }) => {
       const payload = buildSessionRuntimePayload(args, refs, scope, caller);
       return deps.performSessionRuntimeIntent(payload);
+      },
     },
-    [CONTROL_BUS_OPS.runStart]: async ({ args, refs, scope, caller, transportContext }) => {
+    [CONTROL_BUS_OPS.runStart]: {
+      scopeRefKeys: ['windowStateId', 'projectRoot', 'cellId', 'sessionId', 'runId', 'worktreePath'],
+      execute: async ({ args, refs, scope, caller, transportContext }) => {
       const payload = buildHarnessPayload(args, refs, scope, caller);
       return deps.startMainAgentHarnessRun(payload, buildHarnessContext(transportContext, refs));
+      },
     },
-    [CONTROL_BUS_OPS.runInspect]: async ({ args, refs, scope, caller, transportContext }) => {
+    [CONTROL_BUS_OPS.runInspect]: {
+      scopeRefKeys: ['windowStateId', 'projectRoot', 'cellId', 'sessionId', 'runId', 'worktreePath'],
+      execute: async ({ args, refs, scope, caller, transportContext }) => {
       const payload = buildHarnessPayload(args, refs, scope, caller);
       return deps.inspectMainAgentHarnessRun(payload, buildHarnessContext(transportContext, refs));
+      },
     },
-    [CONTROL_BUS_OPS.runCancel]: async ({ args, refs, scope, caller, transportContext }) => {
+    [CONTROL_BUS_OPS.runCancel]: {
+      scopeRefKeys: ['windowStateId', 'projectRoot', 'cellId', 'sessionId', 'runId', 'worktreePath'],
+      execute: async ({ args, refs, scope, caller, transportContext }) => {
       const payload = buildHarnessPayload(args, refs, scope, caller);
       return deps.cancelMainAgentHarnessRun(payload, buildHarnessContext(transportContext, refs));
+      },
     },
-    [CONTROL_BUS_OPS.runResume]: async ({ args, refs, scope, caller, transportContext }) => {
+    [CONTROL_BUS_OPS.runResume]: {
+      scopeRefKeys: ['windowStateId', 'projectRoot', 'cellId', 'sessionId', 'runId', 'worktreePath'],
+      execute: async ({ args, refs, scope, caller, transportContext }) => {
       const payload = buildHarnessPayload(args, refs, scope, caller);
       return deps.resumeMainAgentHarnessRun(payload, buildHarnessContext(transportContext, refs));
+      },
     },
-    [CONTROL_BUS_OPS.runList]: async ({ args, refs, scope, caller, transportContext }) => {
+    [CONTROL_BUS_OPS.runList]: {
+      scopeRefKeys: ['windowStateId', 'projectRoot', 'cellId', 'sessionId', 'runId', 'worktreePath'],
+      execute: async ({ args, refs, scope, caller, transportContext }) => {
       const payload = buildHarnessPayload(args, refs, scope, caller);
       return deps.listMainAgentHarnessRuns(payload, buildHarnessContext(transportContext, refs));
+      },
     },
   };
 
   async function dispatch(request = {}, transportContext = {}) {
     const envelope = normalizeRequestEnvelope(request);
     const op = envelope.op;
-    if (!SUPPORTED_OPS.has(op)) {
+    const operationDefinition = operationRegistry[op];
+    if (!SUPPORTED_OPS.has(op) || !operationDefinition) {
       return buildFailure(op || 'unknown', 'USER_ERROR', `Unsupported control-bus op: ${request?.op || 'unknown'}.`);
     }
 
     try {
-      const scope = await resolveControlBusScope(envelope.refs, deps);
-      const result = await operationHandlers[op]({
+      const scopedRefs = selectScopeRefs(
+        envelope.refs,
+        operationDefinition.scopeRefKeys || []
+      );
+      const scope = hasAnyScopeRef(scopedRefs)
+        ? await resolveControlBusScope(scopedRefs, deps)
+        : {
+            projectRoot: '',
+            cell: null,
+            session: null,
+            sessionWorktreePath: '',
+          };
+      const result = await operationDefinition.execute({
         op,
         refs: envelope.refs,
         args: envelope.args,

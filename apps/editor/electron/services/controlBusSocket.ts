@@ -7,6 +7,7 @@ const path = require('path');
 
 const DEFAULT_SOCKET_TIMEOUT_MS = 5_000;
 const WINDOWS_PIPE_PREFIX = '\\\\.\\pipe\\';
+const PACKAGE_NAME = 'agency-editor';
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -14,6 +15,43 @@ function normalizeText(value) {
 
 function sanitizePipeSegment(value) {
   return normalizeText(value).replace(/[^a-zA-Z0-9-_]+/g, '-');
+}
+
+function findPackageRoot(startDir) {
+  let currentDir = path.resolve(normalizeText(startDir) || '.');
+  for (;;) {
+    const packageJsonPath = path.join(currentDir, 'package.json');
+    if (fs.existsSync(packageJsonPath)) {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+        if (normalizeText(pkg?.name) === PACKAGE_NAME) {
+          return currentDir;
+        }
+      } catch (_error) {
+        // Ignore malformed package metadata and continue walking up.
+      }
+    }
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      return '';
+    }
+    currentDir = parentDir;
+  }
+}
+
+function resolveDefaultNamespacePath(options = {}) {
+  const explicit = normalizeText(
+    options?.namespacePath || process.env.AGENCY_CONTROL_BUS_NAMESPACE
+  );
+  if (explicit) {
+    return explicit;
+  }
+  const baseDir = normalizeText(options?.baseDir) || __dirname;
+  const packageRoot = findPackageRoot(baseDir);
+  if (packageRoot) {
+    return packageRoot;
+  }
+  return path.resolve(baseDir);
 }
 
 function hashNamespace(value) {
@@ -33,11 +71,7 @@ function getDefaultControlBusSocketPath(options = {}) {
   if (explicit) {
     return explicit;
   }
-  const namespaceHash = hashNamespace(
-    options?.namespacePath ||
-      process.env.AGENCY_CONTROL_BUS_NAMESPACE ||
-      path.resolve(__dirname, '..', '..')
-  );
+  const namespaceHash = hashNamespace(resolveDefaultNamespacePath(options));
   if (process.platform === 'win32') {
     const suffix = sanitizePipeSegment(process.env.USERNAME || process.env.USER || 'user') || 'user';
     return `${WINDOWS_PIPE_PREFIX}agency-control-bus-${suffix}-${namespaceHash}`;
@@ -75,6 +109,29 @@ async function safeUnlinkSocket(socketPath) {
       throw error;
     }
   }
+}
+
+async function detectLiveSocket(socketPath, timeoutMs = 150) {
+  if (!socketPath) {
+    return false;
+  }
+  return new Promise((resolve) => {
+    const socket = net.createConnection(socketPath);
+    let settled = false;
+
+    const finalize = (value) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      socket.destroy();
+      resolve(value);
+    };
+
+    socket.setTimeout(timeoutMs, () => finalize(false));
+    socket.once('connect', () => finalize(true));
+    socket.once('error', () => finalize(false));
+  });
 }
 
 function createControlBusSocketServer({
@@ -134,7 +191,13 @@ function createControlBusSocketServer({
         socketPath: resolvedSocketPath,
       };
     }
-    await safeUnlinkSocket(resolvedSocketPath);
+    if (!isWindowsNamedPipe(resolvedSocketPath) && fs.existsSync(resolvedSocketPath)) {
+      const liveSocket = await detectLiveSocket(resolvedSocketPath);
+      if (liveSocket) {
+        throw new Error(`Control bus socket path is already in use: ${resolvedSocketPath}`);
+      }
+      await safeUnlinkSocket(resolvedSocketPath);
+    }
     if (!isWindowsNamedPipe(resolvedSocketPath)) {
       await fs.promises.mkdir(path.dirname(resolvedSocketPath), { recursive: true });
     }
@@ -245,6 +308,7 @@ async function requestControlBusSocket({
 
 module.exports = {
   DEFAULT_SOCKET_TIMEOUT_MS,
+  resolveDefaultNamespacePath,
   getDefaultControlBusSocketPath,
   createControlBusSocketServer,
   requestControlBusSocket,

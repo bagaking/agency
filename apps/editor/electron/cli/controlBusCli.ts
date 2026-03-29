@@ -108,22 +108,28 @@ async function resolvePayload(args) {
   return JSON.parse(jsonText);
 }
 
-async function main() {
+async function executeCli(
+  argv,
+  {
+    requestControlBusSocket: requestControlBusSocketImpl = requestControlBusSocket,
+    stdout = process.stdout,
+    stderr = process.stderr,
+  } = {}
+) {
   try {
-    const args = parseArgs(process.argv.slice(2));
+    const args = parseArgs(Array.isArray(argv) ? argv : []);
     const payload = await resolvePayload(args);
     if (payload.help) {
       printUsage();
-      process.exit(0);
-      return;
+      return 0;
     }
-    const result = await requestControlBusSocket({
+    const result = await requestControlBusSocketImpl({
       request: payload || {},
       socketPath: args.socket,
       timeoutMs: args.timeoutMs,
     });
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-    process.exit(result?.success === false ? 2 : 0);
+    stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    return result?.success === false ? 2 : 0;
   } catch (error) {
     const result = {
       success: false,
@@ -137,9 +143,23 @@ async function main() {
       ],
       data: null,
     };
-    process.stderr.write(`${JSON.stringify(result, null, 2)}\n`);
-    process.exit(1);
+    stderr.write(`${JSON.stringify(result, null, 2)}\n`);
+    return 1;
   }
 }
 
-main();
+async function main() {
+  const exitCode = await executeCli(process.argv.slice(2));
+  process.exit(exitCode);
+}
+
+if (require.main === module) {
+  void main();
+}
+
+module.exports = {
+  parseArgs,
+  resolvePayload,
+  executeCli,
+  printUsage,
+};
