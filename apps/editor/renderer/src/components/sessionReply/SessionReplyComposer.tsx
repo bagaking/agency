@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { LazyMonacoEditor, preloadLazyMonacoEditor } from '../ui/LazyMonacoEditor';
 import { SessionReplyComposerChrome } from './SessionReplyComposerChrome';
 import {
@@ -13,14 +13,16 @@ import {
 export function SessionReplyComposer({
   editorRef,
   editorContainerRef,
+  currentCellId,
+  currentSessionId,
+  resolvedQuickPrompts,
+  sessionTargets,
   scopeKey,
   replyText,
   setReplyText,
   queryText,
   error,
-  availableQuickPrompts,
   handleInsertQuickPrompt,
-  otherTargets,
   hasContent,
   submitting,
   handleCreateReply,
@@ -34,9 +36,24 @@ export function SessionReplyComposer({
   const [quickPromptMenuOpen, setQuickPromptMenuOpen] = useState(false);
   const [sendMenuOpen, setSendMenuOpen] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState<any>(null);
-  const targetLabel = selectedTarget
-    ? `${selectedTarget.sessionName || selectedTarget.sessionId}`
-    : 'Current';
+  const availableQuickPrompts = useMemo(
+    () =>
+      (resolvedQuickPrompts || []).filter(
+        (prompt: any) => prompt?.enabled !== false && String(prompt?.text || '').trim()
+      ),
+    [resolvedQuickPrompts]
+  );
+  const otherTargets = useMemo(() => {
+    const currentKey = `${currentCellId || ''}:${currentSessionId || ''}`;
+    return (sessionTargets || [])
+      .filter((target: any) => target?.cellId && target?.sessionId)
+      .filter((target: any) => `${target.cellId}:${target.sessionId}` !== currentKey)
+      .sort((a: any, b: any) => {
+        const left = `${a.cellName || a.cellId} ${a.sessionName || a.sessionId}`;
+        const right = `${b.cellName || b.cellId} ${b.sessionName || b.sessionId}`;
+        return left.localeCompare(right);
+      });
+  }, [currentCellId, currentSessionId, sessionTargets]);
 
   useEffect(() => {
     setQuickPromptMenuOpen(false);
@@ -81,7 +98,6 @@ export function SessionReplyComposer({
           sendMenuOpen={sendMenuOpen}
           setSendMenuOpen={setSendMenuOpen}
           siteText={siteText}
-          targetLabel={targetLabel}
           onClearSelection={onClearSelection}
           quickPromptMenuOpen={quickPromptMenuOpen}
           setQuickPromptMenuOpen={setQuickPromptMenuOpen}

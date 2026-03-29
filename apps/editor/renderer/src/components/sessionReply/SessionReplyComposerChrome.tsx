@@ -22,7 +22,6 @@ export function SessionReplyComposerChrome({
   setSendMenuOpen,
   hasContent,
   submitting,
-  targetLabel,
   handleCreateReply,
   selectionContext,
   siteText,
@@ -41,6 +40,9 @@ export function SessionReplyComposerChrome({
         selectedTarget.cellName || selectedTarget.cellId
       }`
     : 'Current Session';
+  const targetLabel = selectedTarget
+    ? `${selectedTarget.sessionName || selectedTarget.sessionId}`
+    : 'Current';
 
   useDismissibleLayer({
     open: quickPromptMenuOpen,
