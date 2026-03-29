@@ -229,6 +229,19 @@ function AppShell() {
     onOpenTerminal: handleOpenTerminal,
     initialActiveSessions,
   });
+  const handleFocusSessionInUi = useCallback(
+    (cellId: string, sessionId: string) => {
+      const normalizedCellId = String(cellId || '').trim();
+      const normalizedSessionId = String(sessionId || '').trim();
+      if (!normalizedCellId || !normalizedSessionId) {
+        return;
+      }
+      setSelectedId(normalizedCellId);
+      sessionsState.selectSession(normalizedSessionId, normalizedCellId);
+      handleOpenTerminal();
+    },
+    [handleOpenTerminal, sessionsState.selectSession]
+  );
   const sessionTargets = useMemo(() => {
     const list = [];
     (displayCells || []).forEach((cell) => {
@@ -916,6 +929,7 @@ function AppShell() {
       handleRevealAgentCellFileReference,
       handleImportAgentCellFileReferences,
       handleContinueSessionOnMobile,
+      handleFocusSessionInUi,
     },
   });
 

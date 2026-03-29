@@ -187,6 +187,7 @@ export function buildComposedAppLayoutProps({
     trackPendingHarnessRun: sessionsState.trackPendingHarnessRun,
     clearTrackedHarnessRun: sessionsState.clearTrackedHarnessRun,
     settleTrackedHarnessRun: sessionsState.settleTrackedHarnessRun,
+    focusSessionInUi: actionHandlers.handleFocusSessionInUi,
     terminusProfiles: sessionReplyContext.terminusProfiles,
     handleSelectSessionFromSidebar: navigationHandlers.handleSelectSessionFromSidebar,
     projectReady: projectState.projectReady,

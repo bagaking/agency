@@ -40,6 +40,7 @@ export function AppLayout({
   onTrackPendingHarnessRun,
   onClearTrackedHarnessRun,
   onSettleTrackedHarnessRun,
+  onFocusSessionInUi,
   projectReady,
   projectError,
   projectRoot,
@@ -235,6 +236,7 @@ export function AppLayout({
         onTrackPendingHarnessRun,
         onClearTrackedHarnessRun,
         onSettleTrackedHarnessRun,
+        onFocusSessionInUi,
         onConfigureProfile,
       }}
       hierarchySidebarProps={{

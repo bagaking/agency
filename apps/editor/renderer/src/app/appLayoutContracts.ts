@@ -189,6 +189,7 @@ export type SessionsState = UnknownRecord & {
   trackPendingHarnessRun?: FlexibleHandler;
   clearTrackedHarnessRun?: FlexibleHandler;
   settleTrackedHarnessRun?: FlexibleHandler;
+  focusSessionInUi?: FlexibleHandler;
 };
 
 export type SessionReplyContextState = UnknownRecord & {
@@ -295,6 +296,7 @@ export type ActionHandlers = UnknownRecord & {
   handleRevealAgentCellFileReference?: FlexibleHandler;
   handleImportAgentCellFileReferences?: FlexibleHandler;
   handleContinueSessionOnMobile?: FlexibleHandler;
+  handleFocusSessionInUi?: FlexibleHandler<[string, string]>;
 };
 
 export interface HierarchyConfigState {
@@ -475,6 +477,7 @@ export interface BuildAppLayoutInput {
   trackPendingHarnessRun?: FlexibleHandler;
   clearTrackedHarnessRun?: FlexibleHandler;
   settleTrackedHarnessRun?: FlexibleHandler;
+  focusSessionInUi?: FlexibleHandler;
   handleContinueSessionOnMobile?: FlexibleHandler;
   projectReady: boolean;
   projectError: string;

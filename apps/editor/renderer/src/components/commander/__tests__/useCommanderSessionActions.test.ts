@@ -28,6 +28,9 @@ test('runSmartFork pre-tracks, launches, settles, and selects the created child 
       calls.push('settle');
       return true;
     },
+    focusSessionInUi: () => {
+      calls.push('focus-ui');
+    },
     clearTrackedHarnessRun: () => {
       calls.push('clear');
     },
@@ -53,6 +56,7 @@ test('runSmartFork pre-tracks, launches, settles, and selects the created child 
     'track-run',
     'launch-task',
     'settle',
+    'focus-ui',
   ]);
 });
 
@@ -148,4 +152,85 @@ test('runSmartFork still delegates settle on partial failure when task sheet can
     'launch-task',
     'settle',
   ]);
+});
+
+test('runSmartName renames the session and notifies success after candidate apply', async () => {
+  const calls: string[] = [];
+  const runner = createCommanderSessionActionsRunner({
+    startSmartNameRun: async () => {
+      calls.push('start');
+      return { runId: 'run-name' };
+    },
+    launchCommanderTask: async () => {
+      calls.push('launch-task');
+      return {
+        type: 'apply',
+        value: 'Sharper Session',
+      };
+    },
+    renameSession: async () => {
+      calls.push('rename');
+      return undefined;
+    },
+    notifySuccess: () => {
+      calls.push('notify');
+    },
+    openAlert: async () => undefined,
+  } as any);
+
+  await runner.runSmartName({
+    cell: {
+      id: 'cell-1',
+      worktreePath: '/repo',
+      name: 'Cell 1',
+      branch: 'feat/test',
+    },
+    session: {
+      id: 'session-1',
+      name: 'CLI - codex',
+    },
+    available: true,
+  });
+
+  assert.deepEqual(calls, ['start', 'launch-task', 'rename', 'notify']);
+});
+
+test('runSmartName does not rename when task sheet is cancelled', async () => {
+  const calls: string[] = [];
+  const runner = createCommanderSessionActionsRunner({
+    startSmartNameRun: async () => {
+      calls.push('start');
+      return { runId: 'run-name' };
+    },
+    launchCommanderTask: async () => {
+      calls.push('launch-task');
+      return {
+        type: 'closed',
+      };
+    },
+    renameSession: async () => {
+      calls.push('rename');
+      return undefined;
+    },
+    notifySuccess: () => {
+      calls.push('notify');
+    },
+    openAlert: async () => undefined,
+  } as any);
+
+  await runner.runSmartName({
+    cell: {
+      id: 'cell-1',
+      worktreePath: '/repo',
+      name: 'Cell 1',
+      branch: 'feat/test',
+    },
+    session: {
+      id: 'session-1',
+      name: 'CLI - codex',
+    },
+    available: true,
+  });
+
+  assert.deepEqual(calls, ['start', 'launch-task']);
 });

@@ -32,6 +32,7 @@ type CommanderActionDeps = {
     description: string;
   }) => void;
   renameSession?: (sessionId: string, name: string, cellId: string) => Promise<any> | any;
+  focusSessionInUi?: (cellId: string, sessionId: string) => void;
   trackPendingHarnessRun?: (input: {
     clientRequestId: string;
     runId?: string;
@@ -210,6 +211,10 @@ export function createCommanderSessionActionsRunner(
           cellId: cell.id,
           sourceSessionId: session.id,
         });
+        const createdSessionId = String(taskResult?.value?.sessionId || '').trim();
+        if (createdSessionId) {
+          deps.focusSessionInUi?.(cell.id, createdSessionId);
+        }
       } catch (error: any) {
         await deps.openAlert({
           title: 'Smart Fork Failed',
@@ -227,11 +232,13 @@ export function createCommanderSessionActionsRunner(
 
 export function useCommanderSessionActions({
   renameSession,
+  focusSessionInUi,
   trackPendingHarnessRun,
   clearTrackedHarnessRun,
   settleTrackedHarnessRun,
 }: {
   renameSession?: CommanderActionDeps['renameSession'];
+  focusSessionInUi?: CommanderActionDeps['focusSessionInUi'];
   trackPendingHarnessRun?: CommanderActionDeps['trackPendingHarnessRun'];
   clearTrackedHarnessRun?: CommanderActionDeps['clearTrackedHarnessRun'];
   settleTrackedHarnessRun?: CommanderActionDeps['settleTrackedHarnessRun'];
@@ -266,6 +273,7 @@ export function useCommanderSessionActions({
               description,
             }),
           renameSession,
+          focusSessionInUi,
           trackPendingHarnessRun,
           clearTrackedHarnessRun,
           settleTrackedHarnessRun,
@@ -276,6 +284,7 @@ export function useCommanderSessionActions({
       clearTrackedHarnessRun,
       launchCommanderTask,
       modal,
+      focusSessionInUi,
       renameSession,
       settleTrackedHarnessRun,
       trackPendingHarnessRun,

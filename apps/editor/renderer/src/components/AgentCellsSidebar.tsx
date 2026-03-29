@@ -32,6 +32,7 @@ export function AgentCellsSidebar({
   onTrackPendingHarnessRun,
   onClearTrackedHarnessRun,
   onSettleTrackedHarnessRun,
+  onFocusSessionInUi,
   onConfigureProfile,
   onOpenFileReference,
   onRevealFileReference,
@@ -170,6 +171,7 @@ export function AgentCellsSidebar({
           onTrackPendingHarnessRun={onTrackPendingHarnessRun}
           onClearTrackedHarnessRun={onClearTrackedHarnessRun}
           onSettleTrackedHarnessRun={onSettleTrackedHarnessRun}
+          onFocusSessionInUi={onFocusSessionInUi}
           onConfigureProfile={onConfigureProfile}
         />
 

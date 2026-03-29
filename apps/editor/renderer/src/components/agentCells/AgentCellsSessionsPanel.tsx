@@ -111,6 +111,7 @@ type AgentCellsSessionsPanelProps = {
     sourceSessionId?: string;
     runSnapshot?: any;
   }) => Promise<boolean>;
+  onFocusSessionInUi?: (cellId: string, sessionId: string) => void;
   onConfigureProfile?: (profile: any) => void;
 };
 
@@ -273,6 +274,7 @@ export function AgentCellsSessionsPanel({
   onTrackPendingHarnessRun,
   onClearTrackedHarnessRun,
   onSettleTrackedHarnessRun,
+  onFocusSessionInUi,
   onConfigureProfile,
 }: AgentCellsSessionsPanelProps) {
   const [idleNow, setIdleNow] = useState(Date.now());
@@ -546,6 +548,7 @@ export function AgentCellsSessionsPanel({
   });
   const commanderSessionActions = useCommanderSessionActions({
     renameSession: onRenameSession,
+    focusSessionInUi: onFocusSessionInUi,
     trackPendingHarnessRun: onTrackPendingHarnessRun,
     clearTrackedHarnessRun: onClearTrackedHarnessRun,
     settleTrackedHarnessRun: onSettleTrackedHarnessRun,
