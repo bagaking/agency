@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { LazyMonacoEditor, preloadLazyMonacoEditor } from '../ui/LazyMonacoEditor';
 import { SessionReplyComposerChrome } from './SessionReplyComposerChrome';
 import {
@@ -13,30 +13,49 @@ import {
 export function SessionReplyComposer({
   editorRef,
   editorContainerRef,
-  quickPromptMenuRef,
-  quickPromptTriggerRef,
+  scopeKey,
   replyText,
   setReplyText,
   queryText,
   error,
   availableQuickPrompts,
-  quickPromptMenuOpen,
-  setQuickPromptMenuOpen,
   handleInsertQuickPrompt,
-  selectedTarget,
-  setSelectedTarget,
   otherTargets,
-  sendMenuOpen,
-  setSendMenuOpen,
   hasContent,
   submitting,
-  targetLabel,
   handleCreateReply,
   selectionContext,
   siteText,
   onClearSelection,
 }: any) {
   const pendingEditorFocusRef = useRef(false);
+  const quickPromptMenuRef = useRef<HTMLDivElement | null>(null);
+  const quickPromptTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const [quickPromptMenuOpen, setQuickPromptMenuOpen] = useState(false);
+  const [sendMenuOpen, setSendMenuOpen] = useState(false);
+  const [selectedTarget, setSelectedTarget] = useState<any>(null);
+  const targetLabel = selectedTarget
+    ? `${selectedTarget.sessionName || selectedTarget.sessionId}`
+    : 'Current';
+
+  useEffect(() => {
+    setQuickPromptMenuOpen(false);
+    setSendMenuOpen(false);
+    setSelectedTarget(null);
+  }, [scopeKey]);
+
+  useEffect(() => {
+    if (!selectedTarget) {
+      return;
+    }
+    const stillAvailable = otherTargets.some(
+      (target: any) =>
+        target?.cellId === selectedTarget.cellId && target?.sessionId === selectedTarget.sessionId
+    );
+    if (!stillAvailable) {
+      setSelectedTarget(null);
+    }
+  }, [otherTargets, selectedTarget]);
 
   const primeEditorInteraction = () => {
     if (editorRef.current) {
@@ -50,24 +69,24 @@ export function SessionReplyComposer({
     <div className="border-t border-border/20 bg-background/80 backdrop-blur-md">
       <div className="relative flex flex-col focus-within:bg-card/40 transition-colors">
         <SessionReplyComposerChrome
-          quickPromptMenuRef={quickPromptMenuRef}
-          quickPromptTriggerRef={quickPromptTriggerRef}
           availableQuickPrompts={availableQuickPrompts}
-          quickPromptMenuOpen={quickPromptMenuOpen}
-          setQuickPromptMenuOpen={setQuickPromptMenuOpen}
           handleInsertQuickPrompt={handleInsertQuickPrompt}
-          selectedTarget={selectedTarget}
-          setSelectedTarget={setSelectedTarget}
           otherTargets={otherTargets}
-          sendMenuOpen={sendMenuOpen}
-          setSendMenuOpen={setSendMenuOpen}
           hasContent={hasContent}
           submitting={submitting}
-          targetLabel={targetLabel}
           handleCreateReply={handleCreateReply}
+          selectedTarget={selectedTarget}
           selectionContext={selectionContext}
+          setSelectedTarget={setSelectedTarget}
+          sendMenuOpen={sendMenuOpen}
+          setSendMenuOpen={setSendMenuOpen}
           siteText={siteText}
+          targetLabel={targetLabel}
           onClearSelection={onClearSelection}
+          quickPromptMenuOpen={quickPromptMenuOpen}
+          setQuickPromptMenuOpen={setQuickPromptMenuOpen}
+          quickPromptMenuRef={quickPromptMenuRef}
+          quickPromptTriggerRef={quickPromptTriggerRef}
         />
 
         <div

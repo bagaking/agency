@@ -120,7 +120,10 @@ export function SessionReplyComposerChrome({
                         key={prompt.id}
                         ref={index === 0 ? quickPromptFirstItemRef : undefined}
                         type="button"
-                        onClick={() => handleInsertQuickPrompt(prompt.text)}
+                        onClick={() => {
+                          handleInsertQuickPrompt(prompt.text);
+                          setQuickPromptMenuOpen(false);
+                        }}
                         className={`w-full rounded-md px-2 py-1.5 text-left transition-colors hover:bg-muted/40 ${focusRingClass}`}
                       >
                         {prompt.title ? (
@@ -164,7 +167,7 @@ export function SessionReplyComposerChrome({
             <Tooltip label={`Send to ${targetLabel}`} side="top">
               <button
                 type="button"
-                onClick={() => handleCreateReply({ action: 'send' })}
+                onClick={() => handleCreateReply({ action: 'send', target: selectedTarget })}
                 disabled={!hasContent || submitting}
                 aria-label={`Send reply to ${targetLabel}`}
                 className={`flex h-6 items-center gap-1.5 rounded-md bg-primary px-3 text-[10px] font-bold text-primary-foreground shadow-lg transition-colors hover:bg-primary/90 disabled:opacity-50 active:scale-95 ${focusRingClass}`}

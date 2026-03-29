@@ -30,16 +30,11 @@ export function SessionReplyPanel({
 }: any) {
   const editorRef = useRef(null);
   const editorContainerRef = useRef(null);
-  const quickPromptMenuRef = useRef(null);
-  const quickPromptTriggerRef = useRef(null);
   const [replyText, setReplyText] = useState('');
-  const [sendMenuOpen, setSendMenuOpen] = useState(false);
-  const [quickPromptMenuOpen, setQuickPromptMenuOpen] = useState(false);
   const [replyItems, setReplyItems] = useState([]);
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [selectedTarget, setSelectedTarget] = useState(null);
 
   const selectionContext = useMemo(() => {
     if (!selection?.text) {
@@ -80,10 +75,6 @@ export function SessionReplyPanel({
     [resolvedQuickPrompts]
   );
 
-  useEffect(() => {
-    setSelectedTarget(null);
-  }, [cell?.id, session?.id]);
-
   const refreshReplies = useCallback(async () => {
     if (!worktreePath || !cell?.id || !session?.id) {
       setReplyItems([]);
@@ -118,8 +109,6 @@ export function SessionReplyPanel({
 
   useEffect(() => {
     setReplyText('');
-    setSendMenuOpen(false);
-    setQuickPromptMenuOpen(false);
     setError('');
   }, [cell?.id, session?.id]);
 
@@ -196,11 +185,10 @@ export function SessionReplyPanel({
     } else {
       setReplyText((current) => `${current}${text}`);
     }
-    setQuickPromptMenuOpen(false);
   }, []);
 
   const handleCreateReply = useCallback(
-    async ({ action }: any) => {
+    async ({ action, target }: any) => {
       if (!hasSession) {
         setError('Select a session before recording replies.');
         return;
@@ -219,7 +207,7 @@ export function SessionReplyPanel({
 
       const { effectiveAction, targetMeta } = resolveReplyDispatchTarget({
         action,
-        selectedTarget,
+        selectedTarget: target || null,
         cell,
         session,
       });
@@ -318,7 +306,6 @@ export function SessionReplyPanel({
           });
         }
         setReplyText('');
-        setSendMenuOpen(false);
         await refreshReplies();
       } catch (submitError) {
         setError(submitError?.message || 'Failed to record reply.');
@@ -334,7 +321,6 @@ export function SessionReplyPanel({
       queryText,
       refreshReplies,
       selectionContext,
-      selectedTarget,
       session?.avatar,
       session?.id,
       session?.name,
@@ -353,10 +339,6 @@ export function SessionReplyPanel({
       </div>
     );
   }
-
-  const targetLabel = selectedTarget 
-    ? `${selectedTarget.sessionName || selectedTarget.sessionId}` 
-    : 'Current';
 
   return (
     <div className="flex h-full w-full flex-col bg-background/50">
@@ -391,29 +373,21 @@ export function SessionReplyPanel({
       />
 
       <SessionReplyComposer
-        editorRef={editorRef}
-        editorContainerRef={editorContainerRef}
-        quickPromptMenuRef={quickPromptMenuRef}
-        quickPromptTriggerRef={quickPromptTriggerRef}
-        replyText={replyText}
-        setReplyText={setReplyText}
-        queryText={queryText}
-        error={error}
-        availableQuickPrompts={availableQuickPrompts}
-        quickPromptMenuOpen={quickPromptMenuOpen}
-        setQuickPromptMenuOpen={setQuickPromptMenuOpen}
-        handleInsertQuickPrompt={handleInsertQuickPrompt}
-        selectedTarget={selectedTarget}
-        setSelectedTarget={setSelectedTarget}
-        otherTargets={otherTargets}
-        sendMenuOpen={sendMenuOpen}
-        setSendMenuOpen={setSendMenuOpen}
-        hasContent={hasContent}
-        submitting={submitting}
-        targetLabel={targetLabel}
-        handleCreateReply={handleCreateReply}
-        selectionContext={selectionContext}
-        siteText={siteText}
+          editorRef={editorRef}
+          editorContainerRef={editorContainerRef}
+          scopeKey={`${cell?.id || ''}:${session?.id || ''}`}
+          replyText={replyText}
+          setReplyText={setReplyText}
+          queryText={queryText}
+          error={error}
+          availableQuickPrompts={availableQuickPrompts}
+          handleInsertQuickPrompt={handleInsertQuickPrompt}
+          otherTargets={otherTargets}
+          hasContent={hasContent}
+          submitting={submitting}
+          handleCreateReply={handleCreateReply}
+          selectionContext={selectionContext}
+          siteText={siteText}
         onClearSelection={onClearSelection}
       />
     </div>
