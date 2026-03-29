@@ -1,12 +1,8 @@
 import React from 'react';
 import { 
-  FilePlus2, 
-  FolderPlus, 
-  RefreshCw, 
   Search, 
   X, 
   Filter, 
-  Layers, 
   ChevronDown, 
   Info 
 } from 'lucide-react';
@@ -19,15 +15,17 @@ export function ExplorerHeader({
   activeRootLabel,
   activeFilterCount,
   activeFilterSummary,
-  onJumpToAgents,
-  onNewFile,
-  onNewFolder,
-  onRefresh,
-  isLoading,
+  headerCommands,
   hasCells,
   cells,
   selectedId,
   onSelectCell,
+  workingSetOptions,
+  activeWorkingSetViewId,
+  onWorkingSetChange,
+  searchMode,
+  searchModeOptions,
+  onSearchModeChange,
   searchQuery,
   onSearchChange,
   onClearSearch,
@@ -39,6 +37,8 @@ export function ExplorerHeader({
   searchTruncated,
 }: any) {
   const contextBits = [activeFilterSummary || ''].filter(Boolean);
+  const searchPlaceholder =
+    searchMode === 'content' ? 'Search file contents…' : 'Search files…';
 
   return (
     <header data-testid="explorer-header" className="shrink-0 space-y-3 px-4 py-3 border-b border-border/40 bg-sidebar text-sidebar-foreground">
@@ -58,15 +58,16 @@ export function ExplorerHeader({
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <HeaderButton icon={Layers} onClick={onJumpToAgents} title="Go to Agent Cells" />
-          <HeaderButton icon={FilePlus2} onClick={onNewFile} title="New File" />
-          <HeaderButton icon={FolderPlus} onClick={onNewFolder} title="New Folder" />
-          <HeaderButton 
-            icon={RefreshCw} 
-            onClick={onRefresh} 
-            title="Refresh" 
-            className={isLoading ? "animate-spin" : ""} 
-          />
+          {(Array.isArray(headerCommands) ? headerCommands : []).map((command) => (
+            <HeaderButton
+              key={command.id}
+              icon={command.icon}
+              onClick={command.onSelect}
+              title={command.label}
+              disabled={command.isDisabled}
+              className={command.id === 'explorer.refresh' && command.spinning ? 'animate-spin' : ''}
+            />
+          ))}
         </div>
       </div>
 
@@ -93,7 +94,47 @@ export function ExplorerHeader({
         </div>
       )}
 
+      {Array.isArray(workingSetOptions) && workingSetOptions.length > 1 ? (
+        <div className="flex items-center gap-2">
+          <span className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/[0.4]">
+            View
+          </span>
+          <div className="inline-flex rounded-full border border-border/40 bg-muted/10 p-0.5">
+            {workingSetOptions.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => onWorkingSetChange?.(option.id)}
+                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
+                  activeWorkingSetViewId === option.id
+                    ? 'bg-primary/15 text-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex items-center gap-1.5">
+        <div className="inline-flex rounded-full border border-border/40 bg-muted/10 p-0.5">
+          {(Array.isArray(searchModeOptions) ? searchModeOptions : []).map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => onSearchModeChange?.(option.id)}
+              className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
+                searchMode === option.id
+                  ? 'bg-primary/15 text-primary'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
         <div className="relative flex-1 group">
           <Search size={12} strokeWidth={2} aria-hidden="true" className="absolute left-2.5 top-2 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
           <input
@@ -101,8 +142,8 @@ export function ExplorerHeader({
             onChange={(e) => onSearchChange(e.target.value)}
             name="explorerSearch"
             autoComplete="off"
-            placeholder="Search files…"
-            aria-label="Search files"
+            placeholder={searchPlaceholder}
+            aria-label={searchPlaceholder}
             className={`w-full rounded-full border border-border/40 bg-muted/10 px-8 py-1.5 text-[11px] text-foreground transition-colors placeholder:text-muted-foreground/30 focus:bg-background focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20 ${focusRingClass}`}
           />
           {searchQuery && (
@@ -149,13 +190,14 @@ export function ExplorerHeader({
   );
 }
 
-function HeaderButton({ icon: Icon, onClick, title, className = "" }: any) {
+function HeaderButton({ icon: Icon, onClick, title, className = "", disabled = false }: any) {
   return (
     <IconButton
       label={title}
       focusRing="sidebar"
       onClick={onClick}
-      className={`h-7 w-7 rounded-md p-1 text-muted-foreground/70 transition-colors hover:bg-muted/30 hover:text-foreground ${className}`}
+      disabled={disabled}
+      className={`h-7 w-7 rounded-md p-1 text-muted-foreground/70 transition-colors hover:bg-muted/30 hover:text-foreground disabled:opacity-40 ${className}`}
     >
       <Icon size={14} strokeWidth={1.5} aria-hidden="true" />
     </IconButton>

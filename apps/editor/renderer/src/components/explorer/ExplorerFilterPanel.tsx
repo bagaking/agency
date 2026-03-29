@@ -1,5 +1,9 @@
 import React from 'react';
 import { STATUS_FILTERS, statusBadgeStyles, statusColors, statusBadges, statusLabels } from './explorerUtils';
+import {
+  EXPLORER_FILTER_SEMANTIC,
+  EXPLORER_FILTER_STATUS,
+} from './explorerFilterDescriptors';
 import { focusRing } from '../ui/focusRing';
 
 const focusRingClass = focusRing.sidebar;
@@ -8,21 +12,16 @@ export function ExplorerFilterPanel({
   menuId,
   menuRef,
   menuStyle,
-  showHidden,
-  setShowHidden,
-  showIgnored,
-  setShowIgnored,
-  showChangesOnly,
-  setShowChangesOnly,
+  visibilityDescriptors,
+  descriptorStateById,
+  toggleDescriptor,
   statusFilterSet,
   toggleStatusFilter,
   clearStatusFilters,
-  statusFiltersCount,
   semanticRules,
   semanticFilterSet,
   toggleSemanticFilter,
   clearSemanticFilters,
-  semanticFiltersCount,
   onLocateSemanticRule,
 }: any) {
   const sortedSemanticRules = Array.isArray(semanticRules)
@@ -51,9 +50,14 @@ export function ExplorerFilterPanel({
         Visibility
       </div>
       <div className="space-y-1">
-        <FilterToggle label="Show hidden" active={showHidden} onClick={() => setShowHidden(!showHidden)} />
-        <FilterToggle label="Show ignored" active={showIgnored} onClick={() => setShowIgnored(!showIgnored)} />
-        <FilterToggle label="Changes only" active={showChangesOnly} onClick={() => setShowChangesOnly(!showChangesOnly)} />
+        {(Array.isArray(visibilityDescriptors) ? visibilityDescriptors : []).map((descriptor) => (
+          <FilterToggle
+            key={descriptor.id}
+            label={descriptor.label}
+            active={Boolean(descriptorStateById?.[descriptor.id])}
+            onClick={() => toggleDescriptor(descriptor.id)}
+          />
+        ))}
       </div>
       
       <div className="mt-4 mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/30">
@@ -81,7 +85,7 @@ export function ExplorerFilterPanel({
         })}
       </div>
       
-      {statusFiltersCount > 0 && (
+      {statusFilterSet?.size > 0 && (
         <button
           type="button"
           className={`mt-3 w-full rounded-lg border border-white/5 bg-white/5 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider hover:bg-white/10 transition-colors text-muted-foreground hover:text-foreground ${focusRingClass}`}
@@ -115,11 +119,11 @@ export function ExplorerFilterPanel({
                     aria-pressed={active}
                     className={`min-w-0 flex-1 px-2 py-1.5 text-left ${focusRingClass}`}
                     onClick={() => toggleSemanticFilter(ruleId)}
-                  >
-                    <span className="block truncate tracking-tight">{rule?.label || ruleId}</span>
-                    <span className="inline-flex shrink-0 rounded-[2px] border border-sky-400/30 bg-sky-500/10 px-1 text-[8px] font-bold uppercase tracking-tighter text-sky-200">
-                      {ruleId}
-                    </span>
+                >
+                  <span className="block truncate tracking-tight">{rule?.label || ruleId}</span>
+                  <span className="inline-flex shrink-0 rounded-[2px] border border-sky-400/30 bg-sky-500/10 px-1 text-[8px] font-bold uppercase tracking-tighter text-sky-200">
+                    {ruleId}
+                  </span>
                   </button>
                   {onLocateSemanticRule && (
                     <button
@@ -134,7 +138,7 @@ export function ExplorerFilterPanel({
               );
             })}
           </div>
-          {semanticFiltersCount > 0 && (
+          {semanticFilterSet?.size > 0 && (
             <button
               type="button"
               className={`mt-3 w-full rounded-lg border border-white/5 bg-white/5 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider hover:bg-white/10 transition-colors text-muted-foreground hover:text-foreground ${focusRingClass}`}

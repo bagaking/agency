@@ -1,32 +1,56 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { useProjectExplorer, explorerPathUtils } from '../../hooks/useProjectExplorer';
+import { getExplorerProjectPolicy } from '../../services/agencyBridge';
 import { RecentProjectsList } from '../RecentProjectsList';
 import { useModal } from '../modals/ModalSystem';
+import { ExplorerContentSearchView } from './ExplorerContentSearchView';
 import { ExplorerContextMenu } from './ExplorerContextMenu';
 import { ExplorerItem } from './ExplorerItem';
 import { ExplorerHeader } from './ExplorerHeader';
 import { ExplorerFilterPanel } from './ExplorerFilterPanel';
 import { ExplorerFooter } from './ExplorerFooter';
+import { ExplorerResearchLane } from './ExplorerResearchLane';
+import { ExplorerWorkingSetView } from './ExplorerWorkingSetView';
 import { 
   pickPrimaryStatus, 
 } from './explorerUtils';
 import { buildAgentCellModifiedFileChanges } from '../../utils/agentCellFileChanges';
+import {
+  getExplorerCommandsForSurface,
+} from './explorerCommands';
+import {
+  buildExplorerFilterSummary,
+  countActiveExplorerFilters,
+  EXPLORER_FILTER_DESCRIPTORS,
+  EXPLORER_FILTER_SEMANTIC,
+  EXPLORER_FILTER_STATUS,
+  EXPLORER_FILTER_VISIBILITY_CHANGES_ONLY,
+  EXPLORER_FILTER_VISIBILITY_HIDDEN,
+  EXPLORER_FILTER_VISIBILITY_IGNORED,
+} from './explorerFilterDescriptors';
+import {
+  EXPLORER_CONTENT_SCOPE_FOLDER,
+  EXPLORER_CONTENT_SCOPE_OPTIONS,
+  EXPLORER_CONTENT_SCOPE_PROJECT,
+  EXPLORER_CONTENT_SCOPE_SELECTION,
+  EXPLORER_SEARCH_MODE_CONTENT,
+  EXPLORER_SEARCH_MODE_OPTIONS,
+  EXPLORER_SEARCH_MODE_PATH,
+} from './explorerSearchModel';
 import { buildExplorerVisibleItems } from './explorerVisibleItems';
 import {
-  ExplorerChangedFilesPanel,
-  type ExplorerChangedFilesPanelMode,
-} from './ExplorerChangedFilesPanel';
+  EXPLORER_WORKING_SET_CHANGED_FILES,
+  getImplementedExplorerWorkingSets,
+} from './explorerWorkingSets';
 import { useExplorerClipboardActions } from './useExplorerClipboardActions';
+import { useExplorerContentSearch } from './useExplorerContentSearch';
 import { useExplorerChangedFilesActions } from './useExplorerChangedFilesActions';
+import { useExplorerCapabilityPreferences } from './useExplorerCapabilityPreferences';
 import { useExplorerDropHandlers } from './useExplorerDropHandlers';
 import { useExplorerExternalImport } from './useExplorerExternalImport';
 import { useExplorerEntryMutations } from './useExplorerEntryMutations';
 import { useExplorerPersistedUiState } from './useExplorerPersistedUiState';
-import {
-  DEFAULT_EXPLORER_FILTER_PREFERENCES,
-  useExplorerFilterPreferences,
-} from './useExplorerFilterPreferences';
 import {
   buildExplorerInternalDragPayload,
   writeExplorerInternalDragPaths,
@@ -120,14 +144,21 @@ function ProjectExplorerSidebarContent({
   const [contextMenu, setContextMenu] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [projectPolicy, setProjectPolicy] = useState<Record<string, any> | null>(null);
   const [showIgnored, setShowIgnored] = useState(false);
   const [statusFilters, setStatusFilters] = useState([]);
   const [semanticFilters, setSemanticFilters] = useState([]);
   const [focusedPath, setFocusedPath] = useState('');
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
-  const [changesPanelOpen, setChangesPanelOpen] = useState(true);
-  const [changesPanelMode, setChangesPanelMode] = useState<ExplorerChangedFilesPanelMode>('flat');
+  const [workingSetViewId, setWorkingSetViewId] = useState('tree');
+  const [searchMode, setSearchMode] = useState(EXPLORER_SEARCH_MODE_PATH);
+  const [contentScopeKind, setContentScopeKind] = useState(EXPLORER_CONTENT_SCOPE_PROJECT);
+  const [contentCaseSensitive, setContentCaseSensitive] = useState(false);
+  const [contentWholeWord, setContentWholeWord] = useState(false);
+  const [contentUseRegex, setContentUseRegex] = useState(false);
+  const [workingSetMode, setWorkingSetMode] = useState<'flat' | 'tree'>('flat');
+  const [researchLaneOpen, setResearchLaneOpen] = useState(false);
   const [filterMenuPosition, setFilterMenuPosition] = useState<{ top: number; left: number } | null>(
     null
   );
@@ -141,17 +172,24 @@ function ProjectExplorerSidebarContent({
 
   const statusFilterSet = useMemo(() => new Set(statusFilters), [statusFilters]);
   const semanticFilterSet = useMemo(() => new Set(semanticFilters), [semanticFilters]);
-  const isSearchActive = searchQuery.trim().length > 0;
-  const tree = isSearchActive ? searchTree : { nodes: nodesByPath, children: childrenByPath };
+  const descriptorStateById = useMemo(
+    () => ({
+      [EXPLORER_FILTER_VISIBILITY_HIDDEN]: showHidden,
+      [EXPLORER_FILTER_VISIBILITY_IGNORED]: showIgnored,
+      [EXPLORER_FILTER_VISIBILITY_CHANGES_ONLY]: showChangesOnly,
+      [EXPLORER_FILTER_STATUS]: statusFilters,
+      [EXPLORER_FILTER_SEMANTIC]: semanticFilters,
+    }),
+    [semanticFilters, showChangesOnly, showHidden, showIgnored, statusFilters]
+  );
+  const isPathSearchActive =
+    searchMode === EXPLORER_SEARCH_MODE_PATH && searchQuery.trim().length > 0;
+  const tree = isPathSearchActive ? searchTree : { nodes: nodesByPath, children: childrenByPath };
   const hasStatusFilters = statusFilterSet.size > 0;
   const hasSemanticFilters = semanticFilterSet.size > 0;
   const hasChangeFilter = showChangesOnly || hasStatusFilters;
   const hasSemanticFilter = hasSemanticFilters;
-  const hasVisibilityOverrides =
-    showHidden !== DEFAULT_EXPLORER_FILTER_PREFERENCES.showHidden ||
-    showIgnored !== DEFAULT_EXPLORER_FILTER_PREFERENCES.showIgnored ||
-    showChangesOnly !== DEFAULT_EXPLORER_FILTER_PREFERENCES.showChangesOnly;
-  const hasActiveFilters = hasStatusFilters || hasSemanticFilter || hasVisibilityOverrides;
+  const hasActiveFilters = countActiveExplorerFilters(descriptorStateById) > 0;
 
   const activeRootLabel = rootLabel || 'Project';
   const hasCells = cells && cells.length > 0;
@@ -167,48 +205,13 @@ function ProjectExplorerSidebarContent({
     });
     return map;
   }, [semanticRules]);
-  const activeFilterCount =
-    statusFilters.length +
-    semanticFilters.length +
-    Number(showHidden !== DEFAULT_EXPLORER_FILTER_PREFERENCES.showHidden) +
-    Number(showIgnored !== DEFAULT_EXPLORER_FILTER_PREFERENCES.showIgnored) +
-    Number(showChangesOnly !== DEFAULT_EXPLORER_FILTER_PREFERENCES.showChangesOnly);
+  const activeFilterCount = countActiveExplorerFilters(descriptorStateById);
   const activeFilterSummary = useMemo(() => {
-    const parts: string[] = [];
-    if (showChangesOnly) {
-      parts.push('Changes only');
-    }
-    if (showIgnored) {
-      parts.push('Show ignored');
-    }
-    if (showHidden !== DEFAULT_EXPLORER_FILTER_PREFERENCES.showHidden) {
-      parts.push(showHidden ? 'Show hidden' : 'Hide hidden');
-    }
-    if (statusFilters.length === 1) {
-      parts.push(statusLabels[statusFilters[0]] || statusFilters[0]);
-    } else if (statusFilters.length > 1) {
-      parts.push(`${statusFilters.length} status filters`);
-    }
-    if (semanticFilters.length === 1) {
-      parts.push(semanticRuleLabelById.get(semanticFilters[0]) || semanticFilters[0]);
-    } else if (semanticFilters.length > 1) {
-      parts.push(`${semanticFilters.length} semantic filters`);
-    }
-    if (!parts.length) {
-      return '';
-    }
-    if (parts.length <= 3) {
-      return parts.join(' · ');
-    }
-    return `${parts.slice(0, 3).join(' · ')} +${parts.length - 3}`;
-  }, [
-    semanticFilters,
-    semanticRuleLabelById,
-    showChangesOnly,
-    showHidden,
-    showIgnored,
-    statusFilters,
-  ]);
+    return buildExplorerFilterSummary(descriptorStateById, {
+      statusLabels,
+      semanticRuleLabelById,
+    });
+  }, [descriptorStateById, semanticRuleLabelById, statusLabels]);
 
   const changedPanelEntries = useMemo(() => {
     if (!selectedCellId) {
@@ -245,8 +248,34 @@ function ProjectExplorerSidebarContent({
     setFocusedPath,
   });
 
-  useExplorerFilterPreferences({
+  useEffect(() => {
+    let cancelled = false;
+    const nextRoot = scopeRootPath || rootPath || repoRoot;
+    if (!nextRoot) {
+      setProjectPolicy(null);
+      return undefined;
+    }
+    const loadPolicy = async () => {
+      try {
+        const response = await getExplorerProjectPolicy({ rootPath: nextRoot });
+        if (!cancelled) {
+          setProjectPolicy(response?.policy || null);
+        }
+      } catch (_error) {
+        if (!cancelled) {
+          setProjectPolicy(null);
+        }
+      }
+    };
+    void loadPolicy();
+    return () => {
+      cancelled = true;
+    };
+  }, [repoRoot, rootPath, scopeRootPath]);
+
+  useExplorerCapabilityPreferences({
     stateKey: explorerStateKey,
+    projectPolicy,
     showHidden,
     setShowHidden,
     showIgnored,
@@ -257,6 +286,18 @@ function ProjectExplorerSidebarContent({
     setStatusFilters,
     semanticFilters,
     setSemanticFilters,
+    workingSetViewId,
+    setWorkingSetViewId,
+    searchMode,
+    setSearchMode,
+    contentScopeKind,
+    setContentScopeKind,
+    contentCaseSensitive,
+    setContentCaseSensitive,
+    contentWholeWord,
+    setContentWholeWord,
+    contentUseRegex,
+    setContentUseRegex,
   });
 
   useDismissibleLayer({
@@ -330,6 +371,28 @@ function ProjectExplorerSidebarContent({
     return () => window.cancelAnimationFrame(frameId);
   }, [filterMenuOpen]);
 
+  useLayoutEffect(() => {
+    const node = listRef.current;
+    if (!node) {
+      return undefined;
+    }
+    const measure = () => setViewportHeight(node.clientHeight || 0);
+    measure();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }
+    const observer = new ResizeObserver(() => measure());
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [workingSetViewId, searchMode]);
+
+  useEffect(() => {
+    if (searchMode !== EXPLORER_SEARCH_MODE_PATH || workingSetViewId !== 'tree') {
+      setFilterMenuOpen(false);
+    }
+  }, [searchMode, workingSetViewId]);
+
   useEffect(() => {
     const availableRuleIds = new Set(
       (Array.isArray(semanticRules) ? semanticRules : [])
@@ -382,7 +445,7 @@ function ProjectExplorerSidebarContent({
           children: tree.children,
         },
         expandedPaths,
-        isSearchActive,
+        isSearchActive: isPathSearchActive,
         showHidden,
         showIgnored,
         draftEntry: draftEntry?.parentPath
@@ -405,7 +468,7 @@ function ProjectExplorerSidebarContent({
       hasChangeFilter,
       hasStatusFilters,
       isPathIgnored,
-      isSearchActive,
+      isPathSearchActive,
       matchesSemanticFilter,
       showHidden,
       showIgnored,
@@ -508,7 +571,7 @@ function ProjectExplorerSidebarContent({
     scopeRootPath,
   ]);
 
-  const handleOpenEntry = useCallback(async (targetPath, mode = 'preview') => {
+  const handleOpenEntry = useCallback(async (targetPath, mode = 'preview', line?: number) => {
     const normalizedPath = explorerPathUtils.toRelativePath(targetPath || '');
     if (!normalizedPath) {
       return false;
@@ -519,7 +582,7 @@ function ProjectExplorerSidebarContent({
       if (!resolvedPath) {
         return false;
       }
-      onOpenFile?.({ path: resolvedPath, mode });
+      onOpenFile?.({ path: resolvedPath, mode, line });
       clearError();
       return true;
     } catch (err) {
@@ -543,7 +606,7 @@ function ProjectExplorerSidebarContent({
     scopeRootPath,
     selectedCellWorktreePath: String(selectedCell?.worktreePath || ''),
     selectedCellId,
-    isPanelOpen: changesPanelOpen,
+    isPanelOpen: workingSetViewId === EXPLORER_WORKING_SET_CHANGED_FILES,
     changedPanelEntries,
     refreshAll,
     selectPathInExplorer,
@@ -561,6 +624,88 @@ function ProjectExplorerSidebarContent({
   const activeDir = activeNode?.type === 'dir' ? activeTarget : explorerPathUtils.dirname(activeTarget);
   const selectionTargets = selectedPaths.length ? selectedPaths : activeTarget ? [activeTarget] : [];
   const selectionCount = selectionTargets.length;
+  const workingSetOptions = useMemo(() => getImplementedExplorerWorkingSets(), []);
+  const contentScopeOptions = useMemo(
+    () =>
+      EXPLORER_CONTENT_SCOPE_OPTIONS.map((option) => ({
+        ...option,
+        disabled:
+          option.id === EXPLORER_CONTENT_SCOPE_SELECTION ? selectionCount === 0 : false,
+      })),
+    [selectionCount]
+  );
+  const contentSearchScope = useMemo(() => {
+    if (contentScopeKind === EXPLORER_CONTENT_SCOPE_SELECTION) {
+      return {
+        kind: EXPLORER_CONTENT_SCOPE_SELECTION,
+        paths: selectionTargets,
+      };
+    }
+    if (contentScopeKind === EXPLORER_CONTENT_SCOPE_FOLDER) {
+      return {
+        kind: EXPLORER_CONTENT_SCOPE_FOLDER,
+        path: activeNode?.type === 'dir' ? activeTarget : activeDir,
+      };
+    }
+    return { kind: EXPLORER_CONTENT_SCOPE_PROJECT };
+  }, [activeDir, activeNode?.type, activeTarget, contentScopeKind, selectionTargets]);
+
+  const {
+    query: contentSearchQuery,
+    setQuery: setContentSearchQuery,
+    replaceText,
+    setReplaceText,
+    results: contentSearchResults,
+    loading: contentSearchLoading,
+    replacing: contentSearchReplacing,
+    error: contentSearchError,
+    truncated: contentSearchTruncated,
+    scannedFiles: contentSearchScannedFiles,
+    skippedBinaryCount: contentSearchSkippedBinaryCount,
+    skippedLargeCount: contentSearchSkippedLargeCount,
+    applyReplace: applyContentReplace,
+  } = useExplorerContentSearch({
+    rootPath,
+    enabled: searchMode === EXPLORER_SEARCH_MODE_CONTENT,
+    scope: contentSearchScope,
+    caseSensitive: contentCaseSensitive,
+    wholeWord: contentWholeWord,
+    useRegex: contentUseRegex,
+  });
+
+  const handleApplyContentReplace = useCallback(async () => {
+    const totalFiles = contentSearchResults.length;
+    const totalMatches = contentSearchResults.reduce(
+      (sum, entry) => sum + Number(entry?.matchCount || 0),
+      0
+    );
+    const confirmed = await modal.confirm({
+      title: 'Replace Across Files',
+      tone: 'warning',
+      confirmLabel: 'Apply Replace',
+      description: `Replace ${JSON.stringify(contentSearchQuery.trim())} with ${JSON.stringify(
+        replaceText
+      )} across ${totalFiles} files and ${totalMatches} matches in the current content-search scope?`,
+    });
+    if (!confirmed) {
+      return;
+    }
+    const response = await applyContentReplace({
+      confirmedPaths: contentSearchResults.map((entry) => entry.path),
+    });
+    if (response) {
+      await refreshAll({ forceStatus: true, reloadExpanded: true });
+      await refreshChangesPanel();
+    }
+  }, [
+    applyContentReplace,
+    contentSearchQuery,
+    contentSearchResults,
+    modal,
+    refreshAll,
+    refreshChangesPanel,
+    replaceText,
+  ]);
 
   const {
     canPaste,
@@ -636,6 +781,19 @@ function ProjectExplorerSidebarContent({
     setErrorMessage,
   });
 
+  const toggleDescriptor = useCallback((descriptorId: string) => {
+    if (descriptorId === EXPLORER_FILTER_VISIBILITY_HIDDEN) {
+      setShowHidden((current) => !current);
+      return;
+    }
+    if (descriptorId === EXPLORER_FILTER_VISIBILITY_IGNORED) {
+      setShowIgnored((current) => !current);
+      return;
+    }
+    if (descriptorId === EXPLORER_FILTER_VISIBILITY_CHANGES_ONLY) {
+      setShowChangesOnly((current) => !current);
+    }
+  }, [setShowChangesOnly, setShowHidden, setShowIgnored]);
   const toggleStatusFilter = (s) => setStatusFilters(curr => curr.includes(s) ? curr.filter(it => it !== s) : [...curr, s]);
   const toggleSemanticFilter = (id) => setSemanticFilters((curr) => (
     curr.includes(id) ? curr.filter((it) => it !== id) : [...curr, id]
@@ -663,6 +821,102 @@ function ProjectExplorerSidebarContent({
     setFilterMenuOpen(false);
     clearError();
   }, [clearError, expandAncestorsForPath, semanticTagsByPath, selectPathInExplorer, setErrorMessage, visiblePaths]);
+  const handleOpenContentResult = useCallback(
+    async (targetPath, line?: number) => {
+      await expandAncestorsForPath(targetPath);
+      selectPathInExplorer(targetPath);
+      await handleOpenEntry(targetPath, 'pinned', line);
+    },
+    [expandAncestorsForPath, handleOpenEntry, selectPathInExplorer]
+  );
+  const handleRevealContentResult = useCallback(
+    async (targetPath) => {
+      await expandAncestorsForPath(targetPath);
+      selectPathInExplorer(targetPath);
+    },
+    [expandAncestorsForPath, selectPathInExplorer]
+  );
+  const headerSearchQuery =
+    searchMode === EXPLORER_SEARCH_MODE_CONTENT ? contentSearchQuery : searchQuery;
+  const setHeaderSearchQuery = useCallback(
+    (value: string) => {
+      if (searchMode === EXPLORER_SEARCH_MODE_CONTENT) {
+        setContentSearchQuery(value);
+        return;
+      }
+      setSearchQuery(value);
+    },
+    [searchMode, setContentSearchQuery, setSearchQuery]
+  );
+  const clearHeaderSearch = useCallback(() => {
+    setHeaderSearchQuery('');
+  }, [setHeaderSearchQuery]);
+  const headerCommandContext = useMemo(
+    () => ({
+      selectionTargets,
+      canPaste,
+      hasResearchLane: projectPolicy?.research?.enabled !== false,
+      actions: {
+        onJumpToAgents,
+        onNewFile: () => startDraft('file'),
+        onNewFolder: () => startDraft('dir'),
+        onRefresh: () => refreshAll({ forceStatus: true, reloadExpanded: true }),
+        onToggleResearchLane: () => setResearchLaneOpen((current) => !current),
+      },
+    }),
+    [canPaste, onJumpToAgents, projectPolicy?.research?.enabled, refreshAll, selectionTargets, startDraft]
+  );
+  const headerCommands = useMemo(
+    () =>
+      getExplorerCommandsForSurface('header', headerCommandContext).map((command) => ({
+        ...command,
+        spinning: command.id === 'explorer.refresh' && loadingPaths.size > 0,
+      })),
+    [headerCommandContext, loadingPaths.size]
+  );
+  const contextMenuCommandContext = useMemo(
+    () => ({
+      selectionTargets,
+      canPaste,
+      actions: {
+        onNewFile: () => startDraft('file'),
+        onNewFolder: () => startDraft('dir'),
+        onRename: () =>
+          setRenameTarget({
+            path: selectionTargets[0],
+            value: explorerPathUtils.basename(selectionTargets[0]),
+          }),
+        onDuplicate: () => handleDuplicate(selectionTargets[0]),
+        onCopy: () => handleCopySelection('copy'),
+        onCopyRelativePath: () => handleCopyRelativePath(selectionTargets),
+        onCopyAbsolutePath: () => handleCopyPath(selectionTargets),
+        onCut: () => handleCopySelection('cut'),
+        onPaste: () => handlePasteSelection(),
+        onPasteMarkdown: () => handlePasteMarkdown(),
+        onReveal: () => handleReveal(selectionTargets),
+        onAddComment: () => onAddComment?.(selectionTargets[0]),
+        onDelete: () => handleDelete(selectionTargets),
+      },
+    }),
+    [
+      canPaste,
+      handleCopyPath,
+      handleCopyRelativePath,
+      handleCopySelection,
+      handleDelete,
+      handleDuplicate,
+      handlePasteMarkdown,
+      handlePasteSelection,
+      handleReveal,
+      onAddComment,
+      selectionTargets,
+      startDraft,
+    ]
+  );
+  const contextMenuCommands = useMemo(
+    () => getExplorerCommandsForSurface('context_menu', contextMenuCommandContext),
+    [contextMenuCommandContext]
+  );
   const renderNodeRow = (item) => {
     if (item.draft) {
       return <ExplorerItem key={item.path} item={{ ...item, onBlur: handleDraftSubmit, onKeyDown: (e) => { if (e.key === 'Enter') handleDraftSubmit(); if (e.key === 'Escape') setDraftEntry(null); }, onChange: (e) => setDraftEntry(prev => ({ ...prev, value: e.target.value })), value: draftEntry?.value || '' }} />;
@@ -695,7 +949,7 @@ function ProjectExplorerSidebarContent({
         isSelected={selectionSet.has(item.path)}
         isFocused={focusedPath === item.path}
         isLoading={loadingPaths.has(item.path)}
-        isExpanded={expandedPaths.has(item.path) || isSearchActive} isOpen={!isDir && openFiles.has(item.path)}
+        isExpanded={expandedPaths.has(item.path) || isPathSearchActive} isOpen={!isDir && openFiles.has(item.path)}
         isDirty={!isDir && dirtyFiles.has(item.path)} isIgnored={isPathIgnored(item.path)} status={entry?.status} added={entry?.added} deleted={entry?.deleted}
         semanticTags={semanticTagsByPath?.[item.path] || []}
         commentCount={!isDir ? (commentCountsByPath?.[item.path] || 0) : 0}
@@ -762,33 +1016,67 @@ function ProjectExplorerSidebarContent({
         activeRootLabel={activeRootLabel}
         activeFilterCount={activeFilterCount}
         activeFilterSummary={activeFilterSummary}
-        onJumpToAgents={onJumpToAgents} onNewFile={() => startDraft('file')} onNewFolder={() => startDraft('dir')}
-        onRefresh={() => refreshAll({ forceStatus: true, reloadExpanded: true })} isLoading={loadingPaths.size > 0} hasCells={hasCells} cells={cells} selectedId={selectedId} onSelectCell={onSelectCell}
-        searchQuery={searchQuery} onSearchChange={setSearchQuery} onClearSearch={() => setSearchQuery('')}
+        headerCommands={headerCommands}
+        hasCells={hasCells}
+        cells={cells}
+        selectedId={selectedId}
+        onSelectCell={onSelectCell}
+        workingSetOptions={workingSetOptions}
+        activeWorkingSetViewId={workingSetViewId}
+        onWorkingSetChange={setWorkingSetViewId}
+        searchMode={searchMode}
+        searchModeOptions={EXPLORER_SEARCH_MODE_OPTIONS}
+        onSearchModeChange={setSearchMode}
+        searchQuery={headerSearchQuery}
+        onSearchChange={setHeaderSearchQuery}
+        onClearSearch={clearHeaderSearch}
         hasActiveFilters={hasActiveFilters}
         filterMenuOpen={filterMenuOpen}
         filterMenuId={filterMenuId}
         filterMenuButtonRef={filterMenuButtonRef}
         onToggleFilterMenu={() => setFilterMenuOpen((current) => !current)}
-        searchTruncated={searchTruncated}
+        searchTruncated={
+          searchMode === EXPLORER_SEARCH_MODE_CONTENT
+            ? contentSearchTruncated
+            : searchTruncated
+        }
       />
 
-      {filterMenuOpen && (
+      {researchLaneOpen ? (
+        <ExplorerResearchLane
+          rootPath={rootPath}
+          targetDirPath={activeDir}
+          allowMemoCapture={projectPolicy?.research?.allowMemoCapture !== false}
+          allowMarkdownSave={projectPolicy?.research?.allowMarkdownSave !== false}
+          onOpenSavedFile={(path) => {
+            void handleOpenEntry(path, 'pinned');
+          }}
+          onClose={() => setResearchLaneOpen(false)}
+        />
+      ) : null}
+
+      {filterMenuOpen &&
+      searchMode === EXPLORER_SEARCH_MODE_PATH &&
+      workingSetViewId === 'tree' ? (
         <ExplorerFilterPanel
           menuId={filterMenuId}
           menuRef={filterMenuRef}
           menuStyle={filterMenuPosition || undefined}
-          showHidden={showHidden} setShowHidden={setShowHidden} showIgnored={showIgnored} setShowIgnored={setShowIgnored}
-          showChangesOnly={showChangesOnly} setShowChangesOnly={setShowChangesOnly} statusFilterSet={statusFilterSet}
-          toggleStatusFilter={toggleStatusFilter} clearStatusFilters={() => setStatusFilters([])} statusFiltersCount={statusFilters.length}
+          visibilityDescriptors={EXPLORER_FILTER_DESCRIPTORS.filter(
+            (descriptor) => descriptor.group === 'visibility'
+          )}
+          descriptorStateById={descriptorStateById}
+          toggleDescriptor={toggleDescriptor}
+          statusFilterSet={statusFilterSet}
+          toggleStatusFilter={toggleStatusFilter}
+          clearStatusFilters={() => setStatusFilters([])}
           semanticRules={semanticRules}
           semanticFilterSet={semanticFilterSet}
           toggleSemanticFilter={toggleSemanticFilter}
           clearSemanticFilters={() => setSemanticFilters([])}
-          semanticFiltersCount={semanticFilters.length}
           onLocateSemanticRule={handleLocateSemanticRule}
         />
-      )}
+      ) : null}
 
       {error && (
         <div
@@ -801,50 +1089,77 @@ function ProjectExplorerSidebarContent({
         </div>
       )}
 
-      <div
-        ref={listRef}
-        data-testid="explorer-tree"
-        role="tree"
-        aria-label={`${activeRootLabel} file tree`}
-        aria-multiselectable="true"
-        aria-activedescendant={focusedTreeItemId}
-        aria-busy={loadingPaths.size > 0}
-        className="flex-1 overflow-y-auto px-1 py-2 scrollbar-hide focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/20 focus-visible:ring-inset"
-        tabIndex={0}
-        onClick={() => closeContextMenu()} onKeyDown={handleKeyDown}
-        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
-        onDragOver={handleTreeDragOver}
-        onDrop={handleTreeDrop}
-      >
-        {visibleItems.length === 0 ? (
-          <div className="px-3 py-2 text-xs text-muted-foreground/70">{emptyStateMessage}</div>
-        ) : (
-          <div style={{ height: totalHeight, position: 'relative' }}>
-            <div style={{ transform: `translateY(${offsetY}px)` }}>
-              {visibleSlice.map((it) => renderNodeRow(it))}
+      {searchMode === EXPLORER_SEARCH_MODE_CONTENT ? (
+        <ExplorerContentSearchView
+          query={contentSearchQuery}
+          replaceText={replaceText}
+          setReplaceText={setReplaceText}
+          scopeOptions={contentScopeOptions}
+          activeScopeKind={contentScopeKind}
+          onScopeChange={setContentScopeKind}
+          caseSensitive={contentCaseSensitive}
+          wholeWord={contentWholeWord}
+          useRegex={contentUseRegex}
+          onToggleCaseSensitive={() => setContentCaseSensitive((current) => !current)}
+          onToggleWholeWord={() => setContentWholeWord((current) => !current)}
+          onToggleUseRegex={() => setContentUseRegex((current) => !current)}
+          results={contentSearchResults}
+          loading={contentSearchLoading}
+          replacing={contentSearchReplacing}
+          truncated={contentSearchTruncated}
+          scannedFiles={contentSearchScannedFiles}
+          skippedBinaryCount={contentSearchSkippedBinaryCount}
+          skippedLargeCount={contentSearchSkippedLargeCount}
+          error={contentSearchError}
+          onOpenResult={(path, line) => handleOpenContentResult(path, line)}
+          onRevealResult={handleRevealContentResult}
+          onApplyReplace={handleApplyContentReplace}
+        />
+      ) : workingSetViewId === EXPLORER_WORKING_SET_CHANGED_FILES ? (
+        <ExplorerWorkingSetView
+          title="Changed Files"
+          subtitle={selectedCell?.name || selectedCellId || 'Selected Cell'}
+          entries={changedPanelEntries}
+          mode={workingSetMode}
+          refreshing={changesPanelRefreshing}
+          updatedAt={changesPanelUpdatedAt}
+          preview={changesPanelPreview}
+          onRefresh={refreshChangesPanel}
+          onModeChange={setWorkingSetMode}
+          onOpenEntry={(entry) => handleOpenChangedEntry(entry, { mode: 'preview' })}
+          onRevealEntry={handleRevealChangedEntry}
+          onPreviewEntry={handlePreviewChangedEntry}
+          onDragEntry={handleChangeEntryDragStart}
+          onClearPreview={clearChangesPanelPreview}
+        />
+      ) : (
+        <div
+          ref={listRef}
+          data-testid="explorer-tree"
+          role="tree"
+          aria-label={`${activeRootLabel} file tree`}
+          aria-multiselectable="true"
+          aria-activedescendant={focusedTreeItemId}
+          aria-busy={loadingPaths.size > 0}
+          className="flex-1 overflow-y-auto px-1 py-2 scrollbar-hide focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/20 focus-visible:ring-inset"
+          tabIndex={0}
+          onClick={() => closeContextMenu()}
+          onKeyDown={handleKeyDown}
+          onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+          onDragOver={handleTreeDragOver}
+          onDrop={handleTreeDrop}
+        >
+          {visibleItems.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-muted-foreground/70">{emptyStateMessage}</div>
+          ) : (
+            <div style={{ height: totalHeight, position: 'relative' }}>
+              <div style={{ transform: `translateY(${offsetY}px)` }}>
+                {visibleSlice.map((it) => renderNodeRow(it))}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
-
-      <ExplorerChangedFilesPanel
-        entries={changedPanelEntries}
-        selectedCell={selectedCell}
-        selectedCellId={selectedCellId}
-        isOpen={changesPanelOpen}
-        mode={changesPanelMode}
-        refreshing={changesPanelRefreshing}
-        updatedAt={changesPanelUpdatedAt}
-        preview={changesPanelPreview}
-        onRefresh={refreshChangesPanel}
-        onToggleOpen={() => setChangesPanelOpen((current) => !current)}
-        onModeChange={setChangesPanelMode}
-        onOpenEntry={(entry) => handleOpenChangedEntry(entry, { mode: 'preview' })}
-        onRevealEntry={handleRevealChangedEntry}
-        onPreviewEntry={handlePreviewChangedEntry}
-        onDragEntry={handleChangeEntryDragStart}
-        onClearPreview={clearChangesPanelPreview}
-      />
+          )}
+        </div>
+      )}
 
       <ExplorerFooter
         selectionCount={selectionCount}
@@ -869,15 +1184,11 @@ function ProjectExplorerSidebarContent({
 
       {contextMenu && (
         <ExplorerContextMenu
-          x={contextMenu.x} y={contextMenu.y} onClose={closeContextMenu} selectionTargets={selectionTargets} canPaste={canPaste}
-          onNewFile={() => startDraft('file')} onNewFolder={() => startDraft('dir')}
-          onRename={() => setRenameTarget({ path: selectionTargets[0], value: explorerPathUtils.basename(selectionTargets[0]) })}
-          onDuplicate={() => handleDuplicate(selectionTargets[0])} onCopy={() => handleCopySelection('copy')}
-          onCopyRelativePath={() => handleCopyRelativePath(selectionTargets)}
-          onCopyAbsolutePath={() => handleCopyPath(selectionTargets)}
-          onCut={() => handleCopySelection('cut')} onPaste={handlePasteSelection} onPasteMarkdown={handlePasteMarkdown}
-          onReveal={() => handleReveal(selectionTargets)} onDelete={() => handleDelete(selectionTargets)}
-          onAddComment={() => onAddComment?.(selectionTargets[0])}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={closeContextMenu}
+          selectionCount={selectionCount}
+          commands={contextMenuCommands}
         />
       )}
     </aside>

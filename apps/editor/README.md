@@ -30,12 +30,16 @@
 - Explorer provides a project file tree with git status (including added, untracked, ignored) and per-Cell change attribution.
 - Explorer scopes to the active Cell worktree (or repo root) and opens files in the workbench.
 - Workbench breadcrumbs are segment-clickable and reveal/select the target inside Explorer tree (without invoking OS Finder reveal).
-- Explorer supports filters (hidden/ignored/status), keyboard navigation, open/dirty indicators, and watch-based auto refresh.
+- Explorer supports descriptor-driven filters (hidden/ignored/changes/status/semantic), keyboard navigation, open/dirty indicators, and watch-based auto refresh.
+- Explorer distinguishes path search from cross-file content search; content search returns line-level evidence and supports scoped replace with review.
 - Explorer supports semantic-file tags and semantic filters (built-in + project rules from `.agency/agent-files.yaml`).
 - Explorer semantic filters support quick-locate to jump to the first matching file.
+- Explorer promotes `Changed Files` into a registered working-set view and keeps room for future working-set families.
+- Explorer supports project-level defaults from `.agency/explorer.yaml` / `.agency/explorer.yml` without overriding user-local persisted state.
 - Explorer supports copy/cut/paste via context menu and keyboard shortcuts.
 - Explorer can paste files or screenshots from the system clipboard, applying `-1` style conflict suffixes.
 - Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
+- Explorer includes a bounded research lane for URL inspection, Markdown save, memo citation, and explicit system-browser escape.
 - The workbench supports multi-tab previews, quick open, diff/blame toggles, media previews, and active-tab disk-change auto sync (auto-reload when clean, warning + reload when dirty).
 
 ## Unified File Interaction Direction

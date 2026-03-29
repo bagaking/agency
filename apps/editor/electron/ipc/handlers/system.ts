@@ -7,6 +7,23 @@ const PERMISSION_URLS = {
 };
 
 function setupSystemHandlers() {
+  ipcMain.handle('system:openExternal', async (_event, payload) => {
+    const url = String(payload?.url || '').trim();
+    if (!url) {
+      return { ok: false, error: 'missing-url' };
+    }
+    try {
+      await shell.openExternal(url);
+      return { ok: true };
+    } catch (error) {
+      logRuntime('warn', 'open external url failed', {
+        url,
+        error: error?.message || String(error),
+      });
+      return { ok: false, error: error?.message || String(error) };
+    }
+  });
+
   ipcMain.handle('system:openPermissions', async (_event, payload) => {
     if (process.platform !== 'darwin') {
       return { ok: false, error: 'unsupported-platform' };

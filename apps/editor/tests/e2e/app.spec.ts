@@ -407,7 +407,7 @@ test('agent cells explorer panel imports dropped external files', async () => {
   }
 });
 
-test('explorer shows companion changed-files panel above footer', async () => {
+test('explorer promotes changed files into a registered working-set view', async () => {
   const electronApp = await launchTestApp();
 
   try {
@@ -415,28 +415,23 @@ test('explorer shows companion changed-files panel above footer', async () => {
     await openFirstCellInHomeView(window);
     await openExplorer(window);
 
-    const changesPanel = window.getByTestId('explorer-changes-panel');
-    const changesList = window.getByTestId('explorer-changes-panel-list');
-    const disclosure = changesPanel.getByRole('button', { name: 'Collapse', exact: true });
+    await window.getByRole('button', { name: 'Changed', exact: true }).click();
 
-    await expect(changesPanel).toBeVisible();
-    await expect(changesPanel).toContainText('Changed Files');
-    await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
-    await changesPanel.getByRole('button', { name: 'Refresh changed files', exact: true }).click();
+    const changesList = window.getByTestId('explorer-working-set-list');
+    await expect(window.getByText('Changed Files')).toBeVisible();
+    await window.getByRole('button', { name: 'Refresh working set', exact: true }).click();
     await expect(changesList).toBeVisible();
     await expect
       .poll(async () => (await changesList.textContent() || '').trim().length > 0)
       .toBe(true);
 
-    await disclosure.click();
-    await expect(changesPanel.getByRole('button', { name: 'Expand', exact: true })).toHaveAttribute('aria-expanded', 'false');
-    await changesPanel.getByRole('button', { name: 'Expand', exact: true }).click();
-    await expect(changesList).toBeVisible();
-
-    await changesPanel.getByRole('button', { name: 'Grouped', exact: true }).click();
+    await window.getByRole('button', { name: 'Grouped', exact: true }).click();
     await expect
       .poll(async () => (await changesList.textContent() || '').trim().length > 0)
       .toBe(true);
+
+    await window.getByRole('button', { name: 'Tree', exact: true }).click();
+    await expect(window.getByTestId('explorer-tree')).toBeVisible();
   } finally {
     await electronApp.close();
   }

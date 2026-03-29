@@ -1,21 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  FilePlus2, 
-  FolderPlus, 
-  Pencil, 
-  Copy, 
-  Scissors, 
-  ClipboardPaste, 
-  FileText, 
-  Eye, 
-  Trash2, 
-  ChevronRight,
-  MessageSquarePlus,
-  Link
-} from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { focusRing } from '../ui/focusRing';
 import { useDismissibleLayer } from '../ui/useDismissibleLayer';
+import { EXPLORER_CONTEXT_MENU_GROUP_ORDER } from './explorerCommands';
 
 const focusRingClass = focusRing.default;
 
@@ -23,28 +11,17 @@ export function ExplorerContextMenu({
   x,
   y,
   onClose,
-  selectionTargets,
-  canPaste,
-  onNewFile,
-  onNewFolder,
-  onRename,
-  onDuplicate,
-  onCopy,
-  onCopyRelativePath,
-  onCopyAbsolutePath,
-  onCut,
-  onPaste,
-  onPasteMarkdown,
-  onReveal,
-  onDelete,
-  onAddComment,
+  selectionCount,
+  commands,
 }: any) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const wrapAction = (action) => () => {
-    action?.();
-    onClose?.();
-  };
+  const visibleCommands = Array.isArray(commands) ? commands : [];
+  const groupedCommands = EXPLORER_CONTEXT_MENU_GROUP_ORDER.map((group) => ({
+    group,
+    commands: visibleCommands.filter((command) => command.group === group),
+  })).filter((entry) => entry.commands.length > 0);
+  const flatCommands = groupedCommands.flatMap((entry) => entry.commands);
 
   const focusEnabledItem = (startIndex: number, direction: 1 | -1 = 1) => {
     const items = itemRefs.current;
@@ -64,7 +41,7 @@ export function ExplorerContextMenu({
 
   useDismissibleLayer({
     open: true,
-    onDismiss: () => onClose?.(),
+      onDismiss: () => onClose?.(),
     refs: [menuRef],
   });
 
@@ -99,7 +76,7 @@ export function ExplorerContextMenu({
     };
   }, [x, y]);
 
-  return createPortal(
+    return createPortal(
     <div
       ref={menuRef}
       className="fixed z-[9999] w-52 rounded-2xl border border-white/10 bg-[#1a1d23]/95 py-2 text-[11px] shadow-[0_25px_60px_rgba(0,0,0,0.6)] backdrop-blur-3xl animate-tab-in ring-1 ring-white/5 select-none"
@@ -135,104 +112,45 @@ export function ExplorerContextMenu({
         <div className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/30">Explorer Actions</div>
       </div>
 
-      <div className="px-1.5 space-y-0.5">
-        <ContextMenuItem itemRef={(node) => (itemRefs.current[0] = node)} icon={FilePlus2} label="New File" onClick={wrapAction(onNewFile)} />
-        <ContextMenuItem itemRef={(node) => (itemRefs.current[1] = node)} icon={FolderPlus} label="New Folder" onClick={wrapAction(onNewFolder)} />
-
-        <div className="h-px bg-white/5 my-1.5 mx-2" />
-
-        <ContextMenuItem
-          itemRef={(node) => (itemRefs.current[2] = node)}
-          icon={Pencil}
-          label="Rename"
-          shortcut="F2"
-          onClick={wrapAction(onRename)}
-          disabled={selectionTargets.length !== 1}
-        />
-        <ContextMenuItem 
-          itemRef={(node) => (itemRefs.current[3] = node)}
-          icon={Copy} 
-          label="Duplicate" 
-          onClick={wrapAction(onDuplicate)} 
-          disabled={selectionTargets.length !== 1} 
-        />
-
-        <div className="h-px bg-white/5 my-1.5 mx-2" />
-
-        <ContextMenuItem 
-          itemRef={(node) => (itemRefs.current[4] = node)}
-          icon={Copy} 
-          label="Copy" 
-          shortcut="⌘C" 
-          onClick={wrapAction(onCopy)} 
-          disabled={!selectionTargets.length} 
-        />
-        <ContextMenuItem 
-          itemRef={(node) => (itemRefs.current[5] = node)}
-          icon={Link} 
-          label="Copy Relative Path" 
-          onClick={wrapAction(onCopyRelativePath)} 
-          disabled={!selectionTargets.length} 
-        />
-        <ContextMenuItem 
-          itemRef={(node) => (itemRefs.current[6] = node)}
-          icon={Link} 
-          label="Copy Absolute Path" 
-          onClick={wrapAction(onCopyAbsolutePath)} 
-          disabled={!selectionTargets.length} 
-        />
-        <ContextMenuItem 
-          itemRef={(node) => (itemRefs.current[7] = node)}
-          icon={Scissors} 
-          label="Cut" 
-          shortcut="⌘X" 
-          onClick={wrapAction(onCut)} 
-          disabled={!selectionTargets.length} 
-        />
-        <ContextMenuItem 
-          itemRef={(node) => (itemRefs.current[8] = node)}
-          icon={ClipboardPaste} 
-          label="Paste" 
-          shortcut="⌘V" 
-          onClick={wrapAction(onPaste)} 
-          disabled={!canPaste} 
-        />
-        <ContextMenuItem 
-          itemRef={(node) => (itemRefs.current[9] = node)}
-          icon={FileText} 
-          label="Paste as Markdown" 
-          onClick={wrapAction(onPasteMarkdown)} 
-        />
-
-        <div className="h-px bg-white/5 my-1.5 mx-2" />
-
-        <ContextMenuItem 
-          itemRef={(node) => (itemRefs.current[10] = node)}
-          icon={Eye} 
-          label="Reveal" 
-          onClick={wrapAction(onReveal)} 
-          disabled={!selectionTargets.length} 
-        />
-        <ContextMenuItem
-            itemRef={(node) => (itemRefs.current[11] = node)}
-            icon={MessageSquarePlus}
-            label="Add Comment"
-            onClick={wrapAction(onAddComment)}
-            disabled={selectionTargets.length !== 1}
-        />
-        <ContextMenuItem
-          itemRef={(node) => (itemRefs.current[12] = node)}
-          icon={Trash2}
-          label={selectionTargets.length > 1 ? `Delete ${selectionTargets.length} Items` : 'Delete'}
-          shortcut="⌫"
-          onClick={wrapAction(onDelete)}
-          disabled={!selectionTargets.length}
-          variant="destructive"
-        />
+      <div className="px-1.5">
+        {groupedCommands.map((groupEntry, groupIndex) => (
+          <div key={groupEntry.group} className="space-y-0.5">
+            {groupIndex > 0 ? <div className="h-px bg-white/5 my-1.5 mx-2" /> : null}
+            {groupEntry.commands.map((command) => {
+              const flatIndex = flatCommands.findIndex((item) => item.id === command.id);
+              const label =
+                command.id === 'explorer.context.delete' && selectionCount > 1
+                  ? `Delete ${selectionCount} Items`
+                  : command.label;
+              return (
+                <ContextMenuItem
+                  key={command.id}
+                  itemRef={(node) => (itemRefs.current[flatIndex] = node)}
+                  icon={command.icon}
+                  label={label}
+                  shortcut={normalizeShortcut(command.shortcut)}
+                  onClick={() => {
+                    command.onSelect?.();
+                    onClose?.();
+                  }}
+                  disabled={command.isDisabled}
+                  variant={command.destructive ? 'destructive' : undefined}
+                />
+              );
+            })}
+          </div>
+        ))}
       </div>
     </div>,
     document.body
   );
+}
+
+function normalizeShortcut(value: string | undefined) {
+  if (!value) {
+    return undefined;
+  }
+  return value.replace(/CMD/g, '⌘').replace(/DEL/g, '⌫');
 }
 
 function ContextMenuItem({ itemRef, icon: Icon, label, onClick, disabled, variant, shortcut }: any) {

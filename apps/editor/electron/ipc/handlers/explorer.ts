@@ -7,6 +7,8 @@ const {
   listDirectory,
   getExplorerStatus,
   searchFiles,
+  searchContent,
+  replaceContent,
   createEntry,
   renameEntry,
   deleteEntry,
@@ -15,6 +17,7 @@ const {
   revealEntry,
   readEntry,
 } = require('../../services/explorer');
+const { readExplorerProjectPolicy } = require('../../services/explorerPolicy');
 
 function setupExplorerHandlers() {
   ipcMain.handle('explorer:root', async (_event, payload) => {
@@ -47,6 +50,37 @@ function setupExplorerHandlers() {
     const includeAll = Boolean(payload?.includeAll);
     const limit = payload?.limit || 1000;
     return searchFiles({ rootPath, query, includeAll, limit });
+  });
+
+  ipcMain.handle('explorer:contentSearch', async (_event, payload) => {
+    const rootPath = payload?.rootPath;
+    return searchContent({
+      rootPath,
+      query: payload?.query || '',
+      scope: payload?.scope || undefined,
+      caseSensitive: Boolean(payload?.caseSensitive),
+      wholeWord: Boolean(payload?.wholeWord),
+      useRegex: Boolean(payload?.useRegex),
+      limit: payload?.limit || 200,
+    });
+  });
+
+  ipcMain.handle('explorer:contentReplace', async (_event, payload) => {
+    const rootPath = payload?.rootPath;
+    return replaceContent({
+      rootPath,
+      query: payload?.query || '',
+      replacement: payload?.replacement || '',
+      scope: payload?.scope || undefined,
+      caseSensitive: Boolean(payload?.caseSensitive),
+      wholeWord: Boolean(payload?.wholeWord),
+      useRegex: Boolean(payload?.useRegex),
+      confirmedPaths: Array.isArray(payload?.confirmedPaths) ? payload.confirmedPaths : [],
+    });
+  });
+
+  ipcMain.handle('explorer:policy', async (_event, payload) => {
+    return readExplorerProjectPolicy({ rootPath: payload?.rootPath });
   });
 
   ipcMain.handle('explorer:create', async (_event, payload) => {

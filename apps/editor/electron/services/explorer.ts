@@ -42,6 +42,19 @@ const ENTRY_TYPES = {
 
 const DEFAULT_EXCLUDES = new Set(['.git']);
 const MAX_PREVIEW_BYTES = 200 * 1024;
+const CONTENT_SEARCH_MAX_FILE_BYTES = Math.max(
+  32 * 1024,
+  Number(process.env.AGENCY_EXPLORER_CONTENT_SEARCH_MAX_FILE_BYTES || 1024 * 1024)
+);
+const CONTENT_SEARCH_CONCURRENCY = Math.max(
+  1,
+  Number(process.env.AGENCY_EXPLORER_CONTENT_SEARCH_CONCURRENCY || 12)
+);
+const CONTENT_SEARCH_MAX_MATCHES_PER_FILE = Math.max(
+  1,
+  Number(process.env.AGENCY_EXPLORER_CONTENT_SEARCH_MAX_MATCHES_PER_FILE || 24)
+);
+const CONTENT_SEARCH_SNIPPET_MAX_CHARS = 220;
 const STATUS_CACHE_TTL_MS = Number(process.env.AGENCY_EXPLORER_STATUS_TTL_MS || 800);
 const STATUS_WORKTREE_CONCURRENCY = Math.max(1, Number(process.env.AGENCY_EXPLORER_STATUS_CONCURRENCY || 4));
 const GIT_COMMAND_TIMEOUT_MS = Math.max(500, Number(process.env.AGENCY_EXPLORER_GIT_TIMEOUT_MS || 9000));
@@ -230,6 +243,320 @@ function parseNumstatZ(output) {
     });
   }
   return entries;
+}
+
+function escapeRegex(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function buildContentSearchPattern({
+  query,
+  caseSensitive = false,
+  wholeWord = false,
+  useRegex = false,
+} = {}) {
+  const rawQuery = String(query || '').trim();
+  if (!rawQuery) {
+    throw new Error('query is required.');
+  }
+  const source = useRegex ? rawQuery : escapeRegex(rawQuery);
+  const pattern = wholeWord ? `\\b(?:${source})\\b` : source;
+  return new RegExp(pattern, caseSensitive ? 'g' : 'gi');
+}
+
+async function listRepoFiles(rootPath) {
+  const tracked = await runGitRaw(['ls-files', '-z'], rootPath);
+  const untracked = await runGitRaw(
+    ['ls-files', '--others', '--exclude-standard', '-z'],
+    rootPath
+  );
+  return Array.from(
+    new Set(`${tracked}\0${untracked}`.split('\0').map(normalizeRelPath).filter(Boolean))
+  );
+}
+
+function normalizeContentSearchScope(scope) {
+  const source = scope && typeof scope === 'object' ? scope : {};
+  const kind =
+    source.kind === 'folder' || source.kind === 'selection' ? source.kind : 'project';
+  const pathValue = normalizeRelPath(source.path || '');
+  const paths = Array.from(
+    new Set(
+      (Array.isArray(source.paths) ? source.paths : [])
+        .map((entry) => normalizeRelPath(entry || ''))
+        .filter(Boolean)
+    )
+  );
+  return {
+    kind,
+    path: pathValue,
+    paths,
+  };
+}
+
+function pathMatchesContentScope(filePath, scope) {
+  if (!filePath) {
+    return false;
+  }
+  if (!scope || scope.kind === 'project') {
+    return true;
+  }
+  if (scope.kind === 'folder') {
+    if (!scope.path) {
+      return true;
+    }
+    return filePath === scope.path || filePath.startsWith(`${scope.path}/`);
+  }
+  if (scope.kind === 'selection') {
+    if (!scope.paths.length) {
+      return false;
+    }
+    return scope.paths.some(
+      (entryPath) => filePath === entryPath || filePath.startsWith(`${entryPath}/`)
+    );
+  }
+  return true;
+}
+
+function clampSnippet(value) {
+  const line = String(value || '').replace(/\t/g, '  ');
+  if (line.length <= CONTENT_SEARCH_SNIPPET_MAX_CHARS) {
+    return line;
+  }
+  return `${line.slice(0, CONTENT_SEARCH_SNIPPET_MAX_CHARS - 3)}...`;
+}
+
+async function inspectContentSearchCandidate(rootAbsolutePath, relativePath, pattern) {
+  const stats = await fsp.stat(rootAbsolutePath);
+  if (!stats.isFile()) {
+    return { kind: 'skip' };
+  }
+  if (stats.size > CONTENT_SEARCH_MAX_FILE_BYTES) {
+    return { kind: 'large', path: relativePath, size: stats.size };
+  }
+  const buffer = await fsp.readFile(rootAbsolutePath);
+  const sample = buffer.subarray(0, Math.min(buffer.length, 1024));
+  if (sample.includes(0)) {
+    return { kind: 'binary', path: relativePath, size: stats.size };
+  }
+  const content = buffer.toString('utf8');
+  const lines = content.split(/\r?\n/);
+  const matches = [];
+  let matchCount = 0;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    pattern.lastIndex = 0;
+    let lineMatch = pattern.exec(line);
+    while (lineMatch) {
+      matchCount += 1;
+      if (matches.length < CONTENT_SEARCH_MAX_MATCHES_PER_FILE) {
+        matches.push({
+          line: index + 1,
+          column: (lineMatch.index || 0) + 1,
+          endColumn: (lineMatch.index || 0) + String(lineMatch[0] || '').length + 1,
+          text: String(lineMatch[0] || ''),
+          snippet: clampSnippet(line),
+        });
+      }
+      if (!pattern.global) {
+        break;
+      }
+      lineMatch = pattern.exec(line);
+    }
+  }
+  if (!matchCount) {
+    return { kind: 'none' };
+  }
+  return {
+    kind: 'result',
+    result: {
+      path: relativePath,
+      matchCount,
+      matches,
+    },
+  };
+}
+
+async function searchContent({
+  rootPath,
+  query,
+  scope,
+  caseSensitive = false,
+  wholeWord = false,
+  useRegex = false,
+  limit = 200,
+} = {}) {
+  const trimmedQuery = String(query || '').trim();
+  if (!trimmedQuery) {
+    return {
+      query: '',
+      scope: normalizeContentSearchScope(scope),
+      results: [],
+      truncated: false,
+      scannedFiles: 0,
+      skippedBinaryCount: 0,
+      skippedLargeCount: 0,
+    };
+  }
+  const resolved = await resolveExplorerRoot(rootPath);
+  if (!resolved.rootPath) {
+    return {
+      query: trimmedQuery,
+      scope: normalizeContentSearchScope(scope),
+      results: [],
+      truncated: false,
+      scannedFiles: 0,
+      skippedBinaryCount: 0,
+      skippedLargeCount: 0,
+    };
+  }
+  const normalizedScope = normalizeContentSearchScope(scope);
+  const pattern = buildContentSearchPattern({
+    query: trimmedQuery,
+    caseSensitive,
+    wholeWord,
+    useRegex,
+  });
+  const files = (await listRepoFiles(resolved.rootPath)).filter((filePath) =>
+    pathMatchesContentScope(filePath, normalizedScope)
+  );
+  const inspections = await mapWithConcurrency(files, CONTENT_SEARCH_CONCURRENCY, async (filePath) =>
+    inspectContentSearchCandidate(
+      resolveSafePath(resolved.rootPath, filePath),
+      filePath,
+      pattern
+    )
+  );
+
+  const results = [];
+  let skippedBinaryCount = 0;
+  let skippedLargeCount = 0;
+  let truncated = false;
+  for (const inspection of inspections) {
+    if (inspection?.kind === 'binary') {
+      skippedBinaryCount += 1;
+      continue;
+    }
+    if (inspection?.kind === 'large') {
+      skippedLargeCount += 1;
+      continue;
+    }
+    if (inspection?.kind !== 'result') {
+      continue;
+    }
+    results.push(inspection.result);
+    if (results.length >= limit) {
+      truncated = inspections.length > results.length;
+      break;
+    }
+  }
+
+  return {
+    query: trimmedQuery,
+    scope: normalizedScope,
+    results,
+    truncated,
+    scannedFiles: files.length,
+    skippedBinaryCount,
+    skippedLargeCount,
+  };
+}
+
+async function replaceContent({
+  rootPath,
+  query,
+  replacement = '',
+  scope,
+  caseSensitive = false,
+  wholeWord = false,
+  useRegex = false,
+  confirmedPaths = [],
+} = {}) {
+  const trimmedQuery = String(query || '').trim();
+  if (!trimmedQuery) {
+    throw new Error('query is required.');
+  }
+  const resolved = await resolveExplorerRoot(rootPath);
+  ensureResolvedRoot(resolved);
+
+  const normalizedScope = normalizeContentSearchScope(scope);
+  const confirmedSet = new Set(
+    (Array.isArray(confirmedPaths) ? confirmedPaths : [])
+      .map((entry) => normalizeRelPath(entry || ''))
+      .filter(Boolean)
+  );
+  const pattern = buildContentSearchPattern({
+    query: trimmedQuery,
+    caseSensitive,
+    wholeWord,
+    useRegex,
+  });
+  const files = (await listRepoFiles(resolved.rootPath)).filter((filePath) => {
+    if (!pathMatchesContentScope(filePath, normalizedScope)) {
+      return false;
+    }
+    if (!confirmedSet.size) {
+      return true;
+    }
+    return confirmedSet.has(filePath);
+  });
+
+  const appliedPaths = [];
+  const failures = [];
+  const skipped = [];
+  let replacedFiles = 0;
+  let replacedMatches = 0;
+
+  for (const filePath of files) {
+    try {
+      const absolutePath = resolveSafePath(resolved.rootPath, filePath);
+      const stats = await fsp.stat(absolutePath);
+      if (!stats.isFile()) {
+        skipped.push({ path: filePath, reason: 'not-file' });
+        continue;
+      }
+      if (stats.size > CONTENT_SEARCH_MAX_FILE_BYTES) {
+        skipped.push({ path: filePath, reason: 'too-large' });
+        continue;
+      }
+      const buffer = await fsp.readFile(absolutePath);
+      const sample = buffer.subarray(0, Math.min(buffer.length, 1024));
+      if (sample.includes(0)) {
+        skipped.push({ path: filePath, reason: 'binary' });
+        continue;
+      }
+      const content = buffer.toString('utf8');
+      pattern.lastIndex = 0;
+      let fileMatches = 0;
+      const nextContent = content.replace(pattern, (...args) => {
+        fileMatches += 1;
+        return replacement;
+      });
+      if (!fileMatches || nextContent === content) {
+        continue;
+      }
+      await fsp.writeFile(absolutePath, nextContent, 'utf8');
+      appliedPaths.push(filePath);
+      replacedFiles += 1;
+      replacedMatches += fileMatches;
+    } catch (error) {
+      failures.push({
+        path: filePath,
+        error: error?.message || String(error),
+      });
+    }
+  }
+
+  return {
+    query: trimmedQuery,
+    replacement,
+    scope: normalizedScope,
+    replacedFiles,
+    replacedMatches,
+    appliedPaths,
+    skipped,
+    failures,
+  };
 }
 
 function mergeCount(map, entry) {
@@ -737,6 +1064,8 @@ export {
   listDirectory,
   getExplorerStatus,
   searchFiles,
+  searchContent,
+  replaceContent,
   createEntry,
   renameEntry,
   deleteEntry,

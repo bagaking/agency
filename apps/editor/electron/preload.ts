@@ -133,6 +133,9 @@ const INVOKE_CHANNELS: Record<string, string> = {
   listExplorerEntries: 'explorer:list',
   getExplorerStatus: 'explorer:status',
   searchExplorerFiles: 'explorer:search',
+  searchExplorerContent: 'explorer:contentSearch',
+  replaceExplorerContent: 'explorer:contentReplace',
+  getExplorerProjectPolicy: 'explorer:policy',
   readExplorerEntry: 'explorer:read',
   watchExplorer: 'explorer:watch',
   writeWorkbenchEntry: 'workbench:write',
@@ -194,6 +197,7 @@ const INVOKE_CHANNELS: Record<string, string> = {
   updateCellState: 'cells:updateState',
   updateCellMeta: 'cells:updateMeta',
   startTerminal: 'terminal:start',
+  openExternalUrl: 'system:openExternal',
   openSystemPermissions: 'system:openPermissions',
 };
 

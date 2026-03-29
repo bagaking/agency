@@ -83,6 +83,9 @@ export const getExplorerRoot = createOptionalInvoke('getExplorerRoot');
 export const listExplorerEntries = createOptionalInvoke('listExplorerEntries');
 export const getExplorerStatus = createOptionalInvoke('getExplorerStatus');
 export const searchExplorerFiles = createOptionalInvoke('searchExplorerFiles');
+export const searchExplorerContent = createOptionalInvoke('searchExplorerContent');
+export const replaceExplorerContent = createOptionalInvoke('replaceExplorerContent');
+export const getExplorerProjectPolicy = createOptionalInvoke('getExplorerProjectPolicy');
 export const watchExplorer = createOptionalInvoke('watchExplorer');
 export const performFileIntent = createOptionalInvoke('performFileIntent');
 export const performToolFileIntent = createOptionalInvoke('performToolFileIntent');
@@ -150,6 +153,7 @@ export const setProjectRoot = createOptionalInvoke('setProjectRoot');
 export const listWindowShells = createOptionalInvoke('listWindowShells', { fallback: { windows: [] } });
 export const createWindowShell = createOptionalInvoke('createWindowShell');
 export const focusWindowShell = createOptionalInvoke('focusWindowShell');
+export const openExternalUrl = createOptionalInvoke('openExternalUrl');
 export const openSystemPermissions = createOptionalInvoke('openSystemPermissions');
 
 export const getPathForDroppedFile = (file: File): string =>
