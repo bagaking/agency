@@ -1,13 +1,43 @@
-import * as avatarBatch from '@bagakit/open-agent-avatars/20260202';
+const AVATAR_ANIMALS = [
+  'CAPYBARA',
+  'CAT',
+  'DOG',
+  'DRAGON',
+  'ELEPHANT',
+  'FOX',
+  'GOAT',
+  'MOUSE',
+  'OWL',
+  'OX',
+  'PANDA',
+  'RABBIT',
+  'RHINO',
+  'SHARK',
+  'SHEEP',
+  'SNAKE',
+  'WHALE',
+] as const;
 
-const AVATAR_MAP = Object.entries(avatarBatch).reduce((acc, [key, value]) => {
-  if (typeof value === 'string') {
-    acc[key] = value;
-  }
-  return acc;
-}, {});
+const AVATAR_ACTIONS = [
+  'CRAFTING',
+  'DESIGNING',
+  'FIGHTING',
+  'PAPER_WORKING',
+  'PLANNING',
+  'PROGRAMMING',
+  'RESEARCHING',
+  'SPEAKING',
+  'SPELLING',
+  'STUDYING',
+] as const;
 
-export const AVATAR_IDS = Object.keys(AVATAR_MAP).sort();
+export const AVATAR_IDS = AVATAR_ANIMALS.flatMap((animal) =>
+  AVATAR_ACTIONS.map((action) => `${animal}_${action}`)
+).sort();
+
+const AVATAR_ID_SET = new Set(AVATAR_IDS);
+let avatarCatalog: Record<string, string> | null = null;
+let avatarCatalogPromise: Promise<Record<string, string>> | null = null;
 const RECENT_STORAGE_KEY = 'agency.avatar.recents';
 const RECENT_LIMIT = 9;
 let avatarCursor = 0;
@@ -31,7 +61,25 @@ const normalizeAvatarId = (value) => {
 
 export const getAvatarUrl = (avatarId) => {
   const key = normalizeAvatarId(avatarId);
-  return AVATAR_MAP[key] || null;
+  return avatarCatalog?.[key] || null;
+};
+
+export const ensureAvatarCatalogLoaded = async () => {
+  if (avatarCatalog) {
+    return avatarCatalog;
+  }
+  if (!avatarCatalogPromise) {
+    avatarCatalogPromise = import('@bagakit/open-agent-avatars/20260202').then((avatarBatch) => {
+      avatarCatalog = Object.entries(avatarBatch).reduce((acc, [key, value]) => {
+        if (typeof value === 'string') {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, string>);
+      return avatarCatalog;
+    });
+  }
+  return avatarCatalogPromise;
 };
 
 export const getRecentAvatarIds = () => {
@@ -49,7 +97,7 @@ export const getRecentAvatarIds = () => {
     }
     return parsed
       .map((value) => normalizeAvatarId(value))
-      .filter((id) => id && AVATAR_MAP[id]);
+      .filter((id) => id && AVATAR_ID_SET.has(id));
   } catch (error) {
     return [];
   }
@@ -60,7 +108,7 @@ export const recordRecentAvatarId = (avatarId) => {
     return [];
   }
   const resolved = normalizeAvatarId(avatarId);
-  if (!resolved || !AVATAR_MAP[resolved]) {
+  if (!resolved || !AVATAR_ID_SET.has(resolved)) {
     return getRecentAvatarIds();
   }
   const existing = getRecentAvatarIds();
@@ -76,7 +124,7 @@ export const recordRecentAvatarId = (avatarId) => {
 export const resolveAvatarId = (input = {}) => {
   if (typeof input === 'string') {
     const normalized = normalizeAvatarId(input);
-    if (normalized && AVATAR_MAP[normalized]) {
+    if (normalized && AVATAR_ID_SET.has(normalized)) {
       return normalized;
     }
     if (!AVATAR_IDS.length) {
@@ -87,7 +135,7 @@ export const resolveAvatarId = (input = {}) => {
   const safeInput: any = input && typeof input === 'object' ? input : {};
   const { avatar, id, name } = safeInput;
   const explicit = normalizeAvatarId(avatar);
-  if (explicit && AVATAR_MAP[explicit]) {
+  if (explicit && AVATAR_ID_SET.has(explicit)) {
     return explicit;
   }
   const seed = String(id || name || explicit || '');

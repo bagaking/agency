@@ -31,6 +31,7 @@ function assertOutput(): void {
   const requiredFiles = [
     path.join(outDir, "electron", "main.js"),
     path.join(outDir, "electron", "preload.js"),
+    path.join(outDir, "electron", "cli", "controlBusCli.js"),
     path.join(outDir, "shared", "sessionNamingCore.js"),
   ];
 

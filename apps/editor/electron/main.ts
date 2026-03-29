@@ -48,6 +48,12 @@ const {
   getRuntimeLogInfo,
 } = require('./services/runtimeLog');
 const {
+  createControlBusService,
+} = require('./services/controlBus');
+const {
+  createControlBusSocketServer,
+} = require('./services/controlBusSocket');
+const {
   broadcastWindowShellUpdated,
   collectEditorWindows,
   focusEditorWindow,
@@ -69,6 +75,9 @@ type RendererInfo = {
 let mainWindow: AgencyWindow | undefined;
 let testUserDataPath: string | null = null;
 let isQuitting = false;
+let controlBusSocketServer:
+  | { socketPath: string; start: () => Promise<any>; close: () => Promise<void> }
+  | null = null;
 const pendingWindowStateWrites = new Map<number, ReturnType<typeof setTimeout>>();
 
 const DEFAULT_WINDOW_WIDTH = 1280;
@@ -664,6 +673,13 @@ function setupAppLifecycle(): void {
   app.on('before-quit', () => {
     isQuitting = true;
     clearRegisteredShortcuts();
+    if (controlBusSocketServer) {
+      void controlBusSocketServer.close().catch((error: unknown) => {
+        logRuntime('warn', 'control bus socket close failed', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
     closeRuntimeLogger();
   });
 }
@@ -706,6 +722,27 @@ async function bootstrapApp(): Promise<void> {
   recordStartup('ipc-handlers-setup-start');
   setupMainIpcHandlers(() => mainWindow, createWindow);
   recordStartup('ipc-handlers-ready');
+
+  const controlBus = createControlBusService({
+    createEditorWindow: createWindow,
+  });
+  controlBusSocketServer = createControlBusSocketServer({
+    dispatch: (request: Record<string, any>, context: Record<string, any>) =>
+      controlBus.dispatch(request, context),
+    logRuntime,
+  });
+  try {
+    recordStartup('control-bus-socket-start');
+    const controlBusInfo = await controlBusSocketServer.start();
+    recordStartup('control-bus-socket-ready', {
+      socketPath: controlBusInfo?.socketPath || null,
+    });
+  } catch (error) {
+    logRuntime('error', 'control bus socket start failed', {
+      error: error instanceof Error ? error.message : String(error),
+      socketPath: controlBusSocketServer?.socketPath || null,
+    });
+  }
 
   recordStartup('asset-protocol-setup');
   setupAssetProtocol();

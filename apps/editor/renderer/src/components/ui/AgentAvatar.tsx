@@ -1,5 +1,9 @@
-import React, { useMemo } from 'react';
-import { getAvatarUrl, resolveAvatarId } from '../../utils/agentAvatar';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ensureAvatarCatalogLoaded,
+  getAvatarUrl,
+  resolveAvatarId,
+} from '../../utils/agentAvatar';
 
 const wrapClass = (className) => (className ? ` ${className}` : '');
 
@@ -26,9 +30,26 @@ export function AgentAvatar({
     }
     return resolveAvatarId({ avatar: avatarId, id: seed, name: seed });
   }, [avatarId, seed]);
-  
-  // Use the pre-resolved URLs from the package metadata
-  const avatarUrl = useMemo(() => getAvatarUrl(resolved), [resolved]);
+  const [avatarUrl, setAvatarUrl] = useState(() => getAvatarUrl(resolved));
+
+  useEffect(() => {
+    let cancelled = false;
+    const cachedUrl = getAvatarUrl(resolved);
+    if (cachedUrl) {
+      setAvatarUrl(cachedUrl);
+      return undefined;
+    }
+    setAvatarUrl(null);
+    void ensureAvatarCatalogLoaded().then(() => {
+      if (cancelled) {
+        return;
+      }
+      setAvatarUrl(getAvatarUrl(resolved));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [resolved]);
 
   const containerClasses = [
     'flex items-center justify-center overflow-hidden',
@@ -53,7 +74,9 @@ export function AgentAvatar({
           }}
           draggable={false}
         />
-      ) : null}
+      ) : (
+        <div className="h-full w-full rounded-full bg-white/10" aria-hidden="true" />
+      )}
     </div>
   );
 }
