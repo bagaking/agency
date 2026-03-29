@@ -14,6 +14,7 @@ import {
   cancelMainAgentHarnessRun,
   inspectMainAgentHarnessRun,
 } from '../../services/mainAgentHarness';
+import { resolveCreatedSessionFromHarnessRun } from '../../utils/commanderHarnessTracking';
 import { useModal } from '../modals/ModalSystem';
 
 const POLL_INTERVAL_MS = 800;
@@ -107,12 +108,12 @@ function resolveStepOutput(run: any, stepId: string) {
   return run?.result?.stepOutputs?.[stepId] || run?.progress?.outputsByStepId?.[stepId] || null;
 }
 
-function resolveCreatedSession(run: any, stepId: string) {
-  const stepOutput = resolveStepOutput(run, stepId);
-  return stepOutput?.session || run?.result?.agent?.session || null;
-}
-
-function resolveCurrentActivity(run: any, stepId: string) {
+function resolveCurrentActivity(
+  run: any,
+  stepId: string,
+  taskKind: 'smart-name' | 'smart-fork',
+  createdSession: any
+) {
   const status = String(run?.status || '').trim().toLowerCase();
   const timeline = Array.isArray(run?.timeline) ? run.timeline : [];
   const stepTimeline = timeline.filter(
@@ -147,11 +148,14 @@ function resolveCurrentActivity(run: any, stepId: string) {
         return true;
       });
     if (latestRunning?.title) {
-      if (/suggest session name/i.test(String(latestRunning.title))) {
+      if (taskKind === 'smart-name' && /suggest session name/i.test(String(latestRunning.title))) {
         return 'Commander provider is generating candidate names.';
       }
       if (/inspect/i.test(String(latestRunning.title))) {
         return 'Inspecting current session context.';
+      }
+      if (taskKind === 'smart-fork' && /create agent|launch child|dispatch child/i.test(String(latestRunning.title))) {
+        return 'Commander is creating the child session lane.';
       }
       return String(latestRunning.title);
     }
@@ -160,18 +164,27 @@ function resolveCurrentActivity(run: any, stepId: string) {
         /inspect/i.test(String(entry?.title || '')) &&
         String(entry?.status || '').trim().toLowerCase() === 'completed'
     );
-    if (hasCompletedInspect) {
+    if (hasCompletedInspect && taskKind === 'smart-name') {
       return 'Commander provider is generating candidate names.';
+    }
+    if (hasCompletedInspect && taskKind === 'smart-fork') {
+      return 'Commander is creating the child session lane.';
     }
     return 'Preparing Commander task context.';
   }
   if (status === 'succeeded') {
-    return 'Suggestions are ready.';
+    return taskKind === 'smart-fork' ? 'Child session is ready.' : 'Suggestions are ready.';
   }
   if (status === 'failed') {
+    if (taskKind === 'smart-fork' && createdSession?.id) {
+      return 'Child session created, readiness not confirmed.';
+    }
     return String(run?.failures?.[0]?.message || 'Commander task failed.');
   }
   if (status === 'cancelled') {
+    if (taskKind === 'smart-fork' && createdSession?.id) {
+      return 'Child session created before cancellation; readiness not confirmed.';
+    }
     return 'Commander task was cancelled.';
   }
   return 'Waiting for Commander.';
@@ -247,10 +260,10 @@ export function CommanderTaskSheet({
   const startedAtValue = new Date(String(run?.startedAt || '')).getTime();
   const elapsedMs = Number.isFinite(startedAtValue) ? Math.max(0, now - startedAtValue) : 0;
   const elapsedLabel = formatElapsed(elapsedMs);
-  const activityLabel = resolveCurrentActivity(run, stepId);
+  const createdSession = resolveCreatedSessionFromHarnessRun(run);
+  const activityLabel = resolveCurrentActivity(run, stepId, taskKind, createdSession);
   const suggestions = resolveSuggestions(run, stepId);
   const stepOutput = resolveStepOutput(run, stepId);
-  const createdSession = resolveCreatedSession(run, stepId);
   const fallbackUsed = Boolean(stepOutput?.metadata?.providerFallbackUsed);
   const fallbackReason = String(stepOutput?.metadata?.providerFallbackReason || '').trim();
   const failures = Array.isArray(run?.failures) ? run.failures : [];

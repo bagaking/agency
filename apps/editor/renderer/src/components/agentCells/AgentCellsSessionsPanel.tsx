@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 import { RecentProjectsList } from '../RecentProjectsList';
-import { useCommanderTaskLauncher } from '../commander/useCommanderTaskLauncher';
+import { useCommanderSessionActions } from '../commander/useCommanderSessionActions';
 import { SessionContextMenu, SessionCreateMenu, SessionOverflowMenu } from '../SessionMenus';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
 import { AvatarPickerMenu } from '../ui/AvatarPickerMenu';
@@ -27,12 +27,7 @@ import {
   type AgentCellSessionTreeRow,
 } from '../../utils/agentCellSessionTree';
 import { buildAgentCellChildSessionOptions } from '../../utils/agentCellChildSession';
-import { useModal } from '../modals/ModalSystem';
 import { useCommanderStatus } from '../../hooks/useCommanderStatus';
-import {
-  startCommanderSmartForkRun,
-  startCommanderSmartNameRun,
-} from '../../services/commander';
 
 const cellStateColors: Record<string, string> = {
   draft: 'text-muted-foreground',
@@ -280,8 +275,6 @@ export function AgentCellsSessionsPanel({
   onSettleTrackedHarnessRun,
   onConfigureProfile,
 }: AgentCellsSessionsPanelProps) {
-  const modal = useModal();
-  const launchCommanderTask = useCommanderTaskLauncher();
   const [idleNow, setIdleNow] = useState(Date.now());
   const [closedMenu, setClosedMenu] = useState<any>(null);
   const [contextMenu, setContextMenu] = useState<any>(null);
@@ -294,8 +287,6 @@ export function AgentCellsSessionsPanel({
   const [pendingActiveSessionByCellId, setPendingActiveSessionByCellId] = useState<Record<string, string>>({});
   const [draggingSession, setDraggingSession] = useState<{ cellId: string; sessionId: string } | null>(null);
   const [dropTarget, setDropTarget] = useState<SessionDropTarget | null>(null);
-  const [smartNamingSessionKey, setSmartNamingSessionKey] = useState('');
-  const [smartForkingSessionKey, setSmartForkingSessionKey] = useState('');
 
   const closedMenuRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
@@ -553,6 +544,12 @@ export function AgentCellsSessionsPanel({
     sessionId: contextMenuSession?.id || '',
     refreshKey: contextMenu ? buildSessionKey(contextMenu.cellId, contextMenu.sessionId) : '',
   });
+  const commanderSessionActions = useCommanderSessionActions({
+    renameSession: onRenameSession,
+    trackPendingHarnessRun: onTrackPendingHarnessRun,
+    clearTrackedHarnessRun: onClearTrackedHarnessRun,
+    settleTrackedHarnessRun: onSettleTrackedHarnessRun,
+  });
 
   const avatarMenuSessions = useMemo(() => {
     if (!avatarMenu?.cellId) {
@@ -730,184 +727,6 @@ export function AgentCellsSessionsPanel({
     },
     [clearDragState, onMoveSessionNode, suppressSelectionTemporarily]
   );
-
-  const handleSmartNameByCommander = useCallback(async () => {
-    if (!contextMenu?.cellId || !contextMenu?.sessionId || !contextMenuCell || !contextMenuSession) {
-      setContextMenu(null);
-      return;
-    }
-    setContextMenu(null);
-    if (!smartNameAvailable) {
-      return;
-    }
-
-    const pendingKey = buildSessionKey(contextMenuCell.id, contextMenuSession.id);
-    if (smartNamingSessionKey === pendingKey) {
-      return;
-    }
-
-    const taskModalId = `commander-smart-name-${contextMenuSession.id}`;
-    setSmartNamingSessionKey(pendingKey);
-    try {
-      const startedRun = await startCommanderSmartNameRun({
-        worktreePath: contextMenuCell.worktreePath,
-        cellId: contextMenuCell.id,
-        cellName: contextMenuCell.name,
-        cellBranch: contextMenuCell.branch,
-        sessionId: contextMenuSession.id,
-        sessionName: contextMenuSession.name,
-        sourceSurface: 'agent-cells',
-        callerType: 'renderer',
-      });
-      const runId = String(startedRun?.runId || '').trim();
-      if (!runId) {
-        throw new Error('Harness run did not return a runId.');
-      }
-
-      const taskResult = await launchCommanderTask({
-        modalId: taskModalId,
-        runId,
-        stepId: 'smart-name',
-        taskKind: 'smart-name',
-        taskTitle: 'Smart Rename',
-        sessionName: contextMenuSession.name || contextMenuSession.id,
-        cellName: contextMenuCell.name || contextMenuCell.id,
-      });
-
-      if (taskResult?.type !== 'apply') {
-        return;
-      }
-
-      const nextName = String(taskResult?.value || '').trim();
-      if (!nextName) {
-        return;
-      }
-      await Promise.resolve(onRenameSession?.(contextMenuSession.id, nextName, contextMenuCell.id));
-      modal.notify({
-        tone: 'success',
-        title: 'Session Renamed',
-        description: `Renamed to ${nextName}.`,
-      });
-    } catch (error: any) {
-      await modal.openModal({
-        variant: 'alert',
-        tone: 'danger',
-        title: 'Smart Rename Failed',
-        description: error?.message || 'Failed to suggest a session name.',
-        dismissLabel: 'Close',
-        dismissOnOverlay: false,
-      });
-    } finally {
-      setSmartNamingSessionKey((current) => (current === pendingKey ? '' : current));
-    }
-  }, [
-    smartNameAvailable,
-    contextMenu?.cellId,
-    contextMenu?.sessionId,
-    contextMenuCell,
-    contextMenuSession,
-    modal,
-    onRenameSession,
-    launchCommanderTask,
-    smartNamingSessionKey,
-  ]);
-
-  const handleSmartForkByCommander = useCallback(async () => {
-    if (!contextMenu?.cellId || !contextMenu?.sessionId || !contextMenuCell || !contextMenuSession) {
-      setContextMenu(null);
-      return;
-    }
-    setContextMenu(null);
-    if (!smartForkAvailable) {
-      return;
-    }
-
-    const pendingKey = buildSessionKey(contextMenuCell.id, contextMenuSession.id);
-    if (smartForkingSessionKey === pendingKey) {
-      return;
-    }
-
-    const clientRequestId = `fork-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
-    const taskModalId = `commander-smart-fork-${contextMenuSession.id}`;
-
-    setSmartForkingSessionKey(pendingKey);
-    try {
-      onTrackPendingHarnessRun?.({
-        clientRequestId,
-        cellId: contextMenuCell.id,
-        sourceSessionId: contextMenuSession.id,
-      });
-      const startedRun = await startCommanderSmartForkRun({
-        clientRequestId,
-        worktreePath: contextMenuCell.worktreePath,
-        cellId: contextMenuCell.id,
-        cellName: contextMenuCell.name,
-        cellBranch: contextMenuCell.branch,
-        sessionId: contextMenuSession.id,
-        sourceSurface: 'agent-cells',
-        callerType: 'renderer',
-      });
-      const runId = String(startedRun?.runId || '').trim();
-      if (!runId) {
-        throw new Error('Harness run did not return a runId.');
-      }
-      onTrackPendingHarnessRun?.({
-        clientRequestId,
-        runId,
-        cellId: contextMenuCell.id,
-        sourceSessionId: contextMenuSession.id,
-      });
-
-      const taskResult = await launchCommanderTask({
-        modalId: taskModalId,
-        runId,
-        stepId: 'create-agent',
-        taskKind: 'smart-fork',
-        taskTitle: 'Smart Fork',
-        sessionName: contextMenuSession.name || contextMenuSession.id,
-        cellName: contextMenuCell.name || contextMenuCell.id,
-      });
-
-      if (taskResult?.type === 'complete') {
-        await onSettleTrackedHarnessRun?.({
-          clientRequestId,
-          runId,
-          cellId: contextMenuCell.id,
-          sourceSessionId: contextMenuSession.id,
-        });
-        const createdSessionId = String(taskResult?.value?.sessionId || '').trim();
-        if (createdSessionId) {
-          onSelectSession?.(contextMenuCell.id, createdSessionId);
-        }
-      }
-    } catch (error: any) {
-      await modal.openModal({
-        variant: 'alert',
-        tone: 'danger',
-        title: 'Smart Fork Failed',
-        description: error?.message || 'Failed to create a Commander child session.',
-        dismissLabel: 'Close',
-        dismissOnOverlay: false,
-      });
-      onClearTrackedHarnessRun?.({
-        clientRequestId,
-      });
-    } finally {
-      setSmartForkingSessionKey((current) => (current === pendingKey ? '' : current));
-    }
-  }, [
-    contextMenu?.cellId,
-    contextMenu?.sessionId,
-    contextMenuCell,
-    contextMenuSession,
-    launchCommanderTask,
-    modal,
-    onClearTrackedHarnessRun,
-    onSettleTrackedHarnessRun,
-    onTrackPendingHarnessRun,
-    smartForkingSessionKey,
-    smartForkAvailable,
-  ]);
 
   return (
     <>
@@ -1449,10 +1268,24 @@ export function AgentCellsSessionsPanel({
         showSmartForkByCommander={smartForkAvailable}
         showSmartNameByCommander={smartNameAvailable}
         onSmartForkByCommander={() => {
-          void handleSmartForkByCommander();
+          setContextMenu(null);
+          if (contextMenuCell && contextMenuSession) {
+            void commanderSessionActions.runSmartFork({
+              cell: contextMenuCell as any,
+              session: contextMenuSession as any,
+              available: smartForkAvailable,
+            });
+          }
         }}
         onSmartNameByCommander={() => {
-          void handleSmartNameByCommander();
+          setContextMenu(null);
+          if (contextMenuCell && contextMenuSession) {
+            void commanderSessionActions.runSmartName({
+              cell: contextMenuCell as any,
+              session: contextMenuSession as any,
+              available: smartNameAvailable,
+            });
+          }
         }}
         canContinueOnMobile={Boolean(
           contextMenuSession &&

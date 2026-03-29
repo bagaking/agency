@@ -36,7 +36,7 @@ import { useSessionTraceLogging } from './shared/useSessionTraceLogging';
 import { useSessionActivityState } from './shared/useSessionActivityState';
 import {
   isTrackedHarnessEventRelevant,
-  resolveCreatedSessionFromHarnessRun,
+  resolveTrackedHarnessTerminalOutcome,
 } from '../utils/commanderHarnessTracking';
 
 export function useSessions(options: any = {}) {
@@ -487,26 +487,35 @@ export function useSessions(options: any = {}) {
       if (!targetCell) {
         return true;
       }
-      const created = resolveCreatedSessionFromHarnessRun(run);
-      if (status !== 'succeeded') {
-        await loadSessionsForCell(targetCell, { silent: true });
-        const failureMessage =
-          run?.failures?.[0]?.message ||
-          (status === 'cancelled' ? 'Harness run was cancelled.' : 'Harness run failed.');
-        setSessionError(failureMessage);
-        return true;
-      }
-      await loadSessionsForCell(targetCell, { silent: true });
-      if (created?.id) {
+      const outcome = resolveTrackedHarnessTerminalOutcome(run);
+      const createdSessionId = outcome.createdSessionId;
+      const selectCreatedSession = () => {
+        if (!createdSessionId) {
+          return;
+        }
         selectionVersionRef.current += 1;
         activeSessionByCellIdRef.current = {
           ...activeSessionByCellIdRef.current,
-          [targetCell.id]: created.id,
+          [targetCell.id]: createdSessionId,
         };
         setActiveSessionByCellId((current) => ({
           ...current,
-          [targetCell.id]: created.id,
+          [targetCell.id]: createdSessionId,
         }));
+      };
+      if (outcome.status !== 'succeeded') {
+        await loadSessionsForCell(targetCell, { silent: true });
+        if (createdSessionId) {
+          selectCreatedSession();
+          setSessionError(outcome.failureMessage);
+        } else {
+          setSessionError(outcome.failureMessage);
+        }
+        return true;
+      }
+      await loadSessionsForCell(targetCell, { silent: true });
+      if (createdSessionId) {
+        selectCreatedSession();
       }
       return true;
     },

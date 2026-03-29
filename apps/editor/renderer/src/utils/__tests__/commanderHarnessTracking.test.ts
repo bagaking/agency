@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   isTrackedHarnessEventRelevant,
   resolveCreatedSessionFromHarnessRun,
+  resolveTrackedHarnessTerminalOutcome,
 } from '../commanderHarnessTracking';
 
 test('isTrackedHarnessEventRelevant accepts terminal events matched only by pending clientRequestId', () => {
@@ -50,4 +51,77 @@ test('resolveCreatedSessionFromHarnessRun finds a created child session from fai
     profileId: 'codex',
     nodeKind: 'fork',
   });
+});
+
+test('resolveCreatedSessionFromHarnessRun prefers artifact child over inspect source summary', () => {
+  const session = resolveCreatedSessionFromHarnessRun({
+    status: 'failed',
+    capabilityCalls: [
+      {
+        request: {
+          intent: 'inspect',
+        },
+        summary: {
+          data: {
+            session: {
+              id: 'source-session',
+              profileId: 'codex',
+              nodeKind: 'root',
+            },
+          },
+        },
+      },
+    ],
+    artifacts: [
+      {
+        kind: 'session',
+        sessionId: 'child-session',
+        profileId: 'codex',
+        nodeKind: 'fork',
+      },
+    ],
+  });
+
+  assert.deepEqual(session, {
+    id: 'child-session',
+    profileId: 'codex',
+    nodeKind: 'fork',
+  });
+});
+
+test('resolveTrackedHarnessTerminalOutcome marks failed child-created runs as partial success', () => {
+  const outcome = resolveTrackedHarnessTerminalOutcome({
+    status: 'failed',
+    failures: [
+      {
+        message: 'Timed out waiting for child session runtime readiness.',
+      },
+    ],
+    capabilityCalls: [
+      {
+        request: {
+          intent: 'inspect',
+        },
+        summary: {
+          data: {
+            session: {
+              id: 'source-session',
+            },
+          },
+        },
+      },
+    ],
+    artifacts: [
+      {
+        kind: 'session',
+        sessionId: 'child-session',
+        profileId: 'codex',
+        nodeKind: 'fork',
+      },
+    ],
+  });
+
+  assert.equal(outcome.createdSessionId, 'child-session');
+  assert.equal(outcome.partialSuccess, true);
+  assert.match(outcome.failureMessage, /Child session created, readiness not confirmed/i);
 });
