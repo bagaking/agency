@@ -1,7 +1,12 @@
-const { BrowserWindow, screen, globalShortcut } = require('electron');
+const { app, BrowserWindow, screen, globalShortcut } = require('electron');
 const { createOverlayWindow, closeOverlayWindow } = require('../../windows/captureOverlay/overlayWindow');
 const { getDisplaySource } = require('./sourceGrabber');
 const { saveCaptureAsset, copyCaptureToClipboard } = require('./imageComposer');
+const {
+  focusAgencyWindow,
+  restoreAgencyAppVisibility,
+  showAgencyWindows,
+} = require('./windowVisibility');
 
 let activeSession: any = null;
 
@@ -33,11 +38,7 @@ function hideAgencyWindows(excludedWindowIds = []) {
 }
 
 function restoreAgencyWindows(windows = []) {
-  windows.forEach((win) => {
-    if (!win.isDestroyed()) {
-      win.show();
-    }
-  });
+  showAgencyWindows(windows);
 }
 
 async function startCapture(params: any = {}) {
@@ -71,25 +72,30 @@ async function startCapture(params: any = {}) {
     reject: rejectCapture,
   };
 
-  displays.forEach((display) => {
-    const overlay = createOverlayWindow({
-      display,
-      requestId,
-      onFatalLoadError: ({ displayId, errorDescription, validatedURL }: any) => {
-        if (!activeSession || activeSession.requestId !== requestId) {
-          return;
-        }
-        const reason =
-          errorDescription || validatedURL
-            ? `Capture overlay failed to load (display ${displayId}): ${errorDescription || validatedURL}.`
-            : `Capture overlay failed to load (display ${displayId}).`;
-        void cancelCapture({ requestId, reason }).catch(() => undefined);
-      },
+  try {
+    displays.forEach((display) => {
+      const overlay = createOverlayWindow({
+        display,
+        requestId,
+        onFatalLoadError: ({ displayId, errorDescription, validatedURL }: any) => {
+          if (!activeSession || activeSession.requestId !== requestId) {
+            return;
+          }
+          const reason =
+            errorDescription || validatedURL
+              ? `Capture overlay failed to load (display ${displayId}): ${errorDescription || validatedURL}.`
+              : `Capture overlay failed to load (display ${displayId}).`;
+          void cancelCapture({ requestId, reason }).catch(() => undefined);
+        },
+      });
+      overlayWindows.set(display.id, overlay);
     });
-    overlayWindows.set(display.id, overlay);
-  });
 
-  return await captureResult;
+    return await captureResult;
+  } catch (error) {
+    await cleanupSession();
+    throw error;
+  }
 }
 
 async function getDisplaySourceForOverlay(params: any = {}) {
@@ -171,10 +177,14 @@ async function cleanupSession() {
   if (!activeSession) {
     return;
   }
-  const overlays = activeSession.overlays || new Map();
-  overlays.forEach((win) => closeOverlayWindow(win));
-  restoreAgencyWindows(activeSession.hiddenWindows || []);
+  const session = activeSession;
   activeSession = null;
+  const overlays = session.overlays || new Map();
+  overlays.forEach((win) => closeOverlayWindow(win));
+  restoreAgencyAppVisibility(app);
+  restoreAgencyWindows(session.hiddenWindows || []);
+  const originWindow = session.originWindowId ? BrowserWindow.fromId(session.originWindowId) : null;
+  focusAgencyWindow(originWindow);
 }
 
 function registerGlobalShortcut() {
