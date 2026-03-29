@@ -22,11 +22,13 @@
 - [ ] Reorder two session nodes in Agent Cells and confirm the new order persists after refresh.
 - [ ] Drag a session onto another session and confirm it becomes a child node.
 - [ ] Drag a child session out toward an ancestor level and confirm it is promoted to that higher level.
-- [ ] Use the session row context menu to create `Sub Terminal` and `Fork` child sessions, confirm they appear under the selected parent, confirm `Sub Terminal` uses the shell profile, and confirm `Fork` starts an `agent_backed` Harness run instead of calling the session runtime gateway directly from renderer.
+- [ ] Use the session row context menu to create `Sub Terminal` and `Fork` child sessions, confirm they appear under the selected parent, confirm `Sub Terminal` uses the shell profile, and confirm `Fork` starts an `agent_backed` Harness run through Commander instead of calling the session runtime gateway directly from renderer.
 - [ ] With a Codex-backed profile, confirm `Fork` starts a Harness `Create Agent` run and the bounded `session.tool-native-fork` specialization chooses one of the two valid outcomes:
   - true `smart_fork` via `session.runtime smart_fork`, or
   - `create_child` + `dispatch_input` to start a fresh child Codex session.
 - [ ] With Session Map closed, trigger `Fork` and confirm the docked Session Map opens automatically into the right-side `Command Ops` zone.
+- [ ] Trigger `Smart Fork [by commander]` and confirm a `Commander Task` sheet opens immediately, shows live timeline/activity while the run is in progress, and finishes with an explicit created-session result instead of silently succeeding in the background.
+- [ ] Trigger `Smart Name [by commander]` and confirm it uses the same `Commander Task` sheet family as `Smart Fork`, with task-specific result content rather than a bespoke modal flow.
 - [ ] In the Session Map dock, confirm the commander/backend avatar is visible at the far-right edge and clicking it opens a separate `Briefing` right-edge drawer inside Session Map instead of replacing the right-side `Ops` panel.
 - [ ] In `Briefing`, confirm the dialog is bound to the current focus session/run, quick prompts work, typed questions return evidence-backed explanations, and `Cancel` / `Retry` / `Dismiss` actions route through the existing Harness/error flows.
 - [ ] Close `Briefing` and confirm the underlying `Ops` panel is still readable, a running run can be cancelled, a failed/cancelled run can be retried, and run details can be copied.

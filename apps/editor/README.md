@@ -272,12 +272,14 @@ make editor-dev
 - Drag a session before another session and confirm sibling order persists after refresh/relaunch.
 - Drag a session onto another session and confirm it becomes a child node under that session.
 - Drag a child session out toward an ancestor level and confirm it is promoted to that higher level.
-- Open a session row context menu and create both `Sub Terminal` and `Fork`; confirm each appears as a child node with the correct kind badge, confirm `Sub Terminal` uses the shell profile, and confirm `Fork` starts an `agent_backed` Harness run rather than calling session runtime directly from renderer.
+- Open a session row context menu and create both `Sub Terminal` and `Fork`; confirm each appears as a child node with the correct kind badge, confirm `Sub Terminal` uses the shell profile, and confirm `Fork` starts an `agent_backed` Harness run through Commander rather than calling session runtime directly from renderer.
 - For a Codex-backed profile, confirm `Fork` produces a Harness run with timeline/capability records and either:
   - chooses a true `smart_fork` path that issues `/fork` and launches the rendered child command, or
   - chooses `create_child` + `dispatch_input` and starts a fresh child Codex session when true fork semantics are not available.
 - Use the Harness CLI or IPC inspect surface on a live run and confirm you can inspect step timeline, cancel a still-running run, and resume a cancelled/failed run without guessing from raw logs.
 - With Session Map closed, trigger `Fork` and confirm the docked Session Map opens automatically to expose the `Command Ops` area.
+- Trigger `Smart Fork [by commander]` and confirm a `Commander Task` sheet opens immediately, shows live progress/timeline while the run is active, and ends with a created-session result instead of silently completing in the background.
+- Trigger `Smart Name [by commander]` and confirm it uses the same `Commander Task` sheet family as `Smart Fork`, with rename suggestions as the task-specific result.
 - In the Session Map dock, confirm the commander/backend avatar is visible, clicking it opens a separate `Briefing` popup, and the dialog answers using current session/run evidence rather than generic chat filler.
 - Close the popup and confirm the underlying `Ops` panel is unchanged; inspect the active Harness timeline there and confirm a running run can be cancelled or a failed/cancelled run can be retried from the panel.
 - Trigger a session error and confirm it appears in `Command Ops`, does not auto-dismiss on a timer, and can be copied before explicit dismissal.

@@ -186,6 +186,9 @@ export type SessionsState = UnknownRecord & {
   updateSessionAvatar?: FlexibleHandler;
   moveSessionNode?: FlexibleHandler;
   prepareSessionContinueOnMobile?: FlexibleHandler;
+  trackPendingHarnessRun?: FlexibleHandler;
+  clearTrackedHarnessRun?: FlexibleHandler;
+  settleTrackedHarnessRun?: FlexibleHandler;
 };
 
 export type SessionReplyContextState = UnknownRecord & {
@@ -469,6 +472,9 @@ export interface BuildAppLayoutInput {
   updateSessionAvatar: FlexibleHandler;
   moveSessionNode: FlexibleHandler;
   prepareSessionContinueOnMobile?: FlexibleHandler;
+  trackPendingHarnessRun?: FlexibleHandler;
+  clearTrackedHarnessRun?: FlexibleHandler;
+  settleTrackedHarnessRun?: FlexibleHandler;
   handleContinueSessionOnMobile?: FlexibleHandler;
   projectReady: boolean;
   projectError: string;

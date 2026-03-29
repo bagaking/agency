@@ -21,7 +21,6 @@ import {
   inspectMainAgentHarnessRun,
   onMainAgentHarnessProgress,
   resumeMainAgentHarnessRun,
-  startMainAgentHarnessRun,
 } from '../services/mainAgentHarness';
 import {
   DEFAULT_FONT_SIZE,
@@ -35,6 +34,10 @@ import {
 import { useSessionSelectionState } from './shared/useSessionSelectionState';
 import { useSessionTraceLogging } from './shared/useSessionTraceLogging';
 import { useSessionActivityState } from './shared/useSessionActivityState';
+import {
+  isTrackedHarnessEventRelevant,
+  resolveCreatedSessionFromHarnessRun,
+} from '../utils/commanderHarnessTracking';
 
 export function useSessions(options: any = {}) {
   const {
@@ -343,19 +346,10 @@ export function useSessions(options: any = {}) {
   }, [harnessRunsById]);
 
   const isHarnessEventRelevant = useCallback((event: any) => {
-    const runId = String(event?.runId || '').trim();
-    const clientRequestId = String(event?.clientRequestId || '').trim();
-    if (!runId) {
-      return false;
-    }
-    if (harnessRunsByIdRef.current[runId]) {
-      return true;
-    }
-    return Object.values(pendingHarnessRunsRef.current).some((pending) => {
-      return (
-        String(pending?.runId || '').trim() === runId ||
-        (clientRequestId && String(pending?.clientRequestId || '').trim() === clientRequestId)
-      );
+    return isTrackedHarnessEventRelevant({
+      event,
+      knownRunsById: harnessRunsByIdRef.current,
+      pendingRuns: pendingHarnessRunsRef.current,
     });
   }, []);
 
@@ -405,6 +399,52 @@ export function useSessions(options: any = {}) {
     [harnessRunOrder, harnessRunsById]
   );
 
+  const trackPendingHarnessRun = useCallback(
+    ({
+      clientRequestId,
+      runId = '',
+      cellId,
+      sourceSessionId = '',
+    }: {
+      clientRequestId?: string;
+      runId?: string;
+      cellId?: string;
+      sourceSessionId?: string;
+    }) => {
+      const normalizedClientRequestId = String(clientRequestId || '').trim();
+      const normalizedCellId = String(cellId || '').trim();
+      if (!normalizedClientRequestId || !normalizedCellId) {
+        return;
+      }
+      pendingHarnessRunsRef.current = {
+        ...pendingHarnessRunsRef.current,
+        [normalizedClientRequestId]: {
+          clientRequestId: normalizedClientRequestId,
+          runId: String(runId || '').trim(),
+          cellId: normalizedCellId,
+          sourceSessionId: String(sourceSessionId || '').trim(),
+        },
+      };
+    },
+    []
+  );
+
+  const clearTrackedHarnessRun = useCallback(
+    ({ clientRequestId }: { clientRequestId?: string } = {}) => {
+      const normalizedClientRequestId = String(clientRequestId || '').trim();
+      if (!normalizedClientRequestId) {
+        return;
+      }
+      if (!pendingHarnessRunsRef.current[normalizedClientRequestId]) {
+        return;
+      }
+      const nextPending = { ...pendingHarnessRunsRef.current };
+      delete nextPending[normalizedClientRequestId];
+      pendingHarnessRunsRef.current = nextPending;
+    },
+    []
+  );
+
   const settlePendingHarnessRun = useCallback(
     async ({
       runId,
@@ -447,17 +487,15 @@ export function useSessions(options: any = {}) {
       if (!targetCell) {
         return true;
       }
+      const created = resolveCreatedSessionFromHarnessRun(run);
       if (status !== 'succeeded') {
+        await loadSessionsForCell(targetCell, { silent: true });
         const failureMessage =
           run?.failures?.[0]?.message ||
           (status === 'cancelled' ? 'Harness run was cancelled.' : 'Harness run failed.');
         setSessionError(failureMessage);
         return true;
       }
-      const created =
-        run?.result?.agent?.session ||
-        run?.progress?.outputsByStepId?.['create-agent']?.session ||
-        null;
       await loadSessionsForCell(targetCell, { silent: true });
       if (created?.id) {
         selectionVersionRef.current += 1;
@@ -473,6 +511,43 @@ export function useSessions(options: any = {}) {
       return true;
     },
     [loadSessionsForCell, resolveCell, setActiveSessionByCellId, upsertHarnessRun]
+  );
+
+  const settleTrackedHarnessRun = useCallback(
+    async ({
+      runId,
+      clientRequestId,
+      cellId,
+      sourceSessionId = '',
+      runSnapshot,
+    }: {
+      runId?: string;
+      clientRequestId?: string;
+      cellId?: string;
+      sourceSessionId?: string;
+      runSnapshot?: any;
+    }) => {
+      const normalizedClientRequestId = String(clientRequestId || '').trim();
+      const normalizedCellId = String(cellId || '').trim();
+      if (
+        normalizedClientRequestId &&
+        normalizedCellId &&
+        !pendingHarnessRunsRef.current[normalizedClientRequestId]
+      ) {
+        trackPendingHarnessRun({
+          clientRequestId: normalizedClientRequestId,
+          runId: String(runId || '').trim(),
+          cellId: normalizedCellId,
+          sourceSessionId,
+        });
+      }
+      return settlePendingHarnessRun({
+        runId,
+        clientRequestId,
+        runSnapshot,
+      });
+    },
+    [settlePendingHarnessRun, trackPendingHarnessRun]
   );
 
   useEffect(() => {
@@ -582,121 +657,7 @@ export function useSessions(options: any = {}) {
           parentSessionId,
           nodeKind,
           sourceSessionId,
-          smartFork,
         } = options || {};
-        if (smartFork) {
-          const sourceSessionIdValue = sourceSessionId || parentSessionId || sessionId;
-          const clientRequestId = `fork-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
-          if (!sourceSessionIdValue) {
-            throw new Error('Fork source session is required.');
-          }
-          const hasPendingFork = Object.values(pendingHarnessRunsRef.current).some(
-            (item) =>
-              item?.cellId === targetCell.id &&
-              item?.sourceSessionId === sourceSessionIdValue
-          );
-          if (hasPendingFork) {
-            throw new Error('A Fork run is already active for this session.');
-          }
-          pendingHarnessRunsRef.current = {
-            ...pendingHarnessRunsRef.current,
-            [clientRequestId]: {
-              clientRequestId,
-              runId: '',
-              cellId: targetCell.id,
-              sourceSessionId: sourceSessionIdValue,
-            },
-          };
-          try {
-            const harnessRun = await startMainAgentHarnessRun({
-              clientRequestId,
-              sourceSurface: 'agent-cells',
-              callerType: 'renderer',
-              callerId: 'agent-cells-fork',
-              goal: {
-                type: 'create_agent',
-                title: 'Create Agent via Fork',
-                instruction:
-                  'Create a child execution lane from the selected session using a tool-native fork specialization when available.',
-              },
-              requestedCapabilities: ['session.runtime'],
-              contextRefs: [
-                {
-                  type: 'cell',
-                  cellId: targetCell.id,
-                  worktreePath: targetCell.worktreePath,
-                },
-                {
-                  type: 'session',
-                  sessionId: sourceSessionIdValue,
-                },
-              ],
-              runner: {
-                adapterId: 'agent_backed',
-                providerId: 'codex_cli',
-                steps: [
-                  {
-                    id: 'create-agent',
-                    kind: 'create_agent',
-                    title: 'Create Agent from selected session',
-                    skillPackId: 'session.tool-native-fork',
-                    agent: {
-                      strategy: 'tool_native_fork',
-                      sessionRuntime: {
-                        worktreePath: targetCell.worktreePath,
-                        cellId: targetCell.id,
-                        cellName: targetCell.name,
-                        cellBranch: targetCell.branch,
-                        sessionId: sourceSessionIdValue,
-                      },
-                    },
-                  },
-                ],
-              },
-            });
-            upsertHarnessRun(harnessRun);
-            const runId = String(harnessRun?.runId || '').trim();
-            if (!runId) {
-              throw new Error('Harness run did not return a runId.');
-            }
-            pendingHarnessRunsRef.current = {
-              ...pendingHarnessRunsRef.current,
-              [clientRequestId]: {
-                ...(pendingHarnessRunsRef.current[clientRequestId] || {
-                  clientRequestId,
-                  cellId: targetCell.id,
-                  sourceSessionId: sourceSessionIdValue,
-                }),
-                clientRequestId,
-                runId,
-                cellId: targetCell.id,
-                sourceSessionId: sourceSessionIdValue,
-              },
-            };
-            if (
-              !(await settlePendingHarnessRun({
-                runId,
-                clientRequestId,
-                runSnapshot: harnessRun,
-              }))
-            ) {
-              const currentRun = await inspectMainAgentHarnessRun({ runId }).catch(() => null);
-              if (currentRun) {
-                await settlePendingHarnessRun({
-                  runId,
-                  clientRequestId,
-                  runSnapshot: currentRun,
-                });
-              }
-            }
-          } catch (error) {
-            const nextPending = { ...pendingHarnessRunsRef.current };
-            delete nextPending[clientRequestId];
-            pendingHarnessRunsRef.current = nextPending;
-            throw error;
-          }
-          return null;
-        }
         const preferredAvatar =
           avatar || pickSessionAvatarId(sessionsByCellId[targetCell.id] || []);
         const created = await createSessionBridge({
@@ -1138,6 +1099,9 @@ export function useSessions(options: any = {}) {
     handleSessionAttached,
     cancelHarnessRun,
     resumeHarnessRun,
+    trackPendingHarnessRun,
+    clearTrackedHarnessRun,
+    settleTrackedHarnessRun,
     clearSessionError,
     resetSessions,
   };

@@ -154,6 +154,58 @@ function normalizeLaunchCommand(value: unknown): string {
   return String(value || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
 }
 
+export function buildPreparedToolNativeForkContext({
+  payload,
+  sourceSession,
+  sourceRuntime,
+  profiles = [],
+}: {
+  payload: SessionRuntimePayload;
+  sourceSession?: SessionRecord | null;
+  sourceRuntime?: SourceRuntime | null;
+  profiles?: TerminusProfile[];
+}): PreparedContext {
+  const normalizedPayload = {
+    ...payload,
+  };
+  const storedProfileId =
+    String(sourceSession?.profileId || normalizedPayload.profileId || '').trim() ||
+    BASELINE_PROFILE_ID;
+  const profile = resolveProfileForRuntime(
+    profiles,
+    storedProfileId,
+    sourceRuntime?.tool
+  );
+  const effectiveProfileId =
+    String(profile?.id || storedProfileId).trim() || BASELINE_PROFILE_ID;
+  const smartForkConfig = profile?.fork || {};
+  const startCommand = normalizeLaunchCommand(profile?.startCommand);
+  const resumeCommand = normalizeLaunchCommand(profile?.resumeCommand);
+  return {
+    payload: {
+      ...normalizedPayload,
+      profileId: effectiveProfileId,
+    },
+    storedProfileId,
+    resolvedProfileId: effectiveProfileId,
+    sourceSession: sourceSession || null,
+    sourceRuntime: sourceRuntime || null,
+    profile: profile
+      ? {
+          id: profile.id || '',
+          label: profile.label || '',
+          startCommand,
+          resumeCommand,
+          fork: {
+            enabled: Boolean(smartForkConfig?.enabled),
+            driver: String(smartForkConfig?.driver || '').trim().toLowerCase(),
+            launchTemplate: String(smartForkConfig?.launchTemplate || '').trim(),
+          },
+        }
+      : null,
+  };
+}
+
 export function createSessionToolNativeForkSkillPack() {
   return {
     id: 'session.tool-native-fork',
@@ -200,37 +252,12 @@ export function createSessionToolNativeForkSkillPack() {
       const sourceRuntime = inspectData?.runtime || null;
       const settings = await getResolvedTerminusSettings({ worktreePath: payload.worktreePath });
       const profiles = Array.isArray(settings?.profiles) ? settings.profiles as TerminusProfile[] : [];
-      const storedProfileId =
-        String(sourceSession?.profileId || payload.profileId || '').trim() || BASELINE_PROFILE_ID;
-      const profile = resolveProfileForRuntime(profiles, storedProfileId, sourceRuntime?.tool);
-      const effectiveProfileId =
-        String(profile?.id || storedProfileId).trim() || BASELINE_PROFILE_ID;
-      const smartForkConfig = profile?.fork || {};
-      const startCommand = normalizeLaunchCommand(profile?.startCommand);
-      const resumeCommand = normalizeLaunchCommand(profile?.resumeCommand);
-      return {
-        payload: {
-          ...payload,
-          profileId: effectiveProfileId,
-        },
-        storedProfileId,
-        resolvedProfileId: effectiveProfileId,
+      return buildPreparedToolNativeForkContext({
+        payload,
         sourceSession,
         sourceRuntime,
-        profile: profile
-          ? {
-              id: profile.id || '',
-              label: profile.label || '',
-              startCommand,
-              resumeCommand,
-              fork: {
-                enabled: Boolean(smartForkConfig?.enabled),
-                driver: String(smartForkConfig?.driver || '').trim().toLowerCase(),
-                launchTemplate: String(smartForkConfig?.launchTemplate || '').trim(),
-              },
-            }
-          : null,
-      };
+        profiles,
+      });
     },
     shouldUseDeterministicDecision({
       preparedContext,

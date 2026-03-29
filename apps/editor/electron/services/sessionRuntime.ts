@@ -625,6 +625,12 @@ async function runCodexSmartFork(payload = {}, overrides = {}) {
   });
   steps.push(buildStep('create-child-session', 'completed', { sessionId: childSession?.id || '' }));
 
+  const childLaunch = {
+    command: rendered.text,
+    template: config.launchTemplate,
+    variables: metadata.variables,
+  };
+
   await deps.dispatchSessionInput({
     worktreePath: payload?.worktreePath,
     sessionId: childSession.id,
@@ -655,6 +661,10 @@ async function runCodexSmartFork(payload = {}, overrides = {}) {
       {
         code: error?.code === 'WAIT_CONDITION_TIMEOUT' ? 'CHILD_READY_TIMEOUT' : error?.code || 'FATAL',
         steps: steps.slice(),
+        session: childSession,
+        sourceSession: sourceSnapshot.session,
+        sourceRuntime,
+        launch: childLaunch,
         metadata: buildWaitFailureMetadata(error, {
           sourceRuntime,
           childSessionId: childSession?.id || '',
@@ -674,11 +684,7 @@ async function runCodexSmartFork(payload = {}, overrides = {}) {
     sourceRuntime,
     steps,
     metadata,
-    launch: {
-      command: rendered.text,
-      template: config.launchTemplate,
-      variables: metadata.variables,
-    },
+    launch: childLaunch,
   };
 }
 
@@ -818,6 +824,10 @@ async function performSessionRuntimeIntent(payload = {}, overrides = {}) {
     return buildFailure(intent, error?.code || 'FATAL', error?.message || String(error), {
       operationId,
       caller,
+      session: error?.session || null,
+      sourceSession: error?.sourceSession || null,
+      sourceRuntime: error?.sourceRuntime || null,
+      launch: error?.launch || null,
       steps: Array.isArray(error?.steps) ? error.steps : [],
       metadata: error?.metadata || null,
     });

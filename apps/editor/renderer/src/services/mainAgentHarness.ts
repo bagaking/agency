@@ -4,10 +4,7 @@ import {
   listMainAgentHarnessRuns as invokeListMainAgentHarnessRuns,
   onMainAgentHarnessProgress as subscribeMainAgentHarnessProgress,
   resumeMainAgentHarnessRun as invokeResumeMainAgentHarnessRun,
-  startMainAgentHarnessRun as invokeStartMainAgentHarnessRun,
 } from './agencyBridge';
-
-type MainAgentHarnessRunPayload = Record<string, any>;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -22,11 +19,6 @@ const unwrapHarnessResponse = (response: any, fallbackAction: string) => {
     throw new Error(message);
   }
   return response?.data ?? null;
-};
-
-export const startMainAgentHarnessRun = async (payload: MainAgentHarnessRunPayload) => {
-  const response = await invokeStartMainAgentHarnessRun(payload);
-  return unwrapHarnessResponse(response, 'start');
 };
 
 export const inspectMainAgentHarnessRun = async (payload: { runId: string }) => {

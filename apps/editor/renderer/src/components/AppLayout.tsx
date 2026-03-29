@@ -37,6 +37,9 @@ export function AppLayout({
   onUpdateSessionAvatar,
   onMoveSessionNode,
   onContinueSessionOnMobile,
+  onTrackPendingHarnessRun,
+  onClearTrackedHarnessRun,
+  onSettleTrackedHarnessRun,
   projectReady,
   projectError,
   projectRoot,
@@ -229,6 +232,9 @@ export function AppLayout({
         onUpdateSessionAvatar,
         onMoveSessionNode,
         onContinueSessionOnMobile,
+        onTrackPendingHarnessRun,
+        onClearTrackedHarnessRun,
+        onSettleTrackedHarnessRun,
         onConfigureProfile,
       }}
       hierarchySidebarProps={{

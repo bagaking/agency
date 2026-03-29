@@ -4,6 +4,7 @@ import { setupActionSheetsHandlers } from "../ipc/handlers/actionSheets";
 import { setupAppShortcutsHandlers } from "../ipc/handlers/appShortcuts";
 import { setupCaptureHandlers } from "../ipc/handlers/capture";
 import { setupCellHandlers } from "../ipc/handlers/cells";
+import { setupCommanderActionHandlers } from "../ipc/handlers/commander";
 import { setupClipboardHandlers } from "../ipc/handlers/clipboard";
 import { setupCommanderStatusHandlers } from "../ipc/handlers/commanderStatus";
 import { setupCommentsHandlers } from "../ipc/handlers/comments";
@@ -76,6 +77,7 @@ const IPC_REGISTRATIONS: IpcRegistration[] = [
   withoutDeps(setupRuntimeLogHandlers),
   withoutDeps(setupProjectHandlers),
   withoutDeps(setupClipboardHandlers),
+  withoutDeps(setupCommanderActionHandlers),
   withoutDeps(setupCommanderStatusHandlers),
   withoutDeps(setupCommentsHandlers),
   withoutDeps(setupDeliveryHandlers),

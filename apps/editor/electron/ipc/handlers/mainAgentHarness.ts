@@ -1,4 +1,7 @@
 const { BrowserWindow, ipcMain } = require('electron');
+const {
+  getCommanderCallerId,
+} = require('../../../shared/commanderCore');
 
 const {
   cancelMainAgentHarnessRun,
@@ -10,6 +13,21 @@ const {
 } = require('../../services/mainAgentHarness');
 
 let progressRelayAttached = false;
+
+function buildHarnessFailure(action, code, message, data = null) {
+  return {
+    success: false,
+    action,
+    warnings: [],
+    failures: [
+      {
+        code: String(code || 'FATAL'),
+        message: String(message || 'Harness action failed.'),
+      },
+    ],
+    data,
+  };
+}
 
 function buildOwnerContext(event) {
   const ownerWindow = BrowserWindow.fromWebContents(event.sender);
@@ -41,7 +59,19 @@ function relayHarnessProgress(event) {
 
 function setupMainAgentHarnessHandlers() {
   ipcMain.handle('main-agent-harness:start', async (event, payload) => {
-    return startMainAgentHarnessRun(payload || {}, buildOwnerContext(event));
+    const ownerContext = buildOwnerContext(event);
+    const callerId = String(payload?.callerId || '').trim();
+    const isCommanderCaller =
+      callerId === getCommanderCallerId('smart_fork') ||
+      callerId === getCommanderCallerId('smart_name');
+    if (ownerContext.transportTrust === 'renderer_ipc' && isCommanderCaller) {
+      return buildHarnessFailure(
+        'start',
+        'PERMISSION_DENIED',
+        'Commander-owned actions must be started through the Commander action facade.'
+      );
+    }
+    return startMainAgentHarnessRun(payload || {}, ownerContext);
   });
   ipcMain.handle('main-agent-harness:inspect', async (event, payload) => {
     return inspectMainAgentHarnessRun(payload || {}, buildOwnerContext(event));

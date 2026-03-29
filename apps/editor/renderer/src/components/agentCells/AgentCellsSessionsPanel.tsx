@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 import { RecentProjectsList } from '../RecentProjectsList';
-import { CommanderTaskSheet } from '../commander/CommanderTaskSheet';
+import { useCommanderTaskLauncher } from '../commander/useCommanderTaskLauncher';
 import { SessionContextMenu, SessionCreateMenu, SessionOverflowMenu } from '../SessionMenus';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
 import { AvatarPickerMenu } from '../ui/AvatarPickerMenu';
@@ -30,8 +30,9 @@ import { buildAgentCellChildSessionOptions } from '../../utils/agentCellChildSes
 import { useModal } from '../modals/ModalSystem';
 import { useCommanderStatus } from '../../hooks/useCommanderStatus';
 import {
-  startMainAgentHarnessRun,
-} from '../../services/mainAgentHarness';
+  startCommanderSmartForkRun,
+  startCommanderSmartNameRun,
+} from '../../services/commander';
 
 const cellStateColors: Record<string, string> = {
   draft: 'text-muted-foreground',
@@ -101,6 +102,20 @@ type AgentCellsSessionsPanelProps = {
     cellId: string,
     mode?: 'direct' | 'hub' | 'proxy'
   ) => Promise<void> | void;
+  onTrackPendingHarnessRun?: (input: {
+    clientRequestId: string;
+    runId?: string;
+    cellId: string;
+    sourceSessionId?: string;
+  }) => void;
+  onClearTrackedHarnessRun?: (input: { clientRequestId?: string }) => void;
+  onSettleTrackedHarnessRun?: (input: {
+    clientRequestId?: string;
+    runId?: string;
+    cellId?: string;
+    sourceSessionId?: string;
+    runSnapshot?: any;
+  }) => Promise<boolean>;
   onConfigureProfile?: (profile: any) => void;
 };
 
@@ -260,9 +275,13 @@ export function AgentCellsSessionsPanel({
   onUpdateSessionAvatar,
   onMoveSessionNode,
   onContinueSessionOnMobile,
+  onTrackPendingHarnessRun,
+  onClearTrackedHarnessRun,
+  onSettleTrackedHarnessRun,
   onConfigureProfile,
 }: AgentCellsSessionsPanelProps) {
   const modal = useModal();
+  const launchCommanderTask = useCommanderTaskLauncher();
   const [idleNow, setIdleNow] = useState(Date.now());
   const [closedMenu, setClosedMenu] = useState<any>(null);
   const [contextMenu, setContextMenu] = useState<any>(null);
@@ -276,6 +295,7 @@ export function AgentCellsSessionsPanel({
   const [draggingSession, setDraggingSession] = useState<{ cellId: string; sessionId: string } | null>(null);
   const [dropTarget, setDropTarget] = useState<SessionDropTarget | null>(null);
   const [smartNamingSessionKey, setSmartNamingSessionKey] = useState('');
+  const [smartForkingSessionKey, setSmartForkingSessionKey] = useState('');
 
   const closedMenuRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
@@ -522,8 +542,16 @@ export function AgentCellsSessionsPanel({
     return resolveCellSessions(contextMenu.cellId).find((session) => session.id === contextMenu.sessionId);
   }, [contextMenu?.cellId, contextMenu?.sessionId, resolveCellSessions]);
   const contextMenuCell = contextMenu?.cellId ? cellsById.get(contextMenu.cellId) : null;
-  const { commanderReady } = useCommanderStatus({
+  const {
+    smartForkAvailable,
+    smartNameAvailable,
+  } = useCommanderStatus({
     worktreePath: contextMenuCell?.worktreePath || '',
+    cellId: contextMenuCell?.id || '',
+    cellName: contextMenuCell?.name || '',
+    cellBranch: contextMenuCell?.branch || '',
+    sessionId: contextMenuSession?.id || '',
+    refreshKey: contextMenu ? buildSessionKey(contextMenu.cellId, contextMenu.sessionId) : '',
   });
 
   const avatarMenuSessions = useMemo(() => {
@@ -709,7 +737,7 @@ export function AgentCellsSessionsPanel({
       return;
     }
     setContextMenu(null);
-    if (!commanderReady) {
+    if (!smartNameAvailable) {
       return;
     }
 
@@ -718,76 +746,32 @@ export function AgentCellsSessionsPanel({
       return;
     }
 
-    const clientRequestId = `smart-name-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
     const taskModalId = `commander-smart-name-${contextMenuSession.id}`;
     setSmartNamingSessionKey(pendingKey);
     try {
-      const startedRun = await startMainAgentHarnessRun({
-        clientRequestId,
+      const startedRun = await startCommanderSmartNameRun({
+        worktreePath: contextMenuCell.worktreePath,
+        cellId: contextMenuCell.id,
+        cellName: contextMenuCell.name,
+        cellBranch: contextMenuCell.branch,
+        sessionId: contextMenuSession.id,
+        sessionName: contextMenuSession.name,
         sourceSurface: 'agent-cells',
         callerType: 'renderer',
-        callerId: 'agent-cells-smart-name',
-        goal: {
-          type: 'suggest_session_name',
-          title: 'Suggest Session Name',
-          instruction: 'Suggest short session names from recent session context.',
-        },
-        requestedCapabilities: ['session.runtime'],
-        contextRefs: [
-          {
-            type: 'cell',
-            cellId: contextMenuCell.id,
-            worktreePath: contextMenuCell.worktreePath,
-          },
-          {
-            type: 'session',
-            sessionId: contextMenuSession.id,
-          },
-        ],
-        runner: {
-          adapterId: 'agent_backed',
-          providerId: 'codex_cli',
-          steps: [
-            {
-              id: 'smart-name',
-              kind: 'agent_task',
-              title: 'Suggest session name from current context',
-              skillPackId: 'session.smart-name',
-              agent: {
-                strategy: 'smart_name',
-                sessionRuntime: {
-                  worktreePath: contextMenuCell.worktreePath,
-                  cellId: contextMenuCell.id,
-                  cellName: contextMenuCell.name,
-                  cellBranch: contextMenuCell.branch,
-                  sessionId: contextMenuSession.id,
-                  sessionName: contextMenuSession.name,
-                },
-              },
-            },
-          ],
-        },
       });
       const runId = String(startedRun?.runId || '').trim();
       if (!runId) {
         throw new Error('Harness run did not return a runId.');
       }
 
-      const taskResult = await modal.openModal({
-        id: taskModalId,
-        variant: 'commander-task',
-        dismissOnOverlay: false,
-        showActions: false,
-        content: (
-          <CommanderTaskSheet
-            modalId={taskModalId}
-            runId={runId}
-            stepId="smart-name"
-            taskTitle="Smart Rename"
-            sessionName={contextMenuSession.name || contextMenuSession.id}
-            cellName={contextMenuCell.name || contextMenuCell.id}
-          />
-        ),
+      const taskResult = await launchCommanderTask({
+        modalId: taskModalId,
+        runId,
+        stepId: 'smart-name',
+        taskKind: 'smart-name',
+        taskTitle: 'Smart Rename',
+        sessionName: contextMenuSession.name || contextMenuSession.id,
+        cellName: contextMenuCell.name || contextMenuCell.id,
       });
 
       if (taskResult?.type !== 'apply') {
@@ -817,14 +801,112 @@ export function AgentCellsSessionsPanel({
       setSmartNamingSessionKey((current) => (current === pendingKey ? '' : current));
     }
   }, [
-    commanderReady,
+    smartNameAvailable,
     contextMenu?.cellId,
     contextMenu?.sessionId,
     contextMenuCell,
     contextMenuSession,
     modal,
     onRenameSession,
+    launchCommanderTask,
     smartNamingSessionKey,
+  ]);
+
+  const handleSmartForkByCommander = useCallback(async () => {
+    if (!contextMenu?.cellId || !contextMenu?.sessionId || !contextMenuCell || !contextMenuSession) {
+      setContextMenu(null);
+      return;
+    }
+    setContextMenu(null);
+    if (!smartForkAvailable) {
+      return;
+    }
+
+    const pendingKey = buildSessionKey(contextMenuCell.id, contextMenuSession.id);
+    if (smartForkingSessionKey === pendingKey) {
+      return;
+    }
+
+    const clientRequestId = `fork-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+    const taskModalId = `commander-smart-fork-${contextMenuSession.id}`;
+
+    setSmartForkingSessionKey(pendingKey);
+    try {
+      onTrackPendingHarnessRun?.({
+        clientRequestId,
+        cellId: contextMenuCell.id,
+        sourceSessionId: contextMenuSession.id,
+      });
+      const startedRun = await startCommanderSmartForkRun({
+        clientRequestId,
+        worktreePath: contextMenuCell.worktreePath,
+        cellId: contextMenuCell.id,
+        cellName: contextMenuCell.name,
+        cellBranch: contextMenuCell.branch,
+        sessionId: contextMenuSession.id,
+        sourceSurface: 'agent-cells',
+        callerType: 'renderer',
+      });
+      const runId = String(startedRun?.runId || '').trim();
+      if (!runId) {
+        throw new Error('Harness run did not return a runId.');
+      }
+      onTrackPendingHarnessRun?.({
+        clientRequestId,
+        runId,
+        cellId: contextMenuCell.id,
+        sourceSessionId: contextMenuSession.id,
+      });
+
+      const taskResult = await launchCommanderTask({
+        modalId: taskModalId,
+        runId,
+        stepId: 'create-agent',
+        taskKind: 'smart-fork',
+        taskTitle: 'Smart Fork',
+        sessionName: contextMenuSession.name || contextMenuSession.id,
+        cellName: contextMenuCell.name || contextMenuCell.id,
+      });
+
+      if (taskResult?.type === 'complete') {
+        await onSettleTrackedHarnessRun?.({
+          clientRequestId,
+          runId,
+          cellId: contextMenuCell.id,
+          sourceSessionId: contextMenuSession.id,
+        });
+        const createdSessionId = String(taskResult?.value?.sessionId || '').trim();
+        if (createdSessionId) {
+          onSelectSession?.(contextMenuCell.id, createdSessionId);
+        }
+      }
+    } catch (error: any) {
+      await modal.openModal({
+        variant: 'alert',
+        tone: 'danger',
+        title: 'Smart Fork Failed',
+        description: error?.message || 'Failed to create a Commander child session.',
+        dismissLabel: 'Close',
+        dismissOnOverlay: false,
+      });
+      onClearTrackedHarnessRun?.({
+        clientRequestId,
+      });
+    } finally {
+      setSmartForkingSessionKey((current) => (current === pendingKey ? '' : current));
+    }
+  }, [
+    contextMenu?.cellId,
+    contextMenu?.sessionId,
+    contextMenuCell,
+    contextMenuSession,
+    launchCommanderTask,
+    modal,
+    onClearTrackedHarnessRun,
+    onSettleTrackedHarnessRun,
+    onTrackPendingHarnessRun,
+    smartForkingSessionKey,
+    smartForkAvailable,
   ]);
 
   return (
@@ -1364,8 +1446,11 @@ export function AgentCellsSessionsPanel({
         isOpen={Boolean(contextMenu && contextMenuSession)}
         position={contextMenu || { x: 0, y: 0 }}
         containerRef={contextMenuRef}
-        showSmartForkByCommander={commanderReady}
-        showSmartNameByCommander={commanderReady}
+        showSmartForkByCommander={smartForkAvailable}
+        showSmartNameByCommander={smartNameAvailable}
+        onSmartForkByCommander={() => {
+          void handleSmartForkByCommander();
+        }}
         onSmartNameByCommander={() => {
           void handleSmartNameByCommander();
         }}
@@ -1380,16 +1465,6 @@ export function AgentCellsSessionsPanel({
               cellId: contextMenu.cellId,
               session: contextMenuSession,
               nodeKind: 'sub_terminal',
-            });
-          }
-          setContextMenu(null);
-        }}
-        onCreateFork={() => {
-          if (contextMenu?.cellId && contextMenuSession) {
-            void createChildSession({
-              cellId: contextMenu.cellId,
-              session: contextMenuSession,
-              nodeKind: 'fork',
             });
           }
           setContextMenu(null);

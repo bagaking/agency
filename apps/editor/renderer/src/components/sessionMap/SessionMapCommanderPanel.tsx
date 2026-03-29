@@ -1,6 +1,14 @@
 import React, { useMemo } from 'react';
-import { MessageSquareText } from 'lucide-react';
-import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
+import { ChevronRight, MessageSquareText } from 'lucide-react';
+import {
+  SessionMapCommanderAvatar,
+} from './SessionMapCommanderAvatar';
+import {
+  resolveActiveCommanderRun,
+  resolveCommanderDirectiveLabel,
+  resolveCommanderProviderLabel,
+  resolvePrimaryCommanderRun,
+} from '../../../../shared/commanderCore';
 
 const statusTone = (status: string) => {
   const normalized = String(status || '').trim().toLowerCase();
@@ -46,19 +54,14 @@ export function SessionMapCommanderPanel({
   buttonRef,
 }: any) {
   const runList = Array.isArray(harnessRuns) ? harnessRuns : [];
-  const activeRun = useMemo(
-    () =>
-      runList.find((run) =>
-        ['queued', 'running', 'cancelling'].includes(String(run?.status || '').trim().toLowerCase())
-      ) || runList[0] || null,
+  const activeCommanderRun = useMemo(
+    () => resolveActiveCommanderRun(runList),
     [runList]
   );
+  const activeRun = useMemo(() => resolvePrimaryCommanderRun(runList), [runList]);
   const tone = statusTone(activeRun?.status || '');
-  const commanderAvatarId = 'AGENCY_BACKEND_COMMANDER';
-  const directiveLabel = activeRun?.goal?.title || 'Awaiting command';
-  const providerLabel = String(activeRun?.runner?.providerId || 'standby')
-    .replace(/_/g, ' ')
-    .toUpperCase();
+  const directiveLabel = resolveCommanderDirectiveLabel(activeRun);
+  const providerLabel = resolveCommanderProviderLabel(activeRun);
 
   return (
     <button
@@ -71,11 +74,11 @@ export function SessionMapCommanderPanel({
       aria-label="Open commander briefing drawer"
       data-commander-trigger="true"
       title={directiveLabel}
-      className={`group flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(11,17,24,0.97),rgba(6,9,14,0.97))] px-2 py-2 text-left transition-colors ${tone.glow} shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),0_10px_24px_rgba(0,0,0,0.22)] hover:bg-[linear-gradient(180deg,rgba(13,20,28,0.99),rgba(8,12,18,0.99))] ${
+      className={`group flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(11,17,24,0.97),rgba(6,9,14,0.97))] px-3 py-3 text-left transition-colors ${tone.glow} shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),0_10px_24px_rgba(0,0,0,0.22)] hover:bg-[linear-gradient(180deg,rgba(13,20,28,0.99),rgba(8,12,18,0.99))] ${
         dialogOpen ? 'ring-1 ring-cyan-300/28 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14),0_0_0_1px_rgba(34,211,238,0.12),0_10px_24px_rgba(0,0,0,0.22)]' : ''
       }`}
     >
-      <div className="flex items-center justify-between gap-1">
+      <div className="flex items-center justify-between gap-2">
         <div className="text-[7px] font-black uppercase tracking-[0.2em] text-cyan-100/68">
           Commander
         </div>
@@ -86,40 +89,47 @@ export function SessionMapCommanderPanel({
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2.5 py-2">
-        <div className="relative">
-          <div className="absolute inset-0 rounded-full bg-cyan-500/20 blur-2xl" />
-          <AgentAvatarBadge
-            avatarId={commanderAvatarId}
-            size={48}
-            showRing={false}
-            className="relative rounded-full bg-black/55 p-1"
-          />
+      <div className="mt-3 flex min-h-0 flex-1 flex-col gap-3">
+        <div className="rounded-2xl border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(16,22,31,0.96),rgba(8,11,17,0.98))] px-3 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+          <div className="flex items-center gap-3">
+            <SessionMapCommanderAvatar
+              busy={Boolean(activeCommanderRun)}
+              size={42}
+              ringSize={50}
+              className="shrink-0"
+            />
+            <div className="min-w-0">
+              <div className="font-mono text-[8px] font-black uppercase tracking-[0.12em] text-white">
+                Agency
+              </div>
+              <div className="mt-0.5 text-[6px] uppercase tracking-[0.16em] text-white/40">
+                Backend Operator
+              </div>
+              <div className="mt-1 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[6px] font-bold uppercase tracking-[0.12em] text-white/64">
+                {providerLabel}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 rounded-xl border border-white/8 bg-black/26 px-2.5 py-2.5">
+            <div className="text-[6px] font-bold uppercase tracking-[0.14em] text-white/34">
+              Current Brief
+            </div>
+            <div className="mt-1.5 max-h-12 overflow-hidden text-[8px] leading-snug text-white/78">
+              {directiveLabel}
+            </div>
+          </div>
         </div>
 
-        <div className="text-center">
-          <div className="font-mono text-[8px] font-black uppercase tracking-[0.12em] text-white">
-            Agency
+        <div className="mt-auto rounded-2xl border border-white/8 bg-white/[0.035] px-2.5 py-2.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+          <div className="inline-flex items-center gap-1.5 text-[7px] font-bold uppercase tracking-[0.12em] text-cyan-100/76">
+            <MessageSquareText size={10} className="text-cyan-300/80" />
+            <span>{dialogOpen ? 'Briefing open' : 'Open briefing'}</span>
           </div>
-          <div className="mt-0.5 text-[6px] uppercase tracking-[0.14em] text-white/40">
-            Backend
+          <div className="mt-2 flex items-center justify-between text-[7px] uppercase tracking-[0.14em] text-white/34">
+            <span>{activeCommanderRun ? 'Commander task live' : 'Standby'}</span>
+            <ChevronRight size={12} className="text-white/28 transition-transform group-hover:translate-x-0.5 group-hover:text-cyan-100/72" />
           </div>
-          <div className="mt-1 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[6px] font-bold uppercase tracking-[0.12em] text-white/64">
-            {providerLabel}
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-white/8 bg-white/[0.035] px-2 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
-        <div className="text-[6px] font-bold uppercase tracking-[0.14em] text-white/34">
-          Directive
-        </div>
-        <div className="mt-1 max-h-9 overflow-hidden text-[7px] leading-tight text-white/74">
-          {directiveLabel}
-        </div>
-        <div className="mt-2 inline-flex items-center gap-1.5 text-[7px] font-bold uppercase tracking-[0.12em] text-cyan-100/76">
-          <MessageSquareText size={10} className="text-cyan-300/80" />
-          <span>{dialogOpen ? 'Briefing open' : 'Open drawer'}</span>
         </div>
       </div>
     </button>

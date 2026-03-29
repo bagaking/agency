@@ -2,6 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Activity, ChevronDown, ChevronUp, Copy, Radar, ShieldAlert, Square, X } from 'lucide-react';
 import { writeTextToClipboard } from '../../utils/clipboard';
 import { formatRelativeTime } from '../../utils/timeFormat';
+import {
+  isHarnessRunActiveStatus,
+  isHarnessRunResumableStatus,
+  resolvePrimaryHarnessRun,
+} from '../../../../shared/commanderCore';
 
 const statusTone = (status: string) => {
   const normalized = String(status || '').trim().toLowerCase();
@@ -53,13 +58,7 @@ export function SessionMapCommandPanel({
   const [collapsed, setCollapsed] = useState(false);
   const [copiedKind, setCopiedKind] = useState('');
   const runList = Array.isArray(harnessRuns) ? harnessRuns : [];
-  const activeRun = useMemo(
-    () =>
-      runList.find((run) =>
-        ['queued', 'running', 'cancelling'].includes(String(run?.status || '').trim().toLowerCase())
-      ) || runList[0] || null,
-    [runList]
-  );
+  const activeRun = useMemo(() => resolvePrimaryHarnessRun(runList), [runList]);
   const timeline = Array.isArray(activeRun?.timeline) ? activeRun.timeline.slice(-6).reverse() : [];
   const tone = statusTone(activeRun?.status || '');
 
@@ -181,9 +180,7 @@ export function SessionMapCommandPanel({
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  {['queued', 'running', 'cancelling'].includes(
-                    String(activeRun?.status || '').trim().toLowerCase()
-                  ) ? (
+                  {isHarnessRunActiveStatus(activeRun?.status) ? (
                     <button
                       type="button"
                       onClick={() => onCancelHarnessRun?.(activeRun.runId)}
@@ -191,9 +188,7 @@ export function SessionMapCommandPanel({
                     >
                       Cancel
                     </button>
-                  ) : ['failed', 'cancelled'].includes(
-                      String(activeRun?.status || '').trim().toLowerCase()
-                    ) ? (
+                  ) : isHarnessRunResumableStatus(activeRun?.status) ? (
                     <button
                       type="button"
                       onClick={() => onResumeHarnessRun?.(activeRun.runId)}

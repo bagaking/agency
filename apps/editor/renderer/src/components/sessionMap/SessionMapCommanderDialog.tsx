@@ -9,7 +9,6 @@ import {
   Square,
   X,
 } from 'lucide-react';
-import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
 import {
   buildCommanderAssistantTurn,
   buildCommanderQuickPrompts,
@@ -17,8 +16,13 @@ import {
   resolveCommanderContext,
   type CommanderAction,
 } from '../../utils/sessionMapCommander';
-
-const COMMANDER_AVATAR_ID = 'AGENCY_BACKEND_COMMANDER';
+import {
+  SessionMapCommanderAvatar,
+} from './SessionMapCommanderAvatar';
+import {
+  isCommanderTaskRun,
+  resolveActiveCommanderRun,
+} from '../../../../shared/commanderCore';
 
 const toneClasses = {
   info: {
@@ -109,14 +113,23 @@ export function SessionMapCommanderDialog({
   onClearSessionError,
   onClose,
 }: any) {
+  const runList = Array.isArray(harnessRuns) ? harnessRuns : [];
+  const commanderRuns = useMemo(
+    () => runList.filter((run) => isCommanderTaskRun(run)),
+    [runList]
+  );
   const context = useMemo(
     () =>
       resolveCommanderContext({
         focusData,
-        harnessRuns,
+        harnessRuns: commanderRuns,
         sessionError,
       }),
-    [focusData, harnessRuns, sessionError]
+    [commanderRuns, focusData, sessionError]
+  );
+  const activeCommanderRun = useMemo(
+    () => resolveActiveCommanderRun(runList),
+    [runList]
   );
   const quickPrompts = useMemo(() => buildCommanderQuickPrompts(context), [context]);
   const [draft, setDraft] = useState('');
@@ -216,22 +229,21 @@ export function SessionMapCommanderDialog({
       role="dialog"
       aria-modal="false"
       aria-label="Commander briefing"
-      className="flex h-full min-h-0 w-full max-w-[500px] flex-col overflow-hidden rounded-l-[28px] rounded-r-none border border-cyan-300/12 border-r-0 bg-[linear-gradient(180deg,rgba(14,20,29,0.992),rgba(7,10,16,0.99))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03),-24px_0_72px_rgba(0,0,0,0.4)]"
+      className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cyan-300/12 bg-[linear-gradient(180deg,rgba(14,20,29,0.992),rgba(7,10,16,0.99))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03),0_16px_36px_rgba(0,0,0,0.28)]"
     >
-      <div className="flex items-start justify-between gap-3 border-b border-white/6 px-3.5 py-3">
+      <div className="flex items-start justify-between gap-3 border-b border-white/6 px-4 py-4">
         <div className="flex min-w-0 items-center gap-2">
-          <AgentAvatarBadge
-            avatarId={COMMANDER_AVATAR_ID}
-            size={18}
-            ringSize={24}
-            showRing={false}
-            className="shrink-0 rounded-full bg-black/45 p-1"
+          <SessionMapCommanderAvatar
+            busy={Boolean(activeCommanderRun)}
+            size={30}
+            ringSize={36}
+            className="shrink-0"
           />
           <div className="min-w-0">
             <div className="truncate font-mono text-[8px] font-black uppercase tracking-[0.16em] text-cyan-100/86">
               Commander Briefing
             </div>
-            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               <span className="rounded-full border border-cyan-300/16 bg-cyan-500/[0.08] px-2 py-0.5 text-[6px] font-bold uppercase tracking-[0.12em] text-cyan-100/74">
                 Session Map Scope
               </span>
@@ -272,30 +284,35 @@ export function SessionMapCommanderDialog({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3 pr-2">
-        <div className="flex items-start gap-2">
-          <AgentAvatarBadge
-            avatarId={COMMANDER_AVATAR_ID}
-            size={16}
-            ringSize={20}
-            showRing={false}
-            className="mt-1 shrink-0 rounded-full bg-black/45 p-0.5"
-          />
-          <div className="min-w-0 flex-1">
-            <CommanderTurnCard
-              label="Current Briefing"
-              title={briefing.title}
-              body={briefing.body}
-              tone={briefing.tone}
-              actions={briefing.actions}
-              pendingActionId={pendingActionId}
-              onAction={handleAction}
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 pr-3">
+        <div className="rounded-2xl border border-white/8 bg-[linear-gradient(180deg,rgba(16,22,31,0.96),rgba(8,11,17,0.98))] px-3.5 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+          <div className="flex items-start gap-3">
+            <SessionMapCommanderAvatar
+              busy={Boolean(activeCommanderRun)}
+              size={34}
+              ringSize={40}
+              className="mt-1 shrink-0"
             />
+            <div className="min-w-0 flex-1">
+              <div className="text-[7px] font-bold uppercase tracking-[0.14em] text-white/34">
+                Current Briefing
+              </div>
+              <div className="mt-2">
+                <CommanderTurnCard
+                  title={briefing.title}
+                  body={briefing.body}
+                  tone={briefing.tone}
+                  actions={briefing.actions}
+                  pendingActionId={pendingActionId}
+                  onAction={handleAction}
+                />
+              </div>
+            </div>
           </div>
         </div>
 
         {latestResponse ? (
-          <div className="ml-8">
+          <div className="pl-10">
             <CommanderTurnCard
               label={latestPrompt ? `Latest Response · ${latestPrompt}` : 'Latest Response'}
               title={latestResponse.title}
@@ -307,14 +324,14 @@ export function SessionMapCommanderDialog({
             />
           </div>
         ) : (
-          <div className="ml-8 rounded-2xl border border-dashed border-white/8 bg-white/[0.03] px-3 py-2 text-[8px] uppercase tracking-[0.14em] text-white/28">
+          <div className="rounded-2xl border border-dashed border-white/8 bg-white/[0.03] px-3.5 py-3 text-[8px] uppercase tracking-[0.14em] text-white/28">
             Use a quick prompt or ask one focused question. This drawer stays bound to the current session and run context instead of accumulating chat history.
           </div>
         )}
       </div>
 
-      <div className="border-t border-white/6 px-3 py-3">
-        <div className="mb-2 flex flex-wrap gap-1.5">
+      <div className="border-t border-white/6 px-4 py-4">
+        <div className="mb-2.5 flex flex-wrap gap-1.5">
           {quickPrompts.map((prompt) => (
             <button
               key={prompt.id}

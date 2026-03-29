@@ -3,7 +3,39 @@ import { AgentAvatarBadge } from './ui/AgentAvatarBadge';
 import { focusRing } from './ui/focusRing';
 import { resolveSessionAvatarId } from '../utils/agentAvatar';
 import { buildProfileCreateActions } from '../utils/terminusSettings';
-import { Settings } from 'lucide-react';
+import { Bot, Settings } from 'lucide-react';
+
+function CommanderSourceBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-cyan-300/20 bg-cyan-500/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-cyan-100/90">
+      <Bot size={9} strokeWidth={1.8} aria-hidden="true" />
+      <span>Commander</span>
+    </span>
+  );
+}
+
+function SessionMenuItem({
+  children,
+  trailing,
+  disabled = false,
+  onClick,
+}: {
+  children: React.ReactNode;
+  trailing?: React.ReactNode;
+  disabled?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      <span className="min-w-0 flex-1 truncate">{children}</span>
+      {trailing ? <span className="shrink-0">{trailing}</span> : null}
+    </button>
+  );
+}
 
 export function SessionOverflowMenu({
   isOpen,
@@ -78,9 +110,9 @@ export function SessionContextMenu({
   containerRef,
   showSmartForkByCommander = false,
   showSmartNameByCommander = false,
+  onSmartForkByCommander,
   onSmartNameByCommander,
   onCreateSubTerminal,
-  onCreateFork,
   onDetach,
   onRename,
   onContinueOnMobileDirect,
@@ -95,65 +127,38 @@ export function SessionContextMenu({
   return (
     <div
       ref={containerRef}
-      className="fixed z-[60] w-44 rounded-md border border-border bg-popover py-1 shadow-xl text-[11px]"
+      className="fixed z-[60] w-52 rounded-md border border-border bg-popover py-1 shadow-xl text-[11px]"
       style={{ top: position.y, left: position.x }}
     >
-      <button
-        onClick={onCreateSubTerminal}
-        className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-      >
+      <SessionMenuItem onClick={onCreateSubTerminal}>
         Create Sub Terminal
-      </button>
+      </SessionMenuItem>
       {showSmartForkByCommander ? (
-        <button
-          onClick={onCreateFork}
-          className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-        >
-          Smart Fork [by commander]
-        </button>
+        <SessionMenuItem onClick={onSmartForkByCommander} trailing={<CommanderSourceBadge />}>
+          Smart Fork
+        </SessionMenuItem>
       ) : null}
       {showSmartNameByCommander ? (
-        <button
-          onClick={onSmartNameByCommander}
-          className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-        >
-          Smart Name [by commander]
-        </button>
+        <SessionMenuItem onClick={onSmartNameByCommander} trailing={<CommanderSourceBadge />}>
+          Smart Name
+        </SessionMenuItem>
       ) : null}
       <div className="my-1 border-t border-border/70" />
-      <button
-        onClick={onDetach}
-        className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-      >
+      <SessionMenuItem onClick={onDetach}>
         Detach Session
-      </button>
-      <button
-        onClick={onRename}
-        className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-      >
+      </SessionMenuItem>
+      <SessionMenuItem onClick={onRename}>
         Rename Session
-      </button>
-      <button
-        onClick={onContinueOnMobileDirect}
-        disabled={!canContinueOnMobile}
-        className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-      >
+      </SessionMenuItem>
+      <SessionMenuItem onClick={onContinueOnMobileDirect} disabled={!canContinueOnMobile}>
         Continue on Mobile (Direct)
-      </button>
-      <button
-        onClick={onContinueOnMobileHub}
-        disabled={!canContinueOnMobile}
-        className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-      >
+      </SessionMenuItem>
+      <SessionMenuItem onClick={onContinueOnMobileHub} disabled={!canContinueOnMobile}>
         Continue on Mobile (Hub)
-      </button>
-      <button
-        onClick={onContinueOnMobileProxy}
-        disabled={!canContinueOnMobile}
-        className="w-full text-left px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-      >
+      </SessionMenuItem>
+      <SessionMenuItem onClick={onContinueOnMobileProxy} disabled={!canContinueOnMobile}>
         Continue on Mobile (Proxy)
-      </button>
+      </SessionMenuItem>
     </div>
   );
 }

@@ -1,22 +1,32 @@
 // @ts-nocheck
 const { normalizeRequestedCapabilities } = require('./capabilityRegistry');
+const {
+  getCommanderCallerId,
+} = require('../../../shared/commanderCore');
 
 function normalizeOwnerContext(value = {}) {
   return {
     windowStateId: String(value?.ownerWindowStateId || value?.windowStateId || '').trim(),
     accessScope: String(value?.accessScope || '').trim().toLowerCase() || 'process',
     transportTrust: String(value?.transportTrust || '').trim().toLowerCase() || 'unknown',
+    commanderTransport:
+      value?.commanderTransport === true ||
+      String(value?.transportLane || '').trim().toLowerCase() === 'commander_action',
   };
 }
 
 function createDefaultHarnessPolicy() {
+  const allowedCommanderCallerIds = [
+    getCommanderCallerId('smart_fork'),
+    getCommanderCallerId('smart_name'),
+  ].filter(Boolean);
   const isAllowedAgentCellsRendererCaller = (caller, owner) => {
     const normalizedOwner = normalizeOwnerContext(owner);
     return (
       normalizedOwner.transportTrust === 'renderer_ipc' &&
+      normalizedOwner.commanderTransport === true &&
       caller?.callerType === 'renderer' &&
-      caller?.sourceSurface === 'agent-cells' &&
-      ['agent-cells-fork', 'agent-cells-smart-name'].includes(caller?.callerId)
+      allowedCommanderCallerIds.includes(caller?.callerId)
     );
   };
 

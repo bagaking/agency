@@ -551,6 +551,87 @@ test('performSessionRuntimeIntent smart_fork returns timeout diagnostics when fo
   );
 });
 
+test('performSessionRuntimeIntent smart_fork keeps created child session in failure data when child ready wait times out', async () => {
+  let sourcePhase = 'idle';
+  let childPhase = 'shell';
+
+  const result = await performSessionRuntimeIntent(
+    {
+      intent: 'smart_fork',
+      worktreePath: '/tmp/repo',
+      cellId: 'cell-1',
+      sessionId: 'source',
+    },
+    {
+      inspectSessionPane: async ({ sessionId }) => {
+        if (sessionId === 'source') {
+          return {
+            session: {
+              id: 'source',
+              profileId: 'codex',
+              cellName: 'Cell 1',
+            },
+            pane: {
+              currentCommand: 'codex',
+            },
+            output:
+              sourcePhase === 'acked'
+                ? 'Thread forked from Main Thread\nthread_id: thr-4242'
+                : 'Codex ready',
+            lastActivityAt: null,
+          };
+        }
+        return {
+          session: {
+            id: 'child-1',
+            profileId: 'codex',
+            cellName: 'Cell 1',
+          },
+          pane: {
+            currentCommand: 'zsh',
+          },
+          output: childPhase === 'ready' ? 'Codex child ready' : '',
+          lastActivityAt: null,
+        };
+      },
+      dispatchSessionInput: async ({ sessionId, text }) => {
+        if (sessionId === 'source' && text === '/fork') {
+          sourcePhase = 'acked';
+        }
+        return {};
+      },
+      createChildSession: async () => ({
+        id: 'child-1',
+        profileId: 'codex',
+        nodeKind: 'fork',
+      }),
+      getResolvedTerminusSettings: async () => ({
+        profiles: [
+          {
+            id: 'codex',
+            fork: {
+              enabled: true,
+              driver: 'codex',
+              launchTemplate: 'codex --thread {thread_id}',
+              sourceIdleMs: 0,
+              forkAckTimeoutMs: 100,
+              childReadyTimeoutMs: 50,
+            },
+          },
+        ],
+      }),
+      sleep: async () => undefined,
+      logRuntime: async () => undefined,
+    }
+  );
+
+  assert.equal(result.success, false);
+  assert.equal(result.failures[0]?.code, 'CHILD_READY_TIMEOUT');
+  assert.equal(result.data?.session?.id, 'child-1');
+  assert.equal(result.data?.sourceRuntime?.tool, 'codex');
+  assert.equal(result.data?.launch?.command, 'codex --thread thr-4242');
+});
+
 test('performSessionRuntimeIntent smart_fork returns a structured error when the source is not codex', async () => {
   const result = await performSessionRuntimeIntent(
     {

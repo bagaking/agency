@@ -29,6 +29,9 @@ export function AgentCellsSidebar({
   onUpdateSessionAvatar,
   onMoveSessionNode,
   onContinueSessionOnMobile,
+  onTrackPendingHarnessRun,
+  onClearTrackedHarnessRun,
+  onSettleTrackedHarnessRun,
   onConfigureProfile,
   onOpenFileReference,
   onRevealFileReference,
@@ -164,6 +167,9 @@ export function AgentCellsSidebar({
           onUpdateSessionAvatar={onUpdateSessionAvatar}
           onMoveSessionNode={onMoveSessionNode}
           onContinueSessionOnMobile={onContinueSessionOnMobile}
+          onTrackPendingHarnessRun={onTrackPendingHarnessRun}
+          onClearTrackedHarnessRun={onClearTrackedHarnessRun}
+          onSettleTrackedHarnessRun={onSettleTrackedHarnessRun}
           onConfigureProfile={onConfigureProfile}
         />
 

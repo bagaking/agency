@@ -1,3 +1,9 @@
+import {
+  isHarnessRunResumableStatus,
+  resolveActiveHarnessRun,
+  resolvePrimaryHarnessRun,
+} from '../../../shared/commanderCore';
+
 type CommanderIntent =
   | 'overview'
   | 'status'
@@ -34,9 +40,6 @@ type ResolveCommanderContextArgs = {
   harnessRuns?: any[];
   sessionError?: string;
 };
-
-const ACTIVE_STATUSES = new Set(['queued', 'running', 'cancelling']);
-const RESUMABLE_STATUSES = new Set(['failed', 'cancelled']);
 
 const normalizeText = (value: unknown) => String(value || '').trim();
 
@@ -136,10 +139,9 @@ export function resolveCommanderContext({
   sessionError = '',
 }: ResolveCommanderContextArgs) {
   const runList = Array.isArray(harnessRuns) ? harnessRuns : [];
-  const activeRun =
-    runList.find((run) => ACTIVE_STATUSES.has(normalizeRunStatus(run?.status))) || null;
+  const activeRun = resolveActiveHarnessRun(runList);
   const latestRun = runList[0] || null;
-  const relevantRun = activeRun || latestRun || null;
+  const relevantRun = resolvePrimaryHarnessRun(runList) || latestRun || null;
   const latestFailedEntry = findLatestFailedEntry(relevantRun);
   const latestFailureMessage = resolveLatestFailureMessage(relevantRun, sessionError);
   const latestEvidenceLine = resolveLatestEvidenceLine(relevantRun);
@@ -148,7 +150,9 @@ export function resolveCommanderContext({
   const cellName = normalizeText(focusData?.cell?.name) || normalizeText(focusData?.cell?.id);
   const runStatus = normalizeRunStatus(relevantRun?.status);
   const hasActiveRun = Boolean(activeRun);
-  const hasResumableRun = Boolean(relevantRun?.runId && RESUMABLE_STATUSES.has(runStatus));
+  const hasResumableRun = Boolean(
+    relevantRun?.runId && isHarnessRunResumableStatus(runStatus)
+  );
 
   return {
     focusData,

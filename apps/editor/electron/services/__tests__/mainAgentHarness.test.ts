@@ -391,7 +391,7 @@ test('main agent harness policy strips renderer self-granted capabilities outsid
   const started = await controller.startRun({
     sourceSurface: 'agent-cells',
     callerType: 'renderer',
-    callerId: 'agent-cells-fork',
+    callerId: 'commander-smart-fork',
     requestedCapabilities: ['session.runtime', 'file.intent', 'file.write'],
     runner: {
       adapterId: 'reference',
@@ -413,6 +413,8 @@ test('main agent harness policy strips renderer self-granted capabilities outsid
     },
   }, {
     transportTrust: 'renderer_ipc',
+    commanderTransport: true,
+    transportLane: 'commander_action',
     ownerWindowStateId: 'window-a',
     accessScope: 'window',
   });
@@ -438,7 +440,7 @@ test('main agent harness window-scoped inspect denies access from a different wi
     {
       sourceSurface: 'agent-cells',
       callerType: 'renderer',
-      callerId: 'agent-cells-fork',
+      callerId: 'commander-smart-fork',
       requestedCapabilities: ['session.runtime'],
       runner: {
         adapterId: 'reference',
@@ -512,6 +514,52 @@ test('main agent harness does not trust CLI identity claimed from renderer trans
     },
     {
       transportTrust: 'renderer_ipc',
+      commanderTransport: true,
+      transportLane: 'commander_action',
+      ownerWindowStateId: 'window-a',
+      accessScope: 'window',
+    }
+  );
+
+  assert.deepEqual(started.requestedCapabilities, []);
+  assert.equal(started.policy.strategy, 'deny_by_default');
+});
+
+test('main agent harness denies commander caller ids without commander transport marker', async () => {
+  const store = createMemoryHarnessRunStore();
+  const controller = createHarnessController({
+    store,
+    capabilityRegistry: createFakeCapabilityRegistry(),
+    logRuntime: async () => undefined,
+  });
+
+  const started = await controller.startRun(
+    {
+      sourceSurface: 'agent-cells',
+      callerType: 'renderer',
+      callerId: 'commander-smart-fork',
+      requestedCapabilities: ['session.runtime'],
+      runner: {
+        adapterId: 'reference',
+        steps: [
+          {
+            id: 'create-agent',
+            kind: 'create_agent',
+            skillPackId: 'session.tool-native-fork',
+            agent: {
+              strategy: 'tool_native_fork',
+              sessionRuntime: {
+                worktreePath: '/tmp/repo',
+                cellId: 'cell-1',
+                sessionId: 'source',
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      transportTrust: 'renderer_ipc',
       ownerWindowStateId: 'window-a',
       accessScope: 'window',
     }
@@ -576,7 +624,7 @@ test('main agent harness rejects duplicate active tool-native fork runs for the 
   const runPayload = {
     sourceSurface: 'agent-cells',
     callerType: 'renderer',
-    callerId: 'agent-cells-fork',
+    callerId: 'commander-smart-fork',
     requestedCapabilities: ['session.runtime'],
     runner: {
       adapterId: 'reference',
@@ -600,6 +648,8 @@ test('main agent harness rejects duplicate active tool-native fork runs for the 
   };
   const runContext = {
     transportTrust: 'renderer_ipc',
+    commanderTransport: true,
+    transportLane: 'commander_action',
     ownerWindowStateId: 'window-a',
     accessScope: 'window',
   };
@@ -610,6 +660,8 @@ test('main agent harness rejects duplicate active tool-native fork runs for the 
   await assert.rejects(
     controller.startRun(runPayload, {
       transportTrust: 'renderer_ipc',
+      commanderTransport: true,
+      transportLane: 'commander_action',
       ownerWindowStateId: 'window-b',
       accessScope: 'window',
     }),
@@ -851,7 +903,7 @@ test('main agent harness defaults create-agent runs to agent_backed with codex p
     {
       sourceSurface: 'agent-cells',
       callerType: 'renderer',
-      callerId: 'agent-cells-fork',
+      callerId: 'commander-smart-fork',
       requestedCapabilities: ['session.runtime'],
       runner: {
         steps: [
@@ -1010,7 +1062,7 @@ test('main agent harness bypasses provider and uses deterministic smart_fork whe
     {
       sourceSurface: 'agent-cells',
       callerType: 'renderer',
-      callerId: 'agent-cells-fork',
+      callerId: 'commander-smart-fork',
       requestedCapabilities: ['session.runtime'],
       runner: {
         steps: [
@@ -1100,7 +1152,7 @@ test('main agent harness bypasses provider and fails immediately when tool-nativ
     {
       sourceSurface: 'agent-cells',
       callerType: 'renderer',
-      callerId: 'agent-cells-fork',
+      callerId: 'commander-smart-fork',
       requestedCapabilities: ['session.runtime'],
       runner: {
         steps: [
@@ -1196,7 +1248,7 @@ test('main agent harness can run smart-name agent tasks and return suggestions',
     {
       sourceSurface: 'agent-cells',
       callerType: 'renderer',
-      callerId: 'agent-cells-smart-name',
+      callerId: 'commander-smart-name',
       requestedCapabilities: ['session.runtime'],
       runner: {
         steps: [

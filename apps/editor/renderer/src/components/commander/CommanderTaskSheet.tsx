@@ -107,11 +107,26 @@ function resolveStepOutput(run: any, stepId: string) {
   return run?.result?.stepOutputs?.[stepId] || run?.progress?.outputsByStepId?.[stepId] || null;
 }
 
+function resolveCreatedSession(run: any, stepId: string) {
+  const stepOutput = resolveStepOutput(run, stepId);
+  return stepOutput?.session || run?.result?.agent?.session || null;
+}
+
 function resolveCurrentActivity(run: any, stepId: string) {
   const status = String(run?.status || '').trim().toLowerCase();
   const timeline = Array.isArray(run?.timeline) ? run.timeline : [];
   const stepTimeline = timeline.filter(
     (entry) => !stepId || String(entry?.stepId || '').trim() === stepId
+  );
+  const completedCallIds = new Set(
+    stepTimeline
+      .filter((entry) =>
+        ['completed', 'failed', 'cancelled'].includes(
+          String(entry?.status || '').trim().toLowerCase()
+        )
+      )
+      .map((entry) => String(entry?.callId || '').trim())
+      .filter(Boolean)
   );
 
   if (status === 'queued') {
@@ -120,8 +135,21 @@ function resolveCurrentActivity(run: any, stepId: string) {
   if (status === 'running') {
     const latestRunning = [...stepTimeline]
       .reverse()
-      .find((entry) => String(entry?.status || '').trim().toLowerCase() === 'running');
+      .find((entry) => {
+        const entryStatus = String(entry?.status || '').trim().toLowerCase();
+        if (entryStatus !== 'running') {
+          return false;
+        }
+        const callId = String(entry?.callId || '').trim();
+        if (callId && completedCallIds.has(callId)) {
+          return false;
+        }
+        return true;
+      });
     if (latestRunning?.title) {
+      if (/suggest session name/i.test(String(latestRunning.title))) {
+        return 'Commander provider is generating candidate names.';
+      }
       if (/inspect/i.test(String(latestRunning.title))) {
         return 'Inspecting current session context.';
       }
@@ -153,6 +181,7 @@ export function CommanderTaskSheet({
   modalId,
   runId,
   stepId,
+  taskKind = 'smart-name',
   taskTitle,
   sessionName,
   cellName,
@@ -160,6 +189,7 @@ export function CommanderTaskSheet({
   modalId: string;
   runId: string;
   stepId: string;
+  taskKind?: 'smart-name' | 'smart-fork';
   taskTitle: string;
   sessionName?: string;
   cellName?: string;
@@ -220,6 +250,7 @@ export function CommanderTaskSheet({
   const activityLabel = resolveCurrentActivity(run, stepId);
   const suggestions = resolveSuggestions(run, stepId);
   const stepOutput = resolveStepOutput(run, stepId);
+  const createdSession = resolveCreatedSession(run, stepId);
   const fallbackUsed = Boolean(stepOutput?.metadata?.providerFallbackUsed);
   const fallbackReason = String(stepOutput?.metadata?.providerFallbackReason || '').trim();
   const failures = Array.isArray(run?.failures) ? run.failures : [];
@@ -382,7 +413,7 @@ export function CommanderTaskSheet({
               <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/36">
                 Result
               </div>
-              {status === 'succeeded' && suggestions.length ? (
+              {taskKind === 'smart-name' && status === 'succeeded' && suggestions.length ? (
                 <div className="mt-3 space-y-2">
                   <div className="text-[13px] leading-6 text-white/60">
                     Suggestions are ready. Choose one to rename the session.
@@ -400,13 +431,52 @@ export function CommanderTaskSheet({
                     </button>
                   ))}
                 </div>
+              ) : taskKind === 'smart-fork' && createdSession?.id ? (
+                <div className="mt-3 space-y-3">
+                  <div className="text-[13px] leading-6 text-white/60">
+                    {status === 'succeeded'
+                      ? 'The child Commander session is ready. Open it to continue in the new lane.'
+                      : 'The child session was created, but Commander could not confirm readiness in time. You can still open the session and inspect it directly.'}
+                  </div>
+                  <div className="rounded-2xl bg-white/[0.045] px-3.5 py-3 text-[13px] text-white">
+                    <div className="font-medium">
+                      {createdSession.name || createdSession.sessionId || createdSession.id}
+                    </div>
+                    <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-white/42">
+                      {createdSession.nodeKind || 'fork'}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      modal?.closeModal?.(modalId, {
+                        type: 'complete',
+                        value: {
+                          sessionId: createdSession.id || createdSession.sessionId,
+                          profileId: createdSession.profileId || '',
+                          nodeKind: createdSession.nodeKind || '',
+                        },
+                        runId,
+                      })
+                    }
+                    className="w-full rounded-2xl bg-cyan-400/10 px-3.5 py-3 text-left text-[13px] font-medium text-cyan-50 transition-colors hover:bg-cyan-400/16"
+                  >
+                    Open Created Session
+                  </button>
+                </div>
               ) : (
                 <div className="mt-3 text-[13px] leading-6 text-white/52">
-                  {status === 'failed'
-                    ? 'Commander did not produce rename suggestions.'
-                    : status === 'cancelled'
-                      ? 'The task was cancelled before suggestions were returned.'
-                      : 'Suggestions will appear here as soon as the task completes.'}
+                  {taskKind === 'smart-fork'
+                    ? status === 'failed'
+                      ? 'Commander did not complete the child-session creation flow.'
+                      : status === 'cancelled'
+                        ? 'The task was cancelled before the child session was ready.'
+                        : 'Commander is inspecting the source session and preparing the child lane.'
+                    : status === 'failed'
+                      ? 'Commander did not produce rename suggestions.'
+                      : status === 'cancelled'
+                        ? 'The task was cancelled before suggestions were returned.'
+                        : 'Suggestions will appear here as soon as the task completes.'}
                 </div>
               )}
             </div>
