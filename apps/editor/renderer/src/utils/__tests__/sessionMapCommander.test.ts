@@ -13,11 +13,11 @@ const runningRun = {
   runId: 'run-1',
   status: 'running',
   goal: {
-    title: 'Create Agent via Fork',
+    title: 'Create Child Agent via Fork',
   },
   currentStep: {
     id: 'create-agent',
-    title: 'Create Agent from selected session',
+    title: 'Create child agent from selected session',
   },
   timeline: [
     {
@@ -33,7 +33,7 @@ const failedRun = {
   runId: 'run-2',
   status: 'failed',
   goal: {
-    title: 'Create Agent via Fork',
+    title: 'Create Child Agent via Fork',
   },
   failures: [
     {
@@ -105,7 +105,7 @@ test('buildCommanderWelcomeTurn carries session and run context', () => {
 
   assert.equal(turn.title, 'Commander Brief Ready');
   assert.match(turn.body, /Focused session: UI/);
-  assert.match(turn.body, /Create Agent via Fork/);
+  assert.match(turn.body, /Create Child Agent via Fork/);
 });
 
 test('buildCommanderAssistantTurn offers retry action on failed run', () => {

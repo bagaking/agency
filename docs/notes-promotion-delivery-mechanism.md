@@ -11,6 +11,8 @@ sop:
 
 一句话：当前项目的 `promotion` 已经收口为一个统一 Delivery 协议，Promote / Explorer / Session Reply 只是不同入口，底层生命周期和存储契约一致。
 
+补充约束：`Delivery` 是 workflow artifact，不是新的执行对象层级。它负责把 source artifacts 和 target sessions 连接起来，但不替代 `Cell / Session / Run` 这组 canonical objects。
+
 ## 1. 机制边界（什么算 promotion）
 
 在本项目里，`promotion` 指的是“把输入上下文投递到目标 session，并可追踪其执行与消费”的统一流程，而不是某个单独按钮。

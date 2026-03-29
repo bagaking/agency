@@ -6,7 +6,6 @@ import { AvatarPickerMenu } from '../ui/AvatarPickerMenu';
 import { resolveSessionAvatarId } from '../../utils/agentAvatar';
 import { DEBUG_FLAGS, getDebugFlag } from '../../utils/debugFlags';
 import { SessionMapDockLayout } from './SessionMapDockLayout';
-import { SessionMapCommanderPopup } from './SessionMapCommanderPopup';
 import { SessionMapGridLayout } from './SessionMapGridLayout';
 import { SessionMapHoverCard } from './SessionMapHoverCard';
 import { SessionMapOfflineMenu } from './SessionMapOfflineMenu';
@@ -57,6 +56,15 @@ export function SessionMapOverlay({
   const avatarMenuRef = useRef(null);
   const commanderTriggerRef = useRef(null);
   const isDocked = mode === 'dock';
+  const closeCommanderDialog = useCallback(() => {
+    setCommanderDialogOpen(false);
+    requestAnimationFrame(() => {
+      commanderTriggerRef.current?.focus?.();
+    });
+  }, []);
+  const toggleCommanderDialog = useCallback(() => {
+    setCommanderDialogOpen((current) => !current);
+  }, []);
   const isDebugEnabled = useCallback(() => getDebugFlag(DEBUG_FLAGS.sessionMapPreview), []);
   const logDebug = useCallback(
     (label, payload = {}) => {
@@ -467,6 +475,12 @@ export function SessionMapOverlay({
     }
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        if (commanderDialogOpen) {
+          closeCommanderDialog();
+          return;
+        }
         onClose();
         return;
       }
@@ -577,7 +591,7 @@ export function SessionMapOverlay({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, open]);
+  }, [closeCommanderDialog, commanderDialogOpen, onClose, open]);
 
   if (!open || !model) {
     return null;
@@ -688,7 +702,8 @@ export function SessionMapOverlay({
             onClearSessionError={onClearSessionError}
             onCancelHarnessRun={onCancelHarnessRun}
             onResumeHarnessRun={onResumeHarnessRun}
-            onOpenCommanderDialog={() => setCommanderDialogOpen((current) => !current)}
+            onOpenCommanderDialog={toggleCommanderDialog}
+            onCloseCommanderDialog={closeCommanderDialog}
             commanderDialogOpen={commanderDialogOpen}
             commanderTriggerRef={commanderTriggerRef}
           />
@@ -707,17 +722,6 @@ export function SessionMapOverlay({
           />
         )}
 
-        <SessionMapCommanderPopup
-          open={isDocked && commanderDialogOpen}
-          focusData={focusData}
-          harnessRuns={harnessRuns}
-          sessionError={sessionError}
-          onCancelHarnessRun={onCancelHarnessRun}
-          onResumeHarnessRun={onResumeHarnessRun}
-          onClearSessionError={onClearSessionError}
-          onClose={() => setCommanderDialogOpen(false)}
-          triggerRef={commanderTriggerRef}
-        />
       </div>
 
       <SessionMapOfflineMenu

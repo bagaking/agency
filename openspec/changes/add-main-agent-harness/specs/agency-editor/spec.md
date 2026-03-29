@@ -77,6 +77,7 @@ The editor SHALL expose a global Harness provider settings surface for the defau
 
 ### Requirement: Create Agent as Primary Child-Execution Semantic
 The editor SHALL treat `Create Agent` as the primary product semantic for creating and coordinating child execution lanes.
+This semantic SHALL remain distinct from `Create Cell`, which owns worktree-bound workspace creation.
 
 #### Scenario: Create Agent for child execution
 - **WHEN** the Harness or UI requests child execution

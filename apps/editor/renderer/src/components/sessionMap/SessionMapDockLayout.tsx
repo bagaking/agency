@@ -4,6 +4,7 @@ import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
 import { resolveSessionAvatarId } from '../../utils/agentAvatar';
 import { TacticalFrame } from './SessionMapFrames';
 import { SessionMapCommanderPanel } from './SessionMapCommanderPanel';
+import { SessionMapCommanderPopup } from './SessionMapCommanderPopup';
 import { SessionMapOperationsRail } from './SessionMapOperationsRail';
 
 const CELL_CARD_MIN_WIDTH = 248;
@@ -92,14 +93,19 @@ export function SessionMapDockLayout({
   onCancelHarnessRun,
   onResumeHarnessRun,
   onOpenCommanderDialog,
+  onCloseCommanderDialog,
   commanderDialogOpen = false,
   commanderTriggerRef,
 }: any) {
+  const dockGridTemplateColumns = commanderDialogOpen
+    ? '92px minmax(0,1.18fr) minmax(320px,0.92fr) minmax(448px,1.08fr)'
+    : '92px minmax(0,1.52fr) minmax(316px,0.96fr) 176px';
+
   return (
     <div
       className="mt-1.5 grid min-h-0 flex-1 gap-1.5 overflow-hidden"
       style={{
-        gridTemplateColumns: '92px minmax(0,1.75fr) minmax(264px,1fr) 108px',
+        gridTemplateColumns: dockGridTemplateColumns,
       }}
     >
       {/* Radar Section */}
@@ -258,13 +264,28 @@ export function SessionMapDockLayout({
         onResumeHarnessRun={onResumeHarnessRun}
       />
 
-      {/* Commander Anchor */}
-      <SessionMapCommanderPanel
-        harnessRuns={harnessRuns}
-        dialogOpen={commanderDialogOpen}
-        onOpenDialog={onOpenCommanderDialog}
-        buttonRef={commanderTriggerRef}
-      />
+      {/* Commander Column */}
+      <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+        {commanderDialogOpen ? (
+          <SessionMapCommanderPopup
+            open={true}
+            focusData={focusData}
+            harnessRuns={harnessRuns}
+            sessionError={sessionError}
+            onCancelHarnessRun={onCancelHarnessRun}
+            onResumeHarnessRun={onResumeHarnessRun}
+            onClearSessionError={onClearSessionError}
+            onClose={() => onCloseCommanderDialog?.() || onOpenCommanderDialog?.()}
+          />
+        ) : (
+          <SessionMapCommanderPanel
+            harnessRuns={harnessRuns}
+            dialogOpen={false}
+            onOpenDialog={onOpenCommanderDialog}
+            buttonRef={commanderTriggerRef}
+          />
+        )}
+      </div>
     </div>
   );
 }

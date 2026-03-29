@@ -9,6 +9,14 @@
 - Embedded terminal via xterm.js and node-pty.
 - Session keepalive uses tmux (required).
 
+## Canonical Object Model
+
+- Canonical domain objects are `App -> Window -> Project -> Cell -> Session -> Run`.
+- `Agent Cells`, `Explorer`, `Workbench`, `Session Map`, `Hierarchy`, `Memo`, and `Commander` are product surfaces over those objects, not competing object roots.
+- `Create Cell` means worktree-bound workspace creation.
+- `Create Agent` means bounded child execution owned by a host run.
+- `Fork` is a specialized `Create Agent` strategy, not the baseline workspace or execution noun.
+
 ## Navigation
 
 - The activity bar includes Explorer and Hierarchy entries; the home logo returns to Agent Cells.
@@ -19,7 +27,7 @@
 - Agent Cells sidebar now includes an Explorer panel (Cell/Session scope + Flat/Tree views) for quick file open/reveal navigation.
 - Hierarchy hosts configuration for Actions, App Shortcuts, Reply Quick Prompts, Session Naming, Gates, and Softlinks.
 - Explorer provides a project file tree with git status (including added, untracked, ignored) and per-Cell change attribution.
-- Explorer scopes to the active Agent Cell worktree (or repo root) and opens files in the workbench.
+- Explorer scopes to the active Cell worktree (or repo root) and opens files in the workbench.
 - Workbench breadcrumbs are segment-clickable and reveal/select the target inside Explorer tree (without invoking OS Finder reveal).
 - Explorer supports filters (hidden/ignored/status), keyboard navigation, open/dirty indicators, and watch-based auto refresh.
 - Explorer supports semantic-file tags and semantic filters (built-in + project rules from `.agency/agent-files.yaml`).
@@ -272,8 +280,8 @@ make editor-dev
 - Drag a session before another session and confirm sibling order persists after refresh/relaunch.
 - Drag a session onto another session and confirm it becomes a child node under that session.
 - Drag a child session out toward an ancestor level and confirm it is promoted to that higher level.
-- Open a session row context menu and create both `Sub Terminal` and `Fork`; confirm each appears as a child node with the correct kind badge, confirm `Sub Terminal` uses the shell profile, and confirm `Fork` starts an `agent_backed` Harness run through Commander rather than calling session runtime directly from renderer.
-- For a Codex-backed profile, confirm `Fork` produces a Harness run with timeline/capability records and either:
+- Open a session row context menu and create both `Sub Terminal` and `Fork`; confirm each appears as a child node with the correct kind badge, confirm `Sub Terminal` uses the shell profile, and confirm `Fork` starts an `agent_backed` `Create Agent` run through Commander rather than calling session runtime directly from renderer.
+- For a Codex-backed profile, confirm `Fork` produces a child-execution `Create Agent` run with timeline/capability records and either:
   - chooses a true `smart_fork` path that issues `/fork` and launches the rendered child command, or
   - chooses `create_child` + `dispatch_input` and starts a fresh child Codex session when true fork semantics are not available.
 - Use the Harness CLI or IPC inspect surface on a live run and confirm you can inspect step timeline, cancel a still-running run, and resume a cancelled/failed run without guessing from raw logs.

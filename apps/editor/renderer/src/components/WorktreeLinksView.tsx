@@ -129,7 +129,7 @@ export function WorktreeLinksView({
               <table className="w-full text-left text-xs">
                 <thead className="bg-muted/50 text-muted-foreground uppercase tracking-wider font-semibold">
                   <tr>
-                    <th className="px-4 py-3 border-b border-border">Agent</th>
+                    <th className="px-4 py-3 border-b border-border">Cell</th>
                     {links.map(link => (
                       <th key={link.id} className="px-4 py-3 border-b border-border border-l">
                         {link.label || link.id}
@@ -197,9 +197,9 @@ export function WorktreeLinksView({
               <Info size={16} className="text-blue-400 shrink-0 mt-0.5" />
               <div className="text-xs text-blue-200/80 leading-relaxed">
               <p className="font-medium text-blue-200 mb-1">About Status Matrix</p>
-              The matrix shows the link status for each agent.
+              The matrix shows the link status for each Cell.
               <strong> Main Repo</strong> contains the actual directories and doesn't need linking.
-              Use <strong>Link All</strong> to create all missing symbolic links for a specific agent.
+              Use <strong>Link All</strong> to create all missing symbolic links for a specific Cell.
               </div>
             </div>
           </div>
@@ -210,7 +210,7 @@ export function WorktreeLinksView({
                 <div>
                   <div className="text-sm font-medium text-foreground">Automatic Linking</div>
                   <div className="text-xs text-muted-foreground">
-                    Create configured links automatically when creating new agents.
+                    Create configured links automatically when creating new Cells.
                   </div>
                 </div>
                 <label className="relative inline-flex cursor-pointer items-center">

@@ -22,8 +22,8 @@
 - [ ] Reorder two session nodes in Agent Cells and confirm the new order persists after refresh.
 - [ ] Drag a session onto another session and confirm it becomes a child node.
 - [ ] Drag a child session out toward an ancestor level and confirm it is promoted to that higher level.
-- [ ] Use the session row context menu to create `Sub Terminal` and `Fork` child sessions, confirm they appear under the selected parent, confirm `Sub Terminal` uses the shell profile, and confirm `Fork` starts an `agent_backed` Harness run through Commander instead of calling the session runtime gateway directly from renderer.
-- [ ] With a Codex-backed profile, confirm `Fork` starts a Harness `Create Agent` run and the bounded `session.tool-native-fork` specialization chooses one of the two valid outcomes:
+- [ ] Use the session row context menu to create `Sub Terminal` and `Fork` child sessions, confirm they appear under the selected parent, confirm `Sub Terminal` uses the shell profile, and confirm `Fork` starts an `agent_backed` `Create Agent` run through Commander instead of calling the session runtime gateway directly from renderer.
+- [ ] With a Codex-backed profile, confirm `Fork` starts a child-execution `Create Agent` run and the bounded `session.tool-native-fork` specialization chooses one of the two valid outcomes:
   - true `smart_fork` via `session.runtime smart_fork`, or
   - `create_child` + `dispatch_input` to start a fresh child Codex session.
 - [ ] With Session Map closed, trigger `Fork` and confirm the docked Session Map opens automatically into the right-side `Command Ops` zone.

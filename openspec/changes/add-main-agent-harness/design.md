@@ -70,6 +70,7 @@ The Harness should never reach under these capability seams to call raw tmux/fil
 
 ### Decision: Make `Create Agent` the primary product semantic
 The Harness should treat `Create Agent` as the main child-execution primitive.
+This is explicitly distinct from `Create Cell`, which remains the worktree-bound workspace creation semantic.
 
 `Create Agent` means:
 - create or select a child execution lane/session/runner;

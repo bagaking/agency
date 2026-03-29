@@ -77,13 +77,15 @@ export function ExplorerHeader({
             </span>
           <div className="group relative min-w-0 flex-1">
           <select
-            aria-label="Active agent cell"
+            aria-label="Active cell"
             className={`w-full appearance-none rounded-md border border-border/40 bg-muted/10 px-2 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:border-border/80 cursor-pointer ${focusRingClass}`}
             value={selectedId || ''}
             onChange={(e) => onSelectCell?.(e.target.value)}
           >
             {cells.map((cell) => (
-              <option key={cell.id} value={cell.id} className="bg-popover text-foreground">Agent: {cell.name}</option>
+              <option key={cell.id} value={cell.id} className="bg-popover text-foreground">
+                Cell: {cell.name}
+              </option>
             ))}
           </select>
           <ChevronDown size={10} aria-hidden="true" className="absolute right-2 top-2.5 text-muted-foreground/40 pointer-events-none group-hover:text-muted-foreground transition-colors" />

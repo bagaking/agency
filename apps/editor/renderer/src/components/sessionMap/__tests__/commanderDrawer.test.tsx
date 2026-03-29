@@ -14,7 +14,7 @@ const runningRun = {
     callerId: 'commander-smart-fork',
   },
   goal: {
-    title: 'Create Agent via Fork',
+    title: 'Create Child Agent via Fork',
   },
   runner: {
     providerId: 'codex_cli',

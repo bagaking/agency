@@ -234,7 +234,7 @@ test('main agent harness records create_agent specialization and capability call
         {
           id: 'create-agent',
           kind: 'create_agent',
-          title: 'Create Agent from selected session',
+          title: 'Create child agent from selected session',
           skillPackId: 'session.tool-native-fork',
           agent: {
             strategy: 'tool_native_fork',
@@ -910,7 +910,7 @@ test('main agent harness defaults create-agent runs to agent_backed with codex p
           {
             id: 'create-agent',
             kind: 'create_agent',
-            title: 'Create Agent from selected session',
+            title: 'Create child agent from selected session',
             skillPackId: 'session.tool-native-fork',
             agent: {
               strategy: 'tool_native_fork',
@@ -1069,7 +1069,7 @@ test('main agent harness bypasses provider and uses deterministic smart_fork whe
           {
             id: 'create-agent',
             kind: 'create_agent',
-            title: 'Create Agent from selected session',
+            title: 'Create child agent from selected session',
             skillPackId: 'session.tool-native-fork',
             agent: {
               strategy: 'tool_native_fork',
@@ -1159,7 +1159,7 @@ test('main agent harness bypasses provider and fails immediately when tool-nativ
           {
             id: 'create-agent',
             kind: 'create_agent',
-            title: 'Create Agent from selected session',
+            title: 'Create child agent from selected session',
             skillPackId: 'session.tool-native-fork',
             agent: {
               strategy: 'tool_native_fork',

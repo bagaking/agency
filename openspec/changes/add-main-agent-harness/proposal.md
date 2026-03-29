@@ -18,6 +18,7 @@ Without that boundary, future complex automations will either:
   - capability/tool invocation records;
   - structured result, warnings, failures, and resumable progress state.
 - Define a host-managed capability registry/lane for Harness-visible capabilities instead of letting the Harness call arbitrary internals directly.
+- Align terminology so `Create Cell` remains the worktree/workspace action while `Create Agent` is reserved for child execution owned by a Harness run.
 - Make `Create Agent` the primary product capability for creating/coordinating child sessions or tool workers; keep tool-native `Fork` as an optional specialized capability rather than the default semantic.
 - Establish the first Harness dependency set around already-hosted capabilities:
   - session runtime gateway;

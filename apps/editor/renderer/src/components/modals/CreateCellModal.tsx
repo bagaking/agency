@@ -104,7 +104,7 @@ export function CreateCellModal({ onClose, onCreate }: any) {
           />
           <span>Link to existing git worktree</span>
         </label>
-        <HintIcon label="Each Agent Cell runs in its own worktree so commits stay isolated and easy to review." />
+        <HintIcon label="Each Cell runs in its own worktree so commits stay isolated and easy to review." />
       </div>
 
       {reuseExisting ? (

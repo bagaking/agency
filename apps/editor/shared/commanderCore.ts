@@ -34,14 +34,14 @@ const COMMANDER_ACTION_CONFIGS: Record<CommanderActionId, CommanderActionConfig>
     callerId: 'commander-smart-fork',
     goal: {
       type: 'create_agent',
-      title: 'Create Agent via Fork',
+      title: 'Create Child Agent via Fork',
       instruction:
         'Create a child execution lane from the selected session using a tool-native fork specialization when available.',
     },
     runner: {
       stepId: 'create-agent',
       stepKind: 'create_agent',
-      stepTitle: 'Create Agent from selected session',
+      stepTitle: 'Create child agent from selected session',
       skillPackId: 'session.tool-native-fork',
       strategy: 'tool_native_fork',
       requestedCapabilities: ['session.runtime'],

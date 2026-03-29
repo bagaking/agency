@@ -75,3 +75,11 @@ Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeSc
 - If the answer is no, update `AGENTS.md` and/or link the canonical project doc before stopping.
 - Do not leave critical standards as transient chat context. Durable standards must survive reset through repo instructions or project memory.
 - Aim for the strongest available reasoning on each important decision; if a thought matters, it should be preserved in a form that later agents can reliably recover.
+
+## Canonical Object Model
+
+- Canonical domain objects are `App -> Window -> Project -> Cell -> Session -> Run`.
+- `Agent Cells`, `Explorer`, `Workbench`, `Session Map`, `Hierarchy`, `Memo`, and `Commander` are surfaces over those objects, not competing object roots.
+- `Create Cell` is the worktree-bound workspace action.
+- `Create Agent` is the bounded child-execution action owned by a run.
+- `Fork` is a specialized `Create Agent` strategy, not the default noun for workspace creation or child execution.

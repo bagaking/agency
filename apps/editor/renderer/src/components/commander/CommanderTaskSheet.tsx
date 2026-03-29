@@ -154,7 +154,12 @@ function resolveCurrentActivity(
       if (/inspect/i.test(String(latestRunning.title))) {
         return 'Inspecting current session context.';
       }
-      if (taskKind === 'smart-fork' && /create agent|launch child|dispatch child/i.test(String(latestRunning.title))) {
+      if (
+        taskKind === 'smart-fork' &&
+        /create (child )?agent|launch child|dispatch child/i.test(
+          String(latestRunning.title)
+        )
+      ) {
         return 'Commander is creating the child session lane.';
       }
       return String(latestRunning.title);

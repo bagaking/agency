@@ -24,7 +24,7 @@ export function useCreateCellModalLauncher({
     const modalId = 'create-cell-modal';
     modal.openModal({
       id: modalId,
-      title: 'Create New Agent Cell',
+      title: 'Create New Cell',
       showActions: false,
       showVariantLabel: false,
       dismissOnOverlay: true,

@@ -13,7 +13,7 @@ sop:
 
 Session 管理目标：
 - 保持多会话的**可见性、可访问性与一致的生命周期语义**（idle/visited/attach），不因视图切换而丢失状态。
-- 将 Session Map 作为跨界面的“导航与协同规划入口”，并与 Agentic Cell 的会话选择保持同步。
+- 将 Session Map 作为跨界面的“导航与协同规划入口”，并与 Agent Cells 的会话选择保持同步。
 - 所有终端 attach/preview/capture 都收口到 Session 层管理器，保证一致性与可控资源回收。
 - 提供“Continue on Mobile”远程续接路径：对选中 session 生成 `ssh + tmux attach` 指令，并附带 SSH 通道就绪诊断。
 
@@ -80,18 +80,19 @@ Main Agent Harness 是更高一层的 host-owned control plane。
 - Docked Session Map 右侧不再只是窄的 `Unit Details`，而是更宽的 `Command Ops` 区；
 - `Fork` / Harness run 启动时，Session Map 会自动打开一次，把用户带到这块指挥区；
 - `Command Ops` 保持为稳定证据层，展示当前 focus session、Harness timeline、取消/复制动作，以及未来可扩展的个性化 quick ops；
-- `Commander` 头像/入口位于这块操作站的最右缘，作为 backend/operator 的终端锚点；
-- 点击 `Commander` 会从 Session Map 右缘拉出一个独立的 `Briefing` 抽屉，而不是把右侧 `Ops` 面板改造成聊天视图，也不是升级成窗口级全局抽屉。
+- `Commander` 占据 Session Map 最右侧的独立列，作为 backend/operator 的固定锚点，而不是窄图标位。
+- 点击 `Commander` 后，最右列应直接原位展开成 `Briefing` 面板；不得再以浮层/popup 形式覆盖 `Ops` 或 `Cells`。
 - `Briefing` 是有边界的 backend 简报：默认展示一张当前 context briefing 卡，并只保留一张最新回应卡；切换 focus session / relevant run 时必须重绑并清掉旧回应，避免累积聊天历史污染当前证据范围。
 - `Briefing` 负责解释、建议和触发受限操作，但不复用 Session Reply 的语义，也不应演化成通用聊天记录面板。
 - Session 错误也复用这块区域，避免依赖容易误触消失的临时 notice。
-- Dock 模式应把更多横向空间优先让给 `Cells`，`Radar / Commander / Command Ops` 保持辅助区而不是主视觉负担。
+- Dock 模式应把更多横向空间优先让给 `Cells`，但 `Commander` 打开时必须获得足够宽度承载完整 briefing；不能继续用窄列 + 覆盖浮层的折中方案。
 - `Command Ops` 内容区必须支持纵向滚动；当 timeline 或错误详情超过 dock 高度时，用户仍应能完整查看与复制。
 - Dock HUD 的标题、卡片内边距和状态条应保持紧凑，优先信息密度而不是装饰性留白。
 - `Command Ops` 外层的 context strip 应优先展示当前聚焦 session 的头像与 session 名称，避免重复塞入像 `MAIN · DRAFT` 这类低价值上下文文字。
 - `Command Ops` 的主动作必须单点清晰：运行中显示 `Cancel`，失败/取消后显示 `Retry`，不要在同一面板里重复放多个语义等价的停止/重试入口。
 - `Briefing` 中的 `Cancel / Retry / Dismiss` 等动作必须继续走现有 Harness 或 host-managed capability；对话不能退化成 renderer 侧自由操作入口。
-- `Briefing` 弹窗关闭后，右侧 `Ops` 面板应保持原位和原上下文，不因为聊天交互而被替换或重排。
+- `Briefing` 面板关闭后，`Ops` 与 `Cells` 应保持原位和原上下文，不因为聊天交互而被遮挡、穿插或重新排版。
+- 所有 `by commander` 任务在运行中都应在 Commander 头像上显示明确的 progress 指示，至少包括一个常驻的活动进度条，而不是只靠文字状态。
 
 ## Session Reply Relay（跨会话回复资产）
 Session Reply Relay 是面向 Session 的“回复资产化”机制，强调 **跨多 agent 通信 / 不耦合具体 CLI 输入体验 / 同时形成资产**。
@@ -127,10 +128,10 @@ Session Reply Relay 是面向 Session 的“回复资产化”机制，强调 **
   - 当命令可生成时会自动复制到剪贴板，并提示 endpoint/模式信息；Hub 模式会额外显示 catalog 摘要（projects/cells/sessions）。
   - Proxy 模式依赖移动端终端具备 `nc`（netcat）；建议仅在 Tailscale/LAN 等可信网络下使用。
 - **Attach 类型与优先级**：
-  - **interactive**：用户正在交互的终端视图（如 Agent Cell 选中态）。
+  - **interactive**：用户正在交互的终端视图（如 Agent Cells 中当前选中的 session）。
   - **preview**：hover/截图用的短暂 attach（可短暂持有，完成后释放）。
   - 交互 attach 优先级高于 preview attach；当 interactive 存在时不触发 detach。
-  - interactive 状态由 Agentic Cell 当前选中 session 驱动，Session Map/preview 不改变 interactive 判定。
+  - interactive 状态由 Agent Cells 当前选中 session 驱动，Session Map/preview 不改变 interactive 判定。
 - **Idle 语义与噪声窗口**：
   - idle 仅以 tmux `pane_activity`（输出变化）计算；输入/attach 不应重置 idle。
   - 输出变化量需达到 `activityDiffThreshold`（默认 12 字符）才刷新 idle；小幅变化会被忽略。
@@ -182,7 +183,7 @@ Session Map 的类 RTS 游戏操作界面设计：它是一个跨界面、始终
 - **Hover**：带短延迟以避免抖动；显示动态详情 + 终端实时预览。预览画面可滚动，点击预览跳转到该 Session。Radar 区域 hover 仅强调联动，不触发跳转。
 - **预览信息条**：底部信息条不触发跳转；点击名称可直接改名，右侧 “…” 菜单可更换头像。
 - **首次进入**：自动打开地图（每个项目仅一次），之后由用户开关控制。
-- **Esc**：关闭 Session Map。
+- **Esc**：优先关闭当前打开的 Session Map 子 surface（例如 `Briefing`）；若没有打开中的子 surface，再关闭整个 Session Map。
 - **键盘**：方向键在 token 间移动焦点，Enter/点击跳转。
 - **右侧 Ops/Commander 键盘性**：任何标注为 menu / action surface 的区域都必须至少支持初始焦点、可见 focus、`Escape` 退出，以及与视觉顺序一致的键盘移动。
 - **Dock 模式**：Session Map 作为底部面板出现，会把 Status Bar 顶上去；点击空白不自动关闭；当前为固定高度（约原高度的 2/3）。
@@ -195,7 +196,7 @@ Session Map 的类 RTS 游戏操作界面设计：它是一个跨界面、始终
 ## 数据来源
 - Cells 来自 Cell 列表。
 - Sessions 来自每个 Cell 的 session registry。
-- 预览优先使用渲染层的 xterm buffer（有 wrap 标记）生成缩略图，确保与 Agent Cell 的折行一致；若渲染层无该 session，才退化为 tmux `capture-pane` 快照（只读、无输入），并启用 join wrapped。为避免未附加 client 时抓不到 pane，tmux 预览会优先解析 pane_id 再抓取；若抓取结果为空则尝试 alternate screen（TUI/CLI 常用）。capture-pane 输出会统一归一到 CRLF，以避免 xterm 在非 convertEol 下出现“空白预览”。
+- 预览优先使用渲染层的 xterm buffer（有 wrap 标记）生成缩略图，确保与主终端视图的折行一致；若渲染层无该 session，才退化为 tmux `capture-pane` 快照（只读、无输入），并启用 join wrapped。为避免未附加 client 时抓不到 pane，tmux 预览会优先解析 pane_id 再抓取；若抓取结果为空则尝试 alternate screen（TUI/CLI 常用）。capture-pane 输出会统一归一到 CRLF，以避免 xterm 在非 convertEol 下出现“空白预览”。
 - 原因说明：`capture-pane` 返回的是 tmux 的“已渲染网格”，文本已被硬折行；即便 `-J` 也无法完全恢复原始流，尤其是 CJK 宽字符或 TUI 输出场景。
 - 预览缓存：每个 Session 保留 2–3 帧预览缓存，优先从 `.agency/` 读取，命中后立即渲染并异步刷新最新帧。
 
