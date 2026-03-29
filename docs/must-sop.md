@@ -36,6 +36,7 @@ Source: `docs/norms-dev.md`
 - Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeScript-only; do not add checked-in `.js`/`.cjs`/`.mjs` there.
 - Renderer IPC must go through apps/editor/renderer/src/services/agencyBridge.ts.
 - Avoid direct window.agency usage in React components.
+- For external/local automation, prefer the unified local control bus over adding one-off CLI wrappers or bespoke socket contracts around existing host capability owners.
 - When changing voice input, rescore behavior, or language handling, update docs/notes-voice-input.md.
 - Keep code DRY and SOLID; refactor files over 800 lines.
 - Verify preload and IPC injection health; surface a minimal status indicator if missing.

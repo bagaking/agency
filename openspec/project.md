@@ -9,6 +9,7 @@ Agency Editor 是面向 agentic 并行开发的上下文管理桌面应用，核
 - 可恢复优先：会话需可恢复；UI 状态需持久化。
 - 可观测优先：运行日志和关键错误必须可追踪。
 - 交互一致：导航、确认、危险操作统一模式。
+- 成本按意图支付：隐藏的重型 renderer surface 与第三方运行时默认延迟到用户明确进入该能力时再挂载或加载。
 
 ## Non-Goals (v0.2)
 - 不做跨平台发布（macOS 优先，保留扩展路径）。
@@ -30,8 +31,14 @@ Agency Editor 是面向 agentic 并行开发的上下文管理桌面应用，核
 - IPC 只允许白名单接口（preload 显式暴露），禁止 renderer 直接访问 Node API。
 - 复杂逻辑优先封装成 service 模块，避免 UI 组件承担业务流程。
 - 运行时日志必须包含上下文信息（Cell/Session/路径）。
+- 重型 renderer 能力（例如 Monaco、Session Map overlay、动画运行时、次级大面板）优先通过共享的延迟挂载/延迟加载机制接入，而不是在功能文件中内联一次性 lazy 条件。
 
 ### Architecture Patterns
+- Canonical product objects are `App -> Window -> Project -> Cell -> Session -> Run`.
+- `Agent Cells`, `Session Map`, `Hierarchy`, `Memo`, and `Commander` are surfaces over those objects instead of competing object roots.
+- `Create Cell` is the workspace/worktree action; `Create Agent` is bounded child execution owned by a run; `Fork` is a specialized `Create Agent` strategy.
+- `Commander` remains a bounded operator station: `Ops` is the persistent evidence rail, `Briefing` is the reveal panel, and neither should drift into a window-global assistant or HIL-style drawer.
+- The unified local control bus is the canonical external automation surface; it dispatches to capability owners such as Window Shell, File Intent, Session Runtime, and Main Agent Harness instead of replacing them.
 - Cell 与 branch/worktree 严格 1:1。
 - `.agency` 目录是本地状态与配置的权威来源（YAML/Markdown 为主）。
 - Gates / Actions / Softlinks 均遵守 Global -> Project -> Agent 解析顺序。
