@@ -117,6 +117,11 @@ body,
   100% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.2); }
 }
 
+@keyframes commander-progress-sweep {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(220%); }
+}
+
 .animate-tab-in {
   animation: tab-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -129,11 +134,16 @@ body,
   animation: glow 3s ease-in-out infinite;
 }
 
+.animate-commander-progress-sweep {
+  animation: commander-progress-sweep 1.15s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-tab-in,
   .animate-slide-down,
   .active-tab-glow,
-  .animate-spin-slow {
+  .animate-spin-slow,
+  .animate-commander-progress-sweep {
     animation: none !important;
   }
 }
