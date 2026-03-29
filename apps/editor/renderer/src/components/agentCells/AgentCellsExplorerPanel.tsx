@@ -13,7 +13,8 @@ import {
 import { getExplorerStatus, getPathForDroppedFile, searchExplorerFiles } from '../../services/agencyBridge';
 
 const FILE_DASHBOARD_MIN_HEIGHT = 148;
-const FILE_DASHBOARD_DEFAULT_RATIO = 0.5;
+const FILE_DASHBOARD_DEFAULT_RATIO = 0.36;
+const FILE_DASHBOARD_EMPTY_RATIO = 0.24;
 const FILE_DASHBOARD_MAX_RATIO = 0.82;
 const FILE_DASHBOARD_ALL_LIMIT = 4000;
 const AGENTS_PANEL_MIN_HEIGHT = 128;
@@ -42,7 +43,7 @@ export function AgentCellsExplorerPanel({
   onRevealFileReference,
   onImportFileReferences,
 }: AgentCellsExplorerPanelProps) {
-  const [fileDashboardOpen, setFileDashboardOpen] = useState(true);
+  const [fileDashboardOpen, setFileDashboardOpen] = useState(false);
   const [fileDashboardLoading, setFileDashboardLoading] = useState(false);
   const [fileDashboardEntries, setFileDashboardEntries] = useState<AgentCellFileChangeEntry[]>([]);
   const [fileDashboardAllPaths, setFileDashboardAllPaths] = useState<string[]>([]);
@@ -129,14 +130,28 @@ export function AgentCellsExplorerPanel({
       return 0;
     }
     const middleAreaHeight = Math.max(0, sidebarBodyHeight - sidebarTopHeight);
-    const fallback = Math.round(middleAreaHeight * FILE_DASHBOARD_DEFAULT_RATIO);
+    const fallback = Math.round(
+      middleAreaHeight *
+        (fileDashboardEntries.length > 0 || fileDashboardLoading || fileDashboardCellFilter === 'all'
+          ? FILE_DASHBOARD_DEFAULT_RATIO
+          : FILE_DASHBOARD_EMPTY_RATIO)
+    );
     const minHeight = Math.min(FILE_DASHBOARD_MIN_HEIGHT, maxHeight);
     const baseHeight =
       Number.isFinite(fileDashboardHeight as number) && Number(fileDashboardHeight) > 0
         ? Number(fileDashboardHeight)
         : fallback;
     return clampNumber(baseHeight, minHeight, maxHeight);
-  }, [computeFileDashboardMaxHeight, fileDashboardHeight, fileDashboardOpen, sidebarBodyHeight, sidebarTopHeight]);
+  }, [
+    computeFileDashboardMaxHeight,
+    fileDashboardCellFilter,
+    fileDashboardEntries.length,
+    fileDashboardHeight,
+    fileDashboardLoading,
+    fileDashboardOpen,
+    sidebarBodyHeight,
+    sidebarTopHeight,
+  ]);
 
   useEffect(() => {
     if (!fileDashboardOpen) {
@@ -148,12 +163,25 @@ export function AgentCellsExplorerPanel({
     }
     setFileDashboardHeight((current) => {
       const middleAreaHeight = Math.max(0, sidebarBodyHeight - sidebarTopHeight);
-      const fallback = Math.round(middleAreaHeight * FILE_DASHBOARD_DEFAULT_RATIO);
+      const fallback = Math.round(
+        middleAreaHeight *
+          (fileDashboardEntries.length > 0 || fileDashboardLoading || fileDashboardCellFilter === 'all'
+            ? FILE_DASHBOARD_DEFAULT_RATIO
+            : FILE_DASHBOARD_EMPTY_RATIO)
+      );
       const minHeight = Math.min(FILE_DASHBOARD_MIN_HEIGHT, maxHeight);
       const baseHeight = Number.isFinite(current as number) && Number(current) > 0 ? Number(current) : fallback;
       return clampNumber(baseHeight, minHeight, maxHeight);
     });
-  }, [computeFileDashboardMaxHeight, fileDashboardOpen, sidebarBodyHeight, sidebarTopHeight]);
+  }, [
+    computeFileDashboardMaxHeight,
+    fileDashboardCellFilter,
+    fileDashboardEntries.length,
+    fileDashboardLoading,
+    fileDashboardOpen,
+    sidebarBodyHeight,
+    sidebarTopHeight,
+  ]);
 
   const handleFileDashboardResizeStart = useCallback(
     (event: React.PointerEvent<HTMLButtonElement>) => {
