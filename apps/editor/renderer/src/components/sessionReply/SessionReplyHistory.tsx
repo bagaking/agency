@@ -3,6 +3,7 @@ import { ArrowUpRight, Edit2, Loader2, Reply, StickyNote, Trash2 } from 'lucide-
 
 import { resolveAvatarId } from '../../utils/agentAvatar';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
+import { focusRing } from '../ui/focusRing';
 import { renderReplySiteSegments } from './sessionReplyShared';
 
 export function SessionReplyHistory({
@@ -13,12 +14,14 @@ export function SessionReplyHistory({
   onArchiveReply,
   onReeditReply,
 }: any) {
+  const focusRingClass = focusRing.default;
+
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar px-2 py-2">
       {loadingReplies ? (
-        <div className="flex items-center justify-center py-4 text-[10px] text-muted-foreground/50">
+        <div aria-live="polite" className="flex items-center justify-center py-4 text-[10px] text-muted-foreground/50">
           <Loader2 size={12} className="mr-1.5 animate-spin" />
-          Loading...
+          Loading…
         </div>
       ) : null}
 
@@ -29,6 +32,9 @@ export function SessionReplyHistory({
           </div>
           <div className="mt-2 text-[9px] font-medium uppercase tracking-widest text-muted-foreground">
             Empty
+          </div>
+          <div className="mt-1 max-w-[160px] text-[9px] leading-relaxed text-muted-foreground/80">
+            Record a memo or route a reply to another session.
           </div>
         </div>
       ) : (
@@ -45,6 +51,7 @@ export function SessionReplyHistory({
               onJumpToMemo={onJumpToMemo}
               onArchive={() => onArchiveReply(item)}
               onReedit={() => onReeditReply(item)}
+              focusRingClass={focusRingClass}
             />
           ))}
         </div>
@@ -60,6 +67,7 @@ function SessionReplyHistoryCard({
   onJumpToMemo,
   onArchive,
   onReedit,
+  focusRingClass,
 }: any) {
   const sentTargets = Array.isArray(item?.meta?.sent?.targets) ? item.meta.sent.targets : [];
   const createdLabel = item?.createdAt
@@ -71,7 +79,7 @@ function SessionReplyHistoryCard({
   const isRecord = target?.type === 'record';
 
   return (
-    <div className="group relative rounded-lg border border-border/10 bg-card/25 p-2 transition-all hover:bg-card/40 hover:shadow-sm">
+    <div className="group relative rounded-lg border border-border/10 bg-card/25 p-2 transition-colors hover:bg-card/40 hover:shadow-sm">
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1 overflow-hidden min-w-0">
@@ -95,7 +103,12 @@ function SessionReplyHistoryCard({
                         onJumpToSession?.(target.cellId, target.sessionId);
                       }
                     }}
-                    className="flex items-center gap-1 text-primary/70 hover:text-primary transition-colors truncate"
+                    aria-label={
+                      isRecord
+                        ? 'Open recorded reply in memo'
+                        : `Jump to ${target.sessionName || target.sessionId}`
+                    }
+                    className={`flex items-center gap-1 truncate text-primary/70 transition-colors hover:text-primary ${focusRingClass}`}
                   >
                     {isRecord ? (
                       <StickyNote size={8} className="opacity-60" />
@@ -115,12 +128,13 @@ function SessionReplyHistoryCard({
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0 ml-2">
-            <span className="text-[7px] font-medium text-muted-foreground/20 font-mono">{createdLabel}</span>
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="font-mono text-[7px] font-medium tabular-nums text-muted-foreground/20">{createdLabel}</span>
+            <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
               <button
                 type="button"
                 onClick={onReedit}
-                className="p-0.5 hover:text-foreground text-muted-foreground/30 transition-colors"
+                aria-label="Edit reply"
+                className={`p-0.5 text-muted-foreground/30 transition-colors hover:text-foreground ${focusRingClass}`}
                 title="Edit"
               >
                 <Edit2 size={8} />
@@ -128,7 +142,8 @@ function SessionReplyHistoryCard({
               <button
                 type="button"
                 onClick={onArchive}
-                className="p-0.5 hover:text-rose-400 text-muted-foreground/30 transition-colors"
+                aria-label="Archive reply"
+                className={`p-0.5 text-muted-foreground/30 transition-colors hover:text-rose-400 ${focusRingClass}`}
                 title="Archive"
               >
                 <Trash2 size={8} />
@@ -139,7 +154,7 @@ function SessionReplyHistoryCard({
 
         <div className="flex flex-col gap-1">
           {site ? (
-            <div className="border-l-2 border-primary/15 bg-primary/5 py-0.5 pl-1.5 pr-1 text-[8px] text-muted-foreground/50 font-mono line-clamp-2 hover:line-clamp-none transition-all">
+            <div className="border-l-2 border-primary/15 bg-primary/5 py-0.5 pl-1.5 pr-1 font-mono text-[8px] text-muted-foreground/50 line-clamp-2 hover:line-clamp-none">
               {renderReplySiteSegments(site)}
             </div>
           ) : null}
@@ -152,4 +167,3 @@ function SessionReplyHistoryCard({
     </div>
   );
 }
-

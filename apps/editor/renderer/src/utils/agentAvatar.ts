@@ -19,13 +19,28 @@ const normalizeAvatarId = (value) => {
   return raw.replace(/[\s/\\-]+/g, '_').toUpperCase();
 };
 
-const avatarImporters = import.meta.glob(
-  '../../../../node_modules/@bagakit/open-agent-avatars/20260202/*.svg',
-  {
-    query: '?url',
-    import: 'default',
-  }
-) as Record<string, () => Promise<string>>;
+const importMetaWithGlob = import.meta as ImportMeta & {
+  glob?: (
+    pattern: string,
+    options?: {
+      query?: string;
+      import?: string;
+    }
+  ) => Record<string, () => Promise<string>>;
+};
+
+// `import.meta.glob` is only available under Vite. Tests that execute via plain tsx
+// still import this module, so they need a safe empty fallback.
+const avatarImporters =
+  typeof importMetaWithGlob.glob === 'function'
+    ? importMetaWithGlob.glob(
+        '../../../../node_modules/@bagakit/open-agent-avatars/20260202/*.svg',
+        {
+          query: '?url',
+          import: 'default',
+        }
+      )
+    : {};
 
 const avatarImporterEntries = Object.entries(avatarImporters)
   .map(([filePath, loader]) => {

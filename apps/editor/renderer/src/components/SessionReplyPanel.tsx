@@ -144,23 +144,6 @@ export function SessionReplyPanel({
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    if (!quickPromptMenuOpen) {
-      return undefined;
-    }
-    const handlePointerDown = (event) => {
-      if (quickPromptMenuRef.current?.contains(event.target)) {
-        return;
-      }
-      if (quickPromptTriggerRef.current?.contains(event.target)) {
-        return;
-      }
-      setQuickPromptMenuOpen(false);
-    };
-    window.addEventListener('mousedown', handlePointerDown);
-    return () => window.removeEventListener('mousedown', handlePointerDown);
-  }, [quickPromptMenuOpen]);
-
   const handleArchiveReply = useCallback(async (item) => {
     if (!item?.id || !worktreePath) return;
     try {
