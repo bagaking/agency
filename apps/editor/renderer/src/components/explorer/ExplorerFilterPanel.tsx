@@ -72,7 +72,7 @@ export function ExplorerFilterPanel({
               }`}
               onClick={() => toggleStatusFilter(status)}
             >
-              <span className={`px-1 rounded-[2px] text-[9px] font-black uppercase tracking-tighter ${statusColors[status]}`}>
+              <span className={`inline-flex h-4 min-w-[1rem] items-center justify-center rounded-md px-1 text-[8px] font-black uppercase tracking-[0.14em] ${statusBadgeStyles[status] || statusColors[status]}`}>
                 {statusBadges[status]}
               </span>
               <span className="truncate tracking-tight">{statusLabels[status] || status}</span>

@@ -17,6 +17,8 @@ const focusRingClass = focusRing.sidebar;
 
 export function ExplorerHeader({
   activeRootLabel,
+  activeFilterCount,
+  activeFilterSummary,
   onJumpToAgents,
   onNewFile,
   onNewFolder,
@@ -35,19 +37,24 @@ export function ExplorerHeader({
   filterMenuButtonRef,
   onToggleFilterMenu,
   searchTruncated,
-  selectionCount,
-  onCopyPaths,
-  onDeleteSelection,
-  onClearSelection,
 }: any) {
+  const contextBits = [activeFilterSummary || ''].filter(Boolean);
+
   return (
     <header data-testid="explorer-header" className="shrink-0 space-y-3 px-4 py-3 border-b border-border/40 bg-sidebar text-sidebar-foreground">
       <div className="flex items-center justify-between">
         <div className="flex flex-col min-w-0">
           <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">Explorer</h2>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-xs font-semibold text-foreground truncate">{activeRootLabel}</span>
-            <div className="h-1 w-1 rounded-full bg-primary/80" />
+          <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-xs font-semibold text-foreground">{activeRootLabel}</span>
+            {contextBits.length ? (
+              <>
+                <div className="h-1 w-1 rounded-full bg-primary/70" />
+                <span className="truncate text-[9px] font-medium uppercase tracking-[0.16em] text-muted-foreground/[0.55]">
+                  {contextBits.join(' · ')}
+                </span>
+              </>
+            ) : null}
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -64,10 +71,14 @@ export function ExplorerHeader({
       </div>
 
       {hasCells && (
-        <div className="group relative">
+        <div className="flex items-center gap-2">
+            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/[0.4]">
+              Scope
+            </span>
+          <div className="group relative min-w-0 flex-1">
           <select
             aria-label="Active agent cell"
-            className={`w-full appearance-none rounded border border-border/40 bg-muted/10 px-2 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:border-border/80 cursor-pointer ${focusRingClass}`}
+            className={`w-full appearance-none rounded-md border border-border/40 bg-muted/10 px-2 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:border-border/80 cursor-pointer ${focusRingClass}`}
             value={selectedId || ''}
             onChange={(e) => onSelectCell?.(e.target.value)}
           >
@@ -76,6 +87,7 @@ export function ExplorerHeader({
             ))}
           </select>
           <ChevronDown size={10} aria-hidden="true" className="absolute right-2 top-2.5 text-muted-foreground/40 pointer-events-none group-hover:text-muted-foreground transition-colors" />
+          </div>
         </div>
       )}
 
@@ -115,7 +127,14 @@ export function ExplorerHeader({
             hasActiveFilters ? 'border-primary/40 bg-primary/10 text-primary active-tab-glow' : 'border-border/40 text-muted-foreground/50 hover:border-border hover:text-foreground'
           }`}
         >
-          <Filter size={12} strokeWidth={1.5} aria-hidden="true" />
+          <span className="relative inline-flex">
+            <Filter size={12} strokeWidth={1.5} aria-hidden="true" />
+            {activeFilterCount > 0 ? (
+              <span className="absolute -right-2 -top-2 min-w-[0.95rem] rounded-full bg-primary px-1 text-[8px] font-black leading-4 text-primary-foreground shadow-[0_0_0_2px_rgba(31,35,46,1)]">
+                {activeFilterCount}
+              </span>
+            ) : null}
+          </span>
         </IconButton>
       </div>
 
@@ -138,21 +157,5 @@ function HeaderButton({ icon: Icon, onClick, title, className = "" }: any) {
     >
       <Icon size={14} strokeWidth={1.5} aria-hidden="true" />
     </IconButton>
-  );
-}
-
-function SelectionAction({ children, onClick, variant }: any) {
-  return (
-    <button
-      type="button"
-      className={`rounded border px-2 py-0.5 text-[10px] transition-colors ${focusRingClass} ${
-        variant === 'destructive' 
-          ? 'border-rose-500/40 text-rose-300 hover:text-rose-200 hover:bg-rose-500/10' 
-          : 'border-border/60 hover:text-foreground hover:bg-white/5'
-      }`}
-      onClick={onClick}
-    >
-      {children}
-    </button>
   );
 }

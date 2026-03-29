@@ -2,8 +2,6 @@ import React from 'react';
 import { 
   ChevronRight, 
   ChevronDown, 
-  FolderClosed, 
-  FolderOpen, 
   RefreshCw, 
   EyeOff, 
   Link2,
@@ -14,10 +12,9 @@ import {
 import {
   getFileIcon,
   getFolderIcon,
-  statusBadgeStyles,
   statusBadges,
-  statusColors,
   statusLabels,
+  statusMarkToneClasses,
 } from './explorerUtils';
 import { Tooltip } from '../ui/Tooltip';
 import { focusRing } from '../ui/focusRing';
@@ -30,7 +27,6 @@ export function ExplorerItem({
   isFocused,
   isLoading,
   isExpanded,
-  isSearchActive,
   isOpen,
   isDirty,
   isIgnored,
@@ -55,8 +51,6 @@ export function ExplorerItem({
 }: any) {
   const isDir = item.type === 'dir';
   const isLink = item.isSymbolicLink;
-  const isUntracked = status === 'untracked';
-  const isAdded = status === 'added';
   const hasComments = Number(commentCount) > 0;
   const primarySemanticTag = Array.isArray(semanticTags) ? semanticTags[0] : null;
   const semanticOverflowCount = Array.isArray(semanticTags) && semanticTags.length > 1 ? semanticTags.length - 1 : 0;
@@ -197,48 +191,41 @@ export function ExplorerItem({
           >
             {node.name}
           </span>
+          <div className="flex shrink-0 items-center gap-1">
+            {isOpen ? (
+              <span className="inline-flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-sky-200/[0.75]">
+                <span
+                  className="h-1.5 w-1.5 rounded-full bg-sky-300/90 shadow-[0_0_0_3px_rgba(56,189,248,0.10)]"
+                  aria-hidden="true"
+                />
+                <span title="Open in workbench">Open</span>
+              </span>
+            ) : null}
+            {isDirty ? (
+              <span className="inline-flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-amber-200/[0.8]">
+                <span
+                  className="h-1.5 w-1.5 rounded-full bg-amber-300/90 shadow-[0_0_0_3px_rgba(251,191,36,0.10)]"
+                  aria-hidden="true"
+                />
+                <span title="Unsaved workbench changes">Dirty</span>
+              </span>
+            ) : null}
+          </div>
         </div>
       )}
 
       {!renameTarget ? (
-        <div className="ml-auto flex shrink-0 items-center gap-1.5 pl-2">
-          {isOpen && (
-            <span className="shrink-0 rounded-full border border-sky-400/20 bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-sky-200">
-              Open
-            </span>
-          )}
-          {isDirty && (
-            <span className="shrink-0 rounded-full border border-amber-400/20 bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-200">
-              Dirty
-            </span>
-          )}
-          {isLink && (
-            <span className="shrink-0 rounded-[3px] border border-sky-500/20 bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tight text-sky-300">
-              Link
-            </span>
-          )}
-          {isIgnored && (
-            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground/75 italic">
-              Ignored
-            </span>
-          )}
-          {isUntracked && !isIgnored && (
-            <span className="shrink-0 rounded-[3px] border border-lime-500/20 bg-lime-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tight text-lime-300">
-              Untracked
-            </span>
-          )}
-          {isAdded && !isIgnored && (
-            <span className="shrink-0 rounded-[3px] border border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tight text-emerald-300">
-              Added
-            </span>
-          )}
+        <div className="ml-auto flex shrink-0 items-center gap-2 pl-2">
           {primarySemanticTag && (
-            <span className="shrink-0 rounded-[3px] border border-sky-400/30 bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tight text-sky-100">
+            <span
+              className="shrink-0 text-[8px] font-semibold uppercase tracking-[0.18em] text-sky-200/[0.7]"
+              title={`Semantic file: ${primarySemanticTag.label || primarySemanticTag.id}`}
+            >
               {primarySemanticTag.label || primarySemanticTag.id}
             </span>
           )}
           {semanticOverflowCount > 0 && (
-            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-tight text-sky-200/80">
+            <span className="shrink-0 text-[8px] font-semibold uppercase tracking-[0.16em] text-sky-200/[0.55]">
               +{semanticOverflowCount}
             </span>
           )}
@@ -246,7 +233,7 @@ export function ExplorerItem({
           {/* Git Status Badge */}
           {status && (
             <span
-              className={`inline-flex rounded-[3px] border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] ${statusColors[status]} ${statusBadgeStyles[status] || ''}`}
+              className={`inline-flex h-5 min-w-[1.35rem] items-center justify-center rounded-md px-1.5 text-[9px] font-black uppercase tracking-[0.16em] ${statusMarkToneClasses[status] || 'bg-white/[0.08] text-foreground'}`}
               title={statusLabel}
             >
               {statusBadges[status]}
@@ -255,9 +242,9 @@ export function ExplorerItem({
 
           {/* Diff Counts */}
           {(added > 0 || deleted > 0) && (
-            <div className="flex items-center gap-1 text-[9px] font-semibold">
-              {added > 0 && <span className="text-emerald-300">+{added}</span>}
-              {deleted > 0 && <span className="text-rose-300">-{deleted}</span>}
+            <div className="flex items-center gap-1 text-[9px] font-semibold tabular-nums">
+              {added > 0 && <span className="text-emerald-300/90">+{added}</span>}
+              {deleted > 0 && <span className="text-rose-300/90">-{deleted}</span>}
             </div>
           )}
 
@@ -270,7 +257,7 @@ export function ExplorerItem({
               <button
                 type="button"
                 tabIndex={isFocused ? 0 : -1}
-                className={`flex items-center gap-1 rounded-md border border-white/10 px-1.5 py-0.5 text-muted-foreground/70 transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary ${focusRingClass}`}
+                className={`flex items-center gap-1 rounded-md px-1 py-0.5 text-muted-foreground/60 transition-colors hover:bg-white/[0.06] hover:text-primary ${focusRingClass}`}
                 onClick={(event) => {
                   event.stopPropagation();
                   onJumpToComments?.(item.path);

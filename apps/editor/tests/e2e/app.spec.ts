@@ -433,10 +433,41 @@ test('explorer shows companion changed-files panel above footer', async () => {
     await changesPanel.getByRole('button', { name: 'Expand', exact: true }).click();
     await expect(changesList).toBeVisible();
 
-    await changesPanel.getByRole('button', { name: 'Tree', exact: true }).click();
+    await changesPanel.getByRole('button', { name: 'Grouped', exact: true }).click();
     await expect
       .poll(async () => (await changesList.textContent() || '').trim().length > 0)
       .toBe(true);
+  } finally {
+    await electronApp.close();
+  }
+});
+
+test('explorer selection actions use an explicit hierarchy popover', async () => {
+  const electronApp = await launchTestApp();
+
+  try {
+    const window = await getFirstWindow(electronApp);
+    await openExplorer(window);
+
+    const tree = window.getByTestId('explorer-tree');
+    await tree.click();
+    await window.locator('[data-explorer-path="README.md"]').click();
+
+    await expect(window.getByText('Selection Actions')).toBeVisible();
+
+    const trigger = window.getByRole('button', { name: 'Show selection hierarchy' });
+    await trigger.click();
+
+    const dialog = window.getByRole('dialog', { name: 'Selection hierarchy' });
+    await expect(dialog).toBeVisible();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+
+    await dialog.click();
+    await expect(dialog).toBeVisible();
+
+    await tree.click();
+    await expect(dialog).toHaveCount(0);
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   } finally {
     await electronApp.close();
   }

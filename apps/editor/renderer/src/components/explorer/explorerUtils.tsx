@@ -35,6 +35,15 @@ import {
   Terminal as FolderTerminalIcon, // Alias for FolderTerminal fallback
   FileCode2,
 } from 'lucide-react';
+import {
+  fileStatusBadges,
+  fileStatusColors,
+  fileStatusFilterToneClasses,
+  fileStatusLabels,
+  fileStatusMarkToneClasses,
+  FILE_STATUS_FILTERS,
+  FILE_STATUS_PRIORITY,
+} from '../../utils/fileStatusVisuals';
 
 /**
  * 专门针对特定目录名的图标映射
@@ -143,62 +152,13 @@ function FileSymlink({ size, className, strokeWidth }: any) {
     );
 }
 
-export const statusColors = {
-  added: 'text-emerald-400',
-  modified: 'text-amber-300',
-  deleted: 'text-rose-400',
-  renamed: 'text-sky-400',
-  copied: 'text-sky-400',
-  untracked: 'text-lime-300',
-  ignored: 'text-slate-300',
-  conflict: 'text-rose-500',
-};
-
-export const statusBadges = {
-  added: 'A',
-  modified: 'M',
-  deleted: 'D',
-  renamed: 'R',
-  copied: 'C',
-  untracked: '?',
-  ignored: 'I',
-  conflict: '!',
-};
-
-export const STATUS_PRIORITY = [
-  'conflict',
-  'deleted',
-  'added',
-  'modified',
-  'renamed',
-  'copied',
-  'untracked',
-  'ignored',
-];
-
-export const STATUS_FILTERS = [...STATUS_PRIORITY];
-
-export const statusBadgeStyles = {
-  added: 'border-emerald-500/40 bg-emerald-500/10',
-  modified: 'border-amber-400/40 bg-amber-400/10',
-  deleted: 'border-rose-400/40 bg-rose-400/10',
-  renamed: 'border-sky-400/40 bg-sky-400/10',
-  copied: 'border-sky-400/40 bg-sky-400/10',
-  untracked: 'border-lime-500/40 bg-lime-500/10',
-  ignored: 'border-slate-300/50 bg-slate-300/10',
-  conflict: 'border-rose-500/50 bg-rose-500/15',
-};
-
-export const statusLabels = {
-  conflict: 'Conflict',
-  deleted: 'Deleted',
-  added: 'Added',
-  modified: 'Modified',
-  renamed: 'Renamed',
-  copied: 'Copied',
-  untracked: 'Untracked',
-  ignored: 'Ignored',
-};
+export const statusColors = fileStatusColors;
+export const statusBadges = fileStatusBadges;
+export const STATUS_PRIORITY = FILE_STATUS_PRIORITY;
+export const STATUS_FILTERS = FILE_STATUS_FILTERS;
+export const statusBadgeStyles = fileStatusFilterToneClasses;
+export const statusLabels = fileStatusLabels;
+export const statusMarkToneClasses = fileStatusMarkToneClasses;
 
 export const pickPrimaryStatus = (statusCounts = {}) => {
   for (const status of STATUS_PRIORITY) {

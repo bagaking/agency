@@ -1,28 +1,12 @@
 import React, { useMemo } from 'react';
 import { Eye, FolderOpen } from 'lucide-react';
 import type { AgentCellFileChangeEntry } from '../../utils/agentCellFileChanges';
-
-const fileStatusColors: Record<string, string> = {
-  added: 'text-emerald-400',
-  modified: 'text-amber-300',
-  deleted: 'text-rose-400',
-  renamed: 'text-sky-400',
-  copied: 'text-sky-400',
-  untracked: 'text-lime-300',
-  ignored: 'text-slate-300',
-  conflict: 'text-rose-500',
-};
-
-const fileStatusBadges: Record<string, string> = {
-  added: 'A',
-  modified: 'M',
-  deleted: 'D',
-  renamed: 'R',
-  copied: 'C',
-  untracked: '?',
-  ignored: 'I',
-  conflict: '!',
-};
+import {
+  fileStatusBadges,
+  fileStatusLabels,
+  fileStatusMarkToneClasses,
+} from '../../utils/fileStatusVisuals';
+import { Tooltip } from '../ui/Tooltip';
 
 export type FileDashboardPreviewState = {
   relativePath: string;
@@ -168,8 +152,8 @@ const resolveStatusVisual = (entry: AgentCellFileChangeEntry) => {
   }
   return {
     badge,
-    label: statusKey,
-    colorClass: fileStatusColors[statusKey] || 'text-muted-foreground',
+    label: fileStatusLabels[statusKey] || statusKey,
+    toneClass: fileStatusMarkToneClasses[statusKey] || 'bg-white/[0.08] text-foreground',
   };
 };
 
@@ -216,8 +200,8 @@ export function FileDashboardList({
     return (
       <div
         key={rowKey}
-        className={`group flex items-center gap-1 px-1 py-0.5 text-[10px] leading-tight transition-colors hover:bg-muted/30 ${
-          isPreviewing ? 'bg-primary/10' : ''
+        className={`group flex items-center gap-1.5 px-1.5 py-1 text-[10px] leading-tight transition-colors hover:bg-white/[0.04] ${
+          isPreviewing ? 'bg-primary/[0.08]' : ''
         }`}
         style={indent > 0 ? { marginLeft: `${indent}px` } : undefined}
       >
@@ -234,31 +218,35 @@ export function FileDashboardList({
         </button>
         {statusVisual ? (
           <span
-            className={`px-1 text-[8px] font-semibold uppercase tracking-wide ${statusVisual.colorClass}`}
+            className={`inline-flex h-4 min-w-[1rem] items-center justify-center rounded-md px-1 text-[8px] font-black uppercase tracking-[0.14em] ${statusVisual.toneClass}`}
             title={`Status: ${statusVisual.label}`}
           >
             {statusVisual.badge}
           </span>
         ) : null}
         {onPreview ? (
-          <button
-            type="button"
-            onClick={() => void onPreview(entry)}
-            className="inline-flex items-center rounded p-0.5 text-muted-foreground hover:text-primary"
-            title="Preview without switching view"
-          >
-            <Eye size={10} strokeWidth={1.6} />
-          </button>
+          <Tooltip label="Preview without switching view">
+            <button
+              type="button"
+              onClick={() => void onPreview(entry)}
+              className="inline-flex items-center rounded-md p-1 text-muted-foreground/60 hover:bg-white/[0.06] hover:text-primary"
+              aria-label="Preview without switching view"
+            >
+              <Eye size={10} strokeWidth={1.6} />
+            </button>
+          </Tooltip>
         ) : null}
         {onReveal ? (
-          <button
-            type="button"
-            onClick={() => void onReveal(entry)}
-            className="px-1 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-primary"
-            title="Reveal in Explorer"
-          >
-            R
-          </button>
+          <Tooltip label="Reveal in Explorer">
+            <button
+              type="button"
+              onClick={() => void onReveal(entry)}
+              className="inline-flex items-center rounded-md p-1 text-muted-foreground/60 hover:bg-white/[0.06] hover:text-primary"
+              aria-label="Reveal in Explorer"
+            >
+              <FolderOpen size={10} strokeWidth={1.6} />
+            </button>
+          </Tooltip>
         ) : null}
       </div>
     );

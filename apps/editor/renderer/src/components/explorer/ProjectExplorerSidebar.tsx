@@ -156,6 +156,59 @@ function ProjectExplorerSidebarContent({
   const activeRootLabel = rootLabel || 'Project';
   const hasCells = cells && cells.length > 0;
   const selectedCellId = selectedCell?.id || null;
+  const semanticRuleLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    (Array.isArray(semanticRules) ? semanticRules : []).forEach((rule: any) => {
+      const id = String(rule?.id || '').trim();
+      if (!id) {
+        return;
+      }
+      map.set(id, String(rule?.label || id).trim());
+    });
+    return map;
+  }, [semanticRules]);
+  const activeFilterCount =
+    statusFilters.length +
+    semanticFilters.length +
+    Number(showHidden !== DEFAULT_EXPLORER_FILTER_PREFERENCES.showHidden) +
+    Number(showIgnored !== DEFAULT_EXPLORER_FILTER_PREFERENCES.showIgnored) +
+    Number(showChangesOnly !== DEFAULT_EXPLORER_FILTER_PREFERENCES.showChangesOnly);
+  const activeFilterSummary = useMemo(() => {
+    const parts: string[] = [];
+    if (showChangesOnly) {
+      parts.push('Changes only');
+    }
+    if (showIgnored) {
+      parts.push('Show ignored');
+    }
+    if (showHidden !== DEFAULT_EXPLORER_FILTER_PREFERENCES.showHidden) {
+      parts.push(showHidden ? 'Show hidden' : 'Hide hidden');
+    }
+    if (statusFilters.length === 1) {
+      parts.push(statusLabels[statusFilters[0]] || statusFilters[0]);
+    } else if (statusFilters.length > 1) {
+      parts.push(`${statusFilters.length} status filters`);
+    }
+    if (semanticFilters.length === 1) {
+      parts.push(semanticRuleLabelById.get(semanticFilters[0]) || semanticFilters[0]);
+    } else if (semanticFilters.length > 1) {
+      parts.push(`${semanticFilters.length} semantic filters`);
+    }
+    if (!parts.length) {
+      return '';
+    }
+    if (parts.length <= 3) {
+      return parts.join(' · ');
+    }
+    return `${parts.slice(0, 3).join(' · ')} +${parts.length - 3}`;
+  }, [
+    semanticFilters,
+    semanticRuleLabelById,
+    showChangesOnly,
+    showHidden,
+    showIgnored,
+    statusFilters,
+  ]);
 
   const changedPanelEntries = useMemo(() => {
     if (!selectedCellId) {
@@ -621,14 +674,15 @@ function ProjectExplorerSidebarContent({
     const isRenaming = renameTarget?.path === item.path;
     const sorted = Object.values((entry?.cells || {}) as Record<string, any>).sort((a: any, b: any) => (b.added + b.deleted) - (a.added + a.deleted));
     const cellBadges = sorted.length > 0 && (
-        <div className="flex items-center gap-1 pr-1 opacity-60 transition-opacity group-hover:opacity-90">
-            <div
+        <div className="flex items-center gap-1 pr-0.5 opacity-70 transition-opacity group-hover:opacity-95">
+            <span
               key={sorted[0].id}
-              className="rounded-[3px] border border-white/10 bg-white/[0.08] px-1.5 py-0.5 text-[8px] font-black uppercase tracking-tight text-muted-foreground/90"
+              className="text-[8px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60"
+              title={`Attributed to ${sorted[0].name}`}
             >
               {sorted[0].name}
-            </div>
-            {sorted.length > 1 && <span className="text-[8px] font-bold text-muted-foreground/80">+{sorted.length - 1}</span>}
+            </span>
+            {sorted.length > 1 && <span className="text-[8px] font-semibold text-muted-foreground/[0.45]">+{sorted.length - 1}</span>}
         </div>
     );
 
@@ -641,7 +695,7 @@ function ProjectExplorerSidebarContent({
         isSelected={selectionSet.has(item.path)}
         isFocused={focusedPath === item.path}
         isLoading={loadingPaths.has(item.path)}
-        isExpanded={expandedPaths.has(item.path) || isSearchActive} isSearchActive={isSearchActive} isOpen={!isDir && openFiles.has(item.path)}
+        isExpanded={expandedPaths.has(item.path) || isSearchActive} isOpen={!isDir && openFiles.has(item.path)}
         isDirty={!isDir && dirtyFiles.has(item.path)} isIgnored={isPathIgnored(item.path)} status={entry?.status} added={entry?.added} deleted={entry?.deleted}
         semanticTags={semanticTagsByPath?.[item.path] || []}
         commentCount={!isDir ? (commentCountsByPath?.[item.path] || 0) : 0}
@@ -705,7 +759,10 @@ function ProjectExplorerSidebarContent({
       onDrop={handleSidebarDrop}
     >
       <ExplorerHeader
-        activeRootLabel={activeRootLabel} onJumpToAgents={onJumpToAgents} onNewFile={() => startDraft('file')} onNewFolder={() => startDraft('dir')}
+        activeRootLabel={activeRootLabel}
+        activeFilterCount={activeFilterCount}
+        activeFilterSummary={activeFilterSummary}
+        onJumpToAgents={onJumpToAgents} onNewFile={() => startDraft('file')} onNewFolder={() => startDraft('dir')}
         onRefresh={() => refreshAll({ forceStatus: true, reloadExpanded: true })} isLoading={loadingPaths.size > 0} hasCells={hasCells} cells={cells} selectedId={selectedId} onSelectCell={onSelectCell}
         searchQuery={searchQuery} onSearchChange={setSearchQuery} onClearSearch={() => setSearchQuery('')}
         hasActiveFilters={hasActiveFilters}

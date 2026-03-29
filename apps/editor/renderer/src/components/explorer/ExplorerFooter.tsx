@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ChevronDown,
   X,
   Send,
   Map,
@@ -9,6 +10,7 @@ import { statusColors, getFileIcon } from './explorerUtils';
 import { Tooltip } from '../ui/Tooltip';
 import { focusRing } from '../ui/focusRing';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
+import { useDismissibleLayer } from '../ui/useDismissibleLayer';
 import { resolveSessionAvatarId } from '../../utils/agentAvatar';
 import { formatIdleShort } from '../../utils/timeFormat';
 
@@ -38,12 +40,14 @@ export function ExplorerFooter({
   const [deliveryMode, setDeliveryMode] = useState<'quick' | 'gated'>('quick');
   const isComposingRef = useRef(false);
   const commentRef = useRef<HTMLTextAreaElement | null>(null);
+  const manifestTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const manifestPopoverRef = useRef<HTMLDivElement | null>(null);
 
   const activeSessions = (sessions || []).filter((s) => s.status !== 'closed');
   const focusSession =
     activeSessions.find((session) => session.id === activeSessionId) || activeSessions[0];
 
-  const focusRingClass = focusRing.default;
+  const focusRingClass = focusRing.sidebar;
   const focusSessionKey =
     focusSession && activeCell ? `${activeCell.id}:${focusSession.id}` : null;
   const focusActivityAt = focusSessionKey ? sessionActivityByKey?.[focusSessionKey] : null;
@@ -60,6 +64,12 @@ export function ExplorerFooter({
   const canOpenTimeline = Boolean(
     explorerDeliverySummary?.draftId || explorerDeliverySummary?.actionSheetId
   );
+
+  useDismissibleLayer({
+    open: showManifest,
+    onDismiss: () => setShowManifest(false),
+    refs: [manifestTriggerRef, manifestPopoverRef],
+  });
 
   const resizeCommentInput = useCallback(() => {
     const element = commentRef.current;
@@ -89,6 +99,16 @@ export function ExplorerFooter({
     }
     commentRef.current.style.height = `${COMMENT_MIN_HEIGHT}px`;
   }, [selectionCount]);
+
+  useEffect(() => {
+    if (!showManifest) {
+      return;
+    }
+    const frameId = window.requestAnimationFrame(() => {
+      manifestPopoverRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [showManifest]);
 
   const manifestTree = useMemo(() => {
     if (!selectionTargets?.length) return [];
@@ -176,7 +196,14 @@ export function ExplorerFooter({
   return (
     <footer className="shrink-0 bg-sidebar text-sidebar-foreground select-none border-t border-border/40 relative">
       {showManifest && selectionCount > 0 ? (
-        <div className="absolute bottom-full left-3 mb-2 w-64 max-h-72 overflow-y-auto rounded-xl border border-border/50 bg-popover/98 backdrop-blur-3xl p-2 shadow-2xl animate-tab-in z-50 ring-1 ring-border/10 scrollbar-hide">
+        <div
+          id="explorer-selection-hierarchy"
+          ref={manifestPopoverRef}
+          role="dialog"
+          aria-label="Selection hierarchy"
+          tabIndex={0}
+          className="absolute bottom-full left-3 mb-2 w-64 max-h-72 overflow-y-auto rounded-xl border border-border/50 bg-popover/98 backdrop-blur-3xl p-2 shadow-2xl animate-tab-in z-50 ring-1 ring-border/10 scrollbar-hide focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/35"
+        >
           <div className="flex items-center justify-between mb-2 border-b border-border/10 pb-1.5 px-2">
             <span className="text-[9px] font-black uppercase tracking-widest text-primary/60">
               Selection Hierarchy
@@ -193,18 +220,16 @@ export function ExplorerFooter({
       ) : null}
 
       <div className="px-3 py-2">
-        <div
-          className={`rounded-lg border border-white/10 bg-white/5 transition-colors ${
-            sessionMapOpen ? 'ring-1 ring-primary/50 bg-primary/10' : ''
-          }`}
-        >
+        <div className="rounded-md border border-white/[0.08] bg-white/[0.04] overflow-hidden">
           <button
             type="button"
             onClick={() => onToggleSessionMap?.()}
             disabled={!focusSession}
-            className={`group flex w-full items-center gap-2 rounded-t-lg px-2.5 py-2 text-left transition-colors ${focusRingClass} ${
-              focusSession ? 'hover:bg-white/10' : 'opacity-50 cursor-not-allowed'
-            } ${selectionCount > 0 ? 'border-b border-white/10' : ''}`}
+            className={`group flex w-full items-center gap-2 px-2.5 py-2 text-left transition-colors ${focusRingClass} ${
+              sessionMapOpen ? 'bg-primary/[0.08]' : ''
+            } ${focusSession ? 'hover:bg-white/[0.07]' : 'cursor-not-allowed opacity-50'} ${
+              selectionCount > 0 ? 'border-b border-white/[0.08]' : ''
+            }`}
             aria-label="Open session map"
             title="Open session map"
           >
@@ -219,15 +244,15 @@ export function ExplorerFooter({
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 text-[9px] uppercase tracking-widest text-muted-foreground/60">
-                  <span className="shrink-0">Active</span>
-                  <span className="h-1 w-1 rounded-full bg-muted-foreground/40" aria-hidden="true" />
+                <div className="flex items-center gap-2 text-[9px] uppercase tracking-[0.18em] text-muted-foreground/50">
+                  <span className="shrink-0">Focus Session</span>
+                  <span className="h-1 w-1 rounded-full bg-muted-foreground/35" aria-hidden="true" />
                   <span className="min-w-0 truncate text-[11px] font-semibold normal-case tracking-normal text-foreground/90">
                     {focusSession?.name || focusSession?.id || 'No session'}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1 text-[9px] text-muted-foreground/60">
+                <div className="flex items-center gap-1 text-[9px] text-muted-foreground/[0.55]">
                   <span className="truncate">{activeCell?.name || 'No cell'}</span>
                   {focusSession ? (
                     <>
@@ -246,81 +271,112 @@ export function ExplorerFooter({
               </div>
             </div>
 
-            <div className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+            <div className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/[0.55]">
               <Map size={12} />
-              <span>Map</span>
+              <span>Session Map</span>
             </div>
           </button>
 
           {selectionCount > 0 ? (
-            <div className="px-2.5 py-2 animate-tab-in">
-              <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="animate-tab-in">
+              <div className="flex items-start justify-between gap-3 px-2.5 py-2">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/[0.45]">
+                    Selection Actions
+                  </span>
                   <button
+                    ref={manifestTriggerRef}
                     type="button"
                     className={`flex items-center gap-1.5 rounded-md px-1 py-0.5 text-[10px] text-primary tracking-tight font-medium opacity-80 hover:opacity-100 transition-opacity ${focusRingClass}`}
-                    onMouseEnter={() => setShowManifest(true)}
-                    onMouseLeave={() => setShowManifest(false)}
-                    onFocus={() => setShowManifest(true)}
-                    onBlur={() => setShowManifest(false)}
+                    onClick={() => setShowManifest((current) => !current)}
                     aria-label="Show selection hierarchy"
                     aria-expanded={showManifest}
+                    aria-controls={showManifest ? 'explorer-selection-hierarchy' : undefined}
                   >
                     <span>{selectionCount} items</span>
-                    <span
-                      className="h-1 w-1 rounded-full bg-primary/30"
+                    <span className="h-1 w-1 rounded-full bg-primary/30" aria-hidden="true" />
+                    <ChevronDown
+                      size={10}
+                      strokeWidth={1.8}
+                      className={`transition-transform ${showManifest ? 'rotate-180' : 'rotate-0'}`}
                       aria-hidden="true"
                     />
                   </button>
-                  <div className="inline-flex rounded bg-background/70 p-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setDeliveryMode('quick')}
-                      className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors ${focusRingClass} ${
-                        deliveryMode === 'quick'
-                          ? 'bg-primary/15 text-primary'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                      title="Quick send (default)"
-                    >
-                      Quick
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeliveryMode('gated')}
-                      className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors ${focusRingClass} ${
-                        deliveryMode === 'gated'
-                          ? 'bg-primary/15 text-primary'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                      title="Gated send via Action Sheet"
-                    >
-                      Gated
-                    </button>
-                  </div>
                 </div>
+                <div className="mt-1 truncate text-[10px] text-muted-foreground/60">
+                  Send selected file context into {focusSession?.name || focusSession?.id || 'the active session'}.
+                </div>
+              </div>
 
-                <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={onOpenDeliveryTimeline}
+                  disabled={!canOpenTimeline}
+                  className={`rounded border border-border/30 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-40 ${focusRingClass}`}
+                  title="Open latest delivery timeline"
+                >
+                  Timeline
+                </button>
+                <Tooltip label="Clear selection">
                   <button
                     type="button"
-                    onClick={onOpenDeliveryTimeline}
-                    disabled={!canOpenTimeline}
-                    className={`rounded border border-border/30 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-40 ${focusRingClass}`}
-                    title="Open latest delivery timeline"
+                    onClick={onClearSelection}
+                    className={`p-1 text-muted-foreground/50 transition-colors hover:text-foreground/85 ${focusRingClass}`}
+                    aria-label="Clear selection"
                   >
-                    Timeline
+                    <X size={12} strokeWidth={2} aria-hidden="true" />
                   </button>
-                  <Tooltip label="Clear selection">
-                    <button
-                      type="button"
-                      onClick={onClearSelection}
-                      className={`p-1 text-muted-foreground/50 transition-colors hover:text-foreground/85 ${focusRingClass}`}
-                      aria-label="Clear selection"
-                    >
-                      <X size={12} strokeWidth={2} aria-hidden="true" />
-                    </button>
-                  </Tooltip>
+                </Tooltip>
+              </div>
+            </div>
+
+              <div className="px-2.5 pb-2">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="inline-flex rounded bg-background/70 p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryMode('quick')}
+                    className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors ${focusRingClass} ${
+                      deliveryMode === 'quick'
+                        ? 'bg-primary/15 text-primary'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="Quick send (default)"
+                  >
+                    Quick
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryMode('gated')}
+                    className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors ${focusRingClass} ${
+                      deliveryMode === 'gated'
+                        ? 'bg-primary/15 text-primary'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="Gated send via Action Sheet"
+                  >
+                    Gated
+                  </button>
                 </div>
+
+                {explorerDeliverySummary ? (
+                  <div className="flex items-center gap-2 text-[9px] text-muted-foreground/[0.55]">
+                    <span className="truncate">
+                      Last send · {explorerDeliverySummary.mode || 'quick'} · {explorerDeliverySummary.status || 'idle'}
+                    </span>
+                    {explorerDeliverySummary.updatedAt ? (
+                      <span className="shrink-0 font-mono">
+                        {new Date(explorerDeliverySummary.updatedAt).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: false,
+                        })}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
 
               <div className="flex items-end gap-1.5 rounded-md border border-border/40 bg-background/40 px-2 py-1.5">
@@ -366,23 +422,7 @@ export function ExplorerFooter({
                   </button>
                 </Tooltip>
               </div>
-              {explorerDeliverySummary ? (
-                <div className="mt-1.5 flex items-center justify-between text-[9px] text-muted-foreground/60">
-                  <span className="truncate">
-                    Last send · {explorerDeliverySummary.mode || 'quick'} ·{' '}
-                    {explorerDeliverySummary.status || 'idle'}
-                  </span>
-                  {explorerDeliverySummary.updatedAt ? (
-                    <span className="shrink-0 font-mono">
-                      {new Date(explorerDeliverySummary.updatedAt).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false,
-                      })}
-                    </span>
-                  ) : null}
-                </div>
-              ) : null}
+              </div>
             </div>
           ) : null}
         </div>

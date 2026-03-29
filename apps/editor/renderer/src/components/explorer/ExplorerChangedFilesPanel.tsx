@@ -54,15 +54,22 @@ export function ExplorerChangedFilesPanel({
 
   return (
     <div
-      className="mx-2 mb-2 shrink-0 rounded-lg border border-border/60 bg-card/35"
+      className="mx-2 mb-2 shrink-0 rounded-md border border-white/[0.08] bg-white/[0.04]"
       data-testid="explorer-changes-panel"
     >
-      <div className="flex items-center justify-between px-2 py-1 text-[10px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1">
-          <FileText size={11} strokeWidth={1.6} />
-          Changed Files
-          <span className="ml-1 rounded bg-background/60 px-1 text-[9px] font-mono text-muted-foreground/80">{entries.length}</span>
-        </span>
+      <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 text-[10px] text-muted-foreground">
+        <div className="min-w-0">
+          <div className="inline-flex items-center gap-1">
+            <FileText size={11} strokeWidth={1.6} />
+            <span className="font-semibold uppercase tracking-[0.18em] text-muted-foreground/[0.55]">
+              Changed Files
+            </span>
+            <span className="ml-1 rounded bg-background/60 px-1 text-[9px] font-mono text-muted-foreground/80">{entries.length}</span>
+          </div>
+          <div className="mt-0.5 truncate text-[10px] text-muted-foreground/60">
+            {selectedCell?.name || selectedCellId || 'Selected Cell'}
+          </div>
+        </div>
         <div className="inline-flex items-center gap-1">
           <IconButton
             label="Refresh changed files"
@@ -101,12 +108,9 @@ export function ExplorerChangedFilesPanel({
       {isOpen ? (
         <div
           id={panelBodyId}
-          className="border-t border-border/40 px-2 pb-2 pt-1.5 flex max-h-64 min-h-0 flex-col"
+          className="border-t border-white/8 px-2.5 pb-2 pt-1.5 flex max-h-64 min-h-0 flex-col"
         >
           <div className="mb-1 flex items-center justify-between gap-2">
-            <span className="truncate text-[10px] text-muted-foreground/80">
-              {selectedCell?.name || selectedCellId || 'Selected Cell'}
-            </span>
             <div className="inline-flex rounded bg-background/60 p-0.5">
               <button
                 type="button"
@@ -127,10 +131,16 @@ export function ExplorerChangedFilesPanel({
                     ? 'bg-primary/15 text-primary'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
+                title="Group files by folder"
               >
-                Tree
+                Grouped
               </button>
             </div>
+            {updatedAt ? (
+              <div className="text-[9px] text-muted-foreground/[0.55]">
+                Updated {formatIdleShort(Math.max(0, Date.now() - updatedAt))} ago
+              </div>
+            ) : null}
           </div>
 
           <FileDashboardList
@@ -147,12 +157,6 @@ export function ExplorerChangedFilesPanel({
             onClearPreview={onClearPreview}
             listTestId="explorer-changes-panel-list"
           />
-
-          {updatedAt ? (
-            <div className="mt-1 text-[9px] text-muted-foreground/80">
-              Updated {formatIdleShort(Math.max(0, Date.now() - updatedAt))} ago
-            </div>
-          ) : null}
         </div>
       ) : null}
     </div>
