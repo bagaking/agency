@@ -1,7 +1,14 @@
-import type { ReactNode } from 'react';
+import { Suspense, lazy, type ReactNode } from 'react';
 import { LifecycleConfirmModal } from '../components/modals/LifecycleConfirmModal';
 import { StatusBar } from '../components/StatusBar';
-import { SessionMapOverlay } from '../components/sessionMap/SessionMapOverlay';
+import { DeferredMount } from '../components/ui/DeferredMount';
+
+const LazySessionMapOverlay = lazy(async () => {
+  const mod = await import('../components/sessionMap/SessionMapOverlay');
+  return {
+    default: mod.SessionMapOverlay,
+  };
+});
 
 type AppShellChromeProps = {
   sessionMapOpen: boolean;
@@ -66,26 +73,30 @@ export function AppShellChrome({
 }: AppShellChromeProps) {
   return (
     <>
-      <SessionMapOverlay
-        open={sessionMapOpen}
-        model={sessionMapModel}
-        onSelectSession={handleSelectSessionFromMap}
-        onClose={handleToggleSessionMap}
-        resolveFontSize={resolveSessionMapFontSize}
-        terminusProfiles={terminusProfiles}
-        onCreateSession={createSessionForCell}
-        onDispatchCommand={dispatchSessionCommand}
-        onRenameSession={renameSession}
-        onUpdateSessionAvatar={updateSessionAvatar}
-        harnessRuns={harnessRuns}
-        sessionError={sessionError}
-        onClearSessionError={onClearSessionError}
-        onCancelHarnessRun={onCancelHarnessRun}
-        onResumeHarnessRun={onResumeHarnessRun}
-        onOpenFileShortcut={handleOpenSessionMapShortcut}
-        onRevealFileShortcut={handleRevealSessionMapShortcut}
-        mode="dock"
-      />
+      <DeferredMount active={sessionMapOpen} strategy="unmount">
+        <Suspense fallback={null}>
+          <LazySessionMapOverlay
+            open={sessionMapOpen}
+            model={sessionMapModel}
+            onSelectSession={handleSelectSessionFromMap}
+            onClose={handleToggleSessionMap}
+            resolveFontSize={resolveSessionMapFontSize}
+            terminusProfiles={terminusProfiles}
+            onCreateSession={createSessionForCell}
+            onDispatchCommand={dispatchSessionCommand}
+            onRenameSession={renameSession}
+            onUpdateSessionAvatar={updateSessionAvatar}
+            harnessRuns={harnessRuns}
+            sessionError={sessionError}
+            onClearSessionError={onClearSessionError}
+            onCancelHarnessRun={onCancelHarnessRun}
+            onResumeHarnessRun={onResumeHarnessRun}
+            onOpenFileShortcut={handleOpenSessionMapShortcut}
+            onRevealFileShortcut={handleRevealSessionMapShortcut}
+            mode="dock"
+          />
+        </Suspense>
+      </DeferredMount>
 
       <StatusBar
         loading={loading}

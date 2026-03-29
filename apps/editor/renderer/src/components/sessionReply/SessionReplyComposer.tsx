@@ -1,11 +1,11 @@
-import React from 'react';
-import Editor from '@monaco-editor/react';
+import React, { useRef } from 'react';
 import { ChevronDown, Link2, Loader2, Reply, Send, Sparkles, StickyNote, Users, X } from 'lucide-react';
 
 import { resolveAvatarId } from '../../utils/agentAvatar';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
 import { focusRing } from '../ui/focusRing';
 import { Tooltip } from '../ui/Tooltip';
+import { LazyMonacoEditor, preloadLazyMonacoEditor } from '../ui/LazyMonacoEditor';
 import {
   REPLY_EDITOR_FONT_FAMILY,
   REPLY_EDITOR_FONT_SIZE,
@@ -13,6 +13,7 @@ import {
   REPLY_EDITOR_LINE_HEIGHT,
   REPLY_EDITOR_PADDING,
   SCOPE_LABELS,
+  focusReplyEditorAtEnd,
   renderReplySiteSegments,
 } from './sessionReplyShared';
 
@@ -43,6 +44,15 @@ export function SessionReplyComposer({
   onClearSelection,
 }: any) {
   const focusRingClass = focusRing.default;
+  const pendingEditorFocusRef = useRef(false);
+
+  const primeEditorInteraction = () => {
+    if (editorRef.current) {
+      return;
+    }
+    pendingEditorFocusRef.current = true;
+    void preloadLazyMonacoEditor();
+  };
 
   return (
     <div className="border-t border-border/20 bg-background/80 backdrop-blur-md">
@@ -242,6 +252,15 @@ export function SessionReplyComposer({
           ref={editorContainerRef}
           className="relative rounded-lg border border-border/20 bg-black/55 shadow-inner"
           style={{ minHeight: REPLY_EDITOR_HEIGHT }}
+          onPointerDownCapture={() => {
+            primeEditorInteraction();
+          }}
+          onPointerEnter={() => {
+            void preloadLazyMonacoEditor();
+          }}
+          onFocusCapture={() => {
+            primeEditorInteraction();
+          }}
         >
           {queryText.length === 0 ? (
             <div
@@ -255,11 +274,12 @@ export function SessionReplyComposer({
               Type your reply here...
             </div>
           ) : null}
-          <Editor
+          <LazyMonacoEditor
             height={`${REPLY_EDITOR_HEIGHT}px`}
             theme="vs-dark"
             language="markdown"
             value={replyText}
+            fallback={<div className="w-full bg-black/55" style={{ height: `${REPLY_EDITOR_HEIGHT}px` }} />}
             onMount={(editor) => {
               editorRef.current = editor;
               editor.updateOptions({
@@ -286,6 +306,10 @@ export function SessionReplyComposer({
               });
               requestAnimationFrame(() => {
                 editor.layout();
+                if (pendingEditorFocusRef.current) {
+                  pendingEditorFocusRef.current = false;
+                  focusReplyEditorAtEnd(editor);
+                }
               });
             }}
             onChange={(value) => setReplyText(value || '')}
@@ -328,4 +352,3 @@ export function SessionReplyComposer({
     </div>
   );
 }
-

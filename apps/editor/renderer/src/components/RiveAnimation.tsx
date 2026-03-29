@@ -1,7 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { useRive, Layout, Fit, Alignment } from '@rive-app/react-canvas';
+import { lazy, Suspense, type ReactNode } from 'react';
 
-function RivePlayer({
+const LazyRiveAnimationRuntime = lazy(async () => {
+  const mod = await import('./RiveAnimationRuntime');
+  return {
+    default: mod.default,
+  };
+});
+
+export function RiveAnimation({
   src,
   artboard,
   animations,
@@ -10,64 +16,32 @@ function RivePlayer({
   fit,
   alignment,
   fallback,
-  onLoadError,
-}: any) {
-  const [error, setError] = useState(false);
-
-  const { RiveComponent } = useRive({
-    src,
-    artboard,
-    animations,
-    stateMachines,
-    layout: new Layout({
-      fit,
-      alignment,
-    }),
-    autoplay: true,
-    onError: () => {
-      setError(true);
-      if (onLoadError) {
-        onLoadError();
-      }
-    },
-  } as any);
-
-  // Reset error if src changes
-  useEffect(() => {
-    setError(false);
-  }, [src]);
-
-  if (error) {
-    return fallback || <div className={`bg-muted/20 ${className}`} />;
-  }
-
-  return <RiveComponent className={className} />;
-}
-
-export function RiveAnimation({
-  src,
-  artboard,
-  animations,
-  stateMachines,
-  className,
-  fit = Fit.Contain,
-  alignment = Alignment.Center,
-  fallback,
-}: any) {
+}: {
+  src?: string;
+  artboard?: string;
+  animations?: string | string[];
+  stateMachines?: string | string[];
+  className?: string;
+  fit?: unknown;
+  alignment?: unknown;
+  fallback?: ReactNode;
+}) {
   if (!src) {
     return fallback || null;
   }
 
   return (
-    <RivePlayer
-      src={src}
-      artboard={artboard}
-      animations={animations}
-      stateMachines={stateMachines}
-      className={className}
-      fit={fit}
-      alignment={alignment}
-      fallback={fallback}
-    />
+    <Suspense fallback={fallback || null}>
+      <LazyRiveAnimationRuntime
+        src={src}
+        artboard={artboard}
+        animations={animations}
+        stateMachines={stateMachines}
+        className={className}
+        fit={fit}
+        alignment={alignment}
+        fallback={fallback}
+      />
+    </Suspense>
   );
 }

@@ -59,3 +59,19 @@ export const renderReplySiteSegments = (site: unknown) => {
   });
 };
 
+export const focusReplyEditorAtEnd = (editor: any) => {
+  if (!editor) {
+    return;
+  }
+  const model = editor.getModel?.();
+  const lineCount = model?.getLineCount?.();
+  if (!lineCount) {
+    editor.focus?.();
+    return;
+  }
+  const lineNumber = Math.max(1, lineCount);
+  const column = Math.max(1, model.getLineMaxColumn?.(lineNumber) || 1);
+  editor.focus?.();
+  editor.setPosition?.({ lineNumber, column });
+  editor.revealPositionInCenterIfOutsideViewport?.({ lineNumber, column });
+};

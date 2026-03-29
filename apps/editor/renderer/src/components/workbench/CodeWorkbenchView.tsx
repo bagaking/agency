@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import Editor, { useMonaco } from '@monaco-editor/react';
 import { AlertTriangle, MessageSquarePlus, Plus } from 'lucide-react';
+import { LazyMonacoEditor } from '../ui/LazyMonacoEditor';
 
 const COMMENT_ACTION_ID = 'agency-add-line-comment';
 const buildCommentActionLabel = (lineNumber) =>
@@ -78,7 +78,7 @@ export function CodeWorkbenchView({
   onLineComment,
   onEditorReady,
 }: any) {
-  const monaco = useMonaco();
+  const [monacoApi, setMonacoApi] = useState<any>(null);
   const editorRef = useRef(null);
   const decorationsRef = useRef([]);
   const commentDecorationsRef = useRef([]);
@@ -105,18 +105,19 @@ export function CodeWorkbenchView({
   const blameInfo = blameEnabled && hoverLine ? blameMap.get(hoverLine) : null;
 
   useEffect(() => {
-    if (!monaco || !editorRef.current) {
+    if (!monacoApi || !editorRef.current) {
       return;
     }
-    const decorations = diffHunks && diffHunks.length ? buildDiffDecorations(monaco, diffHunks) : [];
+    const decorations =
+      diffHunks && diffHunks.length ? buildDiffDecorations(monacoApi, diffHunks) : [];
     decorationsRef.current = editorRef.current.deltaDecorations(
       decorationsRef.current,
       decorations
     );
-  }, [diffHunks, monaco]);
+  }, [diffHunks, monacoApi]);
 
   useEffect(() => {
-    if (!monaco || !editorRef.current) {
+    if (!monacoApi || !editorRef.current) {
       return;
     }
     if (!Array.isArray(commentLines)) {
@@ -127,7 +128,7 @@ export function CodeWorkbenchView({
       return;
     }
     const decorations = commentLines.map((comment) => ({
-      range: new monaco.Range(comment.line, 1, comment.line, 1),
+      range: new monacoApi.Range(comment.line, 1, comment.line, 1),
       options: {
         isWholeLine: true,
         glyphMarginClassName: comment.todo
@@ -139,7 +140,7 @@ export function CodeWorkbenchView({
       commentDecorationsRef.current,
       decorations
     );
-  }, [commentLines, monaco]);
+  }, [commentLines, monacoApi]);
 
   useEffect(() => {
     commentMenuOpenRef.current = commentMenuOpen;
@@ -154,7 +155,7 @@ export function CodeWorkbenchView({
   }, [commentsEnabled]);
 
   useEffect(() => {
-    if (!monaco || !editorRef.current || !editorReady) {
+    if (!monacoApi || !editorRef.current || !editorReady) {
       return undefined;
     }
     const editor = editorRef.current;
@@ -206,7 +207,7 @@ export function CodeWorkbenchView({
       commentActionUpdaterRef.current = null;
       commentContextRef.current = { line: null, column: null };
     };
-  }, [editorReady, monaco]);
+  }, [editorReady, monacoApi]);
 
   useEffect(() => {
     if (!editorReady || !editorRef.current || !onSelectionChange) {
@@ -261,12 +262,12 @@ export function CodeWorkbenchView({
   }, [editorReady]);
 
   useEffect(() => {
-    if (!editorRef.current || !monaco) {
+    if (!editorRef.current || !monacoApi) {
       return undefined;
     }
     const editor = editorRef.current;
     const resolveCommentAnchor = (lineNumber) => {
-      if (!editorRef.current || !monaco || !lineNumber) {
+      if (!editorRef.current || !monacoApi || !lineNumber) {
         return null;
       }
       const domNode = editorRef.current.getDomNode();
@@ -281,7 +282,8 @@ export function CodeWorkbenchView({
         return null;
       }
       const layout = editorRef.current.getLayoutInfo();
-      const lineHeight = editorRef.current.getOption(monaco.editor.EditorOption.lineHeight) || position.height;
+      const lineHeight =
+        editorRef.current.getOption(monacoApi.editor.EditorOption.lineHeight) || position.height;
       const glyphWidth = layout.glyphMarginWidth || 16;
       const domRect = domNode.getBoundingClientRect();
       const left = domRect.left + layout.glyphMarginLeft + Math.max(0, Math.floor((glyphWidth - 14) / 2));
@@ -324,10 +326,10 @@ export function CodeWorkbenchView({
       }
       const targetType = event.target.type;
       if (
-        targetType === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS ||
-        targetType === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN ||
-        targetType === monaco.editor.MouseTargetType.GUTTER_LINE_DECORATIONS ||
-        targetType === monaco.editor.MouseTargetType.GUTTER_VIEW_ZONE
+        targetType === monacoApi.editor.MouseTargetType.GUTTER_LINE_NUMBERS ||
+        targetType === monacoApi.editor.MouseTargetType.GUTTER_GLYPH_MARGIN ||
+        targetType === monacoApi.editor.MouseTargetType.GUTTER_LINE_DECORATIONS ||
+        targetType === monacoApi.editor.MouseTargetType.GUTTER_VIEW_ZONE
       ) {
         if (lineNumber) {
           const anchor = resolveCommentAnchor(lineNumber);
@@ -413,7 +415,7 @@ export function CodeWorkbenchView({
         window.clearTimeout(hideTimerRef.current);
       }
     };
-  }, [commentsEnabled, monaco, onCursorChange]);
+  }, [commentsEnabled, monacoApi, onCursorChange]);
 
   useEffect(() => {
     if (!commentsEnabled) {
@@ -511,13 +513,15 @@ export function CodeWorkbenchView({
             overlayRoot
           )
         : null}
-      <Editor
+      <LazyMonacoEditor
         height="100%"
         theme="vs-dark"
         value={value}
         language={language}
-        onMount={(editor) => {
+        fallback={<div className="h-full w-full bg-[#0b0d11]" />}
+        onMount={(editor, monaco) => {
           editorRef.current = editor;
+          setMonacoApi(monaco);
           setEditorReady(true);
           editor.updateOptions({
             fontSize: 13,
