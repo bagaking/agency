@@ -221,13 +221,19 @@ async function runJsonProviderProcess({
     await fsp.rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
   });
 
+  const events = parseJsonlOutput(stdout);
+
   if (aborted) {
     const error = new Error('Provider execution was cancelled.');
     error.code = 'RUN_CANCELLED';
+    error.data = {
+      stderr: String(stderr || '').trim(),
+      stdout: String(stdout || '').trim(),
+      events,
+    };
     throw error;
   }
 
-  const events = parseJsonlOutput(stdout);
   if (exitCode !== 0) {
     const error = new Error(
       `Provider process exited with code ${exitCode}: ${String(stderr || stdout).trim()}`

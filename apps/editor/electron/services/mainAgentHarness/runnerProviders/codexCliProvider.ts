@@ -13,6 +13,9 @@ const { runJsonProviderProcess } = require('./shared/providerProcess');
 const DEFAULT_RETRYABLE_PROVIDER_ATTEMPTS = 3;
 const DEFAULT_RETRY_BASE_DELAY_MS = 400;
 const DEFAULT_PROVIDER_TIMEOUT_MS = 45000;
+const RECENT_PROVIDER_FAILURE_TTL_MS = 120000;
+
+const recentProviderFailureByKey = new Map();
 
 function resolveRealHome(baseEnv = process.env) {
   const candidates = [
@@ -188,6 +191,40 @@ function resolveCodexProviderRetryConfig(skillPack = null, baseEnv = process.env
   };
 }
 
+function buildProviderFailureKey(providerSettings = {}) {
+  return JSON.stringify({
+    baseUrl: String(providerSettings?.baseUrl || '').trim(),
+    model: String(providerSettings?.model || '').trim(),
+  });
+}
+
+function recordRecentProviderFailure(providerSettings = {}, reason = '') {
+  const key = buildProviderFailureKey(providerSettings);
+  if (!key) {
+    return;
+  }
+  recentProviderFailureByKey.set(key, {
+    at: Date.now(),
+    reason: String(reason || '').trim(),
+  });
+}
+
+function clearRecentProviderFailure(providerSettings = {}) {
+  recentProviderFailureByKey.delete(buildProviderFailureKey(providerSettings));
+}
+
+function getRecentProviderFailure(providerSettings = {}) {
+  const entry = recentProviderFailureByKey.get(buildProviderFailureKey(providerSettings));
+  if (!entry) {
+    return null;
+  }
+  if (Date.now() - Number(entry.at || 0) > RECENT_PROVIDER_FAILURE_TTL_MS) {
+    recentProviderFailureByKey.delete(buildProviderFailureKey(providerSettings));
+    return null;
+  }
+  return entry;
+}
+
 function createProviderAttemptAbortController(parentAbortSignal, timeoutMs) {
   const attemptAbortController = new AbortController();
   let timeoutHandle = null;
@@ -234,6 +271,14 @@ function collectProviderErrorText(error) {
     .map((item) => String(item || '').trim())
     .filter(Boolean)
     .join('\n');
+}
+
+function extractLatestProviderEventMessage(error) {
+  const events = Array.isArray(error?.data?.events) ? error.data.events : [];
+  const latestErrorEvent = [...events]
+    .reverse()
+    .find((event) => event?.type === 'error' && String(event?.message || '').trim());
+  return String(latestErrorEvent?.message || '').trim();
 }
 
 function isRetryableCodexProviderError(error) {
@@ -358,16 +403,24 @@ function createCodexCliProvider({
             fallbackUsed: false,
             fallbackReason: '',
           };
+          clearRecentProviderFailure(providerSettings);
           break;
         } catch (error) {
           let wrapped = error;
           if (attemptAbort.timeoutTriggered && error?.code === 'RUN_CANCELLED') {
+            const latestEventMessage = extractLatestProviderEventMessage(error);
             wrapped = new Error(
-              `Provider process timed out after ${retryConfig.timeoutMs}ms.`
+              latestEventMessage
+                ? `Provider process timed out after ${retryConfig.timeoutMs}ms. Last provider event: ${latestEventMessage}`
+                : `Provider process timed out after ${retryConfig.timeoutMs}ms.`
             );
             wrapped.code = 'PROVIDER_PROCESS_TIMEOUT';
             wrapped.data = {
               timeoutMs: retryConfig.timeoutMs,
+              stderr: String(error?.data?.stderr || '').trim(),
+              stdout: String(error?.data?.stdout || '').trim(),
+              events: Array.isArray(error?.data?.events) ? error.data.events : [],
+              latestEventMessage,
             };
           }
           wrapped = wrapCodexProviderError(wrapped);
@@ -377,6 +430,10 @@ function createCodexCliProvider({
             const canFallback =
               isRetryableCodexProviderError(wrapped) &&
               typeof skillPack.buildDeterministicDecision === 'function';
+            recordRecentProviderFailure(
+              providerSettings,
+              wrapped?.data?.latestEventMessage || wrapped?.message || 'retryable-provider-failure'
+            );
             if (!canFallback) {
               throw wrapped;
             }
@@ -422,6 +479,7 @@ module.exports = {
   buildCodexCliEnv,
   buildCodexCliConfigArgs,
   createCodexCliProvider,
+  getRecentProviderFailure,
   getCodexProviderRetryConfig,
   isRetryableCodexProviderError,
   resolveCodexHome,

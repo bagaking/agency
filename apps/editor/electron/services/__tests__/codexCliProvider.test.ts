@@ -8,6 +8,7 @@ const {
   buildCodexCliConfigArgs,
   buildCodexCliEnv,
   createCodexCliProvider,
+  getRecentProviderFailure,
   isRetryableCodexProviderError,
   resolveCodexHome,
 } = require('../mainAgentHarness/runnerProviders/codexCliProvider');
@@ -443,6 +444,88 @@ test('codex provider honors skill-pack retry policy overrides', async () => {
   assert.deepEqual(result.decision, { ok: true });
   assert.equal(result.fallbackUsed, true);
   assert.match(String(result.fallbackReason || ''), /timed out/i);
+});
+
+test('codex provider timeout keeps latest provider event detail', async () => {
+  let attempts = 0;
+  const providerSettings = {
+    baseUrl: 'https://api.example.com/v1/provider-timeout',
+    model: 'gpt-5.4',
+    openAIApiKey: 'sk-test',
+  };
+  const provider = createCodexCliProvider({
+    getSettings: async () => ({
+      providers: {
+        codex_cli: providerSettings,
+      },
+    }),
+    runProcess: async ({ abortSignal }) => {
+      attempts += 1;
+      await new Promise((resolve, reject) => {
+        const onAbort = () => {
+          const error = new Error('Provider execution was cancelled.') as Error & {
+            code?: string;
+            data?: Record<string, any>;
+          };
+          error.code = 'RUN_CANCELLED';
+          error.data = {
+            events: [
+              {
+                type: 'error',
+                message:
+                  'Reconnecting... 1/5 (unexpected status 502 Bad Gateway: Upstream request failed)',
+              },
+            ],
+          };
+          reject(error);
+        };
+        abortSignal?.addEventListener?.('abort', onAbort, { once: true });
+      });
+      return null;
+    },
+  });
+
+  const previousMaxAttempts = process.env.AGENCY_HARNESS_PROVIDER_MAX_ATTEMPTS;
+  const previousTimeoutMs = process.env.AGENCY_HARNESS_PROVIDER_TIMEOUT_MS;
+  process.env.AGENCY_HARNESS_PROVIDER_MAX_ATTEMPTS = '1';
+  process.env.AGENCY_HARNESS_PROVIDER_TIMEOUT_MS = '20';
+
+  try {
+    const result = await provider.decideStep({
+      run: {},
+      step: {},
+      skillPack: {
+        buildDecisionSchema: () => ({
+          type: 'object',
+          properties: {
+            ok: { type: 'boolean' },
+          },
+          required: ['ok'],
+        }),
+        buildDeterministicDecision: () => ({ ok: true }),
+        validateDecision: () => undefined,
+        resolveWorkingDirectory: () => process.cwd(),
+      },
+      preparedContext: {},
+      abortSignal: null,
+    });
+
+    assert.equal(attempts, 1);
+    assert.equal(result.fallbackUsed, true);
+    assert.match(String(result.fallbackReason || ''), /502 Bad Gateway/i);
+    assert.match(String(getRecentProviderFailure(providerSettings)?.reason || ''), /502 Bad Gateway/i);
+  } finally {
+    if (previousMaxAttempts === undefined) {
+      delete process.env.AGENCY_HARNESS_PROVIDER_MAX_ATTEMPTS;
+    } else {
+      process.env.AGENCY_HARNESS_PROVIDER_MAX_ATTEMPTS = previousMaxAttempts;
+    }
+    if (previousTimeoutMs === undefined) {
+      delete process.env.AGENCY_HARNESS_PROVIDER_TIMEOUT_MS;
+    } else {
+      process.env.AGENCY_HARNESS_PROVIDER_TIMEOUT_MS = previousTimeoutMs;
+    }
+  }
 });
 
 export {};
