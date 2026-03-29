@@ -16,11 +16,15 @@ This is a lightweight index that points to the authoritative design sources. It 
 - Product requirements/specification: `openspec/specs/agency-editor/spec.md`
 - Change proposals and detailed designs: `openspec/changes/*/proposal.md`, `openspec/changes/*/design.md`
 - Archived historical designs: `openspec/changes/archive/**`
-- Canonical object model (active): `openspec/changes/refactor-canonical-object-model/`
-- Commander unified station (active): `openspec/changes/refactor-commander-unified-station/`
+- Unified control bus (active): `openspec/changes/add-unified-control-bus/`
+- Canonical object model (delivered): `openspec/changes/archive/2026-03-29-refactor-canonical-object-model/`
+- Commander unified station (delivered): `openspec/changes/archive/2026-03-29-refactor-commander-unified-station/`
+- Main Agent Harness (delivered): `openspec/changes/archive/2026-03-29-add-main-agent-harness/`
+- Session runtime orchestration gateway (delivered): `openspec/changes/archive/2026-03-29-add-session-runtime-orchestration-gateway/`
+- Deferred heavyweight renderer surfaces (delivered): `openspec/changes/archive/2026-03-29-update-renderer-deferred-heavy-surfaces/`
 - Unified file interaction system (delivered): `openspec/changes/archive/2026-02-10-add-agent-centric-file-interaction-system/`
 - Unified file interaction evolution (delivered): `openspec/changes/archive/2026-02-16-update-agent-cells-embedded-explorer/`
-- Window instance strategy (active): `openspec/changes/update-window-instance-strategy/`
+- Window instance strategy (delivered): `openspec/changes/archive/2026-03-29-update-window-instance-strategy/`
 
 ## Behavior + verification sources
 - Current feature scope & manual verification: `apps/editor/README.md`
@@ -29,5 +33,6 @@ This is a lightweight index that points to the authoritative design sources. It 
 ## Supplemental notes & guidelines (supporting)
 - Notes: `docs/notes-*.md`
 - Unified file interaction philosophy and end-state: `docs/notes-file-interaction-system.md`
+- Explorer interaction capability and external research synthesis: `docs/notes-explorer-interaction-system.md`
 - Guidelines: `docs/guidelines-*.md`
 - Norms: `docs/norms-*.md`

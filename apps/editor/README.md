@@ -51,7 +51,7 @@
 - Agent semantic files (for example `Agency.md`, Spark conventions, and project-defined rules) are treated as first-class discoverability targets.
 - Current authoritative design and rollout:
   - `openspec/changes/archive/2026-02-10-add-agent-centric-file-interaction-system/`
-  - Follow-up evolution (active): `openspec/changes/update-agent-cells-embedded-explorer/`
+  - Follow-up evolution (delivered): `openspec/changes/archive/2026-02-16-update-agent-cells-embedded-explorer/`
   - `docs/notes-file-interaction-system.md`
 
 ## File Intent CLI (Gateway Wrapper)
@@ -62,6 +62,27 @@
   - user mode (default): `{"intent":"open","targetPath":"README.md"}`
   - tool mode: `{"intent":"copy","sourcePath":"a.txt","targetPath":"b.txt","callerId":"agent-1","traceId":"trace-1","capabilities":["file.write"]}`
   - classify mode envelope: `{"mode":"classify","request":{"paths":["Agency.md"]}}`
+
+## Unified Control Bus (Canonical Local Automation Surface)
+
+- Run:
+  - `pnpm -C apps/editor run control-bus:cli -- --json '{"op":"window.list"}'`
+- The control bus is the canonical local automation surface over existing host-owned capability seams.
+- It is local-only in v1 and talks to the running Agency app over a local socket.
+- Shared envelope:
+  - `op`: namespaced operation id such as `window.list`, `file.intent`, `session.perform`, `run.start`
+  - `refs`: canonical object refs (`windowStateId`, `projectRoot`, `cellId`, `sessionId`, `runId`)
+  - `args`: operation-specific payload
+  - `caller`: caller metadata (`callerType`, `callerId`, `traceId`)
+- First shipped operation families:
+  - `project.get`
+  - `cell.list`
+  - `session.list`
+  - `window.list` / `window.new` / `window.focus`
+  - `file.intent` / `file.tool_intent` / `file.classify`
+  - `session.perform`
+  - `run.start` / `run.inspect` / `run.cancel` / `run.resume` / `run.list`
+- Existing seam-specific CLIs remain valid as thin wrappers over their individual host seams, but the control bus is now the preferred external automation entrypoint.
 
 ## Session Runtime CLI (Gateway Wrapper)
 
@@ -240,6 +261,14 @@ Validate that rule from the repo root with:
 pnpm run check:governed-js
 ```
 
+Validate the renderer boot bundle budget from `apps/editor` with:
+
+```bash
+pnpm run check:renderer-bundle-budget
+```
+
+`pnpm run build:renderer` now runs this budget check automatically after the Vite build.
+
 ## Makefile (from repo root)
 
 ```bash
@@ -253,6 +282,7 @@ make editor-dev
 - `AGENCY_CLI_STUB=1` use the CLI stub script
 - `AGENCY_TEST_MODE=1` use stubbed cells/worktrees
 - `AGENCY_RUNTIME_LOG_MAX_BYTES=5242880` override runtime log chunk size
+- `AGENCY_CONTROL_BUS_SOCKET_PATH="/tmp/agency-control-bus.sock"` override the unified local control-bus socket path
 - `AGENCY_RENDERER_URL="http://localhost:<port>"` (or `ELECTRON_RENDERER_URL`) load the renderer from a dev server (works for packaged builds too)
 - `AGENCY_RENDERER_PORT=5183` override the preferred dev server port before fallback
 - `AGENCY_RENDERER_PORT_FILE="/tmp/agency-editor-renderer.json"` override the dev server port file path

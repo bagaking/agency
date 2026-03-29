@@ -33,6 +33,7 @@ Source: `docs/guidelines-ui-components.md`
 Source: `docs/norms-dev.md`
 - Read docs/must-guidebook.md before working.
 - Use pnpm for workspace dependencies and keep pnpm-lock.yaml committed.
+- Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeScript-only; do not add checked-in `.js`/`.cjs`/`.mjs` there.
 - Renderer IPC must go through apps/editor/renderer/src/services/agencyBridge.ts.
 - Avoid direct window.agency usage in React components.
 - When changing voice input, rescore behavior, or language handling, update docs/notes-voice-input.md.
@@ -64,6 +65,12 @@ Source: `docs/notes-directives-examples.md`
 - Read this doc when you want to introduce or change response directives (`directives:` in doc frontmatter).
 - Keep directive usage practical: only add directives that reduce mistakes or improve debuggability.
 - Regenerate `docs/must-sop.md` after SOP/frontmatter changes.
+
+### Explorer Interaction System
+Source: `docs/notes-explorer-interaction-system.md`
+- Read this doc before changing Explorer information architecture, action grammar, or sidebar role boundaries.
+- Update this doc when Explorer gains new workflow capabilities, configuration surfaces, or external research conclusions.
+- Regenerate docs/must-sop.md after updating this doc.
 
 ### Unified File Interaction System
 Source: `docs/notes-file-interaction-system.md`

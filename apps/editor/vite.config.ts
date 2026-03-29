@@ -16,6 +16,44 @@ export default defineConfig(({ command }) => ({
   build: {
     outDir: path.join(__dirname, "dist/renderer"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalizedId = id.replace(/\\/g, "/");
+          if (!normalizedId.includes("/node_modules/")) {
+            return undefined;
+          }
+          if (
+            normalizedId.includes("/@monaco-editor/react/") ||
+            normalizedId.includes("/monaco-editor/")
+          ) {
+            return "vendor-monaco";
+          }
+          if (
+            normalizedId.includes("/@xterm/xterm/") ||
+            normalizedId.includes("/@xterm/addon-fit/")
+          ) {
+            return "vendor-terminal";
+          }
+          if (normalizedId.includes("/@bagakit/open-agent-avatars/")) {
+            return "vendor-avatars";
+          }
+          if (normalizedId.includes("/@rive-app/react-canvas/")) {
+            return "vendor-rive";
+          }
+          if (normalizedId.includes("/lucide-react/")) {
+            return "vendor-icons";
+          }
+          if (
+            normalizedId.includes("/react-dom/") ||
+            normalizedId.includes("/react/")
+          ) {
+            return "vendor-react";
+          }
+          return undefined;
+        },
+      },
+    },
   },
   server: {
     port: DEFAULT_RENDERER_PORT,

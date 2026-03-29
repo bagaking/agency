@@ -1,9 +1,25 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { AgentCellsSidebar } from '../AgentCellsSidebar';
-import { HierarchySidebar } from '../HierarchySidebar';
-import { ProjectExplorerSidebar } from '../explorer/ProjectExplorerSidebar';
-import { ActionSheetsSidebar } from '../actionSheets/ActionSheetsSidebar';
-import { HilMemoSidebar } from '../hil/memo/HilMemoSidebar';
+import { lazyNamedComponent } from '../ui/lazyNamedComponent';
+
+const LazyHierarchySidebar = lazyNamedComponent(
+  () => import('../HierarchySidebar'),
+  'HierarchySidebar'
+);
+const LazyProjectExplorerSidebar = lazyNamedComponent(
+  () => import('../explorer/ProjectExplorerSidebar'),
+  'ProjectExplorerSidebar'
+);
+const LazyActionSheetsSidebar = lazyNamedComponent(
+  () => import('../actionSheets/ActionSheetsSidebar'),
+  'ActionSheetsSidebar'
+);
+const LazyHilMemoSidebar = lazyNamedComponent(
+  () => import('../hil/memo/HilMemoSidebar'),
+  'HilMemoSidebar'
+);
+
+const sidebarFallback = <div className="h-full w-full bg-sidebar" />;
 
 export function AppSidebarContent({
   activeView,
@@ -15,9 +31,11 @@ export function AppSidebarContent({
 }: any) {
   if (activeView === 'explorer') {
     return (
-      <ProjectExplorerSidebar
-        {...projectContext}
-      />
+      <Suspense fallback={sidebarFallback}>
+        <LazyProjectExplorerSidebar
+          {...projectContext}
+        />
+      </Suspense>
     );
   }
 
@@ -26,15 +44,27 @@ export function AppSidebarContent({
   }
 
   if (activeView === 'hierarchy') {
-    return <HierarchySidebar {...hierarchySidebarProps} />;
+    return (
+      <Suspense fallback={sidebarFallback}>
+        <LazyHierarchySidebar {...hierarchySidebarProps} />
+      </Suspense>
+    );
   }
 
   if (activeView === 'action-sheets') {
-    return <ActionSheetsSidebar {...actionSheetsProps} />;
+    return (
+      <Suspense fallback={sidebarFallback}>
+        <LazyActionSheetsSidebar {...actionSheetsProps} />
+      </Suspense>
+    );
   }
 
   if (activeView === 'memo') {
-    return <HilMemoSidebar {...memoSidebarProps} />;
+    return (
+      <Suspense fallback={sidebarFallback}>
+        <LazyHilMemoSidebar {...memoSidebarProps} />
+      </Suspense>
+    );
   }
 
   return null;

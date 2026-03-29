@@ -70,14 +70,14 @@ It is the shared policy layer above local implementation details.
 ## Current Program of Work
 - Authoritative change:
   `openspec/changes/archive/2026-02-10-add-agent-centric-file-interaction-system/`
-- Follow-up evolution (active):
-  `openspec/changes/update-agent-cells-embedded-explorer/`
+- Follow-up evolution (delivered):
+  `openspec/changes/archive/2026-02-16-update-agent-cells-embedded-explorer/`
 - This note is the project-level philosophy mirror.
 - OpenSpec files carry implementation-level requirements and task breakdown.
 
-## Follow-up Evolution (Active)
-- Change: `openspec/changes/update-agent-cells-embedded-explorer/`
-- Status: Implementation is in place; remaining items are integration/manual validation and polish (see the change `tasks.md`).
+## Follow-up Evolution (Delivered)
+- Change: `openspec/changes/archive/2026-02-16-update-agent-cells-embedded-explorer/`
+- Status: Delivered. This section summarizes the shipped behavior that completed the follow-up slice.
 - Shipped behaviors:
   - Agent Cells Explorer panel is now bottom-anchored to align with the Agent-context layout style;
   - the panel collapses into a bottom bar, expands to a default half-height, and supports drag-resize;

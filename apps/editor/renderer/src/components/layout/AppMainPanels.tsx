@@ -1,19 +1,53 @@
-import React from 'react';
-import { WorkbenchPane } from '../workbench/WorkbenchPane';
+import React, { Suspense } from 'react';
 import { EditorPane } from '../EditorPane';
-import { QuickActionsView } from '../QuickActionsView';
-import { HarnessProviderSettingsView } from '../HarnessProviderSettingsView';
-import { AppShortcutsView } from '../AppShortcutsView';
-import { ReplyQuickPromptsView } from '../ReplyQuickPromptsView';
-import { SessionNamingView } from '../SessionNamingView';
-import { GatesView } from '../GatesView';
-import { WorktreeLinksView } from '../WorktreeLinksView';
-import { ProjectSettingsView } from '../ProjectSettingsView';
-import { HilMemoView } from '../hil/memo/HilMemoView';
-import { ActionSheetsView } from '../actionSheets/ActionSheetsView';
+import { DeferredMount } from '../ui/DeferredMount';
+import { lazyNamedComponent } from '../ui/lazyNamedComponent';
 
 const paneVisibilityClass = (isVisible) =>
   isVisible ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none';
+
+const LazyWorkbenchPane = lazyNamedComponent(
+  () => import('../workbench/WorkbenchPane'),
+  'WorkbenchPane'
+);
+const LazyHilMemoView = lazyNamedComponent(
+  () => import('../hil/memo/HilMemoView'),
+  'HilMemoView'
+);
+const LazyQuickActionsView = lazyNamedComponent(
+  () => import('../QuickActionsView'),
+  'QuickActionsView'
+);
+const LazyHarnessProviderSettingsView = lazyNamedComponent(
+  () => import('../HarnessProviderSettingsView'),
+  'HarnessProviderSettingsView'
+);
+const LazyAppShortcutsView = lazyNamedComponent(
+  () => import('../AppShortcutsView'),
+  'AppShortcutsView'
+);
+const LazyReplyQuickPromptsView = lazyNamedComponent(
+  () => import('../ReplyQuickPromptsView'),
+  'ReplyQuickPromptsView'
+);
+const LazySessionNamingView = lazyNamedComponent(
+  () => import('../SessionNamingView'),
+  'SessionNamingView'
+);
+const LazyGatesView = lazyNamedComponent(() => import('../GatesView'), 'GatesView');
+const LazyActionSheetsView = lazyNamedComponent(
+  () => import('../actionSheets/ActionSheetsView'),
+  'ActionSheetsView'
+);
+const LazyWorktreeLinksView = lazyNamedComponent(
+  () => import('../WorktreeLinksView'),
+  'WorktreeLinksView'
+);
+const LazyProjectSettingsView = lazyNamedComponent(
+  () => import('../ProjectSettingsView'),
+  'ProjectSettingsView'
+);
+const panelFallback = <div className="absolute inset-0 bg-background" />;
 
 export function AppMainPanels({
   activeView,
@@ -37,67 +71,91 @@ export function AppMainPanels({
         <EditorPane {...editorPaneProps} />
       </div>
 
-      <div className={`absolute inset-0 ${paneVisibilityClass(activeView === 'explorer')}`}>
-        <WorkbenchPane {...explorerPaneProps} />
-      </div>
+      <DeferredMount active={activeView === 'explorer'} strategy="retain">
+        <div className={`absolute inset-0 ${paneVisibilityClass(activeView === 'explorer')}`}>
+          <Suspense fallback={panelFallback}>
+            <LazyWorkbenchPane {...explorerPaneProps} />
+          </Suspense>
+        </div>
+      </DeferredMount>
 
       {activeView === 'memo' ? (
         <div className="absolute inset-0">
-          <HilMemoView {...memoPaneProps} />
+          <Suspense fallback={panelFallback}>
+            <LazyHilMemoView {...memoPaneProps} />
+          </Suspense>
         </div>
       ) : null}
 
       {activeView === 'hierarchy' && hierarchySection === 'actions' ? (
         <div className="absolute inset-0">
-          <QuickActionsView {...quickActionsViewProps} />
+          <Suspense fallback={panelFallback}>
+            <LazyQuickActionsView {...quickActionsViewProps} />
+          </Suspense>
         </div>
       ) : null}
 
       {activeView === 'hierarchy' && hierarchySection === 'harness-providers' ? (
         <div className="absolute inset-0">
-          <HarnessProviderSettingsView {...harnessProviderSettingsViewProps} />
+          <Suspense fallback={panelFallback}>
+            <LazyHarnessProviderSettingsView {...harnessProviderSettingsViewProps} />
+          </Suspense>
         </div>
       ) : null}
 
       {activeView === 'hierarchy' && hierarchySection === 'app-shortcuts' ? (
         <div className="absolute inset-0">
-          <AppShortcutsView {...appShortcutsViewProps} />
+          <Suspense fallback={panelFallback}>
+            <LazyAppShortcutsView {...appShortcutsViewProps} />
+          </Suspense>
         </div>
       ) : null}
 
       {activeView === 'hierarchy' && hierarchySection === 'reply-quick-prompts' ? (
         <div className="absolute inset-0">
-          <ReplyQuickPromptsView {...replyQuickPromptsViewProps} />
+          <Suspense fallback={panelFallback}>
+            <LazyReplyQuickPromptsView {...replyQuickPromptsViewProps} />
+          </Suspense>
         </div>
       ) : null}
 
       {activeView === 'hierarchy' && hierarchySection === 'session-naming' ? (
         <div className="absolute inset-0">
-          <SessionNamingView {...sessionNamingViewProps} />
+          <Suspense fallback={panelFallback}>
+            <LazySessionNamingView {...sessionNamingViewProps} />
+          </Suspense>
         </div>
       ) : null}
 
       {activeView === 'hierarchy' && hierarchySection === 'gates' ? (
         <div className="absolute inset-0">
-          <GatesView {...gatesViewProps} />
+          <Suspense fallback={panelFallback}>
+            <LazyGatesView {...gatesViewProps} />
+          </Suspense>
         </div>
       ) : null}
 
       {activeView === 'action-sheets' ? (
         <div className="absolute inset-0">
-          <ActionSheetsView {...actionSheetsProps} />
+          <Suspense fallback={panelFallback}>
+            <LazyActionSheetsView {...actionSheetsProps} />
+          </Suspense>
         </div>
       ) : null}
 
       {activeView === 'hierarchy' && hierarchySection === 'softlinks' ? (
         <div className="absolute inset-0">
-          <WorktreeLinksView {...worktreeLinksViewProps} />
+          <Suspense fallback={panelFallback}>
+            <LazyWorktreeLinksView {...worktreeLinksViewProps} />
+          </Suspense>
         </div>
       ) : null}
 
       {activeView === 'settings' ? (
         <div className="absolute inset-0">
-          <ProjectSettingsView {...projectSettingsViewProps} />
+          <Suspense fallback={panelFallback}>
+            <LazyProjectSettingsView {...projectSettingsViewProps} />
+          </Suspense>
         </div>
       ) : null}
     </div>
