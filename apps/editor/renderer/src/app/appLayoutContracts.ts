@@ -38,7 +38,10 @@ export type AppCell = UnknownRecord & {
   id?: string;
   name?: string;
   branch?: string;
+  projectRoot?: string;
   worktreePath?: string;
+  lastKnownWorktreePath?: string;
+  attachmentState?: string;
   state?: string;
   isVirtual?: boolean;
 };
@@ -259,6 +262,8 @@ export type ActionHandlers = UnknownRecord & {
   handleTurnGateExecuteSheet?: FlexibleHandler;
   handleOpenTerminal?: FlexibleHandler;
   handleUpdateCellAvatar?: FlexibleHandler;
+  handleClearAttachment?: FlexibleHandler;
+  handleDelete?: FlexibleHandler;
   handleOpenWorkbenchFile?: FlexibleHandler;
   handleSelectionContext?: FlexibleHandler;
   handleReplySelection?: FlexibleHandler;
@@ -391,7 +396,8 @@ export interface HierarchyConfigState {
   saveWorktreeLinks: FlexibleHandler;
   refreshWorktreeLinks: FlexibleHandler;
   resolvedRepoRoot: string;
-  canUseScopedConfig: boolean;
+  canUseProjectScope: boolean;
+  canUseAgentScope: boolean;
   mainAgentHarnessSettings: unknown;
   codexCliProviderSettings: unknown;
   harnessSettingsPath: string;
@@ -602,7 +608,8 @@ export interface BuildAppLayoutInput {
   saveWorktreeLinks: FlexibleHandler;
   refreshWorktreeLinks: FlexibleHandler;
   resolvedRepoRoot: string;
-  canUseScopedConfig: boolean;
+  canUseProjectScope: boolean;
+  canUseAgentScope: boolean;
   editorPaneProps: UnknownRecord;
   sidebarWidth: number;
   sidebarCollapsed: boolean;

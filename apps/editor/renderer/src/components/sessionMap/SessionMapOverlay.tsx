@@ -758,7 +758,8 @@ export function SessionMapOverlay({
         }}
         onCreateProfile={(profile, action) => {
           const command = String(action?.command || profile?.startCommand || '').trim();
-          if (!createMenu?.cell || !command) {
+          const worktreePath = createMenu?.cell?.attachedWorktreePath || '';
+          if (!createMenu?.cell || !command || !worktreePath) {
             setCreateMenu(null);
             return;
           }
@@ -771,7 +772,7 @@ export function SessionMapOverlay({
             profileId: profile.id,
             appendEnter: true,
             cellId: createMenu.cell.id,
-            worktreePath: createMenu.cell.worktreePath,
+            worktreePath,
           });
         }}
       />

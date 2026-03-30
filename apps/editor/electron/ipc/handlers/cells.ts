@@ -1,6 +1,13 @@
 const { ipcMain } = require('electron');
 const fs = require('fs');
-const { listCells, createCell, updateCellState, updateCellMeta } = require('../../services/cells');
+const {
+  listCells,
+  createCell,
+  updateCellState,
+  updateCellMeta,
+  clearCellAttachment,
+  deleteCell,
+} = require('../../services/cells');
 
 function buildTestCell() {
   return {
@@ -8,6 +15,8 @@ function buildTestCell() {
     name: 'test-cell',
     branch: 'feature/test-cell',
     worktreePath: '/tmp/agency/test-cell',
+    attachmentState: 'attached',
+    lastKnownWorktreePath: '/tmp/agency/test-cell',
     state: 'active',
     gatesStage: 'active',
     gates: [],
@@ -88,6 +97,31 @@ function setupCellHandlers({ getMainWindow }) {
       win.webContents.send('cells:updated', { type: 'updated', cell });
     }
     return cell;
+  });
+
+  ipcMain.handle('cells:clearAttachment', async (_event, payload) => {
+    if (isTestMode) {
+      return { ...buildTestCell(), attachmentState: 'detached', worktreePath: '' };
+    }
+    const cell = await clearCellAttachment(payload || {});
+    watchLifecycleFile(cell.lifecycleFile);
+    const win = getMainWindow();
+    if (win) {
+      win.webContents.send('cells:updated', { type: 'updated', cell });
+    }
+    return cell;
+  });
+
+  ipcMain.handle('cells:delete', async (_event, payload) => {
+    if (isTestMode) {
+      return { ok: true, id: 'test-cell' };
+    }
+    const result = await deleteCell(payload || {});
+    const win = getMainWindow();
+    if (win) {
+      win.webContents.send('cells:updated', { type: 'deleted', id: result.id });
+    }
+    return result;
   });
 }
 

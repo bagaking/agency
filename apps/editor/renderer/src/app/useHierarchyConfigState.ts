@@ -34,21 +34,28 @@ export function useHierarchyConfigState({
   userDataPath,
 }: UseHierarchyConfigStateArgs) {
   const worktreeLinksState = useWorktreeLinks({ selectedCell: scopedCell, cells, projectRoot });
-  const terminusState = useTerminusSettings({ selectedCell: scopedCell, terminusScope: actionsScope });
+  const terminusState = useTerminusSettings({
+    selectedCell: scopedCell,
+    terminusScope: actionsScope,
+    projectRoot,
+  });
   const appShortcutsState = useAppShortcuts({
     selectedCell: scopedCell,
     appShortcutsScope,
     userDataPath,
+    projectRoot,
   });
   const replyQuickPromptsState = useReplyQuickPrompts({
     selectedCell: scopedCell,
     scope: replyQuickPromptsScope,
     userDataPath,
+    projectRoot,
   });
   const sessionNamingState = useSessionNamingSettings({
     selectedCell: scopedCell,
     sessionNamingScope,
     userDataPath,
+    projectRoot,
   });
   const gatesState = useGates({ selectedCell: scopedCell, gateScope, gateStage, repoRoot: projectRoot });
   const mainAgentHarnessSettingsState = useMainAgentHarnessSettings({
@@ -67,8 +74,9 @@ export function useHierarchyConfigState({
     return action?.shortcut || '';
   }, [appShortcutsState.resolvedActions]);
 
-  const canUseScopedConfig = Boolean(scopedCell?.worktreePath);
   const resolvedRepoRoot = projectRoot || worktreeLinksState.repoRoot;
+  const canUseProjectScope = Boolean(resolvedRepoRoot);
+  const canUseAgentScope = Boolean(scopedCell?.id);
 
   const appShortcutsPaths = {
     global: appShortcutsState.globalSettingsPath,
@@ -205,7 +213,9 @@ export function useHierarchyConfigState({
 
     memoVoiceShortcut,
     screenshotShortcut,
-    canUseScopedConfig,
+    canUseProjectScope,
+    canUseAgentScope,
+    canUseScopedConfig: canUseProjectScope && canUseAgentScope,
     resolvedRepoRoot,
   };
 }

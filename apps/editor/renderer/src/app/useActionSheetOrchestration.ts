@@ -510,11 +510,14 @@ export function useActionSheetOrchestration({
 
   const createTurnGateCreateSheetForCell = useCallback(
     async ({ cell, stage }: { cell: any; stage?: string }) => {
-      if (!cell?.worktreePath) {
-        throw new Error('Cell worktree path is required.');
+      if (!cell?.id) {
+        throw new Error('Cell selection is required.');
       }
-      const worktreeName = String(cell.worktreePath).split('/').filter(Boolean).pop() || '';
-      const resolvedAgentGatesPath = `${cell.worktreePath}/.agency/gates-${worktreeName}.yaml`;
+      const repoRoot = String(cell.projectRoot || actionSheetsRoot || '').trim();
+      const attachedWorktreePath = String(cell.attachedWorktreePath || '').trim();
+      const lastKnownWorktreePath = String(cell.lastKnownWorktreePath || cell.worktreePath || '').trim();
+      const resolvedAgentGatesPath =
+        repoRoot && cell.id ? `${repoRoot}/.agency/cells/${cell.id}/gates.yaml` : '';
       const resolvedStage = String(stage || '').trim() || 'active';
       const title = `Turn Gate Create: ${cell.name || cell.id}`;
       const prompt = {
@@ -529,7 +532,7 @@ export function useActionSheetOrchestration({
         context: [
           `Cell: ${cell.name || cell.id}`,
           `Branch: ${cell.branch || ''}`,
-          `Worktree: ${cell.worktreePath}`,
+          `Attachment: ${attachedWorktreePath || lastKnownWorktreePath || 'none'}`,
           `Target stage: ${resolvedStage}`,
           '',
           'Key paths:',
@@ -561,7 +564,7 @@ export function useActionSheetOrchestration({
 
   const handleTurnGateCreateSheet = useCallback(
     async (stage?: string) => {
-      if (!selectedCell?.worktreePath) {
+      if (!selectedCell?.id) {
         modal?.notify?.({
           title: 'Turn Gate Create unavailable',
           description: 'Select a Cell before creating a Turn gate sheet.',
@@ -585,7 +588,7 @@ export function useActionSheetOrchestration({
 
   const handleTurnGateExecuteSheet = useCallback(
     async (stage?: string) => {
-      if (!selectedCell?.worktreePath) {
+      if (!selectedCell?.id) {
         modal?.notify?.({
           title: 'Turn Gate Execute unavailable',
           description: 'Select a Cell before creating a Turn gate execution sheet.',
@@ -597,7 +600,9 @@ export function useActionSheetOrchestration({
       try {
         const resolved = await agencyGetGates({
           scope: 'resolved',
-          worktreePath: selectedCell.worktreePath,
+          rootPath: selectedCell.projectRoot || actionSheetsRoot || '',
+          worktreePath: selectedCell.attachedWorktreePath || '',
+          cellId: selectedCell.id,
         });
         const gates = Array.isArray(resolved?.[resolvedStage]) ? resolved[resolvedStage] : [];
         const checks = gates
@@ -633,7 +638,12 @@ export function useActionSheetOrchestration({
           context: [
             `Cell: ${selectedCell.name || selectedCell.id}`,
             `Branch: ${selectedCell.branch || ''}`,
-            `Worktree: ${selectedCell.worktreePath}`,
+            `Attachment: ${
+              selectedCell.attachedWorktreePath ||
+              selectedCell.lastKnownWorktreePath ||
+              selectedCell.worktreePath ||
+              'none'
+            }`,
             `Stage: ${resolvedStage}`,
             '',
             'Key paths:',

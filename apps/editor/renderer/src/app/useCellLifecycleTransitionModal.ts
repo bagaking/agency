@@ -34,6 +34,7 @@ export function useCellLifecycleTransitionModal({
         id: pendingTransition.cell.id,
         state: pendingTransition.nextState,
         worktreePath: pendingTransition.cell.worktreePath,
+        rootPath: pendingTransition.cell.projectRoot || '',
       });
       if (!result) {
         setTransitionError('Lifecycle transition failed.');
@@ -75,4 +76,3 @@ export function useCellLifecycleTransitionModal({
     handleRefreshTransitionGates,
   };
 }
-

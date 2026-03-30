@@ -10,12 +10,12 @@ import {
   isAgencyAvailable,
   setAppShortcuts,
 } from '../services/agencyBridge';
-import { pathBaseName, useScopedSettingsState } from './shared/scopedSettingsState';
+import { useScopedSettingsState } from './shared/scopedSettingsState';
 
 const DEFAULT_ACTIONS = buildDefaultActions();
 const EMPTY_ACTIONS = [];
 
-export function useAppShortcuts({ selectedCell, appShortcutsScope, userDataPath }) {
+export function useAppShortcuts({ selectedCell, appShortcutsScope, userDataPath, projectRoot }) {
   const [globalActions, setGlobalActions] = useState(DEFAULT_ACTIONS);
   const [projectActions, setProjectActions] = useState(EMPTY_ACTIONS);
   const [agentActions, setAgentActions] = useState(EMPTY_ACTIONS);
@@ -55,7 +55,7 @@ export function useAppShortcuts({ selectedCell, appShortcutsScope, userDataPath 
       if (!ensureIpcAvailable('load-scoped')) {
         return;
       }
-      if (!selectedCell?.worktreePath) {
+      if (!projectRoot) {
         setProjectActions(EMPTY_ACTIONS);
         setAgentActions(EMPTY_ACTIONS);
         clearDirty('project');
@@ -64,8 +64,19 @@ export function useAppShortcuts({ selectedCell, appShortcutsScope, userDataPath 
       }
       try {
         const [project, agent] = await Promise.all([
-          getAppShortcuts({ scope: 'project', worktreePath: selectedCell.worktreePath }),
-          getAppShortcuts({ scope: 'agent', worktreePath: selectedCell.worktreePath }),
+          getAppShortcuts({
+            scope: 'project',
+            rootPath: projectRoot,
+            worktreePath: selectedCell?.worktreePath,
+          }),
+          selectedCell?.id
+            ? getAppShortcuts({
+                scope: 'agent',
+                rootPath: projectRoot,
+                worktreePath: selectedCell?.worktreePath,
+                cellId: selectedCell.id,
+              })
+            : Promise.resolve(EMPTY_ACTIONS),
         ]);
         setProjectActions(Array.isArray(project) ? project : EMPTY_ACTIONS);
         setAgentActions(Array.isArray(agent) ? agent : EMPTY_ACTIONS);
@@ -78,7 +89,7 @@ export function useAppShortcuts({ selectedCell, appShortcutsScope, userDataPath 
       }
     };
     loadScoped();
-  }, [selectedCell?.worktreePath]);
+  }, [projectRoot, selectedCell?.id, selectedCell?.worktreePath]);
 
   const globalResolved = useMemo(
     () => mergeActions(DEFAULT_ACTIONS, globalActions || []),
@@ -108,14 +119,18 @@ export function useAppShortcuts({ selectedCell, appShortcutsScope, userDataPath 
         ? agentActions
         : globalActions;
 
-  const scopeDisabled = appShortcutsScope !== 'global' && !selectedCell?.worktreePath;
+  const scopeDisabled =
+    appShortcutsScope === 'project'
+      ? !projectRoot
+      : appShortcutsScope === 'agent'
+        ? !selectedCell?.id
+        : false;
 
-  const worktreeName = selectedCell?.worktreePath ? pathBaseName(selectedCell.worktreePath) : '';
-  const projectSettingsPath = selectedCell?.worktreePath
-    ? `${selectedCell.worktreePath}/.agency/app-shortcuts.yaml`
+  const projectSettingsPath = projectRoot
+    ? `${projectRoot}/.agency/app-shortcuts.yaml`
     : '';
-  const agentSettingsPath = selectedCell?.worktreePath
-    ? `${selectedCell.worktreePath}/.agency/app-shortcuts-${worktreeName}.yaml`
+  const agentSettingsPath = projectRoot && selectedCell?.id
+    ? `${projectRoot}/.agency/cells/${selectedCell.id}/app-shortcuts.yaml`
     : '';
   const globalSettingsPath = userDataPath ? `${userDataPath}/app-shortcuts.json` : 'Global User Config';
 
@@ -181,7 +196,11 @@ export function useAppShortcuts({ selectedCell, appShortcutsScope, userDataPath 
       return;
     }
     if (scopeDisabled) {
-      setError('Select a Cell to edit project or agent app shortcuts.');
+      setError(
+        appShortcutsScope === 'project'
+          ? 'Select a project to edit project app shortcuts.'
+          : 'Select a Cell to edit agent app shortcuts.'
+      );
       return;
     }
     setSaving(true);
@@ -190,7 +209,9 @@ export function useAppShortcuts({ selectedCell, appShortcutsScope, userDataPath 
       const actionsToSave = scopeActions || [];
       const saved = await setAppShortcuts({
         scope: appShortcutsScope,
+        rootPath: projectRoot,
         worktreePath: selectedCell?.worktreePath,
+        cellId: selectedCell?.id,
         actions: actionsToSave,
       });
       if (appShortcutsScope === 'project') {

@@ -97,12 +97,12 @@ test('AgentCellsSessionsPanel keeps attention inline instead of rendering a queu
         <AttentionLayerProvider value={attentionValue as any}>
           <AgentCellsSessionsPanel
             cells={[
-              {
-                id: 'cell-a',
-                name: 'alpha',
-                state: 'active',
-                worktreePath: '/repo/alpha',
-              },
+          {
+            id: 'cell-a',
+            name: 'alpha',
+            state: 'active',
+            attachedWorktreePath: '/repo/alpha',
+          },
             ]}
             selectedId="cell-a"
             projectReady={true}

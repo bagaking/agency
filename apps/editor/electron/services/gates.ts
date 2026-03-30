@@ -7,6 +7,11 @@ const yaml = require('js-yaml');
 
 const { getRepoRoot } = require('./git');
 const { logRuntime } = require('./runtimeLog');
+const {
+  resolveProjectConfigPath,
+  resolveAgentConfigPath,
+  resolveLegacyAgentConfigPath,
+} = require('./scopedConfigPaths');
 
 const STAGES = ['draft', 'active', 'archived'];
 const DEFAULT_GATES = {
@@ -67,6 +72,10 @@ const LEGACY_GLOBAL_FILENAME = 'gates.json';
 
 const fsp = fs.promises;
 
+function normalizeScopeRoot({ rootPath = '', projectRoot = '' } = {}) {
+  return String(projectRoot || rootPath || '').trim();
+}
+
 function getGlobalGatesPath() {
   return path.join(app.getPath('userData'), GLOBAL_FILENAME);
 }
@@ -75,21 +84,37 @@ function getLegacyGlobalGatesPath() {
   return path.join(app.getPath('userData'), LEGACY_GLOBAL_FILENAME);
 }
 
-async function getProjectGatesPath(worktreePath) {
-  try {
-    const repoRoot = await getRepoRoot(worktreePath || process.cwd());
-    return path.join(repoRoot, '.agency', PROJECT_FILENAME);
-  } catch (error) {
-    return null;
-  }
+async function getProjectGatesPath({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+} = {}) {
+  const normalizedRoot = normalizeScopeRoot({ rootPath, projectRoot });
+  const resolved = await resolveProjectConfigPath({
+    rootPath: normalizedRoot,
+    worktreePath,
+    filenames: [PROJECT_FILENAME],
+  });
+  return resolved.filePath || null;
 }
 
-function getAgentGatesPath(worktreePath) {
-  if (!worktreePath) {
-    return null;
-  }
-  const worktreeName = path.basename(worktreePath);
-  return path.join(worktreePath, '.agency', `${AGENT_PREFIX}${worktreeName}${AGENT_EXT}`);
+async function getAgentGatesPath({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+  cellId = '',
+} = {}) {
+  const normalizedRoot = normalizeScopeRoot({ rootPath, projectRoot });
+  const resolved = await resolveAgentConfigPath({
+    rootPath: normalizedRoot,
+    worktreePath,
+    cellId,
+    filename: PROJECT_FILENAME,
+  });
+  return {
+    filePath: resolved.filePath || '',
+    legacyPath: resolveLegacyAgentConfigPath(worktreePath, AGENT_PREFIX, AGENT_EXT),
+  };
 }
 
 function normalizeId(value) {
@@ -155,12 +180,16 @@ async function readGlobalGates() {
   }
 }
 
-async function readProjectGates(worktreePath) {
-  if (!worktreePath) {
+async function readProjectGates({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+} = {}) {
+  const filePath = await getProjectGatesPath({ rootPath, projectRoot, worktreePath });
+  if (!filePath) {
     return normalizeConfig({});
   }
-  const filePath = await getProjectGatesPath(worktreePath);
-  if (!filePath || !fs.existsSync(filePath)) {
+  if (!fs.existsSync(filePath)) {
     return normalizeConfig({});
   }
   try {
@@ -172,13 +201,29 @@ async function readProjectGates(worktreePath) {
   }
 }
 
-async function readAgentGates(worktreePath) {
-  const filePath = getAgentGatesPath(worktreePath);
-  if (!filePath || !fs.existsSync(filePath)) {
+async function readAgentGates({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+  cellId = '',
+} = {}) {
+  const { filePath, legacyPath } = await getAgentGatesPath({
+    rootPath,
+    projectRoot,
+    worktreePath,
+    cellId,
+  });
+  const resolvedPath =
+    filePath && fs.existsSync(filePath)
+      ? filePath
+      : legacyPath && fs.existsSync(legacyPath)
+        ? legacyPath
+        : '';
+  if (!resolvedPath) {
     return normalizeConfig({});
   }
   try {
-    const raw = await fsp.readFile(filePath, 'utf-8');
+    const raw = await fsp.readFile(resolvedPath, 'utf-8');
     const parsed = yaml.load(raw);
     return normalizeConfig(parsed);
   } catch (error) {
@@ -194,11 +239,13 @@ async function writeGlobalGates(config) {
   return normalized;
 }
 
-async function writeProjectGates(worktreePath, config) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required for project gates.');
-  }
-  const filePath = await getProjectGatesPath(worktreePath);
+async function writeProjectGates({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+  config,
+} = {}) {
+  const filePath = await getProjectGatesPath({ rootPath, projectRoot, worktreePath });
   if (!filePath) {
     throw new Error('Unable to resolve project gates path.');
   }
@@ -208,11 +255,22 @@ async function writeProjectGates(worktreePath, config) {
   return normalized;
 }
 
-async function writeAgentGates(worktreePath, config) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required for agent gates.');
+async function writeAgentGates({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+  cellId = '',
+  config,
+} = {}) {
+  const { filePath } = await getAgentGatesPath({
+    rootPath,
+    projectRoot,
+    worktreePath,
+    cellId,
+  });
+  if (!filePath) {
+    throw new Error('Project root and cell id are required for agent gates.');
   }
-  const filePath = getAgentGatesPath(worktreePath);
   await fsp.mkdir(path.dirname(filePath), { recursive: true });
   const normalized = normalizeConfig(config);
   await fsp.writeFile(filePath, yaml.dump(normalized, { lineWidth: 120 }), 'utf-8');
@@ -238,19 +296,30 @@ function mergeGates(...scopes) {
   return merged;
 }
 
-async function getGates({ scope = 'resolved', worktreePath } = {}) {
+async function getGates({
+  scope = 'resolved',
+  worktreePath,
+  rootPath = '',
+  projectRoot = '',
+  cellId = '',
+} = {}) {
   if (scope === 'global') {
     return readGlobalGates();
   }
   if (scope === 'project') {
-    return readProjectGates(worktreePath);
+    return readProjectGates({ rootPath, projectRoot, worktreePath });
   }
   if (scope === 'agent') {
-    return readAgentGates(worktreePath);
+    return readAgentGates({ rootPath, projectRoot, worktreePath, cellId });
   }
   const globalGates = await readGlobalGates();
-  const projectGates = await readProjectGates(worktreePath);
-  const agentGates = await readAgentGates(worktreePath);
+  const projectGates = await readProjectGates({ rootPath, projectRoot, worktreePath });
+  const agentGates = await readAgentGates({
+    rootPath,
+    projectRoot,
+    worktreePath,
+    cellId,
+  });
   const merged = {};
   STAGES.forEach((stage) => {
     merged[stage] = mergeGates(globalGates[stage], projectGates[stage], agentGates[stage]);
@@ -258,12 +327,25 @@ async function getGates({ scope = 'resolved', worktreePath } = {}) {
   return merged;
 }
 
-async function setGates({ scope = 'global', worktreePath, gates }) {
+async function setGates({
+  scope = 'global',
+  worktreePath,
+  rootPath = '',
+  projectRoot = '',
+  cellId = '',
+  gates,
+} = {}) {
   if (scope === 'project') {
-    return writeProjectGates(worktreePath, gates);
+    return writeProjectGates({ rootPath, projectRoot, worktreePath, config: gates });
   }
   if (scope === 'agent') {
-    return writeAgentGates(worktreePath, gates);
+    return writeAgentGates({
+      rootPath,
+      projectRoot,
+      worktreePath,
+      cellId,
+      config: gates,
+    });
   }
   return writeGlobalGates(gates);
 }

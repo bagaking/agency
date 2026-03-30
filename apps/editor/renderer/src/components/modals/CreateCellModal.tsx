@@ -45,7 +45,7 @@ export function CreateCellModal({ onClose, onCreate }: any) {
   const [worktrees, setWorktrees] = useState<any[]>([]);
   const [selectedWorktree, setSelectedWorktree] = useState('');
   const [branchPrefix, setBranchPrefix] = useState(branchStrategies[0].value);
-  const [startTurn, setStartTurn] = useState(true);
+  const [startTurn, setStartTurn] = useState(false);
 
   const focusRingClass = focusRing.default;
   const selectedWorktreeInfo = useMemo(
@@ -225,7 +225,7 @@ export function CreateCellModal({ onClose, onCreate }: any) {
           />
           <span>Start Turn with Gate Create sheet</span>
         </label>
-        <HintIcon label="After cell creation, open a Gate Create Action Sheet to define checks before implementation." />
+        <HintIcon label="Turn tooling is optional. Enable this only when you want formal Gate Create workflow scaffolding immediately after Cell creation." />
       </div>
 
       <div className="mt-1 flex items-center justify-end gap-2.5">

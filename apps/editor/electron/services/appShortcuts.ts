@@ -3,6 +3,11 @@ const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 const { logRuntime } = require('./runtimeLog');
+const {
+  resolveProjectConfigPath,
+  resolveAgentConfigPath,
+  resolveLegacyAgentConfigPath,
+} = require('./scopedConfigPaths');
 
 const fsp = fs.promises;
 
@@ -32,6 +37,10 @@ const APP_SHORTCUT_CATALOG = [
 const PROJECT_FILENAMES = ['app-shortcuts.yaml', 'app-shortcuts.yml'];
 const AGENT_PREFIX = 'app-shortcuts-';
 const AGENT_EXT = '.yaml';
+
+function normalizeScopeRoot({ rootPath = '', projectRoot = '' } = {}) {
+  return String(projectRoot || rootPath || '').trim();
+}
 
 const registeredAccelerators = new Map();
 
@@ -98,27 +107,40 @@ function getGlobalAppShortcutsPath() {
   return path.join(app.getPath('userData'), 'app-shortcuts.json');
 }
 
-function getProjectAppShortcutsPath(worktreePath) {
-  if (!worktreePath) {
-    return null;
-  }
-  const agencyDir = path.join(worktreePath, '.agency');
-  for (const name of PROJECT_FILENAMES) {
-    const candidate = path.join(agencyDir, name);
-    if (fs.existsSync(candidate)) {
-      return candidate;
-    }
-  }
-  return path.join(agencyDir, PROJECT_FILENAMES[0]);
+async function resolveProjectAppShortcutsPath({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+}: any = {}) {
+  const normalizedRoot = normalizeScopeRoot({ rootPath, projectRoot });
+  const resolved = await resolveProjectConfigPath({
+    rootPath: normalizedRoot,
+    worktreePath,
+    filenames: PROJECT_FILENAMES,
+  });
+  return {
+    filePath: resolved.filePath,
+    legacyPath: worktreePath ? path.join(worktreePath, '.agency', PROJECT_FILENAMES[0]) : '',
+  };
 }
 
-function getAgentAppShortcutsPath(worktreePath) {
-  if (!worktreePath) {
-    return null;
-  }
-  const worktreeName = path.basename(worktreePath);
-  const agencyDir = path.join(worktreePath, '.agency');
-  return path.join(agencyDir, `${AGENT_PREFIX}${worktreeName}${AGENT_EXT}`);
+async function resolveAgentAppShortcutsPath({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+  cellId = '',
+}: any = {}) {
+  const normalizedRoot = normalizeScopeRoot({ rootPath, projectRoot });
+  const resolved = await resolveAgentConfigPath({
+    rootPath: normalizedRoot,
+    worktreePath,
+    cellId,
+    filename: PROJECT_FILENAMES[0],
+  });
+  return {
+    filePath: resolved.filePath,
+    legacyPath: resolveLegacyAgentConfigPath(worktreePath, AGENT_PREFIX, AGENT_EXT),
+  };
 }
 
 async function readGlobalAppShortcuts() {
@@ -138,15 +160,26 @@ async function readGlobalAppShortcuts() {
   }
 }
 
-async function readProjectAppShortcuts(worktreePath) {
-  if (!worktreePath) {
+async function readProjectAppShortcuts({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+} = {}) {
+  const { filePath, legacyPath } = await resolveProjectAppShortcutsPath({
+    rootPath,
+    projectRoot,
+    worktreePath,
+  });
+  const resolvedPath =
+    filePath && fs.existsSync(filePath)
+      ? filePath
+      : legacyPath && fs.existsSync(legacyPath)
+        ? legacyPath
+        : '';
+  if (!resolvedPath) {
     return [];
   }
-  const filePath = getProjectAppShortcutsPath(worktreePath);
-  if (!filePath || !fs.existsSync(filePath)) {
-    return [];
-  }
-  const raw = await fsp.readFile(filePath, 'utf-8');
+  const raw = await fsp.readFile(resolvedPath, 'utf-8');
   try {
     const parsed = yaml.load(raw);
     if (!Array.isArray(parsed)) {
@@ -158,15 +191,28 @@ async function readProjectAppShortcuts(worktreePath) {
   }
 }
 
-async function readAgentAppShortcuts(worktreePath) {
-  if (!worktreePath) {
+async function readAgentAppShortcuts({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+  cellId = '',
+} = {}) {
+  const { filePath, legacyPath } = await resolveAgentAppShortcutsPath({
+    rootPath,
+    projectRoot,
+    worktreePath,
+    cellId,
+  });
+  const resolvedPath =
+    filePath && fs.existsSync(filePath)
+      ? filePath
+      : legacyPath && fs.existsSync(legacyPath)
+        ? legacyPath
+        : '';
+  if (!resolvedPath) {
     return [];
   }
-  const filePath = getAgentAppShortcutsPath(worktreePath);
-  if (!filePath || !fs.existsSync(filePath)) {
-    return [];
-  }
-  const raw = await fsp.readFile(filePath, 'utf-8');
+  const raw = await fsp.readFile(resolvedPath, 'utf-8');
   try {
     const parsed = yaml.load(raw);
     if (!Array.isArray(parsed)) {
@@ -186,11 +232,20 @@ async function writeGlobalAppShortcuts(actions) {
   return normalized;
 }
 
-async function writeProjectAppShortcuts(worktreePath, actions) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required for project app shortcuts.');
+async function writeProjectAppShortcuts({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+  actions,
+}: any = {}) {
+  const { filePath } = await resolveProjectAppShortcutsPath({
+    rootPath,
+    projectRoot,
+    worktreePath,
+  });
+  if (!filePath) {
+    throw new Error('Project root is required for project app shortcuts.');
   }
-  const filePath = getProjectAppShortcutsPath(worktreePath);
   await fsp.mkdir(path.dirname(filePath), { recursive: true });
   const normalized = normalizeScopedActions(Array.isArray(actions) ? actions : []);
   const content = yaml.dump(normalized, { lineWidth: 120 });
@@ -198,11 +253,22 @@ async function writeProjectAppShortcuts(worktreePath, actions) {
   return normalized;
 }
 
-async function writeAgentAppShortcuts(worktreePath, actions) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required for agent app shortcuts.');
+async function writeAgentAppShortcuts({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+  cellId = '',
+  actions,
+}: any = {}) {
+  const { filePath } = await resolveAgentAppShortcutsPath({
+    rootPath,
+    projectRoot,
+    worktreePath,
+    cellId,
+  });
+  if (!filePath) {
+    throw new Error('Project root and cell id are required for agent app shortcuts.');
   }
-  const filePath = getAgentAppShortcutsPath(worktreePath);
   await fsp.mkdir(path.dirname(filePath), { recursive: true });
   const normalized = normalizeScopedActions(Array.isArray(actions) ? actions : []);
   const content = yaml.dump(normalized, { lineWidth: 120 });
@@ -211,29 +277,53 @@ async function writeAgentAppShortcuts(worktreePath, actions) {
 }
 
 async function getAppShortcuts(params: any = {}) {
-  const { scope = 'resolved', worktreePath } = params || {};
+  const {
+    scope = 'resolved',
+    worktreePath,
+    rootPath = '',
+    projectRoot = '',
+    cellId,
+  } = params || {};
   if (scope === 'global') {
     return readGlobalAppShortcuts();
   }
   if (scope === 'project') {
-    return readProjectAppShortcuts(worktreePath);
+    return readProjectAppShortcuts({ rootPath, projectRoot, worktreePath });
   }
   if (scope === 'agent') {
-    return readAgentAppShortcuts(worktreePath);
+    return readAgentAppShortcuts({ rootPath, projectRoot, worktreePath, cellId });
   }
   const globalActions = await readGlobalAppShortcuts();
-  const projectActions = await readProjectAppShortcuts(worktreePath);
-  const agentActions = await readAgentAppShortcuts(worktreePath);
+  const projectActions = await readProjectAppShortcuts({ rootPath, projectRoot, worktreePath });
+  const agentActions = await readAgentAppShortcuts({
+    rootPath,
+    projectRoot,
+    worktreePath,
+    cellId,
+  });
   return mergeActions(globalActions, mergeActions(projectActions, agentActions));
 }
 
 async function setAppShortcuts(params: any = {}) {
-  const { scope = 'global', worktreePath, actions } = params || {};
+  const {
+    scope = 'global',
+    worktreePath,
+    rootPath = '',
+    projectRoot = '',
+    cellId,
+    actions,
+  } = params || {};
   if (scope === 'project') {
-    return writeProjectAppShortcuts(worktreePath, actions);
+    return writeProjectAppShortcuts({ rootPath, projectRoot, worktreePath, actions });
   }
   if (scope === 'agent') {
-    return writeAgentAppShortcuts(worktreePath, actions);
+    return writeAgentAppShortcuts({
+      rootPath,
+      projectRoot,
+      worktreePath,
+      cellId,
+      actions,
+    });
   }
   return writeGlobalAppShortcuts(actions);
 }

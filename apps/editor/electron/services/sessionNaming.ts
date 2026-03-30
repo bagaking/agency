@@ -2,6 +2,11 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const yaml = require('js-yaml');
+const {
+  resolveProjectConfigPath,
+  resolveAgentConfigPath,
+  resolveLegacyAgentConfigPath,
+} = require('./scopedConfigPaths');
 
 const {
   DEFAULT_RULE,
@@ -19,6 +24,10 @@ const fsp = fs.promises;
 const PROJECT_FILENAME = 'session-naming.yaml';
 const AGENT_PREFIX = 'session-naming-';
 const AGENT_EXT = '.yaml';
+
+function normalizeScopeRoot({ rootPath = '', projectRoot = '' } = {}) {
+  return String(projectRoot || rootPath || '').trim();
+}
 
 function getElectronApp() {
   try {
@@ -58,19 +67,40 @@ function getGlobalSettingsPath() {
   return path.join(userDataPath, 'session-naming.json');
 }
 
-function getProjectSettingsPath(worktreePath) {
-  if (!worktreePath) {
-    return null;
-  }
-  return path.join(worktreePath, '.agency', PROJECT_FILENAME);
+async function resolveProjectSettingsPath({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+}: any = {}) {
+  const normalizedRoot = normalizeScopeRoot({ rootPath, projectRoot });
+  const resolved = await resolveProjectConfigPath({
+    rootPath: normalizedRoot,
+    worktreePath,
+    filenames: [PROJECT_FILENAME],
+  });
+  return {
+    filePath: resolved.filePath,
+    legacyPath: worktreePath ? path.join(worktreePath, '.agency', PROJECT_FILENAME) : '',
+  };
 }
 
-function getAgentSettingsPath(worktreePath) {
-  if (!worktreePath) {
-    return null;
-  }
-  const worktreeName = path.basename(worktreePath);
-  return path.join(worktreePath, '.agency', `${AGENT_PREFIX}${worktreeName}${AGENT_EXT}`);
+async function resolveAgentSettingsPath({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+  cellId = '',
+}: any = {}) {
+  const normalizedRoot = normalizeScopeRoot({ rootPath, projectRoot });
+  const resolved = await resolveAgentConfigPath({
+    rootPath: normalizedRoot,
+    worktreePath,
+    cellId,
+    filename: PROJECT_FILENAME,
+  });
+  return {
+    filePath: resolved.filePath,
+    legacyPath: resolveLegacyAgentConfigPath(worktreePath, AGENT_PREFIX, AGENT_EXT),
+  };
 }
 
 async function writeGlobalSettings(settings) {
@@ -81,11 +111,20 @@ async function writeGlobalSettings(settings) {
   return normalized;
 }
 
-async function writeProjectSettings(worktreePath, settings) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required for project session naming settings.');
+async function writeProjectSettings({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+  settings,
+}: any = {}) {
+  const { filePath } = await resolveProjectSettingsPath({
+    rootPath,
+    projectRoot,
+    worktreePath,
+  });
+  if (!filePath) {
+    throw new Error('Project root is required for project session naming settings.');
   }
-  const filePath = getProjectSettingsPath(worktreePath);
   await fsp.mkdir(path.dirname(filePath), { recursive: true });
   const normalized = normalizeSettings(settings || EMPTY_SETTINGS);
   const content = yaml.dump(normalized, { lineWidth: 120 });
@@ -93,11 +132,22 @@ async function writeProjectSettings(worktreePath, settings) {
   return normalized;
 }
 
-async function writeAgentSettings(worktreePath, settings) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required for agent session naming settings.');
+async function writeAgentSettings({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+  cellId = '',
+  settings,
+}: any = {}) {
+  const { filePath } = await resolveAgentSettingsPath({
+    rootPath,
+    projectRoot,
+    worktreePath,
+    cellId,
+  });
+  if (!filePath) {
+    throw new Error('Project root and cell id are required for agent session naming settings.');
   }
-  const filePath = getAgentSettingsPath(worktreePath);
   await fsp.mkdir(path.dirname(filePath), { recursive: true });
   const normalized = normalizeSettings(settings || EMPTY_SETTINGS);
   const content = yaml.dump(normalized, { lineWidth: 120 });
@@ -119,15 +169,26 @@ async function readGlobalSettings() {
   }
 }
 
-async function readProjectSettings(worktreePath) {
-  if (!worktreePath) {
+async function readProjectSettings({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+} = {}) {
+  const { filePath, legacyPath } = await resolveProjectSettingsPath({
+    rootPath,
+    projectRoot,
+    worktreePath,
+  });
+  const resolvedPath =
+    filePath && fs.existsSync(filePath)
+      ? filePath
+      : legacyPath && fs.existsSync(legacyPath)
+        ? legacyPath
+        : '';
+  if (!resolvedPath) {
     return EMPTY_SETTINGS;
   }
-  const filePath = getProjectSettingsPath(worktreePath);
-  if (!filePath || !fs.existsSync(filePath)) {
-    return EMPTY_SETTINGS;
-  }
-  const raw = await fsp.readFile(filePath, 'utf-8');
+  const raw = await fsp.readFile(resolvedPath, 'utf-8');
   try {
     const parsed = yaml.load(raw);
     return normalizeSettings(parsed || {});
@@ -136,15 +197,28 @@ async function readProjectSettings(worktreePath) {
   }
 }
 
-async function readAgentSettings(worktreePath) {
-  if (!worktreePath) {
+async function readAgentSettings({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+  cellId = '',
+} = {}) {
+  const { filePath, legacyPath } = await resolveAgentSettingsPath({
+    rootPath,
+    projectRoot,
+    worktreePath,
+    cellId,
+  });
+  const resolvedPath =
+    filePath && fs.existsSync(filePath)
+      ? filePath
+      : legacyPath && fs.existsSync(legacyPath)
+        ? legacyPath
+        : '';
+  if (!resolvedPath) {
     return EMPTY_SETTINGS;
   }
-  const filePath = getAgentSettingsPath(worktreePath);
-  if (!filePath || !fs.existsSync(filePath)) {
-    return EMPTY_SETTINGS;
-  }
-  const raw = await fsp.readFile(filePath, 'utf-8');
+  const raw = await fsp.readFile(resolvedPath, 'utf-8');
   try {
     const parsed = yaml.load(raw);
     return normalizeSettings(parsed || {});
@@ -154,20 +228,26 @@ async function readAgentSettings(worktreePath) {
 }
 
 async function getSessionNamingSettings(params: any = {}) {
-  const { scope = 'resolved', worktreePath } = params || {};
+  const {
+    scope = 'resolved',
+    worktreePath,
+    rootPath = '',
+    projectRoot = '',
+    cellId,
+  } = params || {};
   if (scope === 'project') {
-    return readProjectSettings(worktreePath);
+    return readProjectSettings({ rootPath, projectRoot, worktreePath });
   }
   if (scope === 'agent') {
-    return readAgentSettings(worktreePath);
+    return readAgentSettings({ rootPath, projectRoot, worktreePath, cellId });
   }
   if (scope === 'global') {
     return readGlobalSettings();
   }
   const [globalSettings, projectSettings, agentSettings] = await Promise.all([
     readGlobalSettings(),
-    readProjectSettings(worktreePath),
-    readAgentSettings(worktreePath),
+    readProjectSettings({ rootPath, projectRoot, worktreePath }),
+    readAgentSettings({ rootPath, projectRoot, worktreePath, cellId }),
   ]);
   return resolveSessionNaming({
     globalSettings,
@@ -177,12 +257,25 @@ async function getSessionNamingSettings(params: any = {}) {
 }
 
 async function setSessionNamingSettings(params: any = {}) {
-  const { scope = 'global', worktreePath, settings } = params || {};
+  const {
+    scope = 'global',
+    worktreePath,
+    rootPath = '',
+    projectRoot = '',
+    cellId,
+    settings,
+  } = params || {};
   if (scope === 'project') {
-    return writeProjectSettings(worktreePath, settings);
+    return writeProjectSettings({ rootPath, projectRoot, worktreePath, settings });
   }
   if (scope === 'agent') {
-    return writeAgentSettings(worktreePath, settings);
+    return writeAgentSettings({
+      rootPath,
+      projectRoot,
+      worktreePath,
+      cellId,
+      settings,
+    });
   }
   return writeGlobalSettings(settings);
 }

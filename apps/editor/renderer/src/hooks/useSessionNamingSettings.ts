@@ -10,7 +10,7 @@ import {
   isAgencyAvailable,
   setSessionNamingSettings,
 } from '../services/agencyBridge';
-import { pathBaseName, useScopedSettingsState } from './shared/scopedSettingsState';
+import { useScopedSettingsState } from './shared/scopedSettingsState';
 
 type SessionNamingSettingsState = {
   rule: string;
@@ -28,7 +28,7 @@ const hasOverrides = (settings) => {
   return Boolean(rule) || Object.keys(lists).length > 0;
 };
 
-export function useSessionNamingSettings({ selectedCell, sessionNamingScope, userDataPath }) {
+export function useSessionNamingSettings({ selectedCell, sessionNamingScope, userDataPath, projectRoot }) {
   const [globalSettings, setGlobalSettings] = useState<SessionNamingSettingsState>(DEFAULT_SETTINGS);
   const [projectSettings, setProjectSettings] = useState<SessionNamingSettingsState>(EMPTY_SETTINGS);
   const [agentSettings, setAgentSettings] = useState<SessionNamingSettingsState>(EMPTY_SETTINGS);
@@ -68,7 +68,7 @@ export function useSessionNamingSettings({ selectedCell, sessionNamingScope, use
       if (!ensureIpcAvailable('load-scoped')) {
         return;
       }
-      if (!selectedCell?.worktreePath) {
+      if (!projectRoot) {
         setProjectSettings(EMPTY_SETTINGS);
         setAgentSettings(EMPTY_SETTINGS);
         clearDirty('project');
@@ -77,8 +77,19 @@ export function useSessionNamingSettings({ selectedCell, sessionNamingScope, use
       }
       try {
         const [project, agent] = await Promise.all([
-          getSessionNamingSettings({ scope: 'project', worktreePath: selectedCell.worktreePath }),
-          getSessionNamingSettings({ scope: 'agent', worktreePath: selectedCell.worktreePath }),
+          getSessionNamingSettings({
+            scope: 'project',
+            rootPath: projectRoot,
+            worktreePath: selectedCell?.worktreePath,
+          }),
+          selectedCell?.id
+            ? getSessionNamingSettings({
+                scope: 'agent',
+                rootPath: projectRoot,
+                worktreePath: selectedCell?.worktreePath,
+                cellId: selectedCell.id,
+              })
+            : Promise.resolve(EMPTY_SETTINGS),
         ]);
         setProjectSettings(normalizeSettings(project || EMPTY_SETTINGS));
         setAgentSettings(normalizeSettings(agent || EMPTY_SETTINGS));
@@ -91,7 +102,7 @@ export function useSessionNamingSettings({ selectedCell, sessionNamingScope, use
       }
     };
     loadScoped();
-  }, [selectedCell?.worktreePath]);
+  }, [projectRoot, selectedCell?.id, selectedCell?.worktreePath]);
 
   const resolvedSettings = useMemo(
     () => resolveSessionNaming({ globalSettings, projectSettings, agentSettings }),
@@ -105,14 +116,18 @@ export function useSessionNamingSettings({ selectedCell, sessionNamingScope, use
         ? agentSettings
         : globalSettings;
 
-  const scopeDisabled = sessionNamingScope !== 'global' && !selectedCell?.worktreePath;
+  const scopeDisabled =
+    sessionNamingScope === 'project'
+      ? !projectRoot
+      : sessionNamingScope === 'agent'
+        ? !selectedCell?.id
+        : false;
 
-  const worktreeName = selectedCell?.worktreePath ? pathBaseName(selectedCell.worktreePath) : '';
-  const projectSettingsPath = selectedCell?.worktreePath
-    ? `${selectedCell.worktreePath}/.agency/session-naming.yaml`
+  const projectSettingsPath = projectRoot
+    ? `${projectRoot}/.agency/session-naming.yaml`
     : '';
-  const agentSettingsPath = selectedCell?.worktreePath
-    ? `${selectedCell.worktreePath}/.agency/session-naming-${worktreeName}.yaml`
+  const agentSettingsPath = projectRoot && selectedCell?.id
+    ? `${projectRoot}/.agency/cells/${selectedCell.id}/session-naming.yaml`
     : '';
   const globalSettingsPath = userDataPath
     ? `${userDataPath}/session-naming.json`
@@ -203,7 +218,11 @@ export function useSessionNamingSettings({ selectedCell, sessionNamingScope, use
       return;
     }
     if (scopeDisabled) {
-      setError('Select a Cell to edit project or agent session naming rules.');
+      setError(
+        sessionNamingScope === 'project'
+          ? 'Select a project to edit project session naming rules.'
+          : 'Select a Cell to edit agent session naming rules.'
+      );
       return;
     }
     setSaving(true);
@@ -212,7 +231,9 @@ export function useSessionNamingSettings({ selectedCell, sessionNamingScope, use
       const settingsToSave = scopeSettings || DEFAULT_SETTINGS;
       const saved = await setSessionNamingSettings({
         scope: sessionNamingScope,
+        rootPath: projectRoot,
         worktreePath: selectedCell?.worktreePath,
+        cellId: selectedCell?.id,
         settings: settingsToSave,
       });
       const normalized = normalizeSettings(saved || settingsToSave, {

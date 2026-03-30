@@ -145,6 +145,35 @@ function CellStateBadge({ state }: { state?: string }) {
   );
 }
 
+function resolveCellAttachmentMeta(cell: any) {
+  const attachmentState = String(cell?.attachmentState || 'attached').trim().toLowerCase();
+  const attachedPath = String(cell?.attachedWorktreePath || '').trim();
+  const fallbackPath = String(cell?.lastKnownWorktreePath || cell?.worktreePath || '').trim();
+  const pathLabelBase = attachedPath || fallbackPath;
+  if (attachmentState === 'missing') {
+    return {
+      attachmentState,
+      label: 'Missing',
+      tone: 'border-rose-300/24 bg-rose-500/10 text-rose-100',
+      pathLabel: pathLabelBase,
+    };
+  }
+  if (attachmentState === 'detached') {
+    return {
+      attachmentState,
+      label: 'Detached',
+      tone: 'border-amber-300/24 bg-amber-500/10 text-amber-100',
+      pathLabel: pathLabelBase,
+    };
+  }
+  return {
+    attachmentState: 'attached',
+    label: 'Attached',
+    tone: 'border-emerald-300/20 bg-emerald-500/10 text-emerald-100',
+    pathLabel: String(cell?.branch || (attachedPath || fallbackPath) || '').trim(),
+  };
+}
+
 function SessionStatusMeta({
   session,
   idleLabel,
@@ -599,7 +628,7 @@ export function AgentCellsSessionsPanel({
     smartForkAvailable,
     smartNameAvailable,
   } = useCommanderStatus({
-    worktreePath: contextMenuCell?.worktreePath || '',
+    worktreePath: contextMenuCell?.attachedWorktreePath || '',
     cellId: contextMenuCell?.id || '',
     cellName: contextMenuCell?.name || '',
     cellBranch: contextMenuCell?.branch || '',
@@ -822,6 +851,8 @@ export function AgentCellsSessionsPanel({
         ) : (
           <div className="space-y-3" data-testid="cell-list" role="tree" aria-label="Agent Cells">
             {cells.map((cell: any) => {
+              const attachmentMeta = resolveCellAttachmentMeta(cell);
+              const hasAttachment = attachmentMeta.attachmentState === 'attached';
               const projection = projectionsByCellId[cell.id] || EMPTY_TREE;
               const visibleRows = visibleRowsByCellId[cell.id] || [];
               const activeSessionId =
@@ -912,6 +943,14 @@ export function AgentCellsSessionsPanel({
                         ) : (
                           <CellStateBadge state={cell.state} />
                         )}
+                        {!cell.isVirtual && attachmentMeta.attachmentState !== 'attached' ? (
+                          <span
+                            className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] ${attachmentMeta.tone}`}
+                            title={attachmentMeta.pathLabel || attachmentMeta.label}
+                          >
+                            {attachmentMeta.label}
+                          </span>
+                        ) : null}
                         {cellAttention?.strongest ? (
                           <button
                             type="button"
@@ -944,7 +983,9 @@ export function AgentCellsSessionsPanel({
                         <span className="truncate">
                           {cell.isVirtual
                             ? cell.worktreePath || 'Local shell'
-                            : cell.branch || cell.worktreePath || 'Detached worktree'}
+                            : attachmentMeta.attachmentState === 'attached'
+                              ? cell.branch || attachmentMeta.pathLabel || 'Attached worktree'
+                              : attachmentMeta.pathLabel || `${attachmentMeta.label} worktree`}
                         </span>
                       </div>
                     </div>
@@ -966,8 +1007,15 @@ export function AgentCellsSessionsPanel({
                       <IconButton
                         label="New Session"
                         focusRing="sidebar"
-                        className="h-7 w-7 rounded-md text-primary transition-colors hover:bg-primary/12 hover:text-primary"
+                        disabled={!hasAttachment}
+                        className="h-7 w-7 rounded-md text-primary transition-colors hover:bg-primary/12 hover:text-primary disabled:text-muted-foreground/40 disabled:hover:bg-transparent"
+                        title={
+                          hasAttachment ? 'Create a session inside the attached worktree.' : 'Attach a worktree before creating sessions.'
+                        }
                         onClick={(event) => {
+                          if (!hasAttachment) {
+                            return;
+                          }
                           event.stopPropagation();
                           const rect = event.currentTarget.getBoundingClientRect();
                           const spaceBelow = window.innerHeight - rect.bottom;
@@ -1473,7 +1521,7 @@ export function AgentCellsSessionsPanel({
               profileId: profile.id,
               appendEnter: true,
               cellId: cell.id,
-              worktreePath: cell.worktreePath,
+              worktreePath: cell.attachedWorktreePath || '',
             });
           }
           setCreateMenu(null);

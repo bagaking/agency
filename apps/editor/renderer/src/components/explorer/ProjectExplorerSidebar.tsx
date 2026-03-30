@@ -252,7 +252,9 @@ function ProjectExplorerSidebarContent({
     if (!selectedCellId) {
       return [];
     }
-    const baseRoot = String(selectedCell?.worktreePath || rootPath || scopeRootPath || '').replace(/\/+$/, '');
+    const baseRoot = String(
+      selectedCell?.attachedWorktreePath || rootPath || scopeRootPath || ''
+    ).replace(/\/+$/, '');
     return buildAgentCellModifiedFileChanges({
       statusFiles: statusByPath,
       cellId: selectedCellId,
@@ -650,7 +652,7 @@ function ProjectExplorerSidebarContent({
   } = useExplorerChangedFilesActions({
     rootPath,
     scopeRootPath,
-    selectedCellWorktreePath: String(selectedCell?.worktreePath || ''),
+    selectedCellWorktreePath: String(selectedCell?.attachedWorktreePath || ''),
     selectedCellId,
     isPanelOpen: workingSetViewId === EXPLORER_WORKING_SET_CHANGED_FILES,
     changedPanelEntries,

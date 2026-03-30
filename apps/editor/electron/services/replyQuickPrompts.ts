@@ -3,12 +3,21 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const yaml = require('js-yaml');
+const {
+  resolveProjectConfigPath,
+  resolveAgentConfigPath,
+  resolveLegacyAgentConfigPath,
+} = require('./scopedConfigPaths');
 
 const fsp = fs.promises;
 
 const PROJECT_FILENAMES = ['reply-quick-prompts.yaml', 'reply-quick-prompts.yml'];
 const AGENT_PREFIX = 'reply-quick-prompts-';
 const AGENT_EXT = '.yaml';
+
+function normalizeScopeRoot({ rootPath = '', projectRoot = '' } = {}) {
+  return String(projectRoot || rootPath || '').trim();
+}
 
 const normalizePromptText = (value) =>
   String(value || '')
@@ -56,7 +65,7 @@ function getGlobalReplyQuickPromptsPath() {
   return path.join(app.getPath('userData'), 'reply-quick-prompts.json');
 }
 
-function getProjectReplyQuickPromptsPath(worktreePath) {
+function getLegacyProjectReplyQuickPromptsPath(worktreePath) {
   if (!worktreePath) {
     return null;
   }
@@ -68,15 +77,6 @@ function getProjectReplyQuickPromptsPath(worktreePath) {
     }
   }
   return path.join(agencyDir, PROJECT_FILENAMES[0]);
-}
-
-function getAgentReplyQuickPromptsPath(worktreePath) {
-  if (!worktreePath) {
-    return null;
-  }
-  const worktreeName = path.basename(worktreePath);
-  const agencyDir = path.join(worktreePath, '.agency');
-  return path.join(agencyDir, `${AGENT_PREFIX}${worktreeName}${AGENT_EXT}`);
 }
 
 async function readGlobalReplyQuickPrompts() {
@@ -101,15 +101,62 @@ async function writeGlobalReplyQuickPrompts(prompts) {
   return normalized;
 }
 
-async function readProjectReplyQuickPrompts(worktreePath) {
-  if (!worktreePath) {
+async function resolveProjectReplyQuickPromptsPath({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+}: any = {}) {
+  const normalizedRoot = normalizeScopeRoot({ rootPath, projectRoot });
+  const resolved = await resolveProjectConfigPath({
+    rootPath: normalizedRoot,
+    worktreePath,
+    filenames: PROJECT_FILENAMES,
+  });
+  return {
+    filePath: resolved.filePath,
+    legacyPath: getLegacyProjectReplyQuickPromptsPath(worktreePath),
+  };
+}
+
+async function resolveAgentReplyQuickPromptsPath({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+  cellId = '',
+}: any = {}) {
+  const normalizedRoot = normalizeScopeRoot({ rootPath, projectRoot });
+  const resolved = await resolveAgentConfigPath({
+    rootPath: normalizedRoot,
+    worktreePath,
+    cellId,
+    filename: PROJECT_FILENAMES[0],
+  });
+  return {
+    filePath: resolved.filePath,
+    legacyPath: resolveLegacyAgentConfigPath(worktreePath, AGENT_PREFIX, AGENT_EXT),
+  };
+}
+
+async function readProjectReplyQuickPrompts({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+} = {}) {
+  const { filePath, legacyPath } = await resolveProjectReplyQuickPromptsPath({
+    rootPath,
+    projectRoot,
+    worktreePath,
+  });
+  const resolvedPath =
+    filePath && fs.existsSync(filePath)
+      ? filePath
+      : legacyPath && fs.existsSync(legacyPath)
+        ? legacyPath
+        : '';
+  if (!resolvedPath) {
     return [];
   }
-  const filePath = getProjectReplyQuickPromptsPath(worktreePath);
-  if (!filePath || !fs.existsSync(filePath)) {
-    return [];
-  }
-  const raw = await fsp.readFile(filePath, 'utf-8');
+  const raw = await fsp.readFile(resolvedPath, 'utf-8');
   try {
     return normalizePromptList(yaml.load(raw));
   } catch (error) {
@@ -117,15 +164,28 @@ async function readProjectReplyQuickPrompts(worktreePath) {
   }
 }
 
-async function readAgentReplyQuickPrompts(worktreePath) {
-  if (!worktreePath) {
+async function readAgentReplyQuickPrompts({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+  cellId = '',
+} = {}) {
+  const { filePath, legacyPath } = await resolveAgentReplyQuickPromptsPath({
+    rootPath,
+    projectRoot,
+    worktreePath,
+    cellId,
+  });
+  const resolvedPath =
+    filePath && fs.existsSync(filePath)
+      ? filePath
+      : legacyPath && fs.existsSync(legacyPath)
+        ? legacyPath
+        : '';
+  if (!resolvedPath) {
     return [];
   }
-  const filePath = getAgentReplyQuickPromptsPath(worktreePath);
-  if (!filePath || !fs.existsSync(filePath)) {
-    return [];
-  }
-  const raw = await fsp.readFile(filePath, 'utf-8');
+  const raw = await fsp.readFile(resolvedPath, 'utf-8');
   try {
     return normalizePromptList(yaml.load(raw));
   } catch (error) {
@@ -133,22 +193,42 @@ async function readAgentReplyQuickPrompts(worktreePath) {
   }
 }
 
-async function writeProjectReplyQuickPrompts(worktreePath, prompts) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required for project reply quick prompts.');
+async function writeProjectReplyQuickPrompts({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+  prompts,
+}: any = {}) {
+  const { filePath } = await resolveProjectReplyQuickPromptsPath({
+    rootPath,
+    projectRoot,
+    worktreePath,
+  });
+  if (!filePath) {
+    throw new Error('Project root is required for project reply quick prompts.');
   }
-  const filePath = getProjectReplyQuickPromptsPath(worktreePath);
   await fsp.mkdir(path.dirname(filePath), { recursive: true });
   const normalized = normalizePromptList(prompts);
   await fsp.writeFile(filePath, yaml.dump(normalized, { lineWidth: 120 }), 'utf-8');
   return normalized;
 }
 
-async function writeAgentReplyQuickPrompts(worktreePath, prompts) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required for agent reply quick prompts.');
+async function writeAgentReplyQuickPrompts({
+  rootPath = '',
+  projectRoot = '',
+  worktreePath = '',
+  cellId = '',
+  prompts,
+}: any = {}) {
+  const { filePath } = await resolveAgentReplyQuickPromptsPath({
+    rootPath,
+    projectRoot,
+    worktreePath,
+    cellId,
+  });
+  if (!filePath) {
+    throw new Error('Project root and cell id are required for agent reply quick prompts.');
   }
-  const filePath = getAgentReplyQuickPromptsPath(worktreePath);
   await fsp.mkdir(path.dirname(filePath), { recursive: true });
   const normalized = normalizePromptList(prompts);
   await fsp.writeFile(filePath, yaml.dump(normalized, { lineWidth: 120 }), 'utf-8');
@@ -197,21 +277,37 @@ function resolveReplyQuickPrompts({
 }
 
 async function getReplyQuickPrompts(params: any = {}) {
-  const { scope = 'resolved', worktreePath } = params || {};
+  const {
+    scope = 'resolved',
+    worktreePath,
+    rootPath = '',
+    projectRoot = '',
+    cellId,
+  } = params || {};
   if (scope === 'global') {
     return readGlobalReplyQuickPrompts();
   }
   if (scope === 'project') {
-    return readProjectReplyQuickPrompts(worktreePath);
+    return readProjectReplyQuickPrompts({ rootPath, projectRoot, worktreePath });
   }
   if (scope === 'agent') {
-    return readAgentReplyQuickPrompts(worktreePath);
+    return readAgentReplyQuickPrompts({
+      rootPath,
+      projectRoot,
+      worktreePath,
+      cellId,
+    });
   }
 
   const [globalPrompts, projectPrompts, agentPrompts] = await Promise.all([
     readGlobalReplyQuickPrompts(),
-    readProjectReplyQuickPrompts(worktreePath),
-    readAgentReplyQuickPrompts(worktreePath),
+    readProjectReplyQuickPrompts({ rootPath, projectRoot, worktreePath }),
+    readAgentReplyQuickPrompts({
+      rootPath,
+      projectRoot,
+      worktreePath,
+      cellId,
+    }),
   ]);
   return resolveReplyQuickPrompts({
     globalPrompts,
@@ -221,12 +317,30 @@ async function getReplyQuickPrompts(params: any = {}) {
 }
 
 async function setReplyQuickPrompts(params: any = {}) {
-  const { scope = 'global', worktreePath, prompts } = params || {};
+  const {
+    scope = 'global',
+    worktreePath,
+    rootPath = '',
+    projectRoot = '',
+    cellId,
+    prompts,
+  } = params || {};
   if (scope === 'project') {
-    return writeProjectReplyQuickPrompts(worktreePath, prompts);
+    return writeProjectReplyQuickPrompts({
+      rootPath,
+      projectRoot,
+      worktreePath,
+      prompts,
+    });
   }
   if (scope === 'agent') {
-    return writeAgentReplyQuickPrompts(worktreePath, prompts);
+    return writeAgentReplyQuickPrompts({
+      rootPath,
+      projectRoot,
+      worktreePath,
+      cellId,
+      prompts,
+    });
   }
   return writeGlobalReplyQuickPrompts(prompts);
 }

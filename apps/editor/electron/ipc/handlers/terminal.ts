@@ -12,6 +12,7 @@ const {
   resolveSessionForAttach,
   recreateSession,
 } = require('../../services/sessions');
+const { resolveCellContext } = require('../../services/cells');
 const {
   ensureInteractiveAttach,
   markInteractive,
@@ -40,40 +41,62 @@ function setupTerminalHandlers({ getMainWindow }) {
   });
 
   ipcMain.handle('terminal:start', async (_event, payload) => {
-    const { cellId, worktreePath, mode, sessionId } = payload || {};
-    if (!cellId || !worktreePath) {
+    const { cellId, worktreePath, projectRoot, mode, sessionId } = payload || {};
+    if (!cellId) {
       logRuntime('error', 'terminal start failed (missing context)', { cellId, worktreePath });
-      throw new Error('cellId and worktreePath are required.');
+      throw new Error('cellId is required.');
     }
-    if (!require('fs').existsSync(worktreePath)) {
+    const cellContext = await resolveCellContext({
+      cellId,
+      worktreePath,
+      rootPath: projectRoot || worktreePath,
+    });
+    const resolvedWorktreePath = String(
+      cellContext?.attachedWorktreePath || worktreePath || ''
+    ).trim();
+    if (!resolvedWorktreePath || !require('fs').existsSync(resolvedWorktreePath)) {
       logRuntime('error', 'terminal start failed (missing worktree)', {
         cellId,
-        worktreePath,
+        worktreePath: resolvedWorktreePath || worktreePath,
       });
-      throw new Error(`Worktree path does not exist: ${worktreePath}`);
+      throw new Error('Cell worktree attachment is missing.');
     }
     let resolvedSessionId = sessionId || 'default';
     try {
       let resolvedSession;
       if (sessionId) {
         try {
-          resolvedSession = await resolveSessionForAttach({ worktreePath, sessionId });
+          resolvedSession = await resolveSessionForAttach({
+            cellId,
+            worktreePath: resolvedWorktreePath,
+            sessionId,
+            projectRoot,
+          });
         } catch (error) {
           const message = error?.message || '';
           if (message.includes('Session not found') || message.includes('Session is stale')) {
-            resolvedSession = await recreateSession({ cellId, worktreePath, sessionId });
+            resolvedSession = await recreateSession({
+              cellId,
+              worktreePath: resolvedWorktreePath,
+              sessionId,
+              projectRoot,
+            });
           } else {
             throw error;
           }
         }
       } else {
-        resolvedSession = await ensureDefaultSession({ cellId, worktreePath });
+        resolvedSession = await ensureDefaultSession({
+          cellId,
+          worktreePath: resolvedWorktreePath,
+          projectRoot,
+        });
       }
       resolvedSessionId = resolvedSession.id;
       const record = await ensureInteractiveAttach({
         cellId,
         sessionId: resolvedSession.id,
-        worktreePath,
+        worktreePath: resolvedWorktreePath,
         mode: mode || 'shell',
         resolvedSession,
       });
