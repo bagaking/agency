@@ -298,6 +298,7 @@ export function AppLayout({
             bindingsByProfile,
             activeProfileId,
             scope: actionsScope,
+            onSelectScope: onSelectActionsScope,
             scopeDisabled: actionsScopeDisabled,
             scopePaths: {
               project: projectActionsPath,
@@ -332,6 +333,7 @@ export function AppLayout({
           appShortcutsViewProps={{
             actions: appShortcutRows,
             scope: appShortcutsScope,
+            onSelectScope: onSelectAppShortcutsScope,
             scopeDisabled: appShortcutsScopeDisabled,
             scopePaths: appShortcutsPaths,
             error: appShortcutsError,
@@ -345,6 +347,7 @@ export function AppLayout({
           }}
           replyQuickPromptsViewProps={{
             scope: replyQuickPromptsScope,
+            onSelectScope: onSelectReplyQuickPromptsScope,
             scopeDisabled: replyQuickPromptsScopeDisabled,
             scopePaths: replyQuickPromptsPaths,
             prompts: replyQuickPromptsRows,
@@ -360,6 +363,7 @@ export function AppLayout({
           }}
           sessionNamingViewProps={{
             scope: sessionNamingScope,
+            onSelectScope: onSelectSessionNamingScope,
             scopeDisabled: sessionNamingScopeDisabled,
             scopePaths: sessionNamingPaths,
             settings: sessionNamingSettings,
@@ -379,6 +383,7 @@ export function AppLayout({
           gatesViewProps={{
             gates: gateRows,
             scope: gateScope,
+            onSelectScope: onSelectGateScope,
             stage: gateStage,
             scopeDisabled: gateScopeDisabled,
             scopePaths: {

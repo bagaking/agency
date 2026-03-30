@@ -9,6 +9,7 @@ export function QuickActionsView({
   bindingsByProfile = new Map(),
   activeProfileId,
   scope,
+  onSelectScope,
   scopeDisabled,
   scopePaths,
   error,
@@ -83,6 +84,7 @@ export function QuickActionsView({
       description="Manage action profiles, shortcuts, and bindings within the selected scope."
       scope={scope}
       scopeOptions={scopeOptions}
+      onSelectScope={onSelectScope}
       sourceHint={scopeHint}
       sourceNote={sourceNote}
       status={headerStatus}
