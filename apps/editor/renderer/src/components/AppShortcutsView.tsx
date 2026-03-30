@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Camera, Mic, Command, RotateCcw, Check, Users, FolderOpen } from 'lucide-react';
 import { focusRing } from './ui/focusRing';
+import { HierarchyPageShell, buildScopeOptions, type ScopePaths } from './hierarchy/HierarchyPageShell';
 
 const scopeLabels = {
   global: 'Global',
@@ -79,6 +80,7 @@ const formatScopeLabel = (value) => scopeLabels[value] || value;
 export function AppShortcutsView({
   actions,
   scope,
+  onSelectScope,
   scopeDisabled,
   scopePaths,
   error,
@@ -112,6 +114,7 @@ export function AppShortcutsView({
       : scope === 'project'
         ? scopePath || 'Select a project to edit project app shortcuts.'
         : scopePath || 'Select a Cell to edit agent app shortcuts.';
+  const scopeOptions = buildScopeOptions(scopePaths as ScopePaths);
   const inheritedFromLabel = selectedAction?.meta?.inheritedFrom
     ? formatScopeLabel(selectedAction.meta.inheritedFrom)
     : '';
@@ -122,6 +125,32 @@ export function AppShortcutsView({
       : 'Inherited';
 
   const hasOverride = Boolean(selectedAction?.meta?.isLocal && scope !== 'global');
+  const headerStatus = (
+    <span
+      className={`text-[10px] font-bold uppercase tracking-widest ${
+        dirty ? 'text-amber-400/80' : 'text-emerald-400/80'
+      }`}
+    >
+      {dirty ? 'Unsaved Changes' : 'All Changes Saved'}
+    </span>
+  );
+  const headerActions = (
+    <button
+      type="button"
+      onClick={onSave}
+      disabled={saving || scopeDisabled || !dirty}
+      className={`inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm shadow-primary/20 transition-colors hover:bg-primary/90 disabled:opacity-50 ${focusRingClass}`}
+    >
+      <Check size={14} aria-hidden="true" />
+      {saving ? 'Saving…' : 'Save'}
+    </button>
+  );
+  const sourceNote =
+    'App shortcuts are fixed actions with per-scope overrides. The selected scope controls which entries are editable and which remain inherited.';
+  const disabledMessage =
+    scope === 'project'
+      ? 'Project scope requires an open project root. Open a project to configure Project-scoped shortcuts.'
+      : 'Agent scope requires a selected Cell. Select a Cell to configure Agent-scoped shortcuts.';
 
   const handleToggleEnabled = () => {
     if (!selectedAction) {
@@ -217,46 +246,23 @@ export function AppShortcutsView({
   };
 
   return (
-    <section className="flex h-full flex-1 flex-col bg-background">
-      <header className="flex flex-wrap items-center gap-3 border-b border-border px-6 py-4">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-foreground">App Shortcuts</h2>
-            <div className="rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border border-primary/30 bg-primary/5 text-primary">
-              {scopeLabel} Scope
-            </div>
-          </div>
-          <div className="mt-1 flex items-center gap-2 overflow-hidden">
-            <span className="text-[10px] font-bold uppercase text-muted-foreground/40 whitespace-nowrap">Source:</span>
-            <span
-              className="text-[11px] text-muted-foreground font-mono truncate opacity-60"
-              title={scopeHint}
-            >
-              {scopeHint}
-            </span>
-          </div>
+    <HierarchyPageShell
+      title="App Shortcuts"
+      description="Configure the fixed keyboard actions that drive high-frequency Agency behaviors."
+      scope={scope}
+      scopeOptions={scopeOptions}
+      onSelectScope={onSelectScope}
+      sourceHint={scopeHint}
+      sourceNote={sourceNote}
+      status={headerStatus}
+      actions={headerActions}
+    >
+      {scopeDisabled ? (
+        <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-200/85">
+          {disabledMessage}
         </div>
-        <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
-          <span
-            className={`text-[10px] font-bold uppercase tracking-widest ${
-              dirty ? 'text-amber-400/80' : 'text-emerald-400/80'
-            }`}
-          >
-            {dirty ? 'Unsaved Changes' : 'All Changes Saved'}
-          </span>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={saving || scopeDisabled || !dirty}
-            className={`inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm shadow-primary/20 transition-colors hover:bg-primary/90 disabled:opacity-50 ${focusRingClass}`}
-          >
-            <Check size={14} aria-hidden="true" />
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-        </div>
-      </header>
-
-      <div className="flex flex-1 overflow-hidden">
+      ) : null}
+      <div className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-border/60 bg-card/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
         <aside className="w-80 border-r border-border bg-muted/10 p-3 overflow-y-auto">
           <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 px-2 pb-2">
             Actions
@@ -380,7 +386,7 @@ export function AppShortcutsView({
 
       {error ? (
         <div
-          className="border-t border-border px-6 py-3 text-xs text-rose-200 bg-rose-500/10 flex items-center justify-between"
+          className="mt-4 flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200"
           role="status"
           aria-live="polite"
         >
@@ -397,6 +403,6 @@ export function AppShortcutsView({
           </button>
         </div>
       ) : null}
-    </section>
+    </HierarchyPageShell>
   );
 }
