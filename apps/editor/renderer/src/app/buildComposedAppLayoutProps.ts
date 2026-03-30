@@ -329,6 +329,20 @@ export function buildComposedAppLayoutProps({
     hilDraftsProps,
     hilReplyProps,
     memoDrawerProps,
+    attentionRailProps: {
+      focusData: {
+        cell: layoutState.selectedCell,
+        session:
+          sessionsState.sessions.find(
+            (session: any) => session.id === sessionsState.activeSessionId
+          ) || null,
+      },
+      harnessRuns: sessionsState.harnessRuns || [],
+      sessionError: sessionsState.sessionError || '',
+      onClearSessionError: sessionsState.clearSessionError,
+      onCancelHarnessRun: sessionsState.cancelHarnessRun,
+      onResumeHarnessRun: sessionsState.resumeHarnessRun,
+    },
     appLayoutActionSheetsProps,
     appLayoutExplorerSidebarProps,
     appLayoutExplorerPaneProps,

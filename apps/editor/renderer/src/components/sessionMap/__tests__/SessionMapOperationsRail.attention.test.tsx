@@ -5,56 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { SessionMapOperationsRail } from '../SessionMapOperationsRail';
 
-const attentionItems = [
-  {
-    id: 'failed-run',
-    kind: 'failed',
-    ownerKind: 'run',
-    severity: 'critical',
-    label: 'Failed Run',
-    detail: 'Primary failure.',
-    refs: {
-      runId: 'run-failed',
-      cellId: 'cell-a',
-      sessionId: 'session-a',
-    },
-    source: 'local',
-    updatedAtMs: 3,
-    count: 1,
-  },
-  {
-    id: 'review-child',
-    kind: 'return_required',
-    ownerKind: 'session',
-    severity: 'high',
-    label: 'Review Child',
-    detail: 'Child session needs review.',
-    refs: {
-      cellId: 'cell-a',
-      sessionId: 'session-child',
-    },
-    source: 'local',
-    updatedAtMs: 2,
-    count: 1,
-  },
-  {
-    id: 'unread-background',
-    kind: 'unread',
-    ownerKind: 'session',
-    severity: 'medium',
-    label: 'Unread Session',
-    detail: 'Background output arrived.',
-    refs: {
-      cellId: 'cell-b',
-      sessionId: 'session-b',
-    },
-    source: 'local',
-    updatedAtMs: 1,
-    count: 1,
-  },
-];
-
-test('SessionMapOperationsRail renders the full priority queue without truncation', () => {
+test('SessionMapOperationsRail stays focused on evidence instead of queue or commander chrome', () => {
   const html = renderToStaticMarkup(
     <SessionMapOperationsRail
       focusData={{
@@ -67,23 +18,18 @@ test('SessionMapOperationsRail renders the full priority queue without truncatio
           name: 'Main',
         },
       }}
-      attentionItems={attentionItems}
       harnessRuns={[]}
       sessionError=""
       onClearSessionError={() => undefined}
       onCancelHarnessRun={() => undefined}
       onResumeHarnessRun={() => undefined}
-      onSelectAttention={() => undefined}
     />
   );
 
-  assert.equal((html.match(/data-attention-item-id=/g) || []).length, 3);
-  assert.match(html, /Failed Run/);
-  assert.match(html, /Review Child/);
-  assert.match(html, /Unread Session/);
-  assert.match(html, /Open briefing/);
-  assert.match(html, /max-h-32/);
-  assert.match(html, /Primary failure\./);
+  assert.match(html, /Ops Evidence/);
   assert.match(html, /No active backend directive/);
+  assert.doesNotMatch(html, /Priority Queue/);
+  assert.doesNotMatch(html, /data-attention-item-id=/);
+  assert.doesNotMatch(html, /Open briefing/);
   assert.doesNotMatch(html, /Harness Run/);
 });

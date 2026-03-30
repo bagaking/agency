@@ -4,6 +4,7 @@ import { ActivityBar } from './ActivityBar';
 import { SidebarDock } from './layout/SidebarDock';
 import { AppSidebarContent } from './layout/AppSidebarContent';
 import { AppMainPanels } from './layout/AppMainPanels';
+import { AppAttentionRail } from './layout/AppAttentionRail';
 import { AppHilPanel } from './layout/AppHilPanel';
 
 export function AppLayout({
@@ -186,6 +187,7 @@ export function AppLayout({
   hilDraftsProps,
   hilReplyProps,
   memoDrawerProps,
+  attentionRailProps,
   actionSheetsProps,
   onConfigureProfile,
 }: AppLayoutProps) {
@@ -431,6 +433,8 @@ export function AppLayout({
             onOpenSoftlinks,
           }}
         />
+
+        <AppAttentionRail {...attentionRailProps} />
 
         <AppHilPanel
           activeView={activeView}

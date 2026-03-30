@@ -3,7 +3,7 @@ import { CircleOff, MoreHorizontal, Plus } from 'lucide-react';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
 import { resolveSessionAvatarId } from '../../utils/agentAvatar';
 import { TacticalFrame } from './SessionMapFrames';
-import { SessionMapRightStation } from './SessionMapRightStation';
+import { SessionMapOperationsRail } from './SessionMapOperationsRail';
 
 const CELL_CARD_MIN_WIDTH = 248;
 const CELL_CARD_MAX_WIDTH = 396;
@@ -129,14 +129,8 @@ export function SessionMapDockLayout({
   onClearSessionError,
   onCancelHarnessRun,
   onResumeHarnessRun,
-  onOpenCommanderBriefing,
-  onCloseCommanderBriefing,
-  commanderBriefingOpen = false,
-  commanderTriggerRef,
-  attentionItems,
   cellAttentionById,
   sessionAttentionByKey,
-  onSelectAttention,
 }: any) {
   const dockGridTemplateColumns = '92px minmax(0,1.58fr) minmax(400px,1.02fr)';
 
@@ -296,20 +290,14 @@ export function SessionMapDockLayout({
         </div>
       </div>
 
-      {/* Right Station */}
-        <SessionMapRightStation
-          focusData={focusData}
-          attentionItems={attentionItems}
-          harnessRuns={harnessRuns}
+      {/* Ops Evidence */}
+      <SessionMapOperationsRail
+        focusData={focusData}
+        harnessRuns={harnessRuns}
         sessionError={sessionError}
         onClearSessionError={onClearSessionError}
         onCancelHarnessRun={onCancelHarnessRun}
         onResumeHarnessRun={onResumeHarnessRun}
-          onSelectAttention={onSelectAttention}
-          commanderBriefingOpen={commanderBriefingOpen}
-          onOpenCommanderBriefing={onOpenCommanderBriefing}
-          onCloseCommanderBriefing={onCloseCommanderBriefing}
-          commanderTriggerRef={commanderTriggerRef}
       />
     </div>
   );

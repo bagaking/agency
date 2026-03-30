@@ -107,6 +107,7 @@ function CommanderTurnCard({
 
 export function SessionMapCommanderBriefing({
   active = true,
+  scopeLabel = 'Session Map Scope',
   focusData,
   harnessRuns,
   sessionError,
@@ -252,7 +253,7 @@ export function SessionMapCommanderBriefing({
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               <span className="rounded-full border border-cyan-300/16 bg-cyan-500/[0.08] px-2 py-0.5 text-[6px] font-bold uppercase tracking-[0.12em] text-cyan-100/74">
-                Session Map Scope
+                {scopeLabel}
               </span>
               <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[6px] font-bold uppercase tracking-[0.12em] text-white/56">
                 {context.sessionName || 'No Focus Session'}

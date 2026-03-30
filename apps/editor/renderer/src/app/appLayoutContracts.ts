@@ -618,6 +618,7 @@ export interface BuildAppLayoutInput {
   hilDraftsProps: UnknownRecord;
   hilReplyProps: UnknownRecord;
   memoDrawerProps: UnknownRecord;
+  attentionRailProps: UnknownRecord;
   appLayoutActionSheetsProps: ActionSheetsPanelProps;
   appLayoutExplorerSidebarProps: ExplorerSidebarProps;
   appLayoutExplorerPaneProps: ExplorerPaneProps;

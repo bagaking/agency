@@ -46,7 +46,6 @@ export function SessionMapOverlay({
   const [offlineMenu, setOfflineMenu] = useState(null);
   const [createMenu, setCreateMenu] = useState(null);
   const [avatarMenu, setAvatarMenu] = useState(null);
-  const [commanderBriefingOpen, setCommanderBriefingOpen] = useState(false);
   const hoverLockRef = useRef(false);
   const clearTimerRef = useRef(null);
   const openTimerRef = useRef(null);
@@ -56,17 +55,7 @@ export function SessionMapOverlay({
   const offlineMenuRef = useRef(null);
   const createMenuRef = useRef(null);
   const avatarMenuRef = useRef(null);
-  const commanderTriggerRef = useRef(null);
   const isDocked = mode === 'dock';
-  const closeCommanderBriefing = useCallback(() => {
-    setCommanderBriefingOpen(false);
-    requestAnimationFrame(() => {
-      commanderTriggerRef.current?.focus?.();
-    });
-  }, []);
-  const toggleCommanderBriefing = useCallback(() => {
-    setCommanderBriefingOpen((current) => !current);
-  }, []);
   const isDebugEnabled = useCallback(() => getDebugFlag(DEBUG_FLAGS.sessionMapPreview), []);
   const logDebug = useCallback(
     (label, payload = {}) => {
@@ -260,7 +249,6 @@ export function SessionMapOverlay({
     setAvatarMenu(null);
     setCreateMenu(null);
     setOfflineMenu(null);
-    setCommanderBriefingOpen(false);
   }, [open]);
 
   useEffect(() => {
@@ -479,10 +467,6 @@ export function SessionMapOverlay({
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
-        if (commanderBriefingOpen) {
-          closeCommanderBriefing();
-          return;
-        }
         onClose();
         return;
       }
@@ -593,7 +577,7 @@ export function SessionMapOverlay({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [closeCommanderBriefing, commanderBriefingOpen, onClose, open]);
+  }, [onClose, open]);
 
   if (!open || !model) {
     return null;
@@ -703,16 +687,10 @@ export function SessionMapOverlay({
             sessionError={sessionError}
             onClearSessionError={onClearSessionError}
             onCancelHarnessRun={onCancelHarnessRun}
-        onResumeHarnessRun={onResumeHarnessRun}
-        onOpenCommanderBriefing={toggleCommanderBriefing}
-        onCloseCommanderBriefing={closeCommanderBriefing}
-        commanderBriefingOpen={commanderBriefingOpen}
-        commanderTriggerRef={commanderTriggerRef}
-        attentionItems={attention.localItems}
-        cellAttentionById={attention.byCellId}
-        sessionAttentionByKey={attention.bySessionKey}
-        onSelectAttention={attention.jumpToAttention}
-      />
+            onResumeHarnessRun={onResumeHarnessRun}
+            cellAttentionById={attention.byCellId}
+            sessionAttentionByKey={attention.bySessionKey}
+          />
         ) : (
           <SessionMapGridLayout
             model={model}
