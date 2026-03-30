@@ -43,6 +43,11 @@ Changing the control SHALL NOT implicitly write or rewrite `.agency/workbench.ya
 - **THEN** the workbench removes the local override for that file
 - **AND** the effective language falls back to the project rule or built-in detection chain
 
+#### Scenario: Restore local override from window UI state
+- **WHEN** a user reopens the same window/project context after setting a local Workbench language override
+- **THEN** the workbench restores the override from window-local UI state for that file
+- **AND** `.agency/workbench.yaml` remains unchanged unless the repository file was edited explicitly outside the control
+
 ### Requirement: Workbench Language Choice Does Not Loosen Edit Safety
 Workbench language selection SHALL NOT redefine secure file-kind detection.
 Language overrides and project rules SHALL only affect tokenizer/language choice for files that are already in a text-capable editor flow.

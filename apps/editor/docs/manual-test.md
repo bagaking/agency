@@ -26,6 +26,9 @@
 - [ ] Add `.agency/workbench.yaml` with a language rule such as `Tiltfile -> python`, open the matching file in Workbench, and confirm the editor language follows the project rule instead of builtin fallback.
 - [ ] Use a root-level glob rule such as `**/*.env.local -> dotenv`, open both `.env.local` and `config/.env.local`, and confirm both resolve through the same project rule.
 - [ ] Break `.agency/workbench.yaml` with invalid YAML, reopen or refresh the affected file, and confirm Workbench falls back safely instead of crashing or silently treating the broken policy as a valid rule set.
+- [ ] Open a text-capable file, use the Workbench language control to set a local override, and confirm the control source changes to `Local Override` while the repo policy file stays untouched.
+- [ ] Reset the same file back to `Auto` and confirm the control falls back to `Project Rule` or builtin detection as appropriate.
+- [ ] Open an image, PDF, or unknown-file warning view and confirm Workbench does not show the language control there.
 
 ## Terminal
 - [ ] Open a terminal session and verify output appears.

@@ -42,6 +42,8 @@ import { useWorkbenchDiskSync } from './useWorkbenchDiskSync';
 import { useWorkbenchDocumentCommands } from './useWorkbenchDocumentCommands';
 import { resolveWorkbenchLanguageDecision } from './workbenchLanguageDecision';
 import { useWorkbenchProjectPolicy } from './useWorkbenchProjectPolicy';
+import { useWorkbenchLanguageOverrides } from './useWorkbenchLanguageOverrides';
+import { WorkbenchLanguageControl } from './WorkbenchLanguageControl';
 
 
 export function WorkbenchPane({
@@ -124,14 +126,20 @@ function WorkbenchPaneContent({
   const tabStateByIdRef = useRef({});
   const loadRequestByTabRef = useRef({});
   const projectPolicy = useWorkbenchProjectPolicy(activeRootPath);
+  const languageOverrides = useWorkbenchLanguageOverrides({
+    stateKey: activeRootPath,
+    currentFilePath: activeTab?.path || '',
+  });
 
   const activeState = activeTab ? tabStateById[activeTab.id] || {} : {};
   const resolvedCommentLines = Array.isArray(commentLines) ? commentLines : [];
   const canComment = Boolean(activeTab && activeTab.kind === 'code');
+  const isTextCapableTab = activeState.kind === 'code' || activeState.kind === 'vector';
   const activeLanguageDecision =
-    activeTab && (activeState.kind === 'code' || activeState.kind === 'vector')
+    activeTab && isTextCapableTab
       ? resolveWorkbenchLanguageDecision({
           targetPath: activeTab.path,
+          manualLanguage: languageOverrides.currentFileOverride,
           projectRules: projectPolicy.languages.overrides,
         })
       : null;
@@ -548,10 +556,14 @@ function WorkbenchPaneContent({
         
         <div className="flex items-center gap-6">
             {activeLanguageDecision ? (
-              <div className="flex items-center gap-2">
-                <FileCode size={10} className="text-primary/20" />
-                <span className="text-primary/40">{activeLanguageDecision.label}</span>
-              </div>
+              <WorkbenchLanguageControl
+                decision={activeLanguageDecision}
+                policyWarnings={projectPolicy.warnings}
+                policyError={projectPolicy.error}
+                disabled={!languageOverrides.restored || projectPolicy.loading}
+                onSelectLanguage={languageOverrides.setCurrentFileOverride}
+                onResetToAuto={languageOverrides.resetCurrentFileOverride}
+              />
             ) : (
               <div className="flex items-center gap-2">
                 <FileCode size={10} className="text-primary/20" />

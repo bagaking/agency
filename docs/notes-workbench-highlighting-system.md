@@ -76,10 +76,11 @@ flowchart LR
 ## Current Foundation
 
 Current shipped foundation in this change:
-1. project-level Workbench policy
-2. built-in detection
+1. local manual override from window-local UI state
+2. project-level Workbench policy
+3. built-in detection
 
-The local-override layer is part of the target design for this change, but it is intentionally not treated as shipped behavior until the Workbench control and window-local persistence are landed.
+The current Workbench UI now surfaces the active language source (`Auto`, `Project Rule`, `Local Override`) inside the document-local language control.
 
 ## Current Provider Boundary
 
