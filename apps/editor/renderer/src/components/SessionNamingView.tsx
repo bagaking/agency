@@ -2,12 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Plus, Save, Sparkles, Trash2 } from 'lucide-react';
 import { focusRing } from './ui/focusRing';
 import { formatSessionName } from '../utils/sessionNaming';
-
-const scopeLabels = {
-  global: 'Global',
-  project: 'Project',
-  agent: 'Agent',
-};
+import {
+  HierarchyPageShell,
+  buildScopeOptions,
+  type ScopePaths,
+} from './hierarchy/HierarchyPageShell';
 
 const focusRingClass = focusRing.strong;
 
@@ -29,8 +28,6 @@ const buildPreviewList = ({ rule, nameLists, context }: any) => {
   );
   return samples.filter((item) => item);
 };
-
-const formatScopeLabel = (value) => scopeLabels[value] || value;
 
 function SessionNamingListRow({
   name,
@@ -74,6 +71,7 @@ function SessionNamingListRow({
       <div className="flex items-center gap-2">
         <input
           type="text"
+          aria-label={`Name list name ${name}`}
           value={draftName}
           onChange={(event) => setDraftName(event.target.value)}
           onBlur={handleBlur}
@@ -92,6 +90,7 @@ function SessionNamingListRow({
         </button>
       </div>
       <textarea
+        aria-label={`Name list items ${name}`}
         value={(items || []).join('\n')}
         onChange={handleItemsChange}
         disabled={disabled}
@@ -108,6 +107,7 @@ function SessionNamingListRow({
 
 export function SessionNamingView({
   scope,
+  onSelectScope,
   scopeDisabled,
   scopePaths,
   settings,
@@ -124,7 +124,6 @@ export function SessionNamingView({
   onSave,
   onClearError,
 }: any) {
-  const scopeLabel = formatScopeLabel(scope);
   const scopePath = scopePaths?.[scope] || '';
   const scopeHint =
     scope === 'global'
@@ -132,6 +131,7 @@ export function SessionNamingView({
       : scope === 'project'
         ? scopePath || 'Select a project to edit project session naming.'
         : scopePath || 'Select a Cell to edit agent session naming.';
+  const scopeOptions = buildScopeOptions(scopePaths as ScopePaths);
 
   const previewList = useMemo(() => {
     const source = resolvedSettings || settings || {};
@@ -148,56 +148,63 @@ export function SessionNamingView({
     return entries;
   }, [settings?.nameLists]);
 
-  return (
-    <section className="flex h-full flex-1 flex-col bg-background">
-      <header className="flex flex-wrap items-center gap-3 border-b border-border px-6 py-4">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-foreground">Session Naming</h2>
-            <div className="rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border border-primary/40 text-primary">
-              {scopeLabel} Scope
-            </div>
-          </div>
-          <div className="mt-1 flex items-center gap-2 overflow-hidden">
-            <span className="text-[10px] font-bold uppercase text-muted-foreground/40 whitespace-nowrap">Source:</span>
-            <span
-              className="text-[11px] text-muted-foreground font-mono truncate opacity-60"
-              title={scopeHint}
-            >
-              {scopeHint}
-            </span>
-          </div>
-        </div>
-        <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
-          <span
-            className={`text-[10px] font-bold uppercase tracking-widest ${
-              dirty ? 'text-amber-400/80' : 'text-emerald-400/80'
-            }`}
-          >
-            {dirty ? 'Unsaved Changes' : 'All Changes Saved'}
-          </span>
-          <button
-            type="button"
-            onClick={onAddList}
-            disabled={scopeDisabled}
-            className={`inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary disabled:opacity-50 ${focusRingClass}`}
-          >
-            <Plus size={14} aria-hidden="true" />
-            New List
-          </button>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={saving || scopeDisabled || !dirty}
-            className={`inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm shadow-primary/20 transition-colors hover:bg-primary/90 disabled:opacity-50 ${focusRingClass}`}
-          >
-            <Save size={14} aria-hidden="true" />
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-        </div>
-      </header>
+  const headerStatus = (
+    <span
+      className={`text-[10px] font-bold uppercase tracking-widest ${
+        dirty ? 'text-amber-400/80' : 'text-emerald-400/80'
+      }`}
+    >
+      {dirty ? 'Unsaved Changes' : 'All Changes Saved'}
+    </span>
+  );
+  const headerActions = (
+    <>
+      <button
+        type="button"
+        onClick={onAddList}
+        disabled={scopeDisabled}
+        className={`inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary disabled:opacity-50 ${focusRingClass}`}
+      >
+        <Plus size={14} aria-hidden="true" />
+        New List
+      </button>
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={saving || scopeDisabled || !dirty}
+        className={`inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm shadow-primary/20 transition-colors hover:bg-primary/90 disabled:opacity-50 ${focusRingClass}`}
+      >
+        <Save size={14} aria-hidden="true" />
+        {saving ? 'Saving…' : 'Save'}
+      </button>
+    </>
+  );
+  const sourceNote =
+    'Session naming resolves through layered rules and reusable name lists, so the selected scope changes the source-of-truth without hiding the resolved preview.';
+  const disabledMessage =
+    scope === 'project'
+      ? 'Project scope requires an open project root. Open a project to edit Project-scoped naming rules.'
+      : 'Agent scope requires a selected Cell. Select a Cell to edit Agent-scoped naming rules.';
 
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+  return (
+    <HierarchyPageShell
+      title="Session Naming"
+      description="Define naming rules and reusable lists that keep sessions legible across projects and agents."
+      scope={scope}
+      scopeOptions={scopeOptions}
+      onSelectScope={onSelectScope}
+      sourceHint={scopeHint}
+      sourceNote={sourceNote}
+      status={headerStatus}
+      actions={headerActions}
+    >
+      {scopeDisabled ? (
+        <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-200/85">
+          {disabledMessage}
+        </div>
+      ) : null}
+
+      <div className="space-y-6">
         {error ? (
           <div className="flex items-start gap-2 rounded-md border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-xs text-rose-300">
             <AlertCircle size={14} className="mt-0.5" />
@@ -222,6 +229,7 @@ export function SessionNamingView({
             </div>
             <input
               type="text"
+              aria-label="Session naming rule"
               value={settings?.rule || ''}
               onChange={(event) => onUpdateRule?.(event.target.value)}
               disabled={scopeDisabled}
@@ -269,18 +277,11 @@ export function SessionNamingView({
             </div>
           ) : (
             <div className="text-[11px] text-muted-foreground/60">
-              No name lists defined for this scope.
+              No custom name lists in this scope.
             </div>
           )}
         </div>
-
-        <div className="rounded-lg border border-border/60 bg-muted/10 p-4 space-y-2 text-[11px] text-muted-foreground/70">
-          <div className="text-xs font-semibold text-foreground">Suggested Patterns</div>
-          <div>• <code>{'{name:myth:absolute}'} #{'{seq:absolute:02}'}</code></div>
-          <div>• <code>{'{project}'} · {'{cell}'} · {'{time:HHmm}'}</code></div>
-          <div>• <code>{'{profile}'} · {'{seq:active:02}'}</code></div>
-        </div>
       </div>
-    </section>
+    </HierarchyPageShell>
   );
 }

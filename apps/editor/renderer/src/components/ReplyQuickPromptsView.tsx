@@ -2,6 +2,11 @@ import React from 'react';
 import { AlertCircle, Plus, Save, Trash2 } from 'lucide-react';
 import { focusRing } from './ui/focusRing';
 import { scopeLabelMap } from '../utils/replyQuickPrompts';
+import {
+  HierarchyPageShell,
+  buildScopeOptions,
+  type ScopePaths,
+} from './hierarchy/HierarchyPageShell';
 
 const focusRingClass = focusRing.strong;
 
@@ -21,6 +26,7 @@ function PromptRow({ prompt, disabled, onUpdate, onRemove }: any) {
       <div className="flex items-center gap-2">
         <input
           type="text"
+          aria-label="Prompt title"
           value={prompt?.title || ''}
           onChange={(event) => onUpdate?.(prompt.id, { title: event.target.value })}
           disabled={disabled}
@@ -30,6 +36,7 @@ function PromptRow({ prompt, disabled, onUpdate, onRemove }: any) {
         <label className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
           <input
             type="checkbox"
+            aria-label="Prompt enabled"
             checked={prompt?.enabled !== false}
             onChange={(event) => onUpdate?.(prompt.id, { enabled: event.target.checked })}
             disabled={disabled}
@@ -48,6 +55,7 @@ function PromptRow({ prompt, disabled, onUpdate, onRemove }: any) {
         </button>
       </div>
       <textarea
+        aria-label="Prompt text"
         value={prompt?.text || ''}
         onChange={(event) => onUpdate?.(prompt.id, { text: event.target.value })}
         disabled={disabled}
@@ -61,6 +69,7 @@ function PromptRow({ prompt, disabled, onUpdate, onRemove }: any) {
 
 export function ReplyQuickPromptsView({
   scope,
+  onSelectScope,
   scopeDisabled,
   scopePaths,
   prompts,
@@ -74,7 +83,6 @@ export function ReplyQuickPromptsView({
   onSavePrompts,
   onClearError,
 }: any) {
-  const scopeLabel = formatScopeLabel(scope);
   const scopePath = scopePaths?.[scope] || '';
   const scopeHint =
     scope === 'global'
@@ -82,58 +90,64 @@ export function ReplyQuickPromptsView({
       : scope === 'project'
         ? scopePath || 'Select a project to edit project reply quick prompts.'
         : scopePath || 'Select a Cell to edit agent reply quick prompts.';
+  const scopeOptions = buildScopeOptions(scopePaths as ScopePaths);
+  const headerStatus = (
+    <span
+      className={`text-[10px] font-bold uppercase tracking-widest ${
+        dirty ? 'text-amber-400/80' : 'text-emerald-400/80'
+      }`}
+    >
+      {dirty ? 'Unsaved Changes' : 'All Changes Saved'}
+    </span>
+  );
+  const headerActions = (
+    <>
+      <button
+        type="button"
+        onClick={onAddPrompt}
+        disabled={scopeDisabled}
+        className={`inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary disabled:opacity-50 ${focusRingClass}`}
+      >
+        <Plus size={14} />
+        Add Prompt
+      </button>
+      <button
+        type="button"
+        onClick={onSavePrompts}
+        disabled={saving || scopeDisabled || !dirty}
+        className={`inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm shadow-primary/20 transition-colors hover:bg-primary/90 disabled:opacity-50 ${focusRingClass}`}
+      >
+        <Save size={14} />
+        {saving ? 'Saving…' : 'Save'}
+      </button>
+    </>
+  );
+  const sourceNote =
+    'Prompts are authored per scope but previewed as one merged, deduplicated list so the composer result stays legible and auditable.';
+  const disabledMessage =
+    scope === 'project'
+      ? 'Project scope requires an open project root. Open a project to edit Project-scoped quick prompts.'
+      : 'Agent scope requires a selected Cell. Select a Cell to edit Agent-scoped quick prompts.';
 
   return (
-    <section className="flex h-full flex-1 flex-col bg-background">
-      <header className="flex flex-wrap items-center gap-3 border-b border-border px-6 py-4">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-foreground">Reply Quick Prompts</h2>
-            <div className="rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border border-primary/40 text-primary">
-              {scopeLabel} Scope
-            </div>
-          </div>
-          <div className="mt-1 flex items-center gap-2 overflow-hidden">
-            <span className="text-[10px] font-bold uppercase text-muted-foreground/40 whitespace-nowrap">Source:</span>
-            <span
-              className="truncate font-mono text-[11px] text-muted-foreground opacity-60"
-              title={scopeHint}
-            >
-              {scopeHint}
-            </span>
-          </div>
+    <HierarchyPageShell
+      title="Reply Quick Prompts"
+      description="Manage reply snippets by scope while keeping the merged result visible."
+      scope={scope}
+      scopeOptions={scopeOptions}
+      onSelectScope={onSelectScope}
+      sourceHint={scopeHint}
+      sourceNote={sourceNote}
+      status={headerStatus}
+      actions={headerActions}
+    >
+      {scopeDisabled ? (
+        <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-200/85">
+          {disabledMessage}
         </div>
+      ) : null}
 
-        <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
-          <span
-            className={`text-[10px] font-bold uppercase tracking-widest ${
-              dirty ? 'text-amber-400/80' : 'text-emerald-400/80'
-            }`}
-          >
-            {dirty ? 'Unsaved Changes' : 'All Changes Saved'}
-          </span>
-          <button
-            type="button"
-            onClick={onAddPrompt}
-            disabled={scopeDisabled}
-            className={`inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary disabled:opacity-50 ${focusRingClass}`}
-          >
-            <Plus size={14} />
-            Add Prompt
-          </button>
-          <button
-            type="button"
-            onClick={onSavePrompts}
-            disabled={saving || scopeDisabled || !dirty}
-            className={`inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm shadow-primary/20 transition-colors hover:bg-primary/90 disabled:opacity-50 ${focusRingClass}`}
-          >
-            <Save size={14} />
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-        </div>
-      </header>
-
-      <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+      <div className="space-y-5">
         {error ? (
           <div className="flex items-start gap-2 rounded-md border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-xs text-rose-300">
             <AlertCircle size={14} className="mt-0.5" />
@@ -201,6 +215,6 @@ export function ReplyQuickPromptsView({
           </div>
         </div>
       </div>
-    </section>
+    </HierarchyPageShell>
   );
 }

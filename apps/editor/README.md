@@ -27,7 +27,10 @@
 - The docked sidebar supports resize/collapse and persists width state across launches.
 - Agent Cells focuses on Cell management and offers jump links to Actions, Gates, and Softlinks.
 - Agent Cells sidebar now includes an Explorer panel (Cell/Session scope + Flat/Tree views) for quick file open/reveal navigation.
-- Hierarchy hosts configuration for Actions, App Shortcuts, Reply Quick Prompts, Session Naming, Gates, and Softlinks as capability-first pages with a persistent page-level scope selector (Global / Project / Agent) so Project scope remains editable even when no Cell is selected while Agent scope stays tied to the selected Cell.
+- Hierarchy hosts capability-first configuration for Actions, App Shortcuts, Reply Quick Prompts, Session Naming, Gates, Harness Providers, and Softlinks.
+- Scoped capability pages use a persistent page-level scope selector (Global / Project / Agent) so Project scope remains editable even when no Cell is selected while Agent scope stays tied to the selected Cell.
+- Each scoped capability remembers its own last selected scope when you return to that same page; scope is not shared globally across all Hierarchy capabilities.
+- Harness Providers stays global-only, and Softlinks stays repo-level without the Global / Project / Agent selector.
 - Explorer provides a project file tree with git status (including added, untracked, ignored) and per-Cell change attribution.
 - Explorer scopes to the active Cell worktree (or repo root) and opens files in the workbench.
 - Workbench breadcrumbs are segment-clickable and reveal/select the target inside Explorer tree (without invoking OS Finder reveal).
@@ -161,21 +164,31 @@
 - Line comments are stored at `.agency/comments-<worktreeName>.yaml` inside each worktree.
 - Line comments are added from the editor gutter (hover line number → plus → Comment) and previewed in the top-right list.
 
-## Quick Actions
+## Actions (Terminus)
 
-- Quick Actions are configured under Hierarchy -> Actions.
+- Actions are configured under Hierarchy -> Actions.
 - The Actions page now surfaces a page-level scope selector (Global / Project / Agent) so users can stay inside a capability while switching scopes; Project scope edits target the repo root and remain available even without a selected Cell, while Agent scope edits require the selected Cell before changes are enabled.
-- Each action provides `startCommand` and optional `resumeCommand`.
-- Definitions are stored in the editor user data directory as `quick-actions.json` (global scope).
-- Project overrides live at `.agency/quick-actions.yaml` and can replace global actions with matching `id`.
-- Agent overrides live at `.agency/cells/<cell-id>/quick-actions.yaml`.
-- Actions resolve by scope order: Global -> Project -> Agent.
-- Commands can be multi-line scripts executed line-by-line in the active session.
+- The Actions page is currently the Terminus settings surface: it configures profiles, launch commands, fork metadata, and per-profile bindings.
+- Global settings are stored in the editor user data directory as `terminus-settings.json`.
+- Project overrides live at `.agency/terminus-settings.yaml`.
+- Agent overrides live at `.agency/cells/<cell-id>/terminus-settings.yaml`.
+- Terminus settings resolve by scope order: Global -> Project -> Agent.
+- Legacy worktree-local project files may still be read as migration fallback until canonical repo-owned project storage exists.
+
+## App Shortcuts
+
+- App Shortcuts are configured under Hierarchy -> App Shortcuts.
+- The App Shortcuts page uses the same capability-first layout and page-level scope selector (Global / Project / Agent) as other scoped Hierarchy settings.
+- The App Shortcuts page remembers its own last selected scope independently from Actions, Replies, Naming, and Gates.
+- Project scope edits remain available with an open project even when no Cell is selected.
+- Agent scope edits remain tied to the selected Cell and persist under `.agency/cells/<cell-id>/app-shortcuts.yaml`.
+- App shortcut definitions remain a fixed action list that users configure rather than add/remove freely.
 
 ## Reply Quick Prompts
 
 - Reply Quick Prompts are configured under Hierarchy -> Reply Quick Prompts.
 - The Replies page shares the capability-first layout and page-level scope selector (Global / Project / Agent) so project prompts stay editable without a selected Cell and agent prompts stay tied to the selected Cell context.
+- The Replies page remembers its own last selected scope independently from other scoped Hierarchy capabilities.
 - Prompt definitions are scoped as Global, Project, and Agent.
 - Global prompts are stored as `reply-quick-prompts.json` in the editor user data directory.
 - Project prompts are stored at `.agency/reply-quick-prompts.yaml`.
@@ -183,10 +196,20 @@
 - Effective prompts resolve by ordered union + dedupe (Global -> Project -> Agent) using normalized prompt text.
 - The Session Reply composer provides `快捷回复如何` near input controls and inserts the selected resolved prompt at the current cursor position.
 
+## Session Naming
+
+- Session Naming is configured under Hierarchy -> Session Naming.
+- The Session Naming page follows the same scoped capability pattern (Global / Project / Agent) as Actions, App Shortcuts, Reply Quick Prompts, and Gates.
+- The Session Naming page remembers its own last selected scope independently from other scoped Hierarchy capabilities.
+- Project scope edits remain available with an open project even when no Cell is selected.
+- Agent scope edits remain tied to the selected Cell and persist under `.agency/cells/<cell-id>/session-naming.yaml`.
+- Naming previews continue to show the resolved output so users can inspect the merged behavior while editing one scope at a time.
+
 ## Gates
 
 - Gates are configured under Hierarchy -> Gates.
 - The Gates page follows the capability-first layout and page-level scope selector (Global / Project / Agent) so the project scope stays editable even when no Cell is selected and Agent scope remains tied to the selected Cell.
+- The Gates page remembers its own last selected scope independently from other scoped Hierarchy capabilities.
 - Gate definitions are grouped by stage: `draft`, `active`, and `archived`.
 - Global gates live in the editor user data directory as `gates.yaml`.
 - Project gates live at `.agency/gates.yaml` in the repo root.
@@ -197,6 +220,7 @@
 
 ## Softlinks (Local Directories)
 
+- Softlinks remains a repo-level Hierarchy capability and does not participate in the Global / Project / Agent scope selector.
 - Softlink configuration lives at `.agency/worktree-links.yaml` in the repo root.
 - Links define `source` (repo root) and `target` (worktree root) paths.
 - The editor can link missing directories into a selected Cell with one click.

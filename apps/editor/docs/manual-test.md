@@ -63,12 +63,17 @@
 
 ## Hierarchy
 - [ ] Open Hierarchy -> Actions and confirm the capability-first layout with a page-level scope selector (Global / Project / Agent); project scope remains editable without a selected Cell while Agent scope stays disabled until a Cell is selected.
-- [ ] While in Project scope, update a quick action or prompt and save, then verify `.agency/quick-actions.yaml` or `.agency/reply-quick-prompts.yaml` at the repo root reflects the change even though no Cell is selected.
-- [ ] Select a Cell, switch to Agent scope on a capability page (e.g., Actions or Reply Quick Prompts), make an edit, save, and verify the change is persisted under `.agency/cells/<cell-id>/quick-actions.yaml` or `.agency/cells/<cell-id>/reply-quick-prompts.yaml`.
-- [ ] Switch from one capability page (Actions) to another (Gates) while a scope is selected and confirm the page-level scope selector keeps the same scope active so work can continue within that context.
+- [ ] Open Hierarchy -> App Shortcuts and Session Naming and confirm both pages use the same page-level scope selector contract as Actions/Replies/Gates rather than falling back to a bespoke local layout.
+- [ ] While in Project scope, update a Terminus profile/binding on Actions or a prompt on Reply Quick Prompts and save, then verify `.agency/terminus-settings.yaml` or `.agency/reply-quick-prompts.yaml` at the repo root reflects the change even though no Cell is selected.
+- [ ] While in Project scope, update an app shortcut or session naming rule and save, then verify `.agency/app-shortcuts.yaml` or `.agency/session-naming.yaml` at the repo root reflects the change even though no Cell is selected.
+- [ ] Select a Cell, switch to Agent scope on a capability page (e.g., Actions or Reply Quick Prompts), make an edit, save, and verify the change is persisted under `.agency/cells/<cell-id>/terminus-settings.yaml` or `.agency/cells/<cell-id>/reply-quick-prompts.yaml`.
+- [ ] With a selected Cell, edit Agent-scoped App Shortcuts or Session Naming, save, then verify the change persists under `.agency/cells/<cell-id>/app-shortcuts.yaml` or `.agency/cells/<cell-id>/session-naming.yaml`.
+- [ ] Select Project scope on Actions, switch away, then return to Actions and confirm that page restores Project scope; repeat with a different scope on App Shortcuts or Gates and confirm each capability remembers its own last scope independently.
 - [ ] With no Cell selected, attempt to choose Agent scope on a capability page and confirm the UI keeps the scope disabled and prompts to select a Cell before edits are allowed.
+- [ ] Remove or detach a Cell worktree after saving Agent-scoped Hierarchy settings, reopen Hierarchy for the same project/Cell context, and confirm Project scope still resolves from repo-root `.agency/` while Agent scope still targets `.agency/cells/<cell-id>/...` rather than disappearing with the old worktree.
 
 ## Softlinks
+- [ ] Open Softlinks from Hierarchy and confirm it remains a repo-level page without the Global / Project / Agent scope selector.
 - [ ] Open Softlinks view and confirm ignored/untracked candidates appear.
 - [ ] Add a link for `.codex`, save, and link it into the selected Cell.
 - [ ] Enable auto-link, create a new Cell, and verify links are created in the worktree.

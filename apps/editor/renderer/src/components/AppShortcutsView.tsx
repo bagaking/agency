@@ -256,153 +256,157 @@ export function AppShortcutsView({
       sourceNote={sourceNote}
       status={headerStatus}
       actions={headerActions}
+      contentScroll={false}
     >
-      {scopeDisabled ? (
-        <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-200/85">
-          {disabledMessage}
-        </div>
-      ) : null}
-      <div className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-border/60 bg-card/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-        <aside className="w-80 border-r border-border bg-muted/10 p-3 overflow-y-auto">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 px-2 pb-2">
-            Actions
+      <div className="flex h-full min-h-0 flex-col gap-4">
+        {scopeDisabled ? (
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-200/85">
+            {disabledMessage}
           </div>
-          <div className="space-y-1">{actions?.map(renderActionRow)}</div>
-        </aside>
+        ) : null}
 
-        <div className="flex flex-1 flex-col overflow-y-auto p-6">
-          {selectedAction ? (
-            <div className="max-w-2xl space-y-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="text-xl font-semibold text-foreground">{selectedAction.label}</div>
-                  <div className="text-sm text-muted-foreground/70">{selectedAction.description}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
-                    Status
-                  </div>
-                  <div className="text-xs font-medium text-foreground">{statusLabel}</div>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-border/50 bg-card/60 p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
-                      Enabled
-                    </div>
-                    <div className="text-sm text-foreground">Use this shortcut in the app.</div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleToggleEnabled}
-                    disabled={scopeDisabled}
-                    role="switch"
-                    aria-checked={selectedAction.enabled}
-                    aria-label={`Toggle ${selectedAction.label || selectedAction.id} shortcut`}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-colors ${focusRingClass} ${
-                      selectedAction.enabled ? 'bg-primary/70 border-primary/60' : 'bg-muted/40 border-border'
-                    } ${scopeDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                        selectedAction.enabled ? 'translate-x-5' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
-                    Shortcut
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      disabled={scopeDisabled}
-                      name={`app-shortcut-${selectedAction.id}`}
-                      autoComplete="off"
-                      aria-label="Shortcut key"
-                      value={
-                        capturingId === selectedAction.id
-                          ? 'Press keys…'
-                          : selectedAction.shortcut || 'Unassigned'
-                      }
-                      onFocus={handleCaptureStart}
-                      onClick={handleCaptureStart}
-                      onKeyDown={capturingId === selectedAction.id ? handleCaptureKeyDown : undefined}
-                      onBlur={() => setCapturingId('')}
-                      className={`w-full rounded-md border border-border bg-muted/10 px-3 py-2 text-sm font-mono text-foreground ${focusRingClass} ${
-                        scopeDisabled ? 'opacity-60 cursor-not-allowed' : ''
-                      }`}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleClearShortcut}
-                      disabled={scopeDisabled || !selectedAction.shortcut}
-                      className={`inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/40 ${focusRingClass} ${
-                        scopeDisabled ? 'opacity-40 cursor-not-allowed' : ''
-                      }`}
-                    >
-                      Clear
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground/60">
-                    Click the field and press a key combination. Press Escape to cancel.
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between border-t border-border/50 pt-3">
-                  <div className="text-[11px] text-muted-foreground/70">
-                    {hasOverride
-                      ? 'This shortcut overrides a parent scope.'
-                      : scope === 'global'
-                        ? 'Global defaults apply to all cells.'
-                        : 'Inherited from a parent scope.'}
-                  </div>
-                  {scope !== 'global' ? (
-                    <button
-                      type="button"
-                      onClick={() => onResetAction?.(selectedAction.id)}
-                      disabled={scopeDisabled || !selectedAction.meta?.isLocal}
-                      className={`inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/40 ${focusRingClass} ${
-                        scopeDisabled || !selectedAction.meta?.isLocal ? 'opacity-40 cursor-not-allowed' : ''
-                      }`}
-                    >
-                      <RotateCcw size={12} />
-                      Reset to Inherited
-                    </button>
-                  ) : null}
-                </div>
-              </div>
+        {error ? (
+          <div
+            className="flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="flex items-center gap-2">
+              <AlertCircle size={14} />
+              <span>{error}</span>
             </div>
-          ) : (
-            <div className="text-sm text-muted-foreground">Select an action to configure.</div>
-          )}
+            <button
+              type="button"
+              className={`text-[10px] uppercase tracking-widest ${focusRingClass}`}
+              onClick={onClearError}
+            >
+              Dismiss
+            </button>
+          </div>
+        ) : null}
+
+        <div className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-border/60 bg-card/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+          <aside className="w-80 border-r border-border bg-muted/10 p-3 overflow-y-auto">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 px-2 pb-2">
+              Actions
+            </div>
+            <div className="space-y-1">{actions?.map(renderActionRow)}</div>
+          </aside>
+
+          <div className="flex flex-1 flex-col overflow-y-auto p-6">
+            {selectedAction ? (
+              <div className="max-w-2xl space-y-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-xl font-semibold text-foreground">{selectedAction.label}</div>
+                    <div className="text-sm text-muted-foreground/70">{selectedAction.description}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                      Status
+                    </div>
+                    <div className="text-xs font-medium text-foreground">{statusLabel}</div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/50 bg-card/60 p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+                        Enabled
+                      </div>
+                      <div className="text-sm text-foreground">Use this shortcut in the app.</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleToggleEnabled}
+                      disabled={scopeDisabled}
+                      role="switch"
+                      aria-checked={selectedAction.enabled}
+                      aria-label={`Toggle ${selectedAction.label || selectedAction.id} shortcut`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-colors ${focusRingClass} ${
+                        selectedAction.enabled ? 'bg-primary/70 border-primary/60' : 'bg-muted/40 border-border'
+                      } ${scopeDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                          selectedAction.enabled ? 'translate-x-5' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+                      Shortcut
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        disabled={scopeDisabled}
+                        name={`app-shortcut-${selectedAction.id}`}
+                        autoComplete="off"
+                        aria-label="Shortcut key"
+                        value={
+                          capturingId === selectedAction.id
+                            ? 'Press keys…'
+                            : selectedAction.shortcut || 'Unassigned'
+                        }
+                        onFocus={handleCaptureStart}
+                        onClick={handleCaptureStart}
+                        onKeyDown={capturingId === selectedAction.id ? handleCaptureKeyDown : undefined}
+                        onBlur={() => setCapturingId('')}
+                        className={`w-full rounded-md border border-border bg-muted/10 px-3 py-2 text-sm font-mono text-foreground ${focusRingClass} ${
+                          scopeDisabled ? 'opacity-60 cursor-not-allowed' : ''
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleClearShortcut}
+                        disabled={scopeDisabled || !selectedAction.shortcut}
+                        className={`inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/40 ${focusRingClass} ${
+                          scopeDisabled ? 'opacity-40 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground/60">
+                      Click the field and press a key combination. Press Escape to cancel.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-border/50 pt-3">
+                    <div className="text-[11px] text-muted-foreground/70">
+                      {hasOverride
+                        ? 'This shortcut overrides a parent scope.'
+                        : scope === 'global'
+                          ? 'Global defaults apply to all cells.'
+                          : 'Inherited from a parent scope.'}
+                    </div>
+                    {scope !== 'global' ? (
+                      <button
+                        type="button"
+                        onClick={() => onResetAction?.(selectedAction.id)}
+                        disabled={scopeDisabled || !selectedAction.meta?.isLocal}
+                        className={`inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/40 ${focusRingClass} ${
+                          scopeDisabled || !selectedAction.meta?.isLocal ? 'opacity-40 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        <RotateCcw size={12} />
+                        Reset to Inherited
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">Select an action to configure.</div>
+            )}
+          </div>
         </div>
       </div>
-
-      {error ? (
-        <div
-          className="mt-4 flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200"
-          role="status"
-          aria-live="polite"
-        >
-          <div className="flex items-center gap-2">
-            <AlertCircle size={14} />
-            <span>{error}</span>
-          </div>
-          <button
-            type="button"
-            className={`text-[10px] uppercase tracking-widest ${focusRingClass}`}
-            onClick={onClearError}
-          >
-            Dismiss
-          </button>
-        </div>
-      ) : null}
     </HierarchyPageShell>
   );
 }

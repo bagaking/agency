@@ -9,6 +9,7 @@ import {
   ServerCog,
   Link2,
 } from 'lucide-react';
+import { focusRing } from './ui/focusRing';
 
 type ScopeId = 'global' | 'project' | 'agent';
 
@@ -307,7 +308,7 @@ function CapabilityRow({
       onClick={onClick}
       disabled={isDisabled}
       data-testid={dataTestId}
-      className={`group flex w-full gap-4 rounded-2xl border px-4 py-3 text-left transition-all ${
+      className={`group flex w-full gap-4 rounded-2xl border px-4 py-3 text-left transition-all ${focusRing.sidebar} ${
         selected
           ? 'border-primary/40 bg-primary/5 shadow-[0_16px_40px_rgba(15,23,42,0.15)]'
           : 'border-border/40 bg-card/60 hover:border-primary/40 hover:bg-muted/30'
