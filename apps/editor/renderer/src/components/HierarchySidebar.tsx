@@ -1,15 +1,92 @@
 import React from 'react';
+import type { LucideIcon } from 'lucide-react';
 import {
   SquareTerminal,
-  FolderClosed,
-  User,
-  Link2,
+  Command,
+  MessageSquareText,
+  Tag,
   ShieldCheck,
   ServerCog,
-  Command,
-  Tag,
-  MessageSquareText,
+  Link2,
 } from 'lucide-react';
+
+type ScopeId = 'global' | 'project' | 'agent';
+
+type ScopeSummary = {
+  globalOverrides?: boolean;
+  projectOverrides?: boolean;
+  agentOverrides?: boolean;
+  agentLabel?: string;
+};
+
+type HierarchySidebarProps = {
+  section?: string;
+  actionsScope?: ScopeId;
+  appShortcutsScope?: ScopeId;
+  replyQuickPromptsScope?: ScopeId;
+  sessionNamingScope?: ScopeId;
+  gateScope?: ScopeId;
+  onSelectActionsScope?: (scope: ScopeId) => void;
+  onSelectHarnessProviders?: () => void;
+  onSelectAppShortcutsScope?: (scope: ScopeId) => void;
+  onSelectReplyQuickPromptsScope?: (scope: ScopeId) => void;
+  onSelectSessionNamingScope?: (scope: ScopeId) => void;
+  onSelectGateScope?: (scope: ScopeId) => void;
+  onSelectSoftlinks?: () => void;
+  canUseProjectScope?: boolean;
+  canUseAgentScope?: boolean;
+  actionSummary?: ScopeSummary;
+  harnessProvidersDirty?: boolean;
+  appShortcutsSummary?: ScopeSummary;
+  replyQuickPromptsSummary?: ScopeSummary;
+  sessionNamingSummary?: ScopeSummary;
+  gateSummary?: ScopeSummary;
+};
+
+type CapabilityDefinition = {
+  id: string;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  scope?: ScopeId;
+  summary?: ScopeSummary;
+  statusLabel?: string;
+  onSelect?: () => void;
+};
+
+const SCOPE_LABELS: Record<ScopeId, string> = {
+  global: 'Global',
+  project: 'Project',
+  agent: 'Agent',
+};
+
+function getScopeLabel(scope?: ScopeId) {
+  return scope ? SCOPE_LABELS[scope] : undefined;
+}
+
+function getScopeMeta(summary?: ScopeSummary, scope?: ScopeId) {
+  if (!summary || !scope) {
+    return undefined;
+  }
+
+  if (scope === 'global') {
+    return summary.globalOverrides ? 'Overrides' : 'Base';
+  }
+
+  if (scope === 'project') {
+    return summary.projectOverrides ? 'Custom' : 'Inherit';
+  }
+
+  if (scope === 'agent') {
+    return summary.agentOverrides ? 'Custom' : 'Inherit';
+  }
+
+  return undefined;
+}
+
+function inferScope(scope?: ScopeId): ScopeId {
+  return scope ?? 'global';
+}
 
 export function HierarchySidebar({
   section,
@@ -33,194 +110,244 @@ export function HierarchySidebar({
   replyQuickPromptsSummary,
   sessionNamingSummary,
   gateSummary,
-}: any) {
+}: HierarchySidebarProps) {
+  const primaryAgentLabel =
+    actionSummary?.agentLabel ||
+    appShortcutsSummary?.agentLabel ||
+    replyQuickPromptsSummary?.agentLabel ||
+    sessionNamingSummary?.agentLabel ||
+    gateSummary?.agentLabel ||
+    'Select Cell';
+
+  const capabilityDefinitions: CapabilityDefinition[] = [
+    {
+      id: 'actions',
+      title: 'Terminus',
+      description: 'Quick actions, profiles, and bindings that follow the current scope.',
+      icon: SquareTerminal,
+      scope: actionsScope,
+      summary: actionSummary,
+      onSelect: () => onSelectActionsScope?.(inferScope(actionsScope)),
+    },
+    {
+      id: 'app-shortcuts',
+      title: 'App Shortcuts',
+      description: 'Customize keyboard shortcuts scoped to your workspace and agents.',
+      icon: Command,
+      scope: appShortcutsScope,
+      summary: appShortcutsSummary,
+      onSelect: () => onSelectAppShortcutsScope?.(inferScope(appShortcutsScope)),
+    },
+    {
+      id: 'reply-quick-prompts',
+      title: 'Reply Quick Prompts',
+      description: 'Preset replies that can be tuned per project or agent.',
+      icon: MessageSquareText,
+      scope: replyQuickPromptsScope,
+      summary: replyQuickPromptsSummary,
+      onSelect: () => onSelectReplyQuickPromptsScope?.(inferScope(replyQuickPromptsScope)),
+    },
+    {
+      id: 'session-naming',
+      title: 'Session Naming',
+      description: 'Rules that automate how sessions get named per scope.',
+      icon: Tag,
+      scope: sessionNamingScope,
+      summary: sessionNamingSummary,
+      onSelect: () => onSelectSessionNamingScope?.(inferScope(sessionNamingScope)),
+    },
+    {
+      id: 'gates',
+      title: 'Compliance Gates',
+      description: 'Policy gates and approvals for sessions and commands.',
+      icon: ShieldCheck,
+      scope: gateScope,
+      summary: gateSummary,
+      onSelect: () => onSelectGateScope?.(inferScope(gateScope)),
+    },
+    {
+      id: 'harness-providers',
+      title: 'Harness Providers',
+      description: 'Agent harness configuration and CLI providers for the main agent.',
+      icon: ServerCog,
+      statusLabel: harnessProvidersDirty ? 'Unsaved' : 'Synced',
+      onSelect: onSelectHarnessProviders,
+    },
+    {
+      id: 'softlinks',
+      title: 'Directory Softlinks',
+      description: 'Link worktree roots, repositories, and other directories into the workspace.',
+      icon: Link2,
+      statusLabel: 'Active',
+      onSelect: onSelectSoftlinks,
+    },
+  ];
+
+  const capabilityList = capabilityDefinitions.map((capability) => ({
+    ...capability,
+    scopeLabel: getScopeLabel(capability.scope),
+    scopeMeta: getScopeMeta(capability.summary, capability.scope),
+  }));
+
+  const activeCapability =
+    capabilityList.find((capability) => capability.id === section) || capabilityList[0];
+
+  const activeScopeLine = activeCapability.scopeLabel
+    ? `Active scope: ${activeCapability.scopeLabel}${
+        activeCapability.scopeMeta ? ` · ${activeCapability.scopeMeta}` : ''
+      }`
+    : activeCapability.statusLabel
+    ? `Status: ${activeCapability.statusLabel}`
+    : undefined;
+
   return (
     <aside className="flex w-full flex-col text-sidebar-foreground select-none" data-testid="hierarchy-sidebar">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
         <div className="flex flex-col min-w-0">
-            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50 text-xs">Hierarchy</h2>
-            <div className="text-[10px] font-medium text-muted-foreground/40 mt-0.5">Configuration Resolution</div>
+          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">
+            Hierarchy
+          </h2>
+          <div className="text-[10px] font-medium text-muted-foreground/40 mt-0.5">
+            Capability Hub
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 py-4">
-        <div className="mb-2 px-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">TERMINUS</div>
-        <div className="space-y-0.5">
-          <ScopeItem
-            icon={SquareTerminal}
-            label="Global User"
-            meta={actionSummary?.globalOverrides ? 'Overrides' : 'Base'}
-            selected={section === 'actions' && actionsScope === 'global'}
-            onClick={() => onSelectActionsScope?.('global')}
-          />
-          <ScopeItem
-            icon={FolderClosed}
-            label="Project Local"
-            meta={actionSummary?.projectOverrides ? 'Custom' : 'Inherit'}
-            selected={section === 'actions' && actionsScope === 'project'}
-            disabled={!canUseProjectScope}
-            onClick={() => onSelectActionsScope?.('project')}
-          />
-          <ScopeItem
-            icon={User}
-            label={`Agent - ${actionSummary?.agentLabel || 'Select Cell'}`}
-            meta={actionSummary?.agentOverrides ? 'Custom' : 'Inherit'}
-            selected={section === 'actions' && actionsScope === 'agent'}
-            disabled={!canUseAgentScope}
-            onClick={() => onSelectActionsScope?.('agent')}
-          />
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-4">
+        <div className="rounded-2xl border border-border/60 bg-card/30 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+          <div className="text-[10px] font-bold uppercase tracking-[0.35em] text-muted-foreground/50">
+            Current context
+          </div>
+          <div className="mt-2 flex items-center gap-2 text-base font-semibold text-foreground">
+            <activeCapability.icon size={16} strokeWidth={1.5} />
+            {activeCapability.title}
+          </div>
+          {activeCapability.description ? (
+            <p className="mt-1 text-[12px] text-muted-foreground/80">
+              {activeCapability.description}
+            </p>
+          ) : null}
+          {activeScopeLine ? (
+            <p className="mt-2 text-[11px] font-semibold text-muted-foreground/70">{activeScopeLine}</p>
+          ) : null}
+          <p className="mt-1 text-[11px] text-muted-foreground/70">
+            Agent cell:
+            <span className="ml-1 font-semibold text-foreground">{primaryAgentLabel}</span>
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span
+              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.35em] ${
+                canUseProjectScope
+                  ? 'border-border/60 text-foreground'
+                  : 'border-border/40 text-muted-foreground/60'
+              }`}
+            >
+              Project scope {canUseProjectScope ? 'ready' : 'locked'}
+            </span>
+            <span
+              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.35em] ${
+                canUseAgentScope
+                  ? 'border-border/60 text-foreground'
+                  : 'border-border/40 text-muted-foreground/60'
+              }`}
+            >
+              Agent scope {canUseAgentScope ? 'ready' : 'locked'}
+            </span>
+          </div>
         </div>
 
-        <div className="mb-2 mt-6 px-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">APP SHORTCUTS</div>
-        <div className="space-y-0.5">
-          <ScopeItem
-            icon={Command}
-            label="Global User"
-            meta={appShortcutsSummary?.globalOverrides ? 'Overrides' : 'Base'}
-            selected={section === 'app-shortcuts' && appShortcutsScope === 'global'}
-            onClick={() => onSelectAppShortcutsScope?.('global')}
-          />
-          <ScopeItem
-            icon={FolderClosed}
-            label="Project Local"
-            meta={appShortcutsSummary?.projectOverrides ? 'Custom' : 'Inherit'}
-            selected={section === 'app-shortcuts' && appShortcutsScope === 'project'}
-            disabled={!canUseProjectScope}
-            onClick={() => onSelectAppShortcutsScope?.('project')}
-          />
-          <ScopeItem
-            icon={User}
-            label={`Agent - ${appShortcutsSummary?.agentLabel || 'Select Cell'}`}
-            meta={appShortcutsSummary?.agentOverrides ? 'Custom' : 'Inherit'}
-            selected={section === 'app-shortcuts' && appShortcutsScope === 'agent'}
-            disabled={!canUseAgentScope}
-            onClick={() => onSelectAppShortcutsScope?.('agent')}
-          />
+        <div className="space-y-3">
+          {capabilityList.map((capability) => (
+            <CapabilityRow
+              key={capability.id}
+              icon={capability.icon}
+              title={capability.title}
+              description={capability.description}
+              scopeLabel={capability.scopeLabel}
+              scopeMeta={capability.scopeMeta}
+              statusLabel={capability.statusLabel}
+              selected={section === capability.id}
+              onClick={capability.onSelect}
+              dataTestId={`hierarchy-sidebar-${capability.id}`}
+            />
+          ))}
         </div>
-
-        <div className="mb-2 mt-6 px-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">REPLY QUICK PROMPTS</div>
-        <div className="space-y-0.5">
-          <ScopeItem
-            icon={MessageSquareText}
-            label="Global User"
-            meta={replyQuickPromptsSummary?.globalOverrides ? 'Overrides' : 'Base'}
-            selected={section === 'reply-quick-prompts' && replyQuickPromptsScope === 'global'}
-            onClick={() => onSelectReplyQuickPromptsScope?.('global')}
-          />
-          <ScopeItem
-            icon={FolderClosed}
-            label="Project Local"
-            meta={replyQuickPromptsSummary?.projectOverrides ? 'Custom' : 'Inherit'}
-            selected={section === 'reply-quick-prompts' && replyQuickPromptsScope === 'project'}
-            disabled={!canUseProjectScope}
-            onClick={() => onSelectReplyQuickPromptsScope?.('project')}
-          />
-          <ScopeItem
-            icon={User}
-            label={`Agent - ${replyQuickPromptsSummary?.agentLabel || 'Select Cell'}`}
-            meta={replyQuickPromptsSummary?.agentOverrides ? 'Custom' : 'Inherit'}
-            selected={section === 'reply-quick-prompts' && replyQuickPromptsScope === 'agent'}
-            disabled={!canUseAgentScope}
-            onClick={() => onSelectReplyQuickPromptsScope?.('agent')}
-          />
-        </div>
-
-        <div className="mb-2 mt-6 px-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">SESSION NAMING</div>
-        <div className="space-y-0.5">
-          <ScopeItem
-            icon={Tag}
-            label="Global User"
-            meta={sessionNamingSummary?.globalOverrides ? 'Overrides' : 'Base'}
-            selected={section === 'session-naming' && sessionNamingScope === 'global'}
-            onClick={() => onSelectSessionNamingScope?.('global')}
-          />
-          <ScopeItem
-            icon={FolderClosed}
-            label="Project Local"
-            meta={sessionNamingSummary?.projectOverrides ? 'Custom' : 'Inherit'}
-            selected={section === 'session-naming' && sessionNamingScope === 'project'}
-            disabled={!canUseProjectScope}
-            onClick={() => onSelectSessionNamingScope?.('project')}
-          />
-          <ScopeItem
-            icon={User}
-            label={`Agent - ${sessionNamingSummary?.agentLabel || 'Select Cell'}`}
-            meta={sessionNamingSummary?.agentOverrides ? 'Custom' : 'Inherit'}
-            selected={section === 'session-naming' && sessionNamingScope === 'agent'}
-            disabled={!canUseAgentScope}
-            onClick={() => onSelectSessionNamingScope?.('agent')}
-          />
-        </div>
-
-        <div className="mb-2 mt-6 px-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">COMPLIANCE GATES</div>
-        <div className="space-y-0.5">
-          <ScopeItem
-            icon={ShieldCheck}
-            label="Global Policy"
-            meta={gateSummary?.globalOverrides ? 'Overrides' : 'Base'}
-            selected={section === 'gates' && gateScope === 'global'}
-            onClick={() => onSelectGateScope?.('global')}
-          />
-          <ScopeItem
-            icon={FolderClosed}
-            label="Project Specific"
-            meta={gateSummary?.projectOverrides ? 'Custom' : 'Inherit'}
-            selected={section === 'gates' && gateScope === 'project'}
-            disabled={!canUseProjectScope}
-            onClick={() => onSelectGateScope?.('project')}
-          />
-          <ScopeItem
-            icon={User}
-            label={`Agent - ${gateSummary?.agentLabel || 'Select Cell'}`}
-            meta={gateSummary?.agentOverrides ? 'Custom' : 'Inherit'}
-            selected={section === 'gates' && gateScope === 'agent'}
-            disabled={!canUseAgentScope}
-            onClick={() => onSelectGateScope?.('agent')}
-          />
-        </div>
-
-        <div className="mb-2 mt-6 px-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">SHARED STATE</div>
-        <div className="space-y-0.5">
-          <ScopeItem
-            icon={ServerCog}
-            label="Harness Providers"
-            meta={harnessProvidersDirty ? 'Unsaved' : 'Global'}
-            selected={section === 'harness-providers'}
-            onClick={() => onSelectHarnessProviders?.()}
-          />
-          <ScopeItem
-            icon={Link2}
-            label="Directory Softlinks"
-            meta="Active"
-            selected={section === 'softlinks'}
-            onClick={() => onSelectSoftlinks?.()}
-          />
-        </div>
-
       </div>
     </aside>
   );
 }
 
-function ScopeItem({ icon: Icon, label, meta, selected, disabled, onClick }: any) {
+type CapabilityRowProps = {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  scopeLabel?: string;
+  scopeMeta?: string;
+  statusLabel?: string;
+  selected?: boolean;
+  onClick?: () => void;
+  dataTestId?: string;
+};
+
+function CapabilityRow({
+  icon: Icon,
+  title,
+  description,
+  scopeLabel,
+  scopeMeta,
+  statusLabel,
+  selected,
+  onClick,
+  dataTestId,
+}: CapabilityRowProps) {
+  const isDisabled = !onClick;
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
-      className={`group flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-xs transition-all ${
+      disabled={isDisabled}
+      data-testid={dataTestId}
+      className={`group flex w-full gap-4 rounded-2xl border px-4 py-3 text-left transition-all ${
         selected
-          ? 'bg-primary/10 text-foreground'
-          : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'
-      } ${disabled ? 'cursor-not-allowed opacity-30' : ''}`}
+          ? 'border-primary/40 bg-primary/5 shadow-[0_16px_40px_rgba(15,23,42,0.15)]'
+          : 'border-border/40 bg-card/60 hover:border-primary/40 hover:bg-muted/30'
+      } ${isDisabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
     >
-      <Icon size={14} strokeWidth={1.5} className={selected ? 'text-primary' : 'opacity-50'} />
-      <span className="truncate font-medium">{label}</span>
-      {meta ? (
-        <span className="ml-auto text-[9px] font-bold uppercase tracking-tighter text-muted-foreground/40">
-          {meta}
-        </span>
-      ) : null}
+      <div
+        className={`flex h-11 w-11 items-center justify-center rounded-2xl border ${
+          selected
+            ? 'border-primary/40 bg-primary/5 text-primary'
+            : 'border-border/50 bg-background/60 text-muted-foreground'
+        }`}
+      >
+        <Icon size={18} strokeWidth={1.5} />
+      </div>
+
+      <div className="flex flex-1 flex-col">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold text-foreground">{title}</span>
+          {statusLabel ? (
+            <span className="rounded-full border border-border/60 bg-muted/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+              {statusLabel}
+            </span>
+          ) : null}
+        </div>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground/70">{description}</p>
+        {(scopeLabel || scopeMeta) && (
+          <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/70">
+            {scopeLabel ? (
+              <span className="rounded-full border border-border/50 bg-muted/10 px-2 py-0.5">
+                {scopeLabel} scope
+              </span>
+            ) : null}
+            {scopeMeta ? (
+              <span className="rounded-full border border-border/50 bg-muted/10 px-2 py-0.5">
+                {scopeMeta}
+              </span>
+            ) : null}
+          </div>
+        )}
+      </div>
     </button>
   );
 }

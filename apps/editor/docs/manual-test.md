@@ -61,6 +61,13 @@
 - [ ] Resume a cancelled or failed Harness run and confirm completed steps stay recorded while the remaining work continues from the Harness state store.
 - [ ] Close a session and confirm it moves to overflow; restore it and confirm topology metadata is preserved.
 
+## Hierarchy
+- [ ] Open Hierarchy -> Actions and confirm the capability-first layout with a page-level scope selector (Global / Project / Agent); project scope remains editable without a selected Cell while Agent scope stays disabled until a Cell is selected.
+- [ ] While in Project scope, update a quick action or prompt and save, then verify `.agency/quick-actions.yaml` or `.agency/reply-quick-prompts.yaml` at the repo root reflects the change even though no Cell is selected.
+- [ ] Select a Cell, switch to Agent scope on a capability page (e.g., Actions or Reply Quick Prompts), make an edit, save, and verify the change is persisted under `.agency/cells/<cell-id>/quick-actions.yaml` or `.agency/cells/<cell-id>/reply-quick-prompts.yaml`.
+- [ ] Switch from one capability page (Actions) to another (Gates) while a scope is selected and confirm the page-level scope selector keeps the same scope active so work can continue within that context.
+- [ ] With no Cell selected, attempt to choose Agent scope on a capability page and confirm the UI keeps the scope disabled and prompts to select a Cell before edits are allowed.
+
 ## Softlinks
 - [ ] Open Softlinks view and confirm ignored/untracked candidates appear.
 - [ ] Add a link for `.codex`, save, and link it into the selected Cell.

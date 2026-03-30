@@ -27,7 +27,7 @@
 - The docked sidebar supports resize/collapse and persists width state across launches.
 - Agent Cells focuses on Cell management and offers jump links to Actions, Gates, and Softlinks.
 - Agent Cells sidebar now includes an Explorer panel (Cell/Session scope + Flat/Tree views) for quick file open/reveal navigation.
-- Hierarchy hosts configuration for Actions, App Shortcuts, Reply Quick Prompts, Session Naming, Gates, and Softlinks.
+- Hierarchy hosts configuration for Actions, App Shortcuts, Reply Quick Prompts, Session Naming, Gates, and Softlinks as capability-first pages with a persistent page-level scope selector (Global / Project / Agent) so Project scope remains editable even when no Cell is selected while Agent scope stays tied to the selected Cell.
 - Explorer provides a project file tree with git status (including added, untracked, ignored) and per-Cell change attribution.
 - Explorer scopes to the active Cell worktree (or repo root) and opens files in the workbench.
 - Workbench breadcrumbs are segment-clickable and reveal/select the target inside Explorer tree (without invoking OS Finder reveal).
@@ -164,30 +164,33 @@
 ## Quick Actions
 
 - Quick Actions are configured under Hierarchy -> Actions.
+- The Actions page now surfaces a page-level scope selector (Global / Project / Agent) so users can stay inside a capability while switching scopes; Project scope edits target the repo root and remain available even without a selected Cell, while Agent scope edits require the selected Cell before changes are enabled.
 - Each action provides `startCommand` and optional `resumeCommand`.
 - Definitions are stored in the editor user data directory as `quick-actions.json` (global scope).
 - Project overrides live at `.agency/quick-actions.yaml` and can replace global actions with matching `id`.
-- Agent overrides live at `.agency/quick-actions-<worktreeName>.yaml`.
+- Agent overrides live at `.agency/cells/<cell-id>/quick-actions.yaml`.
 - Actions resolve by scope order: Global -> Project -> Agent.
 - Commands can be multi-line scripts executed line-by-line in the active session.
 
 ## Reply Quick Prompts
 
 - Reply Quick Prompts are configured under Hierarchy -> Reply Quick Prompts.
+- The Replies page shares the capability-first layout and page-level scope selector (Global / Project / Agent) so project prompts stay editable without a selected Cell and agent prompts stay tied to the selected Cell context.
 - Prompt definitions are scoped as Global, Project, and Agent.
 - Global prompts are stored as `reply-quick-prompts.json` in the editor user data directory.
 - Project prompts are stored at `.agency/reply-quick-prompts.yaml`.
-- Agent prompts are stored at `.agency/reply-quick-prompts-<worktreeName>.yaml`.
+- Agent prompts are stored at `.agency/cells/<cell-id>/reply-quick-prompts.yaml`.
 - Effective prompts resolve by ordered union + dedupe (Global -> Project -> Agent) using normalized prompt text.
 - The Session Reply composer provides `快捷回复如何` near input controls and inserts the selected resolved prompt at the current cursor position.
 
 ## Gates
 
 - Gates are configured under Hierarchy -> Gates.
+- The Gates page follows the capability-first layout and page-level scope selector (Global / Project / Agent) so the project scope stays editable even when no Cell is selected and Agent scope remains tied to the selected Cell.
 - Gate definitions are grouped by stage: `draft`, `active`, and `archived`.
 - Global gates live in the editor user data directory as `gates.yaml`.
 - Project gates live at `.agency/gates.yaml` in the repo root.
-- Agent gates live at `.agency/gates-<worktreeName>.yaml` in the worktree.
+- Agent gates live at `.agency/cells/<cell-id>/gates.yaml`.
 - Gates resolve by scope order: Global -> Project -> Agent, matching by `id`.
 - Gate commands run line-by-line via `/bin/zsh -lc` from the repo root; empty/comment lines are skipped and failures block transitions to Active/Archived.
 - Gate commands receive context in `AGENCY_CELL_NAME`, `AGENCY_WORKTREE_PATH`, and `AGENCY_LIFECYCLE_TARGET`.

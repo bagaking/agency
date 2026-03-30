@@ -1,11 +1,32 @@
 import React from 'react';
 import { focusRing } from '../ui/focusRing';
+import type { ScopedConfigScope } from '../../app/appLayoutContracts';
 
 type ScopeOption = {
-  id: string;
+  id: ScopedConfigScope;
   label: string;
   disabled?: boolean;
 };
+
+export type ScopePaths = Partial<Record<ScopedConfigScope, string>>;
+
+const BASE_SCOPE_OPTIONS: ScopeOption[] = [
+  { id: 'global', label: 'Global' },
+  { id: 'project', label: 'Project' },
+  { id: 'agent', label: 'Agent' },
+];
+
+export function buildScopeOptions(paths?: ScopePaths): ScopeOption[] {
+  return BASE_SCOPE_OPTIONS.map((option) => ({
+    ...option,
+    disabled:
+      option.id === 'project'
+        ? !paths?.project
+        : option.id === 'agent'
+          ? !paths?.agent
+          : undefined,
+  }));
+}
 
 type HierarchyPageShellProps = {
   title: string;
@@ -14,9 +35,9 @@ type HierarchyPageShellProps = {
   sourceNote?: string;
   status?: React.ReactNode;
   actions?: React.ReactNode;
-  scope?: string;
+  scope?: ScopedConfigScope;
   scopeOptions?: ScopeOption[];
-  onSelectScope?: (scope: string) => void;
+  onSelectScope?: (scope: ScopedConfigScope) => void;
   children: React.ReactNode;
 };
 
@@ -25,11 +46,11 @@ function ScopeSwitcher({
   scopeOptions,
   onSelectScope,
 }: {
-  scope?: string;
+  scope?: ScopedConfigScope;
   scopeOptions?: ScopeOption[];
-  onSelectScope?: (scope: string) => void;
+  onSelectScope?: (scope: ScopedConfigScope) => void;
 }) {
-  if (!scopeOptions?.length || !onSelectScope) {
+  if (!scopeOptions?.length) {
     return null;
   }
 
@@ -42,7 +63,7 @@ function ScopeSwitcher({
             key={option.id}
             type="button"
             disabled={option.disabled}
-            onClick={() => onSelectScope(option.id)}
+            onClick={() => onSelectScope?.(option.id)}
             aria-pressed={selected}
             className={`min-w-[84px] rounded-xl px-3 py-2 text-xs font-semibold transition-all ${focusRing.default} ${
               selected
