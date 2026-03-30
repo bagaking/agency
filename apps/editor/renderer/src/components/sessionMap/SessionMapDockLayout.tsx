@@ -182,7 +182,7 @@ export function SessionMapDockLayout({
                 onMouseEnter={() => setHoveredCellId(point.id)}
                 onMouseLeave={() => setHoveredCellId(null)}
                 onClick={() => focusClusterCard(point.id)}
-                aria-label="Locate cell in command center"
+                aria-label={`Locate ${point.id || 'cell'} in command center`}
               />
             );
           })}
@@ -227,6 +227,7 @@ export function SessionMapDockLayout({
                         }}
                         className="flex h-4.5 w-4.5 items-center justify-center rounded border border-white/16 bg-black/36 text-white/55 transition-colors hover:bg-white/10 hover:text-white"
                         title="Create session"
+                        aria-label={`Create session in ${cluster.cell?.name || cluster.cell?.id || 'cell'}`}
                         data-session-create-anchor="true"
                       >
                         <Plus size={11} />
@@ -274,6 +275,7 @@ export function SessionMapDockLayout({
                           onOpenOfflineMenu(event.currentTarget, cluster.cell, offlineSessions)
                         }
                         data-session-map-offline-trigger="true"
+                        aria-label={`Show offline sessions for ${cluster.cell?.name || cluster.cell?.id || 'cell'}`}
                       >
                         <MoreHorizontal size={14} />
                       </button>

@@ -334,9 +334,12 @@ export function buildComposedAppLayoutProps({
       focusData: {
         cell: layoutState.selectedCell,
         session:
-          sessionsState.sessions.find(
-            (session: any) => session.id === sessionsState.activeSessionId
-          ) || null,
+          (layoutState.selectedCell?.id
+            ? (sessionsState.sessionsByCellId?.[layoutState.selectedCell.id] || []).find(
+                (session: any) =>
+                  session.id === sessionsState.activeSessionByCellId?.[layoutState.selectedCell.id]
+              )
+            : null) || null,
       },
       harnessRuns: sessionsState.harnessRuns || [],
       sessionError: sessionsState.sessionError || '',

@@ -39,7 +39,7 @@ export function AppAttentionRail({
   const attention = useAttentionLayer();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<RailMode>('attention');
-  const autoOpenedRef = useRef(false);
+  const autoOpenedKeyRef = useRef('');
   const focusRingClass = focusRing.default;
   const runList = Array.isArray(harnessRuns) ? harnessRuns : [];
   const activeCommanderRun = useMemo(
@@ -59,18 +59,19 @@ export function AppAttentionRail({
   );
   const queueCount = queueItems.length;
   const primarySeverity = String(attention.primaryItem?.severity || '').trim().toLowerCase();
+  const primaryAttentionKey = String(attention.primaryItem?.id || '').trim();
   const shouldAutoOpen = primarySeverity === 'critical' || primarySeverity === 'high';
 
   useEffect(() => {
-    if (!shouldAutoOpen || autoOpenedRef.current || mode === 'briefing') {
+    if (!shouldAutoOpen || mode === 'briefing') {
       return;
     }
-    if (!queueCount) {
+    if (!queueCount || !primaryAttentionKey || autoOpenedKeyRef.current === primaryAttentionKey) {
       return;
     }
-    autoOpenedRef.current = true;
+    autoOpenedKeyRef.current = primaryAttentionKey;
     setOpen(true);
-  }, [mode, queueCount, shouldAutoOpen]);
+  }, [mode, primaryAttentionKey, queueCount, shouldAutoOpen]);
 
   useEffect(() => {
     if (mode === 'briefing') {
@@ -125,7 +126,10 @@ export function AppAttentionRail({
           <div className="flex items-center gap-2 border-b border-white/[0.06] px-2 py-2">
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setMode('attention');
+                setOpen(false);
+              }}
               aria-label="Collapse attention rail"
               className={`flex h-6 w-6 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white ${focusRingClass}`}
             >

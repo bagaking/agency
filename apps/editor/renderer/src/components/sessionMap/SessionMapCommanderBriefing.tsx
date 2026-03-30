@@ -358,6 +358,7 @@ export function SessionMapCommanderBriefing({
               ref={inputRef}
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
+              aria-label="Ask commander about current session or run"
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {
                   event.preventDefault();

@@ -91,6 +91,24 @@ const attentionValue = {
   jumpToAttention: () => undefined,
 };
 
+function buildAttentionValue(primaryId: string, label: string) {
+  return {
+    ...attentionValue,
+    localItems: [
+      {
+        ...attentionValue.localItems[0],
+        id: primaryId,
+        label,
+      },
+    ],
+    primaryItem: {
+      ...attentionValue.primaryItem,
+      id: primaryId,
+      label,
+    },
+  };
+}
+
 function setupDom() {
   const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', {
     url: 'http://localhost/',
@@ -220,6 +238,87 @@ test('AppAttentionRail hosts queue and commander briefing outside Session Map', 
     });
 
     assert.ok(document.body.textContent?.includes('Priority Queue'));
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});
+
+test('AppAttentionRail reopens for a new severe item after collapsing from briefing mode', async () => {
+  const env = setupDom();
+  try {
+    function Harness() {
+      const [currentAttention, setCurrentAttention] = React.useState(
+        buildAttentionValue('failed-run', 'Failed Run')
+      );
+
+      return (
+        <>
+          <button type="button" onClick={() => setCurrentAttention(buildAttentionValue('failed-run-2', 'Second Failure'))}>
+            trigger-next-attention
+          </button>
+          <AttentionLayerProvider value={currentAttention as any}>
+            <AppAttentionRail
+              focusData={{
+                cell: { id: 'cell-a', name: 'main' },
+                session: { id: 'session-main', name: 'UI' },
+              }}
+              harnessRuns={[runningRun]}
+              sessionError=""
+              onClearSessionError={() => undefined}
+              onCancelHarnessRun={() => undefined}
+              onResumeHarnessRun={() => undefined}
+            />
+          </AttentionLayerProvider>
+        </>
+      );
+    }
+
+    const root = createRoot(document.getElementById('root')!);
+    await act(async () => {
+      root.render(<Harness />);
+    });
+
+    const commanderButton = Array.from(document.querySelectorAll('button')).find((node) =>
+      String(node.textContent || '').includes('CODEX CLI')
+    ) as HTMLButtonElement | undefined;
+    assert.ok(commanderButton);
+
+    await act(async () => {
+      commanderButton.click();
+    });
+
+    const collapseButton = document.querySelector(
+      '[aria-label="Collapse attention rail"]'
+    ) as HTMLButtonElement | null;
+    assert.ok(collapseButton);
+
+    await act(async () => {
+      collapseButton.click();
+    });
+
+    assert.equal(
+      document.querySelector('[data-attention-rail]')?.getAttribute('data-attention-rail'),
+      'closed'
+    );
+
+    const nextAttentionButton = Array.from(document.querySelectorAll('button')).find((node) =>
+      String(node.textContent || '').includes('trigger-next-attention')
+    ) as HTMLButtonElement | undefined;
+    assert.ok(nextAttentionButton);
+
+    await act(async () => {
+      nextAttentionButton.click();
+    });
+
+    assert.equal(
+      document.querySelector('[data-attention-rail]')?.getAttribute('data-attention-rail'),
+      'open'
+    );
+    assert.ok(document.body.textContent?.includes('Second Failure'));
 
     await act(async () => {
       root.unmount();

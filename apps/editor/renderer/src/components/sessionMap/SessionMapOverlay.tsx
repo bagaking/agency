@@ -661,6 +661,7 @@ export function SessionMapOverlay({
                 type="button"
                 className="flex h-4.5 w-4.5 items-center justify-center rounded-lg bg-white/[0.04] text-white/55 transition-colors hover:bg-rose-500/18 hover:text-rose-200"
                 onClick={onClose}
+                aria-label="Close Session Map"
               >
                 <X size={12} />
               </button>

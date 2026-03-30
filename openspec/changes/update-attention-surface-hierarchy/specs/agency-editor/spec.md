@@ -1,15 +1,16 @@
 ## MODIFIED Requirements
 ### Requirement: Cross-Surface Attention Surfacing
-The editor SHALL surface local attention consistently in Session Map, Agent Cells, and shell chrome.
+The editor SHALL surface local attention consistently in a shell-level attention rail, Session Map, Agent Cells, and shell chrome.
 The editor SHALL assign bounded roles to those surfaces instead of letting each one become a generic attention dashboard.
-- Session Map `Ops` SHALL be the current-window queue / triage surface for multiple local attention items.
+- the shell-level attention rail SHALL be the current-window queue / triage surface for multiple local attention items and the host for Commander briefing.
+- Session Map `Ops` SHALL be the focused session/run evidence rail rather than the window-level queue surface.
 - shell chrome SHALL expose compact attention summaries, including the status bar primary item and the window switcher cross-window summary.
 - Agent Cells SHALL surface attention inline on owning Cell and Session affordances and SHALL NOT prepend a queue-style attention panel ahead of the primary Cell / Session management list.
 The editor SHALL surface cross-window attention through the existing window-shell/window-switching path using a minimal window attention summary.
 
-#### Scenario: Session Map owns queue-style triage
+#### Scenario: Shell rail owns queue-style triage
 - **WHEN** the current window has multiple local attention items
-- **THEN** Session Map `Ops` exposes the current-window priority queue
+- **THEN** the shell-level attention rail exposes the current-window priority queue
 - **AND** activating a queue item jumps to the owning object
 
 #### Scenario: Agent Cells keeps Cell management primary

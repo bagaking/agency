@@ -489,3 +489,22 @@ test('buildComposedAppLayoutProps keeps hierarchy jump shortcuts wired through l
   result.onOpenSoftlinks();
   assert.equal(fixture.refs.hierarchyJumpTarget(), 'softlinks');
 });
+
+test('buildComposedAppLayoutProps derives attention rail focus session from the selected cell', () => {
+  const fixture = createFixture();
+  fixture.refs.layoutState.selectedCell = { id: 'cell-2', worktreePath: '/tmp/repo/cell-2' };
+  fixture.refs.sessionsState.sessionsByCellId = {
+    'cell-1': [{ id: 'sess-1', status: 'active' }],
+    'cell-2': [{ id: 'sess-2', status: 'active' }],
+  } as any;
+  fixture.refs.sessionsState.activeSessionId = 'sess-1';
+  fixture.refs.sessionsState.activeSessionByCellId = {
+    'cell-1': 'sess-1',
+    'cell-2': 'sess-2',
+  } as any;
+
+  const result = buildComposedAppLayoutProps(fixture.args as any);
+
+  assert.equal((result.attentionRailProps as any).focusData.cell.id, 'cell-2');
+  assert.equal((result.attentionRailProps as any).focusData.session.id, 'sess-2');
+});
