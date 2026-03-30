@@ -1,15 +1,23 @@
+import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 
-type Mode = 'dir' | 'dmg';
+type Mode = 'dir' | 'dmg' | 'lite';
+type DiskCheck = {
+  targetPath: string;
+  filesystem: string;
+  availableBytes: number;
+};
 
 const projectRoot = path.join(__dirname, '..');
+const distRoot = path.join(projectRoot, 'dist');
+const releaseOutputRoot = path.join(projectRoot, 'dist', 'release');
 const modeArgIndex = process.argv.findIndex((value) => value === '--mode');
 const modeValue =
   modeArgIndex >= 0 && process.argv[modeArgIndex + 1]
     ? String(process.argv[modeArgIndex + 1]).trim().toLowerCase()
     : 'dmg';
-const mode: Mode = modeValue === 'dir' ? 'dir' : 'dmg';
+const mode: Mode = modeValue === 'dir' ? 'dir' : modeValue === 'lite' ? 'lite' : 'dmg';
 
 function parsePositiveGiBOverride(envKey: string, fallbackGiB: number): number {
   const raw = String(process.env[envKey] || '').trim();
@@ -37,7 +45,7 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(digits)} ${units[unitIndex]}`;
 }
 
-function getAvailableBytes(targetPath: string): number {
+function getDiskCheck(targetPath: string): DiskCheck {
   const output = execFileSync('df', ['-kP', targetPath], {
     cwd: projectRoot,
     encoding: 'utf8',
@@ -46,33 +54,168 @@ function getAvailableBytes(targetPath: string): number {
   const lines = output.split('\n').filter(Boolean);
   const dataLine = lines[lines.length - 1] || '';
   const columns = dataLine.trim().split(/\s+/);
+  const filesystem = String(columns[0] || '').trim();
   const availableKib = Number(columns[3] || 0);
-  if (!Number.isFinite(availableKib) || availableKib <= 0) {
+  if (!filesystem || !Number.isFinite(availableKib) || availableKib <= 0) {
     throw new Error(`Unable to parse free disk space from df output for ${targetPath}.`);
   }
-  return availableKib * 1024;
+  return {
+    targetPath,
+    filesystem,
+    availableBytes: availableKib * 1024,
+  };
+}
+
+function getPathSizeBytes(targetPath: string): number {
+  if (!fs.existsSync(targetPath)) {
+    return 0;
+  }
+  const output = execFileSync('du', ['-sk', targetPath], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+  const dataLine = output.split('\n').filter(Boolean)[0] || '';
+  const sizeKib = Number(dataLine.trim().split(/\s+/)[0] || 0);
+  return Number.isFinite(sizeKib) && sizeKib > 0 ? sizeKib * 1024 : 0;
+}
+
+function getChecks(targetPaths: string[]): DiskCheck[] {
+  return targetPaths.map((targetPath) => getDiskCheck(targetPath));
+}
+
+function isFailing(checks: DiskCheck[], requiredBytes: number): boolean {
+  return checks.some((entry) => entry.availableBytes < requiredBytes);
+}
+
+function estimateChecksAfterCleanup(checks: DiskCheck[], cleanupPaths: string[]): DiskCheck[] {
+  const reclaimedByFilesystem = new Map<string, number>();
+
+  cleanupPaths.forEach((cleanupPath) => {
+    if (!fs.existsSync(cleanupPath)) {
+      return;
+    }
+    const reclaimBytes = getPathSizeBytes(cleanupPath);
+    if (reclaimBytes <= 0) {
+      return;
+    }
+    const filesystem = getDiskCheck(cleanupPath).filesystem;
+    reclaimedByFilesystem.set(
+      filesystem,
+      (reclaimedByFilesystem.get(filesystem) || 0) + reclaimBytes
+    );
+  });
+
+  return checks.map((check) => ({
+    ...check,
+    availableBytes: check.availableBytes + (reclaimedByFilesystem.get(check.filesystem) || 0),
+  }));
+}
+
+function listStaleReleaseOutputs(modeToClean: Mode): string[] {
+  if (!fs.existsSync(releaseOutputRoot)) {
+    return [];
+  }
+
+  const entries = fs.readdirSync(releaseOutputRoot, { withFileTypes: true });
+  return entries.flatMap((entry) => {
+    const fullPath = path.join(releaseOutputRoot, entry.name);
+    const lowerName = entry.name.toLowerCase();
+
+    if (entry.isDirectory() && (entry.name === 'mac' || entry.name.startsWith('mac-'))) {
+      return [fullPath];
+    }
+
+    if (!entry.isFile()) {
+      return [];
+    }
+
+    if (
+      lowerName === 'builder-debug.yml' ||
+      lowerName === 'builder-effective-config.yaml' ||
+      lowerName === '.ds_store'
+    ) {
+      return [fullPath];
+    }
+
+    if (modeToClean === 'dmg' && (lowerName.endsWith('.zip') || lowerName.endsWith('.blockmap'))) {
+      return [fullPath];
+    }
+
+    if ((modeToClean === 'dmg' || modeToClean === 'lite') && lowerName.endsWith('.dmg')) {
+      return [fullPath];
+    }
+
+    return [];
+  });
+}
+
+function cleanupStaleReleaseOutputs(modeToClean: Mode): {
+  removedPaths: string[];
+  reclaimedBytes: number;
+} {
+  const candidates = listStaleReleaseOutputs(modeToClean);
+  let reclaimedBytes = 0;
+  const removedPaths: string[] = [];
+
+  candidates.forEach((candidate) => {
+    if (!fs.existsSync(candidate)) {
+      return;
+    }
+    reclaimedBytes += getPathSizeBytes(candidate);
+    fs.rmSync(candidate, { recursive: true, force: true });
+    removedPaths.push(candidate);
+  });
+
+  return { removedPaths, reclaimedBytes };
+}
+
+function getRetryCommandForMode(modeToRetry: Mode): string {
+  if (modeToRetry === 'dir') {
+    return 'make editor-package-clean && make editor-package-dir';
+  }
+  if (modeToRetry === 'lite') {
+    return 'make editor-package-clean && make editor-package-lite';
+  }
+  return 'make editor-package-clean && make editor-package';
 }
 
 function main(): void {
   const minFreeGiBByMode: Record<Mode, number> = {
     dir: parsePositiveGiBOverride('AGENCY_PACKAGE_DIR_MIN_FREE_GIB', 2),
     dmg: parsePositiveGiBOverride('AGENCY_PACKAGE_DMG_MIN_FREE_GIB', 4),
+    lite: parsePositiveGiBOverride('AGENCY_PACKAGE_LITE_MIN_FREE_GIB', 3),
   };
   const requiredBytes = minFreeGiBByMode[mode] * 1024 * 1024 * 1024;
   const pathsToCheck = [projectRoot, '/tmp'];
-  const checks = pathsToCheck.map((targetPath) => ({
-    targetPath,
-    availableBytes: getAvailableBytes(targetPath),
-  }));
-  const failing = checks.find((entry) => entry.availableBytes < requiredBytes);
-  if (!failing) {
-    console.log(
-      `[package-preflight] mode=${mode} free-space ok (${checks
-        .map((entry) => `${entry.targetPath}: ${formatBytes(entry.availableBytes)}`)
-        .join(', ')})`
-    );
+  const cleanup = cleanupStaleReleaseOutputs(mode);
+  const initialChecks = getChecks(pathsToCheck);
+
+  if (!isFailing(initialChecks, requiredBytes)) {
+    const prefix =
+      cleanup.removedPaths.length > 0
+        ? `[package-preflight] mode=${mode} free-space ok after cleaning stale release outputs`
+        : `[package-preflight] mode=${mode} free-space ok`;
+    console.log(`${prefix} (${initialChecks
+      .map((entry) => `${entry.targetPath}: ${formatBytes(entry.availableBytes)}`)
+      .join(', ')})`);
+    if (cleanup.removedPaths.length > 0) {
+      console.log(
+        `[package-preflight] removed ${cleanup.removedPaths.length} stale output(s), reclaimed ${formatBytes(cleanup.reclaimedBytes)}.`
+      );
+    }
     return;
   }
+  const checks = initialChecks;
+
+  const fullDistCleanEstimate = fs.existsSync(distRoot)
+    ? estimateChecksAfterCleanup(checks, [distRoot])
+    : checks;
+  const fullDistCleanWouldPass =
+    fs.existsSync(distRoot) &&
+    getPathSizeBytes(distRoot) > 0 &&
+    !isFailing(fullDistCleanEstimate, requiredBytes);
+  const fullDistCleanBytes = fs.existsSync(distRoot) ? getPathSizeBytes(distRoot) : 0;
 
   const lines = [
     `[package-preflight] insufficient free space for mode=${mode}.`,
@@ -80,9 +223,20 @@ function main(): void {
     ...checks.map(
       (entry) => `observed: ${entry.targetPath} -> ${formatBytes(entry.availableBytes)} free`
     ),
+    ...(cleanup.removedPaths.length > 0
+      ? [
+          `cleanup: removed ${cleanup.removedPaths.length} stale output(s), reclaimed ${formatBytes(cleanup.reclaimedBytes)}`,
+        ]
+      : []),
     'suggested actions:',
-    '- delete or move apps/editor/dist/release artifacts',
+    '- preflight already deletes stale generated outputs in apps/editor/dist/release when they would block the current mode',
+    ...(fullDistCleanWouldPass
+      ? [
+          `- run \`${getRetryCommandForMode(mode)}\` to remove all generated dist outputs first; estimated reclaim: ${formatBytes(fullDistCleanBytes)}`,
+        ]
+      : []),
     '- clear ~/Library/Caches/electron-builder if it is safe to do so',
+    '- use `pnpm -C apps/editor run package:lite` to build only the DMG with a lower free-space threshold',
     '- use `pnpm -C apps/editor run package:dir` when you only need an unpacked app',
   ];
   console.error(lines.join('\n'));

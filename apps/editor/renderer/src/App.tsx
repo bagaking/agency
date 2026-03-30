@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '@xterm/xterm/css/xterm.css';
 import { AppLayout } from './components/AppLayout';
 import { ModalProvider, useModal } from './components/modals/ModalSystem';
@@ -34,14 +34,16 @@ import { useAppShellLayoutState } from './app/useAppShellLayoutState';
 import { useWindowShellState } from './app/useWindowShellState';
 import { AttentionLayerProvider } from './attention/AttentionLayerContext';
 import { useAttentionState } from './attention/useAttentionState';
-import {
-  buildMobileContinuationFeedback,
-  resolveMobileContinuationErrorTitle,
-} from './app/mobileContinuationFeedback';
 import { AppShellChrome } from './app/AppShellChrome';
 import { WindowTitleBar } from './components/WindowTitleBar';
-import { SessionMapToggle } from './components/sessionMap/SessionMapToggle';
 import { writeTextToClipboard } from './utils/clipboard';
+
+const LazySessionMapToggle = lazy(async () => {
+  const mod = await import('./components/sessionMap/SessionMapToggle');
+  return {
+    default: mod.SessionMapToggle,
+  };
+});
 const defaultCells = [
   {
     id: 'sample-cell',
@@ -359,14 +361,16 @@ function AppShell() {
   }, [modal, sessionsState.sessionError]);
 
   const sessionMapCenterSlot = (
-    <SessionMapToggle
-      open={sessionMapOpen}
-      stats={sessionMapEnabled ? sessionMapModel.stats : null}
-      onToggle={handleToggleSessionMap}
-      disabled={!sessionMapEnabled}
-      focusCell={selectedCell}
-      focusSession={focusSession}
-    />
+    <Suspense fallback={null}>
+      <LazySessionMapToggle
+        open={sessionMapOpen}
+        stats={sessionMapEnabled ? sessionMapModel.stats : null}
+        onToggle={handleToggleSessionMap}
+        disabled={!sessionMapEnabled}
+        focusCell={selectedCell}
+        focusSession={focusSession}
+      />
+    </Suspense>
   );
   const actionSheetsRoot = projectRoot || selectedCell?.worktreePath || '';
   const hilWorktreePath = selectedCell?.worktreePath || projectRoot || '';
@@ -758,6 +762,10 @@ function AppShell() {
         return;
       }
       try {
+        const {
+          buildMobileContinuationFeedback,
+          resolveMobileContinuationErrorTitle,
+        } = await import('./app/mobileContinuationFeedback');
         const result = await sessionsState.prepareSessionContinueOnMobile(sessionId, cellId, mode);
         if (!result) {
           throw new Error('Mobile continuation is unavailable in this runtime.');
@@ -790,6 +798,9 @@ function AppShell() {
           dismissLabel: 'OK',
         });
       } catch (error) {
+        const { resolveMobileContinuationErrorTitle } = await import(
+          './app/mobileContinuationFeedback'
+        );
         modal.notify({
           tone: 'danger',
           title: resolveMobileContinuationErrorTitle(mode),

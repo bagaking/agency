@@ -40,7 +40,7 @@ function getGlobalQuickActionsPath() {
   return path.join(app.getPath('userData'), 'quick-actions.json');
 }
 
-async function resolveProjectQuickActionsPaths(params = {}) {
+async function resolveProjectQuickActionsPaths(params: any = {}) {
   return resolveProjectScopeConfigPaths({
     projectRoot: params.projectRoot,
     worktreePath: params.worktreePath,
@@ -48,7 +48,7 @@ async function resolveProjectQuickActionsPaths(params = {}) {
   });
 }
 
-async function resolveAgentQuickActionsPaths(params = {}) {
+async function resolveAgentQuickActionsPaths(params: any = {}) {
   return resolveAgentScopeConfigPaths({
     projectRoot: params.projectRoot,
     worktreePath: params.worktreePath,

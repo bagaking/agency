@@ -14,21 +14,57 @@ const HIL_PREFIX = 'index-';
 const HIL_EXT = '.yaml';
 const LEGACY_COMMENTS_PREFIX = 'comments-';
 const LEGACY_COMMENTS_EXT = '.yaml';
+type HilStorageContext = {
+  worktreePath?: string;
+  projectRootPath?: string;
+};
+
+function normalizeHilContext(context: HilStorageContext = {}): HilStorageContext {
+  return {
+    worktreePath: String(context.worktreePath || '').trim(),
+    projectRootPath: String(context.projectRootPath || '').trim(),
+  };
+}
+
+function resolveStorageRootPath(context: HilStorageContext): string {
+  const normalized = normalizeHilContext(context);
+  const candidate = normalized.projectRootPath || normalized.worktreePath;
+  if (!candidate) {
+    return '';
+  }
+  return path.resolve(candidate);
+}
+
+function resolveHilWorktreeName(context: HilStorageContext, storageRootPath: string): string {
+  const normalized = normalizeHilContext(context);
+  if (normalized.worktreePath) {
+    return path.basename(normalized.worktreePath);
+  }
+  if (storageRootPath) {
+    return path.basename(storageRootPath) || 'repo';
+  }
+  return 'repo';
+}
+
+function getHilStoragePaths(context: HilStorageContext): { storageRootPath: string; worktreeName: string } {
+  const storageRootPath = resolveStorageRootPath(context);
+  if (!storageRootPath) {
+    throw new Error('worktreePath or projectRootPath is required.');
+  }
+  const worktreeName = resolveHilWorktreeName(context, storageRootPath);
+  return { storageRootPath, worktreeName };
+}
 
 const authorCache = new Map<string, Record<string, any>>();
 
-function getWorktreeName(worktreePath: string): string {
-  return path.basename(worktreePath);
+export function getHilIndexPath(worktreePath: string, projectRootPath?: string): string {
+  const { storageRootPath, worktreeName } = getHilStoragePaths({ worktreePath, projectRootPath });
+  return path.join(storageRootPath, AGENCY_DIR, HIL_DIR, `${HIL_PREFIX}${worktreeName}${HIL_EXT}`);
 }
 
-export function getHilIndexPath(worktreePath: string): string {
-  const worktreeName = getWorktreeName(worktreePath);
-  return path.join(worktreePath, AGENCY_DIR, HIL_DIR, `${HIL_PREFIX}${worktreeName}${HIL_EXT}`);
-}
-
-function getHilTreeRoot(worktreePath: string): string {
-  const worktreeName = getWorktreeName(worktreePath);
-  return path.join(worktreePath, AGENCY_DIR, HIL_DIR, worktreeName);
+function getHilTreeRoot(context: HilStorageContext): string {
+  const { storageRootPath, worktreeName } = getHilStoragePaths(context);
+  return path.join(storageRootPath, AGENCY_DIR, HIL_DIR, worktreeName);
 }
 
 function getHilItemDir(kind?: string): string {
@@ -45,13 +81,13 @@ function getHilItemDir(kind?: string): string {
 }
 
 function getHilItemPath(worktreePath: string, item: Record<string, any>): string {
-  const base = getHilTreeRoot(worktreePath);
+  const base = getHilTreeRoot({ worktreePath });
   const folder = getHilItemDir(item?.kind);
   return path.join(base, folder, `${item.id}${HIL_EXT}`);
 }
 
 function getLegacyCommentsPath(worktreePath: string): string {
-  const worktreeName = getWorktreeName(worktreePath);
+  const worktreeName = resolveHilWorktreeName({ worktreePath }, path.resolve(worktreePath));
   return path.join(worktreePath, AGENCY_DIR, `${LEGACY_COMMENTS_PREFIX}${worktreeName}${LEGACY_COMMENTS_EXT}`);
 }
 
