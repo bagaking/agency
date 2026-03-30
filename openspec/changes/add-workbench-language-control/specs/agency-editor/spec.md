@@ -44,7 +44,7 @@ Changing the control SHALL NOT implicitly write or rewrite `.agency/workbench.ya
 - **AND** the effective language falls back to the project rule or built-in detection chain
 
 #### Scenario: Restore local override from window UI state
-- **WHEN** a user reopens the same window/project context after setting a local Workbench language override
+- **WHEN** a user reopens the same Agency window state and project context after setting a local Workbench language override
 - **THEN** the workbench restores the override from window-local UI state for that file
 - **AND** `.agency/workbench.yaml` remains unchanged unless the repository file was edited explicitly outside the control
 

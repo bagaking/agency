@@ -87,6 +87,7 @@ export function useWorkbenchLanguageOverrides({
 
   const restoredByRootKeyRef = useRef<WorkbenchLanguageOverrideStateByRootKey>({});
   const lastPersistedSnapshotRef = useRef('');
+  const persistWriteIdRef = useRef(0);
 
   useEffect(() => {
     setRestored(false);
@@ -155,11 +156,24 @@ export function useWorkbenchLanguageOverrides({
         return;
       }
 
-      restoredByRootKeyRef.current = nextByRootKey;
-      lastPersistedSnapshotRef.current = serialized;
+      const writeId = persistWriteIdRef.current + 1;
+      persistWriteIdRef.current = writeId;
       void setUiState({
         workbenchLanguageOverrideStateByRootKey: nextByRootKey,
-      }).catch(() => undefined);
+      })
+        .then(() => {
+          if (persistWriteIdRef.current !== writeId) {
+            return;
+          }
+          restoredByRootKeyRef.current = nextByRootKey;
+          lastPersistedSnapshotRef.current = serialized;
+        })
+        .catch(() => {
+          if (persistWriteIdRef.current !== writeId) {
+            return;
+          }
+          setOverridesByFilePath(previousCurrentRootOverrides);
+        });
     }, delay);
 
     return () => {

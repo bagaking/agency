@@ -41,7 +41,7 @@
 - Explorer can paste files or screenshots from the system clipboard, applying `-1` style conflict suffixes.
 - Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
 - Explorer includes a bounded research lane for public URL inspection, reader preview, workspace Markdown save, memo citation with optional saved-file references, and an explicit system-browser escape hatch.
-- The workbench supports multi-tab previews, quick open, diff/blame toggles, media previews, active-tab disk-change auto sync (auto-reload when clean, warning + reload when dirty), project-level language rules from `.agency/workbench.yaml` / `.agency/workbench.yml`, and a document-local language control that shows `Auto` / `Project Rule` / `Local Override`.
+- The workbench supports multi-tab previews, quick open, diff/blame toggles, media previews, active-tab disk-change auto sync (auto-reload when clean, warning + reload when dirty), project-level language rules from `.agency/workbench.yaml` / `.agency/workbench.yml`, and a window-local document language control that shows `Auto` / `Project Rule` / `Local Override`.
 
 ## Unified File Interaction Direction
 

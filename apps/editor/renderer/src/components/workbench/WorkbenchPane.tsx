@@ -44,6 +44,7 @@ import { resolveWorkbenchLanguageDecision } from './workbenchLanguageDecision';
 import { useWorkbenchProjectPolicy } from './useWorkbenchProjectPolicy';
 import { useWorkbenchLanguageOverrides } from './useWorkbenchLanguageOverrides';
 import { WorkbenchLanguageControl } from './WorkbenchLanguageControl';
+import { getWorkbenchLanguageLabel } from '../../../../shared/workbenchLanguageCore';
 
 
 export function WorkbenchPane({
@@ -125,25 +126,37 @@ function WorkbenchPaneContent({
   const activeEditorRef = useRef(null);
   const tabStateByIdRef = useRef({});
   const loadRequestByTabRef = useRef({});
-  const projectPolicy = useWorkbenchProjectPolicy(activeRootPath);
+  const activePolicyRootPath = activeTab?.rootPath || activeRootPath;
+  const projectPolicy = useWorkbenchProjectPolicy(activePolicyRootPath);
   const languageOverrides = useWorkbenchLanguageOverrides({
-    stateKey: activeRootPath,
+    stateKey: activePolicyRootPath,
     currentFilePath: activeTab?.path || '',
   });
 
   const activeState = activeTab ? tabStateById[activeTab.id] || {} : {};
   const resolvedCommentLines = Array.isArray(commentLines) ? commentLines : [];
   const canComment = Boolean(activeTab && activeTab.kind === 'code');
-  const isTextCapableTab = activeState.kind === 'code' || activeState.kind === 'vector';
+  const isCodeTab = activeState.kind === 'code';
   const activeLanguageDecision =
-    activeTab && isTextCapableTab
+    activeTab && isCodeTab
       ? resolveWorkbenchLanguageDecision({
           targetPath: activeTab.path,
           manualLanguage: languageOverrides.currentFileOverride,
           projectRules: projectPolicy.languages.overrides,
         })
       : null;
-  const resolvedActiveLanguage = activeLanguageDecision?.language || activeState.language || '';
+  const resolvedActiveLanguage =
+    activeLanguageDecision?.language ||
+    activeState.language ||
+    (activeState.kind === 'vector' ? 'xml' : '');
+  const passiveFooterLabel =
+    activeState.kind === 'vector'
+      ? getWorkbenchLanguageLabel(resolvedActiveLanguage || 'xml')
+      : String(activeState.kind || '').toUpperCase() || 'OBJECT';
+  const controlPolicyWarnings =
+    activeLanguageDecision?.source === 'project' ? projectPolicy.warnings : [];
+  const controlPolicyError =
+    activeLanguageDecision?.source === 'project' ? projectPolicy.error : '';
 
   useEffect(() => {
     tabStateByIdRef.current = tabStateById;
@@ -557,9 +570,10 @@ function WorkbenchPaneContent({
         <div className="flex items-center gap-6">
             {activeLanguageDecision ? (
               <WorkbenchLanguageControl
+                key={activeTab?.id || activeTab?.path || 'workbench-language-control'}
                 decision={activeLanguageDecision}
-                policyWarnings={projectPolicy.warnings}
-                policyError={projectPolicy.error}
+                policyWarnings={controlPolicyWarnings}
+                policyError={controlPolicyError}
                 disabled={!languageOverrides.restored || projectPolicy.loading}
                 onSelectLanguage={languageOverrides.setCurrentFileOverride}
                 onResetToAuto={languageOverrides.resetCurrentFileOverride}
@@ -567,7 +581,7 @@ function WorkbenchPaneContent({
             ) : (
               <div className="flex items-center gap-2">
                 <FileCode size={10} className="text-primary/20" />
-                <span className="text-primary/20">{String(activeState.kind || '').toUpperCase() || 'OBJECT'}</span>
+                <span className="text-primary/20">{passiveFooterLabel}</span>
               </div>
             )}
             <div className="h-3 w-px bg-white/[0.03]" />

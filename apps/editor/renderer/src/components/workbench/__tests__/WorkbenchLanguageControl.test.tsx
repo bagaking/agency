@@ -189,6 +189,34 @@ test('WorkbenchLanguageControl supports reset-to-auto only when source is local 
   }
 });
 
+test('WorkbenchLanguageControl does not convert the selected inherited language into a local override click', async () => {
+  const env = setupDom();
+  try {
+    const root = createRoot(document.getElementById('root')!);
+
+    await act(async () => {
+      root.render(
+        <WorkbenchLanguageControl decision={projectDecision} onSelectLanguage={() => undefined} />
+      );
+    });
+
+    await act(async () => {
+      click(document.querySelector('[data-testid="workbench-language-control-trigger"]'));
+    });
+    const selectedOption = document.querySelector(
+      '[data-testid="workbench-language-option-typescript"]'
+    ) as HTMLButtonElement | null;
+    assert.ok(selectedOption);
+    assert.equal(selectedOption.disabled, true);
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});
+
 test('WorkbenchLanguageControl renders policy warning and error details', async () => {
   const env = setupDom();
   try {
