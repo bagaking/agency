@@ -83,6 +83,8 @@ export function WorkbenchLanguageControl({
   const warnings = normalizeWarningList(policyWarnings);
   const errorText = String(policyError || '').trim();
   const hasPolicyIssue = Boolean(errorText || warnings.length);
+  const showProjectRuleDetails = resolvedDecision.source === 'project';
+  const showGenericPolicyNotice = !showProjectRuleDetails && hasPolicyIssue;
   const canResetToAuto = resolvedDecision.source === 'manual' && Boolean(onResetToAuto);
   const sourceTone = SOURCE_TONE_BY_KIND[resolvedDecision.source] || SOURCE_TONE_BY_KIND.builtin;
   const normalizedQuery = filterQuery.trim().toLowerCase();
@@ -281,7 +283,7 @@ export function WorkbenchLanguageControl({
             )}
           </div>
 
-          {resolvedDecision.source === 'project' && errorText ? (
+          {showProjectRuleDetails && errorText ? (
             <div
               className="mt-2 rounded-lg border border-rose-300/35 bg-rose-500/10 px-2.5 py-2 text-[10px] text-rose-100"
               data-testid="workbench-language-control-policy-error"
@@ -292,7 +294,7 @@ export function WorkbenchLanguageControl({
               <p className="mt-1 leading-relaxed text-rose-50/95">{errorText}</p>
             </div>
           ) : null}
-          {resolvedDecision.source === 'project' && resolvedDecision.matchedRule?.match ? (
+          {showProjectRuleDetails && resolvedDecision.matchedRule?.match ? (
             <div className="mt-2 rounded-lg border border-sky-300/25 bg-sky-500/10 px-2.5 py-2 text-[10px] text-sky-50/95">
               <div className="text-[9px] font-black uppercase tracking-[0.16em] text-sky-100/85">
                 Matched Rule
@@ -300,7 +302,7 @@ export function WorkbenchLanguageControl({
               <p className="mt-1 font-mono text-sky-50/90">{resolvedDecision.matchedRule.match}</p>
             </div>
           ) : null}
-          {resolvedDecision.source === 'project' && warnings.length ? (
+          {showProjectRuleDetails && warnings.length ? (
             <div
               className="mt-2 rounded-lg border border-amber-300/30 bg-amber-500/10 px-2.5 py-2 text-[10px] text-amber-100"
               data-testid="workbench-language-control-policy-warnings"
@@ -320,6 +322,15 @@ export function WorkbenchLanguageControl({
                   +{warnings.length - 3} more
                 </p>
               ) : null}
+            </div>
+          ) : null}
+          {showGenericPolicyNotice ? (
+            <div
+              className="mt-2 rounded-lg border border-amber-300/25 bg-amber-500/10 px-2.5 py-2 text-[10px] text-amber-50/95"
+              data-testid="workbench-language-control-policy-notice"
+            >
+              Project language rules currently have issues. This file is using{' '}
+              {resolvedDecision.sourceLabel}.
             </div>
           ) : null}
         </div>

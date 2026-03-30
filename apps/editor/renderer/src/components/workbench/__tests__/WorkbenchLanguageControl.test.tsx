@@ -259,3 +259,41 @@ test('WorkbenchLanguageControl renders policy warning and error details', async 
     env.cleanup();
   }
 });
+
+test('WorkbenchLanguageControl keeps project-rule issues visible without turning builtin files into rule detail views', async () => {
+  const env = setupDom();
+  try {
+    const root = createRoot(document.getElementById('root')!);
+    await act(async () => {
+      root.render(
+        <WorkbenchLanguageControl
+          decision={{
+            language: 'typescript',
+            label: 'TypeScript',
+            source: 'builtin',
+            sourceLabel: 'Auto',
+            provider: 'monaco-native',
+            matchedRule: null,
+          }}
+          policyError="Failed to parse .agency/workbench.yaml"
+        />
+      );
+    });
+
+    await act(async () => {
+      click(document.querySelector('[data-testid="workbench-language-control-trigger"]'));
+    });
+
+    assert.ok(document.querySelector('[data-testid="workbench-language-control-policy-notice"]'));
+    assert.equal(
+      document.querySelector('[data-testid="workbench-language-control-policy-error"]'),
+      null
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});

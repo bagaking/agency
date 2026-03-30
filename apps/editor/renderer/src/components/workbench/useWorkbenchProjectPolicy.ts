@@ -92,7 +92,11 @@ export function useWorkbenchProjectPolicy(rootPath?: string) {
       const changedPaths = Array.isArray(payload?.paths) ? payload.paths : [];
       const policyChanged = changedPaths.some((entry) => {
         const normalized = String(entry || '').replace(/\\/g, '/');
-        return normalized === '.agency/workbench.yaml' || normalized === '.agency/workbench.yml';
+        return (
+          normalized === '.agency' ||
+          normalized === '.agency/workbench.yaml' ||
+          normalized === '.agency/workbench.yml'
+        );
       });
       if (policyChanged) {
         void loadPolicy();
