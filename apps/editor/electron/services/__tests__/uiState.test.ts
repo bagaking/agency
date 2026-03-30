@@ -86,6 +86,32 @@ test('keeps window snapshots isolated while sharing app-global state', async () 
     await uiState.updateWindowUiState('window-a', {
       projectRoot: '/tmp/repo-a',
       selectedId: 'cell-a',
+      attentionSummary: {
+        version: 1,
+        itemCount: 2,
+        highestSeverity: 'critical',
+        countsByKind: {
+          failed: 1,
+          unread: 1,
+        },
+        primary: {
+          id: 'run-failed',
+          kind: 'failed',
+          ownerKind: 'run',
+          severity: 'critical',
+          label: 'Create Child Agent via Fork',
+          detail: 'Source session is blocked.',
+          refs: {
+            runId: 'run-failed',
+            cellId: 'cell-a',
+            sessionId: 'session-main',
+          },
+        },
+        updatedAt: '2026-03-30T12:00:00.000Z',
+      },
+      sessionVisitedByKey: {
+        'cell-a:session-child': 123,
+      },
       activeView: 'agent-cells',
       windowBounds: {
         x: 40,
@@ -118,6 +144,11 @@ test('keeps window snapshots isolated while sharing app-global state', async () 
 
     assert.equal(windowA.projectRoot, '/tmp/repo-a');
     assert.equal(windowA.selectedId, 'cell-a');
+    assert.equal(windowA.attentionSummary?.highestSeverity, 'critical');
+    assert.equal(windowA.attentionSummary?.primary?.id, 'run-failed');
+    assert.deepEqual(windowA.sessionVisitedByKey, {
+      'cell-a:session-child': 123,
+    });
     assert.deepEqual(windowA.windowBounds, {
       x: 40,
       y: 50,
@@ -136,6 +167,40 @@ test('keeps window snapshots isolated while sharing app-global state', async () 
         lastOpenedAt: '2026-03-22T00:00:00.000Z',
       },
     ]);
+  });
+});
+
+test('peekWindowUiState returns the latest in-memory window snapshot without reload', async () => {
+  await withUiStateService(async ({ uiState }) => {
+    await uiState.updateWindowUiState('window-a', {
+      attentionSummary: {
+        version: 1,
+        itemCount: 1,
+        highestSeverity: 'high',
+        countsByKind: {
+          running: 1,
+        },
+        primary: {
+          id: 'run-active',
+          kind: 'running',
+          ownerKind: 'run',
+          severity: 'high',
+          label: 'Create Child Agent via Fork',
+          detail: 'Run is still active.',
+          refs: {
+            runId: 'run-active',
+            cellId: 'cell-a',
+            sessionId: 'session-main',
+          },
+        },
+        updatedAt: '2026-03-30T12:10:00.000Z',
+      },
+    });
+
+    const snapshot = uiState.peekWindowUiState('window-a');
+
+    assert.equal(snapshot.attentionSummary?.primary?.id, 'run-active');
+    assert.equal(snapshot.attentionSummary?.itemCount, 1);
   });
 });
 

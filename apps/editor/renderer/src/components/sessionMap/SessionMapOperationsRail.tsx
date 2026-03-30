@@ -1,5 +1,6 @@
 import React from 'react';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
+import { AttentionQueue } from '../attention/AttentionQueue';
 import { resolveSessionAvatarId } from '../../utils/agentAvatar';
 import { resolveCommanderContext } from '../../utils/sessionMapCommander';
 import { SessionMapCommandPanel } from './SessionMapCommandPanel';
@@ -23,11 +24,13 @@ const statusTone = (status: string) => {
 
 export function SessionMapOperationsRail({
   focusData,
+  attentionItems,
   harnessRuns,
   sessionError,
   onClearSessionError,
   onCancelHarnessRun,
   onResumeHarnessRun,
+  onSelectAttention,
 }: any) {
   const context = resolveCommanderContext({
     focusData,
@@ -67,6 +70,14 @@ export function SessionMapOperationsRail({
           Ops
         </span>
       </div>
+
+      <AttentionQueue
+        title="Priority Queue"
+        items={(attentionItems || []).slice(0, 2)}
+        onSelectItem={onSelectAttention}
+        emptyLabel="No immediate attention inside this window."
+        itemClassName="bg-black/14"
+      />
 
       <div className="min-h-0 flex-1 overflow-hidden">
         <SessionMapCommandPanel

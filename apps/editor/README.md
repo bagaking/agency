@@ -17,6 +17,7 @@
 - `Create Agent` means bounded child execution owned by a host run.
 - `Fork` is a specialized `Create Agent` strategy, not the baseline workspace or execution noun.
 - `Commander` is one bounded operator capability; in Session Map, `Ops` is the evidence rail and `Briefing` is the reveal panel in the same station.
+- Attention is a shared state layer over `Window / Cell / Session / Run`, not a new product root. Its job is to route users toward the next object that needs intervention.
 
 ## Navigation
 
@@ -141,6 +142,9 @@
   - choose `create_child` + `dispatch_input` to start a fresh child agent when true fork semantics are unavailable.
 - The docked Session Map now promotes its right-side info panel into a stable `Ops` rail, while `Commander` opens a separate bounded `Briefing` panel for backend-facing explanation, recommendation, and approved actions.
 - Session action failures no longer rely only on transient notices; `Command Ops` keeps the latest error visible until explicitly dismissed and supports copying the full text.
+- Attention now uses one vocabulary across shell chrome, Agent Cells, and Session Map: `Running`, `Failed`, `Confirm`, `Unread`, and `Review`.
+- The status bar shows the current top-priority attention item for the active Agency context and can jump directly to its owning object.
+- The window switcher surfaces each window's primary attention summary so multi-window urgency is visible before you manually scan that window.
 - Terminus profiles can define optional `fork` settings (`enabled`, `driver`, `launchTemplate`, and timeout knobs) so tool-specific fork behavior stays declarative at the profile layer instead of being hard-coded in renderer UI.
 - Detached sessions remain available from the overflow menu unless currently active; closed sessions can be restarted.
 - Sessions can be renamed from the session context menu.
@@ -326,6 +330,10 @@ make editor-dev
 - In the Session Map dock, confirm the commander/backend avatar is visible, clicking it opens a separate `Briefing` panel, and the panel answers using current session/run evidence rather than generic chat filler.
 - Close the `Briefing` panel and confirm the underlying `Ops` panel is unchanged; inspect the active Harness timeline there and confirm a running run can be cancelled or a failed/cancelled run can be retried from the panel.
 - Trigger a session error and confirm it appears in `Command Ops`, does not auto-dismiss on a timer, and can be copied before explicit dismissal.
+- Produce new output in a non-active session and confirm Agent Cells, Session Map, and the status bar all surface `Unread` with consistent wording; click any of them and confirm Agency jumps back to that session.
+- Trigger `Smart Fork [by commander]` or another `Create Agent` run and confirm the status bar shows `Running`; click it and confirm Session Map opens to the relevant session/run context instead of leaving the run buried in a background panel.
+- Finish a child-execution run that creates a child session, do not revisit that child, and confirm Agency surfaces `Review` / return-required attention until the child session is visited.
+- Open a second Agency window, create a higher-priority failure there, and confirm the current window's switcher surfaces that other window's primary attention state before you focus it.
 - Add a quick action with both commands and verify start/resume run in the active session.
 - Switch to Project or Agent actions, confirm inherited actions are read-only, and verify Override/Reset behavior.
 - Configure reply quick prompts across multiple scopes, confirm resolved source badges in Hierarchy, and insert one from `快捷回复如何` in Session Reply composer.

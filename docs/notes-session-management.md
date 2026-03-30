@@ -80,6 +80,8 @@ Main Agent Harness 是更高一层的 host-owned control plane。
 - Docked Session Map 右侧不再只是窄的 `Unit Details`，而是更宽的 `Command Ops` 区；
 - `Fork` / Harness run 启动时，Session Map 会自动打开一次，把用户带到这块指挥区；
 - `Command Ops` 保持为稳定证据层，展示当前 focus session、Harness timeline、取消/复制动作，以及未来可扩展的个性化 quick ops；
+- `Attention` 是覆盖 `Window / Cell / Session / Run` 的共享状态层；`Ops` 只负责在 Session Map 中承载当前窗口的 priority queue 与跳转，不拥有 attention 本体，也不另造新的产品对象根。
+- Session Map 中的 token / cell 强调必须复用 Attention 的统一语义（`running / failed / pending confirmation / unread / return required`），不能再做一套只在地图里成立的告警词汇。
 - `Commander` 占据 Session Map 最右侧的独立列，作为 backend/operator 的固定锚点，而不是窄图标位。
 - 点击 `Commander` 后，最右列应直接原位展开成 `Briefing` 面板；不得再以浮层、popup、drawer 形式覆盖 `Ops` 或 `Cells`。
 - `Briefing` 是有边界的 backend 简报：默认展示一张当前 context briefing 卡，并只保留一张最新回应卡；切换 focus session / relevant run 时必须重绑并清掉旧回应，避免累积聊天历史污染当前证据范围。
@@ -89,6 +91,7 @@ Main Agent Harness 是更高一层的 host-owned control plane。
 - `Command Ops` 内容区必须支持纵向滚动；当 timeline 或错误详情超过 dock 高度时，用户仍应能完整查看与复制。
 - Dock HUD 的标题、卡片内边距和状态条应保持紧凑，优先信息密度而不是装饰性留白。
 - `Command Ops` 外层的 context strip 应优先展示当前聚焦 session 的头像与 session 名称，避免重复塞入像 `MAIN · DRAFT` 这类低价值上下文文字。
+- `Command Ops` 应额外承载一个紧凑的 `Priority Queue`：它回答“这个 window 里现在最值得处理的是哪里”，并且队列项必须可以直接 jump 到对应对象。
 - `Command Ops` 的主动作必须单点清晰：运行中显示 `Cancel`，失败/取消后显示 `Retry`，不要在同一面板里重复放多个语义等价的停止/重试入口。
 - `Briefing` 中的 `Cancel / Retry / Dismiss` 等动作必须继续走现有 Harness 或 host-managed capability；对话不能退化成 renderer 侧自由操作入口。
 - `Briefing` 面板关闭后，`Ops` 与 `Cells` 应保持原位和原上下文，不因为聊天交互而被遮挡、穿插或重新排版。
@@ -234,6 +237,10 @@ cellColors:
 2. 切换到其他 session，再切回；若输出没有变化，idle 不应被刷新。
 3. 在当前 session 输出少量文本（低于阈值，例如 `echo ok`），idle 不应刷新。
 4. 输出超过阈值的文本（例如 `python - <<'PY'\nprint('x'*50)\nPY`），idle 应刷新。
+5. 在一个后台 session 产生新输出后，确认 Agent Cells 顶部 Attention queue、session row、Status Bar 主 attention 使用同一套 `Unread` 语义，并且点击任一入口会回到对应 session。
+6. 触发一个 `Create Agent` 运行中的 child execution，确认 Status Bar 与 Session Map `Priority Queue` 都显示 `Running`，且点击后会打开 Session Map 并落到对应 session/run 上下文。
+7. 制造一次失败 run，确认 Status Bar、Agent Cells、Session Map 都显示同一条 `Failed` attention；它不会像 toast 一样自动消失，并且点击后能回到相关对象。
+8. 在另一个窗口制造更高优先级的 attention，确认当前窗口的 window switcher 能显示该窗口的 primary attention，并可直接聚焦过去。
 
 ## 实现提示
 - 入口：Status Bar 中央的 Session Map Toggle。

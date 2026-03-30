@@ -1,7 +1,9 @@
 import { BrowserWindow } from 'electron';
 import path from 'node:path';
+import { normalizeWindowAttentionSummary } from '../../shared/attention';
 
 const { getWindowProjectRoot } = require('./projectRoot');
+const { peekWindowUiState } = require('./uiState');
 
 export type WindowShellSummary = {
   windowId: number;
@@ -11,6 +13,7 @@ export type WindowShellSummary = {
   title: string;
   isFocused: boolean;
   isMinimized: boolean;
+  attentionSummary: any;
 };
 
 export type EditorWindowRecord = {
@@ -22,6 +25,7 @@ export type EditorWindowRecord = {
   title: string;
   isFocused: boolean;
   isMinimized: boolean;
+  attentionSummary: any;
 };
 
 export function getProjectDisplayName(projectRoot: string): string {
@@ -46,6 +50,7 @@ export function collectEditorWindows(): EditorWindowRecord[] {
     .map((window) => {
       const windowStateId = String((window as any).__agencyWindowStateId || '').trim();
       const projectRoot = String(getWindowProjectRoot(window.id) || '').trim();
+      const windowUiState = peekWindowUiState(windowStateId);
       return {
         window,
         windowId: window.id,
@@ -55,6 +60,7 @@ export function collectEditorWindows(): EditorWindowRecord[] {
         title: getWindowDisplayTitle(projectRoot),
         isFocused: window.isFocused(),
         isMinimized: window.isMinimized(),
+        attentionSummary: normalizeWindowAttentionSummary(windowUiState?.attentionSummary),
       };
     })
     .filter((window) => Boolean(window.windowStateId))

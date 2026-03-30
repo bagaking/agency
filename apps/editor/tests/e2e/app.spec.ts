@@ -820,3 +820,84 @@ test('relaunch restores the previous multi-window set with window-local state an
     await restoredApp.close();
   }
 });
+
+test('window switcher surfaces attention summary for other windows and focuses the target window', async () => {
+  setupNamedRepo(SECOND_TEST_REPO, 'second project');
+  const expectedSecondRepo = resolveRealPath(SECOND_TEST_REPO);
+  const attentionLabelByKind = {
+    failed: 'Failed',
+    pending_confirmation: 'Confirm',
+    return_required: 'Review',
+    running: 'Running',
+    unread: 'Unread',
+  };
+
+  const electronApp = await launchTestApp();
+
+  try {
+    const firstWindow = await getFirstWindow(electronApp);
+    const createResult = await firstWindow.evaluate(async (projectRoot) => {
+      return window.agency.createWindowShell({ projectRoot });
+    }, SECOND_TEST_REPO);
+
+    await waitForWindowCount(electronApp, 2);
+    const secondWindow = await findWindowByProjectRoot(electronApp, expectedSecondRepo);
+    expect(createResult?.ok).toBe(true);
+    expect(createResult?.windowStateId).toBeTruthy();
+
+    await secondWindow.evaluate(async () => {
+      await window.agency.setUiState({
+        attentionSummary: {
+          version: 1,
+          itemCount: 2,
+          highestSeverity: 'critical',
+          countsByKind: {
+            failed: 1,
+            unread: 1,
+          },
+          primary: {
+            id: 'run-failed',
+            kind: 'failed',
+            ownerKind: 'run',
+            severity: 'critical',
+            label: 'Create Child Agent via Fork',
+            detail: 'Source session is blocked.',
+            refs: {
+              runId: 'run-failed',
+              cellId: 'cell-main',
+              sessionId: 'session-source',
+            },
+          },
+          updatedAt: '2026-03-30T12:10:00.000Z',
+        },
+      });
+    });
+
+    await expect.poll(async () => {
+      const payload = await firstWindow.evaluate(async () => window.agency.listWindowShells());
+      return payload?.windows?.find((entry) => entry.windowStateId === createResult.windowStateId)?.attentionSummary?.primary?.kind || '';
+    }).not.toBe('');
+
+    const shellPayload = await firstWindow.evaluate(async () => window.agency.listWindowShells());
+    const windowAttentionSummary = shellPayload?.windows?.find(
+      (entry) => entry.windowStateId === createResult.windowStateId
+    )?.attentionSummary;
+
+    await firstWindow.getByTestId('window-titlebar-menu-button').click();
+    const switcherItem = firstWindow.getByTestId(`window-switcher-item-${createResult.windowStateId}`);
+    await expect(switcherItem).toBeVisible();
+    await expect(switcherItem).toContainText(
+      attentionLabelByKind[windowAttentionSummary.primary.kind] || 'Attention'
+    );
+    if (windowAttentionSummary.primary?.detail) {
+      await expect(switcherItem).toContainText(windowAttentionSummary.primary.detail);
+    }
+
+    await switcherItem.click();
+    await expect.poll(async () => getFocusedWindowTitle(electronApp)).toBe(
+      `${path.basename(SECOND_TEST_REPO)} - Agency`
+    );
+  } finally {
+    await electronApp.close();
+  }
+});

@@ -11,12 +11,14 @@ type UseSessionActivityStateArgs = {
   activeSessionKey: string | null;
   selectedCellId?: string;
   activeSessionId?: string;
+  initialSessionVisitedByKey?: Record<string, number>;
 };
 
 export function useSessionActivityState({
   activeSessionKey,
   selectedCellId,
   activeSessionId,
+  initialSessionVisitedByKey = {},
 }: UseSessionActivityStateArgs) {
   const [sessionFontSizeByKey, setSessionFontSizeByKey] = useState<Record<string, number>>({});
   const [sessionActivityByKey, setSessionActivityByKey] = useState<Record<string, number>>({});
@@ -28,6 +30,15 @@ export function useSessionActivityState({
   useEffect(() => {
     sessionActivityByKeyRef.current = sessionActivityByKey;
   }, [sessionActivityByKey]);
+
+  useEffect(() => {
+    if (
+      initialSessionVisitedByKey &&
+      typeof initialSessionVisitedByKey === 'object'
+    ) {
+      setSessionVisitedByKey(initialSessionVisitedByKey);
+    }
+  }, [initialSessionVisitedByKey]);
 
   const activeFontSize = activeSessionKey
     ? sessionFontSizeByKey[activeSessionKey] || DEFAULT_FONT_SIZE
