@@ -131,3 +131,9 @@ Source: `docs/notes-voice-input.md`
 - When modifying voice input, rescore, or language handling, update this doc and regenerate docs/must-sop.md.
 - Keep permission flow, warmup, and fallback behavior aligned with this doc.
 
+### Workbench Highlighting System
+Source: `docs/notes-workbench-highlighting-system.md`
+- Read this doc when changing Workbench language detection, override flow, or Monaco highlighting integration.
+- Update this doc when the Workbench language decision chain, project policy contract, or tokenizer-provider boundaries change.
+- Regenerate docs/must-sop.md after updating this doc.
+

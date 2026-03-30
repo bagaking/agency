@@ -136,6 +136,7 @@ const INVOKE_CHANNELS: Record<string, string> = {
   searchExplorerContent: 'explorer:contentSearch',
   replaceExplorerContent: 'explorer:contentReplace',
   getExplorerProjectPolicy: 'explorer:policy',
+  getWorkbenchProjectPolicy: 'workbench:policy',
   readExplorerEntry: 'explorer:read',
   watchExplorer: 'explorer:watch',
   writeWorkbenchEntry: 'workbench:write',

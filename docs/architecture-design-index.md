@@ -36,5 +36,6 @@ This is a lightweight index that points to the authoritative design sources. It 
 - Notes: `docs/notes-*.md`
 - Unified file interaction philosophy and end-state: `docs/notes-file-interaction-system.md`
 - Explorer interaction capability and external research synthesis: `docs/notes-explorer-interaction-system.md`
+- Workbench highlighting resolution and provider boundaries: `docs/notes-workbench-highlighting-system.md`
 - Guidelines: `docs/guidelines-*.md`
 - Norms: `docs/norms-*.md`

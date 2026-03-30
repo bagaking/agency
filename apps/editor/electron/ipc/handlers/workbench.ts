@@ -8,8 +8,13 @@ const {
   getBlame,
   getFileSnippet,
 } = require('../../services/workbench');
+const { readWorkbenchProjectPolicy } = require('../../services/workbenchPolicy');
 
 function setupWorkbenchHandlers() {
+  ipcMain.handle('workbench:policy', async (_event, payload) => {
+    return readWorkbenchProjectPolicy({ rootPath: payload?.rootPath });
+  });
+
   ipcMain.handle('workbench:stat', async (_event, payload) => {
     const rootPath = payload?.rootPath;
     const targetPath = payload?.targetPath;

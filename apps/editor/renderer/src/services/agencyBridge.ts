@@ -86,6 +86,7 @@ export const searchExplorerFiles = createOptionalInvoke('searchExplorerFiles');
 export const searchExplorerContent = createOptionalInvoke('searchExplorerContent');
 export const replaceExplorerContent = createOptionalInvoke('replaceExplorerContent');
 export const getExplorerProjectPolicy = createOptionalInvoke('getExplorerProjectPolicy');
+export const getWorkbenchProjectPolicy = createOptionalInvoke('getWorkbenchProjectPolicy');
 export const watchExplorer = createOptionalInvoke('watchExplorer');
 export const performFileIntent = createOptionalInvoke('performFileIntent');
 export const performToolFileIntent = createOptionalInvoke('performToolFileIntent');

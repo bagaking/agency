@@ -40,6 +40,8 @@ import {
 import { useWorkbenchKeyboardShortcuts } from './useWorkbenchKeyboardShortcuts';
 import { useWorkbenchDiskSync } from './useWorkbenchDiskSync';
 import { useWorkbenchDocumentCommands } from './useWorkbenchDocumentCommands';
+import { resolveWorkbenchLanguageDecision } from './workbenchLanguageDecision';
+import { useWorkbenchProjectPolicy } from './useWorkbenchProjectPolicy';
 
 
 export function WorkbenchPane({
@@ -121,10 +123,19 @@ function WorkbenchPaneContent({
   const activeEditorRef = useRef(null);
   const tabStateByIdRef = useRef({});
   const loadRequestByTabRef = useRef({});
+  const projectPolicy = useWorkbenchProjectPolicy(activeRootPath);
 
   const activeState = activeTab ? tabStateById[activeTab.id] || {} : {};
   const resolvedCommentLines = Array.isArray(commentLines) ? commentLines : [];
   const canComment = Boolean(activeTab && activeTab.kind === 'code');
+  const activeLanguageDecision =
+    activeTab && (activeState.kind === 'code' || activeState.kind === 'vector')
+      ? resolveWorkbenchLanguageDecision({
+          targetPath: activeTab.path,
+          projectRules: projectPolicy.languages.overrides,
+        })
+      : null;
+  const resolvedActiveLanguage = activeLanguageDecision?.language || activeState.language || 'plaintext';
 
   useEffect(() => {
     tabStateByIdRef.current = tabStateById;
@@ -486,7 +497,7 @@ function WorkbenchPaneContent({
           <VectorWorkbenchView
             content={activeState.content || ''}
             fileUrl={activeState.fileUrl}
-            language={activeState.language || 'xml'}
+            language={resolvedActiveLanguage}
             readOnly={activeState.truncated}
             onChange={(val) => updateTabContent(activeTab.id, val)}
             onCursorChange={setStatusPosition}
@@ -494,7 +505,7 @@ function WorkbenchPaneContent({
         ) : activeState.kind === 'code' ? (
           <CodeWorkbenchView
             value={activeState.content || ''}
-            language={activeState.language || 'plaintext'}
+            language={resolvedActiveLanguage}
             diffHunks={activeState.diffEnabled ? activeState.diffHunks || [] : []}
             blameEnabled={activeState.blameEnabled}
             blameLines={activeState.blameLines || []}
@@ -536,7 +547,10 @@ function WorkbenchPaneContent({
         </div>
         
         <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2"><FileCode size={10} className="text-primary/20" /><span className="text-primary/40">{activeState.language}</span></div>
+            <div className="flex items-center gap-2">
+              <FileCode size={10} className="text-primary/20" />
+              <span className="text-primary/40">{resolvedActiveLanguage}</span>
+            </div>
             <div className="h-3 w-px bg-white/[0.03]" />
             <div className="flex items-center gap-2"><Maximize2 size={10} className="opacity-10" /><span>{formatWorkbenchBytes(activeState.size)}</span></div>
         </div>

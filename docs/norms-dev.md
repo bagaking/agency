@@ -21,6 +21,7 @@ This document collects core engineering norms that must stay aligned with projec
 
 ## Docs Hygiene
 - When changing voice input, rescore behavior, or language handling, update `docs/notes-voice-input.md` accordingly so new contributors can follow the latest flow.
+- When changing Workbench language detection, override flow, or Monaco highlighting integration, update `docs/notes-workbench-highlighting-system.md` in the same change.
 
 ## Quality
 - Keep the architecture clean and favor DRY and SOLID; refactor when a file exceeds 800 lines.
@@ -58,3 +59,7 @@ This document collects core engineering norms that must stay aligned with projec
 - Non-primary panels may use “retain after first activation”, but the mount policy must live in a shared reusable mechanism rather than local component state.
 - Monaco-backed surfaces must use the shared lazy Monaco wrapper; do not import `@monaco-editor/react` directly in feature components.
 - Third-party runtimes with meaningful parse/init cost should be wrapped behind a project-owned component boundary so loading strategy can be evolved centrally.
+- Workbench language choice must flow through one explicit decision chain instead of component-local filename heuristics.
+  - Keep secure file-kind detection separate from effective editor language.
+  - Use shared language ids / rule matching / policy normalization as the SSOT.
+  - Do not let local override implicitly mutate repo-owned policy.

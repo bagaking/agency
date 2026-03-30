@@ -1,9 +1,11 @@
-const configuredMonacoInstances = new WeakSet<object>();
+import {
+  WORKBENCH_LANGUAGE_ID_DOTENV,
+  WORKBENCH_LANGUAGE_ID_GITIGNORE,
+  WORKBENCH_LANGUAGE_ID_MAKEFILE,
+  WORKBENCH_LANGUAGE_ID_TOML,
+} from '../../../../shared/workbenchLanguageCore';
 
-const TOML_LANGUAGE_ID = 'toml';
-const MAKEFILE_LANGUAGE_ID = 'makefile';
-const GITIGNORE_LANGUAGE_ID = 'gitignore';
-const DOTENV_LANGUAGE_ID = 'dotenv';
+const configuredMonacoInstances = new WeakSet<object>();
 
 const registerWorkbenchLanguage = (
   monaco: any,
@@ -117,9 +119,9 @@ export const configureWorkbenchMonaco = (monaco: any) => {
 
   registerWorkbenchLanguage(
     monaco,
-    TOML_LANGUAGE_ID,
+    WORKBENCH_LANGUAGE_ID_TOML,
     {
-      id: TOML_LANGUAGE_ID,
+      id: WORKBENCH_LANGUAGE_ID_TOML,
       extensions: ['.toml'],
       aliases: ['TOML', 'toml'],
     },
@@ -143,9 +145,9 @@ export const configureWorkbenchMonaco = (monaco: any) => {
 
   registerWorkbenchLanguage(
     monaco,
-    MAKEFILE_LANGUAGE_ID,
+    WORKBENCH_LANGUAGE_ID_MAKEFILE,
     {
-      id: MAKEFILE_LANGUAGE_ID,
+      id: WORKBENCH_LANGUAGE_ID_MAKEFILE,
       aliases: ['Makefile', 'makefile'],
     },
     MAKEFILE_TOKENS,
@@ -161,9 +163,9 @@ export const configureWorkbenchMonaco = (monaco: any) => {
 
   registerWorkbenchLanguage(
     monaco,
-    GITIGNORE_LANGUAGE_ID,
+    WORKBENCH_LANGUAGE_ID_GITIGNORE,
     {
-      id: GITIGNORE_LANGUAGE_ID,
+      id: WORKBENCH_LANGUAGE_ID_GITIGNORE,
       aliases: ['Git Ignore', 'gitignore'],
     },
     GITIGNORE_TOKENS,
@@ -174,9 +176,9 @@ export const configureWorkbenchMonaco = (monaco: any) => {
 
   registerWorkbenchLanguage(
     monaco,
-    DOTENV_LANGUAGE_ID,
+    WORKBENCH_LANGUAGE_ID_DOTENV,
     {
-      id: DOTENV_LANGUAGE_ID,
+      id: WORKBENCH_LANGUAGE_ID_DOTENV,
       aliases: ['dotenv', '.env'],
     },
     DOTENV_TOKENS,
