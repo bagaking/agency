@@ -28,7 +28,6 @@ import {
   DETACHED_ACTIVITY_POLL_MS,
   buildSessionKey,
   filterOpenSessions,
-  mergeSessionActivityTimestamps,
   normalizeTerminalText,
   resolveActiveSession,
 } from './shared/sessionRuntime';
@@ -140,7 +139,7 @@ export function useSessions(options: any = {}) {
     zoomReset,
     markSessionAttached,
     resetActivityState,
-    mergeSessionActivityState,
+    mergeSessionActivityFromSessions,
   } = useSessionActivityState({
     activeSessionKey,
     selectedCellId: selectedCell?.id,
@@ -224,13 +223,10 @@ export function useSessions(options: any = {}) {
           nextSessions = created ? [created] : nextSessions;
         }
         setSessionsByCellId((current) => ({ ...current, [cell.id]: nextSessions }));
-        mergeSessionActivityState((current: Record<string, number>) =>
-          mergeSessionActivityTimestamps({
-            current,
-            cellId: cell.id,
-            sessions: nextSessions,
-          })
-        );
+        mergeSessionActivityFromSessions({
+          cellId: cell.id,
+          sessions: nextSessions,
+        });
 
         const preferred = activeSessionByCellIdRef.current[cell.id];
         const open = filterOpenSessions(nextSessions, preferred);

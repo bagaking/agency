@@ -11,6 +11,16 @@ import {
 } from '../../utils/terminalSelection';
 import { countDiffChars, getBufferSnapshot } from '../../utils/terminalActivityDiff';
 
+export function shouldSuppressTerminalActivity({
+  suppressedUntil = 0,
+  now = Date.now(),
+}: {
+  suppressedUntil?: number;
+  now?: number;
+}): boolean {
+  return Number(suppressedUntil || 0) > now;
+}
+
 export const useTerminalRuntimeEffect = (runtime: any) => {
   const {
     cellId,
@@ -48,6 +58,7 @@ export const useTerminalRuntimeEffect = (runtime: any) => {
     writeBatchRef,
     writeBatchFrameRef,
     activityThresholdRef,
+    activitySuppressUntilRef,
     pointerDownRef,
     mouseOverrideRef,
     selectionOverrideRef,
@@ -295,6 +306,13 @@ export const useTerminalRuntimeEffect = (runtime: any) => {
           return;
         }
         activitySnapshotRef.current = snapshot;
+        if (
+          shouldSuppressTerminalActivity({
+            suppressedUntil: Number(activitySuppressUntilRef?.current || 0),
+          })
+        ) {
+          return;
+        }
         if (countDiffChars(previous, snapshot, threshold) >= threshold) {
           onActivity?.({ cellId, sessionId });
         }

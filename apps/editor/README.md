@@ -146,6 +146,8 @@
 - Attention now uses one vocabulary across shell chrome, Agent Cells, and Session Map: `Running`, `Failed`, `Confirm`, `Unread`, and `Review`.
 - The status bar shows the current top-priority attention item for the active Agency context and can jump directly to its owning object.
 - Session Map `Ops` owns the current-window `Priority Queue` for queue-style attention triage.
+- `Priority Queue` stays summary-first; long errors and timeline payloads belong in the evidence area below instead of expanding queue rows into log cards.
+- `Unread` is reserved for meaningful post-visit output; transient blur, attach replay, or silent refresh noise should not flip a session into `Unread` immediately.
 - Agent Cells keeps attention inline on Cell and Session affordances instead of inserting a separate attention queue above the management list.
 - The window switcher surfaces each window's primary attention summary so multi-window urgency is visible before you manually scan that window.
 - Terminus profiles can define optional `fork` settings (`enabled`, `driver`, `launchTemplate`, and timeout knobs) so tool-specific fork behavior stays declarative at the profile layer instead of being hard-coded in renderer UI.
@@ -351,6 +353,7 @@ make editor-dev
 - Close the `Briefing` panel and confirm the underlying `Ops` panel is unchanged; inspect the active Harness timeline there and confirm a running run can be cancelled or a failed/cancelled run can be retried from the panel.
 - Trigger a session error and confirm it appears in `Command Ops`, does not auto-dismiss on a timer, and can be copied before explicit dismissal.
 - Produce new output in a non-active session and confirm Agent Cells inline cell/session markers, Session Map `Ops`, and the status bar all surface `Unread` with consistent wording; click any of them and confirm Agency jumps back to that session.
+- Switch away from a session and back without meaningful new output, and confirm it does not immediately become `Unread` just because of transient blur, attach replay, or silent refresh noise.
 - Trigger `Smart Fork [by commander]` or another `Create Agent` run and confirm Agent Cells keeps the list primary while exposing inline `Running`, the status bar shows `Running`, and Session Map `Ops` owns the queue-style triage path.
 - Trigger a failed child-execution run and confirm Agent Cells inline markers, Session Map `Priority Queue`, and the status bar all surface the same `Failed` attention without introducing a separate Agent Cells queue card.
 - Finish a child-execution run that creates a child session, do not revisit that child, and confirm Agency surfaces `Review` / return-required attention until the child session is visited.

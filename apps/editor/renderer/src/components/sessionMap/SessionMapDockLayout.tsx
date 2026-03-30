@@ -1,7 +1,6 @@
 import React from 'react';
 import { CircleOff, MoreHorizontal, Plus } from 'lucide-react';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
-import { AttentionQueue } from '../attention/AttentionQueue';
 import { resolveSessionAvatarId } from '../../utils/agentAvatar';
 import { TacticalFrame } from './SessionMapFrames';
 import { SessionMapCommanderPanel } from './SessionMapCommanderPanel';
@@ -142,8 +141,8 @@ export function SessionMapDockLayout({
   onSelectAttention,
 }: any) {
   const dockGridTemplateColumns = commanderBriefingOpen
-    ? '92px minmax(0,1.18fr) minmax(320px,0.92fr) minmax(448px,1.08fr)'
-    : '92px minmax(0,1.52fr) minmax(316px,0.96fr) 176px';
+    ? '92px minmax(0,1.26fr) minmax(332px,0.86fr) minmax(420px,1.04fr)'
+    : '92px minmax(0,1.68fr) minmax(300px,0.9fr) 148px';
 
   return (
     <div
@@ -154,7 +153,7 @@ export function SessionMapDockLayout({
     >
       {/* Radar Section */}
       <div
-        className="group flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(14,20,28,0.94),rgba(8,12,17,0.96))] px-2.5 py-2 shadow-[inset_0_0_0_1px_rgba(125,211,252,0.08),0_10px_24px_rgba(0,0,0,0.22)] transition-colors hover:bg-[linear-gradient(180deg,rgba(18,25,34,0.96),rgba(8,12,17,0.98))]"
+        className="group flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(14,20,28,0.9),rgba(8,12,17,0.94))] px-2.5 py-2 shadow-[inset_0_0_0_1px_rgba(125,211,252,0.05),0_8px_18px_rgba(0,0,0,0.18)] transition-colors hover:bg-[linear-gradient(180deg,rgba(18,25,34,0.94),rgba(8,12,17,0.96))]"
         onMouseLeave={() => setHoveredCellId(null)}
       >
         <div className="flex items-center justify-between font-mono text-[7px] font-bold uppercase tracking-[0.2em] text-cyan-100/54">
@@ -167,8 +166,8 @@ export function SessionMapDockLayout({
             backgroundSize: '10px 10px, 100% 100%',
           }} />
           {/* Radar Sweep */}
-          <div className="absolute inset-0 animate-spin-slow opacity-30" style={{
-            background: 'conic-gradient(from 0deg, transparent 0%, rgba(56,189,248,0.44) 100%)',
+          <div className="absolute inset-0 animate-spin-slow opacity-[0.18]" style={{
+            background: 'conic-gradient(from 0deg, transparent 0%, rgba(56,189,248,0.28) 100%)',
           }} />
           {/* Radar Crosshair */}
           <div className="absolute left-1/2 top-3 bottom-3 w-px -translate-x-1/2 bg-cyan-100/8" />
@@ -187,7 +186,7 @@ export function SessionMapDockLayout({
                   left: `${point.x}%`,
                   top: `${point.y}%`,
                   backgroundColor: point.color,
-                  boxShadow: isHovered ? `0 0 12px ${point.color}` : `0 0 5px ${point.color}`,
+                  boxShadow: isHovered ? `0 0 8px ${point.color}` : `0 0 3px ${point.color}`,
                   border: '1.5px solid rgba(255,255,255,0.18)',
                 }}
                 onMouseEnter={() => setHoveredCellId(point.id)}

@@ -87,4 +87,5 @@ Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeSc
 - Do not add new ad-hoc CLI or socket transports over host capability owners when a control-bus operation is the right abstraction.
 - `Commander` is one bounded operator capability over session/run context.
 - In Session Map, `Ops` is the persistent evidence rail and `Briefing` is the reveal panel in the same station.
+- Queue-style attention triage belongs in Session Map `Ops`; Agent Cells may only surface inline/local attention on owning Cell / Session affordances, and shell chrome stays compact.
 - Do not model `Commander` as a window-global assistant or reuse HIL/Reply drawer semantics for it.

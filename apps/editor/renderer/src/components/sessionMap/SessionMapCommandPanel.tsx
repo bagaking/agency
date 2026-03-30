@@ -47,6 +47,20 @@ const buildRunClipboardText = (run: any) => {
 
 const buildErrorClipboardText = (message: string) => String(message || '').trim();
 
+function buildTimelineDetailPreview(entry: any): string {
+  const detail = entry?.detail;
+  if (!detail) {
+    return '';
+  }
+  return String(
+    detail?.message ||
+      detail?.summary ||
+      detail?.reason ||
+      detail?.failures?.[0]?.message ||
+      ''
+  ).trim();
+}
+
 export function SessionMapCommandPanel({
   focusData,
   harnessRuns,
@@ -92,10 +106,10 @@ export function SessionMapCommandPanel({
         <button
           type="button"
           onClick={() => setCollapsed(false)}
-          className="flex items-center gap-2 rounded border border-cyan-400/25 bg-black/50 px-3 py-2 text-left text-[9px] font-bold uppercase tracking-[0.2em] text-cyan-100 transition-colors hover:bg-cyan-500/10"
+          className="flex items-center gap-2 rounded border border-cyan-400/25 bg-black/50 px-3 py-2 text-left text-[8px] font-semibold uppercase tracking-[0.16em] text-cyan-100/84 transition-colors hover:bg-cyan-500/10"
         >
           <Radar size={12} className="text-cyan-300" />
-          <span>Command Ops</span>
+          <span>Show Evidence</span>
           {activeRun ? (
             <span className="rounded border border-cyan-300/25 bg-cyan-500/15 px-1.5 py-0.5 text-[8px] text-cyan-100">
               {tone.label}
@@ -107,31 +121,15 @@ export function SessionMapCommandPanel({
   }
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(13,18,25,0.98),rgba(7,10,16,0.96))] shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08),0_12px_28px_rgba(0,0,0,0.24)]">
-      <div className="flex items-center justify-between px-2.5 py-2">
-        <div className="font-mono text-[7px] font-bold uppercase tracking-[0.22em] text-cyan-100/72">
-          Command Ops
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setCollapsed(true)}
-            className="rounded-lg bg-white/[0.04] p-1 text-white/50 transition-colors hover:bg-white/[0.08] hover:text-cyan-100"
-            aria-label="Collapse command panel"
-          >
-            <ChevronDown size={14} />
-          </button>
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-2 pr-1.5">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-white/[0.06] bg-[linear-gradient(180deg,rgba(15,19,27,0.78),rgba(8,12,18,0.86))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+      <div className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-2 pt-2 pr-1.5">
         <div className="flex flex-col gap-2">
           {sessionError ? (
             <div className="max-h-40 overflow-y-auto rounded-xl bg-rose-500/10 px-2.5 py-2 shadow-[inset_0_0_0_1px_rgba(251,113,133,0.2)]">
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2 text-[8px] font-bold uppercase tracking-[0.14em] text-rose-100">
+                <div className="flex items-center gap-2 text-[8px] font-semibold uppercase tracking-[0.14em] text-rose-100">
                   <ShieldAlert size={12} className="text-rose-300" />
-                  Session Error
+                  Visible Error
                 </div>
                 <div className="flex items-center gap-1">
                   <button
@@ -155,7 +153,7 @@ export function SessionMapCommandPanel({
                   </button>
                 </div>
               </div>
-              <pre className="mt-2 whitespace-pre-wrap break-words text-[9px] leading-relaxed text-rose-100/90 select-text">
+              <pre className="mt-2 whitespace-pre-wrap break-words text-[10px] leading-relaxed text-rose-100/90 select-text">
                 {sessionError}
               </pre>
               {copiedKind === 'error' ? (
@@ -170,10 +168,13 @@ export function SessionMapCommandPanel({
             <div className="min-w-0 rounded-xl bg-black/26 px-2.5 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="truncate font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-white">
+                  <div className="text-[8px] font-semibold uppercase tracking-[0.16em] text-white/42">
+                    Run Evidence
+                  </div>
+                  <div className="mt-1 truncate text-[12px] font-semibold tracking-[0.01em] text-white">
                     {activeRun?.goal?.title || activeRun?.goal?.type || 'Harness Run'}
                   </div>
-                  <div className="mt-0.5 truncate text-[8px] text-white/46">
+                  <div className="mt-1 truncate text-[9px] text-white/46">
                     {activeRun?.runner?.adapterId || 'agent_backed'} /{' '}
                     {activeRun?.runner?.providerId || 'auto'} /{' '}
                     {activeRun?.clientRequestId || activeRun?.runId}
@@ -184,7 +185,7 @@ export function SessionMapCommandPanel({
                     <button
                       type="button"
                       onClick={() => onCancelHarnessRun?.(activeRun.runId)}
-                      className="rounded-lg bg-amber-500/10 px-2 py-1 text-[7px] font-bold uppercase tracking-[0.12em] text-amber-100 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.2)] transition-colors hover:bg-amber-500/18"
+                      className="rounded-lg bg-amber-500/10 px-2 py-1 text-[8px] font-semibold uppercase tracking-[0.12em] text-amber-100 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.2)] transition-colors hover:bg-amber-500/18"
                     >
                       Cancel
                     </button>
@@ -192,7 +193,7 @@ export function SessionMapCommandPanel({
                     <button
                       type="button"
                       onClick={() => onResumeHarnessRun?.(activeRun.runId)}
-                      className="rounded-lg bg-emerald-500/10 px-2 py-1 text-[7px] font-bold uppercase tracking-[0.12em] text-emerald-100 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.2)] transition-colors hover:bg-emerald-500/18"
+                      className="rounded-lg bg-emerald-500/10 px-2 py-1 text-[8px] font-semibold uppercase tracking-[0.12em] text-emerald-100 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.2)] transition-colors hover:bg-emerald-500/18"
                     >
                       Retry
                     </button>
@@ -211,7 +212,7 @@ export function SessionMapCommandPanel({
                 </div>
               </div>
 
-              <div className="mt-2 flex items-center gap-2 text-[7px] font-bold uppercase tracking-[0.12em] text-white/46">
+              <div className="mt-2 flex items-center gap-2 text-[8px] font-semibold uppercase tracking-[0.12em] text-white/46">
                 <Activity size={12} className={tone.icon} />
                 <span>{String(activeRun?.currentStep?.title || activeRun?.status || 'Idle')}</span>
                 {activeRun?.updatedAt ? (
@@ -230,7 +231,7 @@ export function SessionMapCommandPanel({
                         key={entry?.id || `${entry?.phase}-${entry?.at}`}
                         className="rounded-xl bg-white/[0.03] px-2 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
                       >
-                        <div className="flex items-center gap-2 text-[7px] font-bold uppercase tracking-[0.12em]">
+                        <div className="flex items-center gap-2 text-[8px] font-semibold uppercase tracking-[0.12em]">
                           <span className={`rounded border px-1.5 py-0.5 ${entryTone.pill}`}>
                             {entry?.phase || entryTone.label}
                           </span>
@@ -238,10 +239,19 @@ export function SessionMapCommandPanel({
                             {entry?.title || entry?.type || 'Event'}
                           </span>
                         </div>
-                        {entry?.detail ? (
-                          <pre className="mt-1 whitespace-pre-wrap break-words text-[8px] leading-relaxed text-white/45 select-text">
-                            {JSON.stringify(entry.detail, null, 2)}
-                          </pre>
+                        {buildTimelineDetailPreview(entry) ? (
+                          <div className="mt-1 text-[9px] leading-relaxed text-white/50">
+                            {buildTimelineDetailPreview(entry)}
+                          </div>
+                        ) : entry?.detail ? (
+                          <details className="mt-1 text-white/45">
+                            <summary className="cursor-pointer text-[8px] uppercase tracking-[0.12em] text-white/34">
+                              Raw Payload
+                            </summary>
+                            <pre className="mt-1 whitespace-pre-wrap break-words text-[8px] leading-relaxed select-text">
+                              {JSON.stringify(entry.detail, null, 2)}
+                            </pre>
+                          </details>
                         ) : null}
                       </div>
                     );
@@ -253,28 +263,23 @@ export function SessionMapCommandPanel({
                 )}
               </div>
 
-              <div className="mt-2 rounded-xl bg-white/[0.03] px-2 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
-                <div className="flex items-center justify-between gap-2 text-[7px] font-bold uppercase tracking-[0.14em] text-white/42">
-                  <span>Panel State</span>
-                  <button
-                    type="button"
-                    onClick={() => setCollapsed(true)}
-                    className="rounded-lg bg-black/28 px-2 py-1 text-[7px] font-bold uppercase tracking-[0.12em] text-white/70 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] transition-colors hover:bg-white/10"
-                  >
-                    <ChevronUp size={10} className="mr-1 inline" />
-                    Collapse
-                  </button>
+              <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-white/[0.03] px-2 py-1.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+                <div className="text-[7px] font-semibold uppercase tracking-[0.14em] text-white/42">
+                  {copiedKind === 'run' ? 'Run details copied' : 'Evidence stays pinned here.'}
                 </div>
-                {copiedKind === 'run' ? (
-                  <div className="mt-2 text-[7px] font-bold uppercase tracking-[0.12em] text-cyan-200">
-                    Run details copied
-                  </div>
-                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setCollapsed(true)}
+                  className="rounded-lg bg-black/28 px-2 py-1 text-[7px] font-bold uppercase tracking-[0.12em] text-white/70 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] transition-colors hover:bg-white/10"
+                >
+                  <ChevronUp size={10} className="mr-1 inline" />
+                  Collapse
+                </button>
               </div>
             </div>
           ) : (
-            <div className="flex min-h-24 items-center justify-center rounded border border-dashed border-white/10 bg-white/[0.03] px-2 text-center font-mono text-[8px] uppercase tracking-[0.14em] text-white/25">
-              No active backend directive
+            <div className="flex min-h-24 items-center justify-center rounded border border-dashed border-white/10 bg-white/[0.03] px-2 text-center text-[9px] text-white/28">
+              No run evidence is active for the current focus.
             </div>
           )}
         </div>

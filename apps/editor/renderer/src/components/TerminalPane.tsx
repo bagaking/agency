@@ -37,6 +37,10 @@ import {
 import { normalizeTerminalSelectionText } from '../utils/terminalSelection';
 import { PREVIEW_LINES } from './sessionMap/sessionMapConstants';
 import { useTerminalRuntimeEffect } from './terminal/useTerminalRuntimeEffect';
+import {
+  markSyntheticActivityWindow,
+  RESIZE_ACTIVITY_SUPPRESS_MS,
+} from './terminal/terminalResizeController';
 
 function TerminalPane({
   cell,
@@ -89,6 +93,7 @@ function TerminalPane({
   const linkProviderRef = useRef(null);
   const activitySnapshotRef = useRef('');
   const activityFrameRef = useRef(null);
+  const activitySuppressUntilRef = useRef(0);
   const writeBatchRef = useRef<string[]>([]);
   const writeBatchFrameRef = useRef<number | null>(null);
   const activityThresholdRef = useRef(DEFAULT_ACTIVITY_DIFF_THRESHOLD);
@@ -364,6 +369,7 @@ function TerminalPane({
     focusHandlerRef,
     resizeAttemptsRef,
     isActiveRef,
+    activitySuppressUntilRef,
     bindingIndexRef,
     dispatchRef,
     sessionReadyRef,
@@ -524,6 +530,7 @@ function TerminalPane({
     }
     terminalRef.current.options.fontSize = nextFontSize;
     terminalRef.current.refresh(0, terminalRef.current.rows - 1);
+    markSyntheticActivityWindow(activitySuppressUntilRef, RESIZE_ACTIVITY_SUPPRESS_MS);
     resizeHandlerRef.current?.(true, 'font-size');
   }, [fontSize]);
 
@@ -532,6 +539,7 @@ function TerminalPane({
       return;
     }
     requestAnimationFrame(() => {
+      markSyntheticActivityWindow(activitySuppressUntilRef, RESIZE_ACTIVITY_SUPPRESS_MS);
       terminalRef.current?.refresh(0, terminalRef.current.rows - 1);
       resizeHandlerRef.current?.(true, 'visible');
       focusHandlerRef.current?.();
@@ -555,9 +563,11 @@ function TerminalPane({
     }
     let frame = null;
     const timeout = setTimeout(() => {
+      markSyntheticActivityWindow(activitySuppressUntilRef, RESIZE_ACTIVITY_SUPPRESS_MS);
       resizeHandlerRef.current?.(true, 'visibility-stabilize');
     }, 120);
     frame = requestAnimationFrame(() => {
+      markSyntheticActivityWindow(activitySuppressUntilRef, RESIZE_ACTIVITY_SUPPRESS_MS);
       terminalRef.current?.refresh(0, terminalRef.current.rows - 1);
       resizeHandlerRef.current?.(true, 'visibility-refresh');
     });

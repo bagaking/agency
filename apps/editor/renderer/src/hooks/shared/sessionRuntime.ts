@@ -4,6 +4,7 @@ export const MAX_FONT_SIZE = 20;
 export const ACTIVITY_BOOTSTRAP_THRESHOLD_MS = 30000;
 export const ATTACH_ACTIVITY_GRACE_MS = 5 * 1000;
 export const DETACHED_ACTIVITY_POLL_MS = 10 * 1000;
+export const VISIT_ACTIVITY_GRACE_MS = 5 * 1000;
 
 export interface SessionLike {
   id: string;
@@ -78,5 +79,42 @@ export const mergeSessionActivityTimestamps = ({
       next[key] = timestamp;
     }
   });
+  return next;
+};
+
+export const mergeSessionActivityTimestampsWithSuppression = ({
+  current,
+  cellId,
+  sessions,
+  ignoreUntilByKey,
+  now = Date.now(),
+}: {
+  current: Record<string, number> | null | undefined;
+  cellId: string;
+  sessions: SessionLike[] | null | undefined;
+  ignoreUntilByKey?: Record<string, number> | null | undefined;
+  now?: number;
+}): Record<string, number> => {
+  const base = current || {};
+  const list = Array.isArray(sessions) ? sessions : [];
+  const next = { ...base };
+  const suppression = ignoreUntilByKey || {};
+
+  list.forEach((session) => {
+    const timestamp = Date.parse(session?.lastActivityAt || '');
+    if (!Number.isFinite(timestamp)) {
+      return;
+    }
+    const key = buildSessionKey(cellId, session.id);
+    const ignoreUntil = Number(suppression[key] || 0);
+    if (Number.isFinite(ignoreUntil) && ignoreUntil > now) {
+      return;
+    }
+    const existing = base[key];
+    if (!Number.isFinite(existing) || timestamp > existing) {
+      next[key] = timestamp;
+    }
+  });
+
   return next;
 };

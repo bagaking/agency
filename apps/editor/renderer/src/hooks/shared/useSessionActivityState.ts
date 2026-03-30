@@ -3,8 +3,10 @@ import {
   ACTIVITY_BOOTSTRAP_THRESHOLD_MS,
   ATTACH_ACTIVITY_GRACE_MS,
   DEFAULT_FONT_SIZE,
+  VISIT_ACTIVITY_GRACE_MS,
   buildSessionKey,
   clampFontSize,
+  mergeSessionActivityTimestampsWithSuppression,
 } from './sessionRuntime';
 
 type UseSessionActivityStateArgs = {
@@ -71,7 +73,12 @@ export function useSessionActivityState({
       return;
     }
     const key = buildSessionKey(cellId, sessionId);
-    setSessionVisitedByKey((current) => ({ ...current, [key]: Date.now() }));
+    const now = Date.now();
+    activityIgnoreUntilByKeyRef.current[key] = Math.max(
+      Number(activityIgnoreUntilByKeyRef.current[key] || 0),
+      now + VISIT_ACTIVITY_GRACE_MS
+    );
+    setSessionVisitedByKey((current) => ({ ...current, [key]: now }));
   }, []);
 
   const updateFontSizeForSession = useCallback(({ cellId, sessionId, nextSize }) => {
@@ -123,18 +130,41 @@ export function useSessionActivityState({
       return;
     }
     const key = buildSessionKey(cellId, sessionId);
+    const now = Date.now();
     const lastActivity = sessionActivityByKeyRef.current[key];
+    const attachIgnoreUntil = now + ATTACH_ACTIVITY_GRACE_MS;
+    activityIgnoreUntilByKeyRef.current[key] = Math.max(
+      Number(activityIgnoreUntilByKeyRef.current[key] || 0),
+      attachIgnoreUntil
+    );
+    activityBootstrapByKeyRef.current[key] = true;
     if (
       Number.isFinite(lastActivity) &&
-      Date.now() - lastActivity > ACTIVITY_BOOTSTRAP_THRESHOLD_MS
+      now - lastActivity <= ACTIVITY_BOOTSTRAP_THRESHOLD_MS
     ) {
-      activityIgnoreUntilByKeyRef.current[key] = Date.now() + ATTACH_ACTIVITY_GRACE_MS;
-      activityBootstrapByKeyRef.current[key] = true;
-    } else {
-      delete activityIgnoreUntilByKeyRef.current[key];
-      delete activityBootstrapByKeyRef.current[key];
+      return;
     }
   }, []);
+
+  const mergeSessionActivityFromSessions = useCallback(
+    ({
+      cellId,
+      sessions,
+    }: {
+      cellId: string;
+      sessions: Array<{ id: string; lastActivityAt?: string | null }> | null | undefined;
+    }) => {
+      setSessionActivityByKey((current) =>
+        mergeSessionActivityTimestampsWithSuppression({
+          current,
+          cellId,
+          sessions,
+          ignoreUntilByKey: activityIgnoreUntilByKeyRef.current,
+        })
+      );
+    },
+    []
+  );
 
   const resetActivityState = useCallback(() => {
     setSessionFontSizeByKey({});
@@ -159,6 +189,7 @@ export function useSessionActivityState({
     zoomReset,
     markSessionAttached,
     resetActivityState,
+    mergeSessionActivityFromSessions,
     mergeSessionActivityState: setSessionActivityByKey,
   };
 }

@@ -10,6 +10,8 @@ export function AttentionQueue({
   emptyLabel = 'No active attention.',
   className = '',
   itemClassName = '',
+  itemsContainerClassName = '',
+  detailClassName = '',
 }: {
   items?: AttentionItem[];
   onSelectItem?: (item: AttentionItem) => void;
@@ -17,6 +19,8 @@ export function AttentionQueue({
   emptyLabel?: string;
   className?: string;
   itemClassName?: string;
+  itemsContainerClassName?: string;
+  detailClassName?: string;
 }) {
   const list = Array.isArray(items) ? items.filter(Boolean) : [];
 
@@ -37,12 +41,13 @@ export function AttentionQueue({
       </div>
 
       {list.length ? (
-        <div className="mt-2 space-y-1.5">
+        <div className={`mt-2 space-y-1.5 ${itemsContainerClassName}`}>
           {list.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => onSelectItem?.(item)}
+              title={item.detail || item.label}
               className={`flex w-full items-start gap-2 rounded-lg border border-transparent bg-white/[0.02] px-2 py-2 text-left transition-colors hover:border-white/[0.08] hover:bg-white/[0.045] ${itemClassName}`}
               data-attention-item-id={item.id}
             >
@@ -51,7 +56,7 @@ export function AttentionQueue({
                 <div className="truncate text-[11px] font-medium text-white/92">
                   {item.label}
                 </div>
-                <div className="mt-0.5 text-[10px] leading-relaxed text-white/54">
+                <div className={`mt-0.5 text-[10px] leading-relaxed text-white/54 ${detailClassName}`}>
                   {item.detail}
                 </div>
               </div>

@@ -40,6 +40,7 @@
 - [ ] In `Briefing`, confirm the panel is bound to the current focus session/run, quick prompts work, typed questions return evidence-backed explanations, and `Cancel` / `Retry` / `Dismiss` actions route through the existing Harness/error flows.
 - [ ] Close `Briefing` and confirm the underlying `Ops` panel is still readable, a running run can be cancelled, a failed/cancelled run can be retried, and run details can be copied.
 - [ ] Produce output in a background session and confirm Agent Cells uses inline Cell / Session attention markers instead of a queue card above the list, while Session Map `Ops` still owns the `Priority Queue` and Status Bar `Next` remains clickable.
+- [ ] Switch away from a session and back without meaningful new output, and confirm attach replay or silent refresh does not immediately mark it as `Unread`.
 - [ ] Trigger a running child-execution attention state and confirm Agent Cells inline markers, Status Bar `Next`, and Session Map `Priority Queue` all use the same `Running` vocabulary without displacing the Agent Cells list.
 - [ ] Trigger a failed attention state and confirm Agent Cells inline markers, Status Bar `Next`, and Session Map `Priority Queue` all use the same `Failed` vocabulary without introducing a second queue surface in Agent Cells.
 - [ ] Create or load multiple Cells and confirm the `Cells` command-center area wraps them into multiple card columns instead of letting one Cell stretch across the full width.

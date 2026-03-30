@@ -1,3 +1,29 @@
+export const RESIZE_ACTIVITY_SUPPRESS_MS = 1500;
+
+export function shouldSkipTerminalResize({
+  isActive,
+  isVisible,
+}: {
+  isActive: boolean;
+  isVisible: boolean;
+}): boolean {
+  return !isActive || !isVisible;
+}
+
+export function markSyntheticActivityWindow(
+  activitySuppressUntilRef: { current?: number } | null | undefined,
+  durationMs: number,
+  now = Date.now()
+) {
+  if (!activitySuppressUntilRef) {
+    return;
+  }
+  activitySuppressUntilRef.current = Math.max(
+    Number(activitySuppressUntilRef.current || 0),
+    now + durationMs
+  );
+}
+
 export const attachTerminalResizeController = ({
   cellId,
   sessionId,
@@ -14,6 +40,7 @@ export const attachTerminalResizeController = ({
   focusHandlerRef,
   isActiveRef,
   isVisibleRef,
+  activitySuppressUntilRef,
   resizeTerminal,
   logRuntime,
 }: any) => {
@@ -61,6 +88,15 @@ export const attachTerminalResizeController = ({
       return;
     }
     const now = Date.now();
+    if (
+      shouldSkipTerminalResize({
+        isActive: Boolean(isActiveRef.current),
+        isVisible: Boolean(isVisibleRef?.current),
+      })
+    ) {
+      logResizeSkip('inactive-or-hidden', { reason });
+      return;
+    }
     if (!force && now - lastOutputAtRef.current < OUTPUT_SUPPRESS_MS) {
       logResizeSkip('output-throttle', { reason });
       scheduleDeferredResize(250, 'deferred-output');
@@ -96,6 +132,11 @@ export const attachTerminalResizeController = ({
     if (resizeFrame) {
       cancelAnimationFrame(resizeFrame);
     }
+    markSyntheticActivityWindow(
+      activitySuppressUntilRef,
+      RESIZE_ACTIVITY_SUPPRESS_MS,
+      now
+    );
     resizeFrame = requestAnimationFrame(() => {
       resizeFrame = null;
       if (!terminalRef.current || !fitRef.current || !containerRef.current) {

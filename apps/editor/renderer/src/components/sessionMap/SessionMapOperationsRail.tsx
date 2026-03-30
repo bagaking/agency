@@ -52,31 +52,35 @@ export function SessionMapOperationsRail({
         <div className="flex min-w-0 items-center gap-2">
           <AgentAvatarBadge
             avatarId={focusAvatarId}
-            size={16}
-            ringSize={22}
+            size={18}
+            ringSize={24}
             lastActivityAt={focusData?.session?.lastActivityAt}
             isClosed={focusData?.session?.isOffline}
             className="shrink-0"
           />
-          <div className="min-w-0 truncate font-mono text-[8px] font-black uppercase tracking-[0.08em] text-white">
-            {focusSessionLabel}
+          <div className="min-w-0">
+            <div className="text-[8px] font-semibold uppercase tracking-[0.18em] text-white/42">
+              Ops
+            </div>
+            <div className="truncate text-[12px] font-semibold tracking-[0.01em] text-white">
+              {focusSessionLabel}
+            </div>
           </div>
-          <span className={`rounded border px-1.5 py-0.5 text-[6px] font-bold uppercase tracking-[0.12em] ${runToneClass}`}>
+          <span className={`rounded-full border px-2 py-0.5 text-[7px] font-semibold uppercase tracking-[0.12em] ${runToneClass}`}>
             {runStatusLabel}
           </span>
         </div>
-
-        <span className="rounded-full border border-white/10 bg-black/28 px-2.5 py-1 text-[7px] font-bold uppercase tracking-[0.12em] text-white/46">
-          Ops
-        </span>
       </div>
 
       <AttentionQueue
         title="Priority Queue"
-        items={(attentionItems || []).slice(0, 2)}
+        items={attentionItems || []}
         onSelectItem={onSelectAttention}
         emptyLabel="No immediate attention inside this window."
+        className="min-h-0"
         itemClassName="bg-black/14"
+        itemsContainerClassName="max-h-36 overflow-y-auto pr-1"
+        detailClassName="truncate"
       />
 
       <div className="min-h-0 flex-1 overflow-hidden">
