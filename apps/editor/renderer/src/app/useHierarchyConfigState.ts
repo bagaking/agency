@@ -34,18 +34,25 @@ export function useHierarchyConfigState({
   userDataPath,
 }: UseHierarchyConfigStateArgs) {
   const worktreeLinksState = useWorktreeLinks({ selectedCell: scopedCell, cells, projectRoot });
-  const terminusState = useTerminusSettings({ selectedCell: scopedCell, terminusScope: actionsScope });
+  const terminusState = useTerminusSettings({
+    projectRoot,
+    selectedCell: scopedCell,
+    terminusScope: actionsScope,
+  });
   const appShortcutsState = useAppShortcuts({
+    projectRoot,
     selectedCell: scopedCell,
     appShortcutsScope,
     userDataPath,
   });
   const replyQuickPromptsState = useReplyQuickPrompts({
+    projectRoot,
     selectedCell: scopedCell,
     scope: replyQuickPromptsScope,
     userDataPath,
   });
   const sessionNamingState = useSessionNamingSettings({
+    projectRoot,
     selectedCell: scopedCell,
     sessionNamingScope,
     userDataPath,
@@ -67,7 +74,8 @@ export function useHierarchyConfigState({
     return action?.shortcut || '';
   }, [appShortcutsState.resolvedActions]);
 
-  const canUseScopedConfig = Boolean(scopedCell?.worktreePath);
+  const canUseProjectScope = Boolean(projectRoot);
+  const canUseAgentScope = Boolean(projectRoot && scopedCell?.id);
   const resolvedRepoRoot = projectRoot || worktreeLinksState.repoRoot;
 
   const appShortcutsPaths = {
@@ -205,7 +213,8 @@ export function useHierarchyConfigState({
 
     memoVoiceShortcut,
     screenshotShortcut,
-    canUseScopedConfig,
+    canUseProjectScope,
+    canUseAgentScope,
     resolvedRepoRoot,
   };
 }

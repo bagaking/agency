@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { buildActionRows, mergeQuickActions } from '../utils/quickActions';
 import { getQuickActions, isAgencyAvailable, setQuickActions } from '../services/agencyBridge';
-import { pathBaseName, useScopedSettingsState } from './shared/scopedSettingsState';
+import { useScopedSettingsState } from './shared/scopedSettingsState';
 
 const generateActionId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -10,7 +10,7 @@ const generateActionId = () => {
   return `action-${Date.now()}`;
 };
 
-export function useQuickActions({ selectedCell, actionsScope }) {
+export function useQuickActions({ projectRoot, selectedCell, actionsScope }) {
   const [globalQuickActions, setGlobalQuickActions] = useState([]);
   const [projectQuickActions, setProjectQuickActions] = useState([]);
   const [agentQuickActions, setAgentQuickActions] = useState([]);
@@ -50,7 +50,7 @@ export function useQuickActions({ selectedCell, actionsScope }) {
       if (!ensureIpcAvailable('load-scoped')) {
         return;
       }
-      if (!selectedCell?.worktreePath) {
+      if (!projectRoot) {
         setProjectQuickActions([]);
         setAgentQuickActions([]);
         clearDirty('project');
@@ -61,12 +61,17 @@ export function useQuickActions({ selectedCell, actionsScope }) {
         const [project, agent] = await Promise.all([
           getQuickActions({
             scope: 'project',
+            projectRoot,
             worktreePath: selectedCell.worktreePath,
           }),
-          getQuickActions({
-            scope: 'agent',
-            worktreePath: selectedCell.worktreePath,
-          }),
+          selectedCell?.id
+            ? getQuickActions({
+                scope: 'agent',
+                projectRoot,
+                cellId: selectedCell.id,
+                worktreePath: selectedCell.worktreePath,
+              })
+            : Promise.resolve([]),
         ]);
         setProjectQuickActions(Array.isArray(project) ? project : []);
         setAgentQuickActions(Array.isArray(agent) ? agent : []);
@@ -79,7 +84,7 @@ export function useQuickActions({ selectedCell, actionsScope }) {
       }
     };
     loadScopedQuickActions();
-  }, [selectedCell?.worktreePath]);
+  }, [projectRoot, selectedCell?.id, selectedCell?.worktreePath]);
 
   const resolvedQuickActions = useMemo(
     () => mergeQuickActions(globalQuickActions, projectQuickActions, agentQuickActions),
@@ -104,14 +109,17 @@ export function useQuickActions({ selectedCell, actionsScope }) {
         ? agentQuickActions
         : globalQuickActions;
 
-  const worktreeName = selectedCell?.worktreePath ? pathBaseName(selectedCell.worktreePath) : '';
-  const projectActionsPath = selectedCell?.worktreePath
-    ? `${selectedCell.worktreePath}/.agency/quick-actions.yaml`
-    : '';
-  const agentActionsPath = selectedCell?.worktreePath
-    ? `${selectedCell.worktreePath}/.agency/quick-actions-${worktreeName}.yaml`
-    : '';
-  const scopeDisabled = actionsScope !== 'global' && !selectedCell?.worktreePath;
+  const projectActionsPath = projectRoot ? `${projectRoot}/.agency/quick-actions.yaml` : '';
+  const agentActionsPath =
+    projectRoot && selectedCell?.id
+      ? `${projectRoot}/.agency/cells/${selectedCell.id}/quick-actions.yaml`
+      : '';
+  const scopeDisabled =
+    actionsScope === 'project'
+      ? !projectRoot
+      : actionsScope === 'agent'
+        ? !projectRoot || !selectedCell?.id
+        : false;
 
   const updateScopedActions = (updater) => {
     if (actionsScope === 'project') {
@@ -188,6 +196,8 @@ export function useQuickActions({ selectedCell, actionsScope }) {
       const actionsToSave = scopeActions;
       const saved = await setQuickActions({
         scope: actionsScope,
+        projectRoot,
+        cellId: selectedCell?.id,
         worktreePath: selectedCell?.worktreePath,
         actions: actionsToSave,
       });

@@ -6,7 +6,6 @@ import {
   normalizeGateConfig,
 } from '../utils/gates';
 import { checkGates, getGates, isAgencyAvailable, setGates } from '../services/agencyBridge';
-import { pathBaseName } from './shared/scopedSettingsState';
 
 const generateGateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -44,7 +43,7 @@ export function useGates({ selectedCell, gateScope, gateStage, repoRoot }) {
       if (!isAgencyAvailable()) {
         return;
       }
-      if (!selectedCell?.worktreePath) {
+      if (!repoRoot) {
         setProjectGates(normalizeGateConfig({}));
         setAgentGates(normalizeGateConfig({}));
         return;
@@ -53,12 +52,17 @@ export function useGates({ selectedCell, gateScope, gateStage, repoRoot }) {
         const [project, agent] = await Promise.all([
           getGates({
             scope: 'project',
+            projectRoot: repoRoot,
             worktreePath: selectedCell.worktreePath,
           }),
-          getGates({
-            scope: 'agent',
-            worktreePath: selectedCell.worktreePath,
-          }),
+          selectedCell?.id
+            ? getGates({
+                scope: 'agent',
+                projectRoot: repoRoot,
+                cellId: selectedCell.id,
+                worktreePath: selectedCell.worktreePath,
+              })
+            : Promise.resolve(normalizeGateConfig({})),
         ]);
         setProjectGates(normalizeGateConfig(project || {}));
         setAgentGates(normalizeGateConfig(agent || {}));
@@ -69,7 +73,7 @@ export function useGates({ selectedCell, gateScope, gateStage, repoRoot }) {
       }
     };
     loadScopedGates();
-  }, [selectedCell?.worktreePath]);
+  }, [repoRoot, selectedCell?.id, selectedCell?.worktreePath]);
 
   const gateRows = useMemo(
     () =>
@@ -90,12 +94,16 @@ export function useGates({ selectedCell, gateScope, gateStage, repoRoot }) {
         ? normalizeGateConfig(agentGates)[gateStage]
         : normalizeGateConfig(globalGates)[gateStage];
 
-  const worktreeName = selectedCell?.worktreePath ? pathBaseName(selectedCell.worktreePath) : '';
   const projectGatesPath = repoRoot ? `${repoRoot}/.agency/gates.yaml` : '';
-  const agentGatesPath = selectedCell?.worktreePath
-    ? `${selectedCell.worktreePath}/.agency/gates-${worktreeName}.yaml`
+  const agentGatesPath = repoRoot && selectedCell?.id
+    ? `${repoRoot}/.agency/cells/${selectedCell.id}/gates.yaml`
     : '';
-  const gateScopeDisabled = gateScope !== 'global' && !selectedCell?.worktreePath;
+  const gateScopeDisabled =
+    gateScope === 'project'
+      ? !repoRoot
+      : gateScope === 'agent'
+        ? !repoRoot || !selectedCell?.id
+        : false;
 
   const updateGateResults = (cellId, stage, results) => {
     if (!cellId || !stage) {
@@ -183,7 +191,7 @@ export function useGates({ selectedCell, gateScope, gateStage, repoRoot }) {
   };
 
   const addGate = () => {
-    if (gateScope !== 'global' && !selectedCell?.worktreePath) {
+    if (gateScopeDisabled) {
       setGatesError('Select a Cell to edit project or agent gates.');
       return;
     }
@@ -227,7 +235,7 @@ export function useGates({ selectedCell, gateScope, gateStage, repoRoot }) {
     if (!isAgencyAvailable()) {
       return;
     }
-    if (gateScope !== 'global' && !selectedCell?.worktreePath) {
+    if (gateScopeDisabled) {
       setGatesError('Select a Cell to edit project or agent gates.');
       return;
     }
@@ -242,6 +250,8 @@ export function useGates({ selectedCell, gateScope, gateStage, repoRoot }) {
             : normalizeGateConfig(globalGates);
       const saved = await setGates({
         scope: gateScope,
+        projectRoot: repoRoot,
+        cellId: selectedCell?.id,
         worktreePath: selectedCell?.worktreePath,
         gates: gatesToSave,
       });

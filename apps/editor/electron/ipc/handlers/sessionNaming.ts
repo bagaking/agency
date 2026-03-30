@@ -10,6 +10,8 @@ function setupSessionNamingHandlers() {
     return sessionNaming.setSessionNamingSettings({
       scope: payload?.scope,
       worktreePath: payload?.worktreePath,
+      projectRoot: payload?.projectRoot,
+      cellId: payload?.cellId,
       settings,
     });
   });

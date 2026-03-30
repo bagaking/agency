@@ -190,7 +190,8 @@ function createFixture() {
     saveWorktreeLinks: asyncNoop,
     refreshWorktreeLinks: asyncNoop,
     resolvedRepoRoot: '/tmp/repo',
-    canUseScopedConfig: true,
+    canUseProjectScope: true,
+    canUseAgentScope: true,
   };
 
   const promoteWorkflow = {

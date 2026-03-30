@@ -10,6 +10,8 @@ function setupTerminusSettingsHandlers() {
     return terminusSettings.setTerminusSettings({
       scope: payload?.scope,
       worktreePath: payload?.worktreePath,
+      projectRoot: payload?.projectRoot,
+      cellId: payload?.cellId,
       settings,
     });
   });

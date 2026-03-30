@@ -9,7 +9,7 @@ import {
   mergeProfiles,
 } from '../utils/terminusSettings';
 import { getTerminusSettings, isAgencyAvailable, setTerminusSettings } from '../services/agencyBridge';
-import { pathBaseName, useScopedSettingsState } from './shared/scopedSettingsState';
+import { useScopedSettingsState } from './shared/scopedSettingsState';
 
 const DEFAULT_SETTINGS = {
   profiles: [BASELINE_PROFILE],
@@ -26,7 +26,7 @@ const generateId = (prefix) => {
   return `${prefix}-${Date.now()}`;
 };
 
-export function useTerminusSettings({ selectedCell, terminusScope }) {
+export function useTerminusSettings({ projectRoot, selectedCell, terminusScope }) {
   const [globalSettings, setGlobalSettings] = useState(DEFAULT_SETTINGS);
   const [projectSettings, setProjectSettings] = useState(EMPTY_SETTINGS);
   const [agentSettings, setAgentSettings] = useState(EMPTY_SETTINGS);
@@ -66,7 +66,7 @@ export function useTerminusSettings({ selectedCell, terminusScope }) {
       if (!ensureIpcAvailable('load-scoped')) {
         return;
       }
-      if (!selectedCell?.worktreePath) {
+      if (!projectRoot) {
         setProjectSettings(EMPTY_SETTINGS);
         setAgentSettings(EMPTY_SETTINGS);
         clearDirty('project');
@@ -75,8 +75,19 @@ export function useTerminusSettings({ selectedCell, terminusScope }) {
       }
       try {
         const [project, agent] = await Promise.all([
-          getTerminusSettings({ scope: 'project', worktreePath: selectedCell.worktreePath }),
-          getTerminusSettings({ scope: 'agent', worktreePath: selectedCell.worktreePath }),
+          getTerminusSettings({
+            scope: 'project',
+            projectRoot,
+            worktreePath: selectedCell?.worktreePath,
+          }),
+          selectedCell?.id
+            ? getTerminusSettings({
+                scope: 'agent',
+                projectRoot,
+                cellId: selectedCell.id,
+                worktreePath: selectedCell.worktreePath,
+              })
+            : Promise.resolve(EMPTY_SETTINGS),
         ]);
         setProjectSettings(project || EMPTY_SETTINGS);
         setAgentSettings(agent || EMPTY_SETTINGS);
@@ -89,7 +100,7 @@ export function useTerminusSettings({ selectedCell, terminusScope }) {
       }
     };
     loadScoped();
-  }, [selectedCell?.worktreePath]);
+  }, [projectRoot, selectedCell?.id, selectedCell?.worktreePath]);
 
   const resolvedProfiles = useMemo(
     () => {
@@ -152,14 +163,17 @@ export function useTerminusSettings({ selectedCell, terminusScope }) {
         ? agentSettings
         : globalSettings;
 
-  const scopeDisabled = terminusScope !== 'global' && !selectedCell?.worktreePath;
-  const worktreeName = selectedCell?.worktreePath ? pathBaseName(selectedCell.worktreePath) : '';
-  const projectSettingsPath = selectedCell?.worktreePath
-    ? `${selectedCell.worktreePath}/.agency/terminus-settings.yaml`
-    : '';
-  const agentSettingsPath = selectedCell?.worktreePath
-    ? `${selectedCell.worktreePath}/.agency/terminus-settings-${worktreeName}.yaml`
-    : '';
+  const scopeDisabled =
+    terminusScope === 'project'
+      ? !projectRoot
+      : terminusScope === 'agent'
+        ? !projectRoot || !selectedCell?.id
+        : false;
+  const projectSettingsPath = projectRoot ? `${projectRoot}/.agency/terminus-settings.yaml` : '';
+  const agentSettingsPath =
+    projectRoot && selectedCell?.id
+      ? `${projectRoot}/.agency/cells/${selectedCell.id}/terminus-settings.yaml`
+      : '';
 
   const updateScopedSettings = (updater) => {
     if (terminusScope === 'project') {
@@ -341,6 +355,8 @@ export function useTerminusSettings({ selectedCell, terminusScope }) {
       const settingsToSave = scopeSettings || DEFAULT_SETTINGS;
       const saved = await setTerminusSettings({
         scope: terminusScope,
+        projectRoot,
+        cellId: selectedCell?.id,
         worktreePath: selectedCell?.worktreePath,
         settings: settingsToSave,
       });

@@ -7,6 +7,10 @@ const yaml = require('js-yaml');
 
 const { getRepoRoot } = require('./git');
 const { logRuntime } = require('./runtimeLog');
+const {
+  resolveAgentScopeConfigPaths,
+  resolveProjectScopeConfigPaths,
+} = require('./shared/scopedConfigStorage');
 
 const STAGES = ['draft', 'active', 'archived'];
 const DEFAULT_GATES = {
@@ -62,6 +66,7 @@ const DEFAULT_GATES = {
 const PROJECT_FILENAME = 'gates.yaml';
 const AGENT_PREFIX = 'gates-';
 const AGENT_EXT = '.yaml';
+const AGENT_FILENAME = 'gates.yaml';
 const GLOBAL_FILENAME = 'gates.yaml';
 const LEGACY_GLOBAL_FILENAME = 'gates.json';
 
@@ -75,21 +80,23 @@ function getLegacyGlobalGatesPath() {
   return path.join(app.getPath('userData'), LEGACY_GLOBAL_FILENAME);
 }
 
-async function getProjectGatesPath(worktreePath) {
-  try {
-    const repoRoot = await getRepoRoot(worktreePath || process.cwd());
-    return path.join(repoRoot, '.agency', PROJECT_FILENAME);
-  } catch (error) {
-    return null;
-  }
+async function resolveProjectGatesPaths(params: any = {}) {
+  return resolveProjectScopeConfigPaths({
+    projectRoot: params.projectRoot,
+    worktreePath: params.worktreePath,
+    filenames: [PROJECT_FILENAME],
+  });
 }
 
-function getAgentGatesPath(worktreePath) {
-  if (!worktreePath) {
-    return null;
-  }
-  const worktreeName = path.basename(worktreePath);
-  return path.join(worktreePath, '.agency', `${AGENT_PREFIX}${worktreeName}${AGENT_EXT}`);
+async function resolveAgentGatesPaths(params: any = {}) {
+  return resolveAgentScopeConfigPaths({
+    projectRoot: params.projectRoot,
+    worktreePath: params.worktreePath,
+    cellId: params.cellId,
+    filename: AGENT_FILENAME,
+    legacyPrefix: AGENT_PREFIX,
+    legacyExt: AGENT_EXT,
+  });
 }
 
 function normalizeId(value) {
@@ -155,16 +162,13 @@ async function readGlobalGates() {
   }
 }
 
-async function readProjectGates(worktreePath) {
-  if (!worktreePath) {
-    return normalizeConfig({});
-  }
-  const filePath = await getProjectGatesPath(worktreePath);
-  if (!filePath || !fs.existsSync(filePath)) {
+async function readProjectGates(params: any = {}) {
+  const { readPath } = await resolveProjectGatesPaths(params);
+  if (!readPath || !fs.existsSync(readPath)) {
     return normalizeConfig({});
   }
   try {
-    const raw = await fsp.readFile(filePath, 'utf-8');
+    const raw = await fsp.readFile(readPath, 'utf-8');
     const parsed = yaml.load(raw);
     return normalizeConfig(parsed);
   } catch (error) {
@@ -172,13 +176,13 @@ async function readProjectGates(worktreePath) {
   }
 }
 
-async function readAgentGates(worktreePath) {
-  const filePath = getAgentGatesPath(worktreePath);
-  if (!filePath || !fs.existsSync(filePath)) {
+async function readAgentGates(params: any = {}) {
+  const { readPath } = await resolveAgentGatesPaths(params);
+  if (!readPath || !fs.existsSync(readPath)) {
     return normalizeConfig({});
   }
   try {
-    const raw = await fsp.readFile(filePath, 'utf-8');
+    const raw = await fsp.readFile(readPath, 'utf-8');
     const parsed = yaml.load(raw);
     return normalizeConfig(parsed);
   } catch (error) {
@@ -194,28 +198,25 @@ async function writeGlobalGates(config) {
   return normalized;
 }
 
-async function writeProjectGates(worktreePath, config) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required for project gates.');
+async function writeProjectGates(params: any = {}, config) {
+  const { canonicalPath, repoRoot } = await resolveProjectGatesPaths(params);
+  if (!canonicalPath || !repoRoot) {
+    throw new Error('projectRoot is required for project gates.');
   }
-  const filePath = await getProjectGatesPath(worktreePath);
-  if (!filePath) {
-    throw new Error('Unable to resolve project gates path.');
-  }
-  await fsp.mkdir(path.dirname(filePath), { recursive: true });
+  await fsp.mkdir(path.dirname(canonicalPath), { recursive: true });
   const normalized = normalizeConfig(config);
-  await fsp.writeFile(filePath, yaml.dump(normalized, { lineWidth: 120 }), 'utf-8');
+  await fsp.writeFile(canonicalPath, yaml.dump(normalized, { lineWidth: 120 }), 'utf-8');
   return normalized;
 }
 
-async function writeAgentGates(worktreePath, config) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required for agent gates.');
+async function writeAgentGates(params: any = {}, config) {
+  const { canonicalPath, repoRoot } = await resolveAgentGatesPaths(params);
+  if (!canonicalPath || !repoRoot) {
+    throw new Error('projectRoot and cellId are required for agent gates.');
   }
-  const filePath = getAgentGatesPath(worktreePath);
-  await fsp.mkdir(path.dirname(filePath), { recursive: true });
+  await fsp.mkdir(path.dirname(canonicalPath), { recursive: true });
   const normalized = normalizeConfig(config);
-  await fsp.writeFile(filePath, yaml.dump(normalized, { lineWidth: 120 }), 'utf-8');
+  await fsp.writeFile(canonicalPath, yaml.dump(normalized, { lineWidth: 120 }), 'utf-8');
   return normalized;
 }
 
@@ -238,19 +239,20 @@ function mergeGates(...scopes) {
   return merged;
 }
 
-async function getGates({ scope = 'resolved', worktreePath } = {}) {
+async function getGates(params: any = {}) {
+  const { scope = 'resolved' } = params || {};
   if (scope === 'global') {
     return readGlobalGates();
   }
   if (scope === 'project') {
-    return readProjectGates(worktreePath);
+    return readProjectGates(params);
   }
   if (scope === 'agent') {
-    return readAgentGates(worktreePath);
+    return readAgentGates(params);
   }
   const globalGates = await readGlobalGates();
-  const projectGates = await readProjectGates(worktreePath);
-  const agentGates = await readAgentGates(worktreePath);
+  const projectGates = await readProjectGates(params);
+  const agentGates = await readAgentGates(params);
   const merged = {};
   STAGES.forEach((stage) => {
     merged[stage] = mergeGates(globalGates[stage], projectGates[stage], agentGates[stage]);
@@ -258,12 +260,13 @@ async function getGates({ scope = 'resolved', worktreePath } = {}) {
   return merged;
 }
 
-async function setGates({ scope = 'global', worktreePath, gates }) {
+async function setGates(params: any = {}) {
+  const { scope = 'global', gates } = params || {};
   if (scope === 'project') {
-    return writeProjectGates(worktreePath, gates);
+    return writeProjectGates(params, gates);
   }
   if (scope === 'agent') {
-    return writeAgentGates(worktreePath, gates);
+    return writeAgentGates(params, gates);
   }
   return writeGlobalGates(gates);
 }

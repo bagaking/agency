@@ -4,6 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const yaml = require('js-yaml');
+const {
+  resolveAgentScopeConfigPaths,
+  resolveProjectScopeConfigPaths,
+} = require('./shared/scopedConfigStorage');
 
 const fsp = fs.promises;
 
@@ -129,19 +133,23 @@ function getGlobalSettingsPath() {
   return path.join(userDataPath, 'terminus-settings.json');
 }
 
-function getProjectSettingsPath(worktreePath) {
-  if (!worktreePath) {
-    return null;
-  }
-  return path.join(worktreePath, '.agency', PROJECT_FILENAME);
+async function resolveProjectSettingsPaths(params: any = {}) {
+  return resolveProjectScopeConfigPaths({
+    projectRoot: params.projectRoot,
+    worktreePath: params.worktreePath,
+    filenames: [PROJECT_FILENAME],
+  });
 }
 
-function getAgentSettingsPath(worktreePath) {
-  if (!worktreePath) {
-    return null;
-  }
-  const worktreeName = path.basename(worktreePath);
-  return path.join(worktreePath, '.agency', `${AGENT_PREFIX}${worktreeName}${AGENT_EXT}`);
+async function resolveAgentSettingsPaths(params: any = {}) {
+  return resolveAgentScopeConfigPaths({
+    projectRoot: params.projectRoot,
+    worktreePath: params.worktreePath,
+    cellId: params.cellId,
+    filename: PROJECT_FILENAME,
+    legacyPrefix: AGENT_PREFIX,
+    legacyExt: AGENT_EXT,
+  });
 }
 
 function normalizeFork(profile = {}) {
@@ -246,15 +254,12 @@ async function readGlobalSettings() {
   }
 }
 
-async function readProjectSettings(worktreePath) {
-  if (!worktreePath) {
+async function readProjectSettings(params: any = {}) {
+  const { readPath } = await resolveProjectSettingsPaths(params);
+  if (!readPath || !fs.existsSync(readPath)) {
     return EMPTY_SETTINGS;
   }
-  const filePath = getProjectSettingsPath(worktreePath);
-  if (!filePath || !fs.existsSync(filePath)) {
-    return EMPTY_SETTINGS;
-  }
-  const raw = await fsp.readFile(filePath, 'utf-8');
+  const raw = await fsp.readFile(readPath, 'utf-8');
   try {
     const parsed = yaml.load(raw);
     return normalizeSettings(parsed || {});
@@ -263,15 +268,12 @@ async function readProjectSettings(worktreePath) {
   }
 }
 
-async function readAgentSettings(worktreePath) {
-  if (!worktreePath) {
+async function readAgentSettings(params: any = {}) {
+  const { readPath } = await resolveAgentSettingsPaths(params);
+  if (!readPath || !fs.existsSync(readPath)) {
     return EMPTY_SETTINGS;
   }
-  const filePath = getAgentSettingsPath(worktreePath);
-  if (!filePath || !fs.existsSync(filePath)) {
-    return EMPTY_SETTINGS;
-  }
-  const raw = await fsp.readFile(filePath, 'utf-8');
+  const raw = await fsp.readFile(readPath, 'utf-8');
   try {
     const parsed = yaml.load(raw);
     return normalizeSettings(parsed || {});
@@ -292,44 +294,45 @@ async function writeGlobalSettings(settings) {
   return payload;
 }
 
-async function writeProjectSettings(worktreePath, settings) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required for project terminus settings.');
+async function writeProjectSettings(params: any = {}, settings) {
+  const { canonicalPath, repoRoot } = await resolveProjectSettingsPaths(params);
+  if (!canonicalPath || !repoRoot) {
+    throw new Error('projectRoot is required for project terminus settings.');
   }
-  const filePath = getProjectSettingsPath(worktreePath);
-  await fsp.mkdir(path.dirname(filePath), { recursive: true });
+  await fsp.mkdir(path.dirname(canonicalPath), { recursive: true });
   const normalized = normalizeSettings(settings || EMPTY_SETTINGS);
   const content = yaml.dump(normalized, { lineWidth: 120 });
-  await fsp.writeFile(filePath, content, 'utf-8');
+  await fsp.writeFile(canonicalPath, content, 'utf-8');
   return normalized;
 }
 
-async function writeAgentSettings(worktreePath, settings) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required for agent terminus settings.');
+async function writeAgentSettings(params: any = {}, settings) {
+  const { canonicalPath, repoRoot } = await resolveAgentSettingsPaths(params);
+  if (!canonicalPath || !repoRoot) {
+    throw new Error('projectRoot and cellId are required for agent terminus settings.');
   }
-  const filePath = getAgentSettingsPath(worktreePath);
-  await fsp.mkdir(path.dirname(filePath), { recursive: true });
+  await fsp.mkdir(path.dirname(canonicalPath), { recursive: true });
   const normalized = normalizeSettings(settings || EMPTY_SETTINGS);
   const content = yaml.dump(normalized, { lineWidth: 120 });
-  await fsp.writeFile(filePath, content, 'utf-8');
+  await fsp.writeFile(canonicalPath, content, 'utf-8');
   return normalized;
 }
 
-async function getTerminusSettings({ scope = 'resolved', worktreePath } = {}) {
+async function getTerminusSettings(params: any = {}) {
+  const { scope = 'resolved' } = params || {};
   if (scope === 'global') {
     return readGlobalSettings();
   }
   if (scope === 'project') {
-    return readProjectSettings(worktreePath);
+    return readProjectSettings(params);
   }
   if (scope === 'agent') {
-    return readAgentSettings(worktreePath);
+    return readAgentSettings(params);
   }
   const [globalSettings, projectSettings, agentSettings] = await Promise.all([
     readGlobalSettings(),
-    readProjectSettings(worktreePath),
-    readAgentSettings(worktreePath),
+    readProjectSettings(params),
+    readAgentSettings(params),
   ]);
   return { global: globalSettings, project: projectSettings, agent: agentSettings };
 }
@@ -355,11 +358,11 @@ function mergeById(...scopes) {
   return merged;
 }
 
-async function getResolvedTerminusSettings({ worktreePath } = {}) {
+async function getResolvedTerminusSettings(params: any = {}) {
   const [globalSettings, projectSettings, agentSettings] = await Promise.all([
     readGlobalSettings(),
-    readProjectSettings(worktreePath),
-    readAgentSettings(worktreePath),
+    readProjectSettings(params),
+    readAgentSettings(params),
   ]);
   return {
     profiles: ensureBaselineProfile(
@@ -372,12 +375,13 @@ async function getResolvedTerminusSettings({ worktreePath } = {}) {
   };
 }
 
-async function setTerminusSettings({ scope = 'global', worktreePath, settings }) {
+async function setTerminusSettings(params: any = {}) {
+  const { scope = 'global', settings } = params || {};
   if (scope === 'project') {
-    return writeProjectSettings(worktreePath, settings);
+    return writeProjectSettings(params, settings);
   }
   if (scope === 'agent') {
-    return writeAgentSettings(worktreePath, settings);
+    return writeAgentSettings(params, settings);
   }
   return writeGlobalSettings(settings);
 }

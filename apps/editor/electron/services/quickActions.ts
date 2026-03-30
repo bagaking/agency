@@ -3,6 +3,10 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const yaml = require('js-yaml');
+const {
+  resolveAgentScopeConfigPaths,
+  resolveProjectScopeConfigPaths,
+} = require('./shared/scopedConfigStorage');
 
 const fsp = fs.promises;
 
@@ -30,32 +34,29 @@ const DEFAULT_ACTIONS = [
 const PROJECT_FILENAMES = ['quick-actions.yaml', 'quick-actions.yml'];
 const AGENT_PREFIX = 'quick-actions-';
 const AGENT_EXT = '.yaml';
+const AGENT_FILENAME = 'quick-actions.yaml';
 
 function getGlobalQuickActionsPath() {
   return path.join(app.getPath('userData'), 'quick-actions.json');
 }
 
-function getProjectQuickActionsPath(worktreePath) {
-  if (!worktreePath) {
-    return null;
-  }
-  const agencyDir = path.join(worktreePath, '.agency');
-  for (const name of PROJECT_FILENAMES) {
-    const candidate = path.join(agencyDir, name);
-    if (fs.existsSync(candidate)) {
-      return candidate;
-    }
-  }
-  return path.join(agencyDir, PROJECT_FILENAMES[0]);
+async function resolveProjectQuickActionsPaths(params = {}) {
+  return resolveProjectScopeConfigPaths({
+    projectRoot: params.projectRoot,
+    worktreePath: params.worktreePath,
+    filenames: PROJECT_FILENAMES,
+  });
 }
 
-function getAgentQuickActionsPath(worktreePath) {
-  if (!worktreePath) {
-    return null;
-  }
-  const worktreeName = path.basename(worktreePath);
-  const agencyDir = path.join(worktreePath, '.agency');
-  return path.join(agencyDir, `${AGENT_PREFIX}${worktreeName}${AGENT_EXT}`);
+async function resolveAgentQuickActionsPaths(params = {}) {
+  return resolveAgentScopeConfigPaths({
+    projectRoot: params.projectRoot,
+    worktreePath: params.worktreePath,
+    cellId: params.cellId,
+    filename: AGENT_FILENAME,
+    legacyPrefix: AGENT_PREFIX,
+    legacyExt: AGENT_EXT,
+  });
 }
 
 function ensureId(action: any) {
@@ -91,15 +92,12 @@ async function writeGlobalQuickActions(actions) {
   return normalized;
 }
 
-async function readProjectQuickActions(worktreePath) {
-  if (!worktreePath) {
+async function readProjectQuickActions(params = {}) {
+  const { readPath } = await resolveProjectQuickActionsPaths(params);
+  if (!readPath || !fs.existsSync(readPath)) {
     return [];
   }
-  const filePath = getProjectQuickActionsPath(worktreePath);
-  if (!filePath || !fs.existsSync(filePath)) {
-    return [];
-  }
-  const raw = await fsp.readFile(filePath, 'utf-8');
+  const raw = await fsp.readFile(readPath, 'utf-8');
   try {
     const parsed = yaml.load(raw);
     if (!Array.isArray(parsed)) {
@@ -111,15 +109,12 @@ async function readProjectQuickActions(worktreePath) {
   }
 }
 
-async function readAgentQuickActions(worktreePath) {
-  if (!worktreePath) {
+async function readAgentQuickActions(params = {}) {
+  const { readPath } = await resolveAgentQuickActionsPaths(params);
+  if (!readPath || !fs.existsSync(readPath)) {
     return [];
   }
-  const filePath = getAgentQuickActionsPath(worktreePath);
-  if (!filePath || !fs.existsSync(filePath)) {
-    return [];
-  }
-  const raw = await fsp.readFile(filePath, 'utf-8');
+  const raw = await fsp.readFile(readPath, 'utf-8');
   try {
     const parsed = yaml.load(raw);
     if (!Array.isArray(parsed)) {
@@ -131,27 +126,27 @@ async function readAgentQuickActions(worktreePath) {
   }
 }
 
-async function writeProjectQuickActions(worktreePath, actions) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required for project quick actions.');
+async function writeProjectQuickActions(params = {}, actions) {
+  const { canonicalPath, repoRoot } = await resolveProjectQuickActionsPaths(params);
+  if (!canonicalPath || !repoRoot) {
+    throw new Error('projectRoot is required for project quick actions.');
   }
-  const filePath = getProjectQuickActionsPath(worktreePath);
-  await fsp.mkdir(path.dirname(filePath), { recursive: true });
+  await fsp.mkdir(path.dirname(canonicalPath), { recursive: true });
   const normalized = Array.isArray(actions) ? actions.map(ensureId) : [];
   const content = yaml.dump(normalized, { lineWidth: 120 });
-  await fsp.writeFile(filePath, content, 'utf-8');
+  await fsp.writeFile(canonicalPath, content, 'utf-8');
   return normalized;
 }
 
-async function writeAgentQuickActions(worktreePath, actions) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required for agent quick actions.');
+async function writeAgentQuickActions(params = {}, actions) {
+  const { canonicalPath, repoRoot } = await resolveAgentQuickActionsPaths(params);
+  if (!canonicalPath || !repoRoot) {
+    throw new Error('projectRoot and cellId are required for agent quick actions.');
   }
-  const filePath = getAgentQuickActionsPath(worktreePath);
-  await fsp.mkdir(path.dirname(filePath), { recursive: true });
+  await fsp.mkdir(path.dirname(canonicalPath), { recursive: true });
   const normalized = Array.isArray(actions) ? actions.map(ensureId) : [];
   const content = yaml.dump(normalized, { lineWidth: 120 });
-  await fsp.writeFile(filePath, content, 'utf-8');
+  await fsp.writeFile(canonicalPath, content, 'utf-8');
   return normalized;
 }
 
@@ -175,29 +170,29 @@ function mergeQuickActions(...scopes) {
 }
 
 async function getQuickActions(params: any = {}) {
-  const { scope = 'resolved', worktreePath } = params || {};
+  const { scope = 'resolved' } = params || {};
   if (scope === 'global') {
     return readGlobalQuickActions();
   }
   if (scope === 'project') {
-    return readProjectQuickActions(worktreePath);
+    return readProjectQuickActions(params);
   }
   if (scope === 'agent') {
-    return readAgentQuickActions(worktreePath);
+    return readAgentQuickActions(params);
   }
   const globalActions = await readGlobalQuickActions();
-  const projectActions = await readProjectQuickActions(worktreePath);
-  const agentActions = await readAgentQuickActions(worktreePath);
+  const projectActions = await readProjectQuickActions(params);
+  const agentActions = await readAgentQuickActions(params);
   return mergeQuickActions(globalActions, projectActions, agentActions);
 }
 
 async function setQuickActions(params: any = {}) {
-  const { scope = 'global', worktreePath, actions } = params || {};
+  const { scope = 'global', actions } = params || {};
   if (scope === 'project') {
-    return writeProjectQuickActions(worktreePath, actions);
+    return writeProjectQuickActions(params, actions);
   }
   if (scope === 'agent') {
-    return writeAgentQuickActions(worktreePath, actions);
+    return writeAgentQuickActions(params, actions);
   }
   return writeGlobalQuickActions(actions);
 }

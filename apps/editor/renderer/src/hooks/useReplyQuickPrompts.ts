@@ -4,7 +4,7 @@ import {
   isAgencyAvailable,
   setReplyQuickPrompts,
 } from '../services/agencyBridge';
-import { pathBaseName, useScopedSettingsState } from './shared/scopedSettingsState';
+import { useScopedSettingsState } from './shared/scopedSettingsState';
 import {
   generateReplyPromptId,
   normalizePromptList,
@@ -13,7 +13,7 @@ import {
 
 const EMPTY_PROMPTS = [];
 
-export function useReplyQuickPrompts({ selectedCell, scope, userDataPath }: any) {
+export function useReplyQuickPrompts({ projectRoot, selectedCell, scope, userDataPath }: any) {
   const [globalPrompts, setGlobalPrompts] = useState(EMPTY_PROMPTS);
   const [projectPrompts, setProjectPrompts] = useState(EMPTY_PROMPTS);
   const [agentPrompts, setAgentPrompts] = useState(EMPTY_PROMPTS);
@@ -53,7 +53,7 @@ export function useReplyQuickPrompts({ selectedCell, scope, userDataPath }: any)
       if (!ensureIpcAvailable('load-scoped')) {
         return;
       }
-      if (!selectedCell?.worktreePath) {
+      if (!projectRoot) {
         setProjectPrompts(EMPTY_PROMPTS);
         setAgentPrompts(EMPTY_PROMPTS);
         clearDirty('project');
@@ -62,8 +62,19 @@ export function useReplyQuickPrompts({ selectedCell, scope, userDataPath }: any)
       }
       try {
         const [project, agent] = await Promise.all([
-          getReplyQuickPrompts({ scope: 'project', worktreePath: selectedCell.worktreePath }),
-          getReplyQuickPrompts({ scope: 'agent', worktreePath: selectedCell.worktreePath }),
+          getReplyQuickPrompts({
+            scope: 'project',
+            projectRoot,
+            worktreePath: selectedCell?.worktreePath,
+          }),
+          selectedCell?.id
+            ? getReplyQuickPrompts({
+                scope: 'agent',
+                projectRoot,
+                cellId: selectedCell.id,
+                worktreePath: selectedCell.worktreePath,
+              })
+            : Promise.resolve(EMPTY_PROMPTS),
         ]);
         setProjectPrompts(normalizePromptList(project));
         setAgentPrompts(normalizePromptList(agent));
@@ -76,7 +87,7 @@ export function useReplyQuickPrompts({ selectedCell, scope, userDataPath }: any)
       }
     };
     loadScopedPrompts();
-  }, [selectedCell?.worktreePath]);
+  }, [projectRoot, selectedCell?.id, selectedCell?.worktreePath]);
 
   const scopePrompts =
     scope === 'project'
@@ -85,14 +96,17 @@ export function useReplyQuickPrompts({ selectedCell, scope, userDataPath }: any)
         ? agentPrompts
         : globalPrompts;
 
-  const scopeDisabled = scope !== 'global' && !selectedCell?.worktreePath;
-  const worktreeName = selectedCell?.worktreePath ? pathBaseName(selectedCell.worktreePath) : '';
-  const projectSettingsPath = selectedCell?.worktreePath
-    ? `${selectedCell.worktreePath}/.agency/reply-quick-prompts.yaml`
-    : '';
-  const agentSettingsPath = selectedCell?.worktreePath
-    ? `${selectedCell.worktreePath}/.agency/reply-quick-prompts-${worktreeName}.yaml`
-    : '';
+  const scopeDisabled =
+    scope === 'project'
+      ? !projectRoot
+      : scope === 'agent'
+        ? !projectRoot || !selectedCell?.id
+        : false;
+  const projectSettingsPath = projectRoot ? `${projectRoot}/.agency/reply-quick-prompts.yaml` : '';
+  const agentSettingsPath =
+    projectRoot && selectedCell?.id
+      ? `${projectRoot}/.agency/cells/${selectedCell.id}/reply-quick-prompts.yaml`
+      : '';
   const globalSettingsPath = userDataPath
     ? `${userDataPath}/reply-quick-prompts.json`
     : 'Global User Config';
@@ -162,6 +176,8 @@ export function useReplyQuickPrompts({ selectedCell, scope, userDataPath }: any)
       const promptsToSave = normalizePromptList(scopePrompts);
       const saved = await setReplyQuickPrompts({
         scope,
+        projectRoot,
+        cellId: selectedCell?.id,
         worktreePath: selectedCell?.worktreePath,
         prompts: promptsToSave,
       });

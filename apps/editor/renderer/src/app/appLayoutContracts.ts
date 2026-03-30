@@ -391,7 +391,8 @@ export interface HierarchyConfigState {
   saveWorktreeLinks: FlexibleHandler;
   refreshWorktreeLinks: FlexibleHandler;
   resolvedRepoRoot: string;
-  canUseScopedConfig: boolean;
+  canUseProjectScope: boolean;
+  canUseAgentScope: boolean;
   mainAgentHarnessSettings: unknown;
   codexCliProviderSettings: unknown;
   harnessSettingsPath: string;
@@ -602,7 +603,8 @@ export interface BuildAppLayoutInput {
   saveWorktreeLinks: FlexibleHandler;
   refreshWorktreeLinks: FlexibleHandler;
   resolvedRepoRoot: string;
-  canUseScopedConfig: boolean;
+  canUseProjectScope: boolean;
+  canUseAgentScope: boolean;
   editorPaneProps: UnknownRecord;
   sidebarWidth: number;
   sidebarCollapsed: boolean;
