@@ -294,6 +294,19 @@ function normalizeContentSearchScope(scope) {
   };
 }
 
+function assertValidContentSearchScope(scope) {
+  if (!scope || scope.kind === 'project') {
+    return scope || { kind: 'project', path: '', paths: [] };
+  }
+  if (scope.kind === 'folder' && !scope.path) {
+    throw new Error('Folder content scope requires a directory context.');
+  }
+  if (scope.kind === 'selection' && !scope.paths.length) {
+    throw new Error('Selection content scope requires at least one target path.');
+  }
+  return scope;
+}
+
 function pathMatchesContentScope(filePath, scope) {
   if (!filePath) {
     return false;
@@ -302,9 +315,6 @@ function pathMatchesContentScope(filePath, scope) {
     return true;
   }
   if (scope.kind === 'folder') {
-    if (!scope.path) {
-      return true;
-    }
     return filePath === scope.path || filePath.startsWith(`${scope.path}/`);
   }
   if (scope.kind === 'selection') {
@@ -410,7 +420,7 @@ async function searchContent({
       skippedLargeCount: 0,
     };
   }
-  const normalizedScope = normalizeContentSearchScope(scope);
+  const normalizedScope = assertValidContentSearchScope(normalizeContentSearchScope(scope));
   const pattern = buildContentSearchPattern({
     query: trimmedQuery,
     caseSensitive,
@@ -429,6 +439,8 @@ async function searchContent({
   );
 
   const results = [];
+  let totalResultFiles = 0;
+  let totalResultMatches = 0;
   let skippedBinaryCount = 0;
   let skippedLargeCount = 0;
   let truncated = false;
@@ -444,10 +456,12 @@ async function searchContent({
     if (inspection?.kind !== 'result') {
       continue;
     }
-    results.push(inspection.result);
-    if (results.length >= limit) {
-      truncated = inspections.length > results.length;
-      break;
+    totalResultFiles += 1;
+    totalResultMatches += Number(inspection.result?.matchCount || 0);
+    if (results.length < limit) {
+      results.push(inspection.result);
+    } else {
+      truncated = true;
     }
   }
 
@@ -456,6 +470,8 @@ async function searchContent({
     scope: normalizedScope,
     results,
     truncated,
+    totalResultFiles,
+    totalResultMatches,
     scannedFiles: files.length,
     skippedBinaryCount,
     skippedLargeCount,
@@ -479,12 +495,15 @@ async function replaceContent({
   const resolved = await resolveExplorerRoot(rootPath);
   ensureResolvedRoot(resolved);
 
-  const normalizedScope = normalizeContentSearchScope(scope);
+  const normalizedScope = assertValidContentSearchScope(normalizeContentSearchScope(scope));
   const confirmedSet = new Set(
     (Array.isArray(confirmedPaths) ? confirmedPaths : [])
       .map((entry) => normalizeRelPath(entry || ''))
       .filter(Boolean)
   );
+  if (!confirmedSet.size) {
+    throw new Error('Content replace requires explicit confirmed target paths.');
+  }
   const pattern = buildContentSearchPattern({
     query: trimmedQuery,
     caseSensitive,
@@ -551,6 +570,7 @@ async function replaceContent({
     query: trimmedQuery,
     replacement,
     scope: normalizedScope,
+    confirmedPaths: Array.from(confirmedSet),
     replacedFiles,
     replacedMatches,
     appliedPaths,

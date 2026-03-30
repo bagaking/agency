@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { MessageSquareText } from 'lucide-react';
 import { AgentAvatarBadge } from './ui/AgentAvatarBadge';
 import { resolveAvatarId } from '../utils/agentAvatar';
@@ -47,27 +47,6 @@ export function SessionReplyPanel({
     editorRef,
   });
 
-  useEffect(() => {
-    if (!focusToken) {
-      return;
-    }
-    editorRef.current?.focus?.();
-    requestAnimationFrame(() => {
-      editorRef.current?.layout?.();
-    });
-  }, [focusToken]);
-
-  useEffect(() => {
-    if (!editorContainerRef.current || !editorRef.current || typeof ResizeObserver === 'undefined') {
-      return undefined;
-    }
-    const observer = new ResizeObserver(() => {
-      editorRef.current?.layout?.();
-    });
-    observer.observe(editorContainerRef.current);
-    return () => observer.disconnect();
-  }, []);
-
   if (!cell || !session) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center text-center text-muted-foreground/60 px-6">
@@ -113,23 +92,22 @@ export function SessionReplyPanel({
         <SessionReplyComposer
           editorRef={editorRef}
           editorContainerRef={editorContainerRef}
-          currentCellId={cell?.id || ''}
-          currentSessionId={session?.id || ''}
-          resolvedQuickPrompts={resolvedQuickPrompts}
-          sessionTargets={sessionTargets}
+          focusToken={focusToken}
           scopeKey={`${cell?.id || ''}:${session?.id || ''}`}
           replyText={replyText}
           setReplyText={setReplyText}
           queryText={queryText}
           error={error}
+          availableQuickPrompts={availableQuickPrompts}
           handleInsertQuickPrompt={handleInsertQuickPrompt}
+          otherTargets={otherTargets}
           hasContent={hasContent}
           submitting={submitting}
           handleCreateReply={handleCreateReply}
           selectionContext={selectionContext}
           siteText={siteText}
-        onClearSelection={onClearSelection}
-      />
+          onClearSelection={onClearSelection}
+        />
     </div>
   );
 }

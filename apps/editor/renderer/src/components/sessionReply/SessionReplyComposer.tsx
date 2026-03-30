@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { LazyMonacoEditor, preloadLazyMonacoEditor } from '../ui/LazyMonacoEditor';
 import { SessionReplyComposerChrome } from './SessionReplyComposerChrome';
 import {
@@ -13,16 +13,15 @@ import {
 export function SessionReplyComposer({
   editorRef,
   editorContainerRef,
-  currentCellId,
-  currentSessionId,
-  resolvedQuickPrompts,
-  sessionTargets,
+  focusToken,
   scopeKey,
   replyText,
   setReplyText,
   queryText,
   error,
+  availableQuickPrompts,
   handleInsertQuickPrompt,
+  otherTargets,
   hasContent,
   submitting,
   handleCreateReply,
@@ -36,24 +35,7 @@ export function SessionReplyComposer({
   const [quickPromptMenuOpen, setQuickPromptMenuOpen] = useState(false);
   const [sendMenuOpen, setSendMenuOpen] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState<any>(null);
-  const availableQuickPrompts = useMemo(
-    () =>
-      (resolvedQuickPrompts || []).filter(
-        (prompt: any) => prompt?.enabled !== false && String(prompt?.text || '').trim()
-      ),
-    [resolvedQuickPrompts]
-  );
-  const otherTargets = useMemo(() => {
-    const currentKey = `${currentCellId || ''}:${currentSessionId || ''}`;
-    return (sessionTargets || [])
-      .filter((target: any) => target?.cellId && target?.sessionId)
-      .filter((target: any) => `${target.cellId}:${target.sessionId}` !== currentKey)
-      .sort((a: any, b: any) => {
-        const left = `${a.cellName || a.cellId} ${a.sessionName || a.sessionId}`;
-        const right = `${b.cellName || b.cellId} ${b.sessionName || b.sessionId}`;
-        return left.localeCompare(right);
-      });
-  }, [currentCellId, currentSessionId, sessionTargets]);
+  const [editorMountVersion, setEditorMountVersion] = useState(0);
 
   useEffect(() => {
     setQuickPromptMenuOpen(false);
@@ -73,6 +55,38 @@ export function SessionReplyComposer({
       setSelectedTarget(null);
     }
   }, [otherTargets, selectedTarget]);
+
+  useEffect(() => {
+    if (!focusToken) {
+      return;
+    }
+    if (!editorRef.current) {
+      pendingEditorFocusRef.current = true;
+      void preloadLazyMonacoEditor();
+      return;
+    }
+    editorRef.current.focus?.();
+    requestAnimationFrame(() => {
+      editorRef.current?.layout?.();
+      focusReplyEditorAtEnd(editorRef.current);
+    });
+  }, [editorRef, focusToken]);
+
+  useEffect(() => {
+    if (
+      !editorContainerRef.current ||
+      !editorRef.current ||
+      !editorMountVersion ||
+      typeof ResizeObserver === 'undefined'
+    ) {
+      return undefined;
+    }
+    const observer = new ResizeObserver(() => {
+      editorRef.current?.layout?.();
+    });
+    observer.observe(editorContainerRef.current);
+    return () => observer.disconnect();
+  }, [editorContainerRef, editorMountVersion, editorRef]);
 
   const primeEditorInteraction = () => {
     if (editorRef.current) {
@@ -139,6 +153,7 @@ export function SessionReplyComposer({
             fallback={<div className="w-full bg-black/55" style={{ height: `${REPLY_EDITOR_HEIGHT}px` }} />}
             onMount={(editor) => {
               editorRef.current = editor;
+              setEditorMountVersion((current) => current + 1);
               editor.updateOptions({
                 fontSize: REPLY_EDITOR_FONT_SIZE,
                 lineHeight: REPLY_EDITOR_LINE_HEIGHT,

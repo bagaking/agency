@@ -49,6 +49,8 @@ export function useExplorerContentSearch({
   const [replacing, setReplacing] = useState(false);
   const [error, setError] = useState('');
   const [truncated, setTruncated] = useState(false);
+  const [totalResultFiles, setTotalResultFiles] = useState(0);
+  const [totalResultMatches, setTotalResultMatches] = useState(0);
   const [scannedFiles, setScannedFiles] = useState(0);
   const [skippedBinaryCount, setSkippedBinaryCount] = useState(0);
   const [skippedLargeCount, setSkippedLargeCount] = useState(0);
@@ -61,6 +63,8 @@ export function useExplorerContentSearch({
       startTransition(() => {
         setResults([]);
         setTruncated(false);
+        setTotalResultFiles(0);
+        setTotalResultMatches(0);
         setScannedFiles(0);
         setSkippedBinaryCount(0);
         setSkippedLargeCount(0);
@@ -82,6 +86,8 @@ export function useExplorerContentSearch({
       startTransition(() => {
         setResults(Array.isArray(response?.results) ? response.results : []);
         setTruncated(Boolean(response?.truncated));
+        setTotalResultFiles(Number(response?.totalResultFiles || 0));
+        setTotalResultMatches(Number(response?.totalResultMatches || 0));
         setScannedFiles(Number(response?.scannedFiles || 0));
         setSkippedBinaryCount(Number(response?.skippedBinaryCount || 0));
         setSkippedLargeCount(Number(response?.skippedLargeCount || 0));
@@ -91,6 +97,8 @@ export function useExplorerContentSearch({
       startTransition(() => {
         setResults([]);
         setTruncated(false);
+        setTotalResultFiles(0);
+        setTotalResultMatches(0);
         setScannedFiles(0);
         setSkippedBinaryCount(0);
         setSkippedLargeCount(0);
@@ -160,6 +168,8 @@ export function useExplorerContentSearch({
     replacing,
     error,
     truncated,
+    totalResultFiles,
+    totalResultMatches,
     scannedFiles,
     skippedBinaryCount,
     skippedLargeCount,

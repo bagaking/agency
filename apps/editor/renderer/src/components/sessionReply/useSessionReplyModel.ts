@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   confirmDelivery,
@@ -33,6 +33,16 @@ export function useSessionReplyModel({
   const sessionId = session?.id || '';
   const sessionName = session?.name || '';
   const sessionAvatar = session?.avatar;
+  const scopeKey = `${cellId}:${sessionId}`;
+  const activeScopeRef = useRef(scopeKey);
+  const refreshRequestRef = useRef(0);
+  const submitRequestRef = useRef(0);
+
+  useEffect(() => {
+    activeScopeRef.current = scopeKey;
+    refreshRequestRef.current += 1;
+    submitRequestRef.current += 1;
+  }, [scopeKey]);
 
   const selectionContext = useMemo(() => {
     if (!selection?.text) {
@@ -54,10 +64,16 @@ export function useSessionReplyModel({
   const hasContent = queryText.length > 0;
 
   const refreshReplies = useCallback(async () => {
+    const requestScope = scopeKey;
     if (!worktreePath || !cellId || !sessionId) {
       setReplyItems([]);
       return;
     }
+    if (activeScopeRef.current !== requestScope) {
+      return;
+    }
+    const requestId = refreshRequestRef.current + 1;
+    refreshRequestRef.current = requestId;
     setLoadingReplies(true);
     setError('');
     try {
@@ -73,13 +89,31 @@ export function useSessionReplyModel({
             item?.meta?.session?.cellId === cellId && item?.meta?.session?.sessionId === sessionId
         )
         .sort((a, b) => Date.parse(a.createdAt || '') - Date.parse(b.createdAt || ''));
+      if (
+        activeScopeRef.current !== requestScope ||
+        refreshRequestRef.current !== requestId
+      ) {
+        return;
+      }
       setReplyItems(filtered);
     } catch (loadError: any) {
+      if (
+        activeScopeRef.current !== requestScope ||
+        refreshRequestRef.current !== requestId
+      ) {
+        return;
+      }
       setError(loadError?.message || 'Failed to load replies.');
     } finally {
+      if (
+        activeScopeRef.current !== requestScope ||
+        refreshRequestRef.current !== requestId
+      ) {
+        return;
+      }
       setLoadingReplies(false);
     }
-  }, [cellId, sessionId, worktreePath]);
+  }, [cellId, scopeKey, sessionId, worktreePath]);
 
   useEffect(() => {
     refreshReplies();
@@ -87,8 +121,11 @@ export function useSessionReplyModel({
 
   useEffect(() => {
     setReplyText('');
+    setReplyItems([]);
     setError('');
-  }, [cellId, sessionId]);
+    setLoadingReplies(false);
+    setSubmitting(false);
+  }, [scopeKey]);
 
   const availableQuickPrompts = useMemo(
     () =>
@@ -189,6 +226,9 @@ export function useSessionReplyModel({
 
       setSubmitting(true);
       setError('');
+      const requestId = submitRequestRef.current + 1;
+      submitRequestRef.current = requestId;
+      const requestScope = scopeKey;
       const payload = buildReplyPayload({
         site: siteText,
         timeTag,
@@ -307,11 +347,32 @@ export function useSessionReplyModel({
           });
         }
 
+        const scopeStillVisible = activeScopeRef.current === requestScope;
+        const requestStillCurrent =
+          scopeStillVisible && submitRequestRef.current === requestId;
+
+        if (scopeStillVisible) {
+          await refreshReplies();
+        }
+        if (!requestStillCurrent) {
+          return;
+        }
         setReplyText('');
-        await refreshReplies();
       } catch (submitError: any) {
+        if (
+          activeScopeRef.current !== requestScope ||
+          submitRequestRef.current !== requestId
+        ) {
+          return;
+        }
         setError(submitError?.message || 'Failed to record reply.');
       } finally {
+        if (
+          activeScopeRef.current !== requestScope ||
+          submitRequestRef.current !== requestId
+        ) {
+          return;
+        }
         setSubmitting(false);
       }
     },
@@ -322,6 +383,7 @@ export function useSessionReplyModel({
       hasSession,
       queryText,
       refreshReplies,
+      scopeKey,
       selectionContext,
       sessionAvatar,
       sessionId,

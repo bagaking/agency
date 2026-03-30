@@ -288,7 +288,8 @@ Current content-search guardrails:
 - candidate files come from tracked + untracked repo files;
 - binary files are skipped;
 - large files are skipped once they exceed the host-side size cap;
-- replace runs only against confirmed targets and reports failures/skips.
+- invalid folder/selection scopes are rejected by the host instead of silently widening to project scope;
+- replace runs only against explicitly confirmed targets and reports failures/skips.
 
 ### 4. Working-set view family
 
@@ -306,9 +307,10 @@ Explorer now loads project defaults from `.agency/explorer.yaml` / `.agency/expl
 Current policy surface:
 - default filter descriptor state;
 - default working-set view;
+- working-set option presets / ordering;
 - default search mode;
 - default content-search scope + flags;
-- command visibility policy seam;
+- command visibility policy;
 - research-lane enablement / handoff allowances.
 
 Override precedence:
@@ -316,7 +318,7 @@ Override precedence:
 2. project policy defaults
 3. user-local persisted UI state
 
-The project policy currently sets defaults, not saved named queries. That is deliberate: saved queries should wait until there is a stronger product contract for search presets.
+The project policy currently governs defaults, working-set option exposure/order, and command visibility. It still does not define saved named search queries. That is deliberate: saved queries should wait until there is a stronger product contract for search presets.
 
 ### 6. Bounded research lane
 

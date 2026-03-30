@@ -70,9 +70,30 @@ test('searchContent returns line-level evidence within the requested scope', asy
 
     assert.equal(result.scope.kind, 'folder');
     assert.equal(result.results.length, 1);
+    assert.equal(result.totalResultFiles, 1);
+    assert.equal(result.totalResultMatches, 1);
     assert.equal(result.results[0].path, 'docs/guide.md');
     assert.equal(result.results[0].matches[0].line, 2);
     assert.match(result.results[0].matches[0].snippet, /content search/);
+  });
+});
+
+test('searchContent rejects folder scope without a concrete directory context', async (t) => {
+  await withExplorerService(async ({ searchContent }) => {
+    const rootDir = await createGitRoot();
+    t.after(async () => {
+      await fs.rm(rootDir, { recursive: true, force: true });
+    });
+
+    await assert.rejects(
+      () =>
+        searchContent({
+          rootPath: rootDir,
+          query: 'content search',
+          scope: { kind: 'folder', path: '' },
+        }),
+      /Folder content scope requires a directory context/
+    );
   });
 });
 
@@ -101,6 +122,29 @@ test('replaceContent only mutates confirmed targets and reports counts', async (
     assert.deepEqual(result.appliedPaths, ['docs/guide.md']);
     assert.match(await fs.readFile(docsPath, 'utf8'), /workspace search one/);
     assert.match(await fs.readFile(notesPath, 'utf8'), /content search should stay here/);
+  });
+});
+
+test('replaceContent requires explicit confirmed target paths', async (t) => {
+  await withExplorerService(async ({ replaceContent }) => {
+    const rootDir = await createGitRoot();
+    t.after(async () => {
+      await fs.rm(rootDir, { recursive: true, force: true });
+    });
+
+    await writeTextFile(path.join(rootDir, 'docs', 'guide.md'), 'content search one\n');
+
+    await assert.rejects(
+      () =>
+        replaceContent({
+          rootPath: rootDir,
+          query: 'content search',
+          replacement: 'workspace search',
+          scope: { kind: 'project' },
+          confirmedPaths: [],
+        }),
+      /Content replace requires explicit confirmed target paths/
+    );
   });
 });
 

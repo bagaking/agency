@@ -30,6 +30,7 @@ export type ExplorerCommandContext = {
   selectionTargets: string[];
   canPaste: boolean;
   hasResearchLane?: boolean;
+  hiddenCommandIds?: string[];
   actions: Record<string, () => void>;
 };
 
@@ -215,7 +216,13 @@ export const getExplorerCommandsForSurface = (
   context: ExplorerCommandContext
 ) =>
   EXPLORER_COMMAND_REGISTRY.filter((command) => {
+    const hiddenCommandIds = Array.isArray(context.hiddenCommandIds)
+      ? context.hiddenCommandIds
+      : [];
     if (command.surface !== surface) {
+      return false;
+    }
+    if (hiddenCommandIds.includes(command.id)) {
       return false;
     }
     if (typeof command.when === 'function' && !command.when(context)) {

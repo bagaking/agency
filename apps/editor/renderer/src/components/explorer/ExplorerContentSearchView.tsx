@@ -31,10 +31,18 @@ type ExplorerContentSearchViewProps = {
   loading: boolean;
   replacing: boolean;
   truncated: boolean;
+  totalResultFiles: number;
+  totalResultMatches: number;
   scannedFiles: number;
   skippedBinaryCount: number;
   skippedLargeCount: number;
   error: string;
+  selectedPaths: string[];
+  selectedFileCount: number;
+  selectedMatchCount: number;
+  onToggleResult: (path: string) => void;
+  onSelectAllVisible: () => void;
+  onClearSelection: () => void;
   onOpenResult: (path: string, line?: number) => void | Promise<void>;
   onRevealResult: (path: string) => void | Promise<void>;
   onApplyReplace: () => void | Promise<void>;
@@ -59,17 +67,26 @@ export function ExplorerContentSearchView({
   loading,
   replacing,
   truncated,
+  totalResultFiles,
+  totalResultMatches,
   scannedFiles,
   skippedBinaryCount,
   skippedLargeCount,
   error,
+  selectedPaths,
+  selectedFileCount,
+  selectedMatchCount,
+  onToggleResult,
+  onSelectAllVisible,
+  onClearSelection,
   onOpenResult,
   onRevealResult,
   onApplyReplace,
 }: ExplorerContentSearchViewProps) {
   const totalMatches = results.reduce((sum, entry) => sum + Number(entry.matchCount || 0), 0);
   const hasQuery = query.trim().length > 0;
-  const canReplace = hasQuery && (results.length > 0 || replaceText.length > 0);
+  const selectedPathSet = new Set(selectedPaths);
+  const canReplace = hasQuery && selectedFileCount > 0 && !loading && !replacing;
 
   return (
     <section className="flex min-h-0 flex-1 flex-col bg-sidebar text-sidebar-foreground">
@@ -110,25 +127,58 @@ export function ExplorerContentSearchView({
           />
           <button
             type="button"
-            disabled={!canReplace || loading || replacing}
+            disabled={!canReplace}
             onClick={() => void onApplyReplace()}
             className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition-colors ${focusRingClass} ${
-              canReplace && !loading && !replacing
+              canReplace
                 ? 'border-primary/30 bg-primary/10 text-primary hover:border-primary/50 hover:bg-primary/15'
                 : 'border-border/30 text-muted-foreground/45'
             } disabled:cursor-not-allowed`}
           >
-            {replacing ? 'Replacing…' : 'Apply Replace'}
+            {replacing ? 'Replacing…' : 'Replace Selected'}
           </button>
         </div>
 
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground/65">
-          <span>{loading ? 'Searching…' : `${results.length} files · ${totalMatches} matches`}</span>
+          <span>
+            {loading
+              ? 'Searching…'
+              : truncated
+                ? `${results.length} visible of ${totalResultFiles} files · ${totalMatches} visible / ${totalResultMatches} total matches`
+                : `${results.length} files · ${totalMatches} matches`}
+          </span>
           <span>{scannedFiles} scanned</span>
           {skippedBinaryCount > 0 ? <span>{skippedBinaryCount} binary skipped</span> : null}
           {skippedLargeCount > 0 ? <span>{skippedLargeCount} large skipped</span> : null}
-          {truncated ? <span className="text-amber-300/80">Results truncated</span> : null}
+          {truncated ? (
+            <span className="text-amber-300/80">
+              Results truncated; replace is limited to confirmed visible files
+            </span>
+          ) : null}
         </div>
+
+        {hasQuery && results.length > 0 ? (
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground/72">
+            <span>
+              {selectedFileCount} confirmed files · {selectedMatchCount} confirmed matches
+            </span>
+            <button
+              type="button"
+              onClick={onSelectAllVisible}
+              className={`rounded-full border border-border/30 px-2 py-1 font-semibold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground ${focusRingClass}`}
+            >
+              Select Visible
+            </button>
+            <button
+              type="button"
+              onClick={onClearSelection}
+              disabled={selectedFileCount === 0}
+              className={`rounded-full border border-border/30 px-2 py-1 font-semibold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-35 ${focusRingClass}`}
+            >
+              Clear
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {error ? (
@@ -158,6 +208,15 @@ export function ExplorerContentSearchView({
                 className="overflow-hidden rounded-xl border border-border/40 bg-white/[0.03]"
               >
                 <header className="flex items-center gap-2 border-b border-border/20 px-3 py-2">
+                  <label className="inline-flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedPathSet.has(result.path)}
+                      onChange={() => onToggleResult(result.path)}
+                      className="h-3.5 w-3.5 rounded border-border/40 bg-background/80"
+                      aria-label={`Confirm replace target ${result.path}`}
+                    />
+                  </label>
                   <button
                     type="button"
                     onClick={() => void onOpenResult(result.path, result.matches[0]?.line)}

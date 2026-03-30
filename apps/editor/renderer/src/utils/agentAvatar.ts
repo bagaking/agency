@@ -1,3 +1,42 @@
+const AVATAR_ANIMALS = [
+  'CAPYBARA',
+  'CAT',
+  'DOG',
+  'DRAGON',
+  'ELEPHANT',
+  'FOX',
+  'GOAT',
+  'MOUSE',
+  'OWL',
+  'OX',
+  'PANDA',
+  'RABBIT',
+  'RHINO',
+  'SHARK',
+  'SHEEP',
+  'SNAKE',
+  'WHALE',
+] as const;
+
+const AVATAR_ACTIONS = [
+  'CRAFTING',
+  'DESIGNING',
+  'FIGHTING',
+  'PAPER_WORKING',
+  'PLANNING',
+  'PROGRAMMING',
+  'RESEARCHING',
+  'SPEAKING',
+  'SPELLING',
+  'STUDYING',
+] as const;
+
+type AvatarCatalog = Record<string, string>;
+
+export const AVATAR_IDS = AVATAR_ANIMALS.flatMap((animal) =>
+  AVATAR_ACTIONS.map((action) => `${animal}_${action}`)
+).sort();
+
 const RECENT_STORAGE_KEY = 'agency.avatar.recents';
 const RECENT_LIMIT = 9;
 let avatarCursor = 0;
@@ -19,47 +58,33 @@ const normalizeAvatarId = (value) => {
   return raw.replace(/[\s/\\-]+/g, '_').toUpperCase();
 };
 
-const importMetaWithGlob = import.meta as ImportMeta & {
-  glob?: (
-    pattern: string,
-    options?: {
-      query?: string;
-      import?: string;
-    }
-  ) => Record<string, () => Promise<string>>;
-};
-
-// `import.meta.glob` is only available under Vite. Tests that execute via plain tsx
-// still import this module, so they need a safe empty fallback.
-const avatarImporters =
-  typeof importMetaWithGlob.glob === 'function'
-    ? importMetaWithGlob.glob(
-        '../../../../node_modules/@bagakit/open-agent-avatars/20260202/*.svg',
-        {
-          query: '?url',
-          import: 'default',
-        }
-      )
-    : {};
-
-const avatarImporterEntries = Object.entries(avatarImporters)
-  .map(([filePath, loader]) => {
-    const match = filePath.match(/\/([^/]+)\.svg$/);
-    return [normalizeAvatarId(match?.[1] || ''), loader] as const;
-  })
-  .filter(([avatarId]) => Boolean(avatarId))
-  .sort(([left], [right]) => left.localeCompare(right));
-
-export const AVATAR_IDS = avatarImporterEntries.map(([avatarId]) => avatarId);
-
 const AVATAR_ID_SET = new Set(AVATAR_IDS);
-const avatarImporterById = new Map(avatarImporterEntries);
-const avatarCatalog = new Map<string, string>();
-const avatarCatalogPromises = new Map<string, Promise<string | null>>();
+let avatarCatalog: AvatarCatalog | null = null;
+let avatarCatalogPromise: Promise<AvatarCatalog> | null = null;
 
 export const getAvatarUrl = (avatarId) => {
   const key = normalizeAvatarId(avatarId);
-  return avatarCatalog.get(key) || null;
+  return avatarCatalog?.[key] || null;
+};
+
+const ensureAvatarCatalogLoaded = async () => {
+  if (avatarCatalog) {
+    return avatarCatalog;
+  }
+  if (!avatarCatalogPromise) {
+    // Keep avatar ids synchronous, but load the actual asset catalog lazily via the
+    // package export. This avoids relying on Vite globbing outside the renderer root.
+    avatarCatalogPromise = import('@bagakit/open-agent-avatars/20260202').then((avatarBatch) => {
+      avatarCatalog = Object.entries(avatarBatch).reduce<AvatarCatalog>((acc, [key, value]) => {
+        if (typeof value === 'string' && AVATAR_ID_SET.has(key)) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {});
+      return avatarCatalog;
+    });
+  }
+  return avatarCatalogPromise;
 };
 
 export const ensureAvatarUrlLoaded = async (avatarId) => {
@@ -67,32 +92,12 @@ export const ensureAvatarUrlLoaded = async (avatarId) => {
   if (!key || !AVATAR_ID_SET.has(key)) {
     return null;
   }
-  const cached = avatarCatalog.get(key);
+  const cached = avatarCatalog?.[key];
   if (cached) {
     return cached;
   }
-  const existingPromise = avatarCatalogPromises.get(key);
-  if (existingPromise) {
-    return existingPromise;
-  }
-  const importer = avatarImporterById.get(key);
-  if (!importer) {
-    return null;
-  }
-  const nextPromise = importer()
-    .then((url) => {
-      const normalizedUrl = String(url || '').trim();
-      if (normalizedUrl) {
-        avatarCatalog.set(key, normalizedUrl);
-        return normalizedUrl;
-      }
-      return null;
-    })
-    .finally(() => {
-      avatarCatalogPromises.delete(key);
-    });
-  avatarCatalogPromises.set(key, nextPromise);
-  return nextPromise;
+  await ensureAvatarCatalogLoaded();
+  return avatarCatalog?.[key] || null;
 };
 
 export const getRecentAvatarIds = () => {

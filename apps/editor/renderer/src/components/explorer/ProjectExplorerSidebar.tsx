@@ -41,7 +41,7 @@ import {
 import { buildExplorerVisibleItems } from './explorerVisibleItems';
 import {
   EXPLORER_WORKING_SET_CHANGED_FILES,
-  getImplementedExplorerWorkingSets,
+  resolveExplorerWorkingSetOptions,
 } from './explorerWorkingSets';
 import { useExplorerClipboardActions } from './useExplorerClipboardActions';
 import { useExplorerContentSearch } from './useExplorerContentSearch';
@@ -157,6 +157,8 @@ function ProjectExplorerSidebarContent({
   const [contentCaseSensitive, setContentCaseSensitive] = useState(false);
   const [contentWholeWord, setContentWholeWord] = useState(false);
   const [contentUseRegex, setContentUseRegex] = useState(false);
+  const [confirmedContentResultPaths, setConfirmedContentResultPaths] = useState<string[]>([]);
+  const [contentResultSelectionTouched, setContentResultSelectionTouched] = useState(false);
   const [workingSetMode, setWorkingSetMode] = useState<'flat' | 'tree'>('flat');
   const [researchLaneOpen, setResearchLaneOpen] = useState(false);
   const [filterMenuPosition, setFilterMenuPosition] = useState<{ top: number; left: number } | null>(
@@ -624,15 +626,25 @@ function ProjectExplorerSidebarContent({
   const activeDir = activeNode?.type === 'dir' ? activeTarget : explorerPathUtils.dirname(activeTarget);
   const selectionTargets = selectedPaths.length ? selectedPaths : activeTarget ? [activeTarget] : [];
   const selectionCount = selectionTargets.length;
-  const workingSetOptions = useMemo(() => getImplementedExplorerWorkingSets(), []);
+  const contentFolderPath = activeNode?.type === 'dir' ? activeTarget : activeDir;
+  const hasContentFolderContext = Boolean(contentFolderPath);
+  const workingSetOptions = useMemo(
+    () =>
+      resolveExplorerWorkingSetOptions(projectPolicy?.workingSet?.presets, [workingSetViewId]),
+    [projectPolicy?.workingSet?.presets, workingSetViewId]
+  );
   const contentScopeOptions = useMemo(
     () =>
       EXPLORER_CONTENT_SCOPE_OPTIONS.map((option) => ({
         ...option,
         disabled:
-          option.id === EXPLORER_CONTENT_SCOPE_SELECTION ? selectionCount === 0 : false,
+          option.id === EXPLORER_CONTENT_SCOPE_SELECTION
+            ? selectionCount === 0
+            : option.id === EXPLORER_CONTENT_SCOPE_FOLDER
+              ? !hasContentFolderContext
+              : false,
       })),
-    [selectionCount]
+    [hasContentFolderContext, selectionCount]
   );
   const contentSearchScope = useMemo(() => {
     if (contentScopeKind === EXPLORER_CONTENT_SCOPE_SELECTION) {
@@ -644,11 +656,11 @@ function ProjectExplorerSidebarContent({
     if (contentScopeKind === EXPLORER_CONTENT_SCOPE_FOLDER) {
       return {
         kind: EXPLORER_CONTENT_SCOPE_FOLDER,
-        path: activeNode?.type === 'dir' ? activeTarget : activeDir,
+        path: contentFolderPath,
       };
     }
     return { kind: EXPLORER_CONTENT_SCOPE_PROJECT };
-  }, [activeDir, activeNode?.type, activeTarget, contentScopeKind, selectionTargets]);
+  }, [contentFolderPath, contentScopeKind, selectionTargets]);
 
   const {
     query: contentSearchQuery,
@@ -660,6 +672,8 @@ function ProjectExplorerSidebarContent({
     replacing: contentSearchReplacing,
     error: contentSearchError,
     truncated: contentSearchTruncated,
+    totalResultFiles: contentSearchTotalResultFiles,
+    totalResultMatches: contentSearchTotalResultMatches,
     scannedFiles: contentSearchScannedFiles,
     skippedBinaryCount: contentSearchSkippedBinaryCount,
     skippedLargeCount: contentSearchSkippedLargeCount,
@@ -673,25 +687,115 @@ function ProjectExplorerSidebarContent({
     useRegex: contentUseRegex,
   });
 
-  const handleApplyContentReplace = useCallback(async () => {
-    const totalFiles = contentSearchResults.length;
-    const totalMatches = contentSearchResults.reduce(
-      (sum, entry) => sum + Number(entry?.matchCount || 0),
-      0
+  const contentSelectionReviewKey = useMemo(
+    () =>
+      JSON.stringify({
+        query: contentSearchQuery.trim(),
+        scope: contentSearchScope,
+        caseSensitive: contentCaseSensitive,
+        wholeWord: contentWholeWord,
+        useRegex: contentUseRegex,
+      }),
+    [
+      contentCaseSensitive,
+      contentScopeKind,
+      contentSearchQuery,
+      contentSearchScope,
+      contentUseRegex,
+      contentWholeWord,
+    ]
+  );
+
+  useEffect(() => {
+    setContentResultSelectionTouched(false);
+    setConfirmedContentResultPaths([]);
+  }, [contentSelectionReviewKey]);
+
+  useEffect(() => {
+    const visiblePaths = contentSearchResults.map((entry) => entry.path);
+    const visiblePathSet = new Set(visiblePaths);
+    setConfirmedContentResultPaths((current) => {
+      const pruned = current.filter((path) => visiblePathSet.has(path));
+      if (contentResultSelectionTouched) {
+        return pruned;
+      }
+      return contentSearchTruncated ? [] : visiblePaths;
+    });
+  }, [contentResultSelectionTouched, contentSearchResults, contentSearchTruncated]);
+
+  useEffect(() => {
+    if (contentScopeKind === EXPLORER_CONTENT_SCOPE_SELECTION && selectionCount === 0) {
+      setContentScopeKind(EXPLORER_CONTENT_SCOPE_PROJECT);
+      return;
+    }
+    if (contentScopeKind === EXPLORER_CONTENT_SCOPE_FOLDER && !hasContentFolderContext) {
+      setContentScopeKind(EXPLORER_CONTENT_SCOPE_PROJECT);
+    }
+  }, [contentScopeKind, hasContentFolderContext, selectionCount]);
+
+  useEffect(() => {
+    if (!workingSetOptions.some((option) => option.id === workingSetViewId)) {
+      setWorkingSetViewId('tree');
+    }
+  }, [workingSetOptions, workingSetViewId]);
+
+  const confirmedContentResultSet = useMemo(
+    () => new Set(confirmedContentResultPaths),
+    [confirmedContentResultPaths]
+  );
+  const confirmedContentFileCount = confirmedContentResultPaths.length;
+  const confirmedContentMatchCount = useMemo(
+    () =>
+      contentSearchResults.reduce(
+        (sum, entry) =>
+          confirmedContentResultSet.has(entry.path) ? sum + Number(entry?.matchCount || 0) : sum,
+        0
+      ),
+    [confirmedContentResultSet, contentSearchResults]
+  );
+
+  const handleToggleContentResult = useCallback((targetPath: string) => {
+    setContentResultSelectionTouched(true);
+    setConfirmedContentResultPaths((current) =>
+      current.includes(targetPath)
+        ? current.filter((entry) => entry !== targetPath)
+        : [...current, targetPath]
     );
+  }, []);
+
+  const handleSelectAllVisibleContentResults = useCallback(() => {
+    setContentResultSelectionTouched(true);
+    setConfirmedContentResultPaths(contentSearchResults.map((entry) => entry.path));
+  }, [contentSearchResults]);
+
+  const handleClearConfirmedContentResults = useCallback(() => {
+    setContentResultSelectionTouched(true);
+    setConfirmedContentResultPaths([]);
+  }, []);
+
+  const handleApplyContentReplace = useCallback(async () => {
+    if (!confirmedContentFileCount) {
+      return;
+    }
+    const totalFiles = confirmedContentFileCount;
+    const totalMatches = confirmedContentMatchCount;
     const confirmed = await modal.confirm({
       title: 'Replace Across Files',
       tone: 'warning',
       confirmLabel: 'Apply Replace',
       description: `Replace ${JSON.stringify(contentSearchQuery.trim())} with ${JSON.stringify(
         replaceText
-      )} across ${totalFiles} files and ${totalMatches} matches in the current content-search scope?`,
+      )} across ${totalFiles} confirmed files and ${totalMatches} confirmed matches.${
+        contentSearchTruncated
+          ? ` Search results are truncated; only the confirmed visible files will be changed.`
+          : ''
+      }`,
     });
     if (!confirmed) {
       return;
     }
     const response = await applyContentReplace({
-      confirmedPaths: contentSearchResults.map((entry) => entry.path),
+      confirmedPaths: confirmedContentResultPaths,
     });
     if (response) {
       await refreshAll({ forceStatus: true, reloadExpanded: true });
@@ -699,8 +803,11 @@ function ProjectExplorerSidebarContent({
     }
   }, [
     applyContentReplace,
+    confirmedContentFileCount,
+    confirmedContentMatchCount,
+    confirmedContentResultPaths,
+    contentSearchTruncated,
     contentSearchQuery,
-    contentSearchResults,
     modal,
     refreshAll,
     refreshChangesPanel,
@@ -856,6 +963,7 @@ function ProjectExplorerSidebarContent({
       selectionTargets,
       canPaste,
       hasResearchLane: projectPolicy?.research?.enabled !== false,
+      hiddenCommandIds: projectPolicy?.actions?.hiddenCommands || [],
       actions: {
         onJumpToAgents,
         onNewFile: () => startDraft('file'),
@@ -864,7 +972,15 @@ function ProjectExplorerSidebarContent({
         onToggleResearchLane: () => setResearchLaneOpen((current) => !current),
       },
     }),
-    [canPaste, onJumpToAgents, projectPolicy?.research?.enabled, refreshAll, selectionTargets, startDraft]
+    [
+      canPaste,
+      onJumpToAgents,
+      projectPolicy?.actions?.hiddenCommands,
+      projectPolicy?.research?.enabled,
+      refreshAll,
+      selectionTargets,
+      startDraft,
+    ]
   );
   const headerCommands = useMemo(
     () =>
@@ -878,6 +994,7 @@ function ProjectExplorerSidebarContent({
     () => ({
       selectionTargets,
       canPaste,
+      hiddenCommandIds: projectPolicy?.actions?.hiddenCommands || [],
       actions: {
         onNewFile: () => startDraft('file'),
         onNewFolder: () => startDraft('dir'),
@@ -909,6 +1026,7 @@ function ProjectExplorerSidebarContent({
       handlePasteSelection,
       handleReveal,
       onAddComment,
+      projectPolicy?.actions?.hiddenCommands,
       selectionTargets,
       startDraft,
     ]
@@ -1107,10 +1225,18 @@ function ProjectExplorerSidebarContent({
           loading={contentSearchLoading}
           replacing={contentSearchReplacing}
           truncated={contentSearchTruncated}
+          totalResultFiles={contentSearchTotalResultFiles}
+          totalResultMatches={contentSearchTotalResultMatches}
           scannedFiles={contentSearchScannedFiles}
           skippedBinaryCount={contentSearchSkippedBinaryCount}
           skippedLargeCount={contentSearchSkippedLargeCount}
           error={contentSearchError}
+          selectedPaths={confirmedContentResultPaths}
+          selectedFileCount={confirmedContentFileCount}
+          selectedMatchCount={confirmedContentMatchCount}
+          onToggleResult={handleToggleContentResult}
+          onSelectAllVisible={handleSelectAllVisibleContentResults}
+          onClearSelection={handleClearConfirmedContentResults}
           onOpenResult={(path, line) => handleOpenContentResult(path, line)}
           onRevealResult={handleRevealContentResult}
           onApplyReplace={handleApplyContentReplace}

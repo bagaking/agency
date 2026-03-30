@@ -49,6 +49,52 @@ export const EXPLORER_WORKING_SET_DESCRIPTORS: ExplorerWorkingSetDescriptor[] = 
 export const getImplementedExplorerWorkingSets = () =>
   EXPLORER_WORKING_SET_DESCRIPTORS.filter((descriptor) => descriptor.implemented);
 
+const normalizeStringArray = (value: unknown) => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const seen = new Set<string>();
+  return value
+    .map((entry) => String(entry || '').trim())
+    .filter((entry) => {
+      if (!entry || seen.has(entry)) {
+        return false;
+      }
+      seen.add(entry);
+      return true;
+    });
+};
+
+export const resolveExplorerWorkingSetOptions = (
+  presetIds: unknown,
+  requiredIds: unknown = []
+) => {
+  const implemented = getImplementedExplorerWorkingSets();
+  const descriptorById = new Map(implemented.map((descriptor) => [descriptor.id, descriptor]));
+  const normalizedPresetIds = normalizeStringArray(presetIds);
+  const normalizedRequiredIds = normalizeStringArray(requiredIds);
+  if (!normalizedPresetIds.length && !normalizedRequiredIds.length) {
+    return implemented;
+  }
+
+  const next = [];
+  const seen = new Set<string>();
+  const pushDescriptor = (candidateId: string) => {
+    const descriptor = descriptorById.get(candidateId);
+    if (!descriptor || seen.has(descriptor.id)) {
+      return;
+    }
+    seen.add(descriptor.id);
+    next.push(descriptor);
+  };
+
+  pushDescriptor(EXPLORER_WORKING_SET_TREE);
+  normalizedPresetIds.forEach(pushDescriptor);
+  normalizedRequiredIds.forEach(pushDescriptor);
+
+  return next.length ? next : implemented;
+};
+
 export const normalizeExplorerWorkingSetId = (value: unknown): ExplorerWorkingSetId => {
   const normalized = String(value || '').trim();
   if (!normalized) {

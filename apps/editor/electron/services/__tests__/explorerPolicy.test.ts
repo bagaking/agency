@@ -72,11 +72,16 @@ test('readExplorerProjectPolicy loads and normalizes .agency/explorer.yaml defau
         '    - modified',
         'workingSet:',
         '  defaultView: changed-files',
+        '  presets:',
+        '    - changed-files',
         'search:',
         '  defaultMode: content',
         '  content:',
         '    defaultScope: selection',
         '    wholeWord: true',
+        'actions:',
+        '  hiddenCommands:',
+        '    - explorer.refresh',
         'research:',
         '  allowMarkdownSave: false',
         '',
@@ -94,9 +99,11 @@ test('readExplorerProjectPolicy loads and normalizes .agency/explorer.yaml defau
     assert.equal(result.policy.filters['visibility.hidden'], false);
     assert.deepEqual(result.policy.filters.status, ['modified']);
     assert.equal(result.policy.workingSet.defaultView, 'changed-files');
+    assert.deepEqual(result.policy.workingSet.presets, ['changed-files']);
     assert.equal(result.policy.search.defaultMode, 'content');
     assert.equal(result.policy.search.content.defaultScope, 'selection');
     assert.equal(result.policy.search.content.wholeWord, true);
+    assert.deepEqual(result.policy.actions.hiddenCommands, ['explorer.refresh']);
     assert.equal(result.policy.research.allowMarkdownSave, false);
     assert.equal(result.policy.research.enabled, true);
   });
