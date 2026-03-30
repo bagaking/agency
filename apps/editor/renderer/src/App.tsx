@@ -32,6 +32,8 @@ import { useExplorerCommentRouting } from './app/useExplorerCommentRouting';
 import { useWorkbenchReplySelectionState } from './app/useWorkbenchReplySelectionState';
 import { useAppShellLayoutState } from './app/useAppShellLayoutState';
 import { useWindowShellState } from './app/useWindowShellState';
+import { AttentionLayerProvider } from './attention/AttentionLayerContext';
+import { useAttentionState } from './attention/useAttentionState';
 import {
   buildMobileContinuationFeedback,
   resolveMobileContinuationErrorTitle,
@@ -78,6 +80,7 @@ function AppShell() {
   const [tmuxStatus, setTmuxStatus] = useState({ available: true, error: '', version: '' });
   const [ipcAvailable, setIpcAvailable] = useState(true);
   const [initialActiveSessions, setInitialActiveSessions] = useState({});
+  const [initialSessionVisitedByKey, setInitialSessionVisitedByKey] = useState({});
   const [initialWorkbenchTabs, setInitialWorkbenchTabs] = useState({});
   const [initialWorkbenchActiveTabs, setInitialWorkbenchActiveTabs] = useState({});
   const [userDataPath, setUserDataPath] = useState('');
@@ -192,6 +195,7 @@ function AppShell() {
     setUserDataPath,
     setProjectError,
     setInitialActiveSessions,
+    setInitialSessionVisitedByKey,
     setInitialWorkbenchTabs,
     setInitialWorkbenchActiveTabs,
     setSidebarWidth,
@@ -228,6 +232,7 @@ function AppShell() {
     tmuxStatus,
     onOpenTerminal: handleOpenTerminal,
     initialActiveSessions,
+    initialSessionVisitedByKey,
   });
   const handleFocusSessionInUi = useCallback(
     (cellId: string, sessionId: string) => {
@@ -525,6 +530,7 @@ function AppShell() {
     setSelectedId,
     setCells,
     setInitialActiveSessions,
+    setInitialSessionVisitedByKey,
     setWorkbenchSelectionByCellId,
     setWorkbenchMetaByCellId,
     setInitialWorkbenchTabs,
@@ -534,6 +540,7 @@ function AppShell() {
     setRecentProjects,
     selectedCellId: selectedCell?.id || '',
     activeSessionByCellId: sessionsState.activeSessionByCellId,
+    sessionVisitedByKey: sessionsState.sessionVisitedByKey,
     uiStateLoaded,
     setTerminalMode,
     setTerminalOpen,
@@ -545,6 +552,27 @@ function AppShell() {
     hilDrawerPanelByView,
   });
   const windowShellState = useWindowShellState();
+  const attentionState = useAttentionState({
+    projectRoot,
+    selectedCell,
+    activeSessionId: sessionsState.activeSessionId,
+    cells: displayCells,
+    sessionsByCellId: sessionsState.sessionsByCellId,
+    activeSessionByCellId: sessionsState.activeSessionByCellId,
+    sessionActivityByKey: sessionsState.sessionActivityByKey,
+    sessionVisitedByKey: sessionsState.sessionVisitedByKey,
+    harnessRuns: sessionsState.harnessRuns,
+    sessionError: sessionsState.sessionError,
+    pendingTransition,
+    transitionError,
+    windows: windowShellState.windows,
+    setActiveView: setActiveViewCompat,
+    setSelectedId,
+    openSessionMap,
+    focusWindow: windowShellState.handleFocusWindow,
+    focusSessionInUi: handleFocusSessionInUi,
+    selectSessionFromMap: handleSelectSessionFromMap,
+  });
   const gateDisplayStage = scopedCell?.state === 'archived' ? 'archived' : 'active';
   const gateResultsByStage = scopedCell ? hierarchyConfig.gateResultsByCellId[scopedCell.id] || {} : {};
   const gatesCheckingByStage = scopedCell ? hierarchyConfig.gatesCheckingByCellId[scopedCell.id] || {} : {};
@@ -934,47 +962,49 @@ function AppShell() {
   });
 
   return (
-    <div className="relative flex h-screen flex-col bg-background text-foreground overflow-hidden">
-      <WindowTitleBar
-        projectRoot={projectRoot}
-        projectError={projectError}
-        windows={windowShellState.windows}
-        onCreateWindow={windowShellState.handleCreateWindow}
-        onFocusWindow={windowShellState.handleFocusWindow}
-        onSelectProject={handleSelectProjectRoot}
-      />
-      <AppLayout {...appLayoutProps} />
-      <AppShellChrome
-        sessionMapOpen={sessionMapOpen}
-        sessionMapModel={sessionMapModel}
-        handleSelectSessionFromMap={handleSelectSessionFromMap}
-        handleToggleSessionMap={handleToggleSessionMap}
-        resolveSessionMapFontSize={resolveSessionMapFontSize}
-        terminusProfiles={sessionReplyContext.terminusProfiles}
-        createSessionForCell={sessionsState.createSessionForCell}
-        dispatchSessionCommand={sessionsState.dispatchSessionCommand}
-        renameSession={sessionsState.renameSession}
-        updateSessionAvatar={sessionsState.updateSessionAvatar}
-        harnessRuns={sessionsState.harnessRuns || []}
-        sessionError={sessionsState.sessionError || ''}
-        onClearSessionError={sessionsState.clearSessionError}
-        onCancelHarnessRun={sessionsState.cancelHarnessRun}
-        onResumeHarnessRun={sessionsState.resumeHarnessRun}
-        handleOpenSessionMapShortcut={handleOpenSessionMapShortcut}
-        handleRevealSessionMapShortcut={handleRevealSessionMapShortcut}
-        loading={loading}
-        loadCells={loadCells}
-        tmuxStatus={tmuxStatus}
-        ipcAvailable={ipcAvailable}
-        sessionMapCenterSlot={sessionMapCenterSlot}
-        pendingTransition={pendingTransition}
-        transitionError={transitionError}
-        transitionLoading={transitionLoading}
-        handleCancelTransition={handleCancelTransition}
-        handleConfirmTransition={handleConfirmTransition}
-        handleRefreshTransitionGates={handleRefreshTransitionGates}
-      />
-    </div>
+    <AttentionLayerProvider value={attentionState}>
+      <div className="relative flex h-screen flex-col overflow-hidden bg-background text-foreground">
+        <WindowTitleBar
+          projectRoot={projectRoot}
+          projectError={projectError}
+          windows={windowShellState.windows}
+          onCreateWindow={windowShellState.handleCreateWindow}
+          onFocusWindow={windowShellState.handleFocusWindow}
+          onSelectProject={handleSelectProjectRoot}
+        />
+        <AppLayout {...appLayoutProps} />
+        <AppShellChrome
+          sessionMapOpen={sessionMapOpen}
+          sessionMapModel={sessionMapModel}
+          handleSelectSessionFromMap={handleSelectSessionFromMap}
+          handleToggleSessionMap={handleToggleSessionMap}
+          resolveSessionMapFontSize={resolveSessionMapFontSize}
+          terminusProfiles={sessionReplyContext.terminusProfiles}
+          createSessionForCell={sessionsState.createSessionForCell}
+          dispatchSessionCommand={sessionsState.dispatchSessionCommand}
+          renameSession={sessionsState.renameSession}
+          updateSessionAvatar={sessionsState.updateSessionAvatar}
+          harnessRuns={sessionsState.harnessRuns || []}
+          sessionError={sessionsState.sessionError || ''}
+          onClearSessionError={sessionsState.clearSessionError}
+          onCancelHarnessRun={sessionsState.cancelHarnessRun}
+          onResumeHarnessRun={sessionsState.resumeHarnessRun}
+          handleOpenSessionMapShortcut={handleOpenSessionMapShortcut}
+          handleRevealSessionMapShortcut={handleRevealSessionMapShortcut}
+          loading={loading}
+          loadCells={loadCells}
+          tmuxStatus={tmuxStatus}
+          ipcAvailable={ipcAvailable}
+          sessionMapCenterSlot={sessionMapCenterSlot}
+          pendingTransition={pendingTransition}
+          transitionError={transitionError}
+          transitionLoading={transitionLoading}
+          handleCancelTransition={handleCancelTransition}
+          handleConfirmTransition={handleConfirmTransition}
+          handleRefreshTransitionGates={handleRefreshTransitionGates}
+        />
+      </div>
+    </AttentionLayerProvider>
   );
 }
 

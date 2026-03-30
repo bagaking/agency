@@ -15,9 +15,13 @@ import {
 import { RecentProjectsList } from '../RecentProjectsList';
 import { useCommanderSessionActions } from '../commander/useCommanderSessionActions';
 import { SessionContextMenu, SessionCreateMenu, SessionOverflowMenu } from '../SessionMenus';
+import { AttentionPill } from '../attention/AttentionPill';
+import { AttentionQueue } from '../attention/AttentionQueue';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
 import { AvatarPickerMenu } from '../ui/AvatarPickerMenu';
 import { IconButton } from '../ui/IconButton';
+import { useAttentionLayer } from '../../attention/AttentionLayerContext';
+import type { AttentionItem } from '../../attention/attentionModel';
 import { formatIdleShort } from '../../utils/timeFormat';
 import { resolveSessionAvatarId } from '../../utils/agentAvatar';
 import {
@@ -179,6 +183,40 @@ function SessionStatusMeta({
   );
 }
 
+function resolveAttentionCardClass(item: AttentionItem | null | undefined): string {
+  switch (item?.kind) {
+    case 'failed':
+      return 'border-rose-300/26 bg-rose-500/[0.06] hover:border-rose-300/34';
+    case 'pending_confirmation':
+      return 'border-amber-300/24 bg-amber-500/[0.055] hover:border-amber-300/32';
+    case 'return_required':
+      return 'border-cyan-300/24 bg-cyan-500/[0.05] hover:border-cyan-300/34';
+    case 'running':
+      return 'border-sky-300/22 bg-sky-500/[0.045] hover:border-sky-300/30';
+    case 'unread':
+      return 'border-white/[0.09] bg-white/[0.03] hover:border-white/[0.12]';
+    default:
+      return '';
+  }
+}
+
+function resolveAttentionRowClass(item: AttentionItem | null | undefined): string {
+  switch (item?.kind) {
+    case 'failed':
+      return 'border-rose-300/20 bg-rose-500/[0.055] hover:bg-rose-500/[0.08]';
+    case 'pending_confirmation':
+      return 'border-amber-300/18 bg-amber-500/[0.05] hover:bg-amber-500/[0.07]';
+    case 'return_required':
+      return 'border-cyan-300/18 bg-cyan-500/[0.045] hover:bg-cyan-500/[0.07]';
+    case 'running':
+      return 'border-sky-300/18 bg-sky-500/[0.04] hover:bg-sky-500/[0.06]';
+    case 'unread':
+      return 'border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.045]';
+    default:
+      return '';
+  }
+}
+
 function SessionTreeGuides({
   depth,
   rowPaddingLeft,
@@ -277,6 +315,7 @@ export function AgentCellsSessionsPanel({
   onFocusSessionInUi,
   onConfigureProfile,
 }: AgentCellsSessionsPanelProps) {
+  const attention = useAttentionLayer();
   const [idleNow, setIdleNow] = useState(Date.now());
   const [closedMenu, setClosedMenu] = useState<any>(null);
   const [contextMenu, setContextMenu] = useState<any>(null);
@@ -606,6 +645,10 @@ export function AgentCellsSessionsPanel({
     },
     [cellsById, onCreateSession]
   );
+  const localAttentionItems = useMemo(
+    () => (attention.localItems || []).slice(0, 3),
+    [attention.localItems]
+  );
 
   const clearDragState = useCallback(() => {
     setDraggingSession(null);
@@ -757,6 +800,17 @@ export function AgentCellsSessionsPanel({
           </>
         ) : null}
 
+        {projectReady && localAttentionItems.length ? (
+          <div className="mb-3">
+            <AttentionQueue
+              title="Attention"
+              items={localAttentionItems}
+              onSelectItem={attention.jumpToAttention}
+              emptyLabel="No active attention."
+            />
+          </div>
+        ) : null}
+
         {cells.length === 0 ? (
           <div className="px-4 py-8 text-center text-xs text-muted-foreground">No active cells</div>
         ) : (
@@ -766,6 +820,7 @@ export function AgentCellsSessionsPanel({
               const visibleRows = visibleRowsByCellId[cell.id] || [];
               const activeSessionId =
                 pendingActiveSessionByCellId[cell.id] || activeSessionByCellId?.[cell.id] || null;
+              const cellAttention = attention.byCellId[cell.id];
               const isSelectedCell = selectedId === cell.id;
               const isCollapsed = collapsedCells.has(cell.id);
               const hasOverflow =
@@ -779,7 +834,7 @@ export function AgentCellsSessionsPanel({
                   className={`overflow-hidden rounded-xl border transition-colors ${
                     isSelectedCell
                       ? 'border-primary/25 bg-primary/[0.045] shadow-[0_8px_24px_-18px_rgba(59,130,246,0.55)]'
-                      : 'border-border/40 bg-background/20 hover:border-border/70'
+                      : `border-border/40 bg-background/20 ${resolveAttentionCardClass(cellAttention?.strongest)}`
                   }`}
                 >
                   <div
@@ -851,6 +906,23 @@ export function AgentCellsSessionsPanel({
                         ) : (
                           <CellStateBadge state={cell.state} />
                         )}
+                        {cellAttention?.strongest ? (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              attention.jumpToAttention(cellAttention.strongest);
+                            }}
+                            className="shrink-0"
+                            title={cellAttention.strongest.detail}
+                          >
+                            <AttentionPill
+                              item={cellAttention.strongest}
+                              count={cellAttention.count}
+                              className="px-1.5 py-[2px]"
+                            />
+                          </button>
+                        ) : null}
                       </div>
                       <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[9px] text-muted-foreground/72">
                         {cell.isVirtual ? (
@@ -924,6 +996,8 @@ export function AgentCellsSessionsPanel({
                     <div className="space-y-1 border-t border-white/[0.06] px-2 pb-1.5 pt-1.5" role="group">
                       {visibleRows.map((row) => {
                         const session = row.session;
+                        const sessionAttention =
+                          attention.bySessionKey[buildSessionKey(cell.id, session.id)] || null;
                         const isCellActiveSession = session.id === activeSessionId;
                         const isSelectedSession = isSelectedCell && isCellActiveSession;
                         const activityAt = resolveSessionActivity(cell.id, session);
@@ -986,7 +1060,7 @@ export function AgentCellsSessionsPanel({
                               className={`group relative flex w-full min-w-0 items-center gap-2.5 rounded-xl border border-transparent py-1.5 pr-2 text-left text-[11px] transition-all duration-200 select-none ${
                                 isSelectedSession
                                   ? 'border-primary/20 bg-primary/10 text-foreground shadow-[0_8px_18px_-16px_rgba(59,130,246,0.7)]'
-                                  : 'bg-transparent text-muted-foreground hover:border-white/[0.06] hover:bg-white/[0.03] hover:text-foreground'
+                                  : `bg-transparent text-muted-foreground hover:text-foreground ${resolveAttentionRowClass(sessionAttention)}`
                               } ${
                                 activeDropTarget?.intent === 'into'
                                   ? 'ring-1 ring-primary/30 bg-primary/5'
@@ -1149,6 +1223,22 @@ export function AgentCellsSessionsPanel({
                                       {session.name || session.id}
                                     </span>
                                     <SessionKindBadge nodeKind={session.nodeKind} />
+                                    {sessionAttention ? (
+                                      <button
+                                        type="button"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          attention.jumpToAttention(sessionAttention);
+                                        }}
+                                        className="shrink-0"
+                                        title={sessionAttention.detail}
+                                      >
+                                        <AttentionPill
+                                          item={sessionAttention}
+                                          className="px-1.5 py-[2px]"
+                                        />
+                                      </button>
+                                    ) : null}
                                   </div>
                                 )}
 

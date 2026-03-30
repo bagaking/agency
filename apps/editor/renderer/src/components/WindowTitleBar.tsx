@@ -4,6 +4,8 @@ import { ChevronDown, FolderOpen, Plus, Rows3, Search } from 'lucide-react';
 import { Logo } from './Logo';
 import { focusRing } from './ui/focusRing';
 import type { WindowShellItem } from '../app/useWindowShellState';
+import type { AttentionItem } from '../attention/attentionModel';
+import { AttentionPill } from './attention/AttentionPill';
 
 type WindowTitleBarProps = {
   projectRoot: string;
@@ -15,6 +17,19 @@ type WindowTitleBarProps = {
 };
 
 const focusRingClass = focusRing.dark;
+
+function buildWindowAttentionItem(window: WindowShellItem): AttentionItem | null {
+  const primary = window?.attentionSummary?.primary;
+  if (!primary) {
+    return null;
+  }
+  return {
+    ...primary,
+    source: 'window',
+    updatedAtMs: 0,
+    count: window.attentionSummary?.itemCount || 1,
+  };
+}
 
 export function WindowTitleBar({
   projectRoot,
@@ -84,6 +99,10 @@ export function WindowTitleBar({
     () => [...(currentWindow ? [currentWindow] : []), ...otherWindows],
     [currentWindow, otherWindows]
   );
+  const attentionWindows = useMemo(
+    () => windows.filter((window) => Number(window?.attentionSummary?.itemCount || 0) > 0),
+    [windows]
+  );
 
   useEffect(() => {
     if (!menuOpen) {
@@ -122,6 +141,12 @@ export function WindowTitleBar({
           <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-1 py-[1px] text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             {windows.length}
           </span>
+          {attentionWindows.length ? (
+            <span
+              className="h-2 w-2 rounded-full bg-amber-300 shadow-[0_0_0_1px_rgba(251,191,36,0.24),0_0_8px_rgba(251,191,36,0.55)]"
+              aria-label={`${attentionWindows.length} window${attentionWindows.length === 1 ? '' : 's'} need attention`}
+            />
+          ) : null}
           <ChevronDown size={11} className={`text-muted-foreground transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
         </button>
 
@@ -215,12 +240,26 @@ export function WindowTitleBar({
                         }`}
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="truncate text-[11px] font-medium text-foreground">
-                            {currentWindow.projectName}
+                          <div className="flex min-w-0 items-center gap-2">
+                            <div className="truncate text-[11px] font-medium text-foreground">
+                              {currentWindow.projectName}
+                            </div>
+                            {buildWindowAttentionItem(currentWindow) ? (
+                              <AttentionPill
+                                item={buildWindowAttentionItem(currentWindow)}
+                                count={currentWindow.attentionSummary?.itemCount || 1}
+                                className="shrink-0 px-1.5 py-[2px]"
+                              />
+                            ) : null}
                           </div>
                           <div className="truncate text-[10px] text-muted-foreground">
                             {currentWindow.projectRoot || 'Empty project window'}
                           </div>
+                          {currentWindow.attentionSummary?.primary?.detail ? (
+                            <div className="mt-1 truncate text-[10px] text-foreground/60">
+                              {currentWindow.attentionSummary.primary.detail}
+                            </div>
+                          ) : null}
                         </div>
                       </button>
                     </div>
@@ -251,12 +290,26 @@ export function WindowTitleBar({
                             }`}
                           >
                             <div className="min-w-0 flex-1">
-                              <div className="truncate text-[11px] font-medium text-foreground">
-                                {window.projectName}
+                              <div className="flex min-w-0 items-center gap-2">
+                                <div className="truncate text-[11px] font-medium text-foreground">
+                                  {window.projectName}
+                                </div>
+                                {buildWindowAttentionItem(window) ? (
+                                  <AttentionPill
+                                    item={buildWindowAttentionItem(window)}
+                                    count={window.attentionSummary?.itemCount || 1}
+                                    className="shrink-0 px-1.5 py-[2px]"
+                                  />
+                                ) : null}
                               </div>
                               <div className="truncate text-[10px] text-muted-foreground">
                                 {window.projectRoot || 'Empty project window'}
                               </div>
+                              {window.attentionSummary?.primary?.detail ? (
+                                <div className="mt-1 truncate text-[10px] text-foreground/60">
+                                  {window.attentionSummary.primary.detail}
+                                </div>
+                              ) : null}
                             </div>
                           </button>
                         );

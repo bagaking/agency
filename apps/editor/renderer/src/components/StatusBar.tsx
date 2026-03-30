@@ -1,6 +1,8 @@
 import React from 'react';
 import { RefreshCw } from 'lucide-react';
 import { RiveAnimation } from './RiveAnimation';
+import { useAttentionLayer } from '../attention/AttentionLayerContext';
+import { AttentionPill } from './attention/AttentionPill';
 
 export function StatusBar({
   loading,
@@ -10,11 +12,20 @@ export function StatusBar({
   ipcAvailable,
   centerSlot,
 }: any) {
-  const assetBase = import.meta.env.BASE_URL || '/';
+  const attention = useAttentionLayer();
+  const assetBase =
+    (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '/';
   const tmuxLabel = tmuxStatus?.available ? (tmuxStatus.version || 'tmux') : 'tmux missing';
   const tmuxColor = tmuxStatus?.available ? 'text-emerald-300' : 'text-amber-300';
   const ipcLabel = ipcAvailable ? 'IPC ready' : 'IPC missing';
   const ipcColor = ipcAvailable ? 'text-emerald-300' : 'text-rose-300';
+
+  const primaryAttention = attention.primaryItem;
+  const attentionCount = primaryAttention
+    ? primaryAttention.source === 'window'
+      ? primaryAttention.count
+      : attention.localSummary.itemCount
+    : 0;
 
   return (
     <footer className="relative flex h-6 w-full items-center justify-between bg-status-bar px-3 text-xs text-status-bar-foreground select-none overflow-hidden">
@@ -43,7 +54,24 @@ export function StatusBar({
         </div>
       ) : null}
 
-      <div className="flex items-center gap-4 opacity-90">
+      <div className="flex items-center gap-3 opacity-90">
+        {primaryAttention ? (
+          <button
+            type="button"
+            onClick={() => attention.jumpToAttention(primaryAttention)}
+            title={primaryAttention.detail || primaryAttention.label}
+            data-testid="statusbar-attention"
+            className="flex max-w-[320px] items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 transition-colors hover:bg-white/[0.08]"
+          >
+            <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-status-bar-foreground/58">
+              Next
+            </span>
+            <AttentionPill item={primaryAttention} count={attentionCount} className="px-1.5 py-[2px]" />
+            <span className="truncate text-[10px] text-status-bar-foreground/92">
+              {primaryAttention.label}
+            </span>
+          </button>
+        ) : null}
         <span>UTF-8</span>
         <span>Javascript</span>
         <div className="flex items-center justify-center w-4 h-4">

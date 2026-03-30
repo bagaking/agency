@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
+import {
+  normalizeWindowAttentionSummary,
+  type WindowAttentionSummary,
+} from '../../../shared/attention';
 
 import {
   createWindowShell,
@@ -15,6 +19,7 @@ export type WindowShellItem = {
   title: string;
   isFocused: boolean;
   isMinimized: boolean;
+  attentionSummary: WindowAttentionSummary | null;
 };
 
 function normalizeWindowShells(payload: any): WindowShellItem[] {
@@ -28,6 +33,7 @@ function normalizeWindowShells(payload: any): WindowShellItem[] {
       title: String(entry?.title || '').trim() || 'Agency',
       isFocused: Boolean(entry?.isFocused),
       isMinimized: Boolean(entry?.isMinimized),
+      attentionSummary: normalizeWindowAttentionSummary(entry?.attentionSummary),
     }))
     .filter((entry) => entry.windowId > 0 && entry.windowStateId);
 }

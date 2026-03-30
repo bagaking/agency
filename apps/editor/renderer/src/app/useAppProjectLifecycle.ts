@@ -14,6 +14,7 @@ type UseAppProjectLifecycleArgs = {
   setSelectedId: (value: any) => void;
   setCells: (value: any) => void;
   setInitialActiveSessions: (value: any) => void;
+  setInitialSessionVisitedByKey: (value: any) => void;
   setWorkbenchSelectionByCellId: (value: any) => void;
   setWorkbenchMetaByCellId: (value: any) => void;
   setInitialWorkbenchTabs: (value: any) => void;
@@ -23,6 +24,7 @@ type UseAppProjectLifecycleArgs = {
   setRecentProjects: (value: any[]) => void;
   selectedCellId: string;
   activeSessionByCellId: Record<string, string>;
+  sessionVisitedByKey: Record<string, number>;
   uiStateLoaded: boolean;
   setTerminalMode: (value: string) => void;
   setTerminalOpen: (value: boolean) => void;
@@ -40,6 +42,7 @@ export function useAppProjectLifecycle({
   setSelectedId,
   setCells,
   setInitialActiveSessions,
+  setInitialSessionVisitedByKey,
   setWorkbenchSelectionByCellId,
   setWorkbenchMetaByCellId,
   setInitialWorkbenchTabs,
@@ -49,6 +52,7 @@ export function useAppProjectLifecycle({
   setRecentProjects,
   selectedCellId,
   activeSessionByCellId,
+  sessionVisitedByKey,
   uiStateLoaded,
   setTerminalMode,
   setTerminalOpen,
@@ -63,6 +67,7 @@ export function useAppProjectLifecycle({
     setSelectedId(null);
     setCells([]);
     setInitialActiveSessions({});
+    setInitialSessionVisitedByKey({});
     resetSessions();
     workbench.resetTabs();
     setWorkbenchSelectionByCellId({});
@@ -73,6 +78,7 @@ export function useAppProjectLifecycle({
     resetSessions,
     setCells,
     setInitialActiveSessions,
+    setInitialSessionVisitedByKey,
     setInitialWorkbenchActiveTabs,
     setInitialWorkbenchTabs,
     setSelectedId,
@@ -162,6 +168,7 @@ export function useAppProjectLifecycle({
         hilDrawerOpen,
         hilDrawerPanel,
         hilDrawerPanelByView,
+        sessionVisitedByKey,
         workbenchTabsByCellId: workbench.serializeTabs(workbench.tabsByCellId),
         workbenchActiveTabByCellId: workbench.activeTabByCellId,
       }).catch(() => undefined);
@@ -172,6 +179,7 @@ export function useAppProjectLifecycle({
     hilDrawerOpen,
     hilDrawerPanel,
     hilDrawerPanelByView,
+    sessionVisitedByKey,
     sidebarCollapsed,
     sidebarWidth,
     uiStateLoaded,
@@ -186,4 +194,3 @@ export function useAppProjectLifecycle({
     handleOpenRecentProject,
   };
 }
-

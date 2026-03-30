@@ -19,6 +19,7 @@ import {
 import {
   cancelMainAgentHarnessRun,
   inspectMainAgentHarnessRun,
+  listMainAgentHarnessRuns,
   onMainAgentHarnessProgress,
   resumeMainAgentHarnessRun,
 } from '../services/mainAgentHarness';
@@ -46,6 +47,7 @@ export function useSessions(options: any = {}) {
     tmuxStatus,
     onOpenTerminal,
     initialActiveSessions,
+    initialSessionVisitedByKey,
   } = options;
   const {
     activeSessionByCellId,
@@ -143,6 +145,7 @@ export function useSessions(options: any = {}) {
     activeSessionKey,
     selectedCellId: selectedCell?.id,
     activeSessionId,
+    initialSessionVisitedByKey,
   });
 
   useSessionTraceLogging({
@@ -326,12 +329,36 @@ export function useSessions(options: any = {}) {
       const previous = current[runId] || null;
       const previousTimeline = Array.isArray(previous?.timeline) ? previous.timeline : [];
       const nextTimeline = Array.isArray(nextRun?.timeline) ? nextRun.timeline : previousTimeline;
+      const clientRequestId = String(nextRun?.clientRequestId || previous?.clientRequestId || '').trim();
+      const pendingEntry =
+        (clientRequestId && pendingHarnessRunsRef.current[clientRequestId]) ||
+        Object.values(pendingHarnessRunsRef.current).find(
+          (entry) => String(entry?.runId || '').trim() === runId
+        ) ||
+        null;
+      const attentionRefs = {
+        cellId:
+          String(
+            nextRun?.attentionRefs?.cellId ||
+              previous?.attentionRefs?.cellId ||
+              pendingEntry?.cellId ||
+              ''
+          ).trim(),
+        sourceSessionId:
+          String(
+            nextRun?.attentionRefs?.sourceSessionId ||
+              previous?.attentionRefs?.sourceSessionId ||
+              pendingEntry?.sourceSessionId ||
+              ''
+          ).trim(),
+      };
       return {
         ...current,
         [runId]: {
           ...(previous || {}),
           ...(nextRun || {}),
           timeline: nextTimeline,
+          attentionRefs,
         },
       };
     });
@@ -425,6 +452,26 @@ export function useSessions(options: any = {}) {
           sourceSessionId: String(sourceSessionId || '').trim(),
         },
       };
+      const normalizedRunId = String(runId || '').trim();
+      if (normalizedRunId) {
+        setHarnessRunsById((current) => {
+          const existing = current[normalizedRunId];
+          if (!existing) {
+            return current;
+          }
+          return {
+            ...current,
+            [normalizedRunId]: {
+              ...existing,
+              attentionRefs: {
+                ...(existing.attentionRefs || {}),
+                cellId: normalizedCellId,
+                sourceSessionId: String(sourceSessionId || '').trim(),
+              },
+            },
+          };
+        });
+      }
     },
     []
   );
@@ -1047,6 +1094,23 @@ export function useSessions(options: any = {}) {
     setSessionError('');
     setPendingCommand(null);
   }, [resetActivityState, setActiveSessionByCellId, activeSessionByCellIdRef]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listMainAgentHarnessRuns({ limit: 8 })
+      .then((runs) => {
+        if (cancelled) {
+          return;
+        }
+        (Array.isArray(runs) ? runs : []).forEach((run) => {
+          upsertHarnessRun(run);
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [upsertHarnessRun]);
 
   useEffect(() => {
     const unsubscribe = onMainAgentHarnessProgress?.((event: any) => {

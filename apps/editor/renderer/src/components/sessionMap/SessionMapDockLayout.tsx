@@ -1,6 +1,7 @@
 import React from 'react';
 import { CircleOff, MoreHorizontal, Plus } from 'lucide-react';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
+import { AttentionQueue } from '../attention/AttentionQueue';
 import { resolveSessionAvatarId } from '../../utils/agentAvatar';
 import { TacticalFrame } from './SessionMapFrames';
 import { SessionMapCommanderPanel } from './SessionMapCommanderPanel';
@@ -10,12 +11,47 @@ import { SessionMapOperationsRail } from './SessionMapOperationsRail';
 const CELL_CARD_MIN_WIDTH = 248;
 const CELL_CARD_MAX_WIDTH = 396;
 
+function resolveCellAttentionClass(item: any): string {
+  switch (item?.kind) {
+    case 'failed':
+      return 'ring-1 ring-rose-300/24 shadow-[0_0_0_1px_rgba(251,113,133,0.12),0_14px_28px_rgba(127,29,29,0.18)]';
+    case 'pending_confirmation':
+      return 'ring-1 ring-amber-300/20 shadow-[0_0_0_1px_rgba(251,191,36,0.1),0_14px_28px_rgba(120,53,15,0.16)]';
+    case 'return_required':
+      return 'ring-1 ring-cyan-300/20 shadow-[0_0_0_1px_rgba(34,211,238,0.1),0_14px_28px_rgba(8,47,73,0.18)]';
+    case 'running':
+      return 'ring-1 ring-sky-300/18 shadow-[0_0_0_1px_rgba(56,189,248,0.08),0_14px_28px_rgba(12,74,110,0.16)]';
+    case 'unread':
+      return 'ring-1 ring-white/[0.08]';
+    default:
+      return '';
+  }
+}
+
+function resolveTokenAttentionClass(item: any): string {
+  switch (item?.kind) {
+    case 'failed':
+      return 'shadow-[0_0_0_1px_rgba(251,113,133,0.2),0_0_16px_rgba(244,63,94,0.16)]';
+    case 'pending_confirmation':
+      return 'shadow-[0_0_0_1px_rgba(251,191,36,0.18),0_0_16px_rgba(251,191,36,0.14)]';
+    case 'return_required':
+      return 'shadow-[0_0_0_1px_rgba(34,211,238,0.18),0_0_16px_rgba(34,211,238,0.16)]';
+    case 'running':
+      return 'shadow-[0_0_0_1px_rgba(56,189,248,0.16),0_0_14px_rgba(56,189,248,0.16)]';
+    case 'unread':
+      return 'shadow-[0_0_0_1px_rgba(255,255,255,0.08)]';
+    default:
+      return '';
+  }
+}
+
 function SessionTokenButton({
   session,
   cluster,
   onSelectSession,
   onTokenEnter,
   onTokenLeave,
+  attentionItem,
 }: any) {
   const isActive = session.isActive;
   const isClosed = session.isOffline;
@@ -26,7 +62,7 @@ function SessionTokenButton({
       className={`group/token relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/55 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b1118] ${
         isActive
           ? 'z-10 scale-[1.08] bg-[linear-gradient(180deg,rgba(34,211,238,0.24),rgba(24,36,50,0.92))] shadow-[0_0_0_1px_rgba(34,211,238,0.58),0_0_18px_rgba(34,211,238,0.28)]'
-          : 'bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(9,13,18,0.96))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(15,20,28,0.98))] hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]'
+          : `bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(9,13,18,0.96))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(15,20,28,0.98))] hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] ${resolveTokenAttentionClass(attentionItem)}`
       }`}
       onClick={() => onSelectSession(cluster.cell.id, session.id)}
       onMouseEnter={(event) =>
@@ -54,6 +90,7 @@ function SessionTokenButton({
       aria-pressed={isActive}
       aria-label={`Session ${session.name || session.id}`}
       data-session-token="true"
+      data-session-attention={attentionItem ? attentionItem.kind : ''}
     >
       <AgentAvatarBadge
         avatarId={resolveSessionAvatarId(session, cluster.cell)}
@@ -68,6 +105,9 @@ function SessionTokenButton({
           <div className="pointer-events-none absolute -inset-1 rounded-[14px] border border-cyan-300/55" />
           <div className="pointer-events-none absolute -bottom-1 h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.75)]" />
         </>
+      ) : null}
+      {attentionItem && !isActive ? (
+        <div className="pointer-events-none absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full border border-[#0b1118] bg-white/80" />
       ) : null}
     </button>
   );
@@ -96,6 +136,10 @@ export function SessionMapDockLayout({
   onCloseCommanderBriefing,
   commanderBriefingOpen = false,
   commanderTriggerRef,
+  attentionItems,
+  cellAttentionById,
+  sessionAttentionByKey,
+  onSelectAttention,
 }: any) {
   const dockGridTemplateColumns = commanderBriefingOpen
     ? '92px minmax(0,1.18fr) minmax(320px,0.92fr) minmax(448px,1.08fr)'
@@ -183,7 +227,7 @@ export function SessionMapDockLayout({
                   color={cluster.color}
                   isHovered={hoveredCellId === cluster.cell.id}
                   minHeight={96}
-                  className="min-w-[248px] max-w-[396px] flex-[1_1_320px]"
+                  className={`min-w-[248px] max-w-[396px] flex-[1_1_320px] ${resolveCellAttentionClass(cellAttentionById?.[cluster.cell.id]?.strongest)}`}
                   actions={
                     canCreateSession ? (
                       <button
@@ -213,6 +257,8 @@ export function SessionMapDockLayout({
                   >
                     {activeSessions.length ? (
                       activeSessions.map((session) => {
+                        const sessionAttention =
+                          sessionAttentionByKey?.[`${cluster.cell.id}:${session.id}`] || null;
                         return (
                           <SessionTokenButton
                             key={session.id}
@@ -221,6 +267,7 @@ export function SessionMapDockLayout({
                             onSelectSession={onSelectSession}
                             onTokenEnter={onTokenEnter}
                             onTokenLeave={onTokenLeave}
+                            attentionItem={sessionAttention}
                           />
                         );
                       })
@@ -257,11 +304,13 @@ export function SessionMapDockLayout({
       {/* Functional Area */}
       <SessionMapOperationsRail
         focusData={focusData}
+        attentionItems={attentionItems}
         harnessRuns={harnessRuns}
         sessionError={sessionError}
         onClearSessionError={onClearSessionError}
         onCancelHarnessRun={onCancelHarnessRun}
         onResumeHarnessRun={onResumeHarnessRun}
+        onSelectAttention={onSelectAttention}
       />
 
       {/* Commander Column */}

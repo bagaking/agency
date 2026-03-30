@@ -31,6 +31,7 @@ type UseRendererBootstrapArgs = {
   setUserDataPath: (value: string) => void;
   setProjectError: (value: string) => void;
   setInitialActiveSessions: (value: any) => void;
+  setInitialSessionVisitedByKey: (value: any) => void;
   setInitialWorkbenchTabs: (value: any) => void;
   setInitialWorkbenchActiveTabs: (value: any) => void;
   setSidebarWidth: (value: number) => void;
@@ -72,6 +73,7 @@ export function useRendererBootstrap({
   setUserDataPath,
   setProjectError,
   setInitialActiveSessions,
+  setInitialSessionVisitedByKey,
   setInitialWorkbenchTabs,
   setInitialWorkbenchActiveTabs,
   setSidebarWidth,
@@ -198,6 +200,9 @@ export function useRendererBootstrap({
           if (state?.activeSessionByCellId && typeof state.activeSessionByCellId === 'object') {
             setInitialActiveSessions(state.activeSessionByCellId);
           }
+          if (state?.sessionVisitedByKey && typeof state.sessionVisitedByKey === 'object') {
+            setInitialSessionVisitedByKey(state.sessionVisitedByKey);
+          }
           if (state?.workbenchTabsByCellId && typeof state.workbenchTabsByCellId === 'object') {
             setInitialWorkbenchTabs(resolvedProjectRoot ? state.workbenchTabsByCellId : {});
           }
@@ -268,6 +273,7 @@ export function useRendererBootstrap({
     setHilDrawerPanel,
     setHilDrawerPanelByView,
     setInitialActiveSessions,
+    setInitialSessionVisitedByKey,
     setInitialWorkbenchActiveTabs,
     setInitialWorkbenchTabs,
     setProjectError,

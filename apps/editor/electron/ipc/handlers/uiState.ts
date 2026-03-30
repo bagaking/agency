@@ -4,6 +4,7 @@ const {
   readWindowUiState,
   updateWindowUiState,
 } = require('../../services/uiState');
+const { broadcastWindowShellUpdated } = require('../../services/windowShell');
 
 function setupUiStateHandlers() {
   ipcMain.handle('ui-state:get', async (event) => {
@@ -26,7 +27,11 @@ function setupUiStateHandlers() {
       return {};
     }
     await markLastActiveWindowState(windowStateId);
-    return updateWindowUiState(windowStateId, payload);
+    const nextState = await updateWindowUiState(windowStateId, payload);
+    if (Object.prototype.hasOwnProperty.call(payload, 'attentionSummary')) {
+      broadcastWindowShellUpdated();
+    }
+    return nextState;
   });
 }
 

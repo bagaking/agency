@@ -9,8 +9,10 @@ const STATE_VERSION = 3;
 const LEGACY_WINDOW_STATE_ID = 'legacy-default';
 const WINDOW_STATE_KEYS = [
   'projectRoot',
+  'attentionSummary',
   'selectedId',
   'activeSessionByCellId',
+  'sessionVisitedByKey',
   'workbenchTabsByCellId',
   'workbenchActiveTabByCellId',
   'sidebarWidth',
@@ -238,6 +240,16 @@ async function readWindowUiState(windowStateId) {
   };
 }
 
+function peekWindowUiState(windowStateId) {
+  const normalizedId = normalizeWindowStateId(windowStateId);
+  if (!normalizedId || !stateLoaded) {
+    return {};
+  }
+  return {
+    ...(stateCache?.windowStates?.[normalizedId] || {}),
+  };
+}
+
 async function updateWindowUiState(windowStateId, partial) {
   const normalizedId = normalizeWindowStateId(windowStateId);
   if (!normalizedId) {
@@ -316,6 +328,7 @@ export {
   readAppUiState,
   readUiState,
   readWindowUiState,
+  peekWindowUiState,
   setOpenWindowStateIds,
   updateAppUiState,
   updateUiState,

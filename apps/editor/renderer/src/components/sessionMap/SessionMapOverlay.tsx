@@ -5,6 +5,7 @@ import { SessionCreateMenu } from '../SessionMenus';
 import { AvatarPickerMenu } from '../ui/AvatarPickerMenu';
 import { resolveSessionAvatarId } from '../../utils/agentAvatar';
 import { DEBUG_FLAGS, getDebugFlag } from '../../utils/debugFlags';
+import { useAttentionLayer } from '../../attention/AttentionLayerContext';
 import { SessionMapDockLayout } from './SessionMapDockLayout';
 import { SessionMapGridLayout } from './SessionMapGridLayout';
 import { SessionMapHoverCard } from './SessionMapHoverCard';
@@ -38,6 +39,7 @@ export function SessionMapOverlay({
   onResumeHarnessRun,
   mode = 'popover',
 }: any) {
+  const attention = useAttentionLayer();
   const [hovered, setHovered] = useState(null);
   const [hoveredCellId, setHoveredCellId] = useState(null);
   const lastHoveredRef = useRef(null);
@@ -683,10 +685,10 @@ export function SessionMapOverlay({
         </div>
 
         {isDocked ? (
-          <SessionMapDockLayout
-            model={model}
-            radarPoints={radarPoints}
-            hoveredCellId={hoveredCellId}
+      <SessionMapDockLayout
+        model={model}
+        radarPoints={radarPoints}
+        hoveredCellId={hoveredCellId}
             setHoveredCellId={setHoveredCellId}
             focusClusterCard={focusClusterCard}
             focusData={focusData}
@@ -701,12 +703,16 @@ export function SessionMapOverlay({
             sessionError={sessionError}
             onClearSessionError={onClearSessionError}
             onCancelHarnessRun={onCancelHarnessRun}
-            onResumeHarnessRun={onResumeHarnessRun}
-            onOpenCommanderBriefing={toggleCommanderBriefing}
-            onCloseCommanderBriefing={closeCommanderBriefing}
-            commanderBriefingOpen={commanderBriefingOpen}
-            commanderTriggerRef={commanderTriggerRef}
-          />
+        onResumeHarnessRun={onResumeHarnessRun}
+        onOpenCommanderBriefing={toggleCommanderBriefing}
+        onCloseCommanderBriefing={closeCommanderBriefing}
+        commanderBriefingOpen={commanderBriefingOpen}
+        commanderTriggerRef={commanderTriggerRef}
+        attentionItems={attention.localItems}
+        cellAttentionById={attention.byCellId}
+        sessionAttentionByKey={attention.bySessionKey}
+        onSelectAttention={attention.jumpToAttention}
+      />
         ) : (
           <SessionMapGridLayout
             model={model}
