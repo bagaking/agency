@@ -10,6 +10,13 @@ const generateActionId = () => {
   return `action-${Date.now()}`;
 };
 
+function buildScopeRequirementMessage(scope: string): string {
+  if (scope === 'project') {
+    return 'Select a project to edit project actions.';
+  }
+  return 'Select a Cell to edit agent actions.';
+}
+
 export function useQuickActions({ projectRoot, selectedCell, actionsScope }) {
   const [globalQuickActions, setGlobalQuickActions] = useState([]);
   const [projectQuickActions, setProjectQuickActions] = useState([]);
@@ -62,7 +69,7 @@ export function useQuickActions({ projectRoot, selectedCell, actionsScope }) {
           getQuickActions({
             scope: 'project',
             projectRoot,
-            worktreePath: selectedCell.worktreePath,
+            worktreePath: selectedCell?.worktreePath,
           }),
           selectedCell?.id
             ? getQuickActions({
@@ -134,8 +141,8 @@ export function useQuickActions({ projectRoot, selectedCell, actionsScope }) {
   };
 
   const addQuickAction = () => {
-    if (actionsScope !== 'global' && !selectedCell?.worktreePath) {
-      setQuickActionsError('Select a Cell to edit project or agent actions.');
+    if (scopeDisabled) {
+      setQuickActionsError(buildScopeRequirementMessage(actionsScope));
       return;
     }
     updateScopedActions((current) => [
@@ -186,8 +193,8 @@ export function useQuickActions({ projectRoot, selectedCell, actionsScope }) {
     if (!ensureIpcAvailable('save')) {
       return;
     }
-    if (actionsScope !== 'global' && !selectedCell?.worktreePath) {
-      setQuickActionsError('Select a Cell to edit project or agent actions.');
+    if (scopeDisabled) {
+      setQuickActionsError(buildScopeRequirementMessage(actionsScope));
       return;
     }
     setQuickActionsSaving(true);

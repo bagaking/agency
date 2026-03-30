@@ -80,7 +80,7 @@ export function ReplyQuickPromptsView({
     scope === 'global'
       ? scopePath || 'Global User Config'
       : scope === 'project'
-        ? scopePath || 'Select a Cell to edit project reply quick prompts.'
+        ? scopePath || 'Select a project to edit project reply quick prompts.'
         : scopePath || 'Select a Cell to edit agent reply quick prompts.';
 
   return (

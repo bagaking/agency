@@ -130,7 +130,7 @@ export function SessionNamingView({
     scope === 'global'
       ? scopePath || 'Global User Config'
       : scope === 'project'
-        ? scopePath || 'Select a Cell to edit project session naming.'
+        ? scopePath || 'Select a project to edit project session naming.'
         : scopePath || 'Select a Cell to edit agent session naming.';
 
   const previewList = useMemo(() => {

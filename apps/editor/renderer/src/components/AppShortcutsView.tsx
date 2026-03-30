@@ -106,6 +106,12 @@ export function AppShortcutsView({
 
   const scopeLabel = formatScopeLabel(scope);
   const scopePath = scopePaths?.[scope] || '';
+  const scopeHint =
+    scope === 'global'
+      ? scopePath || 'Global User Config'
+      : scope === 'project'
+        ? scopePath || 'Select a project to edit project app shortcuts.'
+        : scopePath || 'Select a Cell to edit agent app shortcuts.';
   const inheritedFromLabel = selectedAction?.meta?.inheritedFrom
     ? formatScopeLabel(selectedAction.meta.inheritedFrom)
     : '';
@@ -224,9 +230,9 @@ export function AppShortcutsView({
             <span className="text-[10px] font-bold uppercase text-muted-foreground/40 whitespace-nowrap">Source:</span>
             <span
               className="text-[11px] text-muted-foreground font-mono truncate opacity-60"
-              title={scopePath}
+              title={scopeHint}
             >
-              {scopePath || 'Select a Cell to edit project or agent shortcuts.'}
+              {scopeHint}
             </span>
           </div>
         </div>

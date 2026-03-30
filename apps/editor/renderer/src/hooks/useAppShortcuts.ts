@@ -15,6 +15,13 @@ import { useScopedSettingsState } from './shared/scopedSettingsState';
 const DEFAULT_ACTIONS = buildDefaultActions();
 const EMPTY_ACTIONS = [];
 
+function buildScopeRequirementMessage(scope: string): string {
+  if (scope === 'project') {
+    return 'Select a project to edit project app shortcuts.';
+  }
+  return 'Select a Cell to edit agent app shortcuts.';
+}
+
 export function useAppShortcuts({ projectRoot, selectedCell, appShortcutsScope, userDataPath }) {
   const [globalActions, setGlobalActions] = useState(DEFAULT_ACTIONS);
   const [projectActions, setProjectActions] = useState(EMPTY_ACTIONS);
@@ -195,7 +202,7 @@ export function useAppShortcuts({ projectRoot, selectedCell, appShortcutsScope, 
       return;
     }
     if (scopeDisabled) {
-      setError('Select a Cell to edit project or agent app shortcuts.');
+      setError(buildScopeRequirementMessage(appShortcutsScope));
       return;
     }
     setSaving(true);

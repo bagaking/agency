@@ -35,8 +35,8 @@ export function QuickActionsView({
     scope === 'global'
       ? 'Global User Config'
       : scope === 'project'
-        ? scopePaths?.project || 'Select a Cell to edit project Terminus.'
-        : scopePaths?.agent || 'Select a Cell to edit agent Terminus.';
+        ? scopePaths?.project || 'Select a project to edit project Terminus settings.'
+        : scopePaths?.agent || 'Select a Cell to edit agent Terminus settings.';
 
   return (
     <section className="flex h-full flex-1 flex-col bg-background">
@@ -103,7 +103,9 @@ export function QuickActionsView({
         {scopeDisabled ? (
           <div className="mb-6 flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 text-xs text-amber-200/80">
             <Info size={16} className="shrink-0" aria-hidden="true" />
-            Select an agent in the sidebar to configure {scopeLabel} scoped Terminus.
+            {scope === 'project'
+              ? 'Select a project to configure Project-scoped Terminus settings.'
+              : 'Select a Cell to configure Agent-scoped Terminus settings.'}
           </div>
         ) : null}
 
@@ -146,4 +148,3 @@ export function QuickActionsView({
     </section>
   );
 }
-

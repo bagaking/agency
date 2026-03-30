@@ -14,6 +14,13 @@ const generateGateId = () => {
   return `gate-${Date.now()}`;
 };
 
+function buildScopeRequirementMessage(scope: string): string {
+  if (scope === 'project') {
+    return 'Select a project to edit project gates.';
+  }
+  return 'Select a Cell to edit agent gates.';
+}
+
 export function useGates({ selectedCell, gateScope, gateStage, repoRoot }) {
   const [globalGates, setGlobalGates] = useState(() => normalizeGateConfig({}));
   const [projectGates, setProjectGates] = useState(() => normalizeGateConfig({}));
@@ -53,7 +60,7 @@ export function useGates({ selectedCell, gateScope, gateStage, repoRoot }) {
           getGates({
             scope: 'project',
             projectRoot: repoRoot,
-            worktreePath: selectedCell.worktreePath,
+            worktreePath: selectedCell?.worktreePath,
           }),
           selectedCell?.id
             ? getGates({
@@ -192,7 +199,7 @@ export function useGates({ selectedCell, gateScope, gateStage, repoRoot }) {
 
   const addGate = () => {
     if (gateScopeDisabled) {
-      setGatesError('Select a Cell to edit project or agent gates.');
+      setGatesError(buildScopeRequirementMessage(gateScope));
       return;
     }
     updateScopedGates((current) => [
@@ -236,7 +243,7 @@ export function useGates({ selectedCell, gateScope, gateStage, repoRoot }) {
       return;
     }
     if (gateScopeDisabled) {
-      setGatesError('Select a Cell to edit project or agent gates.');
+      setGatesError(buildScopeRequirementMessage(gateScope));
       return;
     }
     setGatesSaving(true);

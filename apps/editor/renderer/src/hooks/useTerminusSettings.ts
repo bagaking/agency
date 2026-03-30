@@ -26,6 +26,13 @@ const generateId = (prefix) => {
   return `${prefix}-${Date.now()}`;
 };
 
+function buildScopeRequirementMessage(scope: string): string {
+  if (scope === 'project') {
+    return 'Select a project to edit project Terminus settings.';
+  }
+  return 'Select a Cell to edit agent Terminus settings.';
+}
+
 export function useTerminusSettings({ projectRoot, selectedCell, terminusScope }) {
   const [globalSettings, setGlobalSettings] = useState(DEFAULT_SETTINGS);
   const [projectSettings, setProjectSettings] = useState(EMPTY_SETTINGS);
@@ -243,7 +250,7 @@ export function useTerminusSettings({ projectRoot, selectedCell, terminusScope }
 
   const addProfile = () => {
     if (scopeDisabled) {
-      setError('Select a Cell to edit project or agent Terminus.');
+      setError(buildScopeRequirementMessage(terminusScope));
       return;
     }
     updateProfiles((current) => [
@@ -292,7 +299,7 @@ export function useTerminusSettings({ projectRoot, selectedCell, terminusScope }
 
   const addBinding = (profileId) => {
     if (scopeDisabled) {
-      setError('Select a Cell to edit project or agent Terminus.');
+      setError(buildScopeRequirementMessage(terminusScope));
       return;
     }
     if (!profileId) {
@@ -346,7 +353,7 @@ export function useTerminusSettings({ projectRoot, selectedCell, terminusScope }
       return;
     }
     if (scopeDisabled) {
-      setError('Select a Cell to edit project or agent Terminus.');
+      setError(buildScopeRequirementMessage(terminusScope));
       return;
     }
     setSaving(true);

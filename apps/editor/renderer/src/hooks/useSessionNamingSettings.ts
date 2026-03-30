@@ -28,6 +28,13 @@ const hasOverrides = (settings) => {
   return Boolean(rule) || Object.keys(lists).length > 0;
 };
 
+function buildScopeRequirementMessage(scope: string): string {
+  if (scope === 'project') {
+    return 'Select a project to edit project session naming rules.';
+  }
+  return 'Select a Cell to edit agent session naming rules.';
+}
+
 export function useSessionNamingSettings({ projectRoot, selectedCell, sessionNamingScope, userDataPath }) {
   const [globalSettings, setGlobalSettings] = useState<SessionNamingSettingsState>(DEFAULT_SETTINGS);
   const [projectSettings, setProjectSettings] = useState<SessionNamingSettingsState>(EMPTY_SETTINGS);
@@ -217,7 +224,7 @@ export function useSessionNamingSettings({ projectRoot, selectedCell, sessionNam
       return;
     }
     if (scopeDisabled) {
-      setError('Select a Cell to edit project or agent session naming rules.');
+      setError(buildScopeRequirementMessage(sessionNamingScope));
       return;
     }
     setSaving(true);

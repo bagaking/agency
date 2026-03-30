@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
 
-const { getRepoRoot } = require('../git');
+const { getRepoRoot, listWorktrees } = require('../git');
 
 type ScopedConfigContext = {
   projectRoot?: string;
@@ -41,6 +41,42 @@ function sanitizePathSegment(value: unknown): string {
 
 function firstExistingPath(paths: string[]): string {
   return paths.find((candidate) => Boolean(candidate) && fs.existsSync(candidate)) || '';
+}
+
+async function resolveLegacyProjectPath(repoRoot: string, worktreePath: string, filenames: string[]): Promise<string> {
+  const normalizedWorktreePath = normalizeText(worktreePath);
+  const directCandidates = normalizedWorktreePath
+    ? filenames.map((filename) => path.join(normalizedWorktreePath, WORKTREE_AGENCY_DIR, filename))
+    : [];
+  const directPath = firstExistingPath(directCandidates);
+  if (directPath) {
+    return directPath;
+  }
+  if (!repoRoot) {
+    return '';
+  }
+
+  try {
+    const worktrees = await listWorktrees(repoRoot);
+    const candidates = [];
+    for (const worktree of worktrees) {
+      const candidatePath = firstExistingPath(
+        filenames.map((filename) => path.join(normalizeText(worktree?.path), WORKTREE_AGENCY_DIR, filename))
+      );
+      if (!candidatePath) {
+        continue;
+      }
+      const stats = await fs.promises.stat(candidatePath).catch(() => null);
+      candidates.push({
+        path: candidatePath,
+        mtimeMs: stats?.mtimeMs || 0,
+      });
+    }
+    candidates.sort((left, right) => right.mtimeMs - left.mtimeMs);
+    return candidates[0]?.path || '';
+  } catch (_error) {
+    return '';
+  }
 }
 
 async function resolveCellIdFromWorktree(worktreePath: string): Promise<string> {
@@ -141,14 +177,7 @@ async function resolveProjectScopeConfigPaths({
     : [];
   const canonicalExistingPath = firstExistingPath(canonicalCandidates);
   const canonicalPath = canonicalExistingPath || canonicalCandidates[0] || '';
-
-  const normalizedWorktreePath = normalizeText(worktreePath);
-  const legacyCandidates = normalizedWorktreePath
-    ? normalizedFilenames.map((filename) =>
-        path.join(normalizedWorktreePath, '.agency', filename)
-      )
-    : [];
-  const legacyPath = firstExistingPath(legacyCandidates);
+  const legacyPath = await resolveLegacyProjectPath(repoRoot, normalizeText(worktreePath), normalizedFilenames);
 
   return {
     repoRoot,

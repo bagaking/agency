@@ -13,6 +13,13 @@ import {
 
 const EMPTY_PROMPTS = [];
 
+function buildScopeRequirementMessage(scope: string): string {
+  if (scope === 'project') {
+    return 'Select a project to edit project reply quick prompts.';
+  }
+  return 'Select a Cell to edit agent reply quick prompts.';
+}
+
 export function useReplyQuickPrompts({ projectRoot, selectedCell, scope, userDataPath }: any) {
   const [globalPrompts, setGlobalPrompts] = useState(EMPTY_PROMPTS);
   const [projectPrompts, setProjectPrompts] = useState(EMPTY_PROMPTS);
@@ -135,7 +142,7 @@ export function useReplyQuickPrompts({ projectRoot, selectedCell, scope, userDat
 
   const addPrompt = () => {
     if (scopeDisabled) {
-      setError('Select a Cell to edit project or agent reply quick prompts.');
+      setError(buildScopeRequirementMessage(scope));
       return;
     }
     updateScopePrompts((current) => [
@@ -167,7 +174,7 @@ export function useReplyQuickPrompts({ projectRoot, selectedCell, scope, userDat
       return;
     }
     if (scopeDisabled) {
-      setError('Select a Cell to edit project or agent reply quick prompts.');
+      setError(buildScopeRequirementMessage(scope));
       return;
     }
     setSaving(true);

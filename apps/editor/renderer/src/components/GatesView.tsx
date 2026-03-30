@@ -67,7 +67,7 @@ export function GatesView({
     scope === 'global'
       ? 'Global User Config'
       : scope === 'project'
-        ? scopePaths?.project || 'Select a Cell to edit project gates.'
+        ? scopePaths?.project || 'Select a project to edit project gates.'
         : scopePaths?.agent || 'Select a Cell to edit agent gates.';
 
   return (
@@ -150,7 +150,9 @@ export function GatesView({
         {scopeDisabled && (
           <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 text-xs text-amber-200/80 mb-6">
             <Info size={16} className="shrink-0" />
-            Select an agent in the sidebar to configure {scopeLabel} scoped gates.
+            {scope === 'project'
+              ? 'Select a project to configure Project-scoped gates.'
+              : 'Select a Cell to configure Agent-scoped gates.'}
           </div>
         )}
 
