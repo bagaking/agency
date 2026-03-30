@@ -3,15 +3,112 @@ import path from 'node:path';
 
 const fsp = fs.promises;
 
+const AGENCY_DIR = '.agency';
+const CELL_STORE_DIR = 'cells';
 const DELIVERY_DIR = 'delivery';
+const DELIVERY_LOG_FILENAME = 'events.jsonl';
+
+type DeliveryAuditStorageInput =
+  | string
+  | {
+      repoRootPath?: string;
+      rootPath?: string;
+      cellId?: string;
+      worktreePath?: string;
+    };
+
+type DeliveryAuditStoragePaths = {
+  mode: 'cell' | 'legacy' | 'invalid';
+  repoRootPath: string;
+  cellId: string;
+  worktreePath: string;
+  logPath: string;
+  legacyLogPath: string;
+};
+
+function normalizeText(value: unknown): string {
+  return String(value || '').trim();
+}
+
+function normalizePathValue(value: unknown): string {
+  const normalized = normalizeText(value);
+  return normalized ? path.resolve(normalized) : '';
+}
+
+function normalizeCellId(value: unknown): string {
+  return normalizeText(value).replace(/[^a-zA-Z0-9-_]/g, '-');
+}
 
 function getWorktreeName(worktreePath: string): string {
   return path.basename(worktreePath);
 }
 
-export function getDeliveryAuditLogPath(worktreePath: string): string {
+function getLegacyDeliveryAuditLogPath(worktreePath: string): string {
   const worktreeName = getWorktreeName(worktreePath);
-  return path.join(worktreePath, '.agency', DELIVERY_DIR, `events-${worktreeName}.jsonl`);
+  return path.join(worktreePath, AGENCY_DIR, DELIVERY_DIR, `events-${worktreeName}.jsonl`);
+}
+
+function getCellDeliveryAuditLogPath(repoRootPath: string, cellId: string): string {
+  return path.join(repoRootPath, AGENCY_DIR, CELL_STORE_DIR, cellId, DELIVERY_DIR, DELIVERY_LOG_FILENAME);
+}
+
+function resolveDeliveryAuditStoragePaths(input: DeliveryAuditStorageInput = {}): DeliveryAuditStoragePaths {
+  if (typeof input === 'string') {
+    const worktreePath = normalizePathValue(input);
+    return worktreePath
+      ? {
+          mode: 'legacy',
+          repoRootPath: '',
+          cellId: '',
+          worktreePath,
+          logPath: getLegacyDeliveryAuditLogPath(worktreePath),
+          legacyLogPath: getLegacyDeliveryAuditLogPath(worktreePath),
+        }
+      : {
+          mode: 'invalid',
+          repoRootPath: '',
+          cellId: '',
+          worktreePath: '',
+          logPath: '',
+          legacyLogPath: '',
+        };
+  }
+
+  const worktreePath = normalizePathValue(input?.worktreePath);
+  const repoRootPath = normalizePathValue(input?.repoRootPath || input?.rootPath);
+  const cellId = normalizeCellId(input?.cellId);
+  if (repoRootPath && cellId) {
+    return {
+      mode: 'cell',
+      repoRootPath,
+      cellId,
+      worktreePath,
+      logPath: getCellDeliveryAuditLogPath(repoRootPath, cellId),
+      legacyLogPath: worktreePath ? getLegacyDeliveryAuditLogPath(worktreePath) : '',
+    };
+  }
+  if (worktreePath) {
+    return {
+      mode: 'legacy',
+      repoRootPath: '',
+      cellId: '',
+      worktreePath,
+      logPath: getLegacyDeliveryAuditLogPath(worktreePath),
+      legacyLogPath: getLegacyDeliveryAuditLogPath(worktreePath),
+    };
+  }
+  return {
+    mode: 'invalid',
+    repoRootPath: '',
+    cellId: '',
+    worktreePath: '',
+    logPath: '',
+    legacyLogPath: '',
+  };
+}
+
+export function getDeliveryAuditLogPath(input: DeliveryAuditStorageInput): string {
+  return resolveDeliveryAuditStoragePaths(input).logPath;
 }
 
 export type DeliveryAuditEvent = {
@@ -82,48 +179,7 @@ export function normalizeDeliveryAuditEvent(input: Partial<DeliveryAuditEvent> =
   };
 }
 
-export async function appendDeliveryAuditEvent({
-  worktreePath,
-  event,
-}: {
-  worktreePath: string;
-  event: Partial<DeliveryAuditEvent>;
-}): Promise<DeliveryAuditEvent> {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
-  }
-  const normalized = normalizeDeliveryAuditEvent(event);
-  const logPath = getDeliveryAuditLogPath(worktreePath);
-  await fsp.mkdir(path.dirname(logPath), { recursive: true });
-  await fsp.appendFile(logPath, `${JSON.stringify(normalized)}\n`, 'utf8');
-  return normalized;
-}
-
-function matchesFilter(event: DeliveryAuditEvent, filter: { source?: string; mode?: string } = {}): boolean {
-  if (filter.source && event.source !== filter.source) {
-    return false;
-  }
-  if (filter.mode && event.mode !== filter.mode) {
-    return false;
-  }
-  return true;
-}
-
-export async function readDeliveryAuditTimeline({
-  worktreePath,
-  source,
-  mode,
-  limit,
-}: {
-  worktreePath: string;
-  source?: string;
-  mode?: string;
-  limit?: number;
-}): Promise<DeliveryAuditEvent[]> {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
-  }
-  const logPath = getDeliveryAuditLogPath(worktreePath);
+async function readAuditEventsFromPath(logPath: string): Promise<DeliveryAuditEvent[]> {
   const exists = await fsp
     .stat(logPath)
     .then((stat) => stat.isFile())
@@ -145,6 +201,88 @@ export async function readDeliveryAuditTimeline({
         // ignore malformed lines
       }
     });
+  return events;
+}
+
+async function ensureDeliveryAuditMigration(paths: DeliveryAuditStoragePaths): Promise<void> {
+  if (paths.mode !== 'cell' || !paths.logPath || !paths.legacyLogPath) {
+    return;
+  }
+  const repoExists = await fsp
+    .stat(paths.logPath)
+    .then((stat) => stat.isFile())
+    .catch(() => false);
+  if (repoExists) {
+    return;
+  }
+  const legacyExists = await fsp
+    .stat(paths.legacyLogPath)
+    .then((stat) => stat.isFile())
+    .catch(() => false);
+  if (!legacyExists) {
+    return;
+  }
+  await fsp.mkdir(path.dirname(paths.logPath), { recursive: true });
+  await fsp.copyFile(paths.legacyLogPath, paths.logPath);
+}
+
+function matchesFilter(event: DeliveryAuditEvent, filter: { source?: string; mode?: string } = {}): boolean {
+  if (filter.source && event.source !== filter.source) {
+    return false;
+  }
+  if (filter.mode && event.mode !== filter.mode) {
+    return false;
+  }
+  return true;
+}
+
+export async function appendDeliveryAuditEvent({
+  repoRootPath,
+  rootPath,
+  cellId,
+  worktreePath,
+  event,
+}: {
+  repoRootPath?: string;
+  rootPath?: string;
+  cellId?: string;
+  worktreePath?: string;
+  event: Partial<DeliveryAuditEvent>;
+}): Promise<DeliveryAuditEvent> {
+  const paths = resolveDeliveryAuditStoragePaths({ repoRootPath, rootPath, cellId, worktreePath });
+  if (!paths.logPath) {
+    throw new Error('Delivery audit storage context is required.');
+  }
+  await ensureDeliveryAuditMigration(paths);
+  const normalized = normalizeDeliveryAuditEvent(event);
+  await fsp.mkdir(path.dirname(paths.logPath), { recursive: true });
+  await fsp.appendFile(paths.logPath, `${JSON.stringify(normalized)}\n`, 'utf8');
+  return normalized;
+}
+
+export async function readDeliveryAuditTimeline({
+  repoRootPath,
+  rootPath,
+  cellId,
+  worktreePath,
+  source,
+  mode,
+  limit,
+}: {
+  repoRootPath?: string;
+  rootPath?: string;
+  cellId?: string;
+  worktreePath?: string;
+  source?: string;
+  mode?: string;
+  limit?: number;
+}): Promise<DeliveryAuditEvent[]> {
+  const paths = resolveDeliveryAuditStoragePaths({ repoRootPath, rootPath, cellId, worktreePath });
+  if (!paths.logPath) {
+    throw new Error('Delivery audit storage context is required.');
+  }
+  await ensureDeliveryAuditMigration(paths);
+  const events = await readAuditEventsFromPath(paths.logPath);
   const filtered = events.filter((event) => matchesFilter(event, { source, mode }));
   const sorted = filtered.sort((a, b) => String(a.at || '').localeCompare(String(b.at || '')));
   if (!Number.isFinite(limit) || !limit || limit <= 0) {
@@ -152,4 +290,3 @@ export async function readDeliveryAuditTimeline({
   }
   return sorted.slice(Math.max(0, sorted.length - Math.floor(limit)));
 }
-

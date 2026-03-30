@@ -340,6 +340,8 @@ export function buildAppLayoutPanelProps({
     flashVoiceShortcut: memoVoiceShortcut,
     screenshotShortcut,
     worktreePath: selectedCell?.attachedWorktreePath || projectRoot || '',
+    projectRoot,
+    selectedCellId: selectedCell?.id || '',
     projectReady,
     projectError,
     onSelectProject: handleSelectProjectRoot,

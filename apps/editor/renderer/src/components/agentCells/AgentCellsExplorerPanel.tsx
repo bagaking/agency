@@ -532,7 +532,11 @@ export function AgentCellsExplorerPanel({
     return () => clearInterval(timer);
   }, [clearFileDashboardPreview, fileDashboardCellFilter, fileDashboardOpen, refreshFileDashboard]);
 
-  return projectReady && attachedWorktreePath ? (
+  if (!projectReady) {
+    return null;
+  }
+
+  return (
     <div
       className="mt-2 shrink-0 -mx-2 border-t border-border/40 bg-sidebar/20"
       data-testid="agent-cells-file-dashboard"
@@ -582,6 +586,7 @@ export function AgentCellsExplorerPanel({
       </div>
 
       {fileDashboardOpen ? (
+        attachedWorktreePath ? (
         <div
           className={`flex h-full flex-col ${fileDashboardDragging ? 'select-none' : ''}`}
           style={{
@@ -701,7 +706,17 @@ export function AgentCellsExplorerPanel({
             ) : null}
           </div>
         </div>
+        ) : (
+          <div className="px-3 pb-3 text-[10px] text-muted-foreground">
+            <div className="rounded-lg border border-dashed border-border/60 bg-background/40 px-3 py-3">
+              <div className="font-medium text-foreground/85">Explorer unavailable</div>
+              <div className="mt-1">
+                This Cell does not have an attached worktree. Reattach or create a new attachment to browse Cell-local files.
+              </div>
+            </div>
+          </div>
+        )
       ) : null}
     </div>
-  ) : null;
+  );
 }

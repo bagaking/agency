@@ -388,6 +388,8 @@ function AppShell() {
   });
   const hilMemo = useHilMemoState({
     worktreePath: selectedAttachedWorktreePath || projectRoot || '',
+    projectRoot,
+    cellId: selectedCell?.id || '',
   });
   useEffect(() => {
     if (actionSheetSessionId || !sessionsState.activeSessionId) {
@@ -499,11 +501,14 @@ function AppShell() {
     activeTab,
     cursorPosition,
     hilWorktreePath: selectedAttachedWorktreePath || projectRoot || '',
+    projectRoot,
+    selectedCellId: selectedCell?.id || '',
     openHilDrawer,
   });
   const promoteWorktreePath = selectedAttachedWorktreePath || projectRoot || '';
   const promoteWorkflow = useHilPromoteWorkflow({
     promoteWorktreePath,
+    projectRoot,
     sessions: sessionsState.sessions,
     activeSessionId: sessionsState.activeSessionId,
     activeView,
@@ -676,7 +681,9 @@ function AppShell() {
     ? selectedAttachedWorktreePath || projectRoot || ''
     : '';
   const explorerRootLabel = projectReady
-    ? selectedCell?.name || 'Repository'
+    ? selectedAttachedWorktreePath
+      ? selectedCell?.name || 'Repository'
+      : 'Repository'
     : 'Project';
   const handleMemoCaptureSaved = useCallback(
     (noteType) => {

@@ -50,8 +50,10 @@ export function WorktreeLinksView({
 
   const sortedCells = useMemo(() => {
     return [...(cells || [])].sort((a, b) => {
-      if (a.worktreePath === repoRoot) return -1;
-      if (b.worktreePath === repoRoot) return 1;
+      const leftPath = a.attachedWorktreePath || a.projectRoot || a.worktreePath || '';
+      const rightPath = b.attachedWorktreePath || b.projectRoot || b.worktreePath || '';
+      if (leftPath === repoRoot) return -1;
+      if (rightPath === repoRoot) return 1;
       return (a.name || '').localeCompare(b.name || '');
     });
   }, [cells, repoRoot]);
@@ -140,16 +142,27 @@ export function WorktreeLinksView({
                 </thead>
                 <tbody className="divide-y divide-border">
                   {sortedCells.map(cell => {
-                    const isMain = cell.worktreePath === repoRoot;
-                    const cellStatuses = statusesByPath?.[cell.worktreePath] || [];
+                    const displayPath =
+                      cell.attachedWorktreePath || cell.projectRoot || cell.worktreePath || '';
+                    const isAttached = Boolean(cell.attachedWorktreePath);
+                    const isMain = displayPath === repoRoot;
+                    const cellStatuses = isAttached ? statusesByPath?.[displayPath] || [] : [];
                     const statusMap = new Map((cellStatuses as any[]).map((s: any) => [s.id, s]));
+                    const attachmentLabel =
+                      cell.attachmentState === 'missing'
+                        ? 'Missing attachment'
+                        : cell.attachmentState === 'detached'
+                          ? 'Detached'
+                          : isMain
+                            ? '(Main Repo)'
+                            : displayPath;
 
                     return (
                       <tr key={cell.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3">
                           <div className="font-medium text-foreground">{cell.name}</div>
-                          <div className="text-[10px] text-muted-foreground font-mono truncate max-w-[150px]" title={cell.worktreePath}>
-                            {isMain ? '(Main Repo)' : cell.worktreePath}
+                          <div className="text-[10px] text-muted-foreground font-mono truncate max-w-[150px]" title={displayPath || attachmentLabel}>
+                            {attachmentLabel}
                           </div>
                         </td>
                         {links.map(link => {
@@ -175,16 +188,18 @@ export function WorktreeLinksView({
                           );
                         })}
                         <td className="px-4 py-3 border-l border-border text-right">
-                          {!isMain && (
+                          {!isMain && isAttached ? (
                             <button
-                              onClick={() => onApplyAll?.({ worktreePath: cell.worktreePath })}
+                              onClick={() => onApplyAll?.({ worktreePath: cell.attachedWorktreePath })}
                               className="inline-flex items-center gap-1 text-primary hover:underline disabled:opacity-50"
                               disabled={loading}
                             >
                               <Wand2 size={12} />
                               Link All
                             </button>
-                          )}
+                          ) : !isMain ? (
+                            <span className="text-[10px] text-muted-foreground/70">No live attachment</span>
+                          ) : null}
                         </td>
                       </tr>
                     );

@@ -14,6 +14,7 @@ const {
   listAgencySessionsWithMetadata,
 } = require('./tmux');
 const { getRepoRoot } = require('./git');
+const { resolveCellContext } = require('./cells');
 const {
   issueMobileSessionProxyToken,
   maskMobileSessionProxyToken,
@@ -950,10 +951,36 @@ async function writeHubArtifacts({ repoRoot, hubSessionName, entries, hiddenSess
   };
 }
 
-async function prepareSessionContinueOnMobile({ worktreePath, sessionId, mode }) {
-  const resolvedWorktree = ensureWorktreePath(worktreePath);
+async function prepareSessionContinueOnMobile({
+  worktreePath,
+  sessionId,
+  mode,
+  cellId = '',
+  projectRoot = '',
+  rootPath = '',
+} = {}) {
+  const normalizedCellId = String(cellId || '').trim();
+  const normalizedProjectRoot = String(projectRoot || rootPath || '').trim();
+  const cellContext =
+    normalizedCellId || normalizedProjectRoot
+      ? await resolveCellContext({
+          cellId: normalizedCellId,
+          worktreePath,
+          rootPath: normalizedProjectRoot || worktreePath,
+        })
+      : null;
+  const resolvedWorktree = ensureWorktreePath(
+    cellContext?.attachedWorktreePath ||
+      cellContext?.worktreePath ||
+      cellContext?.cell?.lastKnownWorktreePath ||
+      worktreePath
+  );
   await ensureTmuxAvailable();
-  const registry = await readRegistry(resolvedWorktree);
+  const registry = await readRegistry({
+    projectRoot: cellContext?.repoRoot || normalizedProjectRoot,
+    cellId: cellContext?.cell?.id || normalizedCellId,
+    worktreePath: resolvedWorktree,
+  });
   const session = (registry?.sessions || []).find((item) => item?.id === sessionId);
   if (!session) {
     throw new Error('Session not found.');

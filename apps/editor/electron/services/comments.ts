@@ -45,11 +45,14 @@ function toCommentView(item) {
 }
 
 async function listComments(params: any = {}) {
-  const { worktreePath, filePath } = params || {};
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
+  const { repoRootPath, rootPath, projectRoot, cellId, worktreePath, filePath } = params || {};
+  const storageRootPath = repoRootPath || rootPath || projectRoot || '';
+  if (!storageRootPath && !worktreePath) {
+    throw new Error('repoRootPath or worktreePath is required.');
   }
   const list = await listHilItems({
+    repoRootPath: storageRootPath,
+    cellId,
     worktreePath,
     kind: 'comment',
     filePath,
@@ -59,6 +62,10 @@ async function listComments(params: any = {}) {
 
 async function submitComment(params: any = {}) {
   const {
+    repoRootPath,
+    rootPath,
+    projectRoot,
+    cellId,
     worktreePath,
     filePath,
     line,
@@ -66,8 +73,10 @@ async function submitComment(params: any = {}) {
     message,
     todo = false,
   } = params || {};
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
+  const storageRootPath = repoRootPath || rootPath || projectRoot || '';
+  const snippetRootPath = worktreePath || storageRootPath;
+  if (!storageRootPath && !worktreePath) {
+    throw new Error('repoRootPath or worktreePath is required.');
   }
   if (!filePath) {
     throw new Error('filePath is required.');
@@ -83,7 +92,7 @@ async function submitComment(params: any = {}) {
   let context = null;
   try {
     const snippet = await getFileSnippet({
-      rootPath: worktreePath,
+      rootPath: snippetRootPath,
       targetPath: filePath,
       line: anchor.line,
       context: 3,
@@ -109,6 +118,8 @@ async function submitComment(params: any = {}) {
     context = null;
   }
   const item = await createHilItem({
+    repoRootPath: storageRootPath,
+    cellId,
     worktreePath,
     kind: 'comment',
     body: String(message).trim(),

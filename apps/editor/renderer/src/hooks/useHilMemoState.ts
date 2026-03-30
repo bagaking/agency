@@ -17,9 +17,11 @@ const summarizeBody = (item) => {
   return firstLine;
 };
 
-export function useHilMemoState({ worktreePath }) {
+export function useHilMemoState({ worktreePath, projectRoot = '', cellId = '' }) {
   const { items, filters, setFilters, loading, error, refresh } = useHilItems({
     worktreePath,
+    projectRoot,
+    cellId,
     fetchAll: true,
   });
 

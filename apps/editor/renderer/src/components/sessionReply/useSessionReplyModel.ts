@@ -30,6 +30,7 @@ export function useSessionReplyModel({
   const [submitting, setSubmitting] = useState(false);
   const cellId = cell?.id || '';
   const cellName = cell?.name || '';
+  const projectRoot = cell?.projectRoot || '';
   const sessionId = session?.id || '';
   const sessionName = session?.name || '';
   const sessionAvatar = session?.avatar;
@@ -60,12 +61,12 @@ export function useSessionReplyModel({
   const timeTag = selectionContext?.timeTag || formatReplyTimeTag(selectionContext?.updatedAt);
   const siteText = selectionContext?.site || '';
   const queryText = replyText.trim();
-  const hasSession = Boolean(cellId && sessionId && worktreePath);
+  const hasSession = Boolean(cellId && sessionId && (worktreePath || projectRoot));
   const hasContent = queryText.length > 0;
 
   const refreshReplies = useCallback(async () => {
     const requestScope = scopeKey;
-    if (!worktreePath || !cellId || !sessionId) {
+    if ((!worktreePath && !projectRoot) || !cellId || !sessionId) {
       setReplyItems([]);
       return;
     }
@@ -79,6 +80,8 @@ export function useSessionReplyModel({
     try {
       const list = await listHilItems({
         worktreePath,
+        repoRootPath: projectRoot,
+        cellId,
         kind: 'reply',
         status: 'all',
       });
@@ -113,7 +116,7 @@ export function useSessionReplyModel({
       }
       setLoadingReplies(false);
     }
-  }, [cellId, scopeKey, sessionId, worktreePath]);
+  }, [cellId, projectRoot, scopeKey, sessionId, worktreePath]);
 
   useEffect(() => {
     refreshReplies();
@@ -149,16 +152,20 @@ export function useSessionReplyModel({
 
   const handleArchiveReply = useCallback(
     async (item: any) => {
-      if (!item?.id || !worktreePath) {
+      if (!item?.id || (!worktreePath && !projectRoot)) {
         return;
       }
       try {
         await updateHilItem({
           worktreePath,
+          repoRootPath: projectRoot,
+          cellId,
           itemId: item.id,
-          meta: {
-            ...item.meta,
-            archived: true,
+          patch: {
+            meta: {
+              ...(item?.meta || {}),
+              archived: true,
+            },
           },
         });
         await refreshReplies();
@@ -166,7 +173,7 @@ export function useSessionReplyModel({
         console.error('Failed to archive reply', archiveError);
       }
     },
-    [refreshReplies, worktreePath]
+    [cellId, projectRoot, refreshReplies, worktreePath]
   );
 
   const handleReeditReply = useCallback(
@@ -252,6 +259,8 @@ export function useSessionReplyModel({
       try {
         const createdReply = await createHilItem({
           worktreePath,
+          repoRootPath: projectRoot,
+          cellId,
           kind: 'reply',
           body: queryText,
           meta: {
@@ -283,6 +292,7 @@ export function useSessionReplyModel({
           const run = await startDelivery({
             request: {
               worktreePath,
+              repoRootPath: projectRoot,
               source: 'session',
               mode: 'quick',
               description: queryText,
@@ -293,6 +303,7 @@ export function useSessionReplyModel({
                   id: String(createdReply?.id || ''),
                   kind: String(createdReply?.kind || 'reply'),
                   body: String(createdReply?.body || queryText),
+                  cellId,
                   anchor: createdReply?.anchor || null,
                   references: Array.isArray(createdReply?.references)
                     ? createdReply.references
@@ -327,10 +338,14 @@ export function useSessionReplyModel({
           }
           await confirmDelivery({
             worktreePath,
+            repoRootPath: projectRoot,
+            cellId: targetCellId,
             draftId,
           });
           await updateHilItem({
             worktreePath,
+            repoRootPath: projectRoot,
+            cellId,
             itemId: createdReply?.id,
             patch: {
               meta: {
@@ -381,6 +396,7 @@ export function useSessionReplyModel({
       cellName,
       hasContent,
       hasSession,
+      projectRoot,
       queryText,
       refreshReplies,
       scopeKey,

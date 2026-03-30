@@ -132,23 +132,28 @@ export function useHilMemoCaptureState({
       seen.add(projectRoot);
     }
     (cells || [])
-      .filter((cell) => cell?.worktreePath)
+      .filter((cell) => cell?.attachedWorktreePath || cell?.projectRoot || cell?.worktreePath)
       .forEach((cell) => {
-        if (seen.has(cell.worktreePath)) {
+        const targetRoot = cell.attachedWorktreePath || cell.projectRoot || cell.worktreePath;
+        if (seen.has(targetRoot)) {
           return;
         }
-        seen.add(cell.worktreePath);
+        seen.add(targetRoot);
         list.push({
           id: cell.id,
           label: cell.name || cell.id,
-          worktreePath: cell.worktreePath,
+          worktreePath: targetRoot,
         });
       });
     return list;
   }, [cells, projectRoot]);
 
   const resolveDefaultRoutingTarget = useCallback(() => {
-    const selectedCell = cells.find((cell) => cell.id === selectedCellId && cell.worktreePath);
+    const selectedCell = cells.find(
+      (cell) =>
+        cell.id === selectedCellId &&
+        (cell.attachedWorktreePath || cell.projectRoot || cell.worktreePath)
+    );
     if (selectedCell?.id) {
       return selectedCell.id;
     }
@@ -224,6 +229,8 @@ export function useHilMemoCaptureState({
       try {
         await agencyCreateHilItem({
           worktreePath,
+          repoRootPath: projectRoot,
+          cellId: selectedCellId,
           kind: 'memo',
           body: body.trim(),
           anchor,
@@ -240,7 +247,7 @@ export function useHilMemoCaptureState({
         setCaptureLoading(false);
       }
     },
-    [onCaptureSaved, refresh, resetCaptureState, worktreePath]
+    [onCaptureSaved, projectRoot, refresh, resetCaptureState, selectedCellId, worktreePath]
   );
 
   const handleCreateFlash = useCallback(async () => {
@@ -368,7 +375,13 @@ export function useHilMemoCaptureState({
       return;
     }
     const target = cells.find((cell) => cell.id === routingTargetId) || null;
-    const targetWorktree = target?.worktreePath || projectRoot || worktreePath;
+    const targetWorktree =
+      target?.attachedWorktreePath ||
+      target?.projectRoot ||
+      target?.worktreePath ||
+      projectRoot ||
+      worktreePath;
+    const targetCellId = target?.id || (routingTargetId === 'project-root' ? selectedCellId : '');
     const saveToHil = routingMode === 'hil' || routingMode === 'both';
     const saveToClipboard = routingMode === 'clipboard' || routingMode === 'both';
     if (saveToHil && !targetWorktree) {
@@ -393,6 +406,8 @@ export function useHilMemoCaptureState({
         const filename = assetMeta.path.split('/').pop() || 'screenshot';
         await agencyCreateHilItem({
           worktreePath: targetWorktree,
+          repoRootPath: projectRoot,
+          cellId: targetCellId,
           kind: 'memo',
           body: screenshotNote.trim() || `Screenshot ${filename}`,
           meta: {
@@ -433,6 +448,7 @@ export function useHilMemoCaptureState({
     routingMode,
     routingTargetId,
     screenshotNote,
+    selectedCellId,
     worktreePath,
     onCaptureSaved,
   ]);

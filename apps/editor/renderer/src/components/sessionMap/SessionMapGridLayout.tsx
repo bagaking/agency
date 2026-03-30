@@ -40,7 +40,7 @@ export function SessionMapGridLayout({
                 <span className="rounded bg-black/60 px-1.5 py-0.5 text-[7px] font-mono text-white/60 border border-white/10 font-bold">
                   {cluster.typeLabel.toUpperCase()}
                 </span>
-                {canCreateSession ? (
+                {canCreateSession && cluster.cell?.attachedWorktreePath ? (
                   <button
                     type="button"
                     onClick={(event) => {

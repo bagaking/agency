@@ -18,6 +18,7 @@ import {
 
 type UseHilPromoteWorkflowArgs = {
   promoteWorktreePath: string;
+  projectRoot: string;
   sessions: any[];
   activeSessionId: string;
   activeView: string;
@@ -62,6 +63,7 @@ const normalizeActionSheetExecution = (state: string) => {
 
 export function useHilPromoteWorkflow({
   promoteWorktreePath,
+  projectRoot,
   sessions,
   activeSessionId,
   activeView,
@@ -116,6 +118,8 @@ export function useHilPromoteWorkflow({
     try {
       const list = await agencyListHilItems({
         worktreePath: promoteWorktreePath,
+        repoRootPath: projectRoot,
+        cellId: selectedCellId,
         kind: 'all',
       });
       if (!list) {
@@ -156,7 +160,7 @@ export function useHilPromoteWorkflow({
     } finally {
       setPromoteLoading(false);
     }
-  }, [activeSessionId, activeView, lastPromoteSessionId, promoteWorktreePath, sessions]);
+  }, [activeSessionId, activeView, lastPromoteSessionId, projectRoot, promoteWorktreePath, selectedCellId, sessions]);
 
   const closePromoteModal = useCallback(() => {
     setPromoteModalOpen(false);
@@ -309,6 +313,7 @@ export function useHilPromoteWorkflow({
       const run = await agencyStartDelivery({
         request: {
           worktreePath: promoteWorktreePath,
+          repoRootPath: projectRoot,
           source: 'promote',
           mode,
           description: trimmedDescription,
@@ -318,6 +323,7 @@ export function useHilPromoteWorkflow({
             id: String(item?.id || ''),
             kind: String(item?.kind || 'comment'),
             body: String(item?.body || item?.message || ''),
+            cellId: selectedCellId || '',
             anchor: item?.anchor || null,
             references: Array.isArray(item?.references) ? item.references : [],
           })),
@@ -365,6 +371,8 @@ export function useHilPromoteWorkflow({
       } else {
         await agencyConfirmDelivery({
           worktreePath: promoteWorktreePath,
+          repoRootPath: projectRoot,
+          cellId: selectedCellId,
           draftId,
         });
         await loadComments();
@@ -372,6 +380,8 @@ export function useHilPromoteWorkflow({
 
       const status = await agencyGetDeliveryStatus({
         worktreePath: promoteWorktreePath,
+        repoRootPath: projectRoot,
+        cellId: selectedCellId,
         draftId,
       });
       setPromoteDraft(status?.draft || null);
@@ -402,6 +412,7 @@ export function useHilPromoteWorkflow({
     promoteSelectedIds,
     promoteSessionId,
     promoteWorktreePath,
+    projectRoot,
     selectedCellId,
   ]);
 
@@ -423,6 +434,8 @@ export function useHilPromoteWorkflow({
     try {
       await agencyConfirmDelivery({
         worktreePath: promoteWorktreePath,
+        repoRootPath: projectRoot,
+        cellId: selectedCellId,
         draftId: promoteDraftId,
       });
       await loadComments();
@@ -441,6 +454,8 @@ export function useHilPromoteWorkflow({
     promoteGateStatus,
     promoteMode,
     promoteWorktreePath,
+    projectRoot,
+    selectedCellId,
   ]);
 
   useEffect(() => {
@@ -452,6 +467,8 @@ export function useHilPromoteWorkflow({
       try {
         const status = await agencyGetDeliveryStatus({
           worktreePath: promoteWorktreePath,
+          repoRootPath: projectRoot,
+          cellId: selectedCellId,
           draftId: promoteDraftId,
         });
         if (canceled) {
@@ -500,6 +517,8 @@ export function useHilPromoteWorkflow({
     promoteModalOpen,
     promoteStep,
     promoteWorktreePath,
+    projectRoot,
+    selectedCellId,
   ]);
 
   return {

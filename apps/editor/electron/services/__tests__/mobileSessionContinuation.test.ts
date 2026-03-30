@@ -3,13 +3,20 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
 
 const { writeRegistry } = require('../sessionRegistry');
 const { prepareSessionContinueOnMobile } = require('../mobileSessionContinuation');
 const { resetMobileSessionProxyForTests } = require('../mobileSessionProxy');
+const execFileAsync = promisify(execFile);
 
 async function createTempDir(prefix) {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix));
+}
+
+async function initGitRepo(repoRoot) {
+  await execFileAsync('git', ['init'], { cwd: repoRoot });
 }
 
 async function setupTestMode(t, prefix) {
@@ -231,6 +238,70 @@ test('prepareSessionContinueOnMobile rejects closed session in proxy mode', asyn
       }),
     /not attachable/,
   );
+});
+
+test('prepareSessionContinueOnMobile resolves the attached worktree from cell context', async (t) => {
+  const repoRoot = await createTempDir('agency-mobile-continue-cell-');
+  const worktreePath = path.join(repoRoot, '.worktrees', 'alpha');
+  await initGitRepo(repoRoot);
+  await fs.mkdir(path.join(worktreePath, '.agency'), { recursive: true });
+  await fs.mkdir(path.join(repoRoot, '.agency', 'cells', 'cell-alpha'), { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, '.agency', 'cells', 'cell-alpha', 'cell.yaml'),
+    [
+      'version: 2',
+      'id: cell-alpha',
+      'name: Alpha',
+      'branch: feat/alpha',
+      'state: active',
+      'attachmentState: attached',
+      `worktreePath: ${worktreePath}`,
+      `lastKnownWorktreePath: ${worktreePath}`,
+    ].join('\n'),
+    'utf8'
+  );
+  const previousMode = process.env.AGENCY_TEST_MODE;
+  process.env.AGENCY_TEST_MODE = '1';
+
+  t.after(async () => {
+    await resetMobileSessionProxyForTests();
+    if (previousMode === undefined) {
+      delete process.env.AGENCY_TEST_MODE;
+    } else {
+      process.env.AGENCY_TEST_MODE = previousMode;
+    }
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await writeRegistry(
+    {
+      projectRoot: repoRoot,
+      cellId: 'cell-alpha',
+      worktreePath,
+    },
+    {
+      version: 1,
+      sessions: [
+        {
+          id: 'sess-1',
+          name: 'Context Session',
+          tmuxSession: 'agency-cell-sess-1',
+          status: 'active',
+        },
+      ],
+    }
+  );
+
+  const result = await prepareSessionContinueOnMobile({
+    projectRoot: repoRoot,
+    cellId: 'cell-alpha',
+    sessionId: 'sess-1',
+    mode: 'direct',
+  });
+
+  assert.equal(result.sessionId, 'sess-1');
+  assert.equal(result.sessionName, 'Context Session');
+  assert.match(result.command, /tmux attach-session -t .*agency-cell-sess-1/);
 });
 
 export {};

@@ -6,7 +6,7 @@ const DEFAULT_FILTERS = {
   status: 'all',
 };
 
-export function useHilItems({ worktreePath, fetchAll = false }) {
+export function useHilItems({ worktreePath, projectRoot = '', cellId = '', fetchAll = false }) {
   const [items, setItems] = useState([]);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [loading, setLoading] = useState(false);
@@ -25,8 +25,14 @@ export function useHilItems({ worktreePath, fetchAll = false }) {
       setError('');
       try {
         const payload = fetchAll
-          ? { worktreePath, kind: 'all', status: 'all' }
-          : { worktreePath, kind: nextFilters.kind, status: nextFilters.status };
+          ? { worktreePath, repoRootPath: projectRoot, cellId, kind: 'all', status: 'all' }
+          : {
+              worktreePath,
+              repoRootPath: projectRoot,
+              cellId,
+              kind: nextFilters.kind,
+              status: nextFilters.status,
+            };
         const result = await listHilItems(payload);
         if (!result) {
           setItems([]);
@@ -39,7 +45,7 @@ export function useHilItems({ worktreePath, fetchAll = false }) {
         setLoading(false);
       }
     },
-    [fetchAll, worktreePath]
+    [cellId, fetchAll, projectRoot, worktreePath]
   );
 
   useEffect(() => {

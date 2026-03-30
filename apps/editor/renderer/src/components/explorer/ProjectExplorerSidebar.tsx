@@ -1234,6 +1234,8 @@ function ProjectExplorerSidebarContent({
       {researchLaneOpen ? (
         <ExplorerResearchLane
           rootPath={rootPath}
+          projectRoot={repoRoot || rootPath}
+          selectedCellId={selectedCellId || ''}
           targetDirPath={activeDir}
           allowMemoCapture={projectPolicy?.research?.allowMemoCapture !== false}
           allowMarkdownSave={projectPolicy?.research?.allowMarkdownSave !== false}
