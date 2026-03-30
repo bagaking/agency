@@ -312,8 +312,7 @@ Explorer now loads project defaults from `.agency/explorer.yaml` / `.agency/expl
 Current policy surface:
 - default filter descriptor state;
 - default working-set view;
-- working-set preset ordering;
-- working-set preset ordering;
+- working-set option ordering;
 - default search mode;
 - default content-search scope + flags;
 - command visibility policy;
@@ -324,7 +323,7 @@ Override precedence:
 2. project policy defaults
 3. user-local persisted UI state
 
-The project policy currently governs defaults, working-set option exposure/order, and command visibility. It still does not define saved named search queries. That is deliberate: saved queries should wait until there is a stronger product contract for search presets.
+The project policy currently governs defaults, working-set option exposure/order, and command visibility. It still does not define named Explorer presets or saved named search queries. That is deliberate: both should wait until there is a stronger product contract for reusable starting states rather than becoming a second hidden configuration system.
 
 What is active now:
 - `workingSet.presets` can reorder registered working-set entries without hard-coding a new branch in `ProjectExplorerSidebar`;
@@ -370,7 +369,7 @@ Recommended manual checks before shipping larger follow-up changes:
 ### Near-term
 
 1. Add more working-set families only when they earn their place in the Explorer, not as speculative tabs.
-2. Decide whether project policy should grow named presets once search/workflow usage patterns stabilize.
+2. Revisit named Explorer presets only after more than one real reusable starting-state workflow exists; the earlier standalone preset proposal was intentionally dropped as premature.
 3. Tighten keyboard-focused coverage for the content-search and research-lane flows.
 
 ### Strategic

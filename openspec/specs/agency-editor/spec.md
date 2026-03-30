@@ -56,6 +56,127 @@ At minimum:
 - **THEN** the product records delivery as a dispatch artifact referencing source items and target sessions
 - **AND** the dispatch does not redefine session or run ownership semantics
 
+### Requirement: Canonical Attention Layer
+The editor SHALL provide one shared attention layer over canonical objects instead of surface-local urgency indicators.
+The attention layer SHALL attach only to canonical object ownership:
+- `Window`
+- `Cell`
+- `Session`
+- `Run`
+
+#### Scenario: Attention does not invent a new object root
+- **WHEN** a surface renders an item that requires user intervention
+- **THEN** the item references a canonical `Window`, `Cell`, `Session`, or `Run`
+- **AND** the product does not introduce a competing standalone attention object hierarchy
+
+### Requirement: Attention State Vocabulary
+The editor SHALL classify attention using a bounded shared vocabulary.
+At minimum the vocabulary SHALL support:
+- `running`
+- `failed`
+- `pending_confirmation`
+- `unread`
+- `return_required`
+
+#### Scenario: Same state language across surfaces
+- **WHEN** the same session or run requires attention in Session Map, Agent Cells, and shell chrome
+- **THEN** each surface uses the same attention state label and severity semantics
+
+### Requirement: Cross-Surface Attention Surfacing
+The editor SHALL surface local attention consistently in Session Map, Agent Cells, and shell chrome.
+The editor SHALL surface cross-window attention through the existing window-shell/window-switching path using a minimal window attention summary.
+
+#### Scenario: Another window advertises urgency
+- **WHEN** a non-focused Agency window has a higher-priority attention item than the current window
+- **THEN** the current window can show that urgency through shell chrome
+- **AND** the window switcher identifies the target window's primary attention state
+
+### Requirement: Attention Jump Paths
+Attention items SHALL support direct navigation to the owning object instead of passive display-only indicators.
+
+#### Scenario: Jump from attention item to target object
+- **WHEN** a user activates an attention item
+- **THEN** the editor focuses the owning object using bounded existing navigation paths
+- **AND** run/session attention uses Session Map or Agent Cells as appropriate
+- **AND** window attention focuses the target window
+
+### Requirement: Running Child Execution Stays Visible
+The editor SHALL keep active bounded child execution visible in the attention layer until the run no longer requires intervention.
+
+#### Scenario: Running child execution is not buried
+- **WHEN** a `Create Agent` child-execution run is active
+- **THEN** the attention layer surfaces that run in shell chrome and current-window surfaces
+- **AND** the user can jump to its owning session/run context
+
+### Requirement: Return-Required Session Attention
+The editor SHALL surface when a run creates or readies a session that the user has not revisited yet.
+
+#### Scenario: Child session requires follow-up
+- **WHEN** a run creates a child session and the user has not revisited that session since the run completed
+- **THEN** the attention layer marks that session as `return_required`
+- **AND** activating the attention item focuses that session
+
+### Requirement: Unified Local Control Bus
+The editor SHALL provide one host-owned local control bus for automation and external tooling.
+The control bus SHALL expose one normalized request/response contract across its supported transports.
+
+#### Scenario: CLI and socket use the same contract
+- **WHEN** a local caller invokes the control bus through the CLI wrapper or the local socket transport
+- **THEN** both transports accept the same operation envelope shape
+- **AND** both transports return the same normalized success/failure schema
+
+#### Scenario: Control bus stays local-only in v1
+- **WHEN** the first production slice of the control bus is shipped
+- **THEN** the bus is scoped to local host transports only
+- **AND** the product does not present it as a remote multi-user network API
+
+### Requirement: Control Bus Uses Canonical Object References
+The control bus SHALL align with the canonical object model and SHALL make object references explicit in supported operations.
+At minimum, the bus SHALL support canonical references for `Window`, `Project`, `Cell`, `Session`, and `Run` when those objects are relevant to the operation.
+
+#### Scenario: Operation targets a session and run context
+- **WHEN** a caller requests a run or session-related operation through the control bus
+- **THEN** the request identifies the relevant object references explicitly instead of hiding them inside transport-specific payload conventions
+
+### Requirement: Control Bus Routes Through Existing Capability Owners
+The control bus SHALL remain a dispatcher over existing host-owned capability owners rather than becoming a new direct side-effect owner.
+
+#### Scenario: File operation goes through File Intent
+- **WHEN** a caller requests a file interaction through the control bus
+- **THEN** the control bus routes the request through the File Intent capability owner
+- **AND** file safety, permission, and conflict semantics remain those of File Intent
+
+#### Scenario: Session orchestration goes through Session Runtime or Harness
+- **WHEN** a caller requests session orchestration or run control through the control bus
+- **THEN** the control bus routes the request through Session Runtime or Main Agent Harness as appropriate
+- **AND** the bus does not bypass those host-owned capability seams
+
+### Requirement: Control Bus Trust And Caller Metadata Stay Explicit
+The control bus SHALL preserve transport-derived trust and caller-declared identity as distinct concepts.
+
+#### Scenario: Trusted local host caller invokes the bus
+- **WHEN** a local CLI or socket caller invokes the control bus
+- **THEN** the request is tagged with explicit transport trust/access scope metadata
+- **AND** caller-declared metadata remains available for audit and policy decisions
+
+### Requirement: Unified Control Bus Operation Set
+The first shipped control-bus slice SHALL provide one namespaced operation set over the already-shipped host seams.
+At minimum, the initial operation set SHALL cover:
+- window shell control
+- file intent operations
+- session runtime operations
+- main agent harness run operations
+
+#### Scenario: Caller controls a window through the bus
+- **WHEN** a local caller requests a window-shell operation through the control bus
+- **THEN** the bus performs the operation through the window-shell capability owner
+- **AND** the response includes normalized result data for the affected window shell
+
+#### Scenario: Caller starts a run through the bus
+- **WHEN** a local caller requests run creation through the control bus
+- **THEN** the bus starts the run through Main Agent Harness
+- **AND** the response returns normalized run data including the resulting `runId`
+
 ### Requirement: Child-Execution Vocabulary Is Distinct From Workspace Creation
 The editor SHALL reserve `Create Cell` for worktree-bound workspace creation and SHALL reserve `Create Agent` for bounded child execution.
 `Fork` SHALL remain a specialized child-execution strategy rather than the default meaning of workspace creation or child execution.
@@ -629,11 +750,93 @@ The explorer SHALL display per-Cell change counts for files modified in multiple
 - **THEN** the explorer shows both Cell identifiers and their change counts
 
 ### Requirement: Explorer Filtering and Search
-The explorer SHALL allow filtering the tree by filename and by change status.
+The explorer SHALL allow filtering the tree by filename/path, by change status, and by semantic file rules.
+The explorer SHOULD evolve built-in filters through a descriptor-driven model so future filter families can be added without hard-coded UI proliferation.
 
 #### Scenario: Filter by filename
 - **WHEN** a user enters a filename filter
 - **THEN** the explorer shows matching files and their ancestor paths
+
+#### Scenario: Semantic filter
+- **WHEN** a user enables a semantic filter
+- **THEN** the explorer shows files matching that semantic rule and their required ancestor paths
+
+### Requirement: Explorer Filter Descriptor Registry
+The editor SHALL represent Explorer filters through a descriptor-driven model instead of only through hard-coded UI toggles.
+Built-in filters SHALL be the first entries in that registry.
+The descriptor model SHALL support persisted active state and future project-defined filter bundles.
+
+#### Scenario: Built-in filters use the descriptor model
+- **WHEN** Explorer renders built-in visibility, status, or semantic filters
+- **THEN** it derives their labels, ids, and active-state handling from filter descriptors
+- **AND** existing filter behavior remains functionally equivalent
+
+#### Scenario: Persist filter state by descriptor id
+- **WHEN** a user changes Explorer filters and later reopens the same root scope
+- **THEN** Explorer restores filter state using stable descriptor ids
+
+### Requirement: Explorer Search Capability Split
+The editor SHALL distinguish between Explorer path/name search and Explorer full-text content search.
+Path/name search SHALL continue to support fast tree reduction.
+Content search SHALL support cross-file keyword discovery and SHALL NOT be treated as equivalent to filename filtering.
+
+#### Scenario: Path search reduces the tree
+- **WHEN** a user enters a path or filename query in Explorer search
+- **THEN** Explorer filters visible paths and required ancestor nodes
+- **AND** the result behaves as a tree-reduction interaction
+
+#### Scenario: Content search returns content matches
+- **WHEN** a user searches for a keyword across file contents
+- **THEN** the editor returns file matches with line-level or snippet-level evidence
+- **AND** the result is presented as a content-search result set rather than only as filename-filtered tree rows
+
+### Requirement: Explorer Content Search And Replace
+The editor SHALL support content search and scoped content replace across files.
+Content replace SHALL provide target visibility and confirmation semantics suitable for multi-file mutation.
+
+#### Scenario: Replace keyword across a folder
+- **WHEN** a user runs content replace within a folder scope
+- **THEN** the editor shows target matches and replacement impact before applying the change
+
+#### Scenario: Replace keyword across the project
+- **WHEN** a user runs content replace across the active project
+- **THEN** the editor applies the replacement only to confirmed targets
+- **AND** reports any files that could not be changed
+
+### Requirement: Explorer Command Registry
+The editor SHALL represent Explorer header and context-menu actions through a command registry rather than only hard-coded UI lists.
+Each command SHALL define id, label, surface placement, and visibility conditions.
+
+#### Scenario: Header actions come from command registry
+- **WHEN** Explorer renders header actions
+- **THEN** it derives action order and visibility from registered Explorer commands
+
+#### Scenario: Context menu actions come from command registry
+- **WHEN** a user opens the Explorer context menu
+- **THEN** the menu groups and visible actions come from registered Explorer commands
+- **AND** commands can still route to the existing file intent execution layer
+
+### Requirement: Explorer Working-Set Views
+The editor SHALL support Explorer working-set views as a first-class capability family in addition to the canonical file tree.
+`Changed Files` SHALL be the first working-set view in that family.
+
+#### Scenario: Switch to a working-set view
+- **WHEN** a user activates the `Changed Files` working-set view
+- **THEN** Explorer renders the registered working-set view using Explorer-aligned action grammar
+
+#### Scenario: Working-set family is extensible
+- **WHEN** a new working-set view is added in the future
+- **THEN** it can attach to the Explorer working-set model without inventing a separate panel architecture
+
+### Requirement: Explorer Project Policy Defaults
+The editor SHALL support project-level Explorer policy for default filter, working-set, search, command-visibility, and research-lane behavior.
+Project policy SHALL be able to define those defaults without replacing user-local state persistence.
+Named Explorer presets are deferred until there is a stronger product contract for reusable starting states.
+
+#### Scenario: Project default working set
+- **WHEN** a project defines an Explorer policy with default working-set or filter preferences
+- **THEN** Explorer applies those defaults on first load for that project scope
+- **AND** user-local persisted state can still override them afterwards
 
 ### Requirement: Explorer Bounded URL Research Lane
 The explorer SHALL provide a bounded research lane for URL-driven file workflows.
@@ -736,6 +939,7 @@ The packaging workflow MUST be documented with installation steps.
 ### Requirement: Explorer Visibility Controls
 The explorer SHALL provide controls to toggle hidden files, ignored files, and status-based filters.
 The explorer SHALL allow filtering by Cell scope when multiple Cells exist.
+The explorer SHOULD surface active filter state clearly enough that users do not need to reopen the filter panel to understand the current browsing mode.
 
 #### Scenario: Toggle hidden files
 - **WHEN** a user disables hidden files
@@ -748,6 +952,10 @@ The explorer SHALL allow filtering by Cell scope when multiple Cells exist.
 #### Scenario: Filter by Cell
 - **WHEN** a user selects a Cell filter
 - **THEN** status decorations and counts are scoped to that Cell
+
+#### Scenario: Active filter summary is visible
+- **WHEN** one or more Explorer filters are active
+- **THEN** Explorer surfaces a readable summary or equivalent state indicator in the visible shell
 
 ### Requirement: Explorer Keyboard Navigation
 The explorer SHALL support keyboard navigation (up/down, left/right to expand/collapse, Enter to open, F2 to rename).

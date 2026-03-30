@@ -16,7 +16,9 @@ This is a lightweight index that points to the authoritative design sources. It 
 - Product requirements/specification: `openspec/specs/agency-editor/spec.md`
 - Change proposals and detailed designs: `openspec/changes/*/proposal.md`, `openspec/changes/*/design.md`
 - Archived historical designs: `openspec/changes/archive/**`
-- Unified control bus (active): `openspec/changes/add-unified-control-bus/`
+- Unified control bus (delivered): `openspec/changes/archive/2026-03-30-add-unified-control-bus/`
+- Attention layer (delivered): `openspec/changes/archive/2026-03-30-add-attention-layer/`
+- Explorer capability platform (delivered): `openspec/changes/archive/2026-03-30-refactor-explorer-capability-platform/`
 - Canonical object model (delivered): `openspec/changes/archive/2026-03-29-refactor-canonical-object-model/`
 - Commander unified station (delivered): `openspec/changes/archive/2026-03-29-refactor-commander-unified-station/`
 - Main Agent Harness (delivered): `openspec/changes/archive/2026-03-29-add-main-agent-harness/`
