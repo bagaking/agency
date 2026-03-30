@@ -3,9 +3,7 @@ import { CircleOff, MoreHorizontal, Plus } from 'lucide-react';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
 import { resolveSessionAvatarId } from '../../utils/agentAvatar';
 import { TacticalFrame } from './SessionMapFrames';
-import { SessionMapCommanderPanel } from './SessionMapCommanderPanel';
-import { SessionMapCommanderBriefingPanel } from './SessionMapCommanderBriefingPanel';
-import { SessionMapOperationsRail } from './SessionMapOperationsRail';
+import { SessionMapRightStation } from './SessionMapRightStation';
 
 const CELL_CARD_MIN_WIDTH = 248;
 const CELL_CARD_MAX_WIDTH = 396;
@@ -140,9 +138,7 @@ export function SessionMapDockLayout({
   sessionAttentionByKey,
   onSelectAttention,
 }: any) {
-  const dockGridTemplateColumns = commanderBriefingOpen
-    ? '92px minmax(0,1.26fr) minmax(332px,0.86fr) minmax(420px,1.04fr)'
-    : '92px minmax(0,1.68fr) minmax(300px,0.9fr) 148px';
+  const dockGridTemplateColumns = '92px minmax(0,1.58fr) minmax(400px,1.02fr)';
 
   return (
     <div
@@ -300,46 +296,21 @@ export function SessionMapDockLayout({
         </div>
       </div>
 
-      {/* Functional Area */}
-      <SessionMapOperationsRail
-        focusData={focusData}
-        attentionItems={attentionItems}
-        harnessRuns={harnessRuns}
+      {/* Right Station */}
+        <SessionMapRightStation
+          focusData={focusData}
+          attentionItems={attentionItems}
+          harnessRuns={harnessRuns}
         sessionError={sessionError}
         onClearSessionError={onClearSessionError}
         onCancelHarnessRun={onCancelHarnessRun}
         onResumeHarnessRun={onResumeHarnessRun}
-        onSelectAttention={onSelectAttention}
+          onSelectAttention={onSelectAttention}
+          commanderBriefingOpen={commanderBriefingOpen}
+          onOpenCommanderBriefing={onOpenCommanderBriefing}
+          onCloseCommanderBriefing={onCloseCommanderBriefing}
+          commanderTriggerRef={commanderTriggerRef}
       />
-
-      {/* Commander Column */}
-      <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
-        {commanderBriefingOpen ? (
-          <SessionMapCommanderBriefingPanel
-            open={true}
-            focusData={focusData}
-            harnessRuns={harnessRuns}
-            sessionError={sessionError}
-            onCancelHarnessRun={onCancelHarnessRun}
-            onResumeHarnessRun={onResumeHarnessRun}
-            onClearSessionError={onClearSessionError}
-            onClose={() => {
-              if (onCloseCommanderBriefing) {
-                onCloseCommanderBriefing();
-                return;
-              }
-              onOpenCommanderBriefing?.();
-            }}
-          />
-        ) : (
-          <SessionMapCommanderPanel
-            harnessRuns={harnessRuns}
-            briefingOpen={false}
-            onOpenBriefing={onOpenCommanderBriefing}
-            buttonRef={commanderTriggerRef}
-          />
-        )}
-      </div>
     </div>
   );
 }

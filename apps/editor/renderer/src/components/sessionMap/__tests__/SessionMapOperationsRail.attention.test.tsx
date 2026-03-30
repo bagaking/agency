@@ -81,6 +81,9 @@ test('SessionMapOperationsRail renders the full priority queue without truncatio
   assert.match(html, /Failed Run/);
   assert.match(html, /Review Child/);
   assert.match(html, /Unread Session/);
-  assert.match(html, /max-h-36/);
-  assert.match(html, /truncate/);
+  assert.match(html, /Open briefing/);
+  assert.match(html, /max-h-32/);
+  assert.match(html, /Primary failure\./);
+  assert.match(html, /No active backend directive/);
+  assert.doesNotMatch(html, /Harness Run/);
 });

@@ -45,9 +45,9 @@
 - [ ] With Session Map closed, trigger `Fork` and confirm the docked Session Map opens automatically into the right-side `Command Ops` zone.
 - [ ] Trigger `Smart Fork [by commander]` and confirm a `Commander Task` sheet opens immediately, shows live timeline/activity while the run is in progress, and finishes with an explicit created-session result instead of silently succeeding in the background.
 - [ ] Trigger `Smart Name [by commander]` and confirm it uses the same `Commander Task` sheet family as `Smart Fork`, with task-specific result content rather than a bespoke modal flow.
-- [ ] In the Session Map dock, confirm the commander/backend avatar is visible at the far-right edge and clicking it opens a separate `Briefing` right-edge panel inside Session Map instead of replacing the right-side `Ops` panel.
+- [ ] In the Session Map dock, confirm the right side behaves as one station: the default mode is `Ops`, the commander affordance is visible in that station, and clicking it switches the same station into `Briefing` mode.
 - [ ] In `Briefing`, confirm the panel is bound to the current focus session/run, quick prompts work, typed questions return evidence-backed explanations, and `Cancel` / `Retry` / `Dismiss` actions route through the existing Harness/error flows.
-- [ ] Close `Briefing` and confirm the underlying `Ops` panel is still readable, a running run can be cancelled, a failed/cancelled run can be retried, and run details can be copied.
+- [ ] Close `Briefing` and confirm the same right-side station returns to `Ops` with its prior evidence state intact; a running run can still be cancelled, a failed/cancelled run can still be retried, and run details remain copyable.
 - [ ] Produce output in a background session and confirm Agent Cells uses inline Cell / Session attention markers instead of a queue card above the list, while Session Map `Ops` still owns the `Priority Queue` and Status Bar `Next` remains clickable.
 - [ ] Switch away from a session and back without meaningful new output, and confirm attach replay or silent refresh does not immediately mark it as `Unread`.
 - [ ] Trigger a running child-execution attention state and confirm Agent Cells inline markers, Status Bar `Next`, and Session Map `Priority Queue` all use the same `Running` vocabulary without displacing the Agent Cells list.

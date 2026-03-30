@@ -3,6 +3,7 @@ import { SessionMapCommanderBriefing } from './SessionMapCommanderBriefing';
 
 export function SessionMapCommanderBriefingPanel({
   open,
+  active = true,
   focusData,
   harnessRuns,
   sessionError,
@@ -22,6 +23,7 @@ export function SessionMapCommanderBriefingPanel({
     >
       <div className="flex h-full min-h-0 w-full min-w-0">
         <SessionMapCommanderBriefing
+          active={active}
           focusData={focusData}
           harnessRuns={harnessRuns}
           sessionError={sessionError}

@@ -141,7 +141,7 @@
 - Tool-native `Fork` remains a specialization, not the Harness core model. The default specialization can either:
   - choose a true `session.runtime smart_fork` path when host facts prove it is supported, or
   - choose `create_child` + `dispatch_input` to start a fresh child agent when true fork semantics are unavailable.
-- The docked Session Map now promotes its right-side info panel into a stable `Ops` rail, while `Commander` opens a separate bounded `Briefing` panel for backend-facing explanation, recommendation, and approved actions.
+- The docked Session Map treats its right side as one `Right Station`: `Ops` is the default mode, and `Commander` opens a bounded `Briefing` mode for backend-facing explanation, recommendation, and approved actions.
 - Session action failures no longer rely only on transient notices; `Command Ops` keeps the latest error visible until explicitly dismissed and supports copying the full text.
 - Attention now uses one vocabulary across shell chrome, Agent Cells, and Session Map: `Running`, `Failed`, `Confirm`, `Unread`, and `Review`.
 - The status bar shows the current top-priority attention item for the active Agency context and can jump directly to its owning object.
@@ -349,8 +349,8 @@ make editor-dev
 - With Session Map closed, trigger `Fork` and confirm the docked Session Map opens automatically to expose the `Command Ops` area.
 - Trigger `Smart Fork [by commander]` and confirm a `Commander Task` sheet opens immediately, shows live progress/timeline while the run is active, and ends with a created-session result instead of silently completing in the background.
 - Trigger `Smart Name [by commander]` and confirm it uses the same `Commander Task` sheet family as `Smart Fork`, with rename suggestions as the task-specific result.
-- In the Session Map dock, confirm the commander/backend avatar is visible, clicking it opens a separate `Briefing` panel, and the panel answers using current session/run evidence rather than generic chat filler.
-- Close the `Briefing` panel and confirm the underlying `Ops` panel is unchanged; inspect the active Harness timeline there and confirm a running run can be cancelled or a failed/cancelled run can be retried from the panel.
+- In the Session Map dock, confirm the right side behaves as one station: with `Briefing` closed it shows `Ops`, and clicking the commander affordance switches that same station into `Briefing` mode rather than opening a separate parallel column.
+- Close the `Briefing` mode and confirm the same right-side station returns to `Ops` with its prior evidence state intact; inspect the active Harness timeline there and confirm a running run can be cancelled or a failed/cancelled run can be retried from the panel.
 - Trigger a session error and confirm it appears in `Command Ops`, does not auto-dismiss on a timer, and can be copied before explicit dismissal.
 - Produce new output in a non-active session and confirm Agent Cells inline cell/session markers, Session Map `Ops`, and the status bar all surface `Unread` with consistent wording; click any of them and confirm Agency jumps back to that session.
 - Switch away from a session and back without meaningful new output, and confirm it does not immediately become `Unread` just because of transient blur, attach replay, or silent refresh noise.

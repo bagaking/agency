@@ -106,6 +106,7 @@ function CommanderTurnCard({
 }
 
 export function SessionMapCommanderBriefing({
+  active = true,
   focusData,
   harnessRuns,
   sessionError,
@@ -142,8 +143,11 @@ export function SessionMapCommanderBriefing({
   const briefing = useMemo(() => buildCommanderWelcomeTurn(context, 'initial'), [context]);
 
   useEffect(() => {
+    if (!active) {
+      return;
+    }
     inputRef.current?.focus();
-  }, []);
+  }, [active]);
 
   useEffect(() => {
     if (!boundContextKey) {

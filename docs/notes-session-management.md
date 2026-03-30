@@ -84,12 +84,12 @@ Main Agent Harness 是更高一层的 host-owned control plane。
 - Agent Cells 只能以内联方式在 owning Cell / Session 上表达 attention；不得再在 Cells 列表前面插入一个 queue 式 attention 面板来挤占主工作面。
 - Shell chrome 只负责紧凑 summary：Status Bar 承载当前窗口最高优先级的 `Next`，window switcher 承载跨窗口 primary attention；它们都不是第二个 queue surface。
 - Session Map 中的 token / cell 强调必须复用 Attention 的统一语义（`running / failed / pending confirmation / unread / return required`），不能再做一套只在地图里成立的告警词汇。
-- `Commander` 占据 Session Map 最右侧的独立列，作为 backend/operator 的固定锚点，而不是窄图标位。
-- 点击 `Commander` 后，最右列应直接原位展开成 `Briefing` 面板；不得再以浮层、popup、drawer 形式覆盖 `Ops` 或 `Cells`。
+- Session Map 右侧应被理解为一个单一的 `Right Station`：默认展示 `Ops` mode；`Commander` 只是这个 station 里的 operator affordance，而不是并列的第二列。
+- 点击 `Commander` 后，右侧 station 应直接切换到 `Briefing` mode；不得再以浮层、popup、drawer 形式覆盖 `Ops` 或 `Cells`，也不应让 `Ops` 和 `Briefing` 作为两个并列右栏竞争空间。
 - `Briefing` 是有边界的 backend 简报：默认展示一张当前 context briefing 卡，并只保留一张最新回应卡；切换 focus session / relevant run 时必须重绑并清掉旧回应，避免累积聊天历史污染当前证据范围。
 - `Briefing` 负责解释、建议和触发受限操作，但不复用 Session Reply 的语义，也不应演化成通用聊天记录面板。
 - Session 错误也复用这块区域，避免依赖容易误触消失的临时 notice。
-- Dock 模式应把更多横向空间优先让给 `Cells`，但 `Commander` 打开时必须获得足够宽度承载完整 briefing；不能继续用窄列 + 覆盖浮层的折中方案。
+- Dock 模式应把更多横向空间优先让给 `Cells`，右侧 station 在 `Ops` / `Briefing` 两种 mode 间切换时应保持同一列位；不能继续用“默认双列，打开 briefing 再叠一层”的折中方案。
 - `Command Ops` 内容区必须支持纵向滚动；当 timeline 或错误详情超过 dock 高度时，用户仍应能完整查看与复制。
 - Dock HUD 的标题、卡片内边距和状态条应保持紧凑，优先信息密度而不是装饰性留白。
 - `Command Ops` 外层的 context strip 应优先展示当前聚焦 session 的头像与 session 名称，避免重复塞入像 `MAIN · DRAFT` 这类低价值上下文文字。
@@ -97,7 +97,7 @@ Main Agent Harness 是更高一层的 host-owned control plane。
 - `Priority Queue` 应保持 summary-first：列表项优先展示短摘要与优先级，不应被长错误原文或原始 timeline payload 撑成日志卡片；完整 evidence 应留在下方 evidence 区。
 - `Command Ops` 的主动作必须单点清晰：运行中显示 `Cancel`，失败/取消后显示 `Retry`，不要在同一面板里重复放多个语义等价的停止/重试入口。
 - `Briefing` 中的 `Cancel / Retry / Dismiss` 等动作必须继续走现有 Harness 或 host-managed capability；对话不能退化成 renderer 侧自由操作入口。
-- `Briefing` 面板关闭后，`Ops` 与 `Cells` 应保持原位和原上下文，不因为聊天交互而被遮挡、穿插或重新排版。
+- `Briefing` mode 关闭后，右侧 station 应返回 `Ops` mode，并保持原来的 evidence 上下文，不因为聊天交互而打乱 `Cells` 或 evidence 的阅读秩序。
 - 所有 `by commander` 任务在运行中都应在 Commander 头像上显示明确的 progress 指示，至少包括一个常驻的活动进度条，而不是只靠文字状态。
 
 ## Session Reply Relay（跨会话回复资产）
