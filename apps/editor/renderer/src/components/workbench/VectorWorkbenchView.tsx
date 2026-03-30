@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Columns, Eye, Code2, Maximize2, Minimize2 } from 'lucide-react';
 import { CodeWorkbenchView } from './CodeWorkbenchView';
+import { getWorkbenchLanguageLabel } from '../../../../shared/workbenchLanguageCore';
 
 export function VectorWorkbenchView({
   content,
@@ -11,6 +12,7 @@ export function VectorWorkbenchView({
   onCursorChange
 }: any) {
   const [mode, setMode] = useState('split'); // split, preview, code
+  const sourceLabel = getWorkbenchLanguageLabel(language || 'xml');
 
   return (
     <div className="flex h-full w-full flex-col bg-[#0b0d11]">
@@ -35,7 +37,7 @@ export function VectorWorkbenchView({
         {/* Code Pane */}
         {(mode === 'code' || mode === 'split') && (
           <div className="flex-1 min-w-0 bg-background relative">
-            <div className="absolute top-4 left-4 z-10 text-[9px] font-black uppercase tracking-widest text-primary/20 pointer-events-none">XML Source</div>
+            <div className="absolute top-4 left-4 z-10 text-[9px] font-black uppercase tracking-widest text-primary/20 pointer-events-none">{sourceLabel} Source</div>
             <CodeWorkbenchView
               value={content}
               language={language}

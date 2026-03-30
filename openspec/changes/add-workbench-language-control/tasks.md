@@ -1,7 +1,7 @@
 ## 1. Spec And Docs
 - [x] 1.1 Add an OpenSpec delta for Workbench language resolution, project policy, and manual override control.
 - [x] 1.2 Add/update design docs so Workbench highlighting rules, policy scope, and safety boundaries survive future refactors.
-- [ ] 1.3 Update reusable-item catalogs and manual verification docs for the new Workbench language seams.
+- [x] 1.3 Update reusable-item catalogs and manual verification docs for the new Workbench language seams.
 
 ## 2. Resolution And Policy
 - [x] 2.1 Introduce one shared Workbench language core for supported language ids, labels, and rule matching.

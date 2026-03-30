@@ -6,6 +6,7 @@ The decision order SHALL be:
 1. local manual override
 2. project-level Workbench language rule
 3. built-in filename/extension detection
+The workbench SHALL surface which source currently owns the effective language, including the automatic fallback path.
 
 #### Scenario: Local override wins for the active file
 - **WHEN** a user sets a local Workbench language override for the active file
@@ -20,6 +21,7 @@ The decision order SHALL be:
 #### Scenario: Built-in detection remains the fallback
 - **WHEN** no local override or project rule matches the file
 - **THEN** the workbench uses the built-in filename/extension detection result
+- **AND** the UI identifies the source as automatic or built-in resolution
 
 ### Requirement: Workbench Project Language Policy
 The editor SHALL load project-level Workbench language rules from `.agency/workbench.yaml` or `.agency/workbench.yml`.
@@ -33,6 +35,8 @@ Rules SHALL be evaluated against the file path using one shared matcher contract
 ### Requirement: Workbench Language Control
 The workbench SHALL provide a bounded control for viewing and changing the effective language of the active text tab.
 The control SHALL support resetting the current file back to automatic resolution.
+Local manual overrides SHALL be stored as window-local per-file UI state.
+Changing the control SHALL NOT implicitly write or rewrite `.agency/workbench.yaml`.
 
 #### Scenario: Reset local override to automatic mode
 - **WHEN** a user resets the active file language to automatic mode

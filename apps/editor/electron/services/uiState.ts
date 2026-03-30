@@ -15,6 +15,7 @@ const WINDOW_STATE_KEYS = [
   'sessionVisitedByKey',
   'workbenchTabsByCellId',
   'workbenchActiveTabByCellId',
+  'workbenchLanguageOverrideStateByRootKey',
   'sidebarWidth',
   'sidebarCollapsed',
   'activeView',

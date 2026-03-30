@@ -135,7 +135,7 @@ function WorkbenchPaneContent({
           projectRules: projectPolicy.languages.overrides,
         })
       : null;
-  const resolvedActiveLanguage = activeLanguageDecision?.language || activeState.language || 'plaintext';
+  const resolvedActiveLanguage = activeLanguageDecision?.language || activeState.language || '';
 
   useEffect(() => {
     tabStateByIdRef.current = tabStateById;
@@ -547,10 +547,17 @@ function WorkbenchPaneContent({
         </div>
         
         <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <FileCode size={10} className="text-primary/20" />
-              <span className="text-primary/40">{resolvedActiveLanguage}</span>
-            </div>
+            {activeLanguageDecision ? (
+              <div className="flex items-center gap-2">
+                <FileCode size={10} className="text-primary/20" />
+                <span className="text-primary/40">{activeLanguageDecision.label}</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <FileCode size={10} className="text-primary/20" />
+                <span className="text-primary/20">{String(activeState.kind || '').toUpperCase() || 'OBJECT'}</span>
+              </div>
+            )}
             <div className="h-3 w-px bg-white/[0.03]" />
             <div className="flex items-center gap-2"><Maximize2 size={10} className="opacity-10" /><span>{formatWorkbenchBytes(activeState.size)}</span></div>
         </div>

@@ -71,7 +71,7 @@ test('readWorkbenchProjectPolicy loads and normalizes .agency/workbench.yaml rul
         '    - match: "**/*.env.local"',
         '      language: dotenv',
         '    - match: "Tiltfile"',
-        '      language: python',
+        '      language: py',
         '    - match: ""',
         '      language: shell',
         '    - match: "*.foo"',
@@ -92,6 +92,7 @@ test('readWorkbenchProjectPolicy loads and normalizes .agency/workbench.yaml rul
       { match: '**/*.env.local', language: 'dotenv' },
       { match: 'Tiltfile', language: 'python' },
     ]);
+    assert.deepEqual(result.warnings, ['Ignored invalid or unsupported workbench language rules.']);
   });
 });
 

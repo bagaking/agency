@@ -59,7 +59,7 @@ It expresses corrective intent for the current environment and should be resetta
 
 That distinction is non-negotiable.
 
-## Current Resolution Model
+## Target Resolution Model
 
 ```mermaid
 flowchart LR
@@ -72,6 +72,14 @@ flowchart LR
   E --> G
   F --> G
 ```
+
+## Current Foundation
+
+Current shipped foundation in this change:
+1. project-level Workbench policy
+2. built-in detection
+
+The local-override layer is part of the target design for this change, but it is intentionally not treated as shipped behavior until the Workbench control and window-local persistence are landed.
 
 ## Current Provider Boundary
 

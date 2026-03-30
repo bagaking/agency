@@ -22,6 +22,11 @@
 - [ ] Create a memo citation from the same preview and confirm it enters the existing HIL/Memo flow; if a Markdown file was saved first, confirm the memo artifact carries that workspace reference.
 - [ ] Enter a localhost/private URL and confirm reader inspect is rejected while the explicit system-browser escape hatch remains available for full browsing.
 
+## Workbench Highlighting
+- [ ] Add `.agency/workbench.yaml` with a language rule such as `Tiltfile -> python`, open the matching file in Workbench, and confirm the editor language follows the project rule instead of builtin fallback.
+- [ ] Use a root-level glob rule such as `**/*.env.local -> dotenv`, open both `.env.local` and `config/.env.local`, and confirm both resolve through the same project rule.
+- [ ] Break `.agency/workbench.yaml` with invalid YAML, reopen or refresh the affected file, and confirm Workbench falls back safely instead of crashing or silently treating the broken policy as a valid rule set.
+
 ## Terminal
 - [ ] Open a terminal session and verify output appears.
 - [ ] Start CLI and confirm Codex (or stub) launches in the embedded terminal.

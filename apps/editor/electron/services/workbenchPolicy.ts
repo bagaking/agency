@@ -68,12 +68,31 @@ async function readWorkbenchProjectPolicy({ rootPath }: any = {}) {
   }
 
   const raw = await fsp.readFile(sourcePath, 'utf8');
-  const parsed = yaml.load(raw) || {};
+  let parsed: any = {};
+  try {
+    parsed = yaml.load(raw) || {};
+  } catch (error) {
+    return {
+      projectRoot,
+      sourcePath,
+      policy: { ...DEFAULT_WORKBENCH_PROJECT_POLICY },
+      warnings: [
+        `Failed to parse .agency/${path.basename(sourcePath)}: ${error?.message || String(error)}`,
+      ],
+    };
+  }
+  const rawOverrideCount = Array.isArray(parsed?.languages?.overrides)
+    ? parsed.languages.overrides.length
+    : 0;
+  const policy = normalizeWorkbenchProjectPolicy(parsed);
   return {
     projectRoot,
     sourcePath,
-    policy: normalizeWorkbenchProjectPolicy(parsed),
-    warnings: [],
+    policy,
+    warnings:
+      rawOverrideCount > policy.languages.overrides.length
+        ? ['Ignored invalid or unsupported workbench language rules.']
+        : [],
   };
 }
 

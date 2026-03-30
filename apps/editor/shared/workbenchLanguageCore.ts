@@ -42,17 +42,22 @@ export const WORKBENCH_LANGUAGE_OPTIONS: ReadonlyArray<WorkbenchLanguageOption> 
   { id: WORKBENCH_LANGUAGE_ID_DOTENV, label: 'Dotenv', provider: 'workbench-monarch' },
 ]);
 
-const OPTION_BY_ID = new Map(
-  WORKBENCH_LANGUAGE_OPTIONS.map((option) => [option.id, option] as const)
-);
+const OPTION_BY_KEY = new Map<string, WorkbenchLanguageOption>();
+
+const normalizeText = (value: unknown) => String(value || '').trim();
+
+WORKBENCH_LANGUAGE_OPTIONS.forEach((option) => {
+  OPTION_BY_KEY.set(option.id, option);
+  (option.aliases || []).forEach((alias) => {
+    OPTION_BY_KEY.set(normalizeText(alias), option);
+  });
+});
 
 export type WorkbenchProjectLanguageRule = {
   match: string;
   language: string;
   description?: string;
 };
-
-const normalizeText = (value: unknown) => String(value || '').trim();
 
 const normalizeRuleMatch = (value: unknown) =>
   normalizeText(value).replace(/\\/g, '/').replace(/^\.?\//, '');
@@ -64,6 +69,12 @@ const compileGlobLikePattern = (pattern: string) => {
   for (let index = 0; index < pattern.length; index += 1) {
     const char = pattern[index];
     const nextChar = pattern[index + 1];
+    const nextNextChar = pattern[index + 2];
+    if (char === '*' && nextChar === '*' && nextNextChar === '/') {
+      result += '(?:.*/)?';
+      index += 2;
+      continue;
+    }
     if (char === '*' && nextChar === '*') {
       result += '.*';
       index += 1;
@@ -87,14 +98,14 @@ const normalizePathForMatching = (value: string) =>
   normalizeRuleMatch(value).replace(/\/+/g, '/');
 
 export const getWorkbenchLanguageOption = (languageId: unknown) =>
-  OPTION_BY_ID.get(normalizeText(languageId));
+  OPTION_BY_KEY.get(normalizeText(languageId));
 
 export const normalizeWorkbenchLanguageId = (
   value: unknown,
   fallback = WORKBENCH_LANGUAGE_ID_PLAINTEXT
 ) => {
-  const normalized = normalizeText(value);
-  return OPTION_BY_ID.has(normalized) ? normalized : fallback;
+  const option = getWorkbenchLanguageOption(value);
+  return option?.id || fallback;
 };
 
 export const getWorkbenchLanguageLabel = (languageId: unknown) =>
