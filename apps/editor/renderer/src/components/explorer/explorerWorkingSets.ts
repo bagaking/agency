@@ -11,6 +11,11 @@ export type ExplorerWorkingSetDescriptor = {
   label: string;
   description: string;
   implemented: boolean;
+  panelId: 'tree' | 'changed-files';
+  supportsFilterMenu: boolean;
+  supportedSearchModes: string[];
+  supportedContentScopeKinds: string[];
+  title?: string;
 };
 
 export const EXPLORER_WORKING_SET_DESCRIPTORS: ExplorerWorkingSetDescriptor[] = [
@@ -19,37 +24,59 @@ export const EXPLORER_WORKING_SET_DESCRIPTORS: ExplorerWorkingSetDescriptor[] = 
     label: 'Tree',
     description: 'Canonical project tree',
     implemented: true,
+    panelId: 'tree',
+    supportsFilterMenu: true,
+    supportedSearchModes: ['path', 'content'],
+    supportedContentScopeKinds: ['project', 'folder', 'selection'],
+    title: 'Explorer Tree',
   },
   {
     id: EXPLORER_WORKING_SET_CHANGED_FILES,
     label: 'Changed',
     description: 'Files changed in the active Cell/worktree',
     implemented: true,
+    panelId: 'changed-files',
+    supportsFilterMenu: false,
+    supportedSearchModes: ['content'],
+    supportedContentScopeKinds: ['project'],
+    title: 'Changed Files',
   },
   {
     id: 'semantic-files',
     label: 'Semantic',
     description: 'Future semantic-file working set',
     implemented: false,
+    panelId: 'changed-files',
+    supportsFilterMenu: false,
+    supportedSearchModes: ['content'],
+    supportedContentScopeKinds: ['project'],
   },
   {
     id: 'recent-files',
     label: 'Recent',
     description: 'Future recent-file working set',
     implemented: false,
+    panelId: 'changed-files',
+    supportsFilterMenu: false,
+    supportedSearchModes: ['content'],
+    supportedContentScopeKinds: ['project'],
   },
   {
     id: 'session-relevant-files',
     label: 'Session',
     description: 'Future session-relevant working set',
     implemented: false,
+    panelId: 'changed-files',
+    supportsFilterMenu: false,
+    supportedSearchModes: ['content'],
+    supportedContentScopeKinds: ['project'],
   },
 ];
 
 export const getImplementedExplorerWorkingSets = () =>
   EXPLORER_WORKING_SET_DESCRIPTORS.filter((descriptor) => descriptor.implemented);
 
-const normalizeStringArray = (value: unknown) => {
+const normalizeWorkingSetPresetIds = (value: unknown) => {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -71,9 +98,9 @@ export const resolveExplorerWorkingSetOptions = (
 ) => {
   const implemented = getImplementedExplorerWorkingSets();
   const descriptorById = new Map(implemented.map((descriptor) => [descriptor.id, descriptor]));
-  const normalizedPresetIds = normalizeStringArray(presetIds);
-  const normalizedRequiredIds = normalizeStringArray(requiredIds);
-  if (!normalizedPresetIds.length && !normalizedRequiredIds.length) {
+  const normalizedPresetIds = normalizeWorkingSetPresetIds(presetIds);
+  const normalizedRequiredIds = normalizeWorkingSetPresetIds(requiredIds);
+  if (!normalizedPresetIds.length) {
     return implemented;
   }
 
@@ -93,6 +120,18 @@ export const resolveExplorerWorkingSetOptions = (
   normalizedRequiredIds.forEach(pushDescriptor);
 
   return next.length ? next : implemented;
+};
+
+export const getConfiguredExplorerWorkingSets = (workingSetPresetIds?: unknown) => {
+  return resolveExplorerWorkingSetOptions(workingSetPresetIds, []);
+};
+
+export const getExplorerWorkingSetDescriptor = (value: unknown): ExplorerWorkingSetDescriptor => {
+  const normalizedId = normalizeExplorerWorkingSetId(value);
+  return (
+    EXPLORER_WORKING_SET_DESCRIPTORS.find((descriptor) => descriptor.id === normalizedId) ||
+    EXPLORER_WORKING_SET_DESCRIPTORS[0]
+  );
 };
 
 export const normalizeExplorerWorkingSetId = (value: unknown): ExplorerWorkingSetId => {

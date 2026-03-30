@@ -70,66 +70,81 @@ function normalizeFilterDefaults(value) {
   return normalized;
 }
 
+function normalizeWorkingSetPolicy(value) {
+  const workingSet =
+    value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  return {
+    defaultView:
+      typeof workingSet.defaultView === 'string' && workingSet.defaultView.trim()
+        ? workingSet.defaultView.trim()
+        : DEFAULT_EXPLORER_PROJECT_POLICY.workingSet.defaultView,
+    presets: normalizeStringArray(workingSet.presets),
+  };
+}
+
+function normalizeSearchPolicy(value) {
+  const search = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const content = search.content && typeof search.content === 'object' ? search.content : {};
+  return {
+    defaultMode:
+      search.defaultMode === 'content'
+        ? 'content'
+        : DEFAULT_EXPLORER_PROJECT_POLICY.search.defaultMode,
+    content: {
+      defaultScope:
+        typeof content.defaultScope === 'string' && content.defaultScope.trim()
+          ? content.defaultScope.trim()
+          : DEFAULT_EXPLORER_PROJECT_POLICY.search.content.defaultScope,
+      caseSensitive:
+        typeof content.caseSensitive === 'boolean'
+          ? content.caseSensitive
+          : DEFAULT_EXPLORER_PROJECT_POLICY.search.content.caseSensitive,
+      wholeWord:
+        typeof content.wholeWord === 'boolean'
+          ? content.wholeWord
+          : DEFAULT_EXPLORER_PROJECT_POLICY.search.content.wholeWord,
+      useRegex:
+        typeof content.useRegex === 'boolean'
+          ? content.useRegex
+          : DEFAULT_EXPLORER_PROJECT_POLICY.search.content.useRegex,
+    },
+  };
+}
+
+function normalizeActionPolicy(value) {
+  const actions = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  return {
+    hiddenCommands: normalizeStringArray(actions.hiddenCommands),
+  };
+}
+
+function normalizeResearchPolicy(value) {
+  const research = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  return {
+    enabled:
+      typeof research.enabled === 'boolean'
+        ? research.enabled
+        : DEFAULT_EXPLORER_PROJECT_POLICY.research.enabled,
+    allowMemoCapture:
+      typeof research.allowMemoCapture === 'boolean'
+        ? research.allowMemoCapture
+        : DEFAULT_EXPLORER_PROJECT_POLICY.research.allowMemoCapture,
+    allowMarkdownSave:
+      typeof research.allowMarkdownSave === 'boolean'
+        ? research.allowMarkdownSave
+        : DEFAULT_EXPLORER_PROJECT_POLICY.research.allowMarkdownSave,
+  };
+}
+
 function normalizeExplorerProjectPolicy(value) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-  const search = source.search && typeof source.search === 'object' ? source.search : {};
-  const content = search.content && typeof search.content === 'object' ? search.content : {};
-  const workingSet =
-    source.workingSet && typeof source.workingSet === 'object' ? source.workingSet : {};
-  const actions = source.actions && typeof source.actions === 'object' ? source.actions : {};
-  const research =
-    source.research && typeof source.research === 'object' ? source.research : {};
 
   return {
     filters: normalizeFilterDefaults(source.filters),
-    workingSet: {
-      defaultView:
-        typeof workingSet.defaultView === 'string' && workingSet.defaultView.trim()
-          ? workingSet.defaultView.trim()
-          : DEFAULT_EXPLORER_PROJECT_POLICY.workingSet.defaultView,
-      presets: normalizeStringArray(workingSet.presets),
-    },
-    search: {
-      defaultMode:
-        search.defaultMode === 'content'
-          ? 'content'
-          : DEFAULT_EXPLORER_PROJECT_POLICY.search.defaultMode,
-      content: {
-        defaultScope:
-          typeof content.defaultScope === 'string' && content.defaultScope.trim()
-            ? content.defaultScope.trim()
-            : DEFAULT_EXPLORER_PROJECT_POLICY.search.content.defaultScope,
-        caseSensitive:
-          typeof content.caseSensitive === 'boolean'
-            ? content.caseSensitive
-            : DEFAULT_EXPLORER_PROJECT_POLICY.search.content.caseSensitive,
-        wholeWord:
-          typeof content.wholeWord === 'boolean'
-            ? content.wholeWord
-            : DEFAULT_EXPLORER_PROJECT_POLICY.search.content.wholeWord,
-        useRegex:
-          typeof content.useRegex === 'boolean'
-            ? content.useRegex
-            : DEFAULT_EXPLORER_PROJECT_POLICY.search.content.useRegex,
-      },
-    },
-    actions: {
-      hiddenCommands: normalizeStringArray(actions.hiddenCommands),
-    },
-    research: {
-      enabled:
-        typeof research.enabled === 'boolean'
-          ? research.enabled
-          : DEFAULT_EXPLORER_PROJECT_POLICY.research.enabled,
-      allowMemoCapture:
-        typeof research.allowMemoCapture === 'boolean'
-          ? research.allowMemoCapture
-          : DEFAULT_EXPLORER_PROJECT_POLICY.research.allowMemoCapture,
-      allowMarkdownSave:
-        typeof research.allowMarkdownSave === 'boolean'
-          ? research.allowMarkdownSave
-          : DEFAULT_EXPLORER_PROJECT_POLICY.research.allowMarkdownSave,
-    },
+    workingSet: normalizeWorkingSetPolicy(source.workingSet),
+    search: normalizeSearchPolicy(source.search),
+    actions: normalizeActionPolicy(source.actions),
+    research: normalizeResearchPolicy(source.research),
   };
 }
 

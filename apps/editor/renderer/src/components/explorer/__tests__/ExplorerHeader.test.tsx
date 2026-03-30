@@ -10,7 +10,7 @@ test('ExplorerHeader uses canonical cell naming for scope selection', () => {
     <ExplorerHeader
       activeRootLabel="main"
       activeFilterCount={0}
-      activeFilterSummary=""
+      activeFilterSummary="Changes only"
       onJumpToAgents={() => undefined}
       onNewFile={() => undefined}
       onNewFolder={() => undefined}
@@ -38,4 +38,39 @@ test('ExplorerHeader uses canonical cell naming for scope selection', () => {
   assert.match(html, /aria-label="Active cell"/);
   assert.match(html, /Cell: main/);
   assert.match(html, /Cell: api/);
+});
+
+test('ExplorerHeader hides unsupported filter affordances for non-tree surfaces', () => {
+  const html = renderToStaticMarkup(
+    <ExplorerHeader
+      activeRootLabel="main"
+      activeFilterCount={0}
+      activeFilterSummary=""
+      headerCommands={[]}
+      hasCells={false}
+      cells={[]}
+      selectedId=""
+      onSelectCell={() => undefined}
+      workingSetOptions={[]}
+      activeWorkingSetViewId="changed-files"
+      onWorkingSetChange={() => undefined}
+      searchMode="content"
+      searchModeOptions={[{ id: 'content', label: 'Content', placeholder: 'Search file contents…' }]}
+      onSearchModeChange={() => undefined}
+      searchQuery=""
+      onSearchChange={() => undefined}
+      onClearSearch={() => undefined}
+      hasActiveFilters={false}
+      showFilterMenuButton={false}
+      filterMenuOpen={false}
+      filterMenuId="explorer-filters"
+      filterMenuButtonRef={{ current: null }}
+      onToggleFilterMenu={() => undefined}
+      searchTruncated={false}
+    />
+  );
+
+  assert.doesNotMatch(html, /Explorer filters/);
+  assert.doesNotMatch(html, /Changes only/);
+  assert.match(html, /Search file contents…/);
 });

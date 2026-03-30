@@ -298,7 +298,12 @@ Current content-search guardrails:
 Current model:
 - canonical tree remains the default working surface;
 - `Changed` is the first registered working-set view;
-- future members (`semantic`, `recent`, `session-relevant`) already have reserved ids in the registry, even if they are not yet implemented.
+- future members (`semantic`, `recent`, `session-relevant`) already have reserved ids in the registry, even if they are not yet implemented;
+- each working-set descriptor now declares its own supported search modes, content-search scope kinds, and whether tree-filter affordances remain valid.
+
+Practical boundary:
+- non-tree working-sets do not inherit tree-only selection/folder search scope implicitly;
+- `Changed Files` currently allows project-wide content search only until it gains its own explicit working-set-local scope model.
 
 ### 5. Project-level Explorer policy
 
@@ -307,7 +312,8 @@ Explorer now loads project defaults from `.agency/explorer.yaml` / `.agency/expl
 Current policy surface:
 - default filter descriptor state;
 - default working-set view;
-- working-set option presets / ordering;
+- working-set preset ordering;
+- working-set preset ordering;
 - default search mode;
 - default content-search scope + flags;
 - command visibility policy;
@@ -319,6 +325,11 @@ Override precedence:
 3. user-local persisted UI state
 
 The project policy currently governs defaults, working-set option exposure/order, and command visibility. It still does not define saved named search queries. That is deliberate: saved queries should wait until there is a stronger product contract for search presets.
+
+What is active now:
+- `workingSet.presets` can reorder registered working-set entries without hard-coding a new branch in `ProjectExplorerSidebar`;
+- `actions.hiddenCommands` can remove registered header/context-menu commands without mutating the command registry itself;
+- project policy still cannot redefine file-intent behavior or turn the research lane into a general browser surface.
 
 ### 6. Bounded research lane
 
@@ -342,7 +353,8 @@ Current validation baseline:
 - renderer typecheck for the new platform seams;
 - renderer unit coverage for descriptor normalization, command visibility, and existing Explorer row/footer semantics;
 - host-side tests for project policy loading plus content search / replace;
-- e2e regression for switching between canonical tree and the `Changed` working-set view.
+- e2e regression for switching between canonical tree and the `Changed` working-set view;
+- e2e regression for the `Changed` working-set switching search layering to content-search and hiding tree-only filters.
 
 Recommended manual checks before shipping larger follow-up changes:
 - switch between `Tree` and `Changed` views and confirm footer workflow behavior remains stable;

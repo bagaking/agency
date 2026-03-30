@@ -437,6 +437,31 @@ test('explorer promotes changed files into a registered working-set view', async
   }
 });
 
+test('changed working-set switches Explorer into content-search layering', async () => {
+  const electronApp = await launchTestApp();
+
+  try {
+    const window = await getFirstWindow(electronApp);
+    await openFirstCellInHomeView(window);
+    await openExplorer(window);
+
+    await window.getByRole('button', { name: 'Changed', exact: true }).click();
+
+    await expect(window.getByRole('button', { name: 'Content', exact: true })).toBeVisible();
+    await expect(window.getByRole('button', { name: 'Paths', exact: true })).toHaveCount(0);
+    const searchInput = window.getByLabel('Search file contents…');
+    await expect(searchInput).toBeVisible();
+    await expect(window.getByTestId('explorer-filter-toggle')).toHaveCount(0);
+
+    await searchInput.fill('hello');
+    await expect(window.getByRole('button', { name: 'Project', exact: true })).toBeVisible();
+    await expect(window.getByRole('button', { name: 'Folder', exact: true })).toHaveCount(0);
+    await expect(window.getByRole('button', { name: 'Selection', exact: true })).toHaveCount(0);
+  } finally {
+    await electronApp.close();
+  }
+});
+
 test('explorer selection actions use an explicit hierarchy popover', async () => {
   const electronApp = await launchTestApp();
 

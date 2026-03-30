@@ -122,6 +122,57 @@ const buildDefaultsFromPolicy = (projectPolicy?: Record<string, any> | null) => 
   };
 };
 
+const buildLiveCapabilityState = ({
+  showHidden,
+  showIgnored,
+  showChangesOnly,
+  statusFilters,
+  semanticFilters,
+  workingSetViewId,
+  searchMode,
+  contentScopeKind,
+  contentCaseSensitive,
+  contentWholeWord,
+  contentUseRegex,
+}: {
+  showHidden: boolean;
+  showIgnored: boolean;
+  showChangesOnly: boolean;
+  statusFilters: string[];
+  semanticFilters: string[];
+  workingSetViewId: string;
+  searchMode: string;
+  contentScopeKind: string;
+  contentCaseSensitive: boolean;
+  contentWholeWord: boolean;
+  contentUseRegex: boolean;
+}): PersistedExplorerCapabilityState => ({
+  filters: {
+    descriptorStateById: normalizeExplorerFilterDescriptorState(
+      buildDescriptorStateFromLegacyPreferences({
+        showHidden,
+        showIgnored,
+        showChangesOnly,
+        statusFilters,
+        semanticFilters,
+      })
+    ),
+  },
+  workingSetViewId: normalizeExplorerWorkingSetId(workingSetViewId),
+  searchMode: normalizeExplorerSearchMode(searchMode),
+  contentSearch: {
+    scopeKind: normalizeExplorerContentScopeKind(contentScopeKind),
+    caseSensitive: Boolean(contentCaseSensitive),
+    wholeWord: Boolean(contentWholeWord),
+    useRegex: Boolean(contentUseRegex),
+  },
+});
+
+const areCapabilityStatesEqual = (
+  left?: PersistedExplorerCapabilityState | null,
+  right?: PersistedExplorerCapabilityState | null
+) => JSON.stringify(left || null) === JSON.stringify(right || null);
+
 export function useExplorerCapabilityPreferences({
   stateKey,
   projectPolicy,
@@ -151,10 +202,43 @@ export function useExplorerCapabilityPreferences({
   const restoredRef = useRef(false);
   const persistedCapabilityByKeyRef = useRef<Record<string, PersistedExplorerCapabilityState>>({});
   const persistedLegacyFilterByKeyRef = useRef<Record<string, any>>({});
+  const lastAppliedStateRef = useRef<PersistedExplorerCapabilityState | null>(null);
+  const currentCapabilityStateRef = useRef<PersistedExplorerCapabilityState | null>(null);
+  const previousStateKeyRef = useRef('');
   const defaults = useMemo(() => buildDefaultsFromPolicy(projectPolicy), [projectPolicy]);
 
   useEffect(() => {
+    currentCapabilityStateRef.current = buildLiveCapabilityState({
+      showHidden,
+      showIgnored,
+      showChangesOnly,
+      statusFilters,
+      semanticFilters,
+      workingSetViewId,
+      searchMode,
+      contentScopeKind,
+      contentCaseSensitive,
+      contentWholeWord,
+      contentUseRegex,
+    });
+  }, [
+    contentCaseSensitive,
+    contentScopeKind,
+    contentUseRegex,
+    contentWholeWord,
+    searchMode,
+    semanticFilters,
+    showChangesOnly,
+    showHidden,
+    showIgnored,
+    statusFilters,
+    workingSetViewId,
+  ]);
+
+  useEffect(() => {
     restoredRef.current = false;
+    const isStateKeyChange = previousStateKeyRef.current !== stateKey;
+    previousStateKeyRef.current = stateKey;
 
     const applyState = (nextState: PersistedExplorerCapabilityState) => {
       const legacyFilters = buildLegacyExplorerFilterPreferences(
@@ -171,9 +255,26 @@ export function useExplorerCapabilityPreferences({
       setContentCaseSensitive(Boolean(nextState.contentSearch.caseSensitive));
       setContentWholeWord(Boolean(nextState.contentSearch.wholeWord));
       setContentUseRegex(Boolean(nextState.contentSearch.useRegex));
+      lastAppliedStateRef.current = nextState;
     };
 
-    applyState(defaults);
+    const knownPersistedCapability = Boolean(
+      stateKey &&
+        Object.prototype.hasOwnProperty.call(persistedCapabilityByKeyRef.current, stateKey)
+    );
+    const knownPersistedLegacy = Boolean(
+      stateKey &&
+        Object.prototype.hasOwnProperty.call(persistedLegacyFilterByKeyRef.current, stateKey)
+    );
+    const canReapplyDefaults =
+      isStateKeyChange ||
+      (!knownPersistedCapability &&
+        !knownPersistedLegacy &&
+        areCapabilityStatesEqual(currentCapabilityStateRef.current, lastAppliedStateRef.current));
+
+    if (canReapplyDefaults) {
+      applyState(defaults);
+    }
 
     if (!stateKey) {
       restoredRef.current = true;
@@ -214,12 +315,23 @@ export function useExplorerCapabilityPreferences({
         persistedCapabilityByKeyRef.current = normalizedCapabilityByKey;
         persistedLegacyFilterByKeyRef.current = rawLegacyFilterByKey as Record<string, any>;
 
-        const restored = normalizePersistedCapabilityState(
-          rawCapabilityByKey[stateKey],
-          defaults,
-          rawLegacyFilterByKey[stateKey]
+        const hasPersistedCapability = Object.prototype.hasOwnProperty.call(
+          rawCapabilityByKey,
+          stateKey
         );
-        applyState(restored);
+        const hasPersistedLegacyFilters = Object.prototype.hasOwnProperty.call(
+          rawLegacyFilterByKey,
+          stateKey
+        );
+
+        if (hasPersistedCapability || hasPersistedLegacyFilters) {
+          const restored = normalizePersistedCapabilityState(
+            rawCapabilityByKey[stateKey],
+            defaults,
+            rawLegacyFilterByKey[stateKey]
+          );
+          applyState(restored);
+        }
       } finally {
         restoredRef.current = true;
       }
@@ -263,15 +375,8 @@ export function useExplorerCapabilityPreferences({
       );
       const nextCapabilityState = normalizePersistedCapabilityState(
         {
+          ...currentCapabilityStateRef.current,
           filters: { descriptorStateById },
-          workingSetViewId,
-          searchMode,
-          contentSearch: {
-            scopeKind: contentScopeKind,
-            caseSensitive: contentCaseSensitive,
-            wholeWord: contentWholeWord,
-            useRegex: contentUseRegex,
-          },
         },
         defaults
       );

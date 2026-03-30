@@ -9,16 +9,24 @@ import {
   EXPLORER_FILTER_VISIBILITY_CHANGES_ONLY,
   getDefaultExplorerFilterDescriptorState,
 } from '../explorerFilterDescriptors';
-import { getExplorerCommandsForSurface } from '../explorerCommands';
+import {
+  getExplorerCommandsForSurface,
+  resolveExplorerCommandsForSurface,
+} from '../explorerCommands';
 import {
   EXPLORER_SEARCH_MODE_CONTENT,
   EXPLORER_SEARCH_MODE_PATH,
+  getExplorerContentScopeOptions,
+  getExplorerSearchModeOptions,
+  normalizeExplorerContentScopeKindForSupportedScopes,
   normalizeExplorerContentScopeKind,
   normalizeExplorerSearchMode,
+  normalizeExplorerSearchModeForSupportedModes,
 } from '../explorerSearchModel';
 import {
   EXPLORER_WORKING_SET_CHANGED_FILES,
   EXPLORER_WORKING_SET_TREE,
+  getExplorerWorkingSetDescriptor,
   normalizeExplorerWorkingSetId,
   resolveExplorerWorkingSetOptions,
 } from '../explorerWorkingSets';
@@ -65,17 +73,53 @@ test('command registry hides research actions unless the lane is enabled', () =>
   );
 });
 
-test('command registry applies project-level hidden command ids', () => {
-  const commands = getExplorerCommandsForSurface('header', {
-    selectionTargets: [],
-    canPaste: false,
-    hasResearchLane: true,
-    hiddenCommandIds: ['explorer.refresh', 'explorer.researchLane'],
-    actions: {},
-  });
+test('project policy can hide registered commands without changing registry order', () => {
+  const commands = resolveExplorerCommandsForSurface(
+    'header',
+    {
+      selectionTargets: [],
+      canPaste: false,
+      hasResearchLane: true,
+      actions: {},
+    },
+    {
+      hiddenCommandIds: ['explorer.refresh', 'explorer.researchLane'],
+    }
+  );
 
   assert.equal(commands.some((command) => command.id === 'explorer.refresh'), false);
   assert.equal(commands.some((command) => command.id === 'explorer.researchLane'), false);
+  assert.equal(commands.some((command) => command.id === 'explorer.newFile'), true);
+});
+
+test('changed-files working set advertises content search only', () => {
+  const changedFiles = getExplorerWorkingSetDescriptor(EXPLORER_WORKING_SET_CHANGED_FILES);
+  const supportedModes = getExplorerSearchModeOptions(changedFiles.supportedSearchModes);
+  const supportedScopes = getExplorerContentScopeOptions(changedFiles.supportedContentScopeKinds);
+
+  assert.equal(changedFiles.supportsFilterMenu, false);
+  assert.deepEqual(
+    supportedModes.map((option) => option.id),
+    [EXPLORER_SEARCH_MODE_CONTENT]
+  );
+  assert.deepEqual(
+    supportedScopes.map((option) => option.id),
+    ['project']
+  );
+  assert.equal(
+    normalizeExplorerSearchModeForSupportedModes(
+      EXPLORER_SEARCH_MODE_PATH,
+      changedFiles.supportedSearchModes
+    ),
+    EXPLORER_SEARCH_MODE_CONTENT
+  );
+  assert.equal(
+    normalizeExplorerContentScopeKindForSupportedScopes(
+      'selection',
+      changedFiles.supportedContentScopeKinds
+    ),
+    'project'
+  );
 });
 
 test('platform normalization falls back to safe built-in defaults', () => {
@@ -89,6 +133,14 @@ test('platform normalization falls back to safe built-in defaults', () => {
 
 test('working-set presets can narrow and order visible working-set options', () => {
   const workingSets = resolveExplorerWorkingSetOptions(['changed-files'], []);
+  assert.deepEqual(
+    workingSets.map((entry) => entry.id),
+    [EXPLORER_WORKING_SET_TREE, EXPLORER_WORKING_SET_CHANGED_FILES]
+  );
+});
+
+test('working-set resolution keeps the full implemented baseline when no presets exist', () => {
+  const workingSets = resolveExplorerWorkingSetOptions([], [EXPLORER_WORKING_SET_TREE]);
   assert.deepEqual(
     workingSets.map((entry) => entry.id),
     [EXPLORER_WORKING_SET_TREE, EXPLORER_WORKING_SET_CHANGED_FILES]

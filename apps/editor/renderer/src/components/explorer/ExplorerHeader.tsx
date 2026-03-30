@@ -30,15 +30,18 @@ export function ExplorerHeader({
   onSearchChange,
   onClearSearch,
   hasActiveFilters,
+  showFilterMenuButton = true,
   filterMenuOpen,
   filterMenuId,
   filterMenuButtonRef,
   onToggleFilterMenu,
   searchTruncated,
 }: any) {
-  const contextBits = [activeFilterSummary || ''].filter(Boolean);
-  const searchPlaceholder =
-    searchMode === 'content' ? 'Search file contents…' : 'Search files…';
+  const contextBits = showFilterMenuButton ? [activeFilterSummary || ''].filter(Boolean) : [];
+  const searchModeDescriptors = Array.isArray(searchModeOptions) ? searchModeOptions : [];
+  const activeSearchModeDescriptor =
+    searchModeDescriptors.find((option) => option.id === searchMode) || searchModeDescriptors[0];
+  const searchPlaceholder = activeSearchModeDescriptor?.placeholder || 'Search files…';
 
   return (
     <header data-testid="explorer-header" className="shrink-0 space-y-3 px-4 py-3 border-b border-border/40 bg-sidebar text-sidebar-foreground">
@@ -119,22 +122,24 @@ export function ExplorerHeader({
       ) : null}
 
       <div className="flex items-center gap-1.5">
-        <div className="inline-flex rounded-full border border-border/40 bg-muted/10 p-0.5">
-          {(Array.isArray(searchModeOptions) ? searchModeOptions : []).map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => onSearchModeChange?.(option.id)}
-              className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
-                searchMode === option.id
-                  ? 'bg-primary/15 text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        {searchModeDescriptors.length ? (
+          <div className="inline-flex rounded-full border border-border/40 bg-muted/10 p-0.5">
+            {searchModeDescriptors.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => onSearchModeChange?.(option.id)}
+                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
+                  searchMode === option.id
+                    ? 'bg-primary/15 text-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div className="relative flex-1 group">
           <Search size={12} strokeWidth={2} aria-hidden="true" className="absolute left-2.5 top-2 text-muted-foreground/30 group-focus-within:text-primary transition-colors" />
           <input
@@ -157,28 +162,30 @@ export function ExplorerHeader({
             </button>
           )}
         </div>
-        <IconButton
-          ref={filterMenuButtonRef}
-          label="Explorer filters"
-          data-testid="explorer-filter-toggle"
-          onClick={onToggleFilterMenu}
-          aria-controls={filterMenuOpen ? filterMenuId : undefined}
-          aria-expanded={filterMenuOpen}
-          aria-haspopup="dialog"
-          aria-pressed={hasActiveFilters}
-          className={`h-7 w-7 rounded-full border transition-colors ${
-            hasActiveFilters ? 'border-primary/40 bg-primary/10 text-primary active-tab-glow' : 'border-border/40 text-muted-foreground/50 hover:border-border hover:text-foreground'
-          }`}
-        >
-          <span className="relative inline-flex">
-            <Filter size={12} strokeWidth={1.5} aria-hidden="true" />
-            {activeFilterCount > 0 ? (
-              <span className="absolute -right-2 -top-2 min-w-[0.95rem] rounded-full bg-primary px-1 text-[8px] font-black leading-4 text-primary-foreground shadow-[0_0_0_2px_rgba(31,35,46,1)]">
-                {activeFilterCount}
-              </span>
-            ) : null}
-          </span>
-        </IconButton>
+        {showFilterMenuButton ? (
+          <IconButton
+            ref={filterMenuButtonRef}
+            label="Explorer filters"
+            data-testid="explorer-filter-toggle"
+            onClick={onToggleFilterMenu}
+            aria-controls={filterMenuOpen ? filterMenuId : undefined}
+            aria-expanded={filterMenuOpen}
+            aria-haspopup="dialog"
+            aria-pressed={hasActiveFilters}
+            className={`h-7 w-7 rounded-full border transition-colors ${
+              hasActiveFilters ? 'border-primary/40 bg-primary/10 text-primary active-tab-glow' : 'border-border/40 text-muted-foreground/50 hover:border-border hover:text-foreground'
+            }`}
+          >
+            <span className="relative inline-flex">
+              <Filter size={12} strokeWidth={1.5} aria-hidden="true" />
+              {activeFilterCount > 0 ? (
+                <span className="absolute -right-2 -top-2 min-w-[0.95rem] rounded-full bg-primary px-1 text-[8px] font-black leading-4 text-primary-foreground shadow-[0_0_0_2px_rgba(31,35,46,1)]">
+                  {activeFilterCount}
+                </span>
+              ) : null}
+            </span>
+          </IconButton>
+        ) : null}
       </div>
 
       {searchTruncated && (

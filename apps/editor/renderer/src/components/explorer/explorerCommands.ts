@@ -235,6 +235,33 @@ export const getExplorerCommandsForSurface = (
     onSelect: () => command.run(context),
   }));
 
+const normalizeCommandIdList = (value: unknown) => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const seen = new Set<string>();
+  return value
+    .map((entry) => String(entry || '').trim())
+    .filter((entry) => {
+      if (!entry || seen.has(entry)) {
+        return false;
+      }
+      seen.add(entry);
+      return true;
+    });
+};
+
+export const resolveExplorerCommandsForSurface = (
+  surface: ExplorerCommandSurface,
+  context: ExplorerCommandContext,
+  { hiddenCommandIds = [] as string[] } = {}
+) => {
+  const hiddenIdSet = new Set(normalizeCommandIdList(hiddenCommandIds));
+  return getExplorerCommandsForSurface(surface, context).filter(
+    (command) => !hiddenIdSet.has(command.id)
+  );
+};
+
 export const EXPLORER_CONTEXT_MENU_GROUP_ORDER: ExplorerCommandGroup[] = [
   'create',
   'mutate',
