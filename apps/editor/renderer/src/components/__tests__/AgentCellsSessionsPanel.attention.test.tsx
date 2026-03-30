@@ -91,63 +91,66 @@ test('AgentCellsSessionsPanel keeps attention inline instead of rendering a queu
     originalConsoleError(...args);
   };
 
-  const html = renderToStaticMarkup(
-    <ModalProvider>
-      <AttentionLayerProvider value={attentionValue as any}>
-        <AgentCellsSessionsPanel
-          cells={[
-            {
-              id: 'cell-a',
-              name: 'alpha',
-              state: 'active',
-              worktreePath: '/repo/alpha',
-            },
-          ]}
-          selectedId="cell-a"
-          projectReady={true}
-          sessionsByCellId={{
-            'cell-a': [
+  try {
+    const html = renderToStaticMarkup(
+      <ModalProvider>
+        <AttentionLayerProvider value={attentionValue as any}>
+          <AgentCellsSessionsPanel
+            cells={[
               {
-                id: 'session-main',
-                name: 'Main',
-                status: 'active',
+                id: 'cell-a',
+                name: 'alpha',
+                state: 'active',
+                worktreePath: '/repo/alpha',
               },
-            ],
-          }}
-          activeSessionByCellId={{
-            'cell-a': 'session-main',
-          }}
-          sessionActivityByKey={{
-            'cell-a:session-main': Date.now(),
-          }}
-          recentProjects={[]}
-          terminusProfiles={[]}
-          onSelect={() => undefined}
-          onOpenExplorer={() => undefined}
-          onSelectProject={() => undefined}
-          onOpenRecentProject={() => undefined}
-          onSelectSession={() => undefined}
-          onCreateSession={async () => null}
-          onDispatchCommand={() => undefined}
-          onCloseSession={() => undefined}
-          onDetachSession={() => undefined}
-          onRenameSession={() => undefined}
-          onUpdateSessionAvatar={() => undefined}
-          onMoveSessionNode={async () => undefined}
-          onContinueSessionOnMobile={() => undefined}
-          onTrackPendingHarnessRun={() => undefined}
-          onClearTrackedHarnessRun={() => undefined}
-          onSettleTrackedHarnessRun={async () => false}
-          onFocusSessionInUi={() => undefined}
-          onConfigureProfile={() => undefined}
-        />
-      </AttentionLayerProvider>
-    </ModalProvider>
-  );
-  console.error = originalConsoleError;
+            ]}
+            selectedId="cell-a"
+            projectReady={true}
+            sessionsByCellId={{
+              'cell-a': [
+                {
+                  id: 'session-main',
+                  name: 'Main',
+                  status: 'active',
+                },
+              ],
+            }}
+            activeSessionByCellId={{
+              'cell-a': 'session-main',
+            }}
+            sessionActivityByKey={{
+              'cell-a:session-main': Date.now(),
+            }}
+            recentProjects={[]}
+            terminusProfiles={[]}
+            onSelect={() => undefined}
+            onOpenExplorer={() => undefined}
+            onSelectProject={() => undefined}
+            onOpenRecentProject={() => undefined}
+            onSelectSession={() => undefined}
+            onCreateSession={async () => null}
+            onDispatchCommand={() => undefined}
+            onCloseSession={() => undefined}
+            onDetachSession={() => undefined}
+            onRenameSession={() => undefined}
+            onUpdateSessionAvatar={() => undefined}
+            onMoveSessionNode={async () => undefined}
+            onContinueSessionOnMobile={() => undefined}
+            onTrackPendingHarnessRun={() => undefined}
+            onClearTrackedHarnessRun={() => undefined}
+            onSettleTrackedHarnessRun={async () => false}
+            onFocusSessionInUi={() => undefined}
+            onConfigureProfile={() => undefined}
+          />
+        </AttentionLayerProvider>
+      </ModalProvider>
+    );
 
-  assert.doesNotMatch(html, /data-attention-queue="true"/);
-  assert.match(html, /Cell Action Failed/);
-  assert.match(html, /Session needs intervention\./);
-  assert.match(html, /data-testid="session-tab-session-main"/);
+    assert.doesNotMatch(html, /data-attention-queue="true"/);
+    assert.match(html, /Cell Action Failed/);
+    assert.match(html, /Session needs intervention\./);
+    assert.match(html, /data-testid="session-tab-session-main"/);
+  } finally {
+    console.error = originalConsoleError;
+  }
 });

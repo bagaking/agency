@@ -350,8 +350,8 @@ make editor-dev
 - In the Session Map dock, confirm the commander/backend avatar is visible, clicking it opens a separate `Briefing` panel, and the panel answers using current session/run evidence rather than generic chat filler.
 - Close the `Briefing` panel and confirm the underlying `Ops` panel is unchanged; inspect the active Harness timeline there and confirm a running run can be cancelled or a failed/cancelled run can be retried from the panel.
 - Trigger a session error and confirm it appears in `Command Ops`, does not auto-dismiss on a timer, and can be copied before explicit dismissal.
-- Produce new output in a non-active session and confirm Agent Cells inline cell/session markers, Session Map, and the status bar all surface `Unread` with consistent wording; click any of them and confirm Agency jumps back to that session.
-- Trigger `Smart Fork [by commander]` or another `Create Agent` run and confirm Agent Cells keeps the list primary while exposing inline `Running`, the status bar shows `Running`, and Session Map owns the queue-style triage path.
+- Produce new output in a non-active session and confirm Agent Cells inline cell/session markers, Session Map `Ops`, and the status bar all surface `Unread` with consistent wording; click any of them and confirm Agency jumps back to that session.
+- Trigger `Smart Fork [by commander]` or another `Create Agent` run and confirm Agent Cells keeps the list primary while exposing inline `Running`, the status bar shows `Running`, and Session Map `Ops` owns the queue-style triage path.
 - Trigger a failed child-execution run and confirm Agent Cells inline markers, Session Map `Priority Queue`, and the status bar all surface the same `Failed` attention without introducing a separate Agent Cells queue card.
 - Finish a child-execution run that creates a child session, do not revisit that child, and confirm Agency surfaces `Review` / return-required attention until the child session is visited.
 - Open a second Agency window, create a higher-priority failure there, and confirm the current window's switcher surfaces that other window's primary attention state before you focus it.

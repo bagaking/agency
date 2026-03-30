@@ -216,13 +216,26 @@ function resolveAttentionRowClass(item: AttentionItem | null | undefined): strin
   }
 }
 
-function buildAttentionActionLabel(item: AttentionItem | null | undefined, count = 1): string {
+function buildAttentionActionLabel({
+  item,
+  ownerLabel = '',
+  count = 1,
+}: {
+  item: AttentionItem | null | undefined;
+  ownerLabel?: string;
+  count?: number;
+}): string {
   if (!item) {
     return 'View attention';
   }
+  const normalizedOwnerLabel = String(ownerLabel || '').trim();
   const normalizedCount = Number.isFinite(count) ? Math.max(1, Math.floor(count)) : 1;
   const countLabel = normalizedCount > 1 ? `${normalizedCount} items` : '1 item';
-  return `${item.label}: ${countLabel}. ${item.detail}`;
+  const baseLabel =
+    normalizedOwnerLabel && normalizedOwnerLabel !== item.label
+      ? `${normalizedOwnerLabel} attention: ${item.label}`
+      : item.label;
+  return `${baseLabel}. ${countLabel}. ${item.detail}`;
 }
 
 function SessionTreeGuides({
@@ -907,10 +920,11 @@ export function AgentCellsSessionsPanel({
                               attention.jumpToAttention(cellAttention.strongest);
                             }}
                             className="shrink-0"
-                            aria-label={buildAttentionActionLabel(
-                              cellAttention.strongest,
-                              cellAttention.count
-                            )}
+                            aria-label={buildAttentionActionLabel({
+                              item: cellAttention.strongest,
+                              ownerLabel: cell.name || cell.id,
+                              count: cellAttention.count,
+                            })}
                             title={cellAttention.strongest.detail}
                           >
                             <AttentionPill
@@ -1228,7 +1242,10 @@ export function AgentCellsSessionsPanel({
                                           attention.jumpToAttention(sessionAttention);
                                         }}
                                         className="shrink-0"
-                                        aria-label={buildAttentionActionLabel(sessionAttention)}
+                                        aria-label={buildAttentionActionLabel({
+                                          item: sessionAttention,
+                                          ownerLabel: session.name || session.id,
+                                        })}
                                         title={sessionAttention.detail}
                                       >
                                         <AttentionPill

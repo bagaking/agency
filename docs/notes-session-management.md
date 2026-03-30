@@ -239,9 +239,9 @@ cellColors:
 2. 切换到其他 session，再切回；若输出没有变化，idle 不应被刷新。
 3. 在当前 session 输出少量文本（低于阈值，例如 `echo ok`），idle 不应刷新。
 4. 输出超过阈值的文本（例如 `python - <<'PY'\nprint('x'*50)\nPY`），idle 应刷新。
-5. 在一个后台 session 产生新输出后，确认 Agent Cells 的 cell/session 内联 attention、Session Map token / `Priority Queue`、Status Bar 主 attention 使用同一套 `Unread` 语义，并且点击任一入口会回到对应 session。
-6. 触发一个 `Create Agent` 运行中的 child execution，确认 Agent Cells 的 inline marker、Status Bar `Next`、Session Map `Priority Queue` 都显示 `Running`，且点击后会打开对应 session/run 上下文而不是把 run 埋在背景里。
-7. 制造一次失败 run，确认 Status Bar、Agent Cells inline marker、Session Map `Priority Queue` 都显示同一条 `Failed` attention；它不会像 toast 一样自动消失，并且点击后能回到相关对象。
+5. 在一个后台 session 产生新输出后，确认 Agent Cells 的 cell/session 内联 attention、Session Map token / `Ops -> Priority Queue`、Status Bar 主 attention 使用同一套 `Unread` 语义，并且点击任一入口会回到对应 session。
+6. 触发一个 `Create Agent` 运行中的 child execution，确认 Agent Cells 的 inline marker、Status Bar `Next`、Session Map `Ops -> Priority Queue` 都显示 `Running`，且点击后会打开对应 session/run 上下文而不是把 run 埋在背景里。
+7. 制造一次失败 run，确认 Status Bar、Agent Cells inline marker、Session Map `Ops -> Priority Queue` 都显示同一条 `Failed` attention；它不会像 toast 一样自动消失，并且点击后能回到相关对象。
 8. 在另一个窗口制造更高优先级的 attention，确认当前窗口的 window switcher 能显示该窗口的 primary attention，并可直接聚焦过去。
 
 ## 实现提示
