@@ -120,6 +120,8 @@ It is the shared policy layer above local implementation details.
    active tabs periodically/stat-on-focus check disk mtime, auto-reload when no unsaved edits exist, and surface a reload warning when local unsaved edits conflict with newer disk content.
 17. Explorer sidebar now includes a companion changed-files panel above the Agent footer:
    this panel mirrors Agent Cells file-dashboard row/tree affordances (open/reveal/preview + drag payload), remains changes-only (no scope toggle), and preserves cross-view visual continuity.
+18. Explorer research lane now stays inside existing Agency seams:
+   URL reader previews save through the workbench file-writing path, memo citations reuse HIL memo artifacts, and saved Markdown files hand back into standard Explorer/workbench open/reveal flows instead of creating a browser-local intake path.
 
 ## Process-Boundary Compatibility Plan (Locked)
 - Keep `FileIntentPayload`/`FileIntentResult` as the stable wire format across renderer, tool, CLI, and future helper process callers.

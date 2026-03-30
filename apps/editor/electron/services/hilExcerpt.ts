@@ -44,7 +44,7 @@ function isPrivateHost(hostname) {
   return false;
 }
 
-function normalizeUrl(input) {
+function normalizeExcerptUrl(input) {
   const value = String(input || '').trim();
   if (!value) {
     throw new Error('URL is required.');
@@ -135,7 +135,7 @@ async function fetchHtml(url) {
 }
 
 async function fetchHilExcerpt({ url }) {
-  const normalizedUrl = normalizeUrl(url);
+  const normalizedUrl = normalizeExcerptUrl(url);
   const html = await fetchHtml(normalizedUrl);
   const dom = new JSDOM(html, { url: normalizedUrl });
   const reader = new Readability(dom.window.document);
@@ -167,4 +167,5 @@ async function fetchHilExcerpt({ url }) {
 export {
   fetchHilExcerpt,
   EXCERPT_MAX_TEXT_CHARS,
+  normalizeExcerptUrl,
 };

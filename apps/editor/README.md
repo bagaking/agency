@@ -40,7 +40,7 @@
 - Explorer supports copy/cut/paste via context menu and keyboard shortcuts.
 - Explorer can paste files or screenshots from the system clipboard, applying `-1` style conflict suffixes.
 - Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
-- Explorer includes a bounded research lane for URL inspection, Markdown save, memo citation, and explicit system-browser escape.
+- Explorer includes a bounded research lane for public URL inspection, reader preview, workspace Markdown save, memo citation with optional saved-file references, and an explicit system-browser escape hatch.
 - The workbench supports multi-tab previews, quick open, diff/blame toggles, media previews, and active-tab disk-change auto sync (auto-reload when clean, warning + reload when dirty).
 
 ## Unified File Interaction Direction
@@ -54,6 +54,7 @@
 - Explorer capabilities are being packaged as tool-capable interfaces so agent workflows can invoke the same safe path/permission/conflict logic.
 - Tool-invoked file intents enforce caller metadata (`callerId`, `traceId`) and capability scopes (`file.read` / `file.write`).
 - Agent semantic files (for example `Agency.md`, Spark conventions, and project-defined rules) are treated as first-class discoverability targets.
+- Research lane stays subordinate to Explorer/file workflow: reader previews save through the existing workbench write path, citations reuse HIL memo artifacts, and full browsing still escapes to the system browser.
 - Current authoritative design and rollout:
   - `openspec/changes/archive/2026-02-10-add-agent-centric-file-interaction-system/`
   - Follow-up evolution (delivered): `openspec/changes/archive/2026-02-16-update-agent-cells-embedded-explorer/`
@@ -304,6 +305,10 @@ make editor-dev
 - Create, rename, delete, and drag/drop a file or folder from the Explorer view.
 - Select a file in Explorer and confirm it opens in a workbench tab with line numbers and syntax highlighting.
 - Click each segment in the workbench breadcrumb and confirm Explorer expands ancestors and focuses the matching node (no Finder popup).
+- Open `Research Lane` from Explorer, inspect a public URL, and confirm the lane shows a reader preview instead of a tabbed browser.
+- Save a research capture as Markdown and confirm the file stays inside the project, then use the lane's `Open Saved` / `Reveal` actions to land back in Workbench/Explorer.
+- Create a memo citation from the same research capture and confirm it enters the existing HIL/Memo flow rather than a research-only dispatch path.
+- Try a localhost/private URL and confirm reader inspect is rejected while the explicit system-browser escape hatch remains visible.
 - Double-click a file to pin its tab, drag tabs to reorder, and close tabs from the tab strip menu.
 - Use Cmd/Ctrl+P to quick-open a file and confirm it opens as a preview tab.
 - Toggle diff and blame on a modified file and confirm decorations/hover metadata appear.

@@ -15,6 +15,13 @@
 - [ ] Reuse an existing worktree and confirm lifecycle file creation.
 - [ ] Change lifecycle state and confirm the `.agency` file updates.
 
+## Explorer
+- [ ] Open Explorer, trigger `Open Research Lane`, and confirm the lane appears inline under the Explorer header instead of opening a separate browser surface.
+- [ ] Inspect a public documentation URL and confirm the lane shows a bounded reader preview with source metadata and no tab/cookie/session UI.
+- [ ] Save the inspected page as Markdown, confirm the chosen path stays inside the project, and verify `Open Saved` / `Reveal` route back through Workbench and Explorer.
+- [ ] Create a memo citation from the same preview and confirm it enters the existing HIL/Memo flow; if a Markdown file was saved first, confirm the memo artifact carries that workspace reference.
+- [ ] Enter a localhost/private URL and confirm reader inspect is rejected while the explicit system-browser escape hatch remains available for full browsing.
+
 ## Terminal
 - [ ] Open a terminal session and verify output appears.
 - [ ] Start CLI and confirm Codex (or stub) launches in the embedded terminal.

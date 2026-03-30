@@ -1235,8 +1235,13 @@ function ProjectExplorerSidebarContent({
           targetDirPath={activeDir}
           allowMemoCapture={projectPolicy?.research?.allowMemoCapture !== false}
           allowMarkdownSave={projectPolicy?.research?.allowMarkdownSave !== false}
-          onOpenSavedFile={(path) => {
-            void handleOpenEntry(path, 'pinned');
+          onOpenSavedFile={async (path) => {
+            await refreshAll({ forceStatus: true, reloadExpanded: true });
+            await handleOpenEntry(path, 'pinned');
+          }}
+          onRevealSavedFile={async (path) => {
+            await refreshAll({ forceStatus: true, reloadExpanded: true });
+            await handleRevealContentResult(path);
           }}
           onClose={() => setResearchLaneOpen(false)}
         />

@@ -635,6 +635,26 @@ The explorer SHALL allow filtering the tree by filename and by change status.
 - **WHEN** a user enters a filename filter
 - **THEN** the explorer shows matching files and their ancestor paths
 
+### Requirement: Explorer Bounded URL Research Lane
+The explorer SHALL provide a bounded research lane for URL-driven file workflows.
+The lane SHALL inspect public `http/https` URLs into a reader preview and hand them back into workspace files or memo artifacts.
+The lane SHALL NOT behave as a general-purpose browser replacement.
+
+#### Scenario: Save URL preview into the workspace
+- **WHEN** a user inspects a public URL and saves it from the Explorer research lane
+- **THEN** the editor writes a Markdown artifact inside the active project scope
+- **AND** the saved artifact can be opened or revealed back through the existing Explorer/workbench flows
+
+#### Scenario: Cite URL preview into memo workflow
+- **WHEN** a user cites an inspected URL from the Explorer research lane
+- **THEN** the editor creates a memo artifact through the existing HIL/Memo flow
+- **AND** any previously saved Markdown path is attached as a workspace reference when available
+
+#### Scenario: Escape to the system browser
+- **WHEN** a user needs full browser behavior
+- **THEN** the explorer provides an explicit action to open the URL in the system browser
+- **AND** the research lane does not grow tab, cookie, or in-place browser session management
+
 ### Requirement: Explorer File Preview Pane
 The explorer SHALL open selected files inside a workbench tab area instead of a single static preview.
 Binary or oversized files MUST show a preview warning and offer a reveal/open action.

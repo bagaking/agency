@@ -338,14 +338,16 @@ Explorer now exposes a bounded research lane rather than assuming all URL work b
 Current lane:
 - URL input + inline inspection;
 - reader/excerpt extraction through the existing host excerpt pipeline;
-- workspace Markdown save via existing file-writing path;
-- memo citation via existing HIL item creation;
+- workspace Markdown save via the existing workbench file-writing path;
+- memo citation via existing HIL item creation, with the saved Markdown path attached as a workspace reference when available;
+- optional handoff note carried into both the saved Markdown artifact and the memo citation metadata;
 - explicit “open in browser” escape hatch.
 
 Security/scope boundary:
 - only `http/https`;
 - local/private hosts are rejected by the shared excerpt fetcher;
-- the lane is for URL -> workspace/workflow handoff, not arbitrary browsing.
+- the lane is for URL -> workspace/workflow handoff, not arbitrary browsing;
+- the lane does not own tabs, cookies, auth/session state, or a window-global webview.
 
 ### Validation Notes
 
@@ -359,7 +361,9 @@ Current validation baseline:
 Recommended manual checks before shipping larger follow-up changes:
 - switch between `Tree` and `Changed` views and confirm footer workflow behavior remains stable;
 - run a scoped content replace in a disposable repo and confirm target-count review + failure reporting;
-- inspect a public URL in the research lane, save Markdown into the workspace, and confirm `Open in Browser` escapes correctly.
+- inspect a public URL in the research lane, save Markdown into the workspace, and confirm `Open in Browser` escapes correctly;
+- add a handoff note, then confirm the saved Markdown and created memo citation both preserve that note;
+- try a localhost/private URL and confirm the bounded reader rejects it instead of silently becoming a general browser.
 
 ## Remaining Next Steps
 
