@@ -406,6 +406,7 @@ export const useTerminalRuntimeEffect = (runtime: any) => {
       setSessionReady(false);
       if (entryRef.current) {
         entryRef.current.container = null;
+        entryRef.current.inputHandler = null;
       }
       entryRef.current = null;
       terminalRef.current = null;

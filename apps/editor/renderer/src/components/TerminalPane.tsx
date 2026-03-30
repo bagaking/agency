@@ -310,6 +310,7 @@ function TerminalPane({
         return;
       }
       if (entryRef.current) {
+        entryRef.current.terminal?.reset?.();
         entryRef.current.started = false;
         entryRef.current.starting = null;
       }

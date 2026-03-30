@@ -1,77 +1,72 @@
 ---
 name: bagaking-xterm-skills
-description: Terminal rendering and keyboard input handling for Agency using @xterm/xterm. Use when modifying xterm setup, keyboard shortcuts/extended key sequences, tmux-backed terminal behavior, or debugging input fidelity (e.g., Shift+Enter, modifier keys).
+description: Use when debugging or hardening xterm-based terminal lifecycle issues, especially reconnect/remount behavior, cached terminal instances, keyboard or wheel ownership, PTY or tmux adapters, and input-fidelity regressions.
 ---
 
 # Bagaking Xterm Skills
 
-## Overview
-Guide for Agency's xterm integration: initialization, input dispatch, shortcut handling, tmux sessions, and preserving modifier-aware key sequences.
+## Scope
+This skill captures reusable xterm experience.
 
-## Core Capabilities
-### 1. Trace the Terminal Input Path
-- Renderer terminal setup: `apps/editor/renderer/src/terminal/terminalManager.js`.
-- UI input/shortcuts and custom key handling: `apps/editor/renderer/src/components/TerminalPane.jsx`.
-- Shortcut/clipboard actions: `apps/editor/renderer/src/terminal/terminalInputDispatcher.js`.
-- IPC bridge to backend: `apps/editor/electron/preload.js` -> `terminal:write` in `apps/editor/electron/ipc/handlers/terminal.js`.
+This skill is intentionally generic:
+- Keep the core skill about xterm, React, terminal lifecycle, and backend-adapter boundaries.
+- Keep project-specific file maps, product nouns, and one-off incidents in project memory, not in the skill body.
 
-### 2. Maintain Keyboard Fidelity (Extended Keys)
-Use xterm's custom key event handler to preserve modifier-aware sequences when needed.
+Use this skill first when the failure smells like:
+- terminal reconnect or remount
+- visible terminal but dead input
+- duplicate or stale screen after reattach
+- modifier-key or wheel handling regressions
+- confusion between local typing and programmatic dispatch
+- performance optimizations that may have changed terminal correctness
 
-Recommended pattern for Shift+Enter:
-- Detect `event.key == 'Enter' && event.shiftKey` and send CSI-u sequence: `\x1b[13;2u`.
-- Return `false` to prevent the default Enter (`\r`) from being emitted.
-- Respect user shortcuts first (only apply when no binding matches).
+Do **not** start with this skill when the task is mainly:
+- choosing xterm addons or renderer options
+- learning the xterm API from scratch
+- building a simple local-only terminal with no reconnect/remount semantics
+- making broad architecture decisions unrelated to lifecycle bugs
 
-Clarification:
-- “Intercept” means calling `preventDefault`/`stopPropagation` so the plain Enter (`\r`) never reaches the terminal.
+For those cases, start with `xterm-js`. This skill is the narrower lifecycle and fault-model playbook.
 
-Notes:
-- xterm default mapping does not differentiate Shift+Enter; it emits `\r`.
-- Avoid applying custom handling when user-defined shortcut bindings already match.
-- Keep behavior opt-in or scoped if specific CLI tools cannot parse CSI-u.
+## Use Order
+1. If the task is general xterm API or greenfield design work, use `xterm-js` instead.
+2. Read `references/boundary-map.md` to classify the failure.
+3. If the symptom involves reconnect, remount, reattach, dead input, or replay weirdness, read `references/reconnect-playbook.md`.
+4. If the repository keeps local incident memory, search that memory before coding so you can map the generic fault model to the local codebase.
 
-### 3. Keep Terminal Defaults Stable
-- Shell-first behavior stays in `apps/editor/renderer/src/App.jsx` (do not auto-run CLI).
-- Do not change `convertEol` for tmux sessions unless explicitly required.
-- Preserve existing resize/fit logic to avoid tmux redraw issues.
+## Canonical Terms
+Use explicit names. Avoid pronouns like "it" when multiple moving parts exist.
 
-### 4. tmux Native Scroll Consistency
-- Agency terminals are tmux-backed; for native-feeling scrollback, tmux must own wheel events via copy-mode.
-- Always set tmux mouse per-session (do not rely on user `~/.tmux.conf`):
-  - `apps/editor/electron/services/tmux.js` -> `tmux set -t <session> mouse on`
-  - Call from session creation/reuse in `apps/editor/electron/services/sessions.js`.
-- If mouse is off, scroll can appear to move the input area or do nothing (deviates from native terminal).
-- Keep xterm wheel handler passthrough when mouse tracking is enabled; use `Alt/Option+wheel` only as a fallback to force scrollback.
+- **Terminal instance**: the xterm object.
+- **Terminal entry**: a cached holder that owns the terminal instance plus local metadata. Some codebases do not have this layer.
+- **Input pipeline**: keyboard, paste, or binary-input events moving from DOM -> xterm -> application callback -> backend.
+- **Output pipeline**: backend output moving from adapter -> application callback -> xterm write.
+- **Reconnect**: a new frontend attachment to an existing backend session.
+- **Attach replay**: backend-driven repaint of current screen content after reconnect.
+- **Programmatic dispatch**: application-initiated text or key delivery, not human typing.
 
-### 5. Preview Wrap Alignment (xterm vs tmux)
-- `tmux capture-pane` returns a **rendered grid snapshot** with hard wraps at the pane width.
-- `capture-pane -J` only merges lines marked as wrapped by tmux; it cannot reconstruct the raw PTY stream.
-- xterm maintains `line.isWrapped` on the renderer side; **use xterm buffer snapshot** to match Agent Cell line wrapping.
-- For sessions not loaded in the renderer, expect wrap mismatches unless you add a raw stream log (e.g., `tmux pipe-pane`) and render from that stream.
+## High-Risk Patterns
+These are not universal invariants. These are the patterns most likely to create lifecycle bugs:
 
-### 6. Programmatic Dispatch vs. Real Submit
-- In tmux-backed TUI tools, **injecting text plus raw `\r` bytes is not always equivalent to a real submit/confirm gesture**.
-- Symptom: the target TUI shows the full payload in its input area, but the tool still waits for a manual confirmation key.
-- Preferred model:
-  1. inject the text body,
-  2. wait a short settle window if needed,
-  3. send an explicit confirm key (`Enter`, or a profile-specific key strategy) through the host dispatch path.
-- Prefer a **host-owned dispatch primitive** over duplicated renderer-side `appendEnter/doubleEnter` behavior. This keeps Delivery / Action Sheet / Quick Action / Session Reply on one execution contract.
-- Keep the abstraction semantic, not transport-shaped. Think in terms of:
-  - `text`
-  - `confirm strategy`
-  - optional `delay before confirm`
-  rather than “append raw newline bytes”.
-- If a specific CLI/TUI needs a different confirm gesture, extend the confirm strategy per profile/tool instead of adding more one-off renderer conditionals.
+1. A cached terminal instance or terminal entry keeps a subscription that still points at an old mount owner.
+2. A reconnect path assumes the frontend can blindly `clear()` or `reset()` before replay without checking whether the backend truly replays the full screen and terminal state.
+3. Human typing and programmatic dispatch are debugged as if they were the same path.
+4. A cached terminal instance keeps stale output-listener or resize-owner state after remount.
+5. A performance optimization is accepted without reconnect, remount, and high-output regression checks.
+6. The debugging notes use vague pronouns instead of naming the exact owner object and transition.
 
-## Workflow Checklist
-1. Confirm xterm package and CSS import paths
-2. Update terminal initialization options (if needed) in `terminalManager.js`.
-3. Implement modifier-aware key sequences in `TerminalPane.jsx` (custom key handler).
-4. Verify shortcuts, paste, and key handling in a live terminal session.
-5. Verify tmux scrollback on trackpad/wheel (copy-mode should engage).
-6. For programmatic session dispatch, verify both:
-   - text appears in the target TUI input area
-   - the target tool actually executes/submits without manual confirmation
-7. Document behavior in the terminal experience note.
+Read the references for the detailed symptom router, fault models, and validation bar.
+
+## Implementation Checklist
+1. Classify the bug into universal xterm, backend-adapter, or application orchestration.
+2. Write down the exact input, output, and resize pipelines with concrete owner names.
+3. Identify the live input owner, live output listener, and live resize owner or stream after reconnect.
+4. If terminal instances are cached, verify callback freshness and ownership transfer across remount.
+5. If reconnect exists, verify what the backend actually replays before using `clear()` or `reset()`.
+6. Test human typing separately from programmatic dispatch.
+7. Test hidden -> visible, inactive -> active, and disconnect -> reconnect transitions.
+8. Search local incident memory before writing a fix if the repository provides one.
+
+## Progressive Disclosure
+- `references/boundary-map.md`: ownership model, layer boundaries, escalation rules, and where application timing can still be the real root cause.
+- `references/reconnect-playbook.md`: reconnect/remount symptom router, ownership-family fault models, anti-patterns, stronger verification steps, and backend-adapter handoff cues.

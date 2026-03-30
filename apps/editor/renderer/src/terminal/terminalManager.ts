@@ -39,6 +39,7 @@ const createEntry = ({ cellId, sessionId, fontSize }) => {
     container: null,
     opened: false,
     inputDisposable: null,
+    inputHandler: null,
     started: false,
     starting: null,
   };
@@ -126,12 +127,24 @@ export const attachTerminal = ({ entry, container }) => {
 };
 
 export const ensureInputListener = ({ entry, onInput }) => {
-  if (!entry || entry.inputDisposable) {
+  if (!entry) {
+    return;
+  }
+  entry.inputHandler = typeof onInput === 'function' ? onInput : null;
+  if (entry.inputDisposable) {
     return;
   }
   entry.inputDisposable = entry.terminal.onData((data) => {
-    onInput?.(data);
+    entry.inputHandler?.(data);
   });
+};
+
+const resetTerminalForReconnect = (entry) => {
+  if (!entry?.terminal?.reset) {
+    return;
+  }
+  // tmux replays the current screen on attach; clear stale xterm state first.
+  entry.terminal.reset();
 };
 
 export const ensureStarted = async ({ entry, payload }) => {
@@ -141,6 +154,7 @@ export const ensureStarted = async ({ entry, payload }) => {
   if (entry.starting) {
     return entry.starting;
   }
+  resetTerminalForReconnect(entry);
   entry.starting = Promise.resolve(startTerminal(payload))
     .then((result) => {
       if (result == null) {
@@ -174,6 +188,7 @@ export const disposeTerminalEntry = ({ cellId, sessionId }) => {
   if (entry.inputDisposable?.dispose) {
     entry.inputDisposable.dispose();
   }
+  entry.inputHandler = null;
   entry.terminal.dispose();
   terminals.delete(key);
 };
