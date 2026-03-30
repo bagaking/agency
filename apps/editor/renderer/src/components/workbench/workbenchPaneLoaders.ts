@@ -39,7 +39,7 @@ const loadVectorWorkbenchState = async ({
     fileUrl: urlResult?.url || '',
     size: meta?.size || 0,
     mtimeMs: meta?.mtimeMs || 0,
-    language: 'xml',
+    language: resolveWorkbenchLanguage(targetPath),
     isDirty: false,
     kind: 'vector',
   };

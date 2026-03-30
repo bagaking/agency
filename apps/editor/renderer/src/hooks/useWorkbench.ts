@@ -1,38 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-
-const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'bmp']);
-const VIDEO_EXTENSIONS = new Set(['mp4', 'mov', 'webm', 'mkv']);
-const AUDIO_EXTENSIONS = new Set(['mp3', 'wav', 'ogg', 'm4a', 'flac']);
-const PDF_EXTENSIONS = new Set(['pdf']);
+import { detectWorkbenchSecureKind } from '../components/workbench/workbenchPaneHelpers';
 
 const buildTabId = (cellId, rootPath, filePath) => `${cellId}::${rootPath}::${filePath}`;
 
 const basename = (value) => value.split('/').filter(Boolean).pop() || value;
-const extname = (value) => {
-  const name = basename(value || '');
-  const index = name.lastIndexOf('.');
-  if (index <= 0) {
-    return '';
-  }
-  return name.slice(index + 1).toLowerCase();
-};
-
-const detectKind = (filePath) => {
-  const ext = extname(filePath);
-  if (IMAGE_EXTENSIONS.has(ext)) {
-    return 'image';
-  }
-  if (VIDEO_EXTENSIONS.has(ext)) {
-    return 'video';
-  }
-  if (AUDIO_EXTENSIONS.has(ext)) {
-    return 'audio';
-  }
-  if (PDF_EXTENSIONS.has(ext)) {
-    return 'pdf';
-  }
-  return 'code';
-};
 
 const serializeTabs = (tabsByCellId: Record<string, any[]>) => {
   const next = {};
@@ -57,7 +28,7 @@ const hydrateTab = (tab, cellId, fallbackRoot) => {
     path: tab.path,
     rootPath,
     title: basename(tab.path),
-    kind: detectKind(tab.path),
+    kind: detectWorkbenchSecureKind(tab.path),
     isPreview: Boolean(tab.isPreview),
   };
 };
@@ -159,7 +130,7 @@ export function useWorkbench({
         path,
         rootPath: resolvedRoot,
         title: basename(path),
-        kind: detectKind(path),
+        kind: detectWorkbenchSecureKind(path),
         isPreview: mode === 'preview',
       };
 

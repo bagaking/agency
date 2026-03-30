@@ -2,8 +2,18 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, MessageSquarePlus, Plus } from 'lucide-react';
 import { LazyMonacoEditor } from '../ui/LazyMonacoEditor';
+import { configureWorkbenchMonaco } from './workbenchMonaco';
 
 const COMMENT_ACTION_ID = 'agency-add-line-comment';
+export const CODE_WORKBENCH_EDITOR_OPTIONS = {
+  fontSize: 13,
+  minimap: { enabled: false },
+  wordWrap: 'on',
+  lineNumbers: 'on',
+  scrollBeyondLastLine: false,
+  renderWhitespace: 'boundary',
+  glyphMargin: true,
+};
 const buildCommentActionLabel = (lineNumber) =>
   `Add Comment around Line ${Math.max(1, Number(lineNumber) || 1)}`;
 
@@ -62,6 +72,24 @@ const toBlameMap = (lines) => {
   return map;
 };
 
+const applyWorkbenchModelLanguage = (editor: any, monaco: any, language: string) => {
+  const model = editor?.getModel?.();
+  const setModelLanguage = monaco?.editor?.setModelLanguage;
+  if (!model || typeof setModelLanguage !== 'function') {
+    return;
+  }
+  const nextLanguage = String(language || '').trim();
+  if (!nextLanguage) {
+    return;
+  }
+  const currentLanguage =
+    typeof model.getLanguageId === 'function' ? model.getLanguageId() : '';
+  if (currentLanguage === nextLanguage) {
+    return;
+  }
+  setModelLanguage(model, nextLanguage);
+};
+
 export function CodeWorkbenchView({
   value,
   language,
@@ -77,6 +105,7 @@ export function CodeWorkbenchView({
   onSelectionChange,
   onLineComment,
   onEditorReady,
+  MonacoEditorComponent = LazyMonacoEditor,
 }: any) {
   const [monacoApi, setMonacoApi] = useState<any>(null);
   const editorRef = useRef(null);
@@ -103,6 +132,13 @@ export function CodeWorkbenchView({
 
   const blameMap = useMemo(() => toBlameMap(blameLines), [blameLines]);
   const blameInfo = blameEnabled && hoverLine ? blameMap.get(hoverLine) : null;
+
+  useEffect(() => {
+    if (!editorReady || !editorRef.current || !monacoApi) {
+      return;
+    }
+    applyWorkbenchModelLanguage(editorRef.current, monacoApi, language);
+  }, [editorReady, language, monacoApi]);
 
   useEffect(() => {
     if (!monacoApi || !editorRef.current) {
@@ -513,7 +549,8 @@ export function CodeWorkbenchView({
             overlayRoot
           )
         : null}
-      <LazyMonacoEditor
+      <MonacoEditorComponent
+        beforeMount={configureWorkbenchMonaco}
         height="100%"
         theme="vs-dark"
         value={value}
@@ -523,15 +560,8 @@ export function CodeWorkbenchView({
           editorRef.current = editor;
           setMonacoApi(monaco);
           setEditorReady(true);
-          editor.updateOptions({
-            fontSize: 13,
-            minimap: { enabled: false },
-            wordWrap: 'on',
-            lineNumbers: 'on',
-            scrollBeyondLastLine: false,
-            renderWhitespace: 'boundary',
-            glyphMargin: true,
-          });
+          editor.updateOptions(CODE_WORKBENCH_EDITOR_OPTIONS);
+          applyWorkbenchModelLanguage(editor, monaco, language);
         }}
         onChange={(nextValue) => onChange?.(nextValue || '')}
         options={{

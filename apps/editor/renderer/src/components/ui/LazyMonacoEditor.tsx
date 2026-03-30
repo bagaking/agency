@@ -1,5 +1,9 @@
-import 'monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.css';
 import { lazy, Suspense, type ReactNode } from 'react';
+
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  // Load Monaco codicons only in browser-like environments.
+  void import('monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.css');
+}
 
 let monacoEditorImportPromise: Promise<unknown> | null = null;
 
