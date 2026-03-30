@@ -77,6 +77,33 @@ test('file.intent rejects conflicting args.rootPath against canonical refs', asy
   assert.equal(result.failures[0].code, 'REF_MISMATCH');
 });
 
+test('session refs reject conflicting worktreePath against the resolved cell worktree', async () => {
+  const controlBus = createControlBusService({
+    listCells: async () => [
+      {
+        id: 'cell-main',
+        worktreePath: '/repo/.worktrees/cell-main',
+      },
+    ],
+  });
+
+  const result = await controlBus.dispatch({
+    op: CONTROL_BUS_OPS.sessionPerform,
+    refs: {
+      projectRoot: '/repo',
+      cellId: 'cell-main',
+      worktreePath: '/repo/.worktrees/other',
+      sessionId: 'session-ui',
+    },
+    args: {
+      intent: 'inspect',
+    },
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.failures[0].code, 'REF_MISMATCH');
+});
+
 test('run.start preserves owner window scope in harness context', async () => {
   let capturedContext = null;
   let capturedPayload = null;
@@ -185,6 +212,101 @@ test('run.start rejects conflicting args.contextRefs against canonical refs', as
   assert.equal(result.failures[0].code, 'REF_MISMATCH');
 });
 
+test('run.start rejects conflicting nested runner sessionRuntime against canonical refs', async () => {
+  const controlBus = createControlBusService({
+    listCells: async () => [
+      {
+        id: 'cell-main',
+        worktreePath: '/repo/.worktrees/cell-main',
+      },
+    ],
+    listSessions: async () => [
+      {
+        id: 'session-ui',
+      },
+    ],
+  });
+
+  const result = await controlBus.dispatch({
+    op: CONTROL_BUS_OPS.runStart,
+    refs: {
+      projectRoot: '/repo',
+      cellId: 'cell-main',
+      sessionId: 'session-ui',
+    },
+    args: {
+      goal: {
+        type: 'create_agent',
+      },
+      runner: {
+        steps: [
+          {
+            id: 'create-agent',
+            kind: 'create_agent',
+            agent: {
+              sessionRuntime: {
+                worktreePath: '/repo/.worktrees/other',
+                cellId: 'cell-other',
+                sessionId: 'session-other',
+              },
+            },
+          },
+        ],
+      },
+    },
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.failures[0].code, 'REF_MISMATCH');
+});
+
+test('run.start rejects conflicting generic capability step input against canonical refs', async () => {
+  const controlBus = createControlBusService({
+    listCells: async () => [
+      {
+        id: 'cell-main',
+        worktreePath: '/repo/.worktrees/cell-main',
+      },
+    ],
+    listSessions: async () => [
+      {
+        id: 'session-ui',
+      },
+    ],
+  });
+
+  const result = await controlBus.dispatch({
+    op: CONTROL_BUS_OPS.runStart,
+    refs: {
+      projectRoot: '/repo',
+      cellId: 'cell-main',
+      sessionId: 'session-ui',
+    },
+    args: {
+      goal: {
+        type: 'create_agent',
+      },
+      runner: {
+        steps: [
+          {
+            id: 'inspect-other',
+            kind: 'capability_call',
+            capabilityId: 'session.runtime',
+            input: {
+              intent: 'inspect',
+              worktreePath: '/repo/.worktrees/other',
+              sessionId: 'session-other',
+            },
+          },
+        ],
+      },
+    },
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.failures[0].code, 'REF_MISMATCH');
+});
+
 test('window.list returns normalized window shell data', async () => {
   const controlBus = createControlBusService({
     describeEditorWindows: () => [
@@ -231,6 +353,33 @@ test('window.focus rejects conflicting args.windowStateId against refs', async (
 
   assert.equal(result.success, false);
   assert.equal(result.failures[0].code, 'REF_MISMATCH');
+});
+
+test('window.new starts empty when only a window ref is provided', async () => {
+  let captured = null;
+  const controlBus = createControlBusService({
+    createEditorWindow: async (payload) => {
+      captured = payload;
+      return {
+        __agencyWindowStateId: 'window-new',
+      };
+    },
+    describeEditorWindows: () => [],
+  });
+
+  const result = await controlBus.dispatch({
+    op: CONTROL_BUS_OPS.windowNew,
+    refs: {
+      windowStateId: 'window-existing',
+    },
+    args: {},
+  });
+
+  assert.equal(result.success, true);
+  assert.deepEqual(captured, {
+    startEmpty: true,
+    projectRoot: '',
+  });
 });
 
 test('window.list ignores unrelated invalid cell refs', async () => {

@@ -462,6 +462,14 @@ async function resolveSessionScopeFromRefs(refs, deps, cell, projectRoot) {
 async function resolveControlBusScope(refs, deps) {
   const projectRoot = await resolveProjectRootFromRefs(refs, deps);
   const cell = await resolveCellFromRefs(refs, deps, projectRoot);
+  if (cell && refs.worktreePath) {
+    assertCanonicalAuthority({
+      label: 'worktreePath',
+      refValue: normalizeText(cell.worktreePath),
+      argValue: refs.worktreePath,
+      normalizer: normalizePathRef,
+    });
+  }
   const sessionScope = await resolveSessionScopeFromRefs(refs, deps, cell, projectRoot);
   return {
     projectRoot,
@@ -539,6 +547,95 @@ function resolveFileRootPath(args, scope) {
   return canonicalRoot || normalizeText(args?.rootPath);
 }
 
+function sanitizeCapabilityCallInput({
+  capabilityId,
+  input,
+  scope,
+  refs,
+}) {
+  const normalizedCapabilityId = normalizeText(capabilityId).toLowerCase();
+  const nextInput =
+    input && typeof input === 'object' && !Array.isArray(input) ? { ...input } : {};
+
+  if (normalizedCapabilityId === 'file.intent') {
+    const canonicalRoot = buildCanonicalFileRoot(scope);
+    assertCanonicalAuthority({
+      label: 'runner.steps[*].input.rootPath',
+      refValue: canonicalRoot,
+      argValue: nextInput.rootPath,
+      normalizer: normalizePathRef,
+    });
+    if (canonicalRoot) {
+      nextInput.rootPath = canonicalRoot;
+    }
+    return nextInput;
+  }
+
+  if (normalizedCapabilityId === 'session.runtime') {
+    const canonicalWorktreePath =
+      normalizeText(scope.sessionWorktreePath) || normalizeText(scope.cell?.worktreePath);
+    const canonicalCellId = normalizeText(scope.cell?.id || refs?.cellId);
+    const canonicalSessionId = normalizeText(refs?.sessionId);
+
+    if (hasText(nextInput.worktreePath) && !canonicalWorktreePath) {
+      throw createControlBusError(
+        'USER_ERROR',
+        'runner.steps[*].input.worktreePath requires canonical refs.'
+      );
+    }
+    if (hasText(nextInput.cellId) && !canonicalCellId) {
+      throw createControlBusError(
+        'USER_ERROR',
+        'runner.steps[*].input.cellId requires canonical refs.'
+      );
+    }
+    if ((hasText(nextInput.sessionId) || hasText(nextInput.sourceSessionId)) && !canonicalSessionId) {
+      throw createControlBusError(
+        'USER_ERROR',
+        'runner.steps[*].input session refs require canonical refs.sessionId.'
+      );
+    }
+
+    assertCanonicalAuthority({
+      label: 'runner.steps[*].input.worktreePath',
+      refValue: canonicalWorktreePath,
+      argValue: nextInput.worktreePath,
+      normalizer: normalizePathRef,
+    });
+    assertCanonicalAuthority({
+      label: 'runner.steps[*].input.cellId',
+      refValue: canonicalCellId,
+      argValue: nextInput.cellId,
+    });
+    assertCanonicalAuthority({
+      label: 'runner.steps[*].input.sessionId',
+      refValue: canonicalSessionId,
+      argValue: nextInput.sessionId,
+    });
+    assertCanonicalAuthority({
+      label: 'runner.steps[*].input.sourceSessionId',
+      refValue: canonicalSessionId,
+      argValue: nextInput.sourceSessionId,
+    });
+
+    if (canonicalWorktreePath) {
+      nextInput.worktreePath = canonicalWorktreePath;
+    }
+    if (canonicalCellId) {
+      nextInput.cellId = canonicalCellId;
+    }
+    if (canonicalSessionId && hasText(nextInput.sessionId)) {
+      nextInput.sessionId = canonicalSessionId;
+    }
+    if (canonicalSessionId && hasText(nextInput.sourceSessionId)) {
+      nextInput.sourceSessionId = canonicalSessionId;
+    }
+    return nextInput;
+  }
+
+  return nextInput;
+}
+
 function buildHarnessPayload(args, refs, scope, caller) {
   assertCanonicalAuthority({
     label: 'runId',
@@ -555,6 +652,94 @@ function buildHarnessPayload(args, refs, scope, caller) {
   const canonicalContextRefs = assertCanonicalContextRefs(args, scope, refs);
   if (canonicalContextRefs.length) {
     payload.contextRefs = canonicalContextRefs;
+  }
+  if (payload.runner && typeof payload.runner === 'object' && Array.isArray(payload.runner.steps)) {
+    const canonicalWorktreePath =
+      normalizeText(scope.sessionWorktreePath) || normalizeText(scope.cell?.worktreePath);
+    const canonicalCellId = normalizeText(scope.cell?.id || refs?.cellId);
+    const canonicalSessionId = normalizeText(refs?.sessionId);
+    payload.runner = {
+      ...payload.runner,
+      steps: payload.runner.steps.map((rawStep) => {
+        const step = rawStep && typeof rawStep === 'object' ? rawStep : {};
+        const agent = step.agent && typeof step.agent === 'object' ? step.agent : null;
+        const sessionRuntime =
+          agent?.sessionRuntime && typeof agent.sessionRuntime === 'object'
+            ? agent.sessionRuntime
+            : null;
+        if (!sessionRuntime) {
+          if (!normalizeText(step.capabilityId)) {
+            return step;
+          }
+          return {
+            ...step,
+            input: sanitizeCapabilityCallInput({
+              capabilityId: step.capabilityId,
+              input: step.input,
+              scope,
+              refs,
+            }),
+          };
+        }
+
+        if (hasText(sessionRuntime.worktreePath) && !canonicalWorktreePath) {
+          throw createControlBusError(
+            'USER_ERROR',
+            'runner.steps[*].agent.sessionRuntime.worktreePath requires canonical refs.'
+          );
+        }
+        if (hasText(sessionRuntime.cellId) && !canonicalCellId) {
+          throw createControlBusError(
+            'USER_ERROR',
+            'runner.steps[*].agent.sessionRuntime.cellId requires canonical refs.'
+          );
+        }
+        if ((hasText(sessionRuntime.sessionId) || hasText(sessionRuntime.sourceSessionId)) && !canonicalSessionId) {
+          throw createControlBusError(
+            'USER_ERROR',
+            'runner.steps[*].agent.sessionRuntime session refs require canonical refs.sessionId.'
+          );
+        }
+
+        assertCanonicalAuthority({
+          label: 'runner.steps[*].agent.sessionRuntime.worktreePath',
+          refValue: canonicalWorktreePath,
+          argValue: sessionRuntime.worktreePath,
+          normalizer: normalizePathRef,
+        });
+        assertCanonicalAuthority({
+          label: 'runner.steps[*].agent.sessionRuntime.cellId',
+          refValue: canonicalCellId,
+          argValue: sessionRuntime.cellId,
+        });
+        assertCanonicalAuthority({
+          label: 'runner.steps[*].agent.sessionRuntime.sessionId',
+          refValue: canonicalSessionId,
+          argValue: sessionRuntime.sessionId,
+        });
+        assertCanonicalAuthority({
+          label: 'runner.steps[*].agent.sessionRuntime.sourceSessionId',
+          refValue: canonicalSessionId,
+          argValue: sessionRuntime.sourceSessionId,
+        });
+
+        return {
+          ...step,
+          agent: {
+            ...agent,
+            sessionRuntime: {
+              ...sessionRuntime,
+              ...(canonicalWorktreePath ? { worktreePath: canonicalWorktreePath } : {}),
+              ...(canonicalCellId ? { cellId: canonicalCellId } : {}),
+              ...(canonicalSessionId ? { sessionId: canonicalSessionId } : {}),
+              ...(canonicalSessionId && hasText(sessionRuntime.sourceSessionId)
+                ? { sourceSessionId: canonicalSessionId }
+                : {}),
+            },
+          },
+        };
+      }),
+    };
   }
   return payload;
 }
@@ -649,7 +834,7 @@ function createControlBusService(customDeps = {}) {
       },
     },
     [CONTROL_BUS_OPS.windowNew]: {
-      scopeRefKeys: ['windowStateId', 'projectRoot'],
+      scopeRefKeys: ['projectRoot'],
       execute: async ({ scope, args, refs }) => {
       if (typeof deps.createEditorWindow !== 'function') {
         throw createControlBusError(
