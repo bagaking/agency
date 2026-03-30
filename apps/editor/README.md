@@ -36,7 +36,7 @@
 - Explorer supports semantic-file tags and semantic filters (built-in + project rules from `.agency/agent-files.yaml`).
 - Explorer semantic filters support quick-locate to jump to the first matching file.
 - Explorer promotes `Changed Files` into a registered working-set view and keeps room for future working-set families.
-- Explorer supports project-level defaults, working-set option presets, and command visibility from `.agency/explorer.yaml` / `.agency/explorer.yml` without overriding user-local persisted state.
+- Explorer supports project-level defaults, working-set option ordering, and command visibility from `.agency/explorer.yaml` / `.agency/explorer.yml` without overriding user-local persisted state.
 - Explorer supports copy/cut/paste via context menu and keyboard shortcuts.
 - Explorer can paste files or screenshots from the system clipboard, applying `-1` style conflict suffixes.
 - Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
@@ -145,6 +145,8 @@
 - Session action failures no longer rely only on transient notices; `Command Ops` keeps the latest error visible until explicitly dismissed and supports copying the full text.
 - Attention now uses one vocabulary across shell chrome, Agent Cells, and Session Map: `Running`, `Failed`, `Confirm`, `Unread`, and `Review`.
 - The status bar shows the current top-priority attention item for the active Agency context and can jump directly to its owning object.
+- Session Map `Ops` owns the current-window `Priority Queue` for queue-style attention triage.
+- Agent Cells keeps attention inline on Cell and Session affordances instead of inserting a separate attention queue above the management list.
 - The window switcher surfaces each window's primary attention summary so multi-window urgency is visible before you manually scan that window.
 - Terminus profiles can define optional `fork` settings (`enabled`, `driver`, `launchTemplate`, and timeout knobs) so tool-specific fork behavior stays declarative at the profile layer instead of being hard-coded in renderer UI.
 - Detached sessions remain available from the overflow menu unless currently active; closed sessions can be restarted.
@@ -231,12 +233,24 @@ pnpm run package
 Artifacts are written to `apps/editor/dist/release` (DMG + ZIP). Install by opening the DMG or unzipping the app and dragging `Agency.app` to `/Applications`.
 Unsigned builds may require Gatekeeper bypass (right-click → Open once, or run `xattr -dr com.apple.quarantine /Applications/Agency.app`).
 Packaging uses `TMPDIR=/tmp` to avoid `hdiutil` failures on some macOS setups.
-Packaging now runs a disk-space preflight before build/sign/DMG work. If free space is below the safe threshold, the command fails fast with cleanup guidance instead of spending minutes before `hdiutil` errors.
+Packaging now runs a disk-space preflight before build/sign/DMG work. If free space is below the safe threshold, the preflight first deletes stale generated outputs under `apps/editor/dist/release` that would be overwritten by the current mode, then fails fast with cleanup guidance instead of spending minutes before `hdiutil` errors.
 
 From repo root:
 
 ```bash
 make editor-package
+```
+
+To remove all generated `apps/editor/dist` outputs before retrying packaging, run:
+
+```bash
+make editor-package-clean
+```
+
+For a lower-peak local DMG build (DMG only, no ZIP), run:
+
+```bash
+make editor-package-lite
 ```
 
 For an unpacked build (no DMG), run:
@@ -247,6 +261,7 @@ pnpm run package:dir
 
 Optional overrides:
 - `AGENCY_PACKAGE_DMG_MIN_FREE_GIB=4` override the DMG packaging free-space threshold
+- `AGENCY_PACKAGE_LITE_MIN_FREE_GIB=3` override the DMG-only packaging free-space threshold
 - `AGENCY_PACKAGE_DIR_MIN_FREE_GIB=2` override the unpacked packaging free-space threshold
 
 ## Development
@@ -335,8 +350,9 @@ make editor-dev
 - In the Session Map dock, confirm the commander/backend avatar is visible, clicking it opens a separate `Briefing` panel, and the panel answers using current session/run evidence rather than generic chat filler.
 - Close the `Briefing` panel and confirm the underlying `Ops` panel is unchanged; inspect the active Harness timeline there and confirm a running run can be cancelled or a failed/cancelled run can be retried from the panel.
 - Trigger a session error and confirm it appears in `Command Ops`, does not auto-dismiss on a timer, and can be copied before explicit dismissal.
-- Produce new output in a non-active session and confirm Agent Cells, Session Map, and the status bar all surface `Unread` with consistent wording; click any of them and confirm Agency jumps back to that session.
-- Trigger `Smart Fork [by commander]` or another `Create Agent` run and confirm the status bar shows `Running`; click it and confirm Session Map opens to the relevant session/run context instead of leaving the run buried in a background panel.
+- Produce new output in a non-active session and confirm Agent Cells inline cell/session markers, Session Map, and the status bar all surface `Unread` with consistent wording; click any of them and confirm Agency jumps back to that session.
+- Trigger `Smart Fork [by commander]` or another `Create Agent` run and confirm Agent Cells keeps the list primary while exposing inline `Running`, the status bar shows `Running`, and Session Map owns the queue-style triage path.
+- Trigger a failed child-execution run and confirm Agent Cells inline markers, Session Map `Priority Queue`, and the status bar all surface the same `Failed` attention without introducing a separate Agent Cells queue card.
 - Finish a child-execution run that creates a child session, do not revisit that child, and confirm Agency surfaces `Review` / return-required attention until the child session is visited.
 - Open a second Agency window, create a higher-priority failure there, and confirm the current window's switcher surfaces that other window's primary attention state before you focus it.
 - Add a quick action with both commands and verify start/resume run in the active session.

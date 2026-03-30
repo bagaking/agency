@@ -16,7 +16,6 @@ import { RecentProjectsList } from '../RecentProjectsList';
 import { useCommanderSessionActions } from '../commander/useCommanderSessionActions';
 import { SessionContextMenu, SessionCreateMenu, SessionOverflowMenu } from '../SessionMenus';
 import { AttentionPill } from '../attention/AttentionPill';
-import { AttentionQueue } from '../attention/AttentionQueue';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
 import { AvatarPickerMenu } from '../ui/AvatarPickerMenu';
 import { IconButton } from '../ui/IconButton';
@@ -215,6 +214,15 @@ function resolveAttentionRowClass(item: AttentionItem | null | undefined): strin
     default:
       return '';
   }
+}
+
+function buildAttentionActionLabel(item: AttentionItem | null | undefined, count = 1): string {
+  if (!item) {
+    return 'View attention';
+  }
+  const normalizedCount = Number.isFinite(count) ? Math.max(1, Math.floor(count)) : 1;
+  const countLabel = normalizedCount > 1 ? `${normalizedCount} items` : '1 item';
+  return `${item.label}: ${countLabel}. ${item.detail}`;
 }
 
 function SessionTreeGuides({
@@ -645,10 +653,6 @@ export function AgentCellsSessionsPanel({
     },
     [cellsById, onCreateSession]
   );
-  const localAttentionItems = useMemo(
-    () => (attention.localItems || []).slice(0, 3),
-    [attention.localItems]
-  );
 
   const clearDragState = useCallback(() => {
     setDraggingSession(null);
@@ -800,17 +804,6 @@ export function AgentCellsSessionsPanel({
           </>
         ) : null}
 
-        {projectReady && localAttentionItems.length ? (
-          <div className="mb-3">
-            <AttentionQueue
-              title="Attention"
-              items={localAttentionItems}
-              onSelectItem={attention.jumpToAttention}
-              emptyLabel="No active attention."
-            />
-          </div>
-        ) : null}
-
         {cells.length === 0 ? (
           <div className="px-4 py-8 text-center text-xs text-muted-foreground">No active cells</div>
         ) : (
@@ -914,6 +907,10 @@ export function AgentCellsSessionsPanel({
                               attention.jumpToAttention(cellAttention.strongest);
                             }}
                             className="shrink-0"
+                            aria-label={buildAttentionActionLabel(
+                              cellAttention.strongest,
+                              cellAttention.count
+                            )}
                             title={cellAttention.strongest.detail}
                           >
                             <AttentionPill
@@ -1231,6 +1228,7 @@ export function AgentCellsSessionsPanel({
                                           attention.jumpToAttention(sessionAttention);
                                         }}
                                         className="shrink-0"
+                                        aria-label={buildAttentionActionLabel(sessionAttention)}
                                         title={sessionAttention.detail}
                                       >
                                         <AttentionPill

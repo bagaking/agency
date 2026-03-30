@@ -81,6 +81,8 @@ Main Agent Harness 是更高一层的 host-owned control plane。
 - `Fork` / Harness run 启动时，Session Map 会自动打开一次，把用户带到这块指挥区；
 - `Command Ops` 保持为稳定证据层，展示当前 focus session、Harness timeline、取消/复制动作，以及未来可扩展的个性化 quick ops；
 - `Attention` 是覆盖 `Window / Cell / Session / Run` 的共享状态层；`Ops` 只负责在 Session Map 中承载当前窗口的 priority queue 与跳转，不拥有 attention 本体，也不另造新的产品对象根。
+- Agent Cells 只能以内联方式在 owning Cell / Session 上表达 attention；不得再在 Cells 列表前面插入一个 queue 式 attention 面板来挤占主工作面。
+- Shell chrome 只负责紧凑 summary：Status Bar 承载当前窗口最高优先级的 `Next`，window switcher 承载跨窗口 primary attention；它们都不是第二个 queue surface。
 - Session Map 中的 token / cell 强调必须复用 Attention 的统一语义（`running / failed / pending confirmation / unread / return required`），不能再做一套只在地图里成立的告警词汇。
 - `Commander` 占据 Session Map 最右侧的独立列，作为 backend/operator 的固定锚点，而不是窄图标位。
 - 点击 `Commander` 后，最右列应直接原位展开成 `Briefing` 面板；不得再以浮层、popup、drawer 形式覆盖 `Ops` 或 `Cells`。
@@ -237,9 +239,9 @@ cellColors:
 2. 切换到其他 session，再切回；若输出没有变化，idle 不应被刷新。
 3. 在当前 session 输出少量文本（低于阈值，例如 `echo ok`），idle 不应刷新。
 4. 输出超过阈值的文本（例如 `python - <<'PY'\nprint('x'*50)\nPY`），idle 应刷新。
-5. 在一个后台 session 产生新输出后，确认 Agent Cells 顶部 Attention queue、session row、Status Bar 主 attention 使用同一套 `Unread` 语义，并且点击任一入口会回到对应 session。
-6. 触发一个 `Create Agent` 运行中的 child execution，确认 Status Bar 与 Session Map `Priority Queue` 都显示 `Running`，且点击后会打开 Session Map 并落到对应 session/run 上下文。
-7. 制造一次失败 run，确认 Status Bar、Agent Cells、Session Map 都显示同一条 `Failed` attention；它不会像 toast 一样自动消失，并且点击后能回到相关对象。
+5. 在一个后台 session 产生新输出后，确认 Agent Cells 的 cell/session 内联 attention、Session Map token / `Priority Queue`、Status Bar 主 attention 使用同一套 `Unread` 语义，并且点击任一入口会回到对应 session。
+6. 触发一个 `Create Agent` 运行中的 child execution，确认 Agent Cells 的 inline marker、Status Bar `Next`、Session Map `Priority Queue` 都显示 `Running`，且点击后会打开对应 session/run 上下文而不是把 run 埋在背景里。
+7. 制造一次失败 run，确认 Status Bar、Agent Cells inline marker、Session Map `Priority Queue` 都显示同一条 `Failed` attention；它不会像 toast 一样自动消失，并且点击后能回到相关对象。
 8. 在另一个窗口制造更高优先级的 attention，确认当前窗口的 window switcher 能显示该窗口的 primary attention，并可直接聚焦过去。
 
 ## 实现提示
