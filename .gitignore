@@ -48,6 +48,15 @@ logs
 .trae
 # Codex local state (keep shareable prompts tracked)
 .codex
+!.codex/
+.codex/*
+!.codex/skills/
+.codex/skills/*
+!.codex/skills/bagaking-xterm-skills/
+!.codex/skills/bagaking-xterm-skills/SKILL.md
+!.codex/skills/bagaking-xterm-skills/references/
+!.codex/skills/bagaking-xterm-skills/references/boundary-map.md
+!.codex/skills/bagaking-xterm-skills/references/reconnect-playbook.md
 .codex_pub
 # !.codex/prompts/
 # !.codex/prompts/*.md
@@ -60,6 +69,12 @@ logs
 .cursor
 .windsurf
 .bagakit
+!docs/.bagakit/
+docs/.bagakit/*
+!docs/.bagakit/memory/
+docs/.bagakit/memory/*
+!docs/.bagakit/memory/gotcha-terminal-reconnect-input.md
+!docs/.bagakit/memory/howto-workbench-file-first-language-control.md
 
 # Node/Electron
 node_modules
