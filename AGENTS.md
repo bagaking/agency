@@ -82,7 +82,7 @@ Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeSc
 - `Agent Cells`, `Explorer`, `Workbench`, `Session Map`, `Hierarchy`, `Memo`, and `Commander` are surfaces over those objects, not competing object roots.
 - HIL storage is bounded to `comment` / `memo` / `draft`; session replies are session-owned artifacts and must not be stored or surfaced as HIL inbox items.
 - Session-source delivery must reference reply artifacts as `system=reply`; do not backdoor reply provenance through HIL refs.
-- Memo/HIL UI copy and chrome must read as one coherent Memo workspace; do not mix ad-hoc labels like “Neural Comments” / “HIL Repository” for the same artifact family.
+- `Memo` is the primary user-facing noun for the artifact workspace; treat `HIL` as an internal/storage term and do not surface mixed labels like “Neural Comments” / “HIL Repository” for the same artifact family.
 - `Create Cell` is the worktree-bound workspace action.
 - `Create Agent` is the bounded child-execution action owned by a run.
 - `Fork` is a specialized `Create Agent` strategy, not the default noun for workspace creation or child execution.

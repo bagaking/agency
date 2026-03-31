@@ -1,6 +1,7 @@
 ## 1. Contract
 - [ ] 1.1 Add an OpenSpec delta for HIL surface terminology, hierarchy, and Promote clarity.
 - [ ] 1.2 Add/update durable design docs and AGENTS guidance for Memo/HIL surface craft.
+- [ ] 1.3 Update operator-facing docs and active spec wording so legacy HIL-only vocabulary does not survive outside the implementation files.
 
 ## 2. Surface Implementation
 - [ ] 2.1 Introduce shared HIL surface chrome primitives and align drawer headers/tabs.

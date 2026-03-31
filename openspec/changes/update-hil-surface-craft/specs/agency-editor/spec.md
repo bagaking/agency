@@ -3,7 +3,8 @@
 The editor SHALL provide a global right-side drawer for HIL panels.
 The drawer SHALL be collapsible and default to collapsed.
 The drawer SHALL auto-open when a HIL action is invoked (e.g., submitting a comment).
-The drawer SHALL use one coherent Memo/HIL terminology family instead of mixing unrelated panel metaphors for the same artifact system.
+The drawer SHALL use `Memo` as the primary user-facing artifact noun, while `HIL` remains an internal/storage term.
+The drawer SHALL NOT mix unrelated panel metaphors for the same artifact system.
 
 #### Scenario: Auto-open drawer after comment
 - **WHEN** a user submits a line comment
@@ -11,7 +12,7 @@ The drawer SHALL use one coherent Memo/HIL terminology family instead of mixing 
 
 #### Scenario: Drawer terminology stays coherent
 - **WHEN** a user switches between Comments, Drafts, and Memo-facing HIL surfaces
-- **THEN** the chrome keeps one consistent Memo/HIL vocabulary
+- **THEN** the chrome keeps one consistent Memo vocabulary
 - **AND** the surface does not rename the same artifact family with unrelated labels
 
 ### Requirement: Memo Navigation Entry
@@ -25,6 +26,15 @@ The Memo surface SHALL present artifact navigation, capture shortcuts, and draft
 - **WHEN** a user selects Memo in the activity bar
 - **THEN** the editor shows the HIL list for the current worktree
 - **AND** the navigation, capture, and draft affordances read as one Memo workspace instead of disconnected sub-tools
+
+### Requirement: Comment Surface Hierarchy
+The Comments surface SHALL keep the compose action, file context, snippet evidence, and comment list readable without collapsing into a generic dense tool card.
+The Comments surface SHALL make the current file/line, compose state, and submit action legible before secondary metadata.
+
+#### Scenario: Comment compose path stays obvious
+- **WHEN** a user opens comment compose from the HIL surface
+- **THEN** the UI clearly separates current file context, captured snippet evidence, note input, and submit controls
+- **AND** micro-labels do not carry the primary comprehension burden
 
 ### Requirement: Bulk Promote Pending Items
 The Promote flow SHALL provide two execution modes:
@@ -60,7 +70,7 @@ Each contextual variant SHALL preserve the same Memo/HIL visual language and hie
 #### Scenario: Memo view shows Inbox shortcuts
 - **WHEN** the user is in Memo and opens the HIL drawer
 - **THEN** the drawer hides the Comments and Drafts tabs
-- **AND** the drawer shows Inbox shortcuts for Flash notes and Screenshot capture
+- **AND** the drawer shows Inbox shortcuts for Flash, Excerpt, and Screenshot capture
 - **AND** the drawer provides an Open Inbox entry
 - **AND** the Memo main Inbox sections remain available in the main pane
 

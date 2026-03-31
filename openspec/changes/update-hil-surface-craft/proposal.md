@@ -22,6 +22,7 @@ The current HIL surfaces are functional but they do not yet meet Agency's intera
   - `AGENTS.md`
   - `docs/guidelines-hil-surface-design.md`
   - `docs/must-guidebook.md`
+  - `apps/editor/README.md`
   - `docs/notes-session-management.md`
   - `docs/notes-reusable-items-*.md` (if shared patterns are introduced)
 
