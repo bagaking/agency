@@ -120,6 +120,9 @@
 
 ## Memo Drawer Interactions
 
+- Memo is the primary user-facing artifact workspace noun; HIL remains an internal storage term rather than a competing panel label.
+- The right-side drawer now keeps one Memo-facing language across Comments, Drafts, and Capture instead of mixing ad-hoc labels per panel.
+- Comments emphasizes `context -> snippet evidence -> note -> submit`, while Promote emphasizes `selected records -> execution lane -> gate -> dispatch state`.
 - Memo drawer shortcut cards are interactive capture surfaces and do not switch the main Memo panel when clicked.
 - Use the explicit "View Records" action on a shortcut card to switch the main Memo inbox section.
 - After a capture is confirmed and saved, the main Memo panel switches to the corresponding inbox section.

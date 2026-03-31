@@ -1,5 +1,6 @@
 import React from 'react';
 import { Check, ArrowDownToLine, Loader2 } from 'lucide-react';
+import { HilStatusBadge } from '../hilSurfaceSystem';
 import { Tooltip } from '../../ui/Tooltip';
 import { focusRing } from '../../ui/focusRing';
 
@@ -22,7 +23,6 @@ export function ExcerptCaptureCard({
   const fetchLabel = fetching ? 'Fetching…' : 'Fetch preview';
   const saveLabel = loading ? 'Saving…' : 'Save excerpt';
   const statusLabel = fetching ? 'Fetching…' : hasPreview ? 'Preview ready' : canFetch ? 'Ready to fetch' : 'Waiting for URL';
-  const statusClass = fetching ? 'text-amber-300' : hasPreview ? 'text-emerald-300' : 'text-muted-foreground/50';
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-4">
@@ -30,9 +30,11 @@ export function ExcerptCaptureCard({
           <span className="uppercase tracking-[0.2em] font-bold text-[10px] text-muted-foreground/40">
             Source URL
           </span>
-          <span className={`text-[9px] font-semibold uppercase tracking-widest ${statusClass}`} aria-live="polite">
-            {statusLabel}
-          </span>
+          <HilStatusBadge
+            label={statusLabel}
+            tone={fetching ? 'warning' : hasPreview ? 'success' : canFetch ? 'active' : 'neutral'}
+            className="px-2 py-0.5"
+          />
         </div>
         <div className="flex items-center gap-2">
           <Tooltip label={fetchLabel} side="left">
@@ -41,7 +43,7 @@ export function ExcerptCaptureCard({
               onClick={onFetch}
               disabled={fetching || !canFetch}
               aria-label={fetchLabel}
-              className={`inline-flex h-7 w-7 items-center justify-center rounded-md border border-primary/40 bg-primary/5 text-primary transition-colors hover:bg-primary/10 disabled:opacity-50 ${focusRingClass}`}
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-full border border-primary/40 bg-primary/5 text-primary transition-colors hover:bg-primary/10 disabled:opacity-50 ${focusRingClass}`}
             >
               {fetching ? (
                 <Loader2 size={14} className="animate-spin" aria-hidden="true" />
@@ -56,7 +58,7 @@ export function ExcerptCaptureCard({
               onClick={onSave}
               disabled={loading || fetching || !hasPreview}
               aria-label={saveLabel}
-              className={`inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 ${focusRingClass}`}
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 ${focusRingClass}`}
             >
               {loading ? (
                 <Loader2 size={14} className="animate-spin" aria-hidden="true" />

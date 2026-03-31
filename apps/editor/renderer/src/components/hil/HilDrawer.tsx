@@ -16,6 +16,7 @@ export function HilDrawer({
   onSelectPanel,
   onOpenPromote,
   children,
+  eyebrow,
   title,
   subtitle,
   panels = defaultPanels,
@@ -61,7 +62,7 @@ export function HilDrawer({
         {drawerOpen ? (
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/46 truncate">
-              {HIL_SURFACE_COPY.workspaceSubtitle}
+              {eyebrow || HIL_SURFACE_COPY.workspaceEyebrow}
             </span>
             <h2 className="mt-1 text-[15px] font-semibold tracking-[0.01em] text-foreground truncate">
               {title || HIL_SURFACE_COPY.workspaceTitle}

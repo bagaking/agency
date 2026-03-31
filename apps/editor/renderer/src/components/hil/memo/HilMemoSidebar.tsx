@@ -133,9 +133,11 @@ export function HilMemoSidebar({
                   <span className="truncate">{section.label}</span>
                 </span>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[9px] text-muted-foreground/42 truncate max-w-[82px]">
-                    {section.description}
-                  </span>
+                  {active ? (
+                    <span className="text-[9px] text-muted-foreground/42 truncate max-w-[82px]">
+                      {section.description}
+                    </span>
+                  ) : null}
                   <span className="text-[9px] font-mono opacity-30">
                     {inboxCounts[section.id] || 0}
                   </span>

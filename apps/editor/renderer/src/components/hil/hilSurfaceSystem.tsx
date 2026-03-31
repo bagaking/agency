@@ -53,6 +53,7 @@ export const HIL_MEMO_SECTION_DEFS: Array<{
 export const HIL_SURFACE_COPY = {
   workspaceTitle: 'Memo',
   workspaceSubtitle: 'Artifact Workspace',
+  workspaceEyebrow: 'Artifact Workspace',
   commentsTitle: 'Comments',
   commentsSubtitle: 'Comment Inbox',
   draftsTitle: 'Drafts',
@@ -62,6 +63,7 @@ export const HIL_SURFACE_COPY = {
   captureTitle: 'Capture',
   captureSubtitle: 'Inbox shortcuts',
   replyTitle: 'Session Reply',
+  replyEyebrow: 'Session-owned relay',
 } as const;
 
 export function resolveHilDrawerMeta({
@@ -99,6 +101,10 @@ export function resolveHilDrawerMeta({
   return {
     isMemoView,
     isAgentCellsView,
+    eyebrow:
+      hilDrawerPanel === 'reply'
+        ? HIL_SURFACE_COPY.replyEyebrow
+        : HIL_SURFACE_COPY.workspaceEyebrow,
     panels,
     title,
     subtitle,
@@ -163,6 +169,23 @@ export function HilStatusBadge({
       className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] ${toneClasses} ${className}`}
     >
       {label}
+    </span>
+  );
+}
+
+export function HilContextChip({
+  label,
+  className = '',
+}: {
+  label: string;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`inline-flex min-w-0 items-center rounded-full border border-white/[0.08] bg-background/38 px-2.5 py-1 text-[10px] font-medium text-muted-foreground/72 ${className}`}
+      title={label}
+    >
+      <span className="truncate">{label}</span>
     </span>
   );
 }

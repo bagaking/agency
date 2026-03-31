@@ -198,15 +198,15 @@ function MemoShortcutCard({
             <span className="block text-[10px] text-muted-foreground/50">{description}</span>
           </span>
         </span>
-        <span className="flex items-center gap-2">
-          {active ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-primary">
-              <ArrowLeft size={10} aria-hidden="true" />
-              In Inbox
-            </span>
-          ) : null}
-          {actions}
-        </span>
+          <span className="flex items-center gap-2">
+            {active ? (
+              <span className="inline-flex items-center gap-1 text-[9px] font-medium text-primary/78">
+                <ArrowLeft size={10} aria-hidden="true" />
+                Focused in Memo
+              </span>
+            ) : null}
+            {actions}
+          </span>
       </div>
       <div
         className={`px-3 pb-3 overflow-hidden transition-[max-height,opacity] duration-300 ${

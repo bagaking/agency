@@ -33,6 +33,7 @@ test('resolveHilDrawerMeta keeps Memo as the primary UI noun', () => {
   });
 
   assert.equal(memoMeta.title, HIL_SURFACE_COPY.workspaceTitle);
+  assert.equal(memoMeta.eyebrow, HIL_SURFACE_COPY.workspaceEyebrow);
   assert.equal(memoMeta.subtitle, HIL_SURFACE_COPY.captureSubtitle);
   assert.equal(commentsMeta.title, HIL_SURFACE_COPY.commentsTitle);
   assert.equal(commentsMeta.subtitle, HIL_SURFACE_COPY.commentsSubtitle);
@@ -52,6 +53,7 @@ test('resolveHilDrawerMeta keeps reply isolated from Memo chrome wording', () =>
   });
 
   assert.equal(replyMeta.title, HIL_SURFACE_COPY.replyTitle);
+  assert.equal(replyMeta.eyebrow, HIL_SURFACE_COPY.replyEyebrow);
   assert.equal(replyMeta.subtitle, 'Session A');
   assert.deepEqual(replyMeta.panels, [{ id: 'reply', label: 'Reply' }]);
 });

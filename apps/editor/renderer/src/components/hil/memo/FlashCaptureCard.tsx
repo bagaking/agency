@@ -1,5 +1,6 @@
 import React from 'react';
 import { Check, Loader2 } from 'lucide-react';
+import { HilStatusBadge } from '../hilSurfaceSystem';
 import { VoiceCaptureControl } from './VoiceCaptureControl';
 import { Tooltip } from '../../ui/Tooltip';
 import { focusRing } from '../../ui/focusRing';
@@ -49,14 +50,18 @@ export function FlashCaptureCard({
         className="w-full resize-none rounded-lg border border-border/20 bg-background px-3 py-2.5 text-[12px] text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-colors"
       />
       <div className="flex items-center justify-between text-[10px] text-muted-foreground/50">
-        <span>{value.trim() ? 'Ready to save.' : 'Keep it short and direct.'}</span>
+        <HilStatusBadge
+          label={value.trim() ? 'Ready to save' : 'Keep it short'}
+          tone={value.trim() ? 'active' : 'neutral'}
+          className="px-2 py-0.5"
+        />
         <Tooltip label={saveLabel} side="left">
           <button
             type="button"
             onClick={onSave}
             disabled={loading || !value.trim()}
             aria-label={saveLabel}
-            className={`inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 ${focusRingClass}`}
+            className={`inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 ${focusRingClass}`}
           >
             {loading ? (
               <Loader2 size={14} className="animate-spin" aria-hidden="true" />

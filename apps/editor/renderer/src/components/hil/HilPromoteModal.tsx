@@ -4,6 +4,7 @@ import { Camera, FileCode, Quote, StickyNote, Terminal, X } from 'lucide-react';
 
 import { ActionSheetStatusPanel } from '../actionSheets/ActionSheetStatusPanel';
 import {
+  HilContextChip,
   HIL_SURFACE_COPY,
   HilStatusBadge,
   HilSurfaceHeader,
@@ -121,7 +122,7 @@ export function PromoteModal({
               <>
                 <HilStatusBadge label={`${selectedCount} selected`} tone="active" />
                 <HilStatusBadge label={deliveryMode} tone={deliveryMode === 'gated' ? 'warning' : 'neutral'} />
-                {promoteSessionId ? <HilStatusBadge label={promoteSessionId} tone="neutral" /> : null}
+                {promoteSessionId ? <HilContextChip label={promoteSessionId} /> : null}
               </>
             }
           />
@@ -419,7 +420,7 @@ export function PromoteModal({
           </div>
         ) : null}
 
-        <div className="mt-4 flex items-center justify-end gap-2">
+        <div className="mt-5 flex items-center justify-end gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.025] px-4 py-3">
           <button
             type="button"
             onClick={onClose}
@@ -432,8 +433,8 @@ export function PromoteModal({
               type="button"
               onClick={onConfirm}
               disabled={(deliveryMode === 'gated' && !gateReady) || loading}
-              className={`rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-colors transition-transform active:scale-95 disabled:opacity-50 ${focusRingClass}`}
-            >
+            className={`rounded-full bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary-foreground shadow-sm transition-colors transition-transform active:scale-95 disabled:opacity-50 ${focusRingClass}`}
+          >
               {loading
                 ? 'Updating…'
                 : deliveryMode === 'gated'
@@ -445,8 +446,8 @@ export function PromoteModal({
               type="button"
               onClick={onDispatch}
               disabled={loading}
-              className={`rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition-colors transition-transform active:scale-95 disabled:opacity-50 ${focusRingClass}`}
-            >
+            className={`rounded-full bg-primary hover:bg-primary/90 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary-foreground shadow-sm transition-colors transition-transform active:scale-95 disabled:opacity-50 ${focusRingClass}`}
+          >
               {loading
                 ? 'Dispatching…'
                 : deliveryMode === 'gated'
@@ -470,19 +471,7 @@ function PromoteGateBadge({ status }: any) {
         : status === 'idle'
           ? 'Idle'
           : 'Waiting';
-  const styles =
-    status === 'ready'
-      ? 'border-emerald-500/30 text-emerald-400'
-      : status === 'missing'
-        ? 'border-rose-500/30 text-rose-400'
-        : status === 'idle'
-          ? 'border-border/40 text-muted-foreground/60'
-          : 'border-amber-500/30 text-amber-400';
-  return (
-    <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.2em] ${styles}`}>
-      {label}
-    </span>
-  );
+  return <HilStatusBadge label={label} tone={status === 'ready' ? 'success' : status === 'missing' ? 'danger' : status === 'idle' ? 'neutral' : 'warning'} className="px-2 py-0.5" />;
 }
 
 function ExecutionStatusBadge({ status }: any) {
@@ -500,25 +489,7 @@ function ExecutionStatusBadge({ status }: any) {
             : status === 'missing'
               ? 'Missing'
               : 'Idle';
-  const styles =
-    status === 'complete'
-      ? 'border-emerald-500/30 text-emerald-400'
-      : status === 'running'
-        ? 'border-sky-500/30 text-sky-400'
-        : status === 'failed'
-          ? 'border-rose-500/30 text-rose-400'
-          : status === 'queued'
-            ? 'border-amber-500/30 text-amber-400'
-            : status === 'missing'
-              ? 'border-rose-500/30 text-rose-400'
-              : status === 'canceled'
-                ? 'border-border/40 text-muted-foreground/50'
-                : 'border-border/40 text-muted-foreground/60';
-  return (
-    <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.2em] ${styles}`}>
-      {label}
-    </span>
-  );
+  return <HilStatusBadge label={label} tone={status === 'complete' ? 'success' : status === 'running' ? 'active' : status === 'failed' || status === 'missing' ? 'danger' : status === 'queued' ? 'warning' : 'neutral'} className="px-2 py-0.5" />;
 }
 
 function buildPromoteTree(items = []) {

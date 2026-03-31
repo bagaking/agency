@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowUpRight, Camera, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { HilStatusBadge } from '../hilSurfaceSystem';
 import { Tooltip } from '../../ui/Tooltip';
 import { focusRing } from '../../ui/focusRing';
 
@@ -21,7 +22,6 @@ export function ScreenshotCaptureCard({
   const captureTooltip = loading ? 'Capturing…' : `${captureLabel} · ${shortcutHint}`;
   const routeLabel = 'Route capture';
   const statusLabel = loading ? 'Capturing…' : pending ? 'Pending capture' : asset ? 'Captured' : 'Ready';
-  const statusClass = loading || pending ? 'text-amber-300' : asset ? 'text-emerald-300' : 'text-muted-foreground/50';
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
@@ -29,9 +29,11 @@ export function ScreenshotCaptureCard({
           <span className="uppercase tracking-[0.2em] font-bold text-[10px] text-muted-foreground/40">
             Screenshot
           </span>
-          <span className={`text-[9px] font-semibold uppercase tracking-widest ${statusClass}`} aria-live="polite">
-            {statusLabel}
-          </span>
+          <HilStatusBadge
+            label={statusLabel}
+            tone={loading || pending ? 'warning' : asset ? 'success' : 'neutral'}
+            className="px-2 py-0.5"
+          />
         </div>
         <Tooltip label={captureTooltip} side="left">
           <button
@@ -39,7 +41,7 @@ export function ScreenshotCaptureCard({
             onClick={onCapture}
             disabled={loading}
             aria-label={captureLabel}
-            className={`inline-flex h-7 w-7 items-center justify-center rounded-md border border-primary/40 bg-primary/5 text-primary transition-colors hover:bg-primary/10 disabled:opacity-50 ${focusRingClass}`}
+            className={`inline-flex h-8 w-8 items-center justify-center rounded-full border border-primary/40 bg-primary/5 text-primary transition-colors hover:bg-primary/10 disabled:opacity-50 ${focusRingClass}`}
           >
             {loading ? (
               <Loader2 size={14} className="animate-spin" aria-hidden="true" />
@@ -80,7 +82,7 @@ export function ScreenshotCaptureCard({
                 type="button"
                 onClick={onOpenRouting}
                 aria-label={routeLabel}
-                className={`inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 ${focusRingClass}`}
+                className={`inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90 ${focusRingClass}`}
               >
                 <ArrowUpRight size={14} aria-hidden="true" />
               </button>

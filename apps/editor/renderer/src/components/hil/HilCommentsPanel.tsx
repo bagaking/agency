@@ -18,6 +18,7 @@ import { resolveFileReferenceTarget } from '../../utils/fileReferences';
 import { setFileDragPayload } from '../../utils/fileDragPayload';
 import { useFileSnippetPreview } from '../../hooks/useFileSnippetPreview';
 import {
+  HilContextChip,
   HIL_SURFACE_COPY,
   HilStatusBadge,
   HilSurfaceHeader,
@@ -71,8 +72,6 @@ export function HilCommentsPanel({
     ? Math.max(1, Math.floor(commentTarget.line))
     : Math.max(1, Math.floor(cursorPosition?.line || 1));
   const snippetLines = commentSnippet?.snippet || null;
-  const targetSnippet = snippetLines?.find((line) => line.isTarget);
-  const targetLineContent = targetSnippet?.content || '';
 
   useEffect(() => {
     if (commentModalOpen && messageRef.current) {
@@ -134,7 +133,7 @@ export function HilCommentsPanel({
         >
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2 px-0.5">
-              {activeFile ? <HilStatusBadge label={activeFile} tone="neutral" /> : null}
+              {activeFile ? <HilContextChip label={activeFile} /> : null}
               <HilStatusBadge label={`Ln ${resolvedLine}`} tone="active" />
             </div>
 
@@ -387,9 +386,7 @@ function ContextAnchor({ anchor, commentBody, worktreePath, isResolved, onOpenAn
               tone={isResolved ? 'neutral' : 'active'}
               className="px-2 py-0.5"
             />
-            <span className="text-[10px] text-muted-foreground/46 font-mono italic truncate max-w-[180px]">
-                {anchor.file}
-            </span>
+            <HilContextChip label={anchor.file} className="max-w-[220px]" />
             <div className={`h-px flex-1 bg-gradient-to-r ${isResolved ? 'from-muted-foreground/10' : 'from-primary/10'} to-transparent`} />
             {onRevealAnchor ? (
               <button
