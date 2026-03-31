@@ -56,6 +56,7 @@ import {
 } from './useExplorerContentSearch';
 import {
   buildExplorerConfirmedContentFilePaths,
+  buildExplorerContentReplaceRequest,
 } from './explorerContentReviewModel';
 import { useExplorerChangedFilesActions } from './useExplorerChangedFilesActions';
 import { useExplorerCapabilityPreferences } from './useExplorerCapabilityPreferences';
@@ -882,6 +883,14 @@ function ProjectExplorerSidebarContent({
     [confirmedContentFullFilePaths]
   );
   const confirmedContentFileCount = confirmedContentResultPaths.length;
+  const confirmedContentReplaceRequest = useMemo(
+    () =>
+      buildExplorerContentReplaceRequest({
+        fullFilePaths: confirmedContentFullFilePaths,
+        confirmedMatches: confirmedContentMatches,
+      }),
+    [confirmedContentFullFilePaths, confirmedContentMatches]
+  );
 
   const handleToggleContentMatch = useCallback((targetMatch: ExplorerContentSearchConfirmedMatch) => {
     const matchKey = buildExplorerContentSearchMatchKey(targetMatch);
@@ -982,9 +991,7 @@ function ProjectExplorerSidebarContent({
     if (!confirmed) {
       return;
     }
-    const response = await applyContentReplace({
-      confirmedPaths: confirmedContentResultPaths,
-    });
+    const response = await applyContentReplace(confirmedContentReplaceRequest);
     if (response) {
       await refreshAll({ forceStatus: true, reloadExpanded: true });
       await refreshChangesPanel();
@@ -993,7 +1000,7 @@ function ProjectExplorerSidebarContent({
     applyContentReplace,
     confirmedContentFileCount,
     confirmedContentMatchCount,
-    confirmedContentResultPaths,
+    confirmedContentReplaceRequest,
     contentSearchTruncated,
     contentSearchQuery,
     modal,
