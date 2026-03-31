@@ -386,9 +386,10 @@ make editor-dev
 - Switch away from a session and back without meaningful new output, and confirm it does not immediately become `Unread` just because of transient blur, attach replay, or silent refresh noise.
 - Trigger `Smart Fork [by commander]` or another `Create Agent` run and confirm Agent Cells keeps the list primary while exposing inline `Running`, the status bar shows `Running`, the shell right-side rail owns the queue-style triage path, and Session Map `Ops` stays focused on evidence.
 - Trigger a failed child-execution run and confirm Agent Cells inline markers, the shell right-side `Priority Queue`, and the status bar all surface the same `Failed` attention without introducing a separate Agent Cells queue card.
-- Trigger a pending lifecycle confirmation and confirm the status bar `Next` label stays `Confirm`, while its tooltip explains that activation will open `Session Map`.
-- Finish a child-execution run that creates a child session, hover `Next`, and confirm the visible label stays `Review` while the tooltip explains that activation will jump back to the child session.
-- Hover or focus `Next` for `Unread`, `Running`, `Failed`, and cross-window attention cases, and confirm the tooltip names the real destination instead of only repeating the badge text.
+- Trigger a pending lifecycle confirmation and confirm the status bar `Next` label stays `Confirm`, while its tooltip expands that same canonical state into a full sentence and explains that activation will open `Session Map`.
+- Finish a child-execution run that creates a child session, hover `Next`, and confirm the visible label stays `Review` while the tooltip expands that same canonical state and explains that activation will jump back to the child session.
+- Hover or focus `Next` for `Unread`, `Running`, `Failed`, and cross-window attention cases, and confirm the tooltip keeps the shared state vocabulary in view while also naming the real destination instead of collapsing into destination-only copy.
+- Trigger a `Running` or `Failed` item that opens evidence rather than a direct session jump, hover `Next`, and confirm the tooltip explicitly says `Open Session Map evidence`.
 - Finish a child-execution run that creates a child session, do not revisit that child, and confirm Agency surfaces `Review` / return-required attention until the child session is visited.
 - Open a second Agency window, create a higher-priority failure there, and confirm the current window's switcher surfaces that other window's primary attention state before you focus it.
 - Add a quick action with both commands and verify start/resume run in the active session.
