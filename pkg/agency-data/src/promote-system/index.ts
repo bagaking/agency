@@ -643,7 +643,9 @@ export async function confirmDelivery({
         }
         if (ref.system === 'reply') {
           return updateSessionReply({
-            worktreePath: storage.worktreePath || storage.repoRootPath,
+            repoRootPath: storage.repoRootPath,
+            cellId: String(ref?.cellId || storage.cellId || '').trim(),
+            worktreePath: storage.worktreePath,
             replyId: ref.id,
             patch: {
               delivery: {

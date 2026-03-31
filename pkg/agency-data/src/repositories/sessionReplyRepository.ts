@@ -88,7 +88,6 @@ type SessionReplyStoragePaths = {
   indexPath: string;
   repliesRoot: string;
   legacyIndexPath: string;
-  legacyRepliesRoot: string;
   legacyHilIndexPath: string;
   legacyHilReplyRoot: string;
 };
@@ -132,12 +131,6 @@ function getLegacyReplyIndexPath(worktreePath: string): string {
   );
 }
 
-function getLegacyReplyRoot(worktreePath: string): string {
-  const normalizedWorktreePath = path.resolve(worktreePath);
-  const worktreeName = path.basename(normalizedWorktreePath);
-  return path.join(normalizedWorktreePath, AGENCY_DIR, SESSION_REPLIES_DIR, worktreeName);
-}
-
 function getLegacyHilIndexPath(worktreePath: string): string {
   const normalizedWorktreePath = path.resolve(worktreePath);
   const worktreeName = path.basename(normalizedWorktreePath);
@@ -173,7 +166,6 @@ function resolveSessionReplyStoragePaths(
         : path.join(owner.ownerRoot, SESSION_REPLIES_DIR, `${REPLY_INDEX_PREFIX}${legacyWorktreeName}${YAML_EXT}`),
     repliesRoot,
     legacyIndexPath: owner.worktreePath ? getLegacyReplyIndexPath(owner.worktreePath) : '',
-    legacyRepliesRoot: owner.worktreePath ? getLegacyReplyRoot(owner.worktreePath) : '',
     legacyHilIndexPath: owner.worktreePath ? getLegacyHilIndexPath(owner.worktreePath) : '',
     legacyHilReplyRoot: owner.worktreePath ? getLegacyHilReplyRoot(owner.worktreePath) : '',
   };
@@ -579,6 +571,9 @@ export async function updateSessionReply({
   replyId: string;
   patch: Partial<SessionReplyItem>;
 }): Promise<SessionReplyItem> {
+  if (!replyId) {
+    throw new Error('replyId is required.');
+  }
   const inferredCellId =
     patch?.owner && typeof patch.owner === 'object' ? String((patch.owner as any).cellId || '') : cellId || '';
   const paths = resolveSessionReplyStoragePaths(
