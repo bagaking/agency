@@ -11,7 +11,7 @@
 - [x] 2.4 Add targeted regression coverage for the Workbench quick-open/affordance shell.
 - [x] 2.5 Commit a checkpoint version before review.
 - [x] 2.6 Run parallel review and apply checkpoint fixes.
-- [ ] 2.7 Commit the reviewed checkpoint version.
+- [x] 2.7 Commit the reviewed checkpoint version.
 
 ## 3. Checkpoint 2: Capability Depth
 
@@ -21,4 +21,4 @@
 - [x] 3.4 Add or extend targeted regression coverage.
 - [x] 3.5 Commit a checkpoint version before review.
 - [x] 3.6 Run parallel review and apply checkpoint fixes.
-- [ ] 3.7 Commit the reviewed final version.
+- [x] 3.7 Commit the reviewed final version.
