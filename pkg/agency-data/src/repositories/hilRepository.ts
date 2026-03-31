@@ -3,91 +3,80 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import yaml from 'js-yaml';
+
+import {
+  AGENCY_DIR,
+  getStoragePaths,
+  resolveWorktreeName,
+  type WorktreeStorageContext,
+} from './storageRoots';
+import { readYamlFile, writeYamlFileAtomic } from './yamlStore';
 
 const fsp = fs.promises;
 const execFileAsync = promisify(execFile);
 
-const AGENCY_DIR = '.agency';
 const HIL_DIR = 'hil';
 const HIL_PREFIX = 'index-';
 const HIL_EXT = '.yaml';
 const LEGACY_COMMENTS_PREFIX = 'comments-';
 const LEGACY_COMMENTS_EXT = '.yaml';
-type HilStorageContext = {
-  worktreePath?: string;
-  projectRootPath?: string;
+
+const SUPPORTED_HIL_KINDS = new Set(['comment', 'memo', 'draft']);
+
+export type HilStorageContext = WorktreeStorageContext;
+export type HilKind = 'comment' | 'memo' | 'draft';
+
+export type HilItem = {
+  id: string;
+  kind: HilKind;
+  status: string;
+  author: Record<string, any> | null;
+  createdAt: string;
+  updatedAt: string | null;
+  body: string;
+  anchor: Record<string, any> | null;
+  references: Array<Record<string, any>>;
+  meta: Record<string, any>;
 };
 
-function normalizeHilContext(context: HilStorageContext = {}): HilStorageContext {
-  return {
-    worktreePath: String(context.worktreePath || '').trim(),
-    projectRootPath: String(context.projectRootPath || '').trim(),
-  };
-}
-
-function resolveStorageRootPath(context: HilStorageContext): string {
-  const normalized = normalizeHilContext(context);
-  const candidate = normalized.projectRootPath || normalized.worktreePath;
-  if (!candidate) {
-    return '';
-  }
-  return path.resolve(candidate);
-}
-
-function resolveHilWorktreeName(context: HilStorageContext, storageRootPath: string): string {
-  const normalized = normalizeHilContext(context);
-  if (normalized.worktreePath) {
-    return path.basename(normalized.worktreePath);
-  }
-  if (storageRootPath) {
-    return path.basename(storageRootPath) || 'repo';
-  }
-  return 'repo';
-}
-
-function getHilStoragePaths(context: HilStorageContext): { storageRootPath: string; worktreeName: string } {
-  const storageRootPath = resolveStorageRootPath(context);
-  if (!storageRootPath) {
-    throw new Error('worktreePath or projectRootPath is required.');
-  }
-  const worktreeName = resolveHilWorktreeName(context, storageRootPath);
-  return { storageRootPath, worktreeName };
-}
+type RawHilIndex = {
+  version: number;
+  items: Record<string, any>[];
+};
 
 const authorCache = new Map<string, Record<string, any>>();
 
+function isHilKind(value: unknown): value is HilKind {
+  return SUPPORTED_HIL_KINDS.has(String(value || '').trim());
+}
+
 export function getHilIndexPath(worktreePath: string, projectRootPath?: string): string {
-  const { storageRootPath, worktreeName } = getHilStoragePaths({ worktreePath, projectRootPath });
+  const { storageRootPath, worktreeName } = getStoragePaths({ worktreePath, projectRootPath });
   return path.join(storageRootPath, AGENCY_DIR, HIL_DIR, `${HIL_PREFIX}${worktreeName}${HIL_EXT}`);
 }
 
 function getHilTreeRoot(context: HilStorageContext): string {
-  const { storageRootPath, worktreeName } = getHilStoragePaths(context);
+  const { storageRootPath, worktreeName } = getStoragePaths(context);
   return path.join(storageRootPath, AGENCY_DIR, HIL_DIR, worktreeName);
 }
 
-function getHilItemDir(kind?: string): string {
+function getHilItemDir(kind: HilKind): string {
   if (kind === 'draft') {
     return 'drafts';
   }
   if (kind === 'comment') {
     return path.join('items', 'comments');
   }
-  if (kind === 'memo') {
-    return path.join('items', 'memos');
-  }
-  return path.join('items', kind || 'items');
+  return path.join('items', 'memos');
 }
 
-function getHilItemPath(worktreePath: string, item: Record<string, any>): string {
-  const base = getHilTreeRoot({ worktreePath });
-  const folder = getHilItemDir(item?.kind);
-  return path.join(base, folder, `${item.id}${HIL_EXT}`);
+function getHilItemPath(worktreePath: string, item: HilItem): string {
+  return path.join(getHilTreeRoot({ worktreePath }), getHilItemDir(item.kind), `${item.id}${HIL_EXT}`);
 }
 
 function getLegacyCommentsPath(worktreePath: string): string {
-  const worktreeName = resolveHilWorktreeName({ worktreePath }, path.resolve(worktreePath));
+  const resolvedWorktreePath = path.resolve(worktreePath);
+  const worktreeName = resolveWorktreeName({ worktreePath }, resolvedWorktreePath);
   return path.join(worktreePath, AGENCY_DIR, `${LEGACY_COMMENTS_PREFIX}${worktreeName}${LEGACY_COMMENTS_EXT}`);
 }
 
@@ -99,51 +88,29 @@ function normalizeLine(value: unknown): number {
   return Math.floor(line);
 }
 
-function normalizeHilItem(raw: Record<string, any> | null): Record<string, any> | null {
-  if (!raw || typeof raw !== 'object') {
+function normalizeHilItem(raw: Record<string, any> | null): HilItem | null {
+  if (!raw || typeof raw !== 'object' || !isHilKind(raw.kind || 'comment')) {
+    return null;
+  }
+  const id = String(raw.id || '').trim();
+  if (!id) {
     return null;
   }
   const meta = raw.meta && typeof raw.meta === 'object' ? { ...raw.meta } : {};
   if (typeof meta.processed !== 'boolean') {
     meta.processed = false;
   }
-  const kind = raw.kind || 'comment';
-  const status = raw.status || 'open';
   return {
-    id: raw.id,
-    kind,
-    status,
+    id,
+    kind: raw.kind,
+    status: String(raw.status || 'open'),
     author: raw.author || null,
-    createdAt: raw.createdAt,
-    updatedAt: raw.updatedAt || null,
+    createdAt: String(raw.createdAt || ''),
+    updatedAt: raw.updatedAt ? String(raw.updatedAt) : null,
     body: typeof raw.body === 'string' ? raw.body : typeof raw.message === 'string' ? raw.message : '',
-    anchor: raw.anchor || null,
+    anchor: raw.anchor && typeof raw.anchor === 'object' ? { ...raw.anchor } : null,
     references: Array.isArray(raw.references) ? raw.references : [],
     meta,
-  };
-}
-
-function ensureProcessedFlag(index: Record<string, any>): { index: Record<string, any>; changed: boolean } {
-  const items = Array.isArray(index.items) ? index.items : [];
-  let changed = false;
-  const nextItems = items
-    .map((item) => {
-      const normalized = normalizeHilItem(item);
-      if (!normalized) {
-        return null;
-      }
-      if (typeof item?.meta?.processed !== 'boolean') {
-        changed = true;
-      }
-      return normalized;
-    })
-    .filter(Boolean);
-  return {
-    index: {
-      version: index.version || 1,
-      items: nextItems,
-    },
-    changed,
   };
 }
 
@@ -157,103 +124,93 @@ function buildLegacySignature(comment: Record<string, any>): string {
 
 function hashString(value: string): string {
   let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash << 5) - hash + value.charCodeAt(i);
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
     hash |= 0;
   }
   return Math.abs(hash).toString(36);
 }
 
-async function readHilIndex(worktreePath: string): Promise<Record<string, any>> {
-  const hilPath = getHilIndexPath(worktreePath);
-  if (!fs.existsSync(hilPath)) {
-    return { version: 1, items: [] };
-  }
-  try {
-    const raw = await fsp.readFile(hilPath, 'utf-8');
-    const parsed = (yaml.load(raw) || {}) as Record<string, any>;
-    return {
-      version: parsed.version || 1,
-      items: Array.isArray(parsed.items) ? parsed.items.map(normalizeHilItem).filter(Boolean) : [],
-    };
-  } catch (_error) {
-    const suffix = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = `${hilPath}.corrupt-${suffix}`;
-    try {
-      await fsp.rename(hilPath, backupPath);
-    } catch (_renameError) {
-      // best effort backup only
-    }
-    return { version: 1, items: [] };
-  }
+async function readHilIndexRaw(worktreePath: string): Promise<RawHilIndex> {
+  const parsed = await readYamlFile<Record<string, any>>(
+    getHilIndexPath(worktreePath),
+    { version: 1, items: [] },
+    { backupCorrupt: true }
+  );
+  return {
+    version: Number(parsed.version || 1),
+    items: Array.isArray(parsed.items) ? parsed.items.filter((item) => item && typeof item === 'object') : [],
+  };
 }
 
-async function writeHilIndex(worktreePath: string, payload: Record<string, any>): Promise<void> {
-  const hilPath = getHilIndexPath(worktreePath);
-  await fsp.mkdir(path.dirname(hilPath), { recursive: true });
-  const content = yaml.dump(payload, { lineWidth: 120 });
-  const tempSuffix = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const tempPath = `${hilPath}.tmp-${tempSuffix}`;
-  await fsp.writeFile(tempPath, content, 'utf-8');
-  await fsp.rename(tempPath, hilPath);
+async function writeHilIndexRaw(worktreePath: string, payload: RawHilIndex): Promise<void> {
+  await writeYamlFileAtomic(getHilIndexPath(worktreePath), payload);
 }
 
-async function writeHilItemArtifact(worktreePath: string, item: Record<string, any>): Promise<void> {
-  if (!worktreePath || !item?.id) {
-    return;
-  }
-  const filePath = getHilItemPath(worktreePath, item);
-  await fsp.mkdir(path.dirname(filePath), { recursive: true });
-  const content = yaml.dump(item, { lineWidth: 120 });
-  await fsp.writeFile(filePath, content, 'utf-8');
+async function writeHilItemArtifact(worktreePath: string, item: HilItem): Promise<void> {
+  await writeYamlFileAtomic(getHilItemPath(worktreePath, item), item);
 }
 
 async function readLegacyComments(worktreePath: string): Promise<Record<string, any>[]> {
   const legacyPath = getLegacyCommentsPath(worktreePath);
-  if (!fs.existsSync(legacyPath)) {
-    return [];
-  }
-  try {
-    const raw = await fsp.readFile(legacyPath, 'utf-8');
-    const parsed = (yaml.load(raw) || {}) as Record<string, any>;
-    return Array.isArray(parsed.comments) ? parsed.comments : [];
-  } catch (_error) {
-    return [];
-  }
+  const parsed = await readYamlFile<Record<string, any>>(legacyPath, { comments: [] });
+  return Array.isArray(parsed.comments) ? parsed.comments : [];
+}
+
+function ensureProcessedFlag(index: RawHilIndex): { index: RawHilIndex; changed: boolean } {
+  let changed = false;
+  const items = index.items.map((item) => {
+    const normalized = normalizeHilItem(item);
+    if (!normalized) {
+      return item;
+    }
+    if (typeof item?.meta?.processed !== 'boolean') {
+      changed = true;
+      return normalized;
+    }
+    return item;
+  });
+  return {
+    index: {
+      version: index.version || 1,
+      items,
+    },
+    changed,
+  };
 }
 
 async function migrateLegacyComments(
   worktreePath: string,
-  index: Record<string, any>
-): Promise<{ index: Record<string, any>; changed: boolean }> {
+  index: RawHilIndex
+): Promise<{ index: RawHilIndex; changed: boolean }> {
   const legacy = await readLegacyComments(worktreePath);
   if (!legacy.length) {
     return { index, changed: false };
   }
-  const items = Array.isArray(index.items) ? [...index.items] : [];
-  const existingIds = new Set(items.map((item) => item.id).filter(Boolean));
+  const items = [...index.items];
+  const existingIds = new Set(items.map((item) => String(item?.id || '').trim()).filter(Boolean));
   const existingSignatures = new Set(
     items
-      .map((item) => item.meta?.legacySignature)
-      .filter((signature) => typeof signature === 'string')
+      .map((item) => String(item?.meta?.legacySignature || '').trim())
+      .filter(Boolean)
   );
   let changed = false;
 
   legacy.forEach((comment) => {
     const signature = buildLegacySignature(comment);
-    if (existingIds.has(comment?.id) || existingSignatures.has(signature)) {
+    if (existingIds.has(String(comment?.id || '').trim()) || existingSignatures.has(signature)) {
       return;
     }
-    const id = comment?.id || `legacy_${hashString(signature)}`;
+    const id = String(comment?.id || '').trim() || `legacy_${hashString(signature)}`;
     const body = String(comment?.message ?? comment?.body ?? '').trim();
     const line = normalizeLine(comment?.line);
     const column = normalizeLine(comment?.column || 1);
-    const item = {
+    items.push({
       id,
       kind: 'comment',
-      status: comment?.status || 'open',
+      status: String(comment?.status || 'open'),
       author: comment?.author || null,
-      createdAt: comment?.createdAt || new Date().toISOString(),
+      createdAt: String(comment?.createdAt || new Date().toISOString()),
       updatedAt: comment?.updatedAt || null,
       body,
       anchor: comment?.file
@@ -271,8 +228,7 @@ async function migrateLegacyComments(
         legacySource: 'comments',
         processed: false,
       },
-    };
-    items.push(item);
+    });
     existingIds.add(id);
     existingSignatures.add(signature);
     changed = true;
@@ -282,7 +238,10 @@ async function migrateLegacyComments(
     return { index, changed: false };
   }
   return {
-    index: { version: index.version || 1, items },
+    index: {
+      version: index.version || 1,
+      items,
+    },
     changed: true,
   };
 }
@@ -324,22 +283,49 @@ async function resolveAuthor(worktreePath: string): Promise<Record<string, any> 
   return null;
 }
 
-async function ensureHilIndex(worktreePath: string): Promise<Record<string, any>> {
-  const index = await readHilIndex(worktreePath);
+async function ensureHilIndexRaw(worktreePath: string): Promise<RawHilIndex> {
+  const index = await readHilIndexRaw(worktreePath);
   const { index: migrated, changed } = await migrateLegacyComments(worktreePath, index);
   const { index: processedIndex, changed: processedChanged } = ensureProcessedFlag(migrated);
   if (changed || processedChanged) {
-    await writeHilIndex(worktreePath, processedIndex);
+    await writeHilIndexRaw(worktreePath, processedIndex);
   }
   return processedIndex;
 }
 
-export async function listHilItems({ worktreePath, kind, status, filePath }: Record<string, any> = {}): Promise<Record<string, any>[]> {
+export async function takeLegacyReplyItems(worktreePath: string): Promise<Record<string, any>[]> {
   if (!worktreePath) {
     throw new Error('worktreePath is required.');
   }
-  const index = await ensureHilIndex(worktreePath);
-  let items = Array.isArray(index.items) ? index.items.map(normalizeHilItem).filter(Boolean) : [];
+  const index = await ensureHilIndexRaw(worktreePath);
+  const legacyReplies = index.items.filter((item) => String(item?.kind || '').trim() === 'reply');
+  if (!legacyReplies.length) {
+    return [];
+  }
+  const nextItems = index.items.filter((item) => String(item?.kind || '').trim() !== 'reply');
+  await writeHilIndexRaw(worktreePath, {
+    version: index.version || 1,
+    items: nextItems,
+  });
+  return legacyReplies;
+}
+
+export async function listHilItems({
+  worktreePath,
+  kind,
+  status,
+  filePath,
+}: {
+  worktreePath: string;
+  kind?: HilKind | 'all';
+  status?: string;
+  filePath?: string;
+}): Promise<HilItem[]> {
+  if (!worktreePath) {
+    throw new Error('worktreePath is required.');
+  }
+  const index = await ensureHilIndexRaw(worktreePath);
+  let items = index.items.map((item) => normalizeHilItem(item)).filter(Boolean) as HilItem[];
   if (kind && kind !== 'all') {
     items = items.filter((item) => item.kind === kind);
   }
@@ -361,117 +347,158 @@ export async function createHilItem({
   anchor,
   references,
   meta,
-}: Record<string, any> = {}): Promise<Record<string, any>> {
+}: {
+  worktreePath: string;
+  kind?: HilKind;
+  status?: string;
+  body: string;
+  author?: Record<string, any> | null;
+  anchor?: Record<string, any> | null;
+  references?: Array<Record<string, any>>;
+  meta?: Record<string, any>;
+}): Promise<HilItem> {
   if (!worktreePath) {
     throw new Error('worktreePath is required.');
+  }
+  if (!isHilKind(kind)) {
+    throw new Error('HIL kind must be comment, memo, or draft.');
   }
   if (!body || !String(body).trim()) {
     throw new Error('HIL body is required.');
   }
-  const index = await ensureHilIndex(worktreePath);
+  const index = await ensureHilIndexRaw(worktreePath);
   const now = new Date().toISOString();
-  const item = {
+  const item: HilItem = {
     id: `h_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`,
     kind,
-    status,
+    status: String(status || 'open'),
     author: author || (await resolveAuthor(worktreePath)),
     createdAt: now,
     updatedAt: null,
     body: String(body).trim(),
-    anchor: anchor || null,
+    anchor: anchor && typeof anchor === 'object' ? { ...anchor } : null,
     references: Array.isArray(references) ? references : [],
     meta: meta && typeof meta === 'object' ? { ...meta } : {},
   };
   if (typeof item.meta.processed !== 'boolean') {
     item.meta.processed = false;
   }
-  const items = Array.isArray(index.items) ? [...index.items, item] : [item];
-  await writeHilIndex(worktreePath, { version: index.version || 1, items });
+  await writeHilIndexRaw(worktreePath, {
+    version: index.version || 1,
+    items: [...index.items, item],
+  });
   await writeHilItemArtifact(worktreePath, item);
   return item;
 }
 
-export async function updateHilItem({ worktreePath, itemId, patch }: Record<string, any> = {}): Promise<Record<string, any>> {
+export async function updateHilItem({
+  worktreePath,
+  itemId,
+  patch,
+}: {
+  worktreePath: string;
+  itemId: string;
+  patch: Partial<HilItem>;
+}): Promise<HilItem> {
   if (!worktreePath) {
     throw new Error('worktreePath is required.');
   }
   if (!itemId) {
     throw new Error('itemId is required.');
   }
-  const index = await ensureHilIndex(worktreePath);
-  const items = Array.isArray(index.items) ? [...index.items] : [];
-  const indexById = items.findIndex((item) => item.id === itemId);
-  if (indexById === -1) {
+  const index = await ensureHilIndexRaw(worktreePath);
+  const items = [...index.items];
+  const targetIndex = items.findIndex((item) => String(item?.id || '') === itemId);
+  if (targetIndex === -1) {
     throw new Error('HIL item not found.');
   }
-  const current = normalizeHilItem(items[indexById]) || items[indexById];
-  const next = {
+  const current = normalizeHilItem(items[targetIndex]);
+  if (!current) {
+    throw new Error('Only comment, memo, or draft items can be updated through HIL.');
+  }
+  const next: HilItem = {
     ...current,
     ...patch,
-    meta: (() => {
-      const merged = {
-        ...(current.meta || {}),
-        ...(patch?.meta || {}),
-      };
-      if (typeof merged.processed !== 'boolean') {
-        merged.processed = false;
-      }
-      return merged;
-    })(),
+    kind: current.kind,
+    meta: {
+      ...(current.meta || {}),
+      ...((patch?.meta && typeof patch.meta === 'object') ? patch.meta : {}),
+    },
     updatedAt: new Date().toISOString(),
   };
-  items[indexById] = next;
-  await writeHilIndex(worktreePath, { version: index.version || 1, items });
+  if (typeof next.meta.processed !== 'boolean') {
+    next.meta.processed = false;
+  }
+  items[targetIndex] = next;
+  await writeHilIndexRaw(worktreePath, { version: index.version || 1, items });
   await writeHilItemArtifact(worktreePath, next);
   return next;
 }
 
-export async function deleteHilItem({ worktreePath, itemId }: Record<string, any> = {}): Promise<Record<string, any>> {
+export async function deleteHilItem({
+  worktreePath,
+  itemId,
+}: {
+  worktreePath: string;
+  itemId: string;
+}): Promise<Record<string, any>> {
   if (!worktreePath) {
     throw new Error('worktreePath is required.');
   }
   if (!itemId) {
     throw new Error('itemId is required.');
   }
-  const index = await ensureHilIndex(worktreePath);
-  const items = Array.isArray(index.items) ? [...index.items] : [];
-  const indexById = items.findIndex((item) => item.id === itemId);
-  if (indexById === -1) {
+  const index = await ensureHilIndexRaw(worktreePath);
+  const items = [...index.items];
+  const targetIndex = items.findIndex((item) => String(item?.id || '') === itemId);
+  if (targetIndex === -1) {
     throw new Error('HIL item not found.');
   }
-  const [removed] = items.splice(indexById, 1);
-  await writeHilIndex(worktreePath, { version: index.version || 1, items });
-  if (removed) {
-    await fsp.rm(getHilItemPath(worktreePath, removed), { force: true });
+  const current = normalizeHilItem(items[targetIndex]);
+  if (!current) {
+    throw new Error('Only comment, memo, or draft items can be deleted through HIL.');
   }
+  items.splice(targetIndex, 1);
+  await writeHilIndexRaw(worktreePath, { version: index.version || 1, items });
+  await fsp.rm(getHilItemPath(worktreePath, current), { force: true });
   return { id: itemId, deleted: true };
 }
 
-export async function promoteHilItem({ worktreePath, itemId }: Record<string, any> = {}): Promise<Record<string, any>> {
+export async function promoteHilItem({
+  worktreePath,
+  itemId,
+}: {
+  worktreePath: string;
+  itemId: string;
+}): Promise<HilItem> {
   if (!worktreePath) {
     throw new Error('worktreePath is required.');
   }
   if (!itemId) {
     throw new Error('itemId is required.');
   }
-  const index = await ensureHilIndex(worktreePath);
-  const normalizedItems = Array.isArray(index.items)
-    ? index.items.map(normalizeHilItem).filter(Boolean)
-    : [];
-  const sourceIndex = normalizedItems.findIndex((item) => item.id === itemId);
-  const source = sourceIndex >= 0 ? normalizedItems[sourceIndex] : null;
-  if (!source) {
+  const index = await ensureHilIndexRaw(worktreePath);
+  const items = [...index.items];
+  const sourceIndex = items.findIndex((item) => String(item?.id || '') === itemId);
+  if (sourceIndex === -1) {
     throw new Error('HIL item not found.');
   }
-  const existingDraft = normalizedItems.find(
-    (item) =>
-      item.kind === 'draft' &&
-      Array.isArray(item.references) &&
-      item.references.some((ref) => ref && ref.system === 'hil' && ref.id === source.id)
-  );
+  const source = normalizeHilItem(items[sourceIndex]);
+  if (!source) {
+    throw new Error('Only HIL comment or memo items can be promoted.');
+  }
+  const existingDraft = items
+    .map((item) => normalizeHilItem(item))
+    .filter(Boolean)
+    .find(
+      (item) =>
+        item?.kind === 'draft' &&
+        Array.isArray(item.references) &&
+        item.references.some((ref) => ref && ref.system === 'hil' && ref.id === source.id)
+    ) as HilItem | undefined;
   if (existingDraft) {
-    if (sourceIndex >= 0 && source.meta?.processed !== true) {
-      normalizedItems[sourceIndex] = {
+    if (source.meta?.processed !== true) {
+      const updatedSource: HilItem = {
         ...source,
         meta: {
           ...(source.meta || {}),
@@ -479,13 +506,23 @@ export async function promoteHilItem({ worktreePath, itemId }: Record<string, an
         },
         updatedAt: new Date().toISOString(),
       };
-      await writeHilIndex(worktreePath, { version: index.version || 1, items: normalizedItems });
-      await writeHilItemArtifact(worktreePath, normalizedItems[sourceIndex]);
+      items[sourceIndex] = updatedSource;
+      await writeHilIndexRaw(worktreePath, { version: index.version || 1, items });
+      await writeHilItemArtifact(worktreePath, updatedSource);
     }
     return existingDraft;
   }
+
   const now = new Date().toISOString();
-  const draft = {
+  const updatedSource: HilItem = {
+    ...source,
+    meta: {
+      ...(source.meta || {}),
+      processed: true,
+    },
+    updatedAt: now,
+  };
+  const draft: HilItem = {
     id: `h_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`,
     kind: 'draft',
     status: 'open',
@@ -507,21 +544,10 @@ export async function promoteHilItem({ worktreePath, itemId }: Record<string, an
       processed: false,
     },
   };
-  if (sourceIndex >= 0) {
-    normalizedItems[sourceIndex] = {
-      ...source,
-      meta: {
-        ...(source.meta || {}),
-        processed: true,
-      },
-      updatedAt: now,
-    };
-  }
-  const items = [...normalizedItems, draft];
-  await writeHilIndex(worktreePath, { version: index.version || 1, items });
+  items[sourceIndex] = updatedSource;
+  items.push(draft);
+  await writeHilIndexRaw(worktreePath, { version: index.version || 1, items });
   await writeHilItemArtifact(worktreePath, draft);
-  if (sourceIndex >= 0) {
-    await writeHilItemArtifact(worktreePath, normalizedItems[sourceIndex]);
-  }
+  await writeHilItemArtifact(worktreePath, updatedSource);
   return draft;
 }

@@ -165,6 +165,22 @@ const normalizeSource = (value: unknown): DeliverySource => {
   return 'promote';
 };
 
+const resolveDeliveryReferenceSystem = ({
+  source,
+  item,
+}: {
+  source: DeliverySource;
+  item: { kind?: string } | null | undefined;
+}) => {
+  if (source === 'explorer') {
+    return 'explorer';
+  }
+  if (source === 'session' || String(item?.kind || '').trim() === 'reply') {
+    return 'reply';
+  }
+  return 'hil';
+};
+
 const buildTimelineEntry = ({
   at,
   source,
@@ -306,7 +322,8 @@ async function markExecutionStatus({
 }) {
   const list = await listHilItems({ worktreePath, kind: 'draft' });
   const draft = (Array.isArray(list) ? list : []).find((item: any) => item?.id === draftId) || null;
-  const baseMeta = (draft?.meta && typeof draft.meta === 'object') ? { ...draft.meta } : {};
+  const baseMeta: Record<string, any> =
+    draft?.meta && typeof draft.meta === 'object' ? { ...draft.meta } : {};
   let nextMeta: Record<string, any> = {
     ...baseMeta,
     sourceBatch: source,
@@ -364,7 +381,7 @@ export async function startDelivery({
   const cellId = String(request.cellId || '').trim();
   const requestedAt = new Date().toISOString();
   const references = (Array.isArray(request.selectedItems) ? request.selectedItems : []).map((item) => ({
-    system: source === 'explorer' ? 'explorer' : 'hil',
+    system: resolveDeliveryReferenceSystem({ source, item }),
     id: item.id,
     path: item.anchor?.file || null,
     line: item.anchor?.line || null,

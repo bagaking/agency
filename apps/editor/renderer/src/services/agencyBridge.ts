@@ -97,6 +97,9 @@ export const materializeMarkdown = createOptionalInvoke('materializeMarkdown');
 // HIL / comments / action sheets
 export const listComments = createOptionalInvoke('listComments');
 export const submitComment = createOptionalInvoke('submitComment');
+export const listSessionReplies = createOptionalInvoke('listSessionReplies', { fallback: [] });
+export const createSessionReply = createOptionalInvoke('createSessionReply');
+export const updateSessionReply = createOptionalInvoke('updateSessionReply');
 export const updateHilItem = createOptionalInvoke('updateHilItem');
 export const deleteHilItem = createOptionalInvoke('deleteHilItem');
 export const promoteHilItem = createOptionalInvoke('promoteHilItem');

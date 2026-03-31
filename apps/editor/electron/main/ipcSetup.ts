@@ -21,6 +21,7 @@ import { setupReplyQuickPromptsHandlers } from "../ipc/handlers/replyQuickPrompt
 import { setupRuntimeLogHandlers } from "../ipc/handlers/runtimeLog";
 import { setupSessionMapHandlers } from "../ipc/handlers/sessionMap";
 import { setupSessionNamingHandlers } from "../ipc/handlers/sessionNaming";
+import { setupSessionRepliesHandlers } from "../ipc/handlers/sessionReplies";
 import { setupSessionHandlers } from "../ipc/handlers/sessions";
 import { setupSessionRuntimeHandlers } from "../ipc/handlers/sessionRuntime";
 import { setupSystemHandlers } from "../ipc/handlers/system";
@@ -59,6 +60,7 @@ const IPC_REGISTRATIONS: IpcRegistration[] = [
   withoutDeps(setupWorktreeHandlers),
   withMainWindow(setupTerminalHandlers),
   withoutDeps(setupSessionHandlers),
+  withoutDeps(setupSessionRepliesHandlers),
   withoutDeps(setupSessionRuntimeHandlers),
   withoutDeps(setupMainAgentHarnessHandlers),
   withoutDeps(setupMainAgentHarnessSettingsHandlers),

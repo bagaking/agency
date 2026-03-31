@@ -16,6 +16,13 @@ From `apps/editor`:
 pnpm run package
 ```
 
+Strict release variants that also enforce the renderer bundle budget:
+```bash
+pnpm run package:strict
+pnpm run package:lite:strict
+pnpm run package:dir:strict
+```
+
 Remove all generated `dist` outputs before retrying packaging:
 ```bash
 make editor-package-clean
@@ -33,12 +40,15 @@ Unpacked build (skip DMG):
 pnpm run package:dir
 ```
 
-Packaging preflight:
-- `pnpm run package` now checks free disk space before the expensive build/sign/DMG stages.
-- `pnpm run package:lite` does the same with a lower threshold for DMG-only packaging.
-- `pnpm run package:dir` does the same with a lower threshold for unpacked builds.
-- When a check would fail, the preflight first deletes stale generated outputs in `apps/editor/dist/release` that the current mode would overwrite, then re-runs the free-space check.
-- If mode-specific cleanup is still not enough but deleting all generated `apps/editor/dist` outputs would make the build fit, the preflight now tells you to run `make editor-package-clean` before retrying.
+Packaging prepare step:
+- `pnpm run package`, `package:lite`, and `package:dir` now run `package:prepare` before the expensive build/sign/DMG stages.
+- Strict release variants (`package:strict`, `package:lite:strict`, `package:dir:strict`) use the same prepare step and also run the renderer bundle budget gate before packaging.
+- The prepare step checks free space on:
+  - the project volume
+  - `/tmp`
+  - `~/Library/Caches/electron-builder` (or its parent cache volume when the directory does not exist yet)
+- Before packaging continues, the prepare step removes stale generated outputs in `apps/editor/dist/release` that would conflict with the current mode.
+- If mode-specific cleanup is still not enough but deleting all generated `apps/editor/dist` outputs would make the build fit, the prepare step tells you to run `make editor-package-clean` before retrying.
 - Threshold env overrides:
   - `AGENCY_PACKAGE_DMG_MIN_FREE_GIB`
   - `AGENCY_PACKAGE_LITE_MIN_FREE_GIB`
@@ -49,6 +59,18 @@ Artifacts:
 - `apps/editor/dist/release/Agency-<version>-arm64-mac.zip`
 - `apps/editor/dist/release/mac-arm64/Agency.app`
 - `make editor-package-lite` / `pnpm run package:lite` only emits the DMG artifact.
+
+Renderer budget policy:
+- `pnpm run build:renderer` only emits renderer assets.
+- `pnpm run build:renderer:budget` emits assets and then enforces the renderer budget gate.
+- The budget gate uses `apps/editor/scripts/renderer-bundle-budget.accepted.json` as the accepted-state ratchet.
+- JS and gzip budgets remain hard failures.
+- Raw CSS drift is warning-only, so packageability is not blocked by minor Tailwind raw-size churn.
+
+Why this split exists:
+- Packaging answers “can we produce the desktop artifact?” and should not fail on small non-runtime bundle drift.
+- Budget enforcement answers “did the boot footprint regress beyond the accepted state?” and belongs on the explicit budgeted/strict entrypoints.
+- This rejects the tempting but wrong shortcut of making every local package command enforce the same front-end budget gate.
 
 ## Install
 1. Open the DMG and drag `Agency.app` into `/Applications`.

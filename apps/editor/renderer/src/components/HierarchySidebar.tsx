@@ -10,6 +10,7 @@ import {
   Link2,
 } from 'lucide-react';
 import { focusRing } from './ui/focusRing';
+import { resolveAvailableHierarchyScope } from '../app/hierarchyScope';
 
 type ScopeId = 'global' | 'project' | 'agent';
 
@@ -85,28 +86,6 @@ function getScopeMeta(summary?: ScopeSummary, scope?: ScopeId) {
   return undefined;
 }
 
-function resolveAvailableScope(
-  scope: ScopeId | undefined,
-  {
-    canUseProjectScope,
-    canUseAgentScope,
-  }: {
-    canUseProjectScope?: boolean;
-    canUseAgentScope?: boolean;
-  }
-): ScopeId {
-  if (scope === 'agent' && canUseAgentScope) {
-    return 'agent';
-  }
-  if (scope === 'project' && canUseProjectScope) {
-    return 'project';
-  }
-  if (scope === 'agent' || scope === 'project') {
-    return canUseProjectScope ? 'project' : 'global';
-  }
-  return 'global';
-}
-
 export function HierarchySidebar({
   section,
   actionsScope,
@@ -148,7 +127,7 @@ export function HierarchySidebar({
       summary: actionSummary,
       onSelect: () =>
         onSelectActionsScope?.(
-          resolveAvailableScope(actionsScope, { canUseProjectScope, canUseAgentScope })
+          resolveAvailableHierarchyScope(actionsScope, { canUseProjectScope, canUseAgentScope })
         ),
     },
     {
@@ -160,7 +139,10 @@ export function HierarchySidebar({
       summary: appShortcutsSummary,
       onSelect: () =>
         onSelectAppShortcutsScope?.(
-          resolveAvailableScope(appShortcutsScope, { canUseProjectScope, canUseAgentScope })
+          resolveAvailableHierarchyScope(appShortcutsScope, {
+            canUseProjectScope,
+            canUseAgentScope,
+          })
         ),
     },
     {
@@ -172,7 +154,7 @@ export function HierarchySidebar({
       summary: replyQuickPromptsSummary,
       onSelect: () =>
         onSelectReplyQuickPromptsScope?.(
-          resolveAvailableScope(replyQuickPromptsScope, {
+          resolveAvailableHierarchyScope(replyQuickPromptsScope, {
             canUseProjectScope,
             canUseAgentScope,
           })
@@ -187,7 +169,7 @@ export function HierarchySidebar({
       summary: sessionNamingSummary,
       onSelect: () =>
         onSelectSessionNamingScope?.(
-          resolveAvailableScope(sessionNamingScope, {
+          resolveAvailableHierarchyScope(sessionNamingScope, {
             canUseProjectScope,
             canUseAgentScope,
           })
@@ -202,7 +184,7 @@ export function HierarchySidebar({
       summary: gateSummary,
       onSelect: () =>
         onSelectGateScope?.(
-          resolveAvailableScope(gateScope, { canUseProjectScope, canUseAgentScope })
+          resolveAvailableHierarchyScope(gateScope, { canUseProjectScope, canUseAgentScope })
         ),
     },
     {
