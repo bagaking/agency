@@ -123,10 +123,15 @@ export function WindowTitleBar({
   return (
     <header
       data-testid="window-titlebar"
-      className={`app-drag-region relative z-40 flex h-10 shrink-0 items-center gap-2 border-b border-border/60 bg-[#171b22] text-foreground shadow-[inset_0_-1px_0_rgba(255,255,255,0.03)] ${
+      className={`relative z-40 flex h-10 shrink-0 items-center gap-2 border-b border-border/60 bg-[#171b22] text-foreground shadow-[inset_0_-1px_0_rgba(255,255,255,0.03)] ${
         isMac ? 'pl-[78px]' : 'pl-2.5'
       } pr-2.5`}
     >
+      <div
+        aria-hidden="true"
+        data-testid="window-titlebar-drag-surface"
+        className="app-drag-region absolute inset-0"
+      />
       <div ref={menuRef} className="app-no-drag relative flex items-center">
         <button
           type="button"
@@ -327,7 +332,7 @@ export function WindowTitleBar({
         ) : null}
       </div>
 
-      <div className="min-w-0 flex flex-1 items-center gap-2 overflow-hidden">
+      <div className="pointer-events-none relative z-10 min-w-0 flex flex-1 select-none items-center gap-2 overflow-hidden">
         <div className="truncate text-[11px] font-semibold tracking-[0.01em] text-foreground">
           <span data-testid="window-titlebar-project-name">{projectName}</span>
         </div>
