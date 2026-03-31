@@ -12,7 +12,13 @@ type UseExplorerEntryMutationsArgs = {
   createEntry: (payload: { type: string; parentPath: string; name: string }) => Promise<unknown>;
   renameEntry: (payload: { sourcePath: string; targetPath: string }) => Promise<unknown>;
   deleteEntry: (payload: { targetPath: string }) => Promise<unknown>;
-  copyEntry: (payload: { sourcePath: string; targetPath: string }) => Promise<unknown>;
+  copyEntry: (payload: {
+    sourcePath: string;
+    targetPath: string;
+    resolveConflicts?: boolean;
+  }) => Promise<{
+    path?: string;
+  } | null>;
   revealEntry: (payload: { targetPath: string }) => Promise<unknown>;
   refreshAll: (options?: { forceStatus?: boolean; reloadExpanded?: boolean }) => Promise<unknown>;
   clearError: () => void;
@@ -133,8 +139,17 @@ export function useExplorerEntryMutations({
       if (typeof nextName !== 'string' || !nextName) return;
       try {
         const nextPath = [parent, nextName].filter(Boolean).join('/');
-        await copyEntry({ sourcePath: targetPath, targetPath: nextPath });
+        const result = await copyEntry({
+          sourcePath: targetPath,
+          targetPath: nextPath,
+          resolveConflicts: true,
+        });
+        const duplicatePath = explorerPathUtils.toRelativePath(result?.path || nextPath);
         await refreshAll();
+        if (duplicatePath) {
+          setSelectedPaths([duplicatePath]);
+        }
+        clearError();
       } catch (_err) {
         setErrorMessage('Duplicate failed.');
       }
@@ -170,6 +185,7 @@ export function useExplorerEntryMutations({
             .filter(Boolean)
             .join('/');
           if (sourcePath === nextPath) {
+            setErrorMessage('Target already matches current location.');
             continue;
           }
           // eslint-disable-next-line no-await-in-loop

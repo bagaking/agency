@@ -23,8 +23,15 @@ type UseExplorerClipboardActionsOptions = {
   setSelectedPaths: (paths: string[]) => void;
   expandPath: (path: string) => Promise<void> | void;
   refreshAll: () => Promise<void> | void;
-  renameEntry: (payload: { sourcePath: string; targetPath: string }) => Promise<void>;
-  copyEntry: (payload: { sourcePath: string; targetPath: string }) => Promise<void>;
+  renameEntry: (payload: {
+    sourcePath: string;
+    targetPath: string;
+  }) => Promise<{ path?: string } | null>;
+  copyEntry: (payload: {
+    sourcePath: string;
+    targetPath: string;
+    resolveConflicts?: boolean;
+  }) => Promise<{ path?: string } | null>;
   clearError: () => void;
   setErrorMessage: (message: string) => void;
   openEntry: (targetPath: string, mode: 'preview' | 'pinned') => Promise<boolean>;
@@ -117,6 +124,7 @@ export const useExplorerClipboardActions = ({
     try {
       let didMove = false;
       let hadError = false;
+      const pastedPaths: string[] = [];
       for (const sourcePath of clipboard.paths) {
         const baseName = explorerPathUtils.basename(sourcePath);
         const targetPath = [targetDir, baseName].filter(Boolean).join('/');
@@ -126,12 +134,28 @@ export const useExplorerClipboardActions = ({
           continue;
         }
         if (sourcePath === targetPath) {
-          continue;
+          if (clipboard.mode === 'cut') {
+            setErrorMessage('Target already matches current location.');
+            hadError = true;
+            continue;
+          }
         }
         if (clipboard.mode === 'cut') {
-          await renameEntry({ sourcePath, targetPath });
+          const result = await renameEntry({ sourcePath, targetPath });
+          const nextPath = explorerPathUtils.toRelativePath(result?.path || targetPath);
+          if (nextPath) {
+            pastedPaths.push(nextPath);
+          }
         } else {
-          await copyEntry({ sourcePath, targetPath });
+          const result = await copyEntry({
+            sourcePath,
+            targetPath,
+            resolveConflicts: true,
+          });
+          const nextPath = explorerPathUtils.toRelativePath(result?.path || targetPath);
+          if (nextPath) {
+            pastedPaths.push(nextPath);
+          }
         }
         didMove = true;
       }
@@ -144,6 +168,12 @@ export const useExplorerClipboardActions = ({
       }
       if (didMove) {
         await refreshAll();
+        if (targetDir) {
+          await expandPath(targetDir);
+        }
+        if (pastedPaths.length) {
+          setSelectedPaths(pastedPaths);
+        }
       }
     } catch {
       setErrorMessage('Paste failed.');
@@ -229,4 +259,3 @@ export const useExplorerClipboardActions = ({
     handleCopyRelativePath,
   };
 };
-
