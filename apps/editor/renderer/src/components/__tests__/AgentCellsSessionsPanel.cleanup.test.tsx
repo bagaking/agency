@@ -225,6 +225,13 @@ test('View Archived reveals archived cards and keeps archived cells out of clean
               lastKnownWorktreePath: '/repo/.worktrees/feat-explorer-url-mode',
             },
             {
+              id: 'cell-archived-attached',
+              name: 'mainline-review',
+              state: 'archived',
+              attachmentState: 'attached',
+              attachedWorktreePath: '/repo/.worktrees/mainline-review',
+            },
+            {
               id: 'cell-cleanup',
               name: 'detached-cell',
               state: 'draft',
@@ -249,6 +256,7 @@ test('View Archived reveals archived cards and keeps archived cells out of clean
 
     assert.ok(document.querySelector('[data-testid="archived-cell-list"]'));
     assert.ok(document.querySelector('[data-testid="archived-cell-card-cell-archived"]'));
+    assert.ok(document.querySelector('[data-testid="archived-cell-card-cell-archived-attached"]'));
     assert.equal(document.querySelector('[data-testid="detached-cell-cleanup-cell-archived"]'), null);
 
     const reviewButton = Array.from(document.querySelectorAll('button')).find((node) =>
