@@ -32,6 +32,7 @@ export function buildComposedAppLayoutProps({
     sessions: sessionsState.sessions,
     sessionLoading: sessionsState.sessionLoading,
     sessionError: sessionsState.sessionError,
+    onCreateSession: sessionsState.createSession,
     terminusBindings: sessionReplyContext.activeProfileBindings,
     tmuxStatus: projectState.tmuxStatus,
     gateResultsByStage: gateState.gateResultsByStage,

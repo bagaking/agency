@@ -16,14 +16,17 @@ async function withCellsService(options, run) {
   const listWorktrees = options?.listWorktrees || (async () => []);
   const checkGates = options?.checkGates || (async () => []);
   const createWorktree = options?.createWorktree || (async () => {});
+  const branchExists = options?.branchExists || (async () => false);
+  const resolveBaseBranch = options?.resolveBaseBranch || (async () => 'main');
 
   Module._load = function patchedLoad(request, parent, isMain) {
     if (request === './git') {
       return {
         getRepoRoot: async (cwd) => path.resolve(String(cwd || '')),
         listWorktrees,
-        resolveBaseBranch: async () => 'main',
+        resolveBaseBranch,
         createWorktree,
+        branchExists,
       };
     }
     if (request === './projectRoot') {
@@ -182,6 +185,71 @@ test('updateCellState updates detached cells without running attached-worktree g
         'utf8'
       );
       assert.match(stored, /state: archived/);
+    }
+  );
+});
+
+test('createCell can bind an existing branch without renaming it', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-existing-branch-');
+  const createdWorktrees: Array<{ repoRoot: string; worktreePath: string; branch: string; baseBranch: string }> = [];
+
+  t.after(async () => {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await withCellsService(
+    {
+      branchExists: async (_repoRoot: string, branch: string) => branch === 'main',
+      createWorktree: async (root: string, worktreePath: string, branch: string, baseBranch: string) => {
+        createdWorktrees.push({ repoRoot: root, worktreePath, branch, baseBranch });
+        await fs.mkdir(worktreePath, { recursive: true });
+      },
+    },
+    async ({ createCell }) => {
+      const created = await createCell({
+        name: 'mainline-review',
+        existingBranch: 'main',
+        rootPath: repoRoot,
+      });
+
+      assert.equal(created.branch, 'main');
+      assert.equal(created.name, 'mainline-review');
+      assert.match(created.worktreePath, /\.worktrees\/mainline-review$/);
+      assert.equal(createdWorktrees.length, 1);
+      assert.equal(createdWorktrees[0]?.branch, 'main');
+      assert.equal(createdWorktrees[0]?.baseBranch, 'main');
+    }
+  );
+});
+
+test('createCell honors an explicit base branch when creating a new branch', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-base-branch-');
+  const createdWorktrees: Array<{ branch: string; baseBranch: string }> = [];
+
+  t.after(async () => {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await withCellsService(
+    {
+      branchExists: async (_repoRoot: string, branch: string) => branch === 'main',
+      createWorktree: async (_root: string, worktreePath: string, branch: string, baseBranch: string) => {
+        createdWorktrees.push({ branch, baseBranch });
+        await fs.mkdir(worktreePath, { recursive: true });
+      },
+    },
+    async ({ createCell }) => {
+      const created = await createCell({
+        name: 'alpha',
+        branch: 'feat/alpha',
+        baseBranch: 'main',
+        rootPath: repoRoot,
+      });
+
+      assert.equal(created.branch, 'feat/alpha');
+      assert.equal(createdWorktrees.length, 1);
+      assert.equal(createdWorktrees[0]?.branch, 'feat/alpha');
+      assert.equal(createdWorktrees[0]?.baseBranch, 'main');
     }
   );
 });

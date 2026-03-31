@@ -84,6 +84,7 @@ Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeSc
 - Session-source delivery must reference reply artifacts as `system=reply`; do not backdoor reply provenance through HIL refs.
 - `Memo` is the primary user-facing noun for the artifact workspace; treat `HIL` as an internal/storage term and do not surface mixed labels like “Neural Comments” / “HIL Repository” for the same artifact family.
 - `Create Cell` is the worktree-bound workspace action.
+- Branch naming/prefix rules apply only when Agency creates a new branch; binding an existing branch or worktree must preserve the user-chosen branch identity instead of forcing it through create-time naming rules.
 - `Create Agent` is the bounded child-execution action owned by a run.
 - `Fork` is a specialized `Create Agent` strategy, not the default noun for workspace creation or child execution.
 - For external automation, use the unified local control bus as the canonical surface over `Window / Project / Cell / Session / Run`.
@@ -92,4 +93,6 @@ Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeSc
 - The app-shell right-side station owns window-level attention triage and Commander briefing.
 - In Session Map, `Ops` is the persistent evidence rail for the focused session/run, not the window-level queue surface.
 - Agent Cells may only surface inline/local attention on owning Cell / Session affordances, and shell chrome stays compact.
+- A Cell may exist with zero sessions; renderer/bootstrap must not auto-materialize a `Default` session just because a Cell is selected or attached. Session creation belongs to explicit runtime entry.
+- When a Cell loses its live worktree attachment, Agent Cells sidebar must switch that Cell into cleanup-first projection instead of treating it like a normal development card; `Archive Cell` is the primary sidebar action, while `Delete Cell` and attachment-metadata cleanup stay in the selected Cell details pane.
 - Do not model `Commander` as a window-global assistant or reuse HIL/Reply drawer semantics for it.

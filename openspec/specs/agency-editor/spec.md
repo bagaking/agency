@@ -202,8 +202,10 @@ The architecture MUST keep a path open for future Windows/Linux support.
 
 ### Requirement: Create Cell
 The editor SHALL create a new Cell as a durable project-owned workspace object.
-The editor SHALL allow Cell creation to attach a new git worktree or reuse an existing git worktree, but Cell identity SHALL remain valid if the attachment later changes or disappears.
+The editor SHALL allow Cell creation to attach a new git worktree, reuse an existing git worktree, or bind an existing branch by creating or reusing an attachment worktree, but Cell identity SHALL remain valid if the attachment later changes or disappears.
 The editor SHALL treat Cell creation as workspace/context creation rather than as child execution or run orchestration.
+Branch strategy and naming constraints SHALL apply only when the editor creates a new branch itself.
+Binding an existing worktree or branch SHALL preserve the existing branch identity rather than forcing it through create-time naming rules.
 
 #### Scenario: Create new Cell
 - **WHEN** a user creates a new Cell with a new branch
@@ -214,6 +216,16 @@ The editor SHALL treat Cell creation as workspace/context creation rather than a
 - **WHEN** a user selects an existing worktree for a new Cell
 - **THEN** the editor creates or reuses the durable Cell record for that context
 - **AND** attaches the existing worktree without redefining Cell identity around that path alone
+
+#### Scenario: Bind existing branch
+- **WHEN** a user selects an existing branch for a new Cell
+- **THEN** the editor creates or reuses a worktree attachment for that branch
+- **AND** creates or reuses the durable Cell record without renaming the existing branch
+
+#### Scenario: Create from explicit base branch
+- **WHEN** a user creates a new branch-backed Cell and selects an explicit base branch such as `main`
+- **THEN** the new worktree branches from that explicit base branch
+- **AND** the chosen base branch is not silently replaced by the repository default branch
 
 ### Requirement: Embedded Terminal and CLI Management
 The editor SHALL provide an embedded terminal and manage CLI processes (e.g., Codex) per Cell.
@@ -280,11 +292,17 @@ Validation failures MUST surface as warnings and MUST NOT block the workflow.
 ### Requirement: Session Registry and Recovery
 The editor SHALL maintain a per-Cell session registry in repo-owned Cell storage and restore sessions on relaunch.
 Losing the current worktree attachment SHALL NOT erase the Cell's session registry.
+The editor SHALL NOT auto-create a `Default` session merely because a Cell is selected, restored, or has an attached worktree.
 
 #### Scenario: Restore sessions on relaunch
 - **WHEN** the editor restarts
 - **THEN** it restores the session list for each Cell from the session registry
 - **AND** it attempts to reattach to recoverable sessions
+
+#### Scenario: Empty registry stays empty on startup
+- **WHEN** the editor restores a Cell whose session registry is empty
+- **THEN** the Cell remains sessionless after startup
+- **AND** the UI offers explicit session creation instead of silently materializing a `Default` session
 
 #### Scenario: Stale session detection
 - **WHEN** a registered session cannot be recovered
@@ -2921,11 +2939,18 @@ The editor SHALL surface attachment state distinctly from lifecycle state.
 ### Requirement: Detached Cell Cleanup And Archive
 The editor SHALL allow users to archive or delete a Cell after its worktree attachment has been removed.
 The editor SHALL allow users to clear stale attachment metadata without recreating the old worktree first.
+The Agent Cells sidebar SHALL project missing/detached Cells into a cleanup-first section rather than rendering them as ordinary session-tree cards.
 
 #### Scenario: Archive a detached Cell
 - **WHEN** a user archives a Cell whose worktree attachment has already been removed or marked detached
 - **THEN** the editor allows the archive transition through an attachment-aware confirmation flow
 - **AND** does not require the missing worktree path to be rediscovered first
+
+#### Scenario: Cleanup section in Agent Cells
+- **WHEN** the Agent Cells sidebar contains Cells whose worktree attachment is missing or detached
+- **THEN** those Cells appear in a dedicated cleanup section with preserved-evidence summary
+- **AND** each non-archived cleanup Cell exposes a direct archive action
+- **AND** the sidebar does not render their session tree inline as though they were still attached development Cells
 
 #### Scenario: Delete a detached Cell
 - **WHEN** a user deletes a detached or missing-worktree Cell

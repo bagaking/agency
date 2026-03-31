@@ -14,6 +14,13 @@
 - [ ] Create a new Cell with a branch type + name and confirm the worktree directory is created.
 - [ ] Reuse an existing worktree and confirm lifecycle file creation.
 - [ ] Change lifecycle state and confirm the `.agency` file updates.
+- [ ] Remove or detach a Cell worktree, reopen Agent Cells, and confirm that Cell moves into a `Needs Cleanup` section instead of rendering as a normal session-tree card.
+- [ ] From the cleanup card, trigger `Archive Cell` and confirm the attachment-aware lifecycle confirmation explains that repo-owned sessions/evidence remain available.
+- [ ] Restart with an attached Cell whose session registry is empty and confirm the window does not auto-create a `Default` session.
+- [ ] In the empty terminal state for such a Cell, click `Create Session` and confirm a session is created only at that explicit step.
+- [ ] Open `Create Cell` and confirm `Create New Branch`, `Bind Existing Worktree`, and `Bind Existing Branch` are separate modes.
+- [ ] In `Create New Branch`, choose `main` as the base branch even when the current/default startup branch differs, create a Cell, and confirm the new branch is based on `main`.
+- [ ] In `Bind Existing Branch`, select a user-created branch that does not follow the Agency naming prefix rules and confirm the Cell binds to that branch without renaming it.
 
 ## Explorer
 - [ ] Open Explorer, trigger `Open Research Lane`, and confirm the lane appears inline under the Explorer header instead of opening a separate browser surface.

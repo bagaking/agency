@@ -11,6 +11,7 @@ export { isAgencyAvailable, isAgencyMethodAvailable };
 export const listCells = createOptionalInvoke('listCells');
 export const createCell = createOptionalInvoke('createCell');
 export const listWorktrees = createOptionalInvoke('listWorktrees', { fallback: [] });
+export const listBranches = createOptionalInvoke('listBranches', { fallback: [] });
 export const getProjectContext = createOptionalInvoke('getProjectContext');
 export const listSessions = createOptionalInvoke('listSessions', { fallback: [] });
 export const createSession = createOptionalInvoke('createSession');

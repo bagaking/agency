@@ -36,6 +36,7 @@ export function EditorPane({
   sessions,
   sessionLoading,
   sessionError,
+  onCreateSession,
   terminusBindings,
   gateResultsByStage,
   gatesCheckingByStage,
@@ -192,6 +193,7 @@ export function EditorPane({
             sessionLoading={sessionLoading}
             sessionError={sessionError}
             onOpenTerminal={onOpenTerminal}
+            onCreateSession={undefined}
             shortcutBindings={terminusBindings}
           />
         </div>
@@ -493,6 +495,7 @@ export function EditorPane({
                     sessionLoading={sessionLoading}
                     sessionError={sessionError}
                     onOpenTerminal={onOpenTerminal}
+                    onCreateSession={onCreateSession}
                     shortcutBindings={terminusBindings}
                   />
                 </div>

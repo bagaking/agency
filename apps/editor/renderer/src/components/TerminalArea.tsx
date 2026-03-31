@@ -49,12 +49,20 @@ export function TerminalArea({
   isVisible,
   sessionLoading,
   onOpenTerminal,
+  onCreateSession,
   shortcutBindings,
 }: any) {
-  const assetBase = import.meta.env.BASE_URL || '/';
+  const assetBase = import.meta.env?.BASE_URL || '/';
   const hasSessions = Boolean(sessions && sessions.length > 0);
   const hasActiveSession = Boolean(activeSessionId && hasSessions);
   const showLoadingOverlay = sessionLoading && !(terminalOpen && hasActiveSession);
+  const handleCreateSession = () => {
+    if (onCreateSession) {
+      void onCreateSession();
+      return;
+    }
+    onOpenTerminal?.();
+  };
 
   useEffect(() => {
     if (!terminalOpen || !hasActiveSession) {
@@ -129,7 +137,7 @@ export function TerminalArea({
           </div>
           <p className="text-xs font-medium tracking-wide">No active terminal session</p>
           <button
-            onClick={onOpenTerminal}
+            onClick={handleCreateSession}
             onPointerEnter={() => {
               void preloadTerminalPane();
             }}
@@ -138,7 +146,7 @@ export function TerminalArea({
             }}
             className="mt-3 text-[10px] font-bold text-primary px-5 py-2 border border-primary/30 rounded-full hover:bg-primary/10 transition-all active:scale-95 hover:border-primary"
           >
-            SPAWN AGENT SHELL
+            {onCreateSession ? 'CREATE SESSION' : 'OPEN TERMINAL'}
           </button>
         </div>
       )}

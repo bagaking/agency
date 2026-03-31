@@ -8,6 +8,7 @@ const {
   listWorktrees,
   resolveBaseBranch,
   createWorktree,
+  branchExists,
 } = require('./git');
 const { resolveProjectRoot } = require('./projectRoot');
 const { readConfig: readWorktreeLinksConfig, applyAllLinks } = require('./worktreeLinks');
@@ -371,7 +372,52 @@ async function resolveCellContext({ cellId, worktreePath, rootPath } = {}) {
   };
 }
 
-async function createCell({ name, branch, reusePath, rootPath }) {
+function deriveCellNameFromBranch(branch) {
+  const normalized = normalizeText(branch);
+  if (!normalized) {
+    return '';
+  }
+  const parts = normalized.split('/').filter(Boolean);
+  return parts[parts.length - 1] || normalized;
+}
+
+async function bindExistingWorktreeCell({ repoRoot, target, explicitName = '', explicitBranch = '', now }) {
+  const { lifecycle } = await readLegacyLifecycleForWorktree(target.path);
+  const cells = await listCells({ rootPath: repoRoot });
+  const existing =
+    cells.find((cell) => samePath(cell.attachedWorktreePath, target.path) || samePath(cell.worktreePath, target.path)) ||
+    null;
+  const resolvedBranch = normalizeText(target.branch || explicitBranch || existing?.branch || lifecycle?.branch);
+  if (!resolvedBranch) {
+    throw new Error('Branch is required for existing worktrees.');
+  }
+  const resolvedName =
+    normalizeText(
+      explicitName ||
+        existing?.name ||
+        lifecycle?.name ||
+        deriveCellNameFromBranch(resolvedBranch) ||
+        path.basename(target.path)
+    ) || path.basename(target.path);
+  const nextRecord = normalizeCellRecord({
+    id: existing?.id || lifecycle?.id || normalizeName(resolvedName),
+    name: resolvedName,
+    branch: resolvedBranch,
+    state: lifecycle?.state || existing?.state || 'draft',
+    attachmentState: CELL_ATTACHMENT_STATES.attached,
+    worktreePath: target.path,
+    lastKnownWorktreePath: target.path,
+    avatar: lifecycle?.avatar || existing?.avatar || resolveAvatarSymbol(existing?.id || resolvedName),
+    createdAt: existing?.createdAt || lifecycle?.createdAt || now,
+    updatedAt: now,
+  });
+  await writeCellRecord(repoRoot, nextRecord);
+  await maybeAutoLinkWorktree(repoRoot, target.path);
+  const cellsAfterCreate = await listCells({ rootPath: repoRoot });
+  return cellsAfterCreate.find((cell) => cell.id === nextRecord.id) || buildHydratedCell(repoRoot, nextRecord, target);
+}
+
+async function createCell({ name, branch, baseBranch, existingBranch, reusePath, rootPath }) {
   const repoRoot = await resolveProjectRoot({ rootPath });
   if (!repoRoot) {
     throw new Error('Project root is not configured.');
@@ -384,32 +430,60 @@ async function createCell({ name, branch, reusePath, rootPath }) {
     if (!target) {
       throw new Error('Selected worktree not found.');
     }
-    const { lifecycle } = await readLegacyLifecycleForWorktree(target.path);
-    const cells = await listCells({ rootPath: repoRoot });
-    const existing =
-      cells.find((cell) => samePath(cell.attachedWorktreePath, target.path) || samePath(cell.worktreePath, target.path)) ||
-      null;
-    const resolvedName = normalizeText(name || existing?.name || lifecycle?.name || path.basename(target.path));
-    const resolvedBranch = normalizeText(target.branch || branch || existing?.branch || lifecycle?.branch);
-    if (!resolvedBranch) {
-      throw new Error('Branch is required for detached worktrees.');
+    return bindExistingWorktreeCell({
+      repoRoot,
+      target,
+      explicitName: name,
+      explicitBranch: branch,
+      now,
+    });
+  }
+
+  if (existingBranch) {
+    const resolvedExistingBranch = normalizeText(existingBranch);
+    if (!resolvedExistingBranch) {
+      throw new Error('Existing branch is required.');
     }
+    if (!(await branchExists(repoRoot, resolvedExistingBranch))) {
+      throw new Error(`Selected branch not found: ${resolvedExistingBranch}`);
+    }
+    const worktrees = await listWorktrees(repoRoot);
+    const attachedTarget = worktrees.find((worktree) => normalizeText(worktree.branch) === resolvedExistingBranch);
+    if (attachedTarget) {
+      return bindExistingWorktreeCell({
+        repoRoot,
+        target: attachedTarget,
+        explicitName: name,
+        explicitBranch: resolvedExistingBranch,
+        now,
+      });
+    }
+
+    const worktreeDir = await ensureWorktreeDir(repoRoot);
+    const resolvedName = normalizeText(name || deriveCellNameFromBranch(resolvedExistingBranch) || resolvedExistingBranch);
+    const safeName = normalizeName(resolvedName);
+    const worktreePath = path.join(worktreeDir, safeName);
+    if (fs.existsSync(worktreePath)) {
+      throw new Error(`Worktree already exists at ${worktreePath}`);
+    }
+
+    await createWorktree(repoRoot, worktreePath, resolvedExistingBranch, resolvedExistingBranch);
     const nextRecord = normalizeCellRecord({
-      id: existing?.id || lifecycle?.id || normalizeName(resolvedName),
+      id: safeName,
       name: resolvedName,
-      branch: resolvedBranch,
-      state: lifecycle?.state || existing?.state || 'draft',
+      branch: resolvedExistingBranch,
+      state: 'draft',
       attachmentState: CELL_ATTACHMENT_STATES.attached,
-      worktreePath: target.path,
-      lastKnownWorktreePath: target.path,
-      avatar: lifecycle?.avatar || existing?.avatar || resolveAvatarSymbol(existing?.id || resolvedName),
-      createdAt: existing?.createdAt || lifecycle?.createdAt || now,
+      worktreePath,
+      lastKnownWorktreePath: worktreePath,
+      avatar: resolveAvatarSymbol(safeName),
+      createdAt: now,
       updatedAt: now,
     });
     await writeCellRecord(repoRoot, nextRecord);
-    await maybeAutoLinkWorktree(repoRoot, target.path);
+    await maybeAutoLinkWorktree(repoRoot, worktreePath);
     const cellsAfterCreate = await listCells({ rootPath: repoRoot });
-    return cellsAfterCreate.find((cell) => cell.id === nextRecord.id) || buildHydratedCell(repoRoot, nextRecord, target);
+    return cellsAfterCreate.find((cell) => cell.id === nextRecord.id) || buildHydratedCell(repoRoot, nextRecord, { path: worktreePath, branch: resolvedExistingBranch });
   }
 
   if (!name || !branch) {
@@ -423,8 +497,11 @@ async function createCell({ name, branch, reusePath, rootPath }) {
     throw new Error(`Worktree already exists at ${worktreePath}`);
   }
 
-  const baseBranch = await resolveBaseBranch(repoRoot);
-  await createWorktree(repoRoot, worktreePath, branch, baseBranch);
+  const resolvedBaseBranch = normalizeText(baseBranch) || (await resolveBaseBranch(repoRoot));
+  if (!(await branchExists(repoRoot, resolvedBaseBranch))) {
+    throw new Error(`Base branch not found: ${resolvedBaseBranch}`);
+  }
+  await createWorktree(repoRoot, worktreePath, branch, resolvedBaseBranch);
 
   const nextRecord = normalizeCellRecord({
     id: safeName,
