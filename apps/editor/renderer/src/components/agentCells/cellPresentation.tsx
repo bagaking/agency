@@ -69,7 +69,18 @@ export function isDetachedCellCleanupCandidate(cell: any): boolean {
   if (!cell || cell.isVirtual) {
     return false;
   }
-  return resolveCellAttachmentMeta(cell).attachmentState !== 'attached';
+  const attachmentState = resolveCellAttachmentMeta(cell).attachmentState;
+  const lifecycleState = String(cell?.state || 'draft').trim().toLowerCase();
+  return attachmentState !== 'attached' && lifecycleState !== 'archived';
+}
+
+export function isArchivedDetachedCell(cell: any): boolean {
+  if (!cell || cell.isVirtual) {
+    return false;
+  }
+  const attachmentState = resolveCellAttachmentMeta(cell).attachmentState;
+  const lifecycleState = String(cell?.state || 'draft').trim().toLowerCase();
+  return attachmentState !== 'attached' && lifecycleState === 'archived';
 }
 
 export function buildDetachedCellSessionSummary(sessions: any[] = []): string[] {

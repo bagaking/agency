@@ -33,6 +33,7 @@ import { useCommanderStatus } from '../../hooks/useCommanderStatus';
 import { DetachedCellCleanupCard } from './DetachedCellCleanupCard';
 import {
   CellStateBadge,
+  isArchivedDetachedCell,
   isDetachedCellCleanupCandidate,
   resolveCellAttachmentMeta,
 } from './cellPresentation';
@@ -342,12 +343,15 @@ export function AgentCellsSessionsPanel({
     [cells]
   );
 
-  const { activeCells, cleanupCells } = useMemo(() => {
+  const { activeCells, cleanupCells, archivedDetachedCells } = useMemo(() => {
     const primary: any[] = [];
     const cleanup: any[] = [];
+    const archived: any[] = [];
     (cells || []).forEach((cell: any) => {
       if (isDetachedCellCleanupCandidate(cell)) {
         cleanup.push(cell);
+      } else if (isArchivedDetachedCell(cell)) {
+        archived.push(cell);
       } else {
         primary.push(cell);
       }
@@ -355,6 +359,7 @@ export function AgentCellsSessionsPanel({
     return {
       activeCells: primary,
       cleanupCells: cleanup,
+      archivedDetachedCells: archived,
     };
   }, [cells]);
 
@@ -812,7 +817,7 @@ export function AgentCellsSessionsPanel({
           </>
         ) : null}
 
-        {activeCells.length === 0 && cleanupCells.length === 0 ? (
+        {activeCells.length === 0 && cleanupCells.length === 0 && archivedDetachedCells.length === 0 ? (
           <div className="px-4 py-8 text-center text-xs text-muted-foreground">No active cells</div>
         ) : (
           <div className="space-y-4">
@@ -1366,6 +1371,34 @@ export function AgentCellsSessionsPanel({
                   <span className="text-muted-foreground/70">{cleanupCells.length}</span>
                 </div>
                 {cleanupCells.map((cell: any) => {
+                  const cellAttention = attention.byCellId[cell.id];
+                  return (
+                    <DetachedCellCleanupCard
+                      key={cell.id}
+                      cell={cell}
+                      sessions={resolveCellSessions(String(cell.id))}
+                      selected={selectedId === cell.id}
+                      attentionItem={cellAttention?.strongest || null}
+                      attentionCount={cellAttention?.count || 0}
+                      onSelect={onSelect}
+                      onArchive={onArchiveCell}
+                    />
+                  );
+                })}
+              </section>
+            ) : null}
+
+            {archivedDetachedCells.length > 0 ? (
+              <section
+                className="space-y-2"
+                data-testid="archived-detached-cell-list"
+                aria-label="Archived offline cells"
+              >
+                <div className="flex items-center justify-between px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300/70">
+                  <span>Archived Offline</span>
+                  <span className="text-muted-foreground/70">{archivedDetachedCells.length}</span>
+                </div>
+                {archivedDetachedCells.map((cell: any) => {
                   const cellAttention = attention.byCellId[cell.id];
                   return (
                     <DetachedCellCleanupCard

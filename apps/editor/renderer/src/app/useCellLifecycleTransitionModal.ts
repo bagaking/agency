@@ -40,7 +40,9 @@ export function useCellLifecycleTransitionModal({
         setTransitionError('Lifecycle transition failed.');
         return;
       }
-      await loadCells(pendingTransition.cell.id || null);
+      await loadCells(
+        pendingTransition.preferredSelectionId ?? pendingTransition.cell.id ?? null
+      );
       setPendingTransition(null);
     } catch (error: any) {
       setTransitionError(error?.message || 'Lifecycle transition failed.');
@@ -54,7 +56,10 @@ export function useCellLifecycleTransitionModal({
       return;
     }
     try {
-      const gates = ['active', 'archived'].includes(pendingTransition.nextState)
+      const attachmentState = String(
+        pendingTransition.cell?.attachmentState || 'attached'
+      ).trim().toLowerCase();
+      const gates = ['active', 'archived'].includes(pendingTransition.nextState) && attachmentState === 'attached'
         ? await checkGatesForCell({
             cell: pendingTransition.cell,
             stage: pendingTransition.nextState,

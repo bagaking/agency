@@ -160,6 +160,26 @@ test('AgentCellsSessionsPanel renders detached cells as cleanup cards instead of
   assert.doesNotMatch(html, /data-testid="session-tab-session-stale"/);
 });
 
+test('archived detached cells leave the cleanup queue and move into the archived offline section', () => {
+  const html = renderToStaticMarkup(
+    renderPanel({
+      cells: [
+        {
+          id: 'cell-archived',
+          name: 'feat-explorer-url-mode',
+          state: 'archived',
+          attachmentState: 'missing',
+          lastKnownWorktreePath: '/repo/.worktrees/feat-explorer-url-mode',
+        },
+      ],
+    })
+  );
+
+  assert.match(html, /Archived Offline/);
+  assert.match(html, /Archived Cell/);
+  assert.doesNotMatch(html, /Needs Cleanup<\/span>/);
+});
+
 test('cleanup card archive action triggers archive handler without falling through to plain selection', async () => {
   const env = setupDom();
   try {
@@ -195,6 +215,14 @@ test('cleanup card archive action triggers archive handler without falling throu
     });
 
     assert.deepEqual(archives, ['cell-missing']);
+    assert.deepEqual(selections, []);
+
+    await act(async () => {
+      button.dispatchEvent(
+        new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
+      );
+    });
+
     assert.deepEqual(selections, []);
 
     await act(async () => {

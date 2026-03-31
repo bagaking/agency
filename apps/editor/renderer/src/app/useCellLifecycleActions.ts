@@ -60,10 +60,11 @@ export function useCellLifecycleActions({
       if (!resolvedCell) {
         return;
       }
+      const shouldSelectTarget = transitionMeta.selectTarget !== false;
       if (nextState === resolvedCell.state) {
         return;
       }
-      if (resolvedCell?.id && resolvedCell.id !== selectedCell?.id) {
+      if (shouldSelectTarget && resolvedCell?.id && resolvedCell.id !== selectedCell?.id) {
         setSelectedId(resolvedCell.id);
       }
       setTransitionError('');
@@ -78,8 +79,9 @@ export function useCellLifecycleActions({
         console.error(error);
       }
       const freshCell = nextCells.find((cell) => cell.id === resolvedCell.id) || resolvedCell;
+      const attachmentState = String(freshCell?.attachmentState || 'attached').trim().toLowerCase();
       let gates: any[] = [];
-      if (['active', 'archived'].includes(nextState)) {
+      if (['active', 'archived'].includes(nextState) && attachmentState === 'attached') {
         gates = await checkGatesForCell({ cell: freshCell, stage: nextState, silent: true });
       }
       setPendingTransition({
@@ -87,6 +89,7 @@ export function useCellLifecycleActions({
         nextState,
         gates,
         source: transitionMeta.source || 'lifecycle-stepper',
+        preferredSelectionId: shouldSelectTarget ? freshCell.id : selectedCell?.id || null,
       });
     },
     [
@@ -106,6 +109,7 @@ export function useCellLifecycleActions({
     (targetCell?: any | null) =>
       handleStateChange('archived', targetCell, {
         source: 'cleanup-card',
+        selectTarget: false,
       }),
     [handleStateChange]
   );

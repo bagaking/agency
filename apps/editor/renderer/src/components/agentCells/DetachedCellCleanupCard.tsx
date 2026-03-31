@@ -118,6 +118,9 @@ export function DetachedCellCleanupCard({
               onSelect?.(cell.id);
             }
           }}
+          onKeyDown={(event) => {
+            event.stopPropagation();
+          }}
           className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] transition-colors ${
             isArchived
               ? 'border-white/10 bg-white/[0.04] text-foreground/75 hover:bg-white/[0.08]'
@@ -134,6 +137,9 @@ export function DetachedCellCleanupCard({
           onClick={(event) => {
             event.stopPropagation();
             onSelect?.(cell.id);
+          }}
+          onKeyDown={(event) => {
+            event.stopPropagation();
           }}
           className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-white/[0.05] hover:text-foreground"
         >
