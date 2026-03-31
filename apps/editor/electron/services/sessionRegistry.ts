@@ -1,6 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
+
+const { listCellRecords } = require('./cellStore');
+const { getCellStoreDir, resolveScopedRepoRoot } = require('./scopedConfigPaths');
 const { normalizeSessionRegistry } = require('./sessionTopology');
 
 const fsp = fs.promises;
@@ -8,60 +11,148 @@ const fsp = fs.promises;
 const AGENCY_DIR = '.agency';
 const SESSION_PREFIX = 'sessions-';
 const SESSION_EXT = '.yaml';
+const CELL_SESSION_FILENAME = 'sessions.yaml';
+
+function normalizeText(value) {
+  return String(value || '').trim();
+}
 
 function getWorktreeName(worktreePath) {
   return path.basename(worktreePath);
 }
 
-function getSessionRegistryPath(worktreePath) {
+function getLegacySessionRegistryPath(worktreePath) {
   const worktreeName = getWorktreeName(worktreePath);
   return path.join(worktreePath, AGENCY_DIR, `${SESSION_PREFIX}${worktreeName}${SESSION_EXT}`);
 }
 
-async function readRegistry(worktreePath) {
-  const registryPath = getSessionRegistryPath(worktreePath);
-  if (!fs.existsSync(registryPath)) {
-    return normalizeSessionRegistry({
-      version: 1,
-      sessions: [],
-    }).registry;
+function getCellSessionRegistryPath(repoRoot, cellId) {
+  const cellDir = getCellStoreDir(repoRoot, cellId);
+  if (!cellDir) {
+    return '';
   }
-  try {
-    const raw = await fsp.readFile(registryPath, 'utf-8');
-    const parsed = (yaml.load(raw) || {}) as Record<string, any>;
-    const normalized = normalizeSessionRegistry({
-      version: parsed.version || 1,
-      sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
-    });
-    if (normalized.changed) {
-      await writeRegistry(worktreePath, normalized.registry);
-    }
-    return normalized.registry;
-  } catch (error) {
-    const suffix = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = `${registryPath}.corrupt-${suffix}`;
-    try {
-      await fsp.rename(registryPath, backupPath);
-      console.warn(`Session registry was invalid. Backed up to ${backupPath}`);
-    } catch (renameError) {
-      console.warn('Session registry was invalid and could not be backed up.', renameError);
-    }
-    return {
-      version: 1,
-      sessions: [],
-    };
-  }
+  return path.join(cellDir, CELL_SESSION_FILENAME);
 }
 
-async function writeRegistry(worktreePath, registry) {
-  const registryPath = getSessionRegistryPath(worktreePath);
-  await fsp.mkdir(path.dirname(registryPath), { recursive: true });
-  const normalized = normalizeSessionRegistry(registry || {}).registry;
+function normalizeRegistry(registry) {
+  return normalizeSessionRegistry(registry || {}).registry;
+}
+
+async function readRegistryFile(filePath) {
+  const raw = await fsp.readFile(filePath, 'utf-8');
+  const parsed = (yaml.load(raw) || {}) || {};
+  return normalizeRegistry({
+    version: parsed.version || 1,
+    sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
+  });
+}
+
+async function writeRegistryFile(filePath, registry) {
+  await fsp.mkdir(path.dirname(filePath), { recursive: true });
+  const normalized = normalizeRegistry(registry);
   const content = yaml.dump(normalized, { lineWidth: 120 });
   const tempSuffix = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const tempPath = `${registryPath}.tmp-${tempSuffix}`;
+  const tempPath = `${filePath}.tmp-${tempSuffix}`;
   await fsp.writeFile(tempPath, content, 'utf-8');
-  await fsp.rename(tempPath, registryPath);
+  await fsp.rename(tempPath, filePath);
+  return normalized;
+}
+
+async function resolveCellIdFromWorktree(repoRoot, worktreePath) {
+  const normalizedWorktreePath = normalizeText(worktreePath);
+  if (!repoRoot || !normalizedWorktreePath) {
+    return '';
+  }
+  const records = await listCellRecords(repoRoot);
+  const match = records.find(
+    (record) =>
+      normalizeText(record.worktreePath) === normalizedWorktreePath ||
+      normalizeText(record.lastKnownWorktreePath) === normalizedWorktreePath
+  );
+  return normalizeText(match?.id);
+}
+
+async function resolveRegistryContext(input: any = {}) {
+  if (typeof input === 'string') {
+    return {
+      repoRoot: '',
+      cellId: '',
+      worktreePath: normalizeText(input),
+      legacyOnly: true,
+    };
+  }
+  const rootPath = normalizeText(input?.rootPath || input?.projectRoot);
+  const worktreePath = normalizeText(input?.worktreePath);
+  const repoRoot = await resolveScopedRepoRoot({ rootPath, worktreePath });
+  const cellId =
+    normalizeText(input?.cellId) || (repoRoot && worktreePath ? await resolveCellIdFromWorktree(repoRoot, worktreePath) : '');
+  return {
+    repoRoot,
+    cellId,
+    worktreePath,
+    legacyOnly: false,
+  };
+}
+
+function buildEmptyRegistry() {
+  return normalizeRegistry({
+    version: 1,
+    sessions: [],
+  });
+}
+
+async function readRegistry(input = {}) {
+  const context = await resolveRegistryContext(input);
+  if (context.legacyOnly) {
+    const legacyPath = getLegacySessionRegistryPath(context.worktreePath);
+    if (!fs.existsSync(legacyPath)) {
+      return buildEmptyRegistry();
+    }
+    return readRegistryFile(legacyPath);
+  }
+
+  if (context.repoRoot && context.cellId) {
+    const repoPath = getCellSessionRegistryPath(context.repoRoot, context.cellId);
+    if (repoPath && fs.existsSync(repoPath)) {
+      return readRegistryFile(repoPath);
+    }
+    if (context.worktreePath) {
+      const legacyPath = getLegacySessionRegistryPath(context.worktreePath);
+      if (fs.existsSync(legacyPath)) {
+        const imported = await readRegistryFile(legacyPath);
+        await writeRegistryFile(repoPath, imported);
+        return imported;
+      }
+    }
+    return buildEmptyRegistry();
+  }
+
+  if (context.worktreePath) {
+    const legacyPath = getLegacySessionRegistryPath(context.worktreePath);
+    if (!fs.existsSync(legacyPath)) {
+      return buildEmptyRegistry();
+    }
+    return readRegistryFile(legacyPath);
+  }
+
+  return buildEmptyRegistry();
+}
+
+async function writeRegistry(input = {}, registry) {
+  const context = await resolveRegistryContext(input);
+  if (context.legacyOnly) {
+    const legacyPath = getLegacySessionRegistryPath(context.worktreePath);
+    return writeRegistryFile(legacyPath, registry);
+  }
+  if (context.repoRoot && context.cellId) {
+    const repoPath = getCellSessionRegistryPath(context.repoRoot, context.cellId);
+    return writeRegistryFile(repoPath, registry);
+  }
+  if (context.worktreePath) {
+    const legacyPath = getLegacySessionRegistryPath(context.worktreePath);
+    return writeRegistryFile(legacyPath, registry);
+  }
+  throw new Error('Unable to resolve session registry path.');
 }
 
 function upsertSession(registry, session) {
@@ -84,7 +175,9 @@ function removeSession(registry, sessionId) {
 }
 
 export {
-  getSessionRegistryPath,
+  CELL_SESSION_FILENAME,
+  getLegacySessionRegistryPath,
+  getCellSessionRegistryPath,
   readRegistry,
   writeRegistry,
   upsertSession,

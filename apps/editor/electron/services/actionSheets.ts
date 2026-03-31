@@ -10,119 +10,216 @@
 const { getRepoRoot } = require('./git');
 const agencyData = require('@agency/agency-data');
 
-async function resolveRepoRootPath(worktreePath) {
-  if (!worktreePath) {
-    return '';
+function normalizeText(value) {
+  return String(value || '').trim();
+}
+
+async function resolveActionSheetPaths({ worktreePath = '', rootPath = '', projectRoot = '' } = {}) {
+  const scopeRoot = normalizeText(projectRoot || rootPath || worktreePath);
+  if (!scopeRoot) {
+    return { repoRootPath: '', worktreePath: '' };
   }
   try {
-    return await getRepoRoot(worktreePath);
+    const repoRootPath = await getRepoRoot(scopeRoot);
+    return {
+      repoRootPath,
+      worktreePath: normalizeText(worktreePath) || repoRootPath,
+    };
   } catch (error) {
-    return worktreePath;
+    const normalized = normalizeText(scopeRoot);
+    return {
+      repoRootPath: normalized,
+      worktreePath: normalizeText(worktreePath) || normalized,
+    };
   }
 }
 
-async function listActionSheets({ worktreePath, includeArchived = false } = {}) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
+async function listActionSheets({ worktreePath = '', rootPath = '', projectRoot = '', includeArchived = false } = {}) {
+  const { repoRootPath, worktreePath: resolvedWorktreePath } = await resolveActionSheetPaths({
+    worktreePath,
+    rootPath,
+    projectRoot,
+  });
+  if (!repoRootPath) {
+    throw new Error('projectRoot, rootPath, or worktreePath is required.');
   }
-  const repoRootPath = await resolveRepoRootPath(worktreePath);
-  return agencyData.listActionSheets({ worktreePath, repoRootPath, includeArchived });
+  return agencyData.listActionSheets({
+    worktreePath: resolvedWorktreePath || repoRootPath,
+    repoRootPath,
+    includeArchived,
+  });
 }
 
-async function readActionSheet({ worktreePath, id } = {}) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
-  }
+async function readActionSheet({ worktreePath = '', rootPath = '', projectRoot = '', id } = {}) {
   if (!id) {
     throw new Error('actionSheet id is required.');
   }
-  const repoRootPath = await resolveRepoRootPath(worktreePath);
-  return agencyData.readActionSheet({ worktreePath, repoRootPath, id });
+  const { repoRootPath, worktreePath: resolvedWorktreePath } = await resolveActionSheetPaths({
+    worktreePath,
+    rootPath,
+    projectRoot,
+  });
+  if (!repoRootPath) {
+    throw new Error('projectRoot, rootPath, or worktreePath is required.');
+  }
+  return agencyData.readActionSheet({
+    worktreePath: resolvedWorktreePath || repoRootPath,
+    repoRootPath,
+    id,
+  });
 }
 
-async function createActionSheet({ worktreePath, payload = {} } = {}) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
+async function createActionSheet({ worktreePath = '', rootPath = '', projectRoot = '', payload = {} } = {}) {
+  const { repoRootPath, worktreePath: resolvedWorktreePath } = await resolveActionSheetPaths({
+    worktreePath,
+    rootPath,
+    projectRoot,
+  });
+  if (!repoRootPath) {
+    throw new Error('projectRoot, rootPath, or worktreePath is required.');
   }
-  const repoRootPath = await resolveRepoRootPath(worktreePath);
-  return agencyData.createActionSheet({ worktreePath, repoRootPath, payload });
+  return agencyData.createActionSheet({
+    worktreePath: resolvedWorktreePath || repoRootPath,
+    repoRootPath,
+    payload,
+  });
 }
 
-async function updateActionSheetStatus({ worktreePath, id, patch = {} } = {}) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
-  }
+async function updateActionSheetStatus({ worktreePath = '', rootPath = '', projectRoot = '', id, patch = {} } = {}) {
   if (!id) {
     throw new Error('actionSheet id is required.');
   }
-  const repoRootPath = await resolveRepoRootPath(worktreePath);
-  return agencyData.updateActionSheetStatus({ worktreePath, repoRootPath, id, patch });
+  const { repoRootPath, worktreePath: resolvedWorktreePath } = await resolveActionSheetPaths({
+    worktreePath,
+    rootPath,
+    projectRoot,
+  });
+  if (!repoRootPath) {
+    throw new Error('projectRoot, rootPath, or worktreePath is required.');
+  }
+  return agencyData.updateActionSheetStatus({
+    worktreePath: resolvedWorktreePath || repoRootPath,
+    repoRootPath,
+    id,
+    patch,
+  });
 }
 
-async function archiveActionSheet({ worktreePath, id } = {}) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
-  }
+async function archiveActionSheet({ worktreePath = '', rootPath = '', projectRoot = '', id } = {}) {
   if (!id) {
     throw new Error('actionSheet id is required.');
   }
-  const repoRootPath = await resolveRepoRootPath(worktreePath);
-  return agencyData.archiveActionSheet({ worktreePath, repoRootPath, id });
+  const { repoRootPath, worktreePath: resolvedWorktreePath } = await resolveActionSheetPaths({
+    worktreePath,
+    rootPath,
+    projectRoot,
+  });
+  if (!repoRootPath) {
+    throw new Error('projectRoot, rootPath, or worktreePath is required.');
+  }
+  return agencyData.archiveActionSheet({
+    worktreePath: resolvedWorktreePath || repoRootPath,
+    repoRootPath,
+    id,
+  });
 }
 
-async function deleteActionSheet({ worktreePath, id } = {}) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
-  }
+async function deleteActionSheet({ worktreePath = '', rootPath = '', projectRoot = '', id } = {}) {
   if (!id) {
     throw new Error('actionSheet id is required.');
   }
-  const repoRootPath = await resolveRepoRootPath(worktreePath);
-  return agencyData.deleteActionSheet({ worktreePath, repoRootPath, id });
+  const { repoRootPath, worktreePath: resolvedWorktreePath } = await resolveActionSheetPaths({
+    worktreePath,
+    rootPath,
+    projectRoot,
+  });
+  if (!repoRootPath) {
+    throw new Error('projectRoot, rootPath, or worktreePath is required.');
+  }
+  return agencyData.deleteActionSheet({
+    worktreePath: resolvedWorktreePath || repoRootPath,
+    repoRootPath,
+    id,
+  });
 }
 
-async function updateActionSheetPlan({ worktreePath, id, plan } = {}) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
-  }
+async function updateActionSheetPlan({ worktreePath = '', rootPath = '', projectRoot = '', id, plan } = {}) {
   if (!id) {
     throw new Error('actionSheet id is required.');
   }
-  const repoRootPath = await resolveRepoRootPath(worktreePath);
-  return agencyData.updateActionSheetPlan({ worktreePath, repoRootPath, id, plan });
+  const { repoRootPath, worktreePath: resolvedWorktreePath } = await resolveActionSheetPaths({
+    worktreePath,
+    rootPath,
+    projectRoot,
+  });
+  if (!repoRootPath) {
+    throw new Error('projectRoot, rootPath, or worktreePath is required.');
+  }
+  return agencyData.updateActionSheetPlan({
+    worktreePath: resolvedWorktreePath || repoRootPath,
+    repoRootPath,
+    id,
+    plan,
+  });
 }
 
-async function updateActionSheetPrompt({ worktreePath, id, prompt } = {}) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
-  }
+async function updateActionSheetPrompt({ worktreePath = '', rootPath = '', projectRoot = '', id, prompt } = {}) {
   if (!id) {
     throw new Error('actionSheet id is required.');
   }
-  const repoRootPath = await resolveRepoRootPath(worktreePath);
-  return agencyData.updateActionSheetPrompt({ worktreePath, repoRootPath, id, prompt });
+  const { repoRootPath, worktreePath: resolvedWorktreePath } = await resolveActionSheetPaths({
+    worktreePath,
+    rootPath,
+    projectRoot,
+  });
+  if (!repoRootPath) {
+    throw new Error('projectRoot, rootPath, or worktreePath is required.');
+  }
+  return agencyData.updateActionSheetPrompt({
+    worktreePath: resolvedWorktreePath || repoRootPath,
+    repoRootPath,
+    id,
+    prompt,
+  });
 }
 
-async function updateActionSheetChecks({ worktreePath, id, checks } = {}) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
-  }
+async function updateActionSheetChecks({ worktreePath = '', rootPath = '', projectRoot = '', id, checks } = {}) {
   if (!id) {
     throw new Error('actionSheet id is required.');
   }
-  const repoRootPath = await resolveRepoRootPath(worktreePath);
-  return agencyData.updateActionSheetChecks({ worktreePath, repoRootPath, id, checks });
+  const { repoRootPath, worktreePath: resolvedWorktreePath } = await resolveActionSheetPaths({
+    worktreePath,
+    rootPath,
+    projectRoot,
+  });
+  if (!repoRootPath) {
+    throw new Error('projectRoot, rootPath, or worktreePath is required.');
+  }
+  return agencyData.updateActionSheetChecks({
+    worktreePath: resolvedWorktreePath || repoRootPath,
+    repoRootPath,
+    id,
+    checks,
+  });
 }
 
-async function runActionSheetChecks({ worktreePath, id } = {}) {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
-  }
+async function runActionSheetChecks({ worktreePath = '', rootPath = '', projectRoot = '', id } = {}) {
   if (!id) {
     throw new Error('actionSheet id is required.');
   }
-  const repoRootPath = await resolveRepoRootPath(worktreePath);
-  return agencyData.runActionSheetChecks({ worktreePath, repoRootPath, id });
+  const { repoRootPath, worktreePath: resolvedWorktreePath } = await resolveActionSheetPaths({
+    worktreePath,
+    rootPath,
+    projectRoot,
+  });
+  if (!repoRootPath) {
+    throw new Error('projectRoot, rootPath, or worktreePath is required.');
+  }
+  return agencyData.runActionSheetChecks({
+    worktreePath: resolvedWorktreePath || repoRootPath,
+    repoRootPath,
+    id,
+  });
 }
 
 export {
@@ -137,4 +234,3 @@ export {
   updateActionSheetChecks,
   runActionSheetChecks,
 };
-

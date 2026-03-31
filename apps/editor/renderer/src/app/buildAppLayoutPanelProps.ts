@@ -131,7 +131,7 @@ export function buildAppLayoutPanelProps({
   const hilReplyProps = {
     cell: selectedCell,
     session: activeSession,
-    worktreePath: selectedCell?.worktreePath || projectRoot || '',
+    worktreePath: selectedCell?.attachedWorktreePath || projectRoot || '',
     selection: activeReplySelection,
     focusToken: replyFocusToken,
     resolvedQuickPrompts: resolvedReplyQuickPrompts,
@@ -145,7 +145,7 @@ export function buildAppLayoutPanelProps({
   const hilCommentsProps = {
     activeFile: activeTab?.path || '',
     cursorPosition,
-    worktreePath: selectedCell?.worktreePath || projectRoot || '',
+    worktreePath: selectedCell?.attachedWorktreePath || projectRoot || '',
     comments,
     loading: commentsLoading,
     error: commentsError,
@@ -339,7 +339,9 @@ export function buildAppLayoutPanelProps({
     ...memoCapture,
     flashVoiceShortcut: memoVoiceShortcut,
     screenshotShortcut,
-    worktreePath: selectedCell?.worktreePath || projectRoot || '',
+    worktreePath: selectedCell?.attachedWorktreePath || projectRoot || '',
+    projectRoot,
+    selectedCellId: selectedCell?.id || '',
     projectReady,
     projectError,
     onSelectProject: handleSelectProjectRoot,
@@ -393,4 +395,3 @@ export function buildAppLayoutPanelProps({
     appLayoutMemoSidebarProps,
   };
 }
-

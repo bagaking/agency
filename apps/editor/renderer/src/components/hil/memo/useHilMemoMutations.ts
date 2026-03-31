@@ -8,6 +8,8 @@ import {
 
 type HilMemoMutationBindings = {
   worktreePath: string;
+  projectRoot?: string;
+  cellId?: string;
   refresh: () => Promise<void>;
   setDockSelection: (value: any) => void;
   modal: any;
@@ -16,6 +18,8 @@ type HilMemoMutationBindings = {
 
 export const useHilMemoMutations = ({
   worktreePath,
+  projectRoot = '',
+  cellId = '',
   refresh,
   setDockSelection,
   modal,
@@ -31,6 +35,8 @@ export const useHilMemoMutations = ({
       try {
         const updated = await agencyUpdateHilItem({
           worktreePath,
+          repoRootPath: projectRoot,
+          cellId,
           itemId: item.id,
           patch: { status },
         });
@@ -49,7 +55,7 @@ export const useHilMemoMutations = ({
         });
       }
     },
-    [modal, refresh, worktreePath]
+    [cellId, modal, projectRoot, refresh, worktreePath]
   );
 
   const handleArchiveDraft = useCallback(
@@ -101,6 +107,8 @@ export const useHilMemoMutations = ({
       try {
         const result = await agencyDeleteHilItem({
           worktreePath,
+          repoRootPath: projectRoot,
+          cellId,
           itemId: draft.id,
         });
         if (!result) {
@@ -119,7 +127,7 @@ export const useHilMemoMutations = ({
         });
       }
     },
-    [modal, refresh, setDockSelection, worktreePath]
+    [cellId, modal, projectRoot, refresh, setDockSelection, worktreePath]
   );
 
   const handleCreateDraftActionSheet = useCallback(
@@ -134,6 +142,8 @@ export const useHilMemoMutations = ({
         }
         const updated = await agencyUpdateHilItem({
           worktreePath,
+          repoRootPath: projectRoot,
+          cellId,
           itemId: draft.id,
           patch: {
             meta: {
@@ -159,7 +169,7 @@ export const useHilMemoMutations = ({
         });
       }
     },
-    [modal, onCreateActionSheet, refresh, worktreePath]
+    [cellId, modal, onCreateActionSheet, projectRoot, refresh, worktreePath]
   );
 
   return {

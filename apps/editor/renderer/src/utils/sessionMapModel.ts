@@ -63,7 +63,9 @@ const resolveDisplayLabel = (value) => {
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
 
-export const isCellOffline = (cell) => OFFLINE_CELL_STATES.has(cell?.state);
+export const isCellOffline = (cell) =>
+  OFFLINE_CELL_STATES.has(cell?.state) ||
+  ['detached', 'missing'].includes(String(cell?.attachmentState || '').trim().toLowerCase());
 
 export const isSessionOffline = (session, cell) => {
   if (isCellOffline(cell)) {

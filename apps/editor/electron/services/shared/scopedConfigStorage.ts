@@ -3,6 +3,13 @@ import path from 'node:path';
 import yaml from 'js-yaml';
 
 const { getRepoRoot, listWorktrees } = require('../git');
+const {
+  getCellStoreDir,
+  normalizeCellId,
+  resolveAgentConfigPath,
+  resolveLegacyAgentConfigPath,
+  resolveProjectConfigPath,
+} = require('../scopedConfigPaths');
 
 type ScopedConfigContext = {
   projectRoot?: string;
@@ -33,10 +40,6 @@ const LIFECYCLE_EXTENSIONS = new Set(['.yaml', '.yml', '.md']);
 
 function normalizeText(value: unknown): string {
   return String(value || '').trim();
-}
-
-function sanitizePathSegment(value: unknown): string {
-  return normalizeText(value).replace(/[^a-zA-Z0-9._-]+/g, '-');
 }
 
 function firstExistingPath(paths: string[]): string {
@@ -85,9 +88,25 @@ async function resolveCellIdFromWorktree(worktreePath: string): Promise<string> 
     return '';
   }
 
+  try {
+    const repoRoot = await resolveRepoRootForScopedConfig({ worktreePath: normalizedWorktreePath });
+    const resolved = await resolveAgentConfigPath({
+      rootPath: repoRoot,
+      worktreePath: normalizedWorktreePath,
+      cellId: '',
+      filename: 'cell.yaml',
+    });
+    const resolvedCellId = normalizeCellId(path.basename(resolved?.cellDir || ''));
+    if (resolvedCellId) {
+      return resolvedCellId;
+    }
+  } catch (_error) {
+    // Fall back to the legacy lifecycle heuristic below.
+  }
+
   const lifecycleDir = path.join(normalizedWorktreePath, WORKTREE_AGENCY_DIR);
   if (!fs.existsSync(lifecycleDir)) {
-    return sanitizePathSegment(path.basename(normalizedWorktreePath));
+    return normalizeCellId(path.basename(normalizedWorktreePath));
   }
 
   try {
@@ -97,7 +116,7 @@ async function resolveCellIdFromWorktree(worktreePath: string): Promise<string> 
       return entry.startsWith(LIFECYCLE_PREFIX) && LIFECYCLE_EXTENSIONS.has(ext);
     });
     if (!lifecycleEntry) {
-      return sanitizePathSegment(path.basename(normalizedWorktreePath));
+      return normalizeCellId(path.basename(normalizedWorktreePath));
     }
 
     const lifecyclePath = path.join(lifecycleDir, lifecycleEntry);
@@ -108,9 +127,9 @@ async function resolveCellIdFromWorktree(worktreePath: string): Promise<string> 
         ? raw.match(/^---\n([\s\S]*?)\n---/)?.[1] || ''
         : raw;
     const parsed = (yaml.load(payload) || {}) as Record<string, unknown>;
-    return sanitizePathSegment(parsed.id || parsed.name || path.basename(normalizedWorktreePath));
+    return normalizeCellId(parsed.id || parsed.name || path.basename(normalizedWorktreePath));
   } catch (_error) {
-    return sanitizePathSegment(path.basename(normalizedWorktreePath));
+    return normalizeCellId(path.basename(normalizedWorktreePath));
   }
 }
 
@@ -146,12 +165,11 @@ function buildRepoAgencyDir(repoRoot: string): string {
 }
 
 function buildRepoOwnedCellConfigPath(repoRoot: string, cellId: string, filename: string): string {
-  return path.join(
-    buildRepoAgencyDir(repoRoot),
-    'cells',
-    sanitizePathSegment(cellId),
-    normalizeText(filename)
-  );
+  const cellDir = getCellStoreDir(repoRoot, cellId);
+  if (!cellDir) {
+    return '';
+  }
+  return path.join(cellDir, normalizeText(filename));
 }
 
 async function resolveProjectScopeConfigPaths({
@@ -172,11 +190,16 @@ async function resolveProjectScopeConfigPaths({
   }
 
   const repoRoot = await resolveRepoRootForScopedConfig({ projectRoot, worktreePath });
+  const resolvedProjectConfig = await resolveProjectConfigPath({
+    rootPath: repoRoot,
+    worktreePath,
+    filenames: normalizedFilenames,
+  });
   const canonicalCandidates = repoRoot
     ? normalizedFilenames.map((filename) => path.join(buildRepoAgencyDir(repoRoot), filename))
     : [];
   const canonicalExistingPath = firstExistingPath(canonicalCandidates);
-  const canonicalPath = canonicalExistingPath || canonicalCandidates[0] || '';
+  const canonicalPath = canonicalExistingPath || resolvedProjectConfig.filePath || canonicalCandidates[0] || '';
   const legacyPath = await resolveLegacyProjectPath(repoRoot, normalizeText(worktreePath), normalizedFilenames);
 
   return {
@@ -196,25 +219,20 @@ async function resolveAgentScopeConfigPaths({
   legacyExt = '.yaml',
 }: AgentScopePathOptions): Promise<ResolvedScopePaths> {
   const repoRoot = await resolveRepoRootForScopedConfig({ projectRoot, worktreePath });
-  const normalizedCellId =
-    sanitizePathSegment(cellId) || (await resolveCellIdFromWorktree(normalizeText(worktreePath)));
+  const normalizedCellId = normalizeCellId(cellId) || (await resolveCellIdFromWorktree(normalizeText(worktreePath)));
+  const resolvedAgentConfig = await resolveAgentConfigPath({
+    rootPath: repoRoot,
+    worktreePath,
+    cellId: normalizedCellId,
+    filename,
+  });
   const canonicalPath =
-    repoRoot && normalizedCellId
-      ? buildRepoOwnedCellConfigPath(repoRoot, normalizedCellId, filename)
-      : '';
+    resolvedAgentConfig.filePath || buildRepoOwnedCellConfigPath(repoRoot, normalizedCellId, filename);
   const canonicalExistingPath =
     canonicalPath && fs.existsSync(canonicalPath) ? canonicalPath : '';
 
   const normalizedWorktreePath = normalizeText(worktreePath);
-  const worktreeName = normalizedWorktreePath ? path.basename(normalizedWorktreePath) : '';
-  const legacyPath =
-    normalizedWorktreePath && worktreeName
-      ? path.join(
-          normalizedWorktreePath,
-          '.agency',
-          `${normalizeText(legacyPrefix)}${worktreeName}${normalizeText(legacyExt) || '.yaml'}`
-        )
-      : '';
+  const legacyPath = resolveLegacyAgentConfigPath(normalizedWorktreePath, legacyPrefix, legacyExt);
   const legacyExistingPath = legacyPath && fs.existsSync(legacyPath) ? legacyPath : '';
 
   return {
@@ -230,5 +248,4 @@ export {
   resolveAgentScopeConfigPaths,
   resolveProjectScopeConfigPaths,
   resolveRepoRootForScopedConfig,
-  sanitizePathSegment,
 };

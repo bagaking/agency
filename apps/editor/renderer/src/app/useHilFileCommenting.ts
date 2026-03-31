@@ -17,6 +17,8 @@ type UseHilFileCommentingArgs = {
   activeTab: any | null;
   cursorPosition: CursorPosition;
   hilWorktreePath: string;
+  projectRoot: string;
+  selectedCellId: string;
   openHilDrawer: (panel?: string) => void;
 };
 
@@ -24,6 +26,8 @@ export function useHilFileCommenting({
   activeTab,
   cursorPosition,
   hilWorktreePath,
+  projectRoot,
+  selectedCellId,
   openHilDrawer,
 }: UseHilFileCommentingArgs) {
   const canComment = Boolean(activeTab && activeTab.kind === 'code');
@@ -59,6 +63,8 @@ export function useHilFileCommenting({
     try {
       const list = await agencyListHilItems({
         worktreePath: hilWorktreePath,
+        repoRootPath: projectRoot,
+        cellId: selectedCellId,
         kind: 'comment',
       });
       const nextCounts: Record<string, number> = {};
@@ -75,7 +81,7 @@ export function useHilFileCommenting({
     } catch {
       setCommentCountsByPath({});
     }
-  }, [hilWorktreePath]);
+  }, [hilWorktreePath, projectRoot, selectedCellId]);
 
   const refreshComments = useCallback(async () => {
     if (!commentRootPath || !commentFilePath || !canComment) {
@@ -89,6 +95,8 @@ export function useHilFileCommenting({
     try {
       const list = await agencyListComments({
         worktreePath: commentRootPath,
+        repoRootPath: projectRoot,
+        cellId: selectedCellId,
         filePath: commentFilePath,
       });
       if (!list) {
@@ -101,7 +109,7 @@ export function useHilFileCommenting({
     } finally {
       setCommentsLoading(false);
     }
-  }, [canComment, commentFilePath, commentRootPath]);
+  }, [canComment, commentFilePath, commentRootPath, projectRoot, selectedCellId]);
 
   const commentLines = useMemo(() => {
     if (!comments.length) {
@@ -166,6 +174,8 @@ export function useHilFileCommenting({
     try {
       const result = await agencySubmitComment({
         worktreePath: commentRootPath,
+        repoRootPath: projectRoot,
+        cellId: selectedCellId,
         filePath: commentFilePath,
         line: commentTarget.line,
         column: commentTarget.column,
@@ -194,7 +204,9 @@ export function useHilFileCommenting({
     commentTarget.line,
     commentTodo,
     openHilDrawer,
+    projectRoot,
     refreshComments,
+    selectedCellId,
   ]);
 
   const updateCommentStatus = useCallback(
@@ -204,6 +216,8 @@ export function useHilFileCommenting({
       }
       const result = await agencyUpdateHilItem({
         worktreePath: commentRootPath,
+        repoRootPath: projectRoot,
+        cellId: selectedCellId,
         itemId: comment.id,
         patch: { status },
       });
@@ -213,7 +227,7 @@ export function useHilFileCommenting({
       await refreshComments();
       bumpCommentRefreshToken();
     },
-    [bumpCommentRefreshToken, commentRootPath, refreshComments]
+    [bumpCommentRefreshToken, commentRootPath, projectRoot, refreshComments, selectedCellId]
   );
 
   useEffect(() => {
@@ -305,4 +319,3 @@ export function useHilFileCommenting({
     updateCommentStatus,
   };
 }
-

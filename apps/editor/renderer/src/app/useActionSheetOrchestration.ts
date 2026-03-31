@@ -75,6 +75,9 @@ export function useActionSheetOrchestration({
   projectGatesPath,
   agentGatesPath,
 }: UseActionSheetOrchestrationArgs) {
+  const repoRootPath = selectedCell?.projectRoot || actionSheetsRoot || '';
+  const selectedCellId = selectedCell?.id || '';
+
   const handleOpenActionSheets = useCallback(
     (sheetId?: string) => {
       if (sheetId) {
@@ -213,6 +216,8 @@ export function useActionSheetOrchestration({
           }
           const updated = await agencyUpdateHilItem({
             worktreePath: hilWorktreePath,
+            repoRootPath,
+            cellId: selectedCellId,
             itemId: draft.id,
             patch: {
               meta: {
@@ -238,7 +243,9 @@ export function useActionSheetOrchestration({
       handleCreateDraftActionSheet,
       handleDispatchActionSheet,
       hilWorktreePath,
+      repoRootPath,
       refreshHilMemo,
+      selectedCellId,
       setActionSheetInlineError,
     ]
   );
@@ -297,11 +304,12 @@ export function useActionSheetOrchestration({
         const run = await agencyStartDelivery({
           request: {
             worktreePath: hilWorktreePath,
+            repoRootPath,
             source: 'explorer',
             mode: normalizedMode,
             description: trimmedDescription,
             sessionId,
-            cellId: selectedCell?.id || '',
+            cellId: selectedCellId,
             selectedItems: normalizedReferencePaths.map((targetPath) => ({
               id: `explorer:${targetPath}`,
               kind: 'file',
@@ -321,7 +329,7 @@ export function useActionSheetOrchestration({
               promoted: normalizedMode === 'quick',
               requestedAt,
               sourceSession: {
-                cellId: selectedCell?.id || '',
+                cellId: selectedCellId,
                 sessionId: sessionId || '',
               },
               conditional: normalizedMode === 'gated' ? conditionalDefaults : undefined,
@@ -347,12 +355,16 @@ export function useActionSheetOrchestration({
         } else {
           await agencyConfirmDelivery({
             worktreePath: hilWorktreePath,
+            repoRootPath,
+            cellId: selectedCellId,
             draftId,
           });
         }
 
         const status = await agencyGetDeliveryStatus({
           worktreePath: hilWorktreePath,
+          repoRootPath,
+          cellId: selectedCellId,
           draftId,
         });
         const resolvedStatus = status?.executionStatus || (normalizedMode === 'quick' ? 'complete' : 'running');
@@ -424,7 +436,8 @@ export function useActionSheetOrchestration({
       conditionalDefaults,
       dispatchActionSheet,
       hilWorktreePath,
-      selectedCell?.id,
+      repoRootPath,
+      selectedCellId,
       setActionSheetInlineError,
       setActionSheetSessionId,
       setExplorerDeliverySummary,
@@ -510,11 +523,15 @@ export function useActionSheetOrchestration({
 
   const createTurnGateCreateSheetForCell = useCallback(
     async ({ cell, stage }: { cell: any; stage?: string }) => {
-      if (!cell?.worktreePath) {
-        throw new Error('Cell worktree path is required.');
+      if (!cell?.id) {
+        throw new Error('Cell selection is required.');
       }
-      const worktreeName = String(cell.worktreePath).split('/').filter(Boolean).pop() || '';
-      const resolvedAgentGatesPath = `${cell.worktreePath}/.agency/gates-${worktreeName}.yaml`;
+      const repoRoot = String(cell.projectRoot || actionSheetsRoot || '').trim();
+      const attachedWorktreePath = String(cell.attachedWorktreePath || '').trim();
+      const lastKnownWorktreePath = String(cell.lastKnownWorktreePath || cell.worktreePath || '').trim();
+      const hasAttachment = Boolean(attachedWorktreePath);
+      const resolvedAgentGatesPath =
+        repoRoot && cell.id ? `${repoRoot}/.agency/cells/${cell.id}/gates.yaml` : '';
       const resolvedStage = String(stage || '').trim() || 'active';
       const title = `Turn Gate Create: ${cell.name || cell.id}`;
       const prompt = {
@@ -525,11 +542,14 @@ export function useActionSheetOrchestration({
           '- Confirm contract artifacts exist (OpenSpec change or a design note).',
           '- Define/adjust gates (Global -> Project -> Agent) so exit criteria is measurable.',
           '- Ensure checks are executable and reflect the desired exit criteria.',
+          hasAttachment
+            ? '- If this Cell is attached, make sure worktree-bound checks match the intended development path.'
+            : '- This Cell is detached or missing a worktree, so keep the sheet focused on repo-owned evidence and lifecycle expectations.',
         ].join(LINE_BREAK),
         context: [
           `Cell: ${cell.name || cell.id}`,
           `Branch: ${cell.branch || ''}`,
-          `Worktree: ${cell.worktreePath}`,
+          `Attachment: ${attachedWorktreePath || lastKnownWorktreePath || 'none'}`,
           `Target stage: ${resolvedStage}`,
           '',
           'Key paths:',
@@ -561,7 +581,7 @@ export function useActionSheetOrchestration({
 
   const handleTurnGateCreateSheet = useCallback(
     async (stage?: string) => {
-      if (!selectedCell?.worktreePath) {
+      if (!selectedCell?.id) {
         modal?.notify?.({
           title: 'Turn Gate Create unavailable',
           description: 'Select a Cell before creating a Turn gate sheet.',
@@ -585,7 +605,7 @@ export function useActionSheetOrchestration({
 
   const handleTurnGateExecuteSheet = useCallback(
     async (stage?: string) => {
-      if (!selectedCell?.worktreePath) {
+      if (!selectedCell?.id) {
         modal?.notify?.({
           title: 'Turn Gate Execute unavailable',
           description: 'Select a Cell before creating a Turn gate execution sheet.',
@@ -595,9 +615,12 @@ export function useActionSheetOrchestration({
       }
       const resolvedStage = String(stage || '').trim() || 'active';
       try {
+        const hasAttachment = Boolean(selectedCell.attachedWorktreePath);
         const resolved = await agencyGetGates({
           scope: 'resolved',
-          worktreePath: selectedCell.worktreePath,
+          rootPath: selectedCell.projectRoot || actionSheetsRoot || '',
+          worktreePath: selectedCell.attachedWorktreePath || '',
+          cellId: selectedCell.id,
         });
         const gates = Array.isArray(resolved?.[resolvedStage]) ? resolved[resolvedStage] : [];
         const checks = gates
@@ -623,17 +646,26 @@ export function useActionSheetOrchestration({
         const title = `Turn Gate Execute (${resolvedStage}): ${selectedCell.name || selectedCell.id}`;
         const prompt = {
           requirements: [
-            'Execute this Turn gate set and fix failures until the worktree is merge-ready.',
+            hasAttachment
+              ? 'Execute this Turn gate set and fix failures until the worktree is merge-ready.'
+              : 'Execute this Turn gate set and fix failures until the repo-owned Cell state and evidence are ready for the next lifecycle step.',
             '',
             'Gate Execute (after development):',
             '- Run the checks (mirrors lifecycle gates for the selected stage).',
             '- Fix failures until all checks pass.',
-            '- Then proceed to merge / archive / lifecycle transition as needed.',
+            hasAttachment
+              ? '- Then proceed to merge / archive / lifecycle transition as needed.'
+              : '- Then proceed to archive / cleanup / lifecycle transition as needed.',
           ].join(LINE_BREAK),
           context: [
             `Cell: ${selectedCell.name || selectedCell.id}`,
             `Branch: ${selectedCell.branch || ''}`,
-            `Worktree: ${selectedCell.worktreePath}`,
+            `Attachment: ${
+              selectedCell.attachedWorktreePath ||
+              selectedCell.lastKnownWorktreePath ||
+              selectedCell.worktreePath ||
+              'none'
+            }`,
             `Stage: ${resolvedStage}`,
             '',
             'Key paths:',
@@ -648,7 +680,9 @@ export function useActionSheetOrchestration({
           checks: checkSummary,
           done: [
             'After all checks pass:',
-            '- Merge the branch/worktree changes.',
+            hasAttachment
+              ? '- Merge the branch/worktree changes.'
+              : '- Confirm detached-cell evidence and lifecycle metadata are still consistent.',
             '- Archive the OpenSpec change if applicable.',
           ].join(LINE_BREAK),
         };

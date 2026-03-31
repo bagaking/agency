@@ -223,8 +223,9 @@ export function SessionMapTerminalPreview({
       }
       lastSnapshotRef.current = normalized;
       writePreviewData(normalized);
+      const attachedWorktreePath = cell?.attachedWorktreePath || '';
       setCachedSessionMapPreview({
-        worktreePath: cell?.worktreePath,
+        worktreePath: attachedWorktreePath,
         cellId: cell?.id,
         sessionId: session?.id,
         preview: {
@@ -236,7 +237,7 @@ export function SessionMapTerminalPreview({
       });
       return true;
     },
-    [applyPreviewSize, cell?.id, cell?.worktreePath, session?.id, writePreviewData]
+    [applyPreviewSize, cell?.id, cell?.attachedWorktreePath, session?.id, writePreviewData]
   );
 
   useEffect(() => {
@@ -364,11 +365,12 @@ export function SessionMapTerminalPreview({
   }, [measureScale, onPreviewReady, ready, session?.id]);
 
   useEffect(() => {
-    if (!ready || !cell?.id || !session?.id || isOffline) {
+    const attachedWorktreePath = cell?.attachedWorktreePath || '';
+    if (!ready || !cell?.id || !session?.id || isOffline || !attachedWorktreePath) {
       return;
     }
     const cached = getCachedSessionMapPreview({
-      worktreePath: cell.worktreePath,
+      worktreePath: attachedWorktreePath,
       cellId: cell.id,
       sessionId: session.id,
     });
@@ -381,7 +383,7 @@ export function SessionMapTerminalPreview({
       rows: cached.rows,
       cachePath: cached.cachePath || null,
     });
-  }, [applyPreviewPayload, cell?.id, cell?.worktreePath, isOffline, ready, session?.id]);
+  }, [applyPreviewPayload, cell?.id, cell?.attachedWorktreePath, isOffline, ready, session?.id]);
 
   useEffect(() => {
     if (!enabled) {
@@ -418,6 +420,10 @@ export function SessionMapTerminalPreview({
     if (!isAgencyAvailable()) {
       setError('Preview unavailable (IPC missing).');
       logDebug('ipc-missing', { cellId: cell.id, sessionId: session.id });
+      return undefined;
+    }
+    const attachedWorktreePath = cell?.attachedWorktreePath || '';
+    if (!ready || !cell?.id || !session?.id || isOffline || !attachedWorktreePath) {
       return undefined;
     }
     let active = true;
@@ -464,7 +470,7 @@ export function SessionMapTerminalPreview({
         }
         const result = await primeSessionMapPreview({
           cellId: cell.id,
-          worktreePath: cell.worktreePath,
+          worktreePath: attachedWorktreePath,
           sessionId: session.id,
           startCommand: session.startCommand,
           lines: PREVIEW_LINES,
@@ -520,7 +526,7 @@ export function SessionMapTerminalPreview({
         lastSnapshotRef.current = nextData;
         writePreviewData(nextData);
         setCachedSessionMapPreview({
-          worktreePath: cell.worktreePath,
+          worktreePath: attachedWorktreePath,
           cellId: cell.id,
           sessionId: session.id,
           preview: {
@@ -552,7 +558,7 @@ export function SessionMapTerminalPreview({
     ipcActive,
     ready,
     cell?.id,
-    cell?.worktreePath,
+    cell?.attachedWorktreePath,
     isOffline,
     session?.id,
     session?.startCommand,

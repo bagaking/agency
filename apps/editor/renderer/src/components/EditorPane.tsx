@@ -5,15 +5,17 @@ import {
   CheckCircle2,
   ClipboardCheck,
   ShieldCheck,
-  RefreshCw,
-  RotateCcw,
-  Layout,
-  ChevronDown,
-  ChevronUp,
+    RefreshCw,
+    RotateCcw,
+    Layout,
+    ChevronDown,
+    ChevronUp,
   ZoomIn,
-  ZoomOut,
-  Clock,
-} from 'lucide-react';
+    ZoomOut,
+    Clock,
+    Trash2,
+    Unplug,
+  } from 'lucide-react';
 import { RiveAnimation } from './RiveAnimation';
 import { GateList } from './GateList';
 import { TerminalArea } from './TerminalArea';
@@ -45,6 +47,8 @@ export function EditorPane({
   onTurnGateCreate,
   onTurnGateExecute,
   onOpenTerminal,
+  onClearCellAttachment,
+  onDeleteCell,
   onZoomIn,
   onZoomOut,
   onZoomReset,
@@ -203,6 +207,20 @@ export function EditorPane({
   const idleMs = idleSince ? Math.max(0, idleNow - idleSince) : null;
   const isClosed = ['archived', 'closed'].includes(cell.state);
   const idleLabel = formatIdleClock(idleMs);
+  const attachmentState = String(cell?.attachmentState || 'attached').trim().toLowerCase();
+  const attachmentTone =
+    attachmentState === 'missing'
+      ? 'border-rose-400/30 bg-rose-500/10 text-rose-200'
+      : attachmentState === 'detached'
+        ? 'border-amber-300/25 bg-amber-500/10 text-amber-100'
+        : 'border-emerald-400/20 bg-emerald-500/10 text-emerald-200';
+  const attachmentLabel =
+    attachmentState === 'missing'
+      ? 'Missing worktree'
+      : attachmentState === 'detached'
+        ? 'Detached worktree'
+        : 'Attached worktree';
+  const attachmentPath = cell?.lastKnownWorktreePath || cell?.worktreePath || '';
   const avatarRingClass = onUpdateCellAvatar
     ? 'bg-muted/30 hover:bg-muted/40'
     : 'bg-muted/10';
@@ -237,14 +255,49 @@ export function EditorPane({
                 </button>
                 <span className="text-primary font-bold tracking-tight">AGENCY</span>
                 <ChevronRight size={12} className="text-muted-foreground/50" />
-                <span className="font-semibold">{cell.name}</span>
-                <span className="text-muted-foreground/30 mx-1">/</span>
-                <span className="font-mono text-[10px] text-muted-foreground opacity-70">{cell.branch}</span>
-            </div>
-            
-            <div className="flex items-center gap-3">
-                {/* Compact Lifecycle Stepper */}
-                <div className="flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded-md border border-border/50">
+	                <span className="font-semibold">{cell.name}</span>
+	                <span className="text-muted-foreground/30 mx-1">/</span>
+	                <span className="font-mono text-[10px] text-muted-foreground opacity-70">{cell.branch}</span>
+                  {attachmentState !== 'attached' ? (
+                    <span
+                      className={`ml-2 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] ${attachmentTone}`}
+                      title={attachmentPath || attachmentLabel}
+                    >
+                      <span>{attachmentLabel}</span>
+                    </span>
+                  ) : null}
+	            </div>
+
+	            <div className="flex items-center gap-3">
+                  {attachmentState !== 'attached' ? (
+                    <div className="flex items-center gap-1.5">
+                      {onClearCellAttachment ? (
+                        <button
+                          type="button"
+                          onClick={onClearCellAttachment}
+                          className="flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-medium text-amber-100 transition-colors hover:bg-amber-500/10"
+                          title="Clear stale attachment metadata from this Cell record"
+                        >
+                          <Unplug size={12} />
+                          <span>Clear Attachment</span>
+                        </button>
+                      ) : null}
+                      {onDeleteCell ? (
+                        <button
+                          type="button"
+                          onClick={onDeleteCell}
+                          className="flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-medium text-rose-200 transition-colors hover:bg-rose-500/10"
+                          title="Delete this detached Cell"
+                        >
+                          <Trash2 size={12} />
+                          <span>Delete Cell</span>
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+	                {/* Compact Lifecycle Stepper */}
+	                <div className="flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded-md border border-border/50">
                     {['draft', 'active', 'archived'].map((step, index, arr) => {
                         const isActive = cell.state === step || (step === 'active' && cell.state === 'paused');
                         const isPast = arr.indexOf(cell.state) > index || (cell.state === 'paused' && step === 'active');
@@ -352,9 +405,17 @@ export function EditorPane({
             </div>
         )}
 
-        {/* Integrated Terminal Area */}
-        <div className="flex-1 flex flex-col min-h-0 bg-black/20">
-             {/* Toolbar */}
+	        {/* Integrated Terminal Area */}
+	        <div className="flex-1 flex flex-col min-h-0 bg-black/20">
+             {attachmentState !== 'attached' ? (
+                <div className="mx-3 mt-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] text-muted-foreground">
+                  Worktree-bound actions are limited because this Cell is <span className="font-semibold text-foreground">{attachmentLabel.toLowerCase()}</span>.
+                  {attachmentPath ? (
+                    <span className="ml-1 font-mono text-[10px] text-foreground/70">{attachmentPath}</span>
+                  ) : null}
+                </div>
+              ) : null}
+	             {/* Toolbar */}
              <div className="flex shrink-0 flex-col border-b border-border/60 bg-muted/10">
                 <div className="flex items-center justify-end gap-1.5 px-2 py-2">
                     <div className="flex items-center gap-1 border-r border-border/50 pr-2 mr-1 text-[10px] text-muted-foreground">

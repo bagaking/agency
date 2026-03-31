@@ -37,7 +37,8 @@ export type DeliveryHostAdapter = {
 };
 
 export type DeliveryRequest = {
-  worktreePath: string;
+  worktreePath?: string;
+  repoRootPath?: string;
   source: DeliverySource;
   mode: DeliveryMode;
   description: string;
@@ -47,6 +48,7 @@ export type DeliveryRequest = {
     id: string;
     kind: string;
     body: string;
+    cellId?: string;
     anchor?: { file?: string; line?: number; column?: number } | null;
     references?: Array<Record<string, unknown>>;
   }>;
@@ -69,6 +71,12 @@ export type DeliveryRun = {
   startedAt: string;
   acknowledgedAt: string;
   status: string;
+};
+
+type DeliveryStorageContext = {
+  repoRootPath?: string;
+  cellId?: string;
+  worktreePath?: string;
 };
 
 type DeliveryTimelineEntry = {
@@ -139,6 +147,28 @@ async function resolveRepoRootPath(worktreePath: string): Promise<string> {
   } catch (_error) {
     return worktreePath;
   }
+}
+
+async function resolveStorageContext({
+  repoRootPath,
+  cellId,
+  worktreePath,
+}: DeliveryStorageContext = {}): Promise<Required<DeliveryStorageContext>> {
+  const normalizedWorktreePath = String(worktreePath || '').trim();
+  const normalizedRepoRootPath =
+    String(repoRootPath || '').trim() || (normalizedWorktreePath ? await resolveRepoRootPath(normalizedWorktreePath) : '');
+  return {
+    repoRootPath: normalizedRepoRootPath,
+    cellId: String(cellId || '').trim(),
+    worktreePath: normalizedWorktreePath,
+  };
+}
+
+function resolveActionSheetContext(storage: Required<DeliveryStorageContext>) {
+  return {
+    worktreePath: storage.worktreePath || storage.repoRootPath,
+    repoRootPath: storage.repoRootPath,
+  };
 }
 
 const toIsoTimestamp = (value: unknown) => {
@@ -282,6 +312,8 @@ function buildDeliveryMeta({
 }
 
 async function markExecutionStatus({
+  repoRootPath,
+  cellId,
   worktreePath,
   draftId,
   source,
@@ -293,7 +325,9 @@ async function markExecutionStatus({
   label,
   details,
 }: {
-  worktreePath: string;
+  repoRootPath?: string;
+  cellId?: string;
+  worktreePath?: string;
   draftId: string;
   source: DeliverySource;
   mode: DeliveryMode;
@@ -304,7 +338,13 @@ async function markExecutionStatus({
   label: string;
   details?: string;
 }) {
-  const list = await listHilItems({ worktreePath, kind: 'draft' });
+  const storage = await resolveStorageContext({ repoRootPath, cellId, worktreePath });
+  const list = await listHilItems({
+    repoRootPath: storage.repoRootPath,
+    cellId: storage.cellId,
+    worktreePath: storage.worktreePath,
+    kind: 'draft',
+  });
   const draft = (Array.isArray(list) ? list : []).find((item: any) => item?.id === draftId) || null;
   const baseMeta = (draft?.meta && typeof draft.meta === 'object') ? { ...draft.meta } : {};
   let nextMeta: Record<string, any> = {
@@ -333,7 +373,9 @@ async function markExecutionStatus({
     actionSheetId,
   });
   const updated = await updateHilItem({
-    worktreePath,
+    repoRootPath: storage.repoRootPath,
+    cellId: storage.cellId,
+    worktreePath: storage.worktreePath,
     itemId: draftId,
     patch: { meta: nextMeta },
   });
@@ -347,8 +389,8 @@ export async function startDelivery({
   request: DeliveryRequest;
   host: DeliveryHostAdapter;
 }): Promise<DeliveryRun> {
-  if (!request?.worktreePath) {
-    throw new Error('worktreePath is required.');
+  if (!request?.repoRootPath && !request?.worktreePath) {
+    throw new Error('repoRootPath or worktreePath is required.');
   }
   if (!request?.description || !String(request.description).trim()) {
     throw new Error('description is required.');
@@ -358,14 +400,21 @@ export async function startDelivery({
   }
   const source = normalizeSource(request.source);
   const mode = normalizeMode(request.mode);
-  const worktreePath = request.worktreePath;
-  const repoRootPath = await resolveRepoRootPath(worktreePath);
+  const storage = await resolveStorageContext({
+    repoRootPath: request.repoRootPath,
+    cellId: request.cellId,
+    worktreePath: request.worktreePath,
+  });
+  const worktreePath = storage.worktreePath;
+  const repoRootPath = storage.repoRootPath;
   const sessionId = request.sessionId;
-  const cellId = String(request.cellId || '').trim();
+  const cellId = storage.cellId;
   const requestedAt = new Date().toISOString();
+  const actionSheetContext = resolveActionSheetContext(storage);
   const references = (Array.isArray(request.selectedItems) ? request.selectedItems : []).map((item) => ({
     system: source === 'explorer' ? 'explorer' : 'hil',
     id: item.id,
+    cellId: String(item.cellId || request.cellId || '').trim() || null,
     path: item.anchor?.file || null,
     line: item.anchor?.line || null,
     kind: item.kind || null,
@@ -377,8 +426,7 @@ export async function startDelivery({
     const title = `${titlePrefix}: ${String(request.description).trim().slice(0, 32)}`;
     const promptText = resolveDispatchCommand({ ...request, source, mode });
     const sheet = await createActionSheet({
-      worktreePath,
-      repoRootPath,
+      ...actionSheetContext,
       payload: {
         title,
         prompt: {
@@ -397,14 +445,12 @@ export async function startDelivery({
     }
     const completion = buildActionSheetCompletion(actionSheetId);
     await updateActionSheetPlan({
-      worktreePath,
-      repoRootPath,
+      ...actionSheetContext,
       id: actionSheetId,
       plan: buildActionSheetPlan({ title, marker: completion.marker }),
     });
     await updateActionSheetPrompt({
-      worktreePath,
-      repoRootPath,
+      ...actionSheetContext,
       id: actionSheetId,
       prompt: {
         requirements: String(request.description).trim(),
@@ -414,8 +460,7 @@ export async function startDelivery({
       },
     });
     await updateActionSheetChecks({
-      worktreePath,
-      repoRootPath,
+      ...actionSheetContext,
       id: actionSheetId,
       checks: completion.checks,
     });
@@ -435,6 +480,8 @@ export async function startDelivery({
   });
 
   const draft = await createHilItem({
+    repoRootPath,
+    cellId,
     worktreePath,
     kind: 'draft',
     body: String(request.description).trim(),
@@ -446,6 +493,8 @@ export async function startDelivery({
   });
 
   await appendDeliveryAuditEvent({
+    repoRootPath,
+    cellId,
     worktreePath,
     event: {
       at: requestedAt,
@@ -473,6 +522,8 @@ export async function startDelivery({
   });
   const startedAt = new Date().toISOString();
   await markExecutionStatus({
+    repoRootPath,
+    cellId,
     worktreePath,
     draftId: draft.id,
     source,
@@ -486,6 +537,8 @@ export async function startDelivery({
 
   const acknowledgedAt = toIsoTimestamp(ack?.ackAt || startedAt);
   await appendDeliveryAuditEvent({
+    repoRootPath,
+    cellId,
     worktreePath,
     event: {
       at: acknowledgedAt,
@@ -516,19 +569,29 @@ export async function startDelivery({
 }
 
 export async function confirmDelivery({
+  repoRootPath,
+  cellId,
   worktreePath,
   draftId,
 }: {
-  worktreePath: string;
+  repoRootPath?: string;
+  cellId?: string;
+  worktreePath?: string;
   draftId: string;
 }): Promise<Record<string, any> | null> {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
+  const storage = await resolveStorageContext({ repoRootPath, cellId, worktreePath });
+  if (!storage.repoRootPath && !storage.worktreePath) {
+    throw new Error('repoRootPath or worktreePath is required.');
   }
   if (!draftId) {
     throw new Error('draftId is required.');
   }
-  const list = await listHilItems({ worktreePath, kind: 'all' });
+  const list = await listHilItems({
+    repoRootPath: storage.repoRootPath,
+    cellId: storage.cellId,
+    worktreePath: storage.worktreePath,
+    kind: 'all',
+  });
   const items = Array.isArray(list) ? list : [];
   const draft = items.find((item: any) => item?.id === draftId) || null;
   if (!draft) {
@@ -541,7 +604,9 @@ export async function confirmDelivery({
       .filter((ref: any) => ref?.system === 'hil' && ref?.id)
       .map((ref: any) =>
         updateHilItem({
-          worktreePath,
+          repoRootPath: storage.repoRootPath,
+          cellId: String(ref?.cellId || storage.cellId || '').trim(),
+          worktreePath: storage.worktreePath,
           itemId: ref.id,
           patch: {
             meta: {
@@ -561,7 +626,9 @@ export async function confirmDelivery({
   const actionSheetId = String(draft.meta?.actionSheetId || '').trim();
 
   const completed = await markExecutionStatus({
-    worktreePath,
+    repoRootPath: storage.repoRootPath,
+    cellId: storage.cellId,
+    worktreePath: storage.worktreePath,
     draftId,
     source,
     mode,
@@ -574,7 +641,9 @@ export async function confirmDelivery({
   });
   const completedWithMeta = completed?.id
     ? await updateHilItem({
-        worktreePath,
+        repoRootPath: storage.repoRootPath,
+        cellId: storage.cellId,
+        worktreePath: storage.worktreePath,
         itemId: completed.id,
         patch: {
           meta: {
@@ -586,7 +655,9 @@ export async function confirmDelivery({
     : completed;
 
   await appendDeliveryAuditEvent({
-    worktreePath,
+    repoRootPath: storage.repoRootPath,
+    cellId: storage.cellId,
+    worktreePath: storage.worktreePath,
     event: {
       at: promotedAt,
       source,
@@ -604,27 +675,39 @@ export async function confirmDelivery({
 }
 
 export async function getDeliveryStatus({
+  repoRootPath,
+  cellId,
   worktreePath,
   draftId,
 }: {
-  worktreePath: string;
+  repoRootPath?: string;
+  cellId?: string;
+  worktreePath?: string;
   draftId: string;
 }): Promise<Record<string, any> | null> {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
+  const storage = await resolveStorageContext({ repoRootPath, cellId, worktreePath });
+  if (!storage.repoRootPath && !storage.worktreePath) {
+    throw new Error('repoRootPath or worktreePath is required.');
   }
   if (!draftId) {
     throw new Error('draftId is required.');
   }
-  const drafts = await listHilItems({ worktreePath, kind: 'draft' });
+  const drafts = await listHilItems({
+    repoRootPath: storage.repoRootPath,
+    cellId: storage.cellId,
+    worktreePath: storage.worktreePath,
+    kind: 'draft',
+  });
   const draft = (Array.isArray(drafts) ? drafts : []).find((item: any) => item?.id === draftId) || null;
   if (!draft) {
     return null;
   }
-  const repoRootPath = await resolveRepoRootPath(worktreePath);
   const actionSheetId = String(draft.meta?.actionSheetId || '').trim();
   const actionSheet = actionSheetId
-    ? await readActionSheet({ worktreePath, repoRootPath, id: actionSheetId })
+    ? await readActionSheet({
+        ...resolveActionSheetContext(storage),
+        id: actionSheetId,
+      })
     : null;
   return {
     draftId,
@@ -639,17 +722,23 @@ export async function getDeliveryStatus({
 }
 
 export async function getDeliveryTimeline({
+  repoRootPath,
+  cellId,
   worktreePath,
   source,
   mode,
   limit,
 }: {
-  worktreePath: string;
+  repoRootPath?: string;
+  cellId?: string;
+  worktreePath?: string;
   source?: DeliverySource;
   mode?: DeliveryMode;
   limit?: number;
 }): Promise<DeliveryAuditEvent[]> {
   return readDeliveryAuditTimeline({
+    repoRootPath,
+    cellId,
     worktreePath,
     source,
     mode,

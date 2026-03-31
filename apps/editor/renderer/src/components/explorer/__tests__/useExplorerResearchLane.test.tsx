@@ -75,6 +75,8 @@ function Harness({
   const state = useExplorerResearchLane(
     {
       rootPath: '/repo',
+      projectRoot: '/repo',
+      selectedCellId: 'cell-alpha',
       targetDirPath: 'docs',
       allowMemoCapture: true,
       allowMarkdownSave: true,
@@ -187,6 +189,8 @@ test('useExplorerResearchLane keeps URL handoff inside workspace and memo artifa
     assert.equal(memos.length, 1);
     assert.equal(memos[0]?.kind, 'memo');
     assert.equal(memos[0]?.worktreePath, '/repo');
+    assert.equal(memos[0]?.repoRootPath, '/repo');
+    assert.equal(memos[0]?.cellId, 'cell-alpha');
     assert.deepEqual(memos[0]?.references, [
       {
         system: 'workspace',

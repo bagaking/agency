@@ -155,6 +155,7 @@ function AppShell() {
     () => displayCells.find((cell) => cell.id === selectedId) || null,
     [displayCells, selectedId]
   );
+  const selectedAttachedWorktreePath = selectedCell?.attachedWorktreePath || '';
   const selectionTraceRef = useRef<{ selectedId: string; cellId: string }>({
     selectedId: '',
     cellId: '',
@@ -372,8 +373,8 @@ function AppShell() {
       />
     </Suspense>
   );
-  const actionSheetsRoot = projectRoot || selectedCell?.worktreePath || '';
-  const hilWorktreePath = selectedCell?.worktreePath || projectRoot || '';
+  const actionSheetsRoot = projectRoot || selectedAttachedWorktreePath || '';
+  const hilWorktreePath = selectedAttachedWorktreePath || projectRoot || '';
   const actionSheetsState = useActionSheets({
     worktreePath: actionSheetsRoot,
     selectedCellId: selectedCell?.id || '',
@@ -390,7 +391,9 @@ function AppShell() {
     initialActiveTabByCellId: initialWorkbenchActiveTabs,
   });
   const hilMemo = useHilMemoState({
-    worktreePath: selectedCell?.worktreePath || projectRoot || '',
+    worktreePath: selectedAttachedWorktreePath || projectRoot || '',
+    projectRoot,
+    cellId: selectedCell?.id || '',
   });
   useEffect(() => {
     if (actionSheetSessionId || !sessionsState.activeSessionId) {
@@ -501,12 +504,15 @@ function AppShell() {
   const hilCommentState = useHilFileCommenting({
     activeTab,
     cursorPosition,
-    hilWorktreePath: selectedCell?.worktreePath || projectRoot || '',
+    hilWorktreePath: selectedAttachedWorktreePath || projectRoot || '',
+    projectRoot,
+    selectedCellId: selectedCell?.id || '',
     openHilDrawer,
   });
-  const promoteWorktreePath = selectedCell?.worktreePath || projectRoot || '';
+  const promoteWorktreePath = selectedAttachedWorktreePath || projectRoot || '';
   const promoteWorkflow = useHilPromoteWorkflow({
     promoteWorktreePath,
+    projectRoot,
     sessions: sessionsState.sessions,
     activeSessionId: sessionsState.activeSessionId,
     activeView,
@@ -583,6 +589,8 @@ function AppShell() {
   const {
     handleStateChange,
     handleUpdateCellAvatar,
+    handleClearAttachment,
+    handleDelete,
     handleCreate,
     handleSaveGates,
   } = useCellLifecycleActions({
@@ -674,10 +682,12 @@ function AppShell() {
     clearWorktreeLinksError: hierarchyConfig.clearWorktreeLinksError,
   });
   const explorerRootPath = projectReady
-    ? selectedCell?.worktreePath || projectRoot || ''
+    ? selectedAttachedWorktreePath || projectRoot || ''
     : '';
   const explorerRootLabel = projectReady
-    ? selectedCell?.name || 'Repository'
+    ? selectedAttachedWorktreePath
+      ? selectedCell?.name || 'Repository'
+      : 'Repository'
     : 'Project';
   const handleMemoCaptureSaved = useCallback(
     (noteType) => {
@@ -694,7 +704,7 @@ function AppShell() {
     [handleSwitchView, hilMemo.setDockSelection]
   );
   const memoCapture = useHilMemoCaptureState({
-    worktreePath: selectedCell?.worktreePath || projectRoot || '',
+    worktreePath: selectedAttachedWorktreePath || projectRoot || '',
     projectRoot,
     cells: projectReady ? cells : [],
     selectedCellId: selectedCell?.id || '',
@@ -931,6 +941,8 @@ function AppShell() {
       handleTurnGateExecuteSheet,
       handleOpenTerminal,
       handleUpdateCellAvatar,
+      handleClearAttachment,
+      handleDelete,
       handleOpenWorkbenchFile,
       handleSelectionContext,
       handleReplySelection,

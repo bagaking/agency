@@ -408,9 +408,16 @@ async function resolveSessionScopeFromRefs(refs, deps, cell, projectRoot) {
   if (!refs.sessionId) {
     return null;
   }
-  const candidateWorktreePath = normalizeText(refs.worktreePath) || normalizeText(cell?.worktreePath);
-  if (candidateWorktreePath) {
-    const sessions = await deps.listSessions({ worktreePath: candidateWorktreePath });
+  const candidateWorktreePath =
+    normalizeText(refs.worktreePath) ||
+    normalizeText(cell?.attachedWorktreePath) ||
+    normalizeText(cell?.worktreePath);
+  if (candidateWorktreePath || cell?.id) {
+    const sessions = await deps.listSessions({
+      cellId: normalizeText(cell?.id),
+      worktreePath: candidateWorktreePath,
+      projectRoot,
+    });
     const matched = (sessions || []).find((session) => normalizeText(session?.id) === refs.sessionId);
     if (!matched) {
       throw createControlBusError('NOT_FOUND', `Session not found: ${refs.sessionId}.`);
@@ -432,11 +439,13 @@ async function resolveSessionScopeFromRefs(refs, deps, cell, projectRoot) {
   const cells = await deps.listCells({ rootPath: projectRoot });
   let match = null;
   for (const candidateCell of cells || []) {
-    const worktreePath = normalizeText(candidateCell?.worktreePath);
-    if (!worktreePath) {
-      continue;
-    }
-    const sessions = await deps.listSessions({ worktreePath });
+    const worktreePath =
+      normalizeText(candidateCell?.attachedWorktreePath) || normalizeText(candidateCell?.worktreePath);
+    const sessions = await deps.listSessions({
+      cellId: normalizeText(candidateCell?.id),
+      worktreePath,
+      projectRoot,
+    });
     const session = (sessions || []).find((item) => normalizeText(item?.id) === refs.sessionId);
     if (!session) {
       continue;
@@ -465,7 +474,8 @@ async function resolveControlBusScope(refs, deps) {
   if (cell && refs.worktreePath) {
     assertCanonicalAuthority({
       label: 'worktreePath',
-      refValue: normalizeText(cell.worktreePath),
+      refValue:
+        normalizeText(cell.attachedWorktreePath) || normalizeText(cell.worktreePath),
       argValue: refs.worktreePath,
       normalizer: normalizePathRef,
     });
@@ -477,6 +487,7 @@ async function resolveControlBusScope(refs, deps) {
     session: sessionScope?.session || null,
     sessionWorktreePath:
       normalizeText(sessionScope?.worktreePath) ||
+      normalizeText(cell?.attachedWorktreePath) ||
       normalizeText(cell?.worktreePath) ||
       normalizeText(refs.worktreePath),
   };
@@ -531,6 +542,7 @@ function buildSessionRuntimePayload(args, refs, scope, caller) {
 function buildCanonicalFileRoot(scope) {
   return (
     normalizeText(scope?.sessionWorktreePath) ||
+    normalizeText(scope?.cell?.attachedWorktreePath) ||
     normalizeText(scope?.cell?.worktreePath) ||
     normalizeText(scope?.projectRoot)
   );
@@ -795,10 +807,15 @@ function createControlBusService(customDeps = {}) {
     [CONTROL_BUS_OPS.sessionList]: {
       scopeRefKeys: ['windowStateId', 'projectRoot', 'cellId', 'worktreePath'],
       execute: async ({ scope }) => {
-      if (scope.cell?.worktreePath) {
+      if (scope.cell?.id) {
         return {
           cell: scope.cell,
-          sessions: await deps.listSessions({ worktreePath: scope.cell.worktreePath }),
+          sessions: await deps.listSessions({
+            cellId: scope.cell.id,
+            worktreePath:
+              normalizeText(scope.cell.attachedWorktreePath) || normalizeText(scope.cell.worktreePath),
+            projectRoot: scope.projectRoot,
+          }),
         };
       }
       if (!scope.projectRoot) {
@@ -810,11 +827,13 @@ function createControlBusService(customDeps = {}) {
       const cells = await deps.listCells({ rootPath: scope.projectRoot });
       const items = [];
       for (const cell of cells || []) {
-        const worktreePath = normalizeText(cell?.worktreePath);
-        if (!worktreePath) {
-          continue;
-        }
-        const sessions = await deps.listSessions({ worktreePath });
+        const worktreePath =
+          normalizeText(cell?.attachedWorktreePath) || normalizeText(cell?.worktreePath);
+        const sessions = await deps.listSessions({
+          cellId: normalizeText(cell?.id),
+          worktreePath,
+          projectRoot: scope.projectRoot,
+        });
         items.push({
           cell,
           sessions,

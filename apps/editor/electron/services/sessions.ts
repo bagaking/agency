@@ -8,6 +8,7 @@ const {
   upsertSession,
   removeSession,
 } = require('./sessionRegistry');
+const { resolveCellContext } = require('./cells');
 const {
   SESSION_NODE_KINDS,
   buildNewSessionTopologyFields,
@@ -248,6 +249,76 @@ function ensureWorktreePath(worktreePath) {
   return path.resolve(worktreePath);
 }
 
+async function resolveSessionServiceContext(params = {}) {
+  const { cellId = '', worktreePath = '', rootPath = '', projectRoot = '' } = params || {};
+  const context = await resolveCellContext({
+    cellId,
+    worktreePath,
+    rootPath: projectRoot || rootPath || worktreePath,
+  });
+  if (!context?.repoRoot) {
+    throw new Error('Project root is not configured.');
+  }
+  const resolvedCellId = String(context?.cell?.id || cellId || '').trim();
+  if (!resolvedCellId) {
+    throw new Error('Cell not found.');
+  }
+  return {
+    repoRoot: context.repoRoot,
+    cell: context.cell || null,
+    cellId: resolvedCellId,
+    worktreePath: context.worktreePath || String(worktreePath || '').trim(),
+    attachedWorktreePath: context.attachedWorktreePath || '',
+    registryContext: {
+      projectRoot: context.repoRoot,
+      cellId: resolvedCellId,
+      worktreePath: context.worktreePath || String(worktreePath || '').trim(),
+    },
+  };
+}
+
+function ensureAttachedWorktreePath(context, message = 'Cell worktree attachment is missing.') {
+  const attachedWorktreePath = String(context?.attachedWorktreePath || '').trim();
+  if (!attachedWorktreePath || !fs.existsSync(attachedWorktreePath)) {
+    throw new Error(message);
+  }
+  return path.resolve(attachedWorktreePath);
+}
+
+function normalizeOfflineSessionStatus(status) {
+  if (status === SESSION_STATUSES.closed) {
+    return SESSION_STATUSES.closed;
+  }
+  if (status === SESSION_STATUSES.detached) {
+    return SESSION_STATUSES.detached;
+  }
+  return SESSION_STATUSES.stale;
+}
+
+function buildOfflineSessions(registry) {
+  return (registry?.sessions || []).map((session, index) =>
+    ensureSessionName(
+      {
+        ...session,
+        status: normalizeOfflineSessionStatus(session?.status),
+      },
+      index
+    )
+  );
+}
+
+function buildSessionRegistryContext({
+  worktreePath,
+  cellId,
+  projectRoot,
+}) {
+  return {
+    worktreePath: String(worktreePath || '').trim(),
+    cellId: String(cellId || '').trim(),
+    projectRoot: String(projectRoot || '').trim(),
+  };
+}
+
 function revokeMobileProxyToken({ worktreePath, sessionId }) {
   if (!worktreePath || !sessionId) {
     return;
@@ -266,7 +337,14 @@ function generateSessionId() {
   return `session-${Date.now()}`;
 }
 
-async function resolveProjectMetadata(worktreePath) {
+async function resolveProjectMetadata({ worktreePath, projectRoot } = {}) {
+  const explicitProjectRoot = String(projectRoot || '').trim();
+  if (explicitProjectRoot) {
+    return {
+      projectRoot: explicitProjectRoot,
+      projectName: path.basename(explicitProjectRoot),
+    };
+  }
   const resolvedWorktree = path.resolve(worktreePath);
   try {
     const projectRoot = await getRepoRoot(resolvedWorktree);
@@ -327,7 +405,8 @@ async function syncSessionTmuxMetadata({
   if (!tmuxSession) {
     return;
   }
-  const project = projectMetadata || (await resolveProjectMetadata(worktreePath));
+  const project =
+    projectMetadata || (await resolveProjectMetadata({ worktreePath, projectRoot: session?.projectRoot }));
   const cellId = resolveSessionCellId(session);
   const cellName = resolveSessionCellName(session);
   await setAgencySessionMetadata(tmuxSession, {
@@ -368,11 +447,52 @@ function shouldIgnoreAttachActivity({ lastAttachedAt, lastActivityAt, nextActivi
   return activityTs === attachTs;
 }
 
-async function listSessions({ worktreePath }) {
-  ensureWorktreePath(worktreePath);
+async function listSessions({ worktreePath, cellId, projectRoot }) {
+  const context = await resolveSessionServiceContext({
+    cellId,
+    worktreePath,
+    projectRoot,
+  });
+  const attachedWorktreePath = String(context.attachedWorktreePath || '').trim();
+  const registry = await readRegistry(context.registryContext);
+  const projectMetadata = await resolveProjectMetadata({
+    worktreePath: attachedWorktreePath || context.worktreePath,
+    projectRoot: context.repoRoot,
+  });
+  if (!attachedWorktreePath || !fs.existsSync(attachedWorktreePath)) {
+    const sessions = (registry.sessions || []).map((session, index) => {
+      let resolved = ensureSessionName(session, index);
+      const resolvedCellId = resolveSessionCellId(resolved) || context.cellId;
+      const resolvedCellName = resolveSessionCellName(resolved) || resolvedCellId;
+      const nextStatus =
+        resolved.status === SESSION_STATUSES.closed
+          ? SESSION_STATUSES.closed
+          : resolved.status === SESSION_STATUSES.detached
+            ? SESSION_STATUSES.detached
+            : SESSION_STATUSES.stale;
+      if (
+        nextStatus !== resolved.status ||
+        resolvedCellId !== resolved.cellId ||
+        resolvedCellName !== resolved.cellName ||
+        projectMetadata.projectRoot !== resolved.projectRoot
+      ) {
+        return {
+          ...resolved,
+          status: nextStatus,
+          cellId: resolvedCellId || undefined,
+          cellName: resolvedCellName || undefined,
+          projectRoot: projectMetadata.projectRoot || undefined,
+        };
+      }
+      return resolved;
+    });
+    if (JSON.stringify(sessions) !== JSON.stringify(registry.sessions || [])) {
+      await writeRegistry(context.registryContext, { ...registry, sessions });
+    }
+    return sessions;
+  }
+  ensureWorktreePath(attachedWorktreePath);
   await ensureTmuxAvailable();
-  const registry = await readRegistry(worktreePath);
-  const projectMetadata = await resolveProjectMetadata(worktreePath);
   let changed = false;
 
   const sessions = await Promise.all(
@@ -434,7 +554,7 @@ async function listSessions({ worktreePath }) {
             })
           ) {
             const shouldUpdate = await shouldRecordActivity({
-              worktreePath,
+              worktreePath: attachedWorktreePath,
               session: resolved,
             });
             if (shouldUpdate) {
@@ -446,6 +566,13 @@ async function listSessions({ worktreePath }) {
         }
       }
       let named = ensureSessionName(resolved, index);
+      if (projectMetadata.projectRoot && named.projectRoot !== projectMetadata.projectRoot) {
+        named = {
+          ...named,
+          projectRoot: projectMetadata.projectRoot,
+        };
+        sessionChanged = true;
+      }
       if (named !== resolved) {
         sessionChanged = true;
         metadataSyncNeeded = true;
@@ -453,7 +580,7 @@ async function listSessions({ worktreePath }) {
       if (isAlive && metadataSyncNeeded) {
         const metadataSyncedAt = new Date().toISOString();
         await syncSessionTmuxMetadata({
-          worktreePath,
+          worktreePath: attachedWorktreePath,
           projectMetadata,
           session: named,
           status: named.status,
@@ -470,7 +597,7 @@ async function listSessions({ worktreePath }) {
   );
 
   if (changed) {
-    await writeRegistry(worktreePath, { ...registry, sessions });
+    await writeRegistry(context.registryContext, { ...registry, sessions });
   }
 
   return sessions;
@@ -479,6 +606,8 @@ async function listSessions({ worktreePath }) {
 async function createNewSession({
   cellId,
   worktreePath,
+  rootPath,
+  projectRoot,
   name,
   sessionId: providedId,
   profileId,
@@ -489,15 +618,25 @@ async function createNewSession({
   nodeKind,
   sourceSessionId,
 }) {
-  ensureWorktreePath(worktreePath);
+  const context = await resolveSessionServiceContext({
+    cellId,
+    worktreePath,
+    rootPath,
+    projectRoot,
+  });
+  const attachedWorktreePath = ensureAttachedWorktreePath(context);
   await ensureTmuxAvailable();
-  const projectMetadata = await resolveProjectMetadata(worktreePath);
-  const registry = await readRegistry(worktreePath);
+  const projectMetadata = await resolveProjectMetadata({
+    worktreePath: attachedWorktreePath,
+    projectRoot: context.repoRoot,
+  });
+  const registry = await readRegistry(context.registryContext);
   let sessionId = normalizeId(providedId || generateSessionId());
   if (registry.sessions.some((session) => session.id === sessionId)) {
     sessionId = `${sessionId}-${Date.now()}`;
   }
-  const tmuxSession = buildTmuxSessionName(cellId, sessionId);
+  const resolvedCellId = String(context.cellId || cellId || '').trim();
+  const tmuxSession = buildTmuxSessionName(resolvedCellId, sessionId);
   const createdAt = new Date().toISOString();
   const hasProvidedName = Boolean(normalizeSessionName(name));
   let resolvedName = normalizeSessionName(name);
@@ -506,11 +645,11 @@ async function createNewSession({
       resolvedName = normalizeSessionName(
         await generateAutoSessionName({
           registry,
-          cellId,
-          cellName,
-          cellBranch,
+          cellId: resolvedCellId,
+          cellName: cellName || context.cell?.name,
+          cellBranch: cellBranch || context.cell?.branch,
           profileId,
-          worktreePath,
+          worktreePath: attachedWorktreePath,
         })
       );
     } catch (_error) {
@@ -534,8 +673,7 @@ async function createNewSession({
   if (isAlive) {
     await setMouse(tmuxSession, true);
     await setExtendedKeys(tmuxSession, true);
-    const resolvedCellId = String(cellId || '').trim() || deriveCellIdFromTmuxSession({ id: sessionId, tmuxSession });
-    const resolvedCellName = String(cellName || '').trim() || resolvedCellId;
+    const resolvedCellName = String(cellName || context.cell?.name || '').trim() || resolvedCellId;
     const session = {
       id: sessionId,
       name: resolvedName,
@@ -543,6 +681,7 @@ async function createNewSession({
       cellId: resolvedCellId || undefined,
       cellName: resolvedCellName || undefined,
       cellBranch: String(cellBranch || '').trim() || undefined,
+      projectRoot: projectMetadata.projectRoot || undefined,
       status: SESSION_STATUSES.active,
       profileId: profileId || DEFAULT_PROFILE_ID,
       avatar: avatar || undefined,
@@ -553,21 +692,20 @@ async function createNewSession({
       ...topology,
     };
     await syncSessionTmuxMetadata({
-      worktreePath,
+      worktreePath: attachedWorktreePath,
       projectMetadata,
       session,
       status: SESSION_STATUSES.active,
     });
     const nextRegistry = upsertSession(registry, session);
-    await writeRegistry(worktreePath, nextRegistry);
+    await writeRegistry(context.registryContext, nextRegistry);
     return session;
   }
 
-  await createSession(tmuxSession, worktreePath);
+  await createSession(tmuxSession, attachedWorktreePath);
   await setMouse(tmuxSession, true);
   await setExtendedKeys(tmuxSession, true);
-  const resolvedCellId = String(cellId || '').trim() || deriveCellIdFromTmuxSession({ id: sessionId, tmuxSession });
-  const resolvedCellName = String(cellName || '').trim() || resolvedCellId;
+  const resolvedCellName = String(cellName || context.cell?.name || '').trim() || resolvedCellId;
 
   const session = {
     id: sessionId,
@@ -576,6 +714,7 @@ async function createNewSession({
     cellId: resolvedCellId || undefined,
     cellName: resolvedCellName || undefined,
     cellBranch: String(cellBranch || '').trim() || undefined,
+    projectRoot: projectMetadata.projectRoot || undefined,
     status: SESSION_STATUSES.active,
     profileId: profileId || DEFAULT_PROFILE_ID,
     avatar: avatar || undefined,
@@ -586,43 +725,57 @@ async function createNewSession({
   };
 
   await syncSessionTmuxMetadata({
-    worktreePath,
+    worktreePath: attachedWorktreePath,
     projectMetadata,
     session,
     status: SESSION_STATUSES.active,
   });
 
   const nextRegistry = upsertSession(registry, session);
-  await writeRegistry(worktreePath, nextRegistry);
+  await writeRegistry(context.registryContext, nextRegistry);
   return session;
 }
 
-async function ensureDefaultSession({ cellId, worktreePath }) {
-  const registry = await readRegistry(worktreePath);
+async function ensureDefaultSession({ cellId, worktreePath, rootPath, projectRoot }) {
+  const context = await resolveSessionServiceContext({
+    cellId,
+    worktreePath,
+    rootPath,
+    projectRoot,
+  });
+  const registry = await readRegistry(context.registryContext);
   const existing = registry.sessions.find((session) => session.id === 'default');
   if (existing) {
     return existing;
   }
   return createNewSession({
-    cellId,
-    worktreePath,
+    cellId: context.cellId,
+    worktreePath: context.attachedWorktreePath || context.worktreePath,
+    projectRoot: context.repoRoot,
     name: 'Default',
     sessionId: 'default',
     profileId: DEFAULT_PROFILE_ID,
   });
 }
 
-async function recreateSession({ cellId, worktreePath, sessionId }) {
-  ensureWorktreePath(worktreePath);
-  await ensureTmuxAvailable();
-  const registry = await readRegistry(worktreePath);
-  const existing = registry.sessions.find((session) => session.id === sessionId);
-  revokeMobileProxyToken({ worktreePath, sessionId: existing?.id || sessionId });
-  const nextRegistry = removeSession(registry, sessionId);
-  await writeRegistry(worktreePath, nextRegistry);
-  return createNewSession({
+async function recreateSession({ cellId, worktreePath, sessionId, rootPath, projectRoot }) {
+  const context = await resolveSessionServiceContext({
     cellId,
     worktreePath,
+    rootPath,
+    projectRoot,
+  });
+  const attachedWorktreePath = ensureAttachedWorktreePath(context);
+  await ensureTmuxAvailable();
+  const registry = await readRegistry(context.registryContext);
+  const existing = registry.sessions.find((session) => session.id === sessionId);
+  revokeMobileProxyToken({ worktreePath: context.worktreePath, sessionId: existing?.id || sessionId });
+  const nextRegistry = removeSession(registry, sessionId);
+  await writeRegistry(context.registryContext, nextRegistry);
+  return createNewSession({
+    cellId: context.cellId,
+    worktreePath: attachedWorktreePath,
+    projectRoot: context.repoRoot,
     name: existing?.name,
     sessionId,
     profileId: existing?.profileId || DEFAULT_PROFILE_ID,
@@ -635,10 +788,14 @@ async function recreateSession({ cellId, worktreePath, sessionId }) {
   });
 }
 
-async function closeSessionById({ worktreePath, sessionId }) {
-  ensureWorktreePath(worktreePath);
+async function closeSessionById({ worktreePath, sessionId, cellId, projectRoot }) {
+  const context = await resolveSessionServiceContext({
+    cellId,
+    worktreePath,
+    projectRoot,
+  });
   await ensureTmuxAvailable();
-  const registry = await readRegistry(worktreePath);
+  const registry = await readRegistry(context.registryContext);
   const existing = registry.sessions.find((session) => session.id === sessionId);
   if (!existing) {
     throw new Error('Session not found.');
@@ -657,16 +814,24 @@ async function closeSessionById({ worktreePath, sessionId }) {
     updatedAt,
     closedAt: updatedAt,
   });
-  await writeRegistry(worktreePath, nextRegistry);
-  revokeMobileProxyToken({ worktreePath, sessionId: existing.id });
+  await writeRegistry(context.registryContext, nextRegistry);
+  revokeMobileProxyToken({ worktreePath: context.worktreePath, sessionId: existing.id });
   return nextRegistry.sessions.find((session) => session.id === sessionId);
 }
 
-async function detachSessionById({ worktreePath, sessionId }) {
-  ensureWorktreePath(worktreePath);
+async function detachSessionById({ worktreePath, sessionId, cellId, projectRoot }) {
+  const context = await resolveSessionServiceContext({
+    cellId,
+    worktreePath,
+    projectRoot,
+  });
+  const attachedWorktreePath = ensureAttachedWorktreePath(context);
   await ensureTmuxAvailable();
-  const projectMetadata = await resolveProjectMetadata(worktreePath);
-  const registry = await readRegistry(worktreePath);
+  const projectMetadata = await resolveProjectMetadata({
+    worktreePath: attachedWorktreePath,
+    projectRoot: context.repoRoot,
+  });
+  const registry = await readRegistry(context.registryContext);
   const existing = registry.sessions.find((session) => session.id === sessionId);
   if (!existing) {
     throw new Error('Session not found.');
@@ -684,19 +849,28 @@ async function detachSessionById({ worktreePath, sessionId }) {
   };
   const nextRegistry = upsertSession(registry, nextSession);
   await syncSessionTmuxMetadata({
-    worktreePath,
+    worktreePath: attachedWorktreePath,
     projectMetadata,
     session: nextSession,
     status: SESSION_STATUSES.detached,
   });
-  await writeRegistry(worktreePath, nextRegistry);
+  await writeRegistry(context.registryContext, nextRegistry);
   return nextRegistry.sessions.find((session) => session.id === sessionId);
 }
 
-async function renameSessionById({ worktreePath, sessionId, name }) {
-  ensureWorktreePath(worktreePath);
-  const projectMetadata = await resolveProjectMetadata(worktreePath);
-  const registry = await readRegistry(worktreePath);
+async function renameSessionById({ worktreePath, sessionId, name, cellId, projectRoot }) {
+  const context = await resolveSessionServiceContext({
+    cellId,
+    worktreePath,
+    projectRoot,
+  });
+  const projectMetadata = context.attachedWorktreePath
+    ? await resolveProjectMetadata({
+        worktreePath: context.attachedWorktreePath,
+        projectRoot: context.repoRoot,
+      })
+    : { projectRoot: context.repoRoot, projectName: path.basename(context.repoRoot) };
+  const registry = await readRegistry(context.registryContext);
   const existing = registry.sessions.find((session) => session.id === sessionId);
   if (!existing) {
     throw new Error('Session not found.');
@@ -717,25 +891,29 @@ async function renameSessionById({ worktreePath, sessionId, name }) {
     if (await hasSession(existing.tmuxSession)) {
       nextSession.metadataSyncedAt = updatedAt;
       await syncSessionTmuxMetadata({
-        worktreePath,
+        worktreePath: context.attachedWorktreePath || context.worktreePath,
         projectMetadata,
         session: nextSession,
         status: existing.status,
       });
       const syncedRegistry = upsertSession(nextRegistry, nextSession);
-      await writeRegistry(worktreePath, syncedRegistry);
+      await writeRegistry(context.registryContext, syncedRegistry);
       return syncedRegistry.sessions.find((session) => session.id === sessionId);
     }
   } catch (_error) {
     // Metadata sync is best effort.
   }
-  await writeRegistry(worktreePath, nextRegistry);
+  await writeRegistry(context.registryContext, nextRegistry);
   return nextRegistry.sessions.find((session) => session.id === sessionId);
 }
 
-async function updateSessionMeta({ worktreePath, sessionId, avatar }) {
-  ensureWorktreePath(worktreePath);
-  const registry = await readRegistry(worktreePath);
+async function updateSessionMeta({ worktreePath, sessionId, avatar, cellId, projectRoot }) {
+  const context = await resolveSessionServiceContext({
+    cellId,
+    worktreePath,
+    projectRoot,
+  });
+  const registry = await readRegistry(context.registryContext);
   const existing = registry.sessions.find((session) => session.id === sessionId);
   if (!existing) {
     throw new Error('Session not found.');
@@ -748,7 +926,7 @@ async function updateSessionMeta({ worktreePath, sessionId, avatar }) {
     nextSession.avatar = String(avatar).trim();
   }
   const nextRegistry = upsertSession(registry, nextSession);
-  await writeRegistry(worktreePath, nextRegistry);
+  await writeRegistry(context.registryContext, nextRegistry);
   return nextRegistry.sessions.find((session) => session.id === sessionId);
 }
 
@@ -757,9 +935,15 @@ async function moveSessionNodeById({
   sessionId,
   parentSessionId = null,
   beforeSessionId = null,
+  cellId,
+  projectRoot,
 }) {
-  ensureWorktreePath(worktreePath);
-  const registry = await readRegistry(worktreePath);
+  const context = await resolveSessionServiceContext({
+    cellId,
+    worktreePath,
+    projectRoot,
+  });
+  const registry = await readRegistry(context.registryContext);
   const moved = moveSessionNodeInRegistry(registry, {
     sessionId,
     parentSessionId,
@@ -775,14 +959,20 @@ async function moveSessionNodeById({
       session.id === sessionId ? { ...session, updatedAt } : session
     ),
   };
-  await writeRegistry(worktreePath, nextRegistry);
+  await writeRegistry(context.registryContext, nextRegistry);
   return nextRegistry.sessions.find((session) => session.id === sessionId) || null;
 }
 
-async function setSessionMouse({ worktreePath, sessionId, enabled = true }) {
-  ensureWorktreePath(worktreePath);
+async function setSessionMouse({ worktreePath, sessionId, enabled = true, cellId, projectRoot }) {
+  const context = await resolveSessionServiceContext({
+    cellId,
+    worktreePath,
+    projectRoot,
+  });
+  const attachedWorktreePath = ensureAttachedWorktreePath(context);
+  ensureWorktreePath(attachedWorktreePath);
   await ensureTmuxAvailable();
-  const registry = await readRegistry(worktreePath);
+  const registry = await readRegistry(context.registryContext);
   const existing = registry.sessions.find((session) => session.id === sessionId);
   if (!existing) {
     throw new Error('Session not found.');
@@ -791,11 +981,20 @@ async function setSessionMouse({ worktreePath, sessionId, enabled = true }) {
   return { sessionId, enabled: Boolean(enabled) };
 }
 
-async function resolveSessionForAttach({ worktreePath, sessionId }) {
-  ensureWorktreePath(worktreePath);
+async function resolveSessionForAttach({ worktreePath, sessionId, cellId, projectRoot }) {
+  const context = await resolveSessionServiceContext({
+    cellId,
+    worktreePath,
+    projectRoot,
+  });
+  const attachedWorktreePath = ensureAttachedWorktreePath(context);
+  ensureWorktreePath(attachedWorktreePath);
   await ensureTmuxAvailable();
-  const projectMetadata = await resolveProjectMetadata(worktreePath);
-  const registry = await readRegistry(worktreePath);
+  const projectMetadata = await resolveProjectMetadata({
+    worktreePath: attachedWorktreePath,
+    projectRoot: context.repoRoot,
+  });
+  const registry = await readRegistry(context.registryContext);
   const existing = registry.sessions.find((session) => session.id === sessionId);
   if (!existing) {
     throw new Error('Session not found. Create a session first.');
@@ -807,7 +1006,7 @@ async function resolveSessionForAttach({ worktreePath, sessionId }) {
       status: SESSION_STATUSES.stale,
       updatedAt: new Date().toISOString(),
     });
-    await writeRegistry(worktreePath, nextRegistry);
+    await writeRegistry(context.registryContext, nextRegistry);
     throw new Error('Session is stale. Create a new session.');
   }
   const updatedAt = new Date().toISOString();
@@ -818,12 +1017,12 @@ async function resolveSessionForAttach({ worktreePath, sessionId }) {
     lastAttachedAt: updatedAt,
     metadataSyncedAt: updatedAt,
   });
-  await writeRegistry(worktreePath, nextRegistry);
+  await writeRegistry(context.registryContext, nextRegistry);
   await setMouse(existing.tmuxSession, true);
   await setExtendedKeys(existing.tmuxSession, true);
   const resolved = nextRegistry.sessions.find((session) => session.id === sessionId);
   await syncSessionTmuxMetadata({
-    worktreePath,
+    worktreePath: attachedWorktreePath,
     projectMetadata,
     session: resolved,
     status: SESSION_STATUSES.active,
@@ -831,10 +1030,16 @@ async function resolveSessionForAttach({ worktreePath, sessionId }) {
   return resolved;
 }
 
-async function resolveSessionForPreview({ worktreePath, sessionId }) {
-  ensureWorktreePath(worktreePath);
+async function resolveSessionForPreview({ worktreePath, sessionId, cellId, projectRoot }) {
+  const context = await resolveSessionServiceContext({
+    cellId,
+    worktreePath,
+    projectRoot,
+  });
+  const attachedWorktreePath = ensureAttachedWorktreePath(context);
+  ensureWorktreePath(attachedWorktreePath);
   await ensureTmuxAvailable();
-  const registry = await readRegistry(worktreePath);
+  const registry = await readRegistry(context.registryContext);
   const existing = registry.sessions.find((session) => session.id === sessionId);
   if (!existing) {
     throw new Error('Session not found.');

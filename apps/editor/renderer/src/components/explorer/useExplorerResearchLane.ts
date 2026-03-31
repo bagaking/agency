@@ -25,6 +25,8 @@ type ExplorerResearchLaneDependencies = {
   }) => Promise<{ path?: string } | null>;
   createMemo: (payload: {
     worktreePath: string;
+    repoRootPath?: string;
+    cellId?: string;
     kind: 'memo';
     body: string;
     references: Array<Record<string, any>>;
@@ -34,6 +36,8 @@ type ExplorerResearchLaneDependencies = {
 
 type UseExplorerResearchLaneOptions = {
   rootPath: string;
+  projectRoot?: string;
+  selectedCellId?: string;
   targetDirPath: string;
   allowMemoCapture: boolean;
   allowMarkdownSave: boolean;
@@ -65,6 +69,8 @@ function normalizeBrowserEscapeUrl(input: string) {
 export function useExplorerResearchLane(
   {
     rootPath,
+    projectRoot = '',
+    selectedCellId = '',
     targetDirPath,
     allowMemoCapture,
     allowMarkdownSave,
@@ -206,6 +212,8 @@ export function useExplorerResearchLane(
       });
       const result = await dependencies.createMemo({
         worktreePath: rootPath,
+        repoRootPath: projectRoot,
+        cellId: selectedCellId,
         kind: 'memo',
         body: payload.body,
         references: payload.references,
@@ -224,7 +232,7 @@ export function useExplorerResearchLane(
     } finally {
       setCreatingMemo(false);
     }
-  }, [allowMemoCapture, dependencies, note, preview, rootPath, savedArtifact?.path]);
+  }, [allowMemoCapture, dependencies, note, preview, projectRoot, rootPath, savedArtifact?.path, selectedCellId]);
 
   const openSavedArtifact = useCallback(() => {
     if (!savedArtifact?.path) {

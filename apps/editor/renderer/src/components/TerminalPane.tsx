@@ -114,7 +114,8 @@ function TerminalPane({
   const [selectionText, setSelectionText] = useState('');
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const cellId = cell?.id;
-  const worktreePath = cell?.worktreePath;
+  const projectRoot = cell?.projectRoot || '';
+  const worktreePath = cell?.attachedWorktreePath || cell?.worktreePath;
   const sendTargets = useMemo(() => {
     const list = Array.isArray(sessionTargets) ? sessionTargets : [];
     return list
@@ -158,6 +159,8 @@ function TerminalPane({
     try {
       await createHilItem({
         worktreePath,
+        repoRootPath: projectRoot,
+        cellId,
         kind: 'memo',
         body: trimmed,
         meta: {

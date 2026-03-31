@@ -23,6 +23,8 @@ export const setSessionMouse = createOptionalInvoke('setSessionMouse');
 export const prepareSessionContinueOnMobile = createOptionalInvoke('prepareSessionContinueOnMobile');
 export const updateCellState = createOptionalInvoke('updateCellState');
 export const updateCellMeta = createOptionalInvoke('updateCellMeta');
+export const clearCellAttachment = createOptionalInvoke('clearCellAttachment');
+export const deleteCell = createOptionalInvoke('deleteCell');
 
 // Runtime send actions
 export const logRuntime = createOptionalAction('logRuntime');

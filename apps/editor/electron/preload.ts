@@ -197,6 +197,8 @@ const INVOKE_CHANNELS: Record<string, string> = {
   createCell: 'cells:create',
   updateCellState: 'cells:updateState',
   updateCellMeta: 'cells:updateMeta',
+  clearCellAttachment: 'cells:clearAttachment',
+  deleteCell: 'cells:delete',
   startTerminal: 'terminal:start',
   openExternalUrl: 'system:openExternal',
   openSystemPermissions: 'system:openPermissions',

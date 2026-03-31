@@ -772,14 +772,14 @@ async function getExplorerStatus({ rootPath } = {}) {
     }
     const cells = await listCells({ rootPath: repoRoot });
     const availableCells = Array.isArray(cells) ? cells : [];
-    const worktreeCells = availableCells.filter((cell) => cell?.worktreePath);
+    const worktreeCells = availableCells.filter((cell) => cell?.attachedWorktreePath);
     const fileMap = new Map();
     const statusResults = await mapWithConcurrency(
       worktreeCells,
       STATUS_WORKTREE_CONCURRENCY,
       async (cell) => ({
         cell,
-        ...(await collectWorktreeStatus(cell.worktreePath)),
+        ...(await collectWorktreeStatus(cell.attachedWorktreePath)),
       })
     );
 
@@ -811,6 +811,8 @@ async function getExplorerStatus({ rootPath } = {}) {
         id: cell.id,
         name: cell.name,
         worktreePath: cell.worktreePath,
+        attachedWorktreePath: cell.attachedWorktreePath,
+        attachmentState: cell.attachmentState,
       })),
       statusLabels: STATUS_LABELS,
     };

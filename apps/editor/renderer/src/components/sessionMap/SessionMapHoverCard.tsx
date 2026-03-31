@@ -344,21 +344,22 @@ export function SessionMapHoverCard({
   }, [menuOpen]);
 
   const refreshFileShortcuts = useCallback(() => {
-    if (!isOpen || !data?.cell?.worktreePath || !data?.session?.id) {
+    const attachedWorktreePath = data?.cell?.attachedWorktreePath || '';
+    if (!isOpen || !attachedWorktreePath || !data?.session?.id) {
       setFileShortcuts([]);
       return;
     }
     const cached = getCachedSessionMapPreview({
-      worktreePath: data.cell.worktreePath,
+      worktreePath: attachedWorktreePath,
       cellId: data.cell.id,
       sessionId: data.session.id,
     });
     const nextShortcuts = extractFileReferences(String(cached?.data || ''), {
-      rootPath: data.cell.worktreePath,
+      rootPath: attachedWorktreePath,
       limit: 3,
     });
     setFileShortcuts(nextShortcuts);
-  }, [data?.cell?.id, data?.cell?.worktreePath, data?.session?.id, isOpen]);
+  }, [data?.cell?.attachedWorktreePath, data?.cell?.id, data?.session?.id, isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -381,6 +382,13 @@ export function SessionMapHoverCard({
 
   const { cell, session, color } = data;
   const isOffline = session.isOffline;
+  const attachmentState = String(cell?.attachmentState || 'attached').trim().toLowerCase();
+  const attachmentLabel =
+    attachmentState === 'missing'
+      ? 'Missing worktree'
+      : attachmentState === 'detached'
+        ? 'Detached worktree'
+        : '';
   const statusLabel = session.status || 'unknown';
   const idleLabel = session.lastActivityAt
     ? `Idle ${formatRelativeTime(session.lastActivityAt)}`
@@ -405,12 +413,16 @@ export function SessionMapHoverCard({
   };
 
   const handleOpenShortcut = (shortcut) => {
+    const attachedWorktreePath = cell.attachedWorktreePath || '';
     if (!shortcut?.relativePath) {
+      return;
+    }
+    if (!attachedWorktreePath) {
       return;
     }
     onOpenFileShortcut?.({
       cellId: cell.id,
-      rootPath: cell.worktreePath,
+      rootPath: attachedWorktreePath,
       path: shortcut.relativePath,
       line: shortcut.line || undefined,
       column: shortcut.column || undefined,
@@ -418,12 +430,16 @@ export function SessionMapHoverCard({
   };
 
   const handleRevealShortcut = (shortcut) => {
+    const attachedWorktreePath = cell.attachedWorktreePath || '';
     if (!shortcut?.relativePath) {
+      return;
+    }
+    if (!attachedWorktreePath) {
       return;
     }
     onRevealFileShortcut?.({
       cellId: cell.id,
-      rootPath: cell.worktreePath,
+      rootPath: attachedWorktreePath,
       path: shortcut.relativePath,
     });
   };
@@ -609,6 +625,12 @@ export function SessionMapHoverCard({
             )}
             <span className="text-slate-300">·</span>
             <span className="uppercase tracking-wide text-slate-200">{infoLabel}</span>
+            {attachmentLabel ? (
+              <>
+                <span className="text-slate-400">·</span>
+                <span className="uppercase tracking-wide text-amber-100">{attachmentLabel}</span>
+              </>
+            ) : null}
             <span className="ml-auto whitespace-nowrap text-slate-300">
               {idleLabel}
             </span>

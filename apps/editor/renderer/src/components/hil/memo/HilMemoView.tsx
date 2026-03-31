@@ -30,6 +30,8 @@ const isDraftComplete = (draft) => {
 
 export function HilMemoView({
   worktreePath,
+  projectRoot,
+  selectedCellId,
   projectReady,
   projectError,
   onSelectProject,
@@ -101,6 +103,8 @@ export function HilMemoView({
     handleCreateDraftActionSheet,
   } = useHilMemoMutations({
     worktreePath,
+    projectRoot,
+    cellId: selectedCellId,
     refresh,
     setDockSelection,
     modal,

@@ -5,7 +5,9 @@ export function LifecycleConfirmModal({ transition, error, loading, onCancel, on
   const { cell, nextState, gates } = transition;
   const requiresGates = ['active', 'archived'].includes(nextState);
   const failedGates = (gates || []).filter((gate) => !gate.passed);
-  const canProceed = !requiresGates || (failedGates.length === 0 && !error);
+  const attachmentState = String(cell?.attachmentState || 'attached').trim().toLowerCase();
+  const requiresAttachedGatePath = attachmentState === 'attached';
+  const canProceed = !requiresGates || !requiresAttachedGatePath || (failedGates.length === 0 && !error);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -29,7 +31,9 @@ export function LifecycleConfirmModal({ transition, error, loading, onCancel, on
         <div className="rounded-md border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
           Target state: <span className="font-semibold text-foreground">{nextState}</span>
           <span className="mx-2 text-muted-foreground/40">|</span>
-          Lifecycle file will be updated after confirmation.
+          {requiresAttachedGatePath
+            ? 'Repo-owned Cell record will be updated after confirmation.'
+            : `This Cell is ${attachmentState}. Archive/delete can still proceed through the repo-owned Cell record.`}
         </div>
 
         <div className="mt-4">
@@ -44,7 +48,7 @@ export function LifecycleConfirmModal({ transition, error, loading, onCancel, on
           <div className="mt-3">
             <GateList gates={gates} emptyLabel="Gate status unavailable. Recheck to refresh." />
           </div>
-          {!canProceed && requiresGates ? (
+          {!canProceed && requiresGates && requiresAttachedGatePath ? (
             <p className="mt-3 text-xs text-amber-300">
               Fix the failing gates before moving to {nextState}.
             </p>

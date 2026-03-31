@@ -159,61 +159,56 @@ export function useSessions(options: any = {}) {
       if (!cell || !isAgencyMethodAvailable('listSessions')) {
         return;
       }
+      const attachedWorktreePath = cell.attachedWorktreePath || '';
       const selectionVersion = selectionVersionRef.current;
-      if (tmuxStatus?.available === false) {
-        if (!silent) {
-          setSessionError(tmuxStatus.error || 'tmux is required. Install tmux and try again.');
-        }
-        setSessionsByCellId((current) => ({ ...current, [cell.id]: [] }));
-        setActiveSessionByCellId((current) => {
-          const next = { ...current };
-          delete next[cell.id];
-          return next;
-        });
-        return;
-      }
       if (!silent) {
         setSessionLoading(true);
         setSessionError('');
       }
-      setSessionsByCellId((current) => {
-        const existing = current[cell.id];
-        if (Array.isArray(existing) && existing.length > 0) {
-          return current;
-        }
-        return {
-          ...current,
-          [cell.id]: [
-            {
-              id: 'default',
-              name: 'Default',
-              status: 'active',
-              profileId: BASELINE_PROFILE_ID,
-            },
-          ],
+      if (attachedWorktreePath) {
+        setSessionsByCellId((current) => {
+          const existing = current[cell.id];
+          if (Array.isArray(existing) && existing.length > 0) {
+            return current;
+          }
+          return {
+            ...current,
+            [cell.id]: [
+              {
+                id: 'default',
+                name: 'Default',
+                status: 'active',
+                profileId: BASELINE_PROFILE_ID,
+              },
+            ],
+          };
+        });
+        activeSessionByCellIdRef.current = {
+          ...activeSessionByCellIdRef.current,
+          [cell.id]: activeSessionByCellIdRef.current[cell.id] || 'default',
         };
-      });
-      activeSessionByCellIdRef.current = {
-        ...activeSessionByCellIdRef.current,
-        [cell.id]: activeSessionByCellIdRef.current[cell.id] || 'default',
-      };
-      setActiveSessionByCellId((current) =>
-        current[cell.id]
-          ? current
-          : {
-              ...current,
-              [cell.id]: 'default',
-            }
-      );
+        setActiveSessionByCellId((current) =>
+          current[cell.id]
+            ? current
+            : {
+                ...current,
+                [cell.id]: 'default',
+              }
+        );
+      }
       try {
-        let nextSessions = await listSessionsBridge({ worktreePath: cell.worktreePath });
+        let nextSessions = await listSessionsBridge({
+          worktreePath: attachedWorktreePath,
+          cellId: cell.id,
+          projectRoot: cell.projectRoot || cell.repoRoot || '',
+        });
         if (!Array.isArray(nextSessions)) {
           nextSessions = [];
         }
-        if (nextSessions.length === 0 && isAgencyMethodAvailable('createSession')) {
+        if (nextSessions.length === 0 && attachedWorktreePath && isAgencyMethodAvailable('createSession')) {
           const created = await createSessionBridge({
             cellId: cell.id,
-            worktreePath: cell.worktreePath,
+            worktreePath: attachedWorktreePath,
             name: 'Default',
             sessionId: 'default',
             profileId: BASELINE_PROFILE_ID,
@@ -690,6 +685,11 @@ export function useSessions(options: any = {}) {
       if (!targetCell || !isAgencyMethodAvailable('createSession')) {
         return null;
       }
+      const attachedWorktreePath = targetCell.attachedWorktreePath || '';
+      if (!attachedWorktreePath) {
+        setSessionError('This Cell does not have an attached worktree. Reattach or create a new attachment before creating sessions.');
+        return null;
+      }
       const shouldOpenTerminal = targetCell.id === selectedCell?.id;
       if (shouldOpenTerminal) {
         onOpenTerminal?.();
@@ -714,7 +714,7 @@ export function useSessions(options: any = {}) {
           avatar || pickSessionAvatarId(sessionsByCellId[targetCell.id] || []);
         const created = await createSessionBridge({
           cellId: targetCell.id,
-          worktreePath: targetCell.worktreePath,
+          worktreePath: attachedWorktreePath,
           name: name || undefined,
           sessionId: sessionId || undefined,
           profileId: profileId || BASELINE_PROFILE_ID,
@@ -767,6 +767,10 @@ export function useSessions(options: any = {}) {
       if (!selectedCell) {
         return null;
       }
+      if (!selectedCell.attachedWorktreePath) {
+        setSessionError('This Cell does not have an attached worktree. Reattach or create a new attachment before creating sessions.');
+        return null;
+      }
       return createSessionForCell(selectedCell, options);
     },
     [createSessionForCell, selectedCell]
@@ -788,7 +792,9 @@ export function useSessions(options: any = {}) {
       setSessionError('');
       try {
         await closeSessionBridge({
-          worktreePath: targetCell.worktreePath,
+          worktreePath: targetCell.attachedWorktreePath || '',
+          projectRoot: targetCell.projectRoot || '',
+          cellId: targetCell.id,
           sessionId,
         });
         disposeTerminalBridge({ cellId: targetCell.id, sessionId });
@@ -813,7 +819,9 @@ export function useSessions(options: any = {}) {
       setSessionError('');
       try {
         await detachSessionBridge({
-          worktreePath: targetCell.worktreePath,
+          worktreePath: targetCell.attachedWorktreePath || '',
+          projectRoot: targetCell.projectRoot || '',
+          cellId: targetCell.id,
           sessionId,
         });
         disposeTerminalBridge({ cellId: targetCell.id, sessionId });
@@ -838,7 +846,9 @@ export function useSessions(options: any = {}) {
       setSessionError('');
       try {
         await renameSessionBridge({
-          worktreePath: targetCell.worktreePath,
+          worktreePath: targetCell.attachedWorktreePath || '',
+          projectRoot: targetCell.projectRoot || '',
+          cellId: targetCell.id,
           sessionId,
           name,
         });
@@ -862,7 +872,9 @@ export function useSessions(options: any = {}) {
       setSessionError('');
       try {
         const updated = await updateSessionMetaBridge({
-          worktreePath: targetCell.worktreePath,
+          worktreePath: targetCell.attachedWorktreePath || '',
+          projectRoot: targetCell.projectRoot || '',
+          cellId: targetCell.id,
           sessionId,
           avatar,
         });
@@ -895,7 +907,9 @@ export function useSessions(options: any = {}) {
       setSessionError('');
       try {
         const moved = await moveSessionNodeBridge({
-          worktreePath: targetCell.worktreePath,
+          worktreePath: targetCell.attachedWorktreePath || '',
+          projectRoot: targetCell.projectRoot || '',
+          cellId: targetCell.id,
           sessionId,
           parentSessionId,
           beforeSessionId,
@@ -921,7 +935,9 @@ export function useSessions(options: any = {}) {
       setSessionError('');
       try {
         return await prepareSessionContinueOnMobileBridge({
-          worktreePath: targetCell.worktreePath,
+          worktreePath: targetCell.attachedWorktreePath || '',
+          projectRoot: targetCell.projectRoot || '',
+          cellId: targetCell.id,
           sessionId,
           mode,
         });
@@ -969,9 +985,13 @@ export function useSessions(options: any = {}) {
         setSessionError('');
         try {
           const preferredAvatar = pickSessionAvatarId(sessionsByCellId[targetCell.id] || []);
+          const attachedWorktreePath = worktreePath || targetCell.attachedWorktreePath || '';
+          if (!attachedWorktreePath) {
+            throw new Error('This Cell does not have an attached worktree. Reattach or create a new attachment before creating sessions.');
+          }
           const created = await createSessionBridge({
             cellId: targetCell.id,
-            worktreePath: worktreePath || targetCell.worktreePath,
+            worktreePath: attachedWorktreePath,
             name: label ? `CLI - ${label}` : 'CLI',
             profileId: profileId || BASELINE_PROFILE_ID,
             avatar: preferredAvatar,

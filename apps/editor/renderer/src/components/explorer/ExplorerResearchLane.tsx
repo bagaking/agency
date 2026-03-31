@@ -8,6 +8,8 @@ import { useExplorerResearchLane } from './useExplorerResearchLane';
 
 type ExplorerResearchLaneProps = {
   rootPath: string;
+  projectRoot?: string;
+  selectedCellId?: string;
   targetDirPath: string;
   allowMemoCapture: boolean;
   allowMarkdownSave: boolean;
@@ -20,6 +22,8 @@ const focusRingClass = focusRing.sidebar;
 
 export function ExplorerResearchLane({
   rootPath,
+  projectRoot = '',
+  selectedCellId = '',
   targetDirPath,
   allowMemoCapture,
   allowMarkdownSave,
@@ -50,6 +54,8 @@ export function ExplorerResearchLane({
     revealSavedArtifact,
   } = useExplorerResearchLane({
     rootPath,
+    projectRoot,
+    selectedCellId,
     targetDirPath,
     allowMemoCapture,
     allowMarkdownSave,

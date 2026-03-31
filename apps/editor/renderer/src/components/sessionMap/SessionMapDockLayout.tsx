@@ -218,7 +218,7 @@ export function SessionMapDockLayout({
                   minHeight={96}
                   className={`min-w-[248px] max-w-[396px] flex-[1_1_320px] ${resolveCellAttentionClass(cellAttentionById?.[cluster.cell.id]?.strongest)}`}
                   actions={
-                    canCreateSession ? (
+                    canCreateSession && cluster.cell?.attachedWorktreePath ? (
                       <button
                         type="button"
                         onClick={(event) => {

@@ -1,7 +1,9 @@
 import { useCallback } from 'react';
 
 import {
+  clearCellAttachment as agencyClearCellAttachment,
   createCell as agencyCreateCell,
+  deleteCell as agencyDeleteCell,
   listCells as agencyListCells,
   updateCellMeta as agencyUpdateCellMeta,
 } from '../services/agencyBridge';
@@ -88,12 +90,87 @@ export function useCellLifecycleActions({
       await agencyUpdateCellMeta({
         id: selectedCell.id,
         worktreePath: selectedCell.worktreePath,
+        rootPath: projectRoot,
         avatar,
       });
       await loadCells();
     },
-    [loadCells, selectedCell]
+    [loadCells, projectRoot, selectedCell]
   );
+
+  const handleClearAttachment = useCallback(async () => {
+    if (!selectedCell) {
+      return;
+    }
+    if (!modal?.confirm) {
+      return;
+    }
+    const confirmed = await modal.confirm({
+      title: 'Clear Cell Attachment',
+      description:
+        'This removes the current worktree attachment from the Cell record. Session history and Cell metadata stay in the repository-owned Cell store.',
+      confirmLabel: 'Clear Attachment',
+      cancelLabel: 'Cancel',
+      tone: 'danger',
+    });
+    if (!confirmed) {
+      return;
+    }
+    setLoading(true);
+    try {
+      await agencyClearCellAttachment({
+        id: selectedCell.id,
+        worktreePath: selectedCell.worktreePath,
+        rootPath: projectRoot,
+      });
+      await loadCells(selectedCell.id);
+    } catch (error: any) {
+      modal?.notify?.({
+        title: 'Failed to clear attachment',
+        description: error?.message || 'Unable to clear attachment metadata for this Cell.',
+        tone: 'warning',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [loadCells, modal, projectRoot, selectedCell, setLoading]);
+
+  const handleDelete = useCallback(async () => {
+    if (!selectedCell) {
+      return;
+    }
+    if (!modal?.confirm) {
+      return;
+    }
+    const confirmed = await modal.confirm({
+      title: 'Delete Cell',
+      description:
+        'This removes the repo-owned Cell record and its Cell-owned artifacts. It does not restore deleted worktrees.',
+      confirmLabel: 'Delete Cell',
+      cancelLabel: 'Cancel',
+      tone: 'danger',
+    });
+    if (!confirmed) {
+      return;
+    }
+    setLoading(true);
+    try {
+      await agencyDeleteCell({
+        id: selectedCell.id,
+        worktreePath: selectedCell.worktreePath,
+        rootPath: projectRoot,
+      });
+      await loadCells();
+    } catch (error: any) {
+      modal?.notify?.({
+        title: 'Failed to delete Cell',
+        description: error?.message || 'Unable to delete this Cell.',
+        tone: 'warning',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [loadCells, modal, projectRoot, selectedCell, setLoading]);
 
   const handleCreate = useCallback(
     async ({ name, branch, reusePath, startTurnGateCreate }: any) => {
@@ -159,6 +236,8 @@ export function useCellLifecycleActions({
   return {
     handleStateChange,
     handleUpdateCellAvatar,
+    handleClearAttachment,
+    handleDelete,
     handleCreate,
     handleSaveGates,
   };

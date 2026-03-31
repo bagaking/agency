@@ -74,7 +74,7 @@ export function useWorkbenchFileNavigation({
       if (!normalizedPath) {
         return;
       }
-      const resolvedRoot = rootPath || selectedCell?.worktreePath || projectRoot || '';
+      const resolvedRoot = rootPath || selectedCell?.attachedWorktreePath || projectRoot || '';
       const targetCellId = cellId || selectedCell?.id || null;
       if (cellId && cellId !== selectedCell?.id) {
         setSelectedId(cellId);
@@ -149,7 +149,7 @@ export function useWorkbenchFileNavigation({
       if (!normalizedPath) {
         return false;
       }
-      const resolvedRoot = rootPath || selectedCell?.worktreePath || projectRoot || '';
+      const resolvedRoot = rootPath || selectedCell?.attachedWorktreePath || projectRoot || '';
       const targetCellId = cellId || selectedCell?.id || null;
       if (cellId && cellId !== selectedCell?.id) {
         setSelectedId(cellId);
@@ -204,7 +204,7 @@ export function useWorkbenchFileNavigation({
       }
       setPendingExplorerReveal({
         path: normalizedPath,
-        rootPath: selectedCell?.worktreePath || projectRoot || '',
+        rootPath: selectedCell?.attachedWorktreePath || projectRoot || '',
         cellId: selectedCell?.id || null,
       });
       if (sidebarCollapsed) {
@@ -225,7 +225,7 @@ export function useWorkbenchFileNavigation({
     ({ path, line, column, sourceSurface }: { path?: string; line?: number; column?: number; sourceSurface?: string } = {}) =>
       openWorkbenchFile({
         path,
-        rootPath: selectedCell?.worktreePath || projectRoot || '',
+        rootPath: selectedCell?.attachedWorktreePath || projectRoot || '',
         line,
         column,
         focusView: true,
@@ -239,7 +239,7 @@ export function useWorkbenchFileNavigation({
     ({ path, sourceSurface }: { path?: string; sourceSurface?: string } = {}) =>
       revealWorkbenchFile({
         path,
-        rootPath: selectedCell?.worktreePath || projectRoot || '',
+        rootPath: selectedCell?.attachedWorktreePath || projectRoot || '',
         focusView: true,
         cellId: selectedCell?.id,
         sourceSurface: normalizeSurface(sourceSurface, 'memo'),
@@ -329,7 +329,7 @@ export function useWorkbenchFileNavigation({
         };
       }
 
-      const resolvedRoot = rootPath || selectedCell?.worktreePath || projectRoot || '';
+      const resolvedRoot = rootPath || selectedCell?.attachedWorktreePath || projectRoot || '';
       if (!resolvedRoot) {
         throw new Error('Cell worktree is unavailable.');
       }
