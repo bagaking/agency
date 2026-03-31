@@ -22,6 +22,8 @@ const serializeTabs = (tabsByCellId: Record<string, any[]>) => {
       kind: tab.kind,
       title: tab.title,
       url: tab.url,
+      allowMarkdownSave: tab.allowMarkdownSave,
+      allowMemoCapture: tab.allowMemoCapture,
     }));
   });
   return next;
@@ -40,6 +42,8 @@ const hydrateTab = (tab, cellId, fallbackRoot) => {
       url,
       title: tab.title || deriveWorkbenchResearchTitle(url),
       isPreview: Boolean(tab.isPreview),
+      allowMarkdownSave: tab.allowMarkdownSave !== false,
+      allowMemoCapture: tab.allowMemoCapture !== false,
     });
   }
   if (!tab?.path) {
@@ -202,12 +206,16 @@ export function useWorkbench({
       cellId: targetCellId,
       mode = 'pinned',
       title,
+      allowMarkdownSave = true,
+      allowMemoCapture = true,
     }: {
       url: string;
       rootPath?: string;
       cellId?: string;
       mode?: 'preview' | 'pinned';
       title?: string;
+      allowMarkdownSave?: boolean;
+      allowMemoCapture?: boolean;
     }) => {
       const normalizedUrl = normalizeWorkbenchResearchUrl(url);
       if (!normalizedUrl) {
@@ -225,6 +233,8 @@ export function useWorkbench({
         url: normalizedUrl,
         title,
         isPreview: mode === 'preview',
+        allowMarkdownSave,
+        allowMemoCapture,
       });
 
       setTabsByCellId((current) => {
@@ -365,6 +375,25 @@ export function useWorkbench({
     [cellKey]
   );
 
+  const updateTab = useCallback(
+    (tabId, updates) => {
+      if (!tabId || !updates || typeof updates !== 'object') {
+        return;
+      }
+      setTabsByCellId((current) => {
+        const currentTabs = current[cellKey] || [];
+        const nextTabs = currentTabs.map((tab) =>
+          tab.id === tabId ? { ...tab, ...updates } : tab
+        );
+        return {
+          ...current,
+          [cellKey]: nextTabs,
+        };
+      });
+    },
+    [cellKey]
+  );
+
   const resetTabs = useCallback(() => {
     setTabsByCellId({});
     setActiveTabByCellId({});
@@ -382,6 +411,7 @@ export function useWorkbench({
     pinTab,
     reorderTabs,
     setActiveTab,
+    updateTab,
     tabsByCellId,
     activeTabByCellId,
     serializeTabs,

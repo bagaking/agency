@@ -1077,11 +1077,32 @@ function ProjectExplorerSidebarContent({
     try {
       setUrlSearchQuery(candidate);
       setSearchMode(EXPLORER_SEARCH_MODE_URL);
-      await onLaunchWebResearchUrl(candidate);
+      await onLaunchWebResearchUrl({
+        url: candidate,
+        allowMarkdownSave: projectPolicy?.research?.allowMarkdownSave !== false,
+        allowMemoCapture: projectPolicy?.research?.allowMemoCapture !== false,
+      });
+      if (activeSearchMode === EXPLORER_SEARCH_MODE_CONTENT) {
+        setContentSearchQuery('');
+      } else if (activeSearchMode === EXPLORER_SEARCH_MODE_URL) {
+        setUrlSearchQuery('');
+      } else {
+        setSearchQuery('');
+      }
+      setSearchMode(EXPLORER_SEARCH_MODE_URL);
     } finally {
       setUrlResearchLaunchPending(false);
     }
-  }, [activeSearchMode, headerSearchQuery, onLaunchWebResearchUrl, urlSearchQuery]);
+  }, [
+    activeSearchMode,
+    headerSearchQuery,
+    onLaunchWebResearchUrl,
+    projectPolicy?.research?.allowMarkdownSave,
+    projectPolicy?.research?.allowMemoCapture,
+    setContentSearchQuery,
+    setSearchQuery,
+    urlSearchQuery,
+  ]);
   const handleSubmitHeaderSearch = useCallback(() => {
     if (activeSearchMode === EXPLORER_SEARCH_MODE_URL) {
       void handleLaunchWebResearch();

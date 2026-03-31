@@ -141,6 +141,8 @@ function WorkbenchHarness({
             url: 'https://example.com/docs',
             rootPath: '/repo',
             cellId: undefined,
+            allowMarkdownSave: false,
+            allowMemoCapture: false,
           })
         }
       >
@@ -154,6 +156,8 @@ function WorkbenchHarness({
             isPreview: Boolean(tab.isPreview),
             title: tab.title,
             url: tab.url,
+            allowMarkdownSave: tab.allowMarkdownSave,
+            allowMemoCapture: tab.allowMemoCapture,
           }))
         )}
       </output>
@@ -293,6 +297,8 @@ test('useWorkbench opens bounded web research tabs as explicit non-file objects'
         isPreview: false,
         title: 'example.com',
         url: 'https://example.com/docs',
+        allowMarkdownSave: false,
+        allowMemoCapture: false,
       },
     ]);
 
@@ -320,6 +326,8 @@ test('useWorkbench hydrates bounded web research tabs without pretending they ar
                 rootPath: '/repo',
                 isPreview: false,
                 title: 'Spec Docs',
+                allowMarkdownSave: true,
+                allowMemoCapture: false,
               },
             ],
           }}
@@ -333,6 +341,8 @@ test('useWorkbench hydrates bounded web research tabs without pretending they ar
         isPreview: false,
         title: 'Spec Docs',
         url: 'https://example.com/spec',
+        allowMarkdownSave: true,
+        allowMemoCapture: false,
       },
     ]);
 

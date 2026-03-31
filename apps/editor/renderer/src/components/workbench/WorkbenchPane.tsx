@@ -118,7 +118,8 @@ function WorkbenchPaneContent({
     closeOtherTabs, 
     closeAllTabs, 
     pinTab, 
-    setActiveTab 
+    setActiveTab,
+    updateTab,
   } = workbench;
   
   const [tabStateById, setTabStateById] = useState({});
@@ -263,6 +264,21 @@ function WorkbenchPaneContent({
     activeEditorRef.current = editor || null;
     setEditorToken((value) => value + 1);
   }, []);
+  const handleResearchTabStateChange = useCallback(
+    (tabId: string, nextState: Record<string, any>) => {
+      updateTabState(tabId, nextState);
+    },
+    [updateTabState]
+  );
+  const handleResearchTabTitleChange = useCallback(
+    (tabId: string, title: string) => {
+      if (!String(title || '').trim()) {
+        return;
+      }
+      updateTab(tabId, { title });
+    },
+    [updateTab]
+  );
 
   const runEditorAction = useCallback((actionId) => {
     const editor = activeEditorRef.current;
@@ -542,9 +558,86 @@ function WorkbenchPaneContent({
           </div>
         ) : activeState.kind === 'bounded-web-research' ? (
           <WorkbenchBoundedWebResearchView
+            key={`bounded-web-research:${activeTab.id}`}
             rootPath={activeTab.rootPath}
             url={activeTab.url}
+            allowMarkdownSave={activeTab.allowMarkdownSave !== false}
+            allowMemoCapture={activeTab.allowMemoCapture !== false}
+            initialState={activeState}
+            onStateChange={(nextState) => {
+              handleResearchTabStateChange(activeTab.id, nextState);
+            }}
+            onMarkdownSaved={(savedPath) =>
+              openFile({
+                path: savedPath,
+                mode: 'pinned',
+                rootPath: activeTab.rootPath,
+              })
+            }
+            onOpenSavedFile={(path) =>
+              openFile({
+                path,
+                mode: 'pinned',
+                rootPath: activeTab.rootPath,
+              })
+            }
+            onRevealSavedFile={onRevealPathInExplorer}
+            onResolvedTitle={(title) => {
+              handleResearchTabTitleChange(activeTab.id, title);
+            }}
           />
+        ) : activeState.kind === 'code' && activeState.researchSourceUrl ? (
+          <div className="flex h-full min-h-0 bg-[#0b0d11]">
+            <div className="min-w-0 flex-[1.08] border-r border-white/[0.05]">
+              <CodeWorkbenchView
+                value={activeState.content || ''}
+                language={resolvedActiveLanguage}
+                diffHunks={activeState.diffEnabled ? activeState.diffHunks || [] : []}
+                blameEnabled={activeState.blameEnabled}
+                blameLines={activeState.blameLines || []}
+                commentLines={resolvedCommentLines}
+                commentsEnabled={canComment}
+                readOnly={activeState.truncated}
+                onChange={(val) => updateTabContent(activeTab.id, val)}
+                onCursorChange={handleCursorChange}
+                onSelectionChange={(selection) => {
+                  if (!onSelectionChange) {
+                    return;
+                  }
+                  if (!selection) {
+                    onSelectionChange(null);
+                    return;
+                  }
+                  onSelectionChange({
+                    ...selection,
+                    filePath: activeTab.path,
+                    rootPath: activeTab.rootPath,
+                  });
+                }}
+                onLineComment={({ line, column }: any) => onOpenComment?.({ line, column })}
+                onEditorReady={registerActiveEditor}
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <WorkbenchBoundedWebResearchView
+                key={`linked-research:${activeTab.id}`}
+                rootPath={activeTab.rootPath}
+                url={activeState.researchSourceUrl}
+                linkedMarkdownPath={activeTab.path}
+                linkedMarkdownDirty={Boolean(activeState.isDirty)}
+                initialState={activeState.researchState || null}
+                onStateChange={(nextState) => {
+                  handleResearchTabStateChange(activeTab.id, { researchState: nextState });
+                }}
+                onMarkdownSaved={() => {
+                  void loadTab(activeTab);
+                }}
+                allowMarkdownSave={true}
+                allowMemoCapture={true}
+                onRevealSavedFile={onRevealPathInExplorer}
+              />
+            </div>
+          </div>
         ) : activeState.kind === 'vector' ? (
           <VectorWorkbenchView
             content={activeState.content || ''}

@@ -3,7 +3,6 @@
 ## Launch
 - [ ] Start the renderer and main process with `npm run dev`.
 - [ ] Verify the Agency window opens, renders the custom title bar, and shows the current project name or an empty-project label.
-- [ ] Open a brand-new empty window and confirm no `Session Action Failed` notice appears before a project is selected.
 - [ ] Open a second window and confirm the title-bar app icon menu lists both windows and can switch focus between them.
 - [ ] On macOS, confirm the Dock stays on the native/default menu path instead of an app-defined window list.
 - [ ] On macOS, click the Dock icon while no editor window is focused and confirm an editor window is restored/focused.
@@ -15,19 +14,15 @@
 - [ ] Create a new Cell with a branch type + name and confirm the worktree directory is created.
 - [ ] Reuse an existing worktree and confirm lifecycle file creation.
 - [ ] Change lifecycle state and confirm the `.agency` file updates.
-- [ ] Remove or detach a Cell worktree, reopen Agent Cells, and confirm that Cell moves into a `Needs Cleanup` section instead of rendering as a normal session-tree card.
-- [ ] From the cleanup card, trigger `Archive Cell` and confirm the attachment-aware lifecycle confirmation explains that repo-owned sessions/evidence remain available.
-- [ ] Restart with an attached Cell whose session registry is empty and confirm the window does not auto-create a `Default` session.
-- [ ] In the empty terminal state for such a Cell, click `Create Session` and confirm a session is created only at that explicit step.
-- [ ] Open `Create Cell` and confirm `Create New Branch`, `Bind Existing Worktree`, and `Bind Existing Branch` are separate modes.
-- [ ] In `Create New Branch`, choose `main` as the base branch even when the current/default startup branch differs, create a Cell, and confirm the new branch is based on `main`.
-- [ ] In `Bind Existing Branch`, select a user-created branch that does not follow the Agency naming prefix rules and confirm the Cell binds to that branch without renaming it.
 
 ## Explorer
-- [ ] Open Explorer, trigger `Open Research Lane`, and confirm the lane appears inline under the Explorer header instead of opening a separate browser surface.
-- [ ] Inspect a public documentation URL and confirm the lane shows a bounded reader preview with source metadata and no tab/cookie/session UI.
-- [ ] Save the inspected page as Markdown, confirm the chosen path stays inside the project, and verify `Open Saved` / `Reveal` route back through Workbench and Explorer.
-- [ ] Create a memo citation from the same preview and confirm it enters the existing HIL/Memo flow; if a Markdown file was saved first, confirm the memo artifact carries that workspace reference.
+- [ ] Enter a public URL into Explorer search and confirm a compact `Open Web` affordance appears without forcing an immediate mode switch.
+- [ ] Switch Explorer search mode to `URL`, launch a public URL, and confirm Workbench opens a bounded web research tab instead of Explorer replacing its primary panel.
+- [ ] Switch Explorer to the `Changed` working-set view, then use `URL` mode and confirm the working-set surface stays visible while Workbench owns the bounded web tab.
+- [ ] In the bounded web tab, confirm `Live` / `Reader` host modes and page-level actions (`Reload`, `Open in Browser`, `Save Markdown`, `Cite`) are visible.
+- [ ] Save the inspected page as Markdown, confirm the chosen path stays inside the project, the saved file contains fixed `agency_source_*` frontmatter, and Workbench automatically focuses that Markdown file.
+- [ ] Reopen a Markdown file carrying bounded-web source frontmatter and confirm Workbench enters markdown + preview mode, with the preview side showing `Overwrite Markdown`.
+- [ ] Create a memo citation from the same research tab and confirm it enters the existing HIL/Memo flow; if a Markdown file was saved first, confirm the memo artifact carries that workspace reference.
 - [ ] Enter a localhost/private URL and confirm reader inspect is rejected while the explicit system-browser escape hatch remains available for full browsing.
 
 ## Workbench Highlighting
@@ -40,10 +35,6 @@
 - [ ] Open an image, PDF, or unknown-file warning view and confirm Workbench does not show the language control there.
 
 ## Terminal
-- [ ] With no project selected, confirm Explorer and Agent Cells both show the same `Project Home` state instead of a fake local Cell/session row.
-- [ ] In the no-project state, click `Start Home Shell` and confirm an interactive shell opens from the user home directory.
-- [ ] While the no-project home shell is open, confirm no repo-backed Cell/session records are created and no Cell/session affordances appear.
-- [ ] Switch between Explorer and Agent Cells while still in the no-project state and confirm the shared `Project Home` surface stays coherent.
 - [ ] Open a terminal session and verify output appears.
 - [ ] Start CLI and confirm Codex (or stub) launches in the embedded terminal.
 - [ ] Open Hierarchy -> Harness Providers, set `base_url`, `model`, and `OPENAI_API_KEY`, save, then restart the app process if needed and confirm the values persist.
@@ -60,12 +51,12 @@
 - [ ] In the Session Map dock, confirm the right side behaves as one station: the default mode is `Ops`, the commander affordance is visible in that station, and clicking it switches the same station into `Briefing` mode.
 - [ ] In `Briefing`, confirm the panel is bound to the current focus session/run, quick prompts work, typed questions return evidence-backed explanations, and `Cancel` / `Retry` / `Dismiss` actions route through the existing Harness/error flows.
 - [ ] Close `Briefing` and confirm the same right-side station returns to `Ops` with its prior evidence state intact; a running run can still be cancelled, a failed/cancelled run can still be retried, and run details remain copyable.
-- [ ] Produce output in a background session and confirm Agent Cells uses inline Cell / Session attention markers instead of a queue card above the list, while the shell right-side `Priority Queue` owns the window-level attention flow and Status Bar `Next` remains clickable.
+- [ ] Produce output in a background session and confirm Agent Cells uses inline Cell / Session attention markers instead of a queue card above the list, while Session Map `Ops` still owns the `Priority Queue` and Status Bar `Next` remains clickable.
 - [ ] Switch away from a session and back without meaningful new output, and confirm attach replay or silent refresh does not immediately mark it as `Unread`.
-- [ ] Trigger a running child-execution attention state and confirm Agent Cells inline markers, Status Bar `Next`, and the shell right-side `Priority Queue` all use the same `Running` vocabulary without displacing the Agent Cells list.
-- [ ] Trigger a failed attention state and confirm Agent Cells inline markers, Status Bar `Next`, and the shell right-side `Priority Queue` all use the same `Failed` vocabulary without introducing a second queue surface in Agent Cells.
+- [ ] Trigger a running child-execution attention state and confirm Agent Cells inline markers, Status Bar `Next`, and Session Map `Priority Queue` all use the same `Running` vocabulary without displacing the Agent Cells list.
+- [ ] Trigger a failed attention state and confirm Agent Cells inline markers, Status Bar `Next`, and Session Map `Priority Queue` all use the same `Failed` vocabulary without introducing a second queue surface in Agent Cells.
 - [ ] Trigger `Unread`, `Running`, `Failed`, `Confirm`, `Review`, and cross-window attention cases, hover or focus Status Bar `Next`, and confirm the tooltip preserves the shared state vocabulary while also naming the real jump destination.
-- [ ] Trigger a `Running` or `Failed` attention case that routes to evidence, hover `Next`, and confirm the tooltip explicitly says `Open evidence in Session Map`.
+- [ ] Trigger a `Running` or `Failed` attention case that routes to evidence, hover `Next`, and confirm the tooltip explicitly says `Open Session Map evidence`.
 - [ ] In Agent Cells, open and close `Session Reply Relay` from the bottom entry on the shared right-edge launcher rail, and confirm the window still has one launcher spine while `Reply` remains a session-bound surface.
 - [ ] Create or load multiple Cells and confirm the `Cells` command-center area wraps them into multiple card columns instead of letting one Cell stretch across the full width.
 - [ ] In the `Cells` area, confirm Cell title and state chip do not overlap, non-active tokens avoid noisy white borders, and the selected token is the clearest visual anchor in the group.

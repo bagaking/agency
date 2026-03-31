@@ -1,3 +1,5 @@
+import { normalizeExplorerSupportedPublicUrl } from '../explorer/explorerSearchModel';
+
 export const WORKBENCH_TAB_KIND_BOUNDED_WEB_RESEARCH = 'bounded-web-research';
 
 export const DEFAULT_WORKBENCH_RESEARCH_TAB_TITLE = 'Web Research';
@@ -9,19 +11,12 @@ export type WorkbenchBoundedResearchTab = {
   rootPath: string;
   isPreview: boolean;
   url: string;
+  allowMarkdownSave?: boolean;
+  allowMemoCapture?: boolean;
 };
 
 export function normalizeWorkbenchResearchUrl(input: unknown) {
-  const value = String(input || '').trim();
-  if (!value) {
-    return '';
-  }
-  const candidate = value.includes('://') ? value : `https://${value}`;
-  try {
-    return new URL(candidate).toString();
-  } catch (_error) {
-    return value;
-  }
+  return normalizeExplorerSupportedPublicUrl(input);
 }
 
 export function deriveWorkbenchResearchTitle(url: unknown, fallback = DEFAULT_WORKBENCH_RESEARCH_TAB_TITLE) {
@@ -51,12 +46,16 @@ export function buildWorkbenchBoundedResearchTab({
   url,
   title,
   isPreview = false,
+  allowMarkdownSave = true,
+  allowMemoCapture = true,
 }: {
   cellId: string;
   rootPath: string;
   url: string;
   title?: string;
   isPreview?: boolean;
+  allowMarkdownSave?: boolean;
+  allowMemoCapture?: boolean;
 }): WorkbenchBoundedResearchTab {
   const normalizedUrl = normalizeWorkbenchResearchUrl(url);
   return {
@@ -66,5 +65,7 @@ export function buildWorkbenchBoundedResearchTab({
     rootPath,
     isPreview: Boolean(isPreview),
     url: normalizedUrl,
+    allowMarkdownSave: allowMarkdownSave !== false,
+    allowMemoCapture: allowMemoCapture !== false,
   };
 }

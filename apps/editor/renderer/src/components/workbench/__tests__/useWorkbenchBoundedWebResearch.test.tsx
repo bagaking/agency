@@ -153,3 +153,69 @@ test('useWorkbenchBoundedWebResearch hosts bounded url actions in a workbench co
     env.cleanup();
   }
 });
+
+test('useWorkbenchBoundedWebResearch overwrites a linked markdown path without prompting for a new path', async () => {
+  const env = setupDom();
+  try {
+    const root = createRoot(document.getElementById('root')!);
+    const writes: Array<Record<string, any>> = [];
+    const savedPaths: string[] = [];
+    let latestState: any = null;
+
+    const dependencies = {
+      fetchPreview: async ({ url }: { url: string }) => ({
+        url,
+        title: 'Linked Doc',
+        siteName: 'Example Docs',
+        summary: 'Linked summary.',
+        text: 'Linked text.',
+      }),
+      openExternal: async () => ({ ok: true }),
+      writeEntry: async (payload: Record<string, any>) => {
+        writes.push(payload);
+        return { path: payload.targetPath };
+      },
+      createMemo: async () => ({ id: 'memo' }),
+    };
+
+    function LinkedHarness({ onState }: { onState: (value: any) => void }) {
+      const state = useWorkbenchBoundedWebResearch(
+        {
+          rootPath: '/repo',
+          url: 'https://example.com/linked',
+          linkedMarkdownPath: 'docs/linked.md',
+          onMarkdownSaved: (path) => savedPaths.push(path),
+          promptForPath: async () => {
+            throw new Error('prompt should not run for linked markdown');
+          },
+        },
+        dependencies
+      );
+      useEffect(() => onState(state), [onState, state]);
+      return null;
+    }
+
+    await act(async () => {
+      root.render(
+        <LinkedHarness
+          onState={(value) => {
+            latestState = value;
+          }}
+        />
+      );
+    });
+
+    await act(async () => {
+      await latestState.saveMarkdown();
+    });
+
+    assert.equal(writes[0]?.targetPath, 'docs/linked.md');
+    assert.deepEqual(savedPaths, ['docs/linked.md']);
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});

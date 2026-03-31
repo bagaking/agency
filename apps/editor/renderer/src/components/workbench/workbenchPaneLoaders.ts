@@ -9,6 +9,7 @@ import {
   type WorkbenchSecureKind,
 } from './workbenchPaneHelpers';
 import { isWorkbenchBoundedResearchTab } from './workbenchBoundedResearch';
+import { parseExplorerResearchFrontmatter } from '../explorer/explorerResearchArtifacts';
 
 type WorkbenchTabTarget = {
   rootPath: string;
@@ -72,6 +73,8 @@ const loadCodeWorkbenchState = async ({
 }: WorkbenchTabTarget): Promise<WorkbenchTabLoadResult> => {
   const result = await readWorkbenchEntry({ rootPath, targetPath });
   const content = result?.content || '';
+  const language = resolveWorkbenchLanguage(targetPath);
+  const researchSource = language === 'markdown' ? parseExplorerResearchFrontmatter(content) : null;
   return {
     ...baseLoadedState,
     content,
@@ -80,9 +83,12 @@ const loadCodeWorkbenchState = async ({
     mtimeMs: result?.mtimeMs || 0,
     binary: Boolean(result?.binary),
     truncated: Boolean(result?.truncated),
-    language: resolveWorkbenchLanguage(targetPath),
+    language,
     isDirty: false,
     kind: 'code',
+    researchSourceUrl: researchSource?.url || '',
+    researchSourceTitle: researchSource?.title || '',
+    researchSourceSiteName: researchSource?.siteName || '',
   };
 };
 

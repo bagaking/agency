@@ -67,6 +67,16 @@ The tab SHALL remain bounded to research/document workflow rather than becoming 
 - **THEN** the tab surface exposes page-level actions such as `Reload`, `Open in Browser`, `Save Markdown`, and `Cite`
 - **AND** the user does not need to return to Explorer for the primary URL workflow actions
 
+#### Scenario: Saved Markdown keeps deterministic source metadata
+- **WHEN** a user saves Markdown from the bounded web research tab
+- **THEN** the saved Markdown includes fixed source frontmatter that records the original URL
+- **AND** Workbench focuses that Markdown file after the save completes
+
+#### Scenario: Frontmatter-linked Markdown reopens with preview
+- **WHEN** Workbench opens a Markdown file that carries the bounded-web source frontmatter
+- **THEN** Workbench automatically enters a linked markdown + preview mode
+- **AND** the hosted preview adapts `Save Markdown` into `Overwrite Markdown`
+
 #### Scenario: Hosted tab remains bounded
 - **WHEN** a bounded web research tab is active
 - **THEN** the product does not expose browser-global cookie/session management, arbitrary browser tabs, or generic browser chrome

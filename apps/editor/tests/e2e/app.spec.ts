@@ -48,7 +48,13 @@ const killRepoElectronProcesses = () => {
 const initializeGitRepo = (repoPath, trackedEntries) => {
   fs.rmSync(repoPath, { recursive: true, force: true });
   fs.mkdirSync(repoPath, { recursive: true });
-  execSync('git init', { cwd: repoPath });
+  try {
+    execSync('git init', { cwd: repoPath });
+  } catch (_error) {
+    fs.rmSync(repoPath, { recursive: true, force: true });
+    fs.mkdirSync(repoPath, { recursive: true });
+    execSync('git init', { cwd: repoPath });
+  }
   trackedEntries.forEach(({ relativePath, content }) => {
     const absolutePath = path.join(repoPath, relativePath);
     fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
@@ -121,10 +127,19 @@ const launchTestApp = async ({
   if (emptyState) {
     env.AGENCY_TEST_EMPTY_STATE = '1';
   }
-  return electron.launch({
-    args: [path.join(__dirname, '..', '..', '.electron-build', 'electron', 'main.js')],
-    env,
-  });
+  const launch = () =>
+    electron.launch({
+      args: [path.join(__dirname, '..', '..', '.electron-build', 'electron', 'main.js')],
+      env,
+    });
+
+  try {
+    return await launch();
+  } catch (error) {
+    killRepoElectronProcesses();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    return launch();
+  }
 };
 
 test.afterEach(async () => {
@@ -501,7 +516,8 @@ test('url mode keeps Explorer as intake across working-set views', async () => {
     await window.getByRole('button', { name: 'Content', exact: true }).click();
     await expect(window.getByLabel('Search file contents…')).toBeVisible();
   } finally {
-    await electronApp.close();
+    // afterEach process cleanup is more reliable here than waiting for Electron close
+    // while bounded web research/background work is still settling.
   }
 });
 
@@ -522,12 +538,13 @@ test('url-shaped explorer input opens a bounded web research tab in Workbench', 
     await expect(window.getByRole('button', { name: 'Live', exact: true })).toBeVisible();
     await expect(window.getByRole('button', { name: 'Reader', exact: true })).toBeVisible();
     await window.getByRole('button', { name: 'Reader', exact: true }).click();
-    await expect(window.getByRole('button', { name: 'Reload', exact: true })).toBeVisible();
-    await expect(window.getByRole('button', { name: 'Open in Browser', exact: true })).toBeVisible();
-    await expect(window.getByRole('button', { name: 'Save Markdown', exact: true })).toBeVisible();
-    await expect(window.getByRole('button', { name: 'Cite', exact: true })).toBeVisible();
+    await expect(window.getByTestId('workbench-web-research-reload')).toBeVisible();
+    await expect(window.getByTestId('workbench-web-research-open-browser')).toBeVisible();
+    await expect(window.getByTestId('workbench-web-research-save-markdown')).toBeVisible();
+    await expect(window.getByTestId('workbench-web-research-cite')).toBeVisible();
   } finally {
-    await electronApp.close();
+    // afterEach process cleanup is more reliable here than waiting for Electron close
+    // while bounded web research background work is still settling.
   }
 });
 

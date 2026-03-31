@@ -34,15 +34,6 @@ This doc exists to keep Explorer opinionated.
 
 Agency Explorer already has several strong traits that should be kept as non-negotiable foundations.
 
-### Shell-owned sidebar control
-
-Explorer lives inside the shared left dock. That means collapse and expand should belong to shell chrome, not to Explorer-local edge handles or per-surface corner buttons.
-
-Current boundary:
-- Activity Bar owns left-sidebar collapse and expand;
-- `SidebarDock` owns width and resize only;
-- Explorer header should not spend precious title-row space repeating shell-level collapse affordances.
-
 ### One execution hub, not many ad hoc file UIs
 
 The current architecture already treats Explorer as the canonical execution hub for file mutation and reveal, rather than letting every surface invent its own file behavior.
@@ -298,9 +289,7 @@ Current content-search guardrails:
 - binary files are skipped;
 - large files are skipped once they exceed the host-side size cap;
 - invalid folder/selection scopes are rejected by the host instead of silently widening to project scope;
-- replace runs only against explicitly confirmed targets and reports failures/skips;
-- when replacement text is present, the result surface previews how confirmed snippet lines would change so replace review is not limited to raw search evidence;
-- files with more total matches than the visible evidence list stay replaceable only through explicit full-file confirmation, rather than pretending the visible subset is exhaustive.
+- replace runs only against explicitly confirmed targets and reports failures/skips.
 
 ### 4. Working-set view family
 
@@ -341,27 +330,35 @@ What is active now:
 - `actions.hiddenCommands` can remove registered header/context-menu commands without mutating the command registry itself;
 - project policy still cannot redefine file-intent behavior or turn the research lane into a general browser surface.
 
-### 6. Bounded research lane
+### 6. Bounded web research host
 
-Explorer now exposes a bounded research lane rather than assuming all URL work belongs in another app.
+Explorer now exposes bounded URL intake and Workbench now hosts the primary bounded web research surface rather than assuming all URL work belongs in another app.
 
-Current lane:
-- URL input + inline inspection;
-- reader/excerpt extraction through the existing host excerpt pipeline;
-- workspace Markdown save via the existing workbench file-writing path;
-- memo citation via existing HIL item creation, with the saved Markdown path attached as a workspace reference when available;
-- optional handoff note carried into both the saved Markdown artifact and the memo citation metadata;
-- explicit “open in browser” escape hatch.
+Current flow:
+- `URL` is a first-class Explorer search mode alongside `Paths` and `Content`, not a hidden header utility;
+- the shared Explorer search row owns URL intake and can surface a compact `Open Web` affordance when the current input already looks like a supported public URL;
+- Explorer remains the intake and launch surface instead of becoming the long-lived host;
+- Workbench opens a bounded web research tab that owns the primary page/research surface and its actions;
+- the hosted tab keeps actions such as `Reload`, `Open in Browser`, `Save Markdown`, and `Cite` inside the page surface instead of bouncing the user back to the sidebar;
+- saved Markdown captures write fixed `agency_source_*` frontmatter so repo-native files can recover the original bounded-web source deterministically;
+- opening a Markdown file with that fixed source frontmatter automatically enables a markdown + preview mode in Workbench, and the hosted preview adapts `Save Markdown` into `Overwrite Markdown`;
+- reader/excerpt extraction flows through the existing host excerpt pipeline;
+- workspace Markdown save flows through the existing workbench file-writing path;
+- memo citation flows through existing HIL item creation, with the saved Markdown path attached as a workspace reference when available;
+- full browsing still uses an explicit `Open in Browser` escape hatch.
 
-Presentation boundary:
-- the lane belongs to Explorer, but it is a secondary workflow capability rather than a primary browse action;
-- it should sit closer to search/workflow controls than to core tree creation/refresh controls.
+Rejected alternatives:
+- do not keep URL research discoverable only through an icon-only header command; that fails the “primary action should be legible without guessing” bar;
+- do not keep the primary web workflow hosted in Explorer; the sidebar is the wrong place for prolonged reading and action-taking;
+- do not create a second standalone browser panel or window-global webview; the research surface must stay bounded inside Workbench;
+- do not duplicate URL state in both Explorer and Workbench; Explorer launches/focuses one bounded host object.
+- do not save opaque Markdown blobs without machine-readable source metadata; repo-native files need a deterministic way back to their originating web research context.
 
 Security/scope boundary:
 - only `http/https`;
 - local/private hosts are rejected by the shared excerpt fetcher;
-- the lane is for URL -> workspace/workflow handoff, not arbitrary browsing;
-- the lane does not own tabs, cookies, auth/session state, or a window-global webview.
+- the host is for URL -> workspace/workflow handoff, not arbitrary browsing;
+- the hosted tab does not own browser-global tabs, cookies UI, auth/session state, downloads, or a window-global webview.
 
 ### Validation Notes
 
@@ -374,10 +371,10 @@ Current validation baseline:
 
 Recommended manual checks before shipping larger follow-up changes:
 - switch between `Tree` and `Changed` views and confirm footer workflow behavior remains stable;
-- run a scoped content replace in a disposable repo and confirm target-count review + failure reporting, including the full-file confirmation path for files with hidden matches;
-- inspect a public URL in the research lane, save Markdown into the workspace, and confirm `Open in Browser` escapes correctly;
+- run a scoped content replace in a disposable repo and confirm target-count review + failure reporting;
+- inspect a public URL from Explorer, confirm Workbench opens the bounded web tab, and confirm `Open in Browser` still escapes correctly;
 - add a handoff note, then confirm the saved Markdown and created memo citation both preserve that note;
-- try a localhost/private URL and confirm the bounded reader rejects it instead of silently becoming a general browser.
+- try a localhost/private URL and confirm the bounded host rejects it instead of silently becoming a general browser.
 
 ## Remaining Next Steps
 

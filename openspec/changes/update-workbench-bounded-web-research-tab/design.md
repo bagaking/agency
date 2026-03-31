@@ -97,6 +97,25 @@ The current URL inspection/handoff state machine already captures the important 
 
 The refactor should move and rename these seams as needed so they are host-agnostic, then let both Explorer intake and Workbench host speak to the same bounded research document/controller model.
 
+### Decision: Saved Markdown must carry deterministic source frontmatter
+
+When bounded web research becomes repo-native Markdown, the file must keep a fixed machine-readable link back to its originating URL.
+
+That frontmatter exists for two reasons:
+- the user should not lose the originating web context once the artifact becomes a file;
+- Workbench needs a deterministic way to reopen that file in a linked markdown + preview mode.
+
+This is preferable to heuristic parsing of body text or one-off comments because it is explicit, stable, and auditable.
+
+### Decision: Linked Markdown becomes a markdown + preview Workbench mode
+
+When Workbench opens a Markdown file that carries bounded-web frontmatter, it should not pretend that file is unrelated to the web research flow.
+
+Instead:
+- the Markdown editor remains the primary file object;
+- the bounded web preview appears beside it as linked context;
+- the hosted research action adapts `Save Markdown` into `Overwrite Markdown` because the file already exists and is the current object of work.
+
 ## Architecture Sketch
 
 ```mermaid
@@ -130,6 +149,8 @@ Exit criteria:
 
 - Add URL-aware affordance in the shared Explorer search row when the typed input resembles a URL.
 - Move primary URL actions into the hosted Workbench tab chrome/content.
+- Save Markdown with fixed source frontmatter and auto-focus the saved Markdown file in Workbench.
+- Detect frontmatter-linked Markdown files and reopen them in markdown + preview mode.
 - Trim explanatory copy so the hosted page feels like a purposeful work surface, not a sidebar form transplanted into Workbench.
 
 Exit criteria:

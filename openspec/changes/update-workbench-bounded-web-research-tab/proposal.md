@@ -12,6 +12,8 @@ The next step should borrow the right lesson from `cmux` and similar tools witho
 - Move the bounded web research host surface from Explorer's primary panel area into a first-class Workbench tab kind.
 - Keep Explorer search as the intake point and add URL-aware affordances so URL-shaped input can switch into the bounded web research flow with less friction.
 - Define a bounded Workbench web research document contract with page content plus research actions such as `Open in Browser`, `Save Markdown`, `Cite`, and `Reload`.
+- Save Markdown with fixed source frontmatter so repo-native Markdown files can recover the originating URL deterministically.
+- When Workbench opens a Markdown file carrying that bounded-web frontmatter, automatically enter a linked markdown + preview mode and adapt `Save Markdown` into `Overwrite Markdown`.
 - Preserve the existing bounded-scope rules: no browser-global tabs, cookies, auth/session management, or arbitrary browser-product posture.
 - Update specs, notes, README, and manual verification so the canonical contract is `Explorer intake -> Workbench bounded web tab`.
 

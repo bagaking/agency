@@ -24,7 +24,7 @@
 - The activity bar includes Explorer and Hierarchy entries; the home logo returns to Agent Cells.
 - The custom title bar shows the current project name, exposes `Open/Switch Project`, and uses the app icon as a window switcher / new-window launcher.
 - Settings provides a lightweight dashboard with project summary, recent projects, and entry cards for Actions, Gates, and Softlinks.
-- The docked sidebar supports resize/collapse and persists width state across launches; collapse/expand is owned by the shell-level Activity Bar control rather than per-surface edge handles.
+- The docked sidebar supports resize/collapse and persists width state across launches.
 - Agent Cells focuses on Cell management and offers jump links to Actions, Gates, and Softlinks.
 - Agent Cells sidebar now includes an Explorer panel (Cell/Session scope + Flat/Tree views) for quick file open/reveal navigation.
 - Hierarchy hosts capability-first configuration for Actions, App Shortcuts, Reply Quick Prompts, Session Naming, Gates, Harness Providers, and Softlinks.
@@ -35,7 +35,7 @@
 - Explorer scopes to the active Cell worktree (or repo root) and opens files in the workbench.
 - Workbench breadcrumbs are segment-clickable and reveal/select the target inside Explorer tree (without invoking OS Finder reveal).
 - Explorer supports descriptor-driven filters (hidden/ignored/changes/status/semantic), keyboard navigation, open/dirty indicators, and watch-based auto refresh.
-- Explorer distinguishes path search from cross-file content search; content search returns line-level evidence, rejects invalid folder/selection scopes, and only replaces explicitly confirmed targets through per-match review or explicit full-file confirmation when a file contains hidden matches beyond the visible review list.
+- Explorer distinguishes path search from cross-file content search; content search returns line-level evidence, rejects invalid folder/selection scopes, and only replaces explicitly confirmed targets.
 - Explorer supports semantic-file tags and semantic filters (built-in + project rules from `.agency/agent-files.yaml`).
 - Explorer semantic filters support quick-locate to jump to the first matching file.
 - Explorer promotes `Changed Files` into a registered working-set view and keeps room for future working-set families.
@@ -43,9 +43,8 @@
 - Explorer supports copy/cut/paste via context menu and keyboard shortcuts.
 - Explorer can paste files or screenshots from the system clipboard, applying `-1` style conflict suffixes.
 - Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
-- Explorer includes a bounded research lane for public URL inspection, reader preview, workspace Markdown save, memo citation with optional saved-file references, and an explicit system-browser escape hatch.
-- Explorer and Memo sidebars keep a compact context-first header grammar, prioritizing the active root or record summary over explanatory subtitle copy.
-- The workbench supports multi-tab previews, a path-first Quick Open launcher for open tabs and project files with optional `:line[:column]` targeting, contextual secondary review tools for diff/blame/comment actions that appear only after the active document resolves to a code editor state, media previews, active-tab disk-change auto sync (auto-reload when clean, warning + reload when dirty), project-level language rules from `.agency/workbench.yaml` / `.agency/workbench.yml`, and a window-local document language control that shows `Auto` / `Project Rule` / `Local Override`.
+- Explorer includes a bounded `URL` research mode that launches a Workbench-hosted web research tab for public URL inspection, bounded live/reader viewing, workspace Markdown save with fixed source frontmatter, memo citation with optional saved-file references, and an explicit system-browser escape hatch.
+- The workbench supports multi-tab previews, quick open, diff/blame toggles, media previews, active-tab disk-change auto sync (auto-reload when clean, warning + reload when dirty), project-level language rules from `.agency/workbench.yaml` / `.agency/workbench.yml`, and a window-local document language control that shows `Auto` / `Project Rule` / `Local Override`.
 
 ## Unified File Interaction Direction
 
@@ -58,7 +57,7 @@
 - Explorer capabilities are being packaged as tool-capable interfaces so agent workflows can invoke the same safe path/permission/conflict logic.
 - Tool-invoked file intents enforce caller metadata (`callerId`, `traceId`) and capability scopes (`file.read` / `file.write`).
 - Agent semantic files (for example `Agency.md`, Spark conventions, and project-defined rules) are treated as first-class discoverability targets.
-- Research lane stays subordinate to Explorer/file workflow: reader previews save through the existing workbench write path, citations reuse HIL memo artifacts, and full browsing still escapes to the system browser.
+- Bounded web research stays subordinate to Explorer/file workflow: `URL` mode reuses the shared Explorer search row for intake, Workbench hosts the primary web research tab, saved Markdown captures include fixed `agency_source_*` frontmatter, Markdown files carrying that frontmatter reopen in a linked markdown + preview mode, citations reuse HIL memo artifacts, and full browsing still escapes to the system browser.
 - Current authoritative design and rollout:
   - `openspec/changes/archive/2026-02-10-add-agent-centric-file-interaction-system/`
   - Follow-up evolution (delivered): `openspec/changes/archive/2026-02-16-update-agent-cells-embedded-explorer/`
@@ -121,9 +120,6 @@
 
 ## Memo Drawer Interactions
 
-- Memo is the primary user-facing artifact workspace noun; HIL remains an internal storage term rather than a competing panel label.
-- The right-side drawer now keeps one Memo-facing language across Comments, Drafts, and Capture instead of mixing ad-hoc labels per panel.
-- Comments emphasizes `context -> snippet evidence -> note -> submit`, while Promote emphasizes `selected records -> execution lane -> gate -> dispatch state`.
 - Memo drawer shortcut cards are interactive capture surfaces and do not switch the main Memo panel when clicked.
 - Use the explicit "View Records" action on a shortcut card to switch the main Memo inbox section.
 - After a capture is confirmed and saved, the main Memo panel switches to the corresponding inbox section.
@@ -152,7 +148,7 @@
 - Session action failures no longer rely only on transient notices; `Command Ops` keeps the latest error visible until explicitly dismissed and supports copying the full text.
 - Attention now uses one vocabulary across shell chrome, Agent Cells, and Session Map: `Running`, `Failed`, `Confirm`, `Unread`, and `Review`.
 - The status bar shows the current top-priority attention item for the active Agency context and can jump directly to its owning object.
-- The status bar `Next` tooltip expands that shared attention label into a short destination-aware sentence so hover/focus explains where activation will go (`Jump to session`, `Open Session Map`, `Open evidence in Session Map`, or `Focus window`).
+- The status bar `Next` tooltip expands that shared attention label into a short destination-aware sentence so hover/focus explains where activation will go (`Jump to session`, `Open Session Map`, `Open Session Map evidence`, or `Focus window`).
 - The app-shell right-side attention rail owns the current-window `Priority Queue` and Commander `Briefing`.
 - In Agent Cells, that same right-side launcher rail also carries the `Session Reply Relay` entry at its lower end so the window keeps one right-edge launcher spine while `Attention`, `Commander`, and `Reply` remain distinct surfaces.
 - `Priority Queue` stays summary-first in that shell rail; long errors and timeline payloads belong in the Session Map `Ops` evidence area instead of expanding queue rows into log cards.
@@ -247,11 +243,7 @@
 
 ## Project Selection
 
-- If no project directory is configured, the editor opens Explorer in a shared `Project Home` state.
-- `Project Home` is window-owned: it is not a fake Project, Cell, or Session.
-- The no-project sidebar exposes `Open Project`, `Start Home Shell`, and recent projects as one coherent recovery surface.
-- Recent projects are the primary center-stage content in the no-project main panel.
-- The home shell starts from the user home directory and stays window-owned; it does not create repo-backed Cell/session records.
+- If no project directory is configured, the editor opens Explorer with an empty-state prompt.
 - Use **Select Project** to choose a repository for the current window.
 - The app keeps one desktop instance and routes additional launches into that instance as new windows instead of relying on isolated parallel app processes.
 - Clicking the custom title-bar app icon opens a window switcher for the currently open editor windows and also exposes `New Window`.
@@ -273,8 +265,7 @@ pnpm run package
 Artifacts are written to `apps/editor/dist/release` (DMG + ZIP). Install by opening the DMG or unzipping the app and dragging `Agency.app` to `/Applications`.
 Unsigned builds may require Gatekeeper bypass (right-click → Open once, or run `xattr -dr com.apple.quarantine /Applications/Agency.app`).
 Packaging uses `TMPDIR=/tmp` to avoid `hdiutil` failures on some macOS setups.
-Packaging now runs a preparation step before build/sign/DMG work. The prepare step checks disk space on the project volume, `/tmp`, and the Electron Builder cache volume, then clears stale generated outputs under `apps/editor/dist/release` that would conflict with the current mode before continuing.
-Packaging commands are intentionally packageability-first: they verify that the desktop artifact can be produced, but they do not enforce the renderer bundle budget gate.
+Packaging now runs a disk-space preflight before build/sign/DMG work. If free space is below the safe threshold, the preflight first deletes stale generated outputs under `apps/editor/dist/release` that would be overwritten by the current mode, then fails fast with cleanup guidance instead of spending minutes before `hdiutil` errors.
 
 From repo root:
 
@@ -292,14 +283,6 @@ For a lower-peak local DMG build (DMG only, no ZIP), run:
 
 ```bash
 make editor-package-lite
-```
-
-To package while also enforcing the renderer budget gate, use the release variants:
-
-```bash
-make editor-package-release
-make editor-package-lite-release
-make editor-package-dir-release
 ```
 
 For an unpacked build (no DMG), run:
@@ -340,32 +323,13 @@ Validate the renderer boot bundle budget from `apps/editor` with:
 pnpm run check:renderer-bundle-budget
 ```
 
-Build semantics are split on purpose:
-
-```bash
-pnpm run build:renderer
-pnpm run build:renderer:budget
-pnpm run accept:renderer-bundle-budget
-```
-
-- `build:renderer` only emits renderer artifacts.
-- `build:renderer:budget` rebuilds the renderer and then enforces the bundle budget gate.
-- `accept:renderer-bundle-budget` refreshes the accepted-state file after an intentional budget decision.
-- The budget gate uses `apps/editor/scripts/renderer-bundle-budget.accepted.json` as an accepted-state ratchet, not as a fixed universal ceiling.
-- Gzip budgets remain hard failures against the accepted state plus small allowances; raw CSS drift is reported as a warning so minor Tailwind churn does not block local packaging.
-- Local override env vars are intentionally ignored on `*-release` packaging entrypoints. To experiment locally with override thresholds, set `AGENCY_RENDERER_ALLOW_OVERRIDE=1` before running the standalone budget command.
-- Release-gated packaging belongs on the explicit `*-release` entrypoints; packageability-first commands stay local and non-blocking by design.
-- Packaging now relies on electron-builder's default Electron distribution resolution instead of pointing `build.electronDist` at `node_modules/electron/dist`. This avoids mutating the installed Electron skeleton during local packaging runs.
+`pnpm run build:renderer` now runs this budget check automatically after the Vite build.
 
 ## Makefile (from repo root)
 
 ```bash
 make editor-install
 make editor-dev
-make editor-accept-renderer-budget
-make editor-build-renderer-budget
-make editor-package-release
-make editor-package-lite-release
 ```
 
 ## Environment Flags
@@ -388,12 +352,16 @@ make editor-package-lite-release
 - Create, rename, delete, and drag/drop a file or folder from the Explorer view.
 - Select a file in Explorer and confirm it opens in a workbench tab with line numbers and syntax highlighting.
 - Click each segment in the workbench breadcrumb and confirm Explorer expands ancestors and focuses the matching node (no Finder popup).
-- Open `Research Lane` from Explorer, inspect a public URL, and confirm the lane shows a reader preview instead of a tabbed browser.
-- Save a research capture as Markdown and confirm the file stays inside the project, then use the lane's `Open Saved` / `Reveal` actions to land back in Workbench/Explorer.
+- Enter a public URL into Explorer search and confirm a compact `Open Web` affordance appears without needing to switch modes first.
+- Switch Explorer search mode to `URL`, launch a public URL, and confirm Workbench opens a bounded web research tab instead of Explorer replacing its primary panel.
+- Switch Explorer to the `Changed` working-set view, then use `URL` mode and confirm the working-set surface remains the Explorer host while Workbench owns the bounded web tab.
+- In the bounded web tab, confirm page-level actions such as `Reload`, `Open in Browser`, `Save Markdown`, and `Cite` are available inside the hosted surface.
+- Save a research capture as Markdown and confirm the file stays inside the project, includes fixed `agency_source_*` frontmatter, and becomes the active workbench tab automatically.
+- Open a Markdown file with bounded-web frontmatter and confirm Workbench enters markdown + preview mode, with the preview side offering `Overwrite Markdown` instead of `Save Markdown`.
 - Create a memo citation from the same research capture and confirm it enters the existing HIL/Memo flow rather than a research-only dispatch path.
 - Try a localhost/private URL and confirm reader inspect is rejected while the explicit system-browser escape hatch remains visible.
 - Double-click a file to pin its tab, drag tabs to reorder, and close tabs from the tab strip menu.
-- Use Cmd/Ctrl+P to open Quick Open, confirm open tabs appear immediately, then search a project file and confirm selection closes the launcher and opens the file as a preview tab. Repeat with `path:line[:column]` and confirm the editor jumps to the requested location.
+- Use Cmd/Ctrl+P to quick-open a file and confirm it opens as a preview tab.
 - Toggle diff and blame on a modified file and confirm decorations/hover metadata appear.
 - Edit an opened file on disk outside Agency and confirm the active tab auto-refreshes when clean, or shows a reload warning when the tab has unsaved edits.
 - Open an image or PDF file and confirm media preview renders with zoom/fit controls.
@@ -425,7 +393,7 @@ make editor-package-lite-release
 - Trigger a pending lifecycle confirmation and confirm the status bar `Next` label stays `Confirm`, while its tooltip expands that same canonical state into a full sentence and explains that activation will open `Session Map`.
 - Finish a child-execution run that creates a child session, hover `Next`, and confirm the visible label stays `Review` while the tooltip expands that same canonical state and explains that activation will jump back to the child session.
 - Hover or focus `Next` for `Unread`, `Running`, `Failed`, and cross-window attention cases, and confirm the tooltip keeps the shared state vocabulary in view while also naming the real destination instead of collapsing into destination-only copy.
-- Trigger a `Running` or `Failed` item that opens evidence rather than a direct session jump, hover `Next`, and confirm the tooltip explicitly says `Open evidence in Session Map`.
+- Trigger a `Running` or `Failed` item that opens evidence rather than a direct session jump, hover `Next`, and confirm the tooltip explicitly says `Open Session Map evidence`.
 - Finish a child-execution run that creates a child session, do not revisit that child, and confirm Agency surfaces `Review` / return-required attention until the child session is visited.
 - Open a second Agency window, create a higher-priority failure there, and confirm the current window's switcher surfaces that other window's primary attention state before you focus it.
 - Add a quick action with both commands and verify start/resume run in the active session.

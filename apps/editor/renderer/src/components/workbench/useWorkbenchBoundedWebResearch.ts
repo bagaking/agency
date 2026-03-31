@@ -20,7 +20,25 @@ type UseWorkbenchBoundedWebResearchArgs = {
   rootPath: string;
   url: string;
   defaultTargetDirPath?: string;
+  allowMarkdownSave?: boolean;
+  allowMemoCapture?: boolean;
+  linkedMarkdownPath?: string;
+  linkedMarkdownDirty?: boolean;
+  confirmOverwriteMarkdown?: () => Promise<boolean>;
+  initialState?: Partial<WorkbenchBoundedWebResearchSnapshot> | null;
+  onStateChange?: (state: WorkbenchBoundedWebResearchSnapshot) => void;
+  onMarkdownSaved?: (path: string) => void;
   promptForPath: WorkbenchBoundedWebResearchPrompt;
+};
+
+export type WorkbenchBoundedWebResearchSnapshot = {
+  note: string;
+  preview: ExplorerResearchPreview | null;
+  error: string;
+  savedArtifact: { path: string; savedAt: string } | null;
+  memoArtifact: { id: string; createdAt: string } | null;
+  preferredMode: 'live' | 'reader';
+  liveFrameKey: number;
 };
 
 type WorkbenchBoundedWebResearchDependencies = {
@@ -51,19 +69,33 @@ export function useWorkbenchBoundedWebResearch({
   rootPath,
   url,
   defaultTargetDirPath = 'docs',
+  allowMarkdownSave = true,
+  allowMemoCapture = true,
+  linkedMarkdownPath = '',
+  linkedMarkdownDirty = false,
+  confirmOverwriteMarkdown,
+  initialState,
+  onStateChange,
+  onMarkdownSaved,
   promptForPath,
 }: UseWorkbenchBoundedWebResearchArgs,
 dependencies: WorkbenchBoundedWebResearchDependencies = defaultDependencies) {
-  const [note, setNote] = useState('');
-  const [preview, setPreview] = useState<ExplorerResearchPreview | null>(null);
+  const [note, setNote] = useState(String(initialState?.note || ''));
+  const [preview, setPreview] = useState<ExplorerResearchPreview | null>(initialState?.preview || null);
   const [fetching, setFetching] = useState(false);
   const [savingMarkdown, setSavingMarkdown] = useState(false);
   const [creatingMemo, setCreatingMemo] = useState(false);
-  const [error, setError] = useState('');
-  const [savedArtifact, setSavedArtifact] = useState<{ path: string; savedAt: string } | null>(null);
-  const [memoArtifact, setMemoArtifact] = useState<{ id: string; createdAt: string } | null>(null);
-  const [preferredMode, setPreferredMode] = useState<'live' | 'reader'>('live');
-  const [liveFrameKey, setLiveFrameKey] = useState(0);
+  const [error, setError] = useState(String(initialState?.error || ''));
+  const [savedArtifact, setSavedArtifact] = useState<{ path: string; savedAt: string } | null>(
+    initialState?.savedArtifact || null
+  );
+  const [memoArtifact, setMemoArtifact] = useState<{ id: string; createdAt: string } | null>(
+    initialState?.memoArtifact || null
+  );
+  const [preferredMode, setPreferredMode] = useState<'live' | 'reader'>(
+    initialState?.preferredMode || 'reader'
+  );
+  const [liveFrameKey, setLiveFrameKey] = useState(Number(initialState?.liveFrameKey || 0));
 
   const normalizedUrl = useMemo(() => normalizeWorkbenchResearchUrl(url), [url]);
   const browserUrl = normalizedUrl;
@@ -77,6 +109,27 @@ dependencies: WorkbenchBoundedWebResearchDependencies = defaultDependencies) {
       targetDirPath: defaultTargetDirPath,
     });
   }, [defaultTargetDirPath, preview, savedArtifact?.path]);
+
+  useEffect(() => {
+    onStateChange?.({
+      note,
+      preview,
+      error,
+      savedArtifact,
+      memoArtifact,
+      preferredMode,
+      liveFrameKey,
+    });
+  }, [
+    error,
+    liveFrameKey,
+    memoArtifact,
+    note,
+    onStateChange,
+    preferredMode,
+    preview,
+    savedArtifact,
+  ]);
 
   const inspect = useCallback(async () => {
     if (!normalizedUrl) {
@@ -93,15 +146,11 @@ dependencies: WorkbenchBoundedWebResearchDependencies = defaultDependencies) {
       }
       startTransition(() => {
         setPreview(nextPreview);
-        setSavedArtifact(null);
-        setMemoArtifact(null);
       });
       return nextPreview;
     } catch (inspectError: any) {
       startTransition(() => {
         setPreview(null);
-        setSavedArtifact(null);
-        setMemoArtifact(null);
       });
       setError(inspectError?.message || 'Failed to inspect URL.');
       return null;
@@ -139,10 +188,19 @@ dependencies: WorkbenchBoundedWebResearchDependencies = defaultDependencies) {
   }, [browserUrl, dependencies]);
 
   const saveMarkdown = useCallback(async () => {
-    if (!preview) {
+    if (!preview || !allowMarkdownSave) {
       return null;
     }
-    const targetPath = await promptForPath(suggestedPath);
+    let targetPath = String(linkedMarkdownPath || '').trim();
+    if (targetPath && linkedMarkdownDirty && confirmOverwriteMarkdown) {
+      const confirmed = await confirmOverwriteMarkdown();
+      if (!confirmed) {
+        return null;
+      }
+    }
+    if (!targetPath) {
+      targetPath = await promptForPath(suggestedPath);
+    }
     if (!targetPath) {
       return null;
     }
@@ -165,6 +223,7 @@ dependencies: WorkbenchBoundedWebResearchDependencies = defaultDependencies) {
           savedAt: new Date().toISOString(),
         });
       });
+      onMarkdownSaved?.(resolvedPath);
       return result;
     } catch (saveError: any) {
       setError(saveError?.message || 'Failed to save research capture.');
@@ -172,10 +231,22 @@ dependencies: WorkbenchBoundedWebResearchDependencies = defaultDependencies) {
     } finally {
       setSavingMarkdown(false);
     }
-  }, [dependencies, note, preview, promptForPath, rootPath, suggestedPath]);
+  }, [
+    allowMarkdownSave,
+    confirmOverwriteMarkdown,
+    dependencies,
+    linkedMarkdownDirty,
+    linkedMarkdownPath,
+    note,
+    onMarkdownSaved,
+    preview,
+    promptForPath,
+    rootPath,
+    suggestedPath,
+  ]);
 
   const createCitationMemo = useCallback(async () => {
-    if (!preview) {
+    if (!preview || !allowMemoCapture) {
       return null;
     }
     setCreatingMemo(true);
@@ -207,7 +278,7 @@ dependencies: WorkbenchBoundedWebResearchDependencies = defaultDependencies) {
     } finally {
       setCreatingMemo(false);
     }
-  }, [dependencies, note, preview, rootPath, savedArtifact?.path]);
+  }, [allowMemoCapture, dependencies, note, preview, rootPath, savedArtifact?.path]);
 
   return {
     url: normalizedUrl,
