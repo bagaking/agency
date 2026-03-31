@@ -10,7 +10,7 @@ type BudgetResult = {
 
 const DIST_ROOT = path.resolve(__dirname, '../dist/renderer');
 const ASSETS_DIR = path.join(DIST_ROOT, 'assets');
-const BASELINE_PATH = path.resolve(__dirname, './renderer-bundle-budget-baseline.json');
+const ACCEPTED_BUDGET_PATH = path.resolve(__dirname, './renderer-bundle-budget.accepted.json');
 
 const DEFAULT_BUDGETS = {
   initialJsRawBytes: 1_250_000,
@@ -48,21 +48,22 @@ function readBudget(
     return Math.floor(rawValue);
   }
   const ratchetBaseline = Number(baseline[name] || 0);
-  const ratchetBudget =
-    Number.isFinite(ratchetBaseline) && ratchetBaseline > 0
-      ? ratchetBaseline + DEFAULT_RATCHET_ALLOWANCES[name]
-      : 0;
-  return Math.max(DEFAULT_BUDGETS[name], ratchetBudget);
+  if (Number.isFinite(ratchetBaseline) && ratchetBaseline > 0) {
+    return ratchetBaseline + DEFAULT_RATCHET_ALLOWANCES[name];
+  }
+  return DEFAULT_BUDGETS[name];
 }
 
 function readBaseline(): Partial<Record<BudgetMetricName, number>> {
-  if (!fs.existsSync(BASELINE_PATH)) {
-    return {};
+  if (!fs.existsSync(ACCEPTED_BUDGET_PATH)) {
+    throw new Error(
+      `Renderer bundle accepted-state file is missing at ${ACCEPTED_BUDGET_PATH}. Restore the tracked file or set explicit AGENCY_RENDERER_* overrides.`
+    );
   }
   try {
-    const raw = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
+    const raw = JSON.parse(fs.readFileSync(ACCEPTED_BUDGET_PATH, 'utf8'));
     if (!raw || typeof raw !== 'object') {
-      return {};
+      throw new Error('Baseline JSON must be an object.');
     }
     const baseline: Partial<Record<BudgetMetricName, number>> = {};
     for (const name of Object.keys(DEFAULT_BUDGETS) as BudgetMetricName[]) {
@@ -71,9 +72,17 @@ function readBaseline(): Partial<Record<BudgetMetricName, number>> {
         baseline[name] = Math.floor(value);
       }
     }
+    const missing = (Object.keys(DEFAULT_BUDGETS) as BudgetMetricName[]).filter(
+      (name) => !Number.isFinite(Number(baseline[name]))
+    );
+    if (missing.length) {
+      throw new Error(`Baseline is missing metric(s): ${missing.join(', ')}`);
+    }
     return baseline;
-  } catch (_error) {
-    return {};
+  } catch (error) {
+    throw new Error(
+      `Renderer bundle accepted-state file at ${ACCEPTED_BUDGET_PATH} is invalid: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }
 
@@ -339,7 +348,9 @@ function main() {
   ].filter(([, delta]) => Boolean(delta));
 
   if (deltaLines.length) {
-    summary.push(`- Baseline: ${path.relative(process.cwd(), BASELINE_PATH) || BASELINE_PATH}`);
+    summary.push(
+      `- Accepted state: ${path.relative(process.cwd(), ACCEPTED_BUDGET_PATH) || ACCEPTED_BUDGET_PATH}`
+    );
     deltaLines.forEach(([label, delta]) => {
       summary.push(`  - ${label}: ${delta}`);
     });

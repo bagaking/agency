@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import os from 'node:os';
 import path from 'node:path';
 
 type Mode = 'dir' | 'dmg' | 'lite';
@@ -12,6 +13,8 @@ type DiskCheck = {
 const projectRoot = path.join(__dirname, '..');
 const distRoot = path.join(projectRoot, 'dist');
 const releaseOutputRoot = path.join(projectRoot, 'dist', 'release');
+const electronBuilderCacheRoot = path.join(os.homedir(), 'Library', 'Caches', 'electron-builder');
+const macCachesRoot = path.join(os.homedir(), 'Library', 'Caches');
 const modeArgIndex = process.argv.findIndex((value) => value === '--mode');
 const modeValue =
   modeArgIndex >= 0 && process.argv[modeArgIndex + 1]
@@ -103,6 +106,13 @@ function getChecks(targetPaths: string[]): DiskCheck[] {
   return targetPaths.map((targetPath) => getDiskCheck(targetPath));
 }
 
+function resolveDiskCheckTarget(targetPath: string, fallbackTarget: string): string {
+  if (fs.existsSync(targetPath)) {
+    return targetPath;
+  }
+  return fallbackTarget;
+}
+
 function isFailing(checks: DiskCheck[], requiredBytes: number): boolean {
   return checks.some((entry) => entry.availableBytes < requiredBytes);
 }
@@ -157,7 +167,10 @@ function listStaleReleaseOutputs(modeToClean: Mode): string[] {
       return [fullPath];
     }
 
-    if (modeToClean === 'dmg' && (lowerName.endsWith('.zip') || lowerName.endsWith('.blockmap'))) {
+    if (
+      (modeToClean === 'dmg' || modeToClean === 'lite') &&
+      (lowerName.endsWith('.zip') || lowerName.endsWith('.blockmap'))
+    ) {
       return [fullPath];
     }
 
@@ -206,7 +219,11 @@ function main(): void {
     lite: parsePositiveGiBOverride('AGENCY_PACKAGE_LITE_MIN_FREE_GIB', 3),
   };
   const requiredBytes = minFreeGiBByMode[mode] * 1024 * 1024 * 1024;
-  const pathsToCheck = [projectRoot, '/tmp'];
+  const pathsToCheck = [
+    projectRoot,
+    '/tmp',
+    resolveDiskCheckTarget(electronBuilderCacheRoot, macCachesRoot),
+  ];
   const cleanup = cleanupStaleReleaseOutputs(mode);
   const initialChecks = getChecks(pathsToCheck);
 

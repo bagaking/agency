@@ -4,7 +4,7 @@ PNPM ?= pnpm
 export CODEX_HOME := $(PWD)/.codex
 export CODEX_HOME_PUB := $(PWD)/.codex_pub
 
-.PHONY: lint build editor-install editor-dev editor-test editor-test-unit editor-test-e2e editor-build-renderer editor-build-renderer-strict editor-package editor-package-clean editor-package-lite editor-package-dir
+.PHONY: lint build editor-install editor-dev editor-test editor-test-unit editor-test-e2e editor-build-renderer editor-build-renderer-budget editor-package editor-package-strict editor-package-clean editor-package-lite editor-package-lite-strict editor-package-dir editor-package-dir-strict
 
 # Lint/check basics: catches unused imports via build and common vet checks
 lint:
@@ -38,11 +38,14 @@ editor-test-e2e:
 editor-build-renderer:
 	cd apps/editor && $(PNPM) run build:renderer
 
-editor-build-renderer-strict:
-	cd apps/editor && $(PNPM) run build:renderer:strict
+editor-build-renderer-budget:
+	cd apps/editor && $(PNPM) run build:renderer:budget
 
 editor-package:
 	cd apps/editor && $(PNPM) run package
+
+editor-package-strict:
+	cd apps/editor && $(PNPM) run package:strict
 
 editor-package-clean:
 	cd apps/editor && $(PNPM) run package:clean
@@ -50,8 +53,14 @@ editor-package-clean:
 editor-package-lite:
 	cd apps/editor && $(PNPM) run package:lite
 
+editor-package-lite-strict:
+	cd apps/editor && $(PNPM) run package:lite:strict
+
 editor-package-dir:
 	cd apps/editor && $(PNPM) run package:dir
+
+editor-package-dir-strict:
+	cd apps/editor && $(PNPM) run package:dir:strict
 
 codex-locale:
 	@echo "CODEX_HOME=$(CODEX_HOME)"
