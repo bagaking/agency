@@ -41,7 +41,6 @@
   "build": {
     "appId": "com.agency.editor",
     "productName": "Agency",
-    "electronDist": "node_modules/electron/dist",
     "directories": {
       "output": "dist/release",
       "buildResources": "renderer/public"

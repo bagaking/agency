@@ -347,7 +347,7 @@ pnpm run accept:renderer-bundle-budget
 - Gzip budgets remain hard failures against the accepted state plus small allowances; raw CSS drift is reported as a warning so minor Tailwind churn does not block local packaging.
 - Local override env vars are intentionally ignored on `*-release` packaging entrypoints. To experiment locally with override thresholds, set `AGENCY_RENDERER_ALLOW_OVERRIDE=1` before running the standalone budget command.
 - Release-gated packaging belongs on the explicit `*-release` entrypoints; packageability-first commands stay local and non-blocking by design.
-- `package:prepare` also validates the configured custom `electronDist` skeleton before the long packaging path. If that source bundle has been mutated, restore it with `cd apps/editor && pnpm install --force` before retrying.
+- Packaging now relies on electron-builder's default Electron distribution resolution instead of pointing `build.electronDist` at `node_modules/electron/dist`. This avoids mutating the installed Electron skeleton during local packaging runs.
 
 ## Makefile (from repo root)
 

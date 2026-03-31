@@ -52,14 +52,11 @@ Packaging prepare step:
   - `/tmp`
   - `~/Library/Caches/electron-builder` (or its parent cache volume when the directory does not exist yet)
 - Before packaging continues, the prepare step removes stale generated outputs in `apps/editor/dist/release` that would conflict with the current mode.
-- The prepare step also validates the configured custom `electronDist` skeleton up front, so a locally mutated `node_modules/electron/dist` fails fast with a clear recovery path instead of surfacing later as electron-builder's opaque `corrupted Electron dist`.
 - If mode-specific cleanup is still not enough but deleting all generated `apps/editor/dist` outputs would make the build fit, the prepare step tells you to run `make editor-package-clean` before retrying.
 - Threshold env overrides:
   - `AGENCY_PACKAGE_DMG_MIN_FREE_GIB`
   - `AGENCY_PACKAGE_LITE_MIN_FREE_GIB`
   - `AGENCY_PACKAGE_DIR_MIN_FREE_GIB`
-- If the custom `electronDist` check fails, restore the installed Electron skeleton with:
-  - `cd apps/editor && pnpm install --force`
 
 Artifacts:
 - `apps/editor/dist/release/Agency-<version>-arm64.dmg`
@@ -81,6 +78,7 @@ Why this split exists:
 - Budget enforcement answers “did the boot footprint regress beyond the accepted state?” and belongs on the explicit budgeted/release entrypoints.
 - This rejects the tempting but wrong shortcut of making every local package command enforce the same front-end budget gate.
 - Accepted-state updates are a deliberate bless step, not an incidental edit: use `make editor-accept-renderer-budget` / `pnpm run accept:renderer-bundle-budget` after intentionally approving the new boot footprint.
+- Do not point `build.electronDist` at `node_modules/electron/dist` for local packaging. That custom path can destabilize mac packaging and can mutate the installed Electron skeleton. Let electron-builder resolve the official Electron distribution on its default path.
 
 ## Install
 1. Open the DMG and drag `Agency.app` into `/Applications`.

@@ -2,10 +2,6 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
-import {
-  estimateConfiguredElectronDistStageBytes,
-  validateConfiguredElectronDist,
-} from './packagingPreflightShared';
 
 type Mode = 'dir' | 'full' | 'lite';
 type Governance = 'packageable' | 'release';
@@ -125,27 +121,8 @@ function resolveDiskCheckTarget(targetPath: string, fallbackTarget: string): str
   return fallbackTarget;
 }
 
-function resolveRequiredBytesForCheck(
-  check: DiskCheck,
-  baseRequiredBytes: number,
-  stagedElectronDistBytes: number
-): number {
-  if (check.targetPath === projectRoot) {
-    return baseRequiredBytes + stagedElectronDistBytes;
-  }
-  return baseRequiredBytes;
-}
-
-function isFailing(
-  checks: DiskCheck[],
-  requiredBytes: number,
-  stagedElectronDistBytes: number
-): boolean {
-  return checks.some(
-    (entry) =>
-      entry.availableBytes <
-      resolveRequiredBytesForCheck(entry, requiredBytes, stagedElectronDistBytes)
-  );
+function isFailing(checks: DiskCheck[], requiredBytes: number): boolean {
+  return checks.some((entry) => entry.availableBytes < requiredBytes);
 }
 
 function estimateChecksAfterCleanup(checks: DiskCheck[], cleanupPaths: string[]): DiskCheck[] {
@@ -263,29 +240,16 @@ function main(): void {
     resolveDiskCheckTarget(electronBuilderCacheRoot, macCachesRoot),
   ];
   const retryCommand = getRetryCommandForMode(mode, governance);
-  validateConfiguredElectronDist(projectRoot, retryCommand);
   const cleanup = cleanupStaleReleaseOutputs(mode);
   const initialChecks = getChecks(pathsToCheck);
-  const stagedElectronDistBytes = estimateConfiguredElectronDistStageBytes(projectRoot);
 
-  if (!isFailing(initialChecks, requiredBytes, stagedElectronDistBytes)) {
+  if (!isFailing(initialChecks, requiredBytes)) {
     const prefix =
       cleanup.removedPaths.length > 0
         ? `[package-preflight] mode=${mode} governance=${governance} free-space ok after cleaning stale release outputs`
         : `[package-preflight] mode=${mode} governance=${governance} free-space ok`;
     console.log(`${prefix} (${initialChecks
-      .map((entry) => {
-        const requiredForEntry = resolveRequiredBytesForCheck(
-          entry,
-          requiredBytes,
-          stagedElectronDistBytes
-        );
-        const requiredLabel =
-          requiredForEntry === requiredBytes
-            ? ''
-            : ` / requires ${formatBytes(requiredForEntry)} incl. staged electronDist`;
-        return `${entry.targetPath}: ${formatBytes(entry.availableBytes)}${requiredLabel}`;
-      })
+      .map((entry) => `${entry.targetPath}: ${formatBytes(entry.availableBytes)}`)
       .join(', ')})`);
     if (cleanup.removedPaths.length > 0) {
       console.log(
@@ -302,26 +266,18 @@ function main(): void {
   const fullDistCleanWouldPass =
     fs.existsSync(distRoot) &&
     getPathSizeBytes(distRoot) > 0 &&
-    !isFailing(fullDistCleanEstimate, requiredBytes, stagedElectronDistBytes);
+    !isFailing(fullDistCleanEstimate, requiredBytes);
   const fullDistCleanBytes = fs.existsSync(distRoot) ? getPathSizeBytes(distRoot) : 0;
 
   const lines = [
     `[package-preflight] insufficient free space for mode=${mode} governance=${governance}.`,
-    `required: at least ${minFreeGiBByMode[mode]} GiB free on each checked volume, plus any staged electronDist copy on the project volume.`,
+    `required: at least ${minFreeGiBByMode[mode]} GiB free on the packaging volume.`,
     ...checks.map(
-      (entry) =>
-        `observed: ${entry.targetPath} -> ${formatBytes(entry.availableBytes)} free (needs ${formatBytes(
-          resolveRequiredBytesForCheck(entry, requiredBytes, stagedElectronDistBytes)
-        )})`
+      (entry) => `observed: ${entry.targetPath} -> ${formatBytes(entry.availableBytes)} free`
     ),
     ...(cleanup.removedPaths.length > 0
       ? [
           `cleanup: removed ${cleanup.removedPaths.length} stale output(s), reclaimed ${formatBytes(cleanup.reclaimedBytes)}`,
-        ]
-      : []),
-    ...(stagedElectronDistBytes > 0
-      ? [
-          `electronDist stage: estimated ${formatBytes(stagedElectronDistBytes)} temporary copy on ${projectRoot}`,
         ]
       : []),
     'suggested actions:',
