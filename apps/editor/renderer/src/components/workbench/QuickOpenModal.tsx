@@ -3,6 +3,7 @@ import { CircleDot, FileText, Search, X } from 'lucide-react';
 import { isAgencyMethodAvailable, searchExplorerFiles } from '../../services/agencyBridge';
 import {
   buildWorkbenchQuickOpenSections,
+  parseWorkbenchQuickOpenQuery,
   type WorkbenchQuickOpenItem,
 } from './workbenchQuickOpenModel';
 
@@ -19,6 +20,7 @@ export function QuickOpenModal({
   const [loading, setLoading] = useState(false);
   const [truncated, setTruncated] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const parsedQuery = useMemo(() => parseWorkbenchQuickOpenQuery(query), [query]);
 
   useEffect(() => {
     if (!open) {
@@ -39,13 +41,18 @@ export function QuickOpenModal({
         setTruncated(false);
         return;
       }
+      if (!parsedQuery.pathQuery) {
+        setResults([]);
+        setTruncated(false);
+        return;
+      }
       if (!isAgencyMethodAvailable('searchExplorerFiles')) {
         return;
       }
       setLoading(true);
       try {
         const result = await searchExplorerFiles({
-          query: query.trim(),
+          query: parsedQuery.pathQuery,
           rootPath: rootPath || undefined,
         });
         setResults(result?.matches || []);
@@ -58,7 +65,7 @@ export function QuickOpenModal({
       }
     }, 200);
     return () => clearTimeout(handle);
-  }, [open, query, rootPath]);
+  }, [open, parsedQuery.pathQuery, query, rootPath]);
 
   const sections = useMemo(
     () =>
@@ -128,6 +135,9 @@ export function QuickOpenModal({
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X size={14} />
           </button>
+        </div>
+        <div className="px-4 pt-2 text-[10px] text-muted-foreground/70">
+          Type a path, or add <span className="font-mono">:line[:column]</span> to jump inside the file.
         </div>
         <div className="max-h-[320px] overflow-y-auto">
           {!query.trim() && sections.length > 0 ? (

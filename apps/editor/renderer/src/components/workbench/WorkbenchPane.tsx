@@ -118,6 +118,7 @@ function WorkbenchPaneContent({
   
   const [tabStateById, setTabStateById] = useState({});
   const [quickOpenVisible, setQuickOpenVisible] = useState(false);
+  const [localPendingJump, setLocalPendingJump] = useState<any>(null);
   const [statusPosition, setStatusPosition] = useState({ line: 1, column: 1 });
   const [tabMenu, setTabMenu] = useState(null);
   const [editorToken, setEditorToken] = useState(0);
@@ -132,6 +133,7 @@ function WorkbenchPaneContent({
   });
 
   const activeState = activeTab ? tabStateById[activeTab.id] || {} : {};
+  const effectivePendingJump = pendingJump || localPendingJump;
   const resolvedCommentLines = Array.isArray(commentLines) ? commentLines : [];
   const canComment = Boolean(activeTab && activeTab.kind === 'code');
   const isCodeTab = activeState.kind === 'code';
@@ -301,17 +303,25 @@ function WorkbenchPaneContent({
   }, [activeTab?.id, onSelectionChange]);
 
   useEffect(() => {
-    if (!pendingJump || !activeTab) {
+    if (!effectivePendingJump || !activeTab) {
       return;
     }
-    if (pendingJump.path !== activeTab.path || pendingJump.rootPath !== activeTab.rootPath) {
+    if (
+      effectivePendingJump.path !== activeTab.path ||
+      effectivePendingJump.rootPath !== activeTab.rootPath
+    ) {
       return;
     }
     if (activeState.loading) {
       return;
     }
     if (activeState.kind !== 'code') {
-      onJumpHandled?.();
+      if (pendingJump) {
+        onJumpHandled?.();
+      }
+      if (localPendingJump) {
+        setLocalPendingJump(null);
+      }
       return;
     }
     const editor = activeEditorRef.current;
@@ -319,18 +329,25 @@ function WorkbenchPaneContent({
       return;
     }
     const model = editor.getModel?.();
-    const maxLine = model?.getLineCount?.() || pendingJump.line || 1;
-    const line = Math.min(Math.max(1, Math.floor(pendingJump.line || 1)), maxLine);
-    const column = Math.max(1, Math.floor(pendingJump.column || 1));
+    const maxLine = model?.getLineCount?.() || effectivePendingJump.line || 1;
+    const line = Math.min(Math.max(1, Math.floor(effectivePendingJump.line || 1)), maxLine);
+    const column = Math.max(1, Math.floor(effectivePendingJump.column || 1));
     editor.setPosition?.({ lineNumber: line, column });
     editor.revealPositionInCenter?.({ lineNumber: line, column });
     editor.focus?.();
-    onJumpHandled?.();
+    if (pendingJump) {
+      onJumpHandled?.();
+    }
+    if (localPendingJump) {
+      setLocalPendingJump(null);
+    }
   }, [
     activeState.kind,
     activeState.loading,
     activeTab,
     editorToken,
+    effectivePendingJump,
+    localPendingJump,
     onJumpHandled,
     pendingJump,
   ]);
@@ -601,10 +618,26 @@ function WorkbenchPaneContent({
 	        onSelect={(item) => {
 	          if (item?.kind === 'tab' && item?.tabId) {
 	            setActiveTab(item.tabId);
+	            if (item.line) {
+	              setLocalPendingJump({
+	                path: item.path,
+	                rootPath: item.rootPath || activeRootPath,
+	                line: item.line,
+	                column: item.column || 1,
+	              });
+	            }
 	            return;
 	          }
 	          if (item?.path) {
 	            openFile({ path: item.path, mode: 'preview', rootPath: activeRootPath });
+	            if (item.line) {
+	              setLocalPendingJump({
+	                path: item.path,
+	                rootPath: activeRootPath,
+	                line: item.line,
+	                column: item.column || 1,
+	              });
+	            }
 	          }
 	        }}
 	        rootPath={activeRootPath}

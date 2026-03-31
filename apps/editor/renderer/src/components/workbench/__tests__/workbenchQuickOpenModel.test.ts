@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildWorkbenchQuickOpenSections } from '../workbenchQuickOpenModel';
+import {
+  buildWorkbenchQuickOpenSections,
+  parseWorkbenchQuickOpenQuery,
+} from '../workbenchQuickOpenModel';
 
 test('buildWorkbenchQuickOpenSections shows open tabs before project files and dedupes paths', () => {
   const sections = buildWorkbenchQuickOpenSections({
@@ -43,4 +46,38 @@ test('buildWorkbenchQuickOpenSections uses open tabs as immediate targets for em
   assert.equal(sections.length, 1);
   assert.equal(sections[0]?.id, 'open-tabs');
   assert.equal(sections[0]?.items[1]?.isActive, true);
+});
+
+test('parseWorkbenchQuickOpenQuery keeps path and line/column targets separate', () => {
+  assert.deepEqual(parseWorkbenchQuickOpenQuery('apps/editor/config.toml:42:7'), {
+    raw: 'apps/editor/config.toml:42:7',
+    pathQuery: 'apps/editor/config.toml',
+    line: 42,
+    column: 7,
+    hasLocation: true,
+  });
+
+  assert.deepEqual(parseWorkbenchQuickOpenQuery(':12'), {
+    raw: ':12',
+    pathQuery: '',
+    line: 12,
+    column: null,
+    hasLocation: true,
+  });
+});
+
+test('buildWorkbenchQuickOpenSections propagates parsed line and column to both tab and file targets', () => {
+  const sections = buildWorkbenchQuickOpenSections({
+    query: 'config.toml:12:4',
+    activeTabId: 'tab-1',
+    openTabs: [
+      { id: 'tab-1', path: 'apps/editor/config.toml', title: 'config.toml', isPreview: false },
+    ],
+    fileMatches: ['apps/editor/config.toml', 'docs/config-guide.md'],
+  });
+
+  assert.equal(sections[0]?.items[0]?.line, 12);
+  assert.equal(sections[0]?.items[0]?.column, 4);
+  assert.equal(sections[1]?.items[0]?.line, 12);
+  assert.equal(sections[1]?.items[0]?.column, 4);
 });

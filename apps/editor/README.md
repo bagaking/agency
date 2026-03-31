@@ -44,7 +44,7 @@
 - Explorer can paste files or screenshots from the system clipboard, applying `-1` style conflict suffixes.
 - Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
 - Explorer includes a bounded research lane for public URL inspection, reader preview, workspace Markdown save, memo citation with optional saved-file references, and an explicit system-browser escape hatch.
-- The workbench supports multi-tab previews, a path-first Quick Open launcher for open tabs and project files, diff/blame toggles, media previews, active-tab disk-change auto sync (auto-reload when clean, warning + reload when dirty), project-level language rules from `.agency/workbench.yaml` / `.agency/workbench.yml`, and a window-local document language control that shows `Auto` / `Project Rule` / `Local Override`.
+- The workbench supports multi-tab previews, a path-first Quick Open launcher for open tabs and project files with optional `:line[:column]` targeting, diff/blame toggles, media previews, active-tab disk-change auto sync (auto-reload when clean, warning + reload when dirty), project-level language rules from `.agency/workbench.yaml` / `.agency/workbench.yml`, and a window-local document language control that shows `Auto` / `Project Rule` / `Local Override`.
 
 ## Unified File Interaction Direction
 
@@ -385,7 +385,7 @@ make editor-package-lite-release
 - Create a memo citation from the same research capture and confirm it enters the existing HIL/Memo flow rather than a research-only dispatch path.
 - Try a localhost/private URL and confirm reader inspect is rejected while the explicit system-browser escape hatch remains visible.
 - Double-click a file to pin its tab, drag tabs to reorder, and close tabs from the tab strip menu.
-- Use Cmd/Ctrl+P to open Quick Open, confirm open tabs appear immediately, then search a project file and confirm selection closes the launcher and opens the file as a preview tab.
+- Use Cmd/Ctrl+P to open Quick Open, confirm open tabs appear immediately, then search a project file and confirm selection closes the launcher and opens the file as a preview tab. Repeat with `path:line[:column]` and confirm the editor jumps to the requested location.
 - Toggle diff and blame on a modified file and confirm decorations/hover metadata appear.
 - Edit an opened file on disk outside Agency and confirm the active tab auto-refreshes when clean, or shows a reload warning when the tab has unsaved edits.
 - Open an image or PDF file and confirm media preview renders with zoom/fit controls.

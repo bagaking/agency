@@ -2,6 +2,7 @@ export type WorkbenchQuickOpenTab = {
   id: string;
   path: string;
   title: string;
+  rootPath?: string;
   isPreview?: boolean;
 };
 
@@ -14,6 +15,9 @@ export type WorkbenchQuickOpenItem = {
   badge?: string;
   tabId?: string;
   isActive?: boolean;
+  rootPath?: string;
+  line?: number;
+  column?: number;
 };
 
 export type WorkbenchQuickOpenSection = {
@@ -27,6 +31,30 @@ const normalizeQuery = (value: unknown) => String(value || '').trim().toLowerCas
 const matchesQuery = (value: string, query: string) =>
   !query || String(value || '').toLowerCase().includes(query);
 
+export type WorkbenchQuickOpenQuery = {
+  raw: string;
+  pathQuery: string;
+  line: number | null;
+  column: number | null;
+  hasLocation: boolean;
+};
+
+export function parseWorkbenchQuickOpenQuery(input: unknown): WorkbenchQuickOpenQuery {
+  const raw = String(input || '').trim();
+  const match = /^(.*?)(?::(\d+))?(?::(\d+))?$/.exec(raw);
+  const rawPathQuery = match ? String(match[1] || '') : raw;
+  const line = match?.[2] ? Math.max(1, Number(match[2])) : null;
+  const column = match?.[3] ? Math.max(1, Number(match[3])) : null;
+  const pathQuery = rawPathQuery.trim();
+  return {
+    raw,
+    pathQuery,
+    line,
+    column,
+    hasLocation: Number.isFinite(line) || Number.isFinite(column),
+  };
+}
+
 export function buildWorkbenchQuickOpenSections({
   query,
   openTabs,
@@ -38,7 +66,8 @@ export function buildWorkbenchQuickOpenSections({
   activeTabId?: string | null;
   fileMatches: string[];
 }): WorkbenchQuickOpenSection[] {
-  const normalizedQuery = normalizeQuery(query);
+  const parsedQuery = parseWorkbenchQuickOpenQuery(query);
+  const normalizedQuery = normalizeQuery(parsedQuery.pathQuery);
   const tabs = (Array.isArray(openTabs) ? openTabs : []).filter(
     (tab) => tab?.id && tab?.path
   );
@@ -59,6 +88,9 @@ export function buildWorkbenchQuickOpenSections({
           badge: tab.isPreview ? 'Preview' : 'Pinned',
           tabId: tab.id,
           isActive: activeTabId === tab.id,
+          rootPath: tab.rootPath || '',
+          line: parsedQuery.line || undefined,
+          column: parsedQuery.column || undefined,
         })),
       }
     : null;
@@ -78,6 +110,9 @@ export function buildWorkbenchQuickOpenSections({
           path: filePath,
           title: filePath.split('/').filter(Boolean).pop() || filePath,
           subtitle: filePath,
+          rootPath: '',
+          line: parsedQuery.line || undefined,
+          column: parsedQuery.column || undefined,
         })),
       }
     : null;
