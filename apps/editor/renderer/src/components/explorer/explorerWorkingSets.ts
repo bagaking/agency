@@ -37,7 +37,7 @@ export const EXPLORER_WORKING_SET_DESCRIPTORS: ExplorerWorkingSetDescriptor[] = 
     implemented: true,
     panelId: 'changed-files',
     supportsFilterMenu: false,
-    supportedSearchModes: ['content'],
+    supportedSearchModes: ['content', 'url'],
     supportedContentScopeKinds: ['project'],
     title: 'Changed Files',
   },
