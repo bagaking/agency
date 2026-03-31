@@ -106,3 +106,13 @@ export function buildDetachedCellSessionSummary(sessions: any[] = []): string[] 
   }
   return ['No sessions'];
 }
+
+export function buildArchivedCellCardCopy(cell: any, sessionSummary: string[]) {
+  const summaryText = sessionSummary.join(' · ') || 'No sessions';
+  return {
+    eyebrow: 'Archived Cell',
+    body:
+      'This Cell is archived. Its repo-owned sessions and evidence remain available even though the worktree is no longer live.',
+    summary: summaryText,
+  };
+}

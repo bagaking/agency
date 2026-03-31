@@ -32,6 +32,7 @@ import {
 import { buildAgentCellChildSessionOptions } from '../../utils/agentCellChildSession';
 import { useCommanderStatus } from '../../hooks/useCommanderStatus';
 import { DetachedCellCleanupCard } from './DetachedCellCleanupCard';
+import { ArchivedCellCard } from './ArchivedCellCard';
 import {
   CellStateBadge,
   isArchivedDetachedCell,
@@ -1407,7 +1408,7 @@ export function AgentCellsSessionsPanel({
                 {archivedDetachedCells.map((cell: any) => {
                   const cellAttention = attention.byCellId[cell.id];
                   return (
-                    <DetachedCellCleanupCard
+                    <ArchivedCellCard
                       key={cell.id}
                       cell={cell}
                       sessions={resolveCellSessions(String(cell.id))}
@@ -1415,7 +1416,6 @@ export function AgentCellsSessionsPanel({
                       attentionItem={cellAttention?.strongest || null}
                       attentionCount={cellAttention?.count || 0}
                       onSelect={onSelect}
-                      onArchive={onArchiveCell}
                     />
                   );
                 })}
