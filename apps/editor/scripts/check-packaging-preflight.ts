@@ -2,6 +2,10 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
+import {
+  estimateConfiguredElectronDistStageBytes,
+  validateConfiguredElectronDist,
+} from './packagingPreflightShared';
 
 type Mode = 'dir' | 'full' | 'lite';
 type Governance = 'packageable' | 'release';
@@ -121,8 +125,27 @@ function resolveDiskCheckTarget(targetPath: string, fallbackTarget: string): str
   return fallbackTarget;
 }
 
-function isFailing(checks: DiskCheck[], requiredBytes: number): boolean {
-  return checks.some((entry) => entry.availableBytes < requiredBytes);
+function resolveRequiredBytesForCheck(
+  check: DiskCheck,
+  baseRequiredBytes: number,
+  stagedElectronDistBytes: number
+): number {
+  if (check.targetPath === projectRoot) {
+    return baseRequiredBytes + stagedElectronDistBytes;
+  }
+  return baseRequiredBytes;
+}
+
+function isFailing(
+  checks: DiskCheck[],
+  requiredBytes: number,
+  stagedElectronDistBytes: number
+): boolean {
+  return checks.some(
+    (entry) =>
+      entry.availableBytes <
+      resolveRequiredBytesForCheck(entry, requiredBytes, stagedElectronDistBytes)
+  );
 }
 
 function estimateChecksAfterCleanup(checks: DiskCheck[], cleanupPaths: string[]): DiskCheck[] {
@@ -239,16 +262,30 @@ function main(): void {
     '/tmp',
     resolveDiskCheckTarget(electronBuilderCacheRoot, macCachesRoot),
   ];
+  const retryCommand = getRetryCommandForMode(mode, governance);
+  validateConfiguredElectronDist(projectRoot, retryCommand);
   const cleanup = cleanupStaleReleaseOutputs(mode);
   const initialChecks = getChecks(pathsToCheck);
+  const stagedElectronDistBytes = estimateConfiguredElectronDistStageBytes(projectRoot);
 
-  if (!isFailing(initialChecks, requiredBytes)) {
+  if (!isFailing(initialChecks, requiredBytes, stagedElectronDistBytes)) {
     const prefix =
       cleanup.removedPaths.length > 0
         ? `[package-preflight] mode=${mode} governance=${governance} free-space ok after cleaning stale release outputs`
         : `[package-preflight] mode=${mode} governance=${governance} free-space ok`;
     console.log(`${prefix} (${initialChecks
-      .map((entry) => `${entry.targetPath}: ${formatBytes(entry.availableBytes)}`)
+      .map((entry) => {
+        const requiredForEntry = resolveRequiredBytesForCheck(
+          entry,
+          requiredBytes,
+          stagedElectronDistBytes
+        );
+        const requiredLabel =
+          requiredForEntry === requiredBytes
+            ? ''
+            : ` / requires ${formatBytes(requiredForEntry)} incl. staged electronDist`;
+        return `${entry.targetPath}: ${formatBytes(entry.availableBytes)}${requiredLabel}`;
+      })
       .join(', ')})`);
     if (cleanup.removedPaths.length > 0) {
       console.log(
@@ -265,25 +302,33 @@ function main(): void {
   const fullDistCleanWouldPass =
     fs.existsSync(distRoot) &&
     getPathSizeBytes(distRoot) > 0 &&
-    !isFailing(fullDistCleanEstimate, requiredBytes);
+    !isFailing(fullDistCleanEstimate, requiredBytes, stagedElectronDistBytes);
   const fullDistCleanBytes = fs.existsSync(distRoot) ? getPathSizeBytes(distRoot) : 0;
 
   const lines = [
     `[package-preflight] insufficient free space for mode=${mode} governance=${governance}.`,
-    `required: at least ${minFreeGiBByMode[mode]} GiB free on the packaging volume.`,
+    `required: at least ${minFreeGiBByMode[mode]} GiB free on each checked volume, plus any staged electronDist copy on the project volume.`,
     ...checks.map(
-      (entry) => `observed: ${entry.targetPath} -> ${formatBytes(entry.availableBytes)} free`
+      (entry) =>
+        `observed: ${entry.targetPath} -> ${formatBytes(entry.availableBytes)} free (needs ${formatBytes(
+          resolveRequiredBytesForCheck(entry, requiredBytes, stagedElectronDistBytes)
+        )})`
     ),
     ...(cleanup.removedPaths.length > 0
       ? [
           `cleanup: removed ${cleanup.removedPaths.length} stale output(s), reclaimed ${formatBytes(cleanup.reclaimedBytes)}`,
         ]
       : []),
+    ...(stagedElectronDistBytes > 0
+      ? [
+          `electronDist stage: estimated ${formatBytes(stagedElectronDistBytes)} temporary copy on ${projectRoot}`,
+        ]
+      : []),
     'suggested actions:',
     '- preflight already deletes stale generated outputs in apps/editor/dist/release when they would block the current mode',
     ...(fullDistCleanWouldPass
       ? [
-          `- run \`${getRetryCommandForMode(mode, governance)}\` to remove all generated dist outputs first; estimated reclaim: ${formatBytes(fullDistCleanBytes)}`,
+          `- run \`${retryCommand}\` to remove all generated dist outputs first; estimated reclaim: ${formatBytes(fullDistCleanBytes)}`,
         ]
       : []),
     '- clear ~/Library/Caches/electron-builder if it is safe to do so',

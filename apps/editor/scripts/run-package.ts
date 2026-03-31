@@ -1,4 +1,8 @@
 import { spawn } from 'node:child_process';
+import {
+  cleanupStagedElectronDist,
+  stageConfiguredElectronDist,
+} from './packagingPreflightShared';
 
 type PackageMode = 'full' | 'lite' | 'dir';
 type PackageGovernance = 'packageable' | 'release';
@@ -56,14 +60,17 @@ function buildReleaseBudgetEnv() {
   return env;
 }
 
-function resolveBuilderArgs(mode: PackageMode): string[] {
-  if (mode === 'lite') {
-    return ['exec', 'electron-builder', '--mac', 'dmg'];
+function resolveBuilderArgs(mode: PackageMode, stagedElectronDist: string | null): string[] {
+  const args =
+    mode === 'lite'
+      ? ['exec', 'electron-builder', '--mac', 'dmg']
+      : mode === 'dir'
+        ? ['exec', 'electron-builder', '--mac', '--dir']
+        : ['exec', 'electron-builder', '--mac'];
+  if (stagedElectronDist) {
+    args.push(`--config.electronDist=${stagedElectronDist}`);
   }
-  if (mode === 'dir') {
-    return ['exec', 'electron-builder', '--mac', '--dir'];
-  }
-  return ['exec', 'electron-builder', '--mac'];
+  return args;
 }
 
 async function main() {
@@ -75,9 +82,15 @@ async function main() {
   }
   await run('pnpm', ['run', 'build:electron']);
   await run('pnpm', ['run', 'build:speech-helper']);
-  await run('pnpm', resolveBuilderArgs(mode), {
-    TMPDIR: '/tmp',
-  });
+  let stagedElectronDist: string | null = null;
+  try {
+    stagedElectronDist = stageConfiguredElectronDist(process.cwd());
+    await run('pnpm', resolveBuilderArgs(mode, stagedElectronDist), {
+      TMPDIR: '/tmp',
+    });
+  } finally {
+    cleanupStagedElectronDist(process.cwd());
+  }
 }
 
 void main().catch((error) => {
