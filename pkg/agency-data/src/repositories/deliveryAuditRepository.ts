@@ -21,16 +21,9 @@ type DeliveryAuditStorageInput =
     });
 
 type DeliveryAuditStoragePaths = {
-  mode: OwnerStorageResolution['mode'];
-  ownerKind: OwnerStorageResolution['ownerKind'];
-  repoRootPath: string;
-  cellId: string;
-  worktreePath: string;
-  storageRootPath: string;
-  worktreeName: string;
-  ownerRoot: string;
+  owner: OwnerStorageResolution;
   logPath: string;
-  legacyLogPath: string;
+  legacyLogPaths: string[];
 };
 
 function normalizeText(value: unknown): string {
@@ -41,6 +34,19 @@ function getLegacyDeliveryAuditLogPath(worktreePath: string): string {
   const normalizedWorktreePath = path.resolve(worktreePath);
   const worktreeName = path.basename(normalizedWorktreePath);
   return path.join(normalizedWorktreePath, AGENCY_DIR, DELIVERY_DIR, `events-${worktreeName}.jsonl`);
+}
+
+function normalizeLegacyCanonicalCellId(value: unknown): string {
+  return normalizeText(value).replace(/[^a-zA-Z0-9-_]/g, '-');
+}
+
+function getLegacyCanonicalDeliveryAuditLogPath(repoRootPath: string, cellId: string): string {
+  const normalizedRepoRootPath = path.resolve(repoRootPath);
+  const normalizedCellId = normalizeLegacyCanonicalCellId(cellId);
+  if (!normalizedCellId) {
+    return '';
+  }
+  return path.join(normalizedRepoRootPath, AGENCY_DIR, 'cells', normalizedCellId, DELIVERY_DIR, DELIVERY_LOG_FILENAME);
 }
 
 function resolveDeliveryAuditStoragePaths(input: DeliveryAuditStorageInput = {}): DeliveryAuditStoragePaths {
@@ -65,13 +71,22 @@ function resolveDeliveryAuditStoragePaths(input: DeliveryAuditStorageInput = {})
   const logPath =
     owner.mode === 'canonical'
       ? path.join(owner.ownerRoot, DELIVERY_DIR, DELIVERY_LOG_FILENAME)
-      : path.join(owner.ownerRoot, DELIVERY_DIR, `events-${owner.worktreeName}.jsonl`);
+      : path.join(owner.ownerRoot, DELIVERY_DIR, `events-${owner.legacy?.worktreeName || 'repo'}.jsonl`);
+  const legacyLogPaths = new Set<string>();
+  if (owner.legacy?.storageRootPath) {
+    legacyLogPaths.add(getLegacyDeliveryAuditLogPath(owner.worktreePath));
+  }
+  if (owner.mode === 'canonical' && owner.projectRootPath && owner.cellId) {
+    const priorCanonicalPath = getLegacyCanonicalDeliveryAuditLogPath(owner.projectRootPath, owner.cellId);
+    if (priorCanonicalPath && priorCanonicalPath !== logPath) {
+      legacyLogPaths.add(priorCanonicalPath);
+    }
+  }
 
   return {
-    ...owner,
-    repoRootPath: owner.projectRootPath,
+    owner,
     logPath,
-    legacyLogPath: owner.worktreePath ? getLegacyDeliveryAuditLogPath(owner.worktreePath) : '',
+    legacyLogPaths: Array.from(legacyLogPaths),
   };
 }
 
@@ -173,7 +188,7 @@ async function readAuditEventsFromPath(logPath: string): Promise<DeliveryAuditEv
 }
 
 async function ensureDeliveryAuditMigration(paths: DeliveryAuditStoragePaths): Promise<void> {
-  if (paths.mode !== 'canonical' || !paths.logPath || !paths.legacyLogPath) {
+  if (paths.owner.mode !== 'canonical' || !paths.logPath || !paths.legacyLogPaths.length) {
     return;
   }
   const repoExists = await fsp
@@ -183,15 +198,22 @@ async function ensureDeliveryAuditMigration(paths: DeliveryAuditStoragePaths): P
   if (repoExists) {
     return;
   }
-  const legacyExists = await fsp
-    .stat(paths.legacyLogPath)
-    .then((stat) => stat.isFile())
-    .catch(() => false);
-  if (!legacyExists) {
+  const sourceLogPath = await paths.legacyLogPaths.reduce<Promise<string>>(async (foundPromise, candidate) => {
+    const found = await foundPromise;
+    if (found) {
+      return found;
+    }
+    const exists = await fsp
+      .stat(candidate)
+      .then((stat) => stat.isFile())
+      .catch(() => false);
+    return exists ? candidate : '';
+  }, Promise.resolve(''));
+  if (!sourceLogPath) {
     return;
   }
   await fsp.mkdir(path.dirname(paths.logPath), { recursive: true });
-  await fsp.copyFile(paths.legacyLogPath, paths.logPath);
+  await fsp.copyFile(sourceLogPath, paths.logPath);
 }
 
 function matchesFilter(event: DeliveryAuditEvent, filter: { source?: string; mode?: string } = {}): boolean {

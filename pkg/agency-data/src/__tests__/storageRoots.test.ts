@@ -66,3 +66,19 @@ test('helper path builders normalize repo and cell roots consistently', () => {
   assert.equal(getRepoAgencyDir('/repo'), '/repo/.agency');
   assert.equal(getCellOwnerRoot('/repo', 'cell.alpha'), '/repo/.agency/cells/cell.alpha');
 });
+
+test('cell owner resolution rejects dot-only path traversal segments', () => {
+  assert.equal(getCellOwnerRoot('/repo', '.'), '');
+  assert.equal(getCellOwnerRoot('/repo', '..'), '');
+  assert.throws(
+    () =>
+      requireOwnerStorage(
+        {
+          projectRootPath: '/repo',
+          cellId: '..',
+        },
+        'cell'
+      ),
+    /worktreePath or projectRootPath \+ cellId is required/
+  );
+});

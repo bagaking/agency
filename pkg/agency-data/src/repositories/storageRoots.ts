@@ -10,15 +10,20 @@ export type WorktreeStorageContext = {
 
 export type OwnerStorageKind = 'project' | 'cell';
 
+export type OwnerStorageLegacyBridge = {
+  storageRootPath: string;
+  worktreeName: string;
+  ownerRoot: string;
+};
+
 export type OwnerStorageResolution = {
   ownerKind: OwnerStorageKind;
   mode: 'canonical' | 'legacy' | 'invalid';
   worktreePath: string;
   projectRootPath: string;
   cellId: string;
-  storageRootPath: string;
-  worktreeName: string;
   ownerRoot: string;
+  legacy: OwnerStorageLegacyBridge | null;
 };
 
 export function normalizeStorageContext(context: WorktreeStorageContext = {}): WorktreeStorageContext {
@@ -74,75 +79,73 @@ export function getCellOwnerRoot(projectRootPath: string, cellId: string): strin
   return path.join(repoAgencyDir, 'cells', normalizedCellId);
 }
 
+function buildLegacyBridge(worktreePath: string): OwnerStorageLegacyBridge | null {
+  const normalizedWorktreePath = String(worktreePath || '').trim();
+  if (!normalizedWorktreePath) {
+    return null;
+  }
+  const { storageRootPath, worktreeName } = getStoragePaths({
+    worktreePath: normalizedWorktreePath,
+  });
+  return {
+    storageRootPath,
+    worktreeName,
+    ownerRoot: path.join(storageRootPath, AGENCY_DIR),
+  };
+}
+
 export function resolveOwnerStorage(
   context: WorktreeStorageContext,
   ownerKind: OwnerStorageKind
 ): OwnerStorageResolution {
   const normalized = normalizeStorageContext(context);
+  const legacy = buildLegacyBridge(normalized.worktreePath);
   if (ownerKind === 'project') {
     if (normalized.projectRootPath) {
-      const { storageRootPath, worktreeName } = getStoragePaths({
-        projectRootPath: normalized.projectRootPath,
-        worktreePath: normalized.worktreePath,
-      });
       return {
         ownerKind,
         mode: 'canonical',
         worktreePath: normalized.worktreePath || '',
         projectRootPath: normalized.projectRootPath,
         cellId: '',
-        storageRootPath,
-        worktreeName,
         ownerRoot: getRepoAgencyDir(normalized.projectRootPath),
+        legacy,
       };
     }
-    if (normalized.worktreePath) {
-      const { storageRootPath, worktreeName } = getStoragePaths({
-        worktreePath: normalized.worktreePath,
-      });
+    if (legacy) {
       return {
         ownerKind,
         mode: 'legacy',
-        worktreePath: normalized.worktreePath,
+        worktreePath: normalized.worktreePath || '',
         projectRootPath: '',
         cellId: '',
-        storageRootPath,
-        worktreeName,
-        ownerRoot: path.join(storageRootPath, AGENCY_DIR),
+        ownerRoot: legacy.ownerRoot,
+        legacy,
       };
     }
   }
 
   if (ownerKind === 'cell') {
     if (normalized.projectRootPath && normalized.cellId) {
-      const { storageRootPath, worktreeName } = getStoragePaths({
-        projectRootPath: normalized.projectRootPath,
-        worktreePath: normalized.worktreePath,
-      });
       return {
         ownerKind,
         mode: 'canonical',
         worktreePath: normalized.worktreePath || '',
         projectRootPath: normalized.projectRootPath,
         cellId: normalized.cellId,
-        storageRootPath,
-        worktreeName,
         ownerRoot: getCellOwnerRoot(normalized.projectRootPath, normalized.cellId),
+        legacy,
       };
     }
-    if (normalized.worktreePath) {
-      const { storageRootPath, worktreeName } = getStoragePaths({
-        worktreePath: normalized.worktreePath,
-      });
+    if (legacy) {
       return {
         ownerKind,
         mode: 'legacy',
-        worktreePath: normalized.worktreePath,
+        worktreePath: normalized.worktreePath || '',
         projectRootPath: '',
         cellId: '',
-        storageRootPath,
-        worktreeName,
-        ownerRoot: path.join(storageRootPath, AGENCY_DIR),
+        ownerRoot: legacy.ownerRoot,
+        legacy,
       };
     }
   }
@@ -153,9 +156,8 @@ export function resolveOwnerStorage(
     worktreePath: '',
     projectRootPath: '',
     cellId: '',
-    storageRootPath: '',
-    worktreeName: '',
     ownerRoot: '',
+    legacy: null,
   };
 }
 
@@ -181,5 +183,8 @@ export function sanitizeStorageSegment(value: unknown, fallback = 'unknown'): st
     .trim()
     .replace(/[^a-zA-Z0-9._-]+/g, '-')
     .replace(/^-+|-+$/g, '');
+  if (!normalized || normalized === '.' || normalized === '..') {
+    return fallback;
+  }
   return normalized || fallback;
 }

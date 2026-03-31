@@ -36,14 +36,7 @@ type HilStorageInput =
     });
 
 type HilStoragePaths = {
-  mode: OwnerStorageResolution['mode'];
-  ownerKind: OwnerStorageResolution['ownerKind'];
-  worktreePath: string;
-  projectRootPath: string;
-  cellId: string;
-  storageRootPath: string;
-  worktreeName: string;
-  ownerRoot: string;
+  owner: OwnerStorageResolution;
   indexPath: string;
   treeRoot: string;
   legacyIndexPath: string;
@@ -119,16 +112,17 @@ function resolveHilStoragePaths(input: HilStorageInput = {}): HilStoragePaths {
     'worktreePath or projectRootPath + cellId is required.'
   );
   const hilRoot = path.join(owner.ownerRoot, HIL_DIR);
+  const legacyWorktreeName = owner.legacy?.worktreeName || 'repo';
   return {
-    ...owner,
+    owner,
     indexPath:
       owner.mode === 'canonical'
         ? path.join(hilRoot, HIL_INDEX_FILENAME)
-        : path.join(hilRoot, `${HIL_PREFIX}${owner.worktreeName}${HIL_EXT}`),
+        : path.join(hilRoot, `${HIL_PREFIX}${legacyWorktreeName}${HIL_EXT}`),
     treeRoot:
       owner.mode === 'canonical'
         ? hilRoot
-        : path.join(hilRoot, owner.worktreeName),
+        : path.join(hilRoot, legacyWorktreeName),
     legacyIndexPath: owner.worktreePath ? getLegacyHilIndexPath(owner.worktreePath) : '',
     legacyCommentsPath: owner.worktreePath ? getLegacyCommentsPath(owner.worktreePath) : '',
   };
@@ -349,10 +343,10 @@ async function readGitConfigValue(cwdPath: string, key: string): Promise<string 
 }
 
 async function resolveAuthor(paths: HilStoragePaths): Promise<Record<string, any> | null> {
-  const authorKey = paths.projectRootPath && paths.cellId
-    ? `cell:${paths.projectRootPath}:${paths.cellId}`
-    : paths.worktreePath;
-  const authorPath = paths.worktreePath || paths.projectRootPath;
+  const authorKey = paths.owner.projectRootPath && paths.owner.cellId
+    ? `cell:${paths.owner.projectRootPath}:${paths.owner.cellId}`
+    : paths.owner.worktreePath;
+  const authorPath = paths.owner.worktreePath || paths.owner.projectRootPath;
   if (!authorPath || !authorKey) {
     return null;
   }
@@ -382,7 +376,7 @@ async function resolveAuthor(paths: HilStoragePaths): Promise<Record<string, any
 async function ensureHilIndexRaw(paths: HilStoragePaths): Promise<RawHilIndex> {
   let index = await readHilIndexRaw(paths);
   if (
-    paths.mode === 'canonical' &&
+    paths.owner.mode === 'canonical' &&
     !fs.existsSync(paths.indexPath) &&
     paths.legacyIndexPath &&
     fs.existsSync(paths.legacyIndexPath)
