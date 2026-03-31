@@ -1,109 +1,92 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import {
+  AGENCY_DIR,
+  requireOwnerStorage,
+  type OwnerStorageResolution,
+  type WorktreeStorageContext,
+} from './storageRoots';
+
 const fsp = fs.promises;
 
-const AGENCY_DIR = '.agency';
-const CELL_STORE_DIR = 'cells';
 const DELIVERY_DIR = 'delivery';
 const DELIVERY_LOG_FILENAME = 'events.jsonl';
 
 type DeliveryAuditStorageInput =
   | string
-  | {
+  | (WorktreeStorageContext & {
       repoRootPath?: string;
       rootPath?: string;
-      cellId?: string;
-      worktreePath?: string;
-    };
+    });
 
 type DeliveryAuditStoragePaths = {
-  mode: 'cell' | 'legacy' | 'invalid';
-  repoRootPath: string;
-  cellId: string;
-  worktreePath: string;
+  owner: OwnerStorageResolution;
   logPath: string;
-  legacyLogPath: string;
+  legacyLogPaths: string[];
 };
 
 function normalizeText(value: unknown): string {
   return String(value || '').trim();
 }
 
-function normalizePathValue(value: unknown): string {
-  const normalized = normalizeText(value);
-  return normalized ? path.resolve(normalized) : '';
+function getLegacyDeliveryAuditLogPath(worktreePath: string): string {
+  const normalizedWorktreePath = path.resolve(worktreePath);
+  const worktreeName = path.basename(normalizedWorktreePath);
+  return path.join(normalizedWorktreePath, AGENCY_DIR, DELIVERY_DIR, `events-${worktreeName}.jsonl`);
 }
 
-function normalizeCellId(value: unknown): string {
+function normalizeLegacyCanonicalCellId(value: unknown): string {
   return normalizeText(value).replace(/[^a-zA-Z0-9-_]/g, '-');
 }
 
-function getWorktreeName(worktreePath: string): string {
-  return path.basename(worktreePath);
-}
-
-function getLegacyDeliveryAuditLogPath(worktreePath: string): string {
-  const worktreeName = getWorktreeName(worktreePath);
-  return path.join(worktreePath, AGENCY_DIR, DELIVERY_DIR, `events-${worktreeName}.jsonl`);
-}
-
-function getCellDeliveryAuditLogPath(repoRootPath: string, cellId: string): string {
-  return path.join(repoRootPath, AGENCY_DIR, CELL_STORE_DIR, cellId, DELIVERY_DIR, DELIVERY_LOG_FILENAME);
+function getLegacyCanonicalDeliveryAuditLogPath(repoRootPath: string, cellId: string): string {
+  const normalizedRepoRootPath = path.resolve(repoRootPath);
+  const normalizedCellId = normalizeLegacyCanonicalCellId(cellId);
+  if (!normalizedCellId) {
+    return '';
+  }
+  return path.join(normalizedRepoRootPath, AGENCY_DIR, 'cells', normalizedCellId, DELIVERY_DIR, DELIVERY_LOG_FILENAME);
 }
 
 function resolveDeliveryAuditStoragePaths(input: DeliveryAuditStorageInput = {}): DeliveryAuditStoragePaths {
-  if (typeof input === 'string') {
-    const worktreePath = normalizePathValue(input);
-    return worktreePath
+  const normalized =
+    typeof input === 'string'
       ? {
-          mode: 'legacy',
-          repoRootPath: '',
+          worktreePath: input,
+          projectRootPath: '',
           cellId: '',
-          worktreePath,
-          logPath: getLegacyDeliveryAuditLogPath(worktreePath),
-          legacyLogPath: getLegacyDeliveryAuditLogPath(worktreePath),
         }
       : {
-          mode: 'invalid',
-          repoRootPath: '',
-          cellId: '',
-          worktreePath: '',
-          logPath: '',
-          legacyLogPath: '',
+          worktreePath: input.worktreePath || '',
+          projectRootPath: input.projectRootPath || input.repoRootPath || input.rootPath || '',
+          cellId: input.cellId || '',
         };
+
+  const owner = requireOwnerStorage(
+    normalized,
+    'cell',
+    'worktreePath or projectRootPath + cellId is required.'
+  );
+  const logPath =
+    owner.mode === 'canonical'
+      ? path.join(owner.ownerRoot, DELIVERY_DIR, DELIVERY_LOG_FILENAME)
+      : path.join(owner.ownerRoot, DELIVERY_DIR, `events-${owner.legacy?.worktreeName || 'repo'}.jsonl`);
+  const legacyLogPaths = new Set<string>();
+  if (owner.legacy?.storageRootPath) {
+    legacyLogPaths.add(getLegacyDeliveryAuditLogPath(owner.worktreePath));
+  }
+  if (owner.mode === 'canonical' && owner.projectRootPath && owner.cellId) {
+    const priorCanonicalPath = getLegacyCanonicalDeliveryAuditLogPath(owner.projectRootPath, owner.cellId);
+    if (priorCanonicalPath && priorCanonicalPath !== logPath) {
+      legacyLogPaths.add(priorCanonicalPath);
+    }
   }
 
-  const worktreePath = normalizePathValue(input?.worktreePath);
-  const repoRootPath = normalizePathValue(input?.repoRootPath || input?.rootPath);
-  const cellId = normalizeCellId(input?.cellId);
-  if (repoRootPath && cellId) {
-    return {
-      mode: 'cell',
-      repoRootPath,
-      cellId,
-      worktreePath,
-      logPath: getCellDeliveryAuditLogPath(repoRootPath, cellId),
-      legacyLogPath: worktreePath ? getLegacyDeliveryAuditLogPath(worktreePath) : '',
-    };
-  }
-  if (worktreePath) {
-    return {
-      mode: 'legacy',
-      repoRootPath: '',
-      cellId: '',
-      worktreePath,
-      logPath: getLegacyDeliveryAuditLogPath(worktreePath),
-      legacyLogPath: getLegacyDeliveryAuditLogPath(worktreePath),
-    };
-  }
   return {
-    mode: 'invalid',
-    repoRootPath: '',
-    cellId: '',
-    worktreePath: '',
-    logPath: '',
-    legacyLogPath: '',
+    owner,
+    logPath,
+    legacyLogPaths: Array.from(legacyLogPaths),
   };
 }
 
@@ -205,7 +188,7 @@ async function readAuditEventsFromPath(logPath: string): Promise<DeliveryAuditEv
 }
 
 async function ensureDeliveryAuditMigration(paths: DeliveryAuditStoragePaths): Promise<void> {
-  if (paths.mode !== 'cell' || !paths.logPath || !paths.legacyLogPath) {
+  if (paths.owner.mode !== 'canonical' || !paths.logPath || !paths.legacyLogPaths.length) {
     return;
   }
   const repoExists = await fsp
@@ -215,15 +198,22 @@ async function ensureDeliveryAuditMigration(paths: DeliveryAuditStoragePaths): P
   if (repoExists) {
     return;
   }
-  const legacyExists = await fsp
-    .stat(paths.legacyLogPath)
-    .then((stat) => stat.isFile())
-    .catch(() => false);
-  if (!legacyExists) {
+  const sourceLogPath = await paths.legacyLogPaths.reduce<Promise<string>>(async (foundPromise, candidate) => {
+    const found = await foundPromise;
+    if (found) {
+      return found;
+    }
+    const exists = await fsp
+      .stat(candidate)
+      .then((stat) => stat.isFile())
+      .catch(() => false);
+    return exists ? candidate : '';
+  }, Promise.resolve(''));
+  if (!sourceLogPath) {
     return;
   }
   await fsp.mkdir(path.dirname(paths.logPath), { recursive: true });
-  await fsp.copyFile(paths.legacyLogPath, paths.logPath);
+  await fsp.copyFile(sourceLogPath, paths.logPath);
 }
 
 function matchesFilter(event: DeliveryAuditEvent, filter: { source?: string; mode?: string } = {}): boolean {

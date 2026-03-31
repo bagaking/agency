@@ -78,3 +78,46 @@ test('readDeliveryAuditTimeline migrates legacy worktree logs into repo-owned ce
   const migratedRaw = await fs.readFile(repoOwnedLogPath, 'utf8');
   assert.match(migratedRaw, /Legacy complete/);
 });
+
+test('readDeliveryAuditTimeline preserves prior canonical logs for dotted cell ids', async (t) => {
+  const repoRoot = await createTempDir('agency-delivery-audit-dotted-');
+  const legacyCanonicalLogPath = path.join(
+    repoRoot,
+    '.agency',
+    'cells',
+    'cell-alpha',
+    'delivery',
+    'events.jsonl'
+  );
+  t.after(async () => {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await fs.mkdir(path.dirname(legacyCanonicalLogPath), { recursive: true });
+  await fs.writeFile(
+    legacyCanonicalLogPath,
+    `${JSON.stringify({
+      at: '2026-03-31T00:00:00.000Z',
+      source: 'session',
+      mode: 'quick',
+      status: 'complete',
+      label: 'Prior canonical complete',
+    })}\n`,
+    'utf8'
+  );
+
+  const timeline = await readDeliveryAuditTimeline({
+    repoRootPath: repoRoot,
+    cellId: 'cell.alpha',
+  });
+  assert.equal(timeline.length, 1);
+  assert.equal(timeline[0]?.label, 'Prior canonical complete');
+
+  const canonicalLogPath = getDeliveryAuditLogPath({
+    repoRootPath: repoRoot,
+    cellId: 'cell.alpha',
+  });
+  assert.match(canonicalLogPath, /\/\.agency\/cells\/cell\.alpha\/delivery\/events\.jsonl$/);
+  const migratedRaw = await fs.readFile(canonicalLogPath, 'utf8');
+  assert.match(migratedRaw, /Prior canonical complete/);
+});

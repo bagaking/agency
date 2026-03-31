@@ -115,7 +115,8 @@ test('confirmDelivery marks source-cell references processed when delivery runs 
   });
 
   const sourceReply = await createSessionReply({
-    worktreePath: repoRoot,
+    repoRootPath: repoRoot,
+    cellId: 'source-cell',
     body: 'Cross-cell reply',
     owner: {
       cellId: 'source-cell',
@@ -164,7 +165,7 @@ test('confirmDelivery marks source-cell references processed when delivery runs 
   });
 
   const sourceItems = await listSessionReplies({
-    worktreePath: repoRoot,
+    repoRootPath: repoRoot,
     cellId: 'source-cell',
     sessionId: 'sess-source',
     includeArchived: true,

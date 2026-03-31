@@ -123,6 +123,52 @@ test('session reply repository migrates legacy HIL reply records', async () => {
   assert.equal(hilItems.length, 0);
 });
 
+test('session replies persist under the cell-owned store when repo root is known', async () => {
+  const repoRoot = createTempWorktree();
+  const reply = await createSessionReply({
+    repoRootPath: repoRoot,
+    cellId: 'cell.alpha',
+    body: 'Canonical reply',
+    owner: {
+      cellId: 'cell.alpha',
+      cellName: 'Cell Alpha',
+      sessionId: 'session-a',
+      sessionName: 'Session A',
+    },
+    capture: {
+      source: 'reply-panel',
+      selection: {
+        text: '',
+        site: 'selection',
+        timeTag: 'Now',
+        query: 'Canonical reply',
+      },
+    },
+  });
+
+  const replies = await listSessionReplies({
+    repoRootPath: repoRoot,
+    cellId: 'cell.alpha',
+    sessionId: 'session-a',
+  });
+  assert.equal(replies.length, 1);
+  assert.equal(replies[0]?.id, reply.id);
+
+  const indexPath = path.join(repoRoot, '.agency', 'cells', 'cell.alpha', 'session-replies', 'index.yaml');
+  const artifactPath = path.join(
+    repoRoot,
+    '.agency',
+    'cells',
+    'cell.alpha',
+    'session-replies',
+    'sessions',
+    'session-a',
+    `${reply.id}.yaml`
+  );
+  assert.equal(fs.existsSync(indexPath), true);
+  assert.equal(fs.existsSync(artifactPath), true);
+});
+
 test('session delivery drafts reference reply artifacts instead of HIL', async () => {
   const worktreePath = createTempWorktree();
   const reply = await createSessionReply({

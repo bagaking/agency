@@ -61,12 +61,13 @@ export function useSessionReplyModel({
   const timeTag = selectionContext?.timeTag || formatReplyTimeTag(selectionContext?.updatedAt);
   const siteText = selectionContext?.site || '';
   const queryText = replyText.trim();
-  const hasSession = Boolean(cellId && sessionId && worktreePath);
+  const hasStorageContext = Boolean(projectRoot || worktreePath);
+  const hasSession = Boolean(cellId && sessionId && hasStorageContext);
   const hasContent = queryText.length > 0;
 
   const refreshReplies = useCallback(async () => {
     const requestScope = scopeKey;
-    if (!worktreePath || !cellId || !sessionId) {
+    if (!hasStorageContext || !cellId || !sessionId) {
       setReplyItems([]);
       return;
     }
@@ -79,6 +80,7 @@ export function useSessionReplyModel({
     setError('');
     try {
       const list = await listSessionReplies({
+        repoRootPath: projectRoot,
         worktreePath,
         cellId,
         sessionId,
@@ -111,7 +113,7 @@ export function useSessionReplyModel({
       }
       setLoadingReplies(false);
     }
-  }, [cellId, scopeKey, sessionId, worktreePath]);
+  }, [cellId, hasStorageContext, projectRoot, scopeKey, sessionId, worktreePath]);
 
   useEffect(() => {
     refreshReplies();
@@ -147,11 +149,13 @@ export function useSessionReplyModel({
 
   const handleArchiveReply = useCallback(
     async (item: any) => {
-      if (!item?.id || !worktreePath) {
+      if (!item?.id || !hasStorageContext) {
         return;
       }
       try {
         await updateSessionReply({
+          repoRootPath: projectRoot,
+          cellId,
           worktreePath,
           replyId: item.id,
           patch: {
@@ -163,7 +167,7 @@ export function useSessionReplyModel({
         console.error('Failed to archive reply', archiveError);
       }
     },
-    [refreshReplies, worktreePath]
+    [cellId, hasStorageContext, projectRoot, refreshReplies, worktreePath]
   );
 
   const handleReeditReply = useCallback(
@@ -248,6 +252,8 @@ export function useSessionReplyModel({
 
       try {
         const createdReply = await createSessionReply({
+          repoRootPath: projectRoot,
+          cellId,
           worktreePath,
           body: queryText,
           owner: {

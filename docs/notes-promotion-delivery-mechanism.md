@@ -119,19 +119,22 @@ sop:
 ### 5.1 Draft（HIL）
 
 delivery draft 统一写入 HIL：
-- 索引：`.agency/hil/index-<worktree>.yaml`
-- draft artifact：`.agency/hil/<worktree>/drafts/<id>.yaml`
+- 索引：`.agency/cells/<cellId>/hil/index.yaml`
+- draft artifact：`.agency/cells/<cellId>/hil/drafts/<id>.yaml`
+- legacy bridge：首次 canonical 读取时可从 worktree HIL 索引 / comments 文件导入
 
 ### 5.2 Session Reply（独立 artifact store）
 
 session reply 统一写入独立存储：
-- 索引：`.agency/session-replies/index-<worktree>.yaml`
-- artifact：`.agency/session-replies/<worktree>/sessions/<cellId>/<sessionId>/<id>.yaml`
+- 索引：`.agency/cells/<cellId>/session-replies/index.yaml`
+- artifact：`.agency/cells/<cellId>/session-replies/sessions/<sessionId>/<id>.yaml`
+- legacy bridge：首次 canonical 读取时可从 worktree reply store 与 legacy HIL `reply` 项导入
 
 ### 5.3 Audit Timeline（JSONL）
 
 统一写入：
-- `.agency/delivery/events-<worktree>.jsonl`
+- `.agency/cells/<cellId>/delivery/events.jsonl`
+- legacy bridge：首次 canonical 读取时可从 worktree delivery log 与旧 canonical dotted-cell 路径导入
 
 事件按行追加，天然支持时间线回放与 source 过滤。
 
