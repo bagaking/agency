@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Plus,
   GitBranch,
-  Circle,
   ArrowUpLeft,
   SquareTerminal,
   FolderOpen,
@@ -32,20 +31,13 @@ import {
 } from '../../utils/agentCellSessionTree';
 import { buildAgentCellChildSessionOptions } from '../../utils/agentCellChildSession';
 import { useCommanderStatus } from '../../hooks/useCommanderStatus';
-
-const cellStateColors: Record<string, string> = {
-  draft: 'text-muted-foreground',
-  active: 'text-emerald-400',
-  paused: 'text-amber-400',
-  archived: 'text-slate-500',
-};
-
-const cellStateBadgeTone: Record<string, string> = {
-  draft: 'border-white/10 bg-white/[0.04] text-white/65',
-  active: 'border-emerald-400/25 bg-emerald-500/10 text-emerald-200',
-  paused: 'border-amber-300/25 bg-amber-500/10 text-amber-100',
-  archived: 'border-slate-500/20 bg-slate-500/10 text-slate-300/75',
-};
+import { DetachedCellCleanupCard } from './DetachedCellCleanupCard';
+import {
+  CellStateBadge,
+  isArchivedDetachedCell,
+  isDetachedCellCleanupCandidate,
+  resolveCellAttachmentMeta,
+} from './cellPresentation';
 
 const EMPTY_TREE: AgentCellSessionTreeProjection = {
   rows: [],
@@ -117,6 +109,7 @@ type AgentCellsSessionsPanelProps = {
   }) => Promise<boolean>;
   onFocusSessionInUi?: (cellId: string, sessionId: string) => void;
   onConfigureProfile?: (profile: any) => void;
+  onArchiveCell?: (cell: any) => void;
 };
 
 function SessionKindBadge({ nodeKind }: { nodeKind?: string }) {
@@ -130,49 +123,6 @@ function SessionKindBadge({ nodeKind }: { nodeKind?: string }) {
       {label}
     </span>
   );
-}
-
-function CellStateBadge({ state }: { state?: string }) {
-  const normalized = String(state || 'draft').trim().toLowerCase();
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] ${
-        cellStateBadgeTone[normalized] || cellStateBadgeTone.draft
-      }`}
-    >
-      <Circle size={6} className={cellStateColors[normalized] || cellStateColors.draft} fill="currentColor" />
-      <span>{normalized}</span>
-    </span>
-  );
-}
-
-function resolveCellAttachmentMeta(cell: any) {
-  const attachmentState = String(cell?.attachmentState || 'attached').trim().toLowerCase();
-  const attachedPath = String(cell?.attachedWorktreePath || '').trim();
-  const fallbackPath = String(cell?.lastKnownWorktreePath || cell?.worktreePath || '').trim();
-  const pathLabelBase = attachedPath || fallbackPath;
-  if (attachmentState === 'missing') {
-    return {
-      attachmentState,
-      label: 'Missing',
-      tone: 'border-rose-300/24 bg-rose-500/10 text-rose-100',
-      pathLabel: pathLabelBase,
-    };
-  }
-  if (attachmentState === 'detached') {
-    return {
-      attachmentState,
-      label: 'Detached',
-      tone: 'border-amber-300/24 bg-amber-500/10 text-amber-100',
-      pathLabel: pathLabelBase,
-    };
-  }
-  return {
-    attachmentState: 'attached',
-    label: 'Attached',
-    tone: 'border-emerald-300/20 bg-emerald-500/10 text-emerald-100',
-    pathLabel: String(cell?.branch || (attachedPath || fallbackPath) || '').trim(),
-  };
 }
 
 function SessionStatusMeta({
@@ -365,6 +315,7 @@ export function AgentCellsSessionsPanel({
   onSettleTrackedHarnessRun,
   onFocusSessionInUi,
   onConfigureProfile,
+  onArchiveCell,
 }: AgentCellsSessionsPanelProps) {
   const attention = useAttentionLayer();
   const [idleNow, setIdleNow] = useState(Date.now());
@@ -392,6 +343,26 @@ export function AgentCellsSessionsPanel({
       new Map<string, any>((cells || []).filter(Boolean).map((cell: any) => [String(cell.id), cell])),
     [cells]
   );
+
+  const { activeCells, cleanupCells, archivedDetachedCells } = useMemo(() => {
+    const primary: any[] = [];
+    const cleanup: any[] = [];
+    const archived: any[] = [];
+    (cells || []).forEach((cell: any) => {
+      if (isDetachedCellCleanupCandidate(cell)) {
+        cleanup.push(cell);
+      } else if (isArchivedDetachedCell(cell)) {
+        archived.push(cell);
+      } else {
+        primary.push(cell);
+      }
+    });
+    return {
+      activeCells: primary,
+      cleanupCells: cleanup,
+      archivedDetachedCells: archived,
+    };
+  }, [cells]);
 
   useEffect(() => {
     const interval = setInterval(() => setIdleNow(Date.now()), 1000);
@@ -498,7 +469,7 @@ export function AgentCellsSessionsPanel({
 
   const projectionsByCellId = useMemo(() => {
     const next: Record<string, AgentCellSessionTreeProjection> = {};
-    (cells || []).forEach((cell: any) => {
+    activeCells.forEach((cell: any) => {
       if (!cell?.id) {
         return;
       }
@@ -510,7 +481,7 @@ export function AgentCellsSessionsPanel({
       });
     });
     return next;
-  }, [activeSessionByCellId, cells, pendingActiveSessionByCellId, resolveCellSessions]);
+  }, [activeCells, activeSessionByCellId, pendingActiveSessionByCellId, resolveCellSessions]);
 
   const visibleRowsByCellId = useMemo(() => {
     const next: Record<string, AgentCellSessionTreeRow[]> = {};
@@ -847,11 +818,13 @@ export function AgentCellsSessionsPanel({
           </>
         ) : null}
 
-        {cells.length === 0 ? (
+        {activeCells.length === 0 && cleanupCells.length === 0 && archivedDetachedCells.length === 0 ? (
           <div className="px-4 py-8 text-center text-xs text-muted-foreground">No active cells</div>
         ) : (
-          <div className="space-y-3" data-testid="cell-list" role="tree" aria-label="Agent Cells">
-            {cells.map((cell: any) => {
+          <div className="space-y-4">
+            {activeCells.length > 0 ? (
+              <div className="space-y-3" data-testid="cell-list" role="tree" aria-label="Agent Cells">
+                {activeCells.map((cell: any) => {
               const attachmentMeta = resolveCellAttachmentMeta(cell);
               const isWindowHome = isWindowHomeCell(cell);
               const hasAttachment = !isWindowHome && attachmentMeta.attachmentState === 'attached';
@@ -867,15 +840,15 @@ export function AgentCellsSessionsPanel({
                 projection.overflowClosedSessions.length > 0;
               const showRootDropZone = draggingSession?.cellId === cell.id && Boolean(onMoveSessionNode);
 
-              return (
-                <div
-                  key={cell.id}
-                  className={`overflow-hidden rounded-xl border transition-colors ${
-                    isSelectedCell
-                      ? 'border-primary/25 bg-primary/[0.045] shadow-[0_8px_24px_-18px_rgba(59,130,246,0.55)]'
-                      : `border-border/40 bg-background/20 ${resolveAttentionCardClass(cellAttention?.strongest)}`
-                  }`}
-                >
+                  return (
+                    <div
+                      key={cell.id}
+                      className={`overflow-hidden rounded-xl border transition-colors ${
+                        isSelectedCell
+                          ? 'border-primary/25 bg-primary/[0.045] shadow-[0_8px_24px_-18px_rgba(59,130,246,0.55)]'
+                          : `border-border/40 bg-background/20 ${resolveAttentionCardClass(cellAttention?.strongest)}`
+                      }`}
+                    >
                   <div
                     role="treeitem"
                     aria-level={1}
@@ -1387,9 +1360,67 @@ export function AgentCellsSessionsPanel({
                       ) : null}
                     </div>
                   ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            {cleanupCells.length > 0 ? (
+              <section
+                className="space-y-2"
+                data-testid="cleanup-cell-list"
+                aria-label="Cells waiting for cleanup"
+              >
+                <div className="flex items-center justify-between px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100/70">
+                  <span>Needs Cleanup</span>
+                  <span className="text-muted-foreground/70">{cleanupCells.length}</span>
                 </div>
-              );
-            })}
+                {cleanupCells.map((cell: any) => {
+                  const cellAttention = attention.byCellId[cell.id];
+                  return (
+                    <DetachedCellCleanupCard
+                      key={cell.id}
+                      cell={cell}
+                      sessions={resolveCellSessions(String(cell.id))}
+                      selected={selectedId === cell.id}
+                      attentionItem={cellAttention?.strongest || null}
+                      attentionCount={cellAttention?.count || 0}
+                      onSelect={onSelect}
+                      onArchive={onArchiveCell}
+                    />
+                  );
+                })}
+              </section>
+            ) : null}
+
+            {archivedDetachedCells.length > 0 ? (
+              <section
+                className="space-y-2"
+                data-testid="archived-detached-cell-list"
+                aria-label="Archived offline cells"
+              >
+                <div className="flex items-center justify-between px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300/70">
+                  <span>Archived Offline</span>
+                  <span className="text-muted-foreground/70">{archivedDetachedCells.length}</span>
+                </div>
+                {archivedDetachedCells.map((cell: any) => {
+                  const cellAttention = attention.byCellId[cell.id];
+                  return (
+                    <DetachedCellCleanupCard
+                      key={cell.id}
+                      cell={cell}
+                      sessions={resolveCellSessions(String(cell.id))}
+                      selected={selectedId === cell.id}
+                      attentionItem={cellAttention?.strongest || null}
+                      attentionCount={cellAttention?.count || 0}
+                      onSelect={onSelect}
+                      onArchive={onArchiveCell}
+                    />
+                  );
+                })}
+              </section>
+            ) : null}
           </div>
         )}
       </div>

@@ -58,6 +58,7 @@ export function AppLayout({
   onOpenReplyQuickPrompts,
   onOpenGates,
   onOpenSoftlinks,
+  onArchiveCell,
   actionsScope,
   onSelectActionsScope,
   onSelectAppShortcutsScope,
@@ -245,6 +246,7 @@ export function AppLayout({
         onSettleTrackedHarnessRun,
         onFocusSessionInUi,
         onConfigureProfile,
+        onArchiveCell,
       }}
       hierarchySidebarProps={{
         section: hierarchySection,

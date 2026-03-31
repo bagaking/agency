@@ -49,13 +49,23 @@ export function useCellLifecycleActions({
   saveGates,
   modal,
 }: UseCellLifecycleActionsArgs) {
+  const resolveLifecycleTargetCell = useCallback(
+    (targetCell?: any | null) => targetCell || scopedCell || selectedCell || null,
+    [scopedCell, selectedCell]
+  );
+
   const handleStateChange = useCallback(
-    async (nextState: string) => {
-      if (!scopedCell) {
+    async (nextState: string, targetCell?: any | null, transitionMeta: Record<string, any> = {}) => {
+      const resolvedCell = resolveLifecycleTargetCell(targetCell);
+      if (!resolvedCell) {
         return;
       }
-      if (nextState === scopedCell.state) {
+      const shouldSelectTarget = transitionMeta.selectTarget !== false;
+      if (nextState === resolvedCell.state) {
         return;
+      }
+      if (shouldSelectTarget && resolvedCell?.id && resolvedCell.id !== selectedCell?.id) {
+        setSelectedId(resolvedCell.id);
       }
       setTransitionError('');
       let nextCells = cells;
@@ -68,18 +78,40 @@ export function useCellLifecycleActions({
       } catch (error) {
         console.error(error);
       }
-      const freshCell = nextCells.find((cell) => cell.id === scopedCell.id) || scopedCell;
+      const freshCell = nextCells.find((cell) => cell.id === resolvedCell.id) || resolvedCell;
+      const attachmentState = String(freshCell?.attachmentState || 'attached').trim().toLowerCase();
       let gates: any[] = [];
-      if (['active', 'archived'].includes(nextState)) {
+      if (['active', 'archived'].includes(nextState) && attachmentState === 'attached') {
         gates = await checkGatesForCell({ cell: freshCell, stage: nextState, silent: true });
       }
       setPendingTransition({
         cell: freshCell,
         nextState,
         gates,
+        source: transitionMeta.source || 'lifecycle-stepper',
+        preferredSelectionId: shouldSelectTarget ? freshCell.id : selectedCell?.id || null,
       });
     },
-    [cells, checkGatesForCell, projectRoot, scopedCell, setCells, setPendingTransition, setTransitionError]
+    [
+      cells,
+      checkGatesForCell,
+      projectRoot,
+      resolveLifecycleTargetCell,
+      selectedCell?.id,
+      setCells,
+      setPendingTransition,
+      setSelectedId,
+      setTransitionError,
+    ]
+  );
+
+  const handleArchiveCell = useCallback(
+    (targetCell?: any | null) =>
+      handleStateChange('archived', targetCell, {
+        source: 'cleanup-card',
+        selectTarget: false,
+      }),
+    [handleStateChange]
   );
 
   const handleUpdateCellAvatar = useCallback(
@@ -98,9 +130,13 @@ export function useCellLifecycleActions({
     [loadCells, projectRoot, selectedCell]
   );
 
-  const handleClearAttachment = useCallback(async () => {
-    if (!selectedCell) {
+  const handleClearAttachment = useCallback(async (targetCell?: any | null) => {
+    const resolvedCell = resolveLifecycleTargetCell(targetCell);
+    if (!resolvedCell) {
       return;
+    }
+    if (resolvedCell?.id && resolvedCell.id !== selectedCell?.id) {
+      setSelectedId(resolvedCell.id);
     }
     if (!modal?.confirm) {
       return;
@@ -119,11 +155,11 @@ export function useCellLifecycleActions({
     setLoading(true);
     try {
       await agencyClearCellAttachment({
-        id: selectedCell.id,
-        worktreePath: selectedCell.worktreePath,
+        id: resolvedCell.id,
+        worktreePath: resolvedCell.worktreePath,
         rootPath: projectRoot,
       });
-      await loadCells(selectedCell.id);
+      await loadCells(resolvedCell.id);
     } catch (error: any) {
       modal?.notify?.({
         title: 'Failed to clear attachment',
@@ -133,11 +169,15 @@ export function useCellLifecycleActions({
     } finally {
       setLoading(false);
     }
-  }, [loadCells, modal, projectRoot, selectedCell, setLoading]);
+  }, [loadCells, modal, projectRoot, resolveLifecycleTargetCell, selectedCell?.id, setLoading, setSelectedId]);
 
-  const handleDelete = useCallback(async () => {
-    if (!selectedCell) {
+  const handleDelete = useCallback(async (targetCell?: any | null) => {
+    const resolvedCell = resolveLifecycleTargetCell(targetCell);
+    if (!resolvedCell) {
       return;
+    }
+    if (resolvedCell?.id && resolvedCell.id !== selectedCell?.id) {
+      setSelectedId(resolvedCell.id);
     }
     if (!modal?.confirm) {
       return;
@@ -156,8 +196,8 @@ export function useCellLifecycleActions({
     setLoading(true);
     try {
       await agencyDeleteCell({
-        id: selectedCell.id,
-        worktreePath: selectedCell.worktreePath,
+        id: resolvedCell.id,
+        worktreePath: resolvedCell.worktreePath,
         rootPath: projectRoot,
       });
       await loadCells();
@@ -170,7 +210,7 @@ export function useCellLifecycleActions({
     } finally {
       setLoading(false);
     }
-  }, [loadCells, modal, projectRoot, selectedCell, setLoading]);
+  }, [loadCells, modal, projectRoot, resolveLifecycleTargetCell, selectedCell?.id, setLoading, setSelectedId]);
 
   const handleCreate = useCallback(
     async ({ name, branch, reusePath, startTurnGateCreate }: any) => {
@@ -235,6 +275,7 @@ export function useCellLifecycleActions({
 
   return {
     handleStateChange,
+    handleArchiveCell,
     handleUpdateCellAvatar,
     handleClearAttachment,
     handleDelete,

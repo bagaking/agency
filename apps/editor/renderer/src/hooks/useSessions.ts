@@ -195,37 +195,6 @@ export function useSessions(options: any = {}) {
         setSessionLoading(true);
         setSessionError('');
       }
-      if (attachedWorktreePath) {
-        setSessionsByCellId((current) => {
-          const existing = current[cell.id];
-          if (Array.isArray(existing) && existing.length > 0) {
-            return current;
-          }
-          return {
-            ...current,
-            [cell.id]: [
-              {
-                id: 'default',
-                name: 'Default',
-                status: 'active',
-                profileId: BASELINE_PROFILE_ID,
-              },
-            ],
-          };
-        });
-        activeSessionByCellIdRef.current = {
-          ...activeSessionByCellIdRef.current,
-          [cell.id]: activeSessionByCellIdRef.current[cell.id] || 'default',
-        };
-        setActiveSessionByCellId((current) =>
-          current[cell.id]
-            ? current
-            : {
-                ...current,
-                [cell.id]: 'default',
-              }
-        );
-      }
       try {
         let nextSessions = await listSessionsBridge({
           worktreePath: attachedWorktreePath,
@@ -234,18 +203,6 @@ export function useSessions(options: any = {}) {
         });
         if (!Array.isArray(nextSessions)) {
           nextSessions = [];
-        }
-        if (nextSessions.length === 0 && attachedWorktreePath && isAgencyMethodAvailable('createSession')) {
-          const created = await createSessionBridge({
-            cellId: cell.id,
-            worktreePath: attachedWorktreePath,
-            name: 'Default',
-            sessionId: 'default',
-            profileId: BASELINE_PROFILE_ID,
-            cellName: cell.name,
-            cellBranch: cell.branch,
-          });
-          nextSessions = created ? [created] : nextSessions;
         }
         setSessionsByCellId((current) => ({ ...current, [cell.id]: nextSessions }));
         mergeSessionActivityFromSessions({

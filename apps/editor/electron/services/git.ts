@@ -36,6 +36,40 @@ async function listWorktrees(repoRoot) {
   });
 }
 
+async function listBranches(repoRoot) {
+  const [output, worktrees, defaultBranch] = await Promise.all([
+    runGit(['for-each-ref', '--format=%(refname:short)', 'refs/heads'], { cwd: repoRoot }),
+    listWorktrees(repoRoot),
+    resolveBaseBranch(repoRoot),
+  ]);
+  const attachedWorktreePathByBranch = new Map(
+    worktrees
+      .filter((entry) => entry.branch)
+      .map((entry) => [entry.branch, entry.path])
+  );
+  const currentBranch = await runGit(['branch', '--show-current'], { cwd: repoRoot }).catch(() => '');
+  const branches = output
+    .split('\n')
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((name) => ({
+      name,
+      current: name === currentBranch,
+      isDefault: name === defaultBranch,
+      attachedWorktreePath: attachedWorktreePathByBranch.get(name) || '',
+    }));
+
+  return branches.sort((left, right) => {
+    if (left.isDefault !== right.isDefault) {
+      return left.isDefault ? -1 : 1;
+    }
+    if (left.current !== right.current) {
+      return left.current ? -1 : 1;
+    }
+    return left.name.localeCompare(right.name);
+  });
+}
+
 async function branchExists(repoRoot, branch) {
   try {
     await runGit(['show-ref', '--verify', `refs/heads/${branch}`], { cwd: repoRoot });
@@ -72,6 +106,7 @@ export {
   runGit,
   getRepoRoot,
   listWorktrees,
+  listBranches,
   resolveBaseBranch,
   createWorktree,
   branchExists,

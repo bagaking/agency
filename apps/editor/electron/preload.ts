@@ -88,6 +88,7 @@ function invokeWithTimeout(channel: string, payload?: unknown, timeoutMs = WORKB
 const INVOKE_CHANNELS: Record<string, string> = {
   listCells: 'cells:list',
   listWorktrees: 'worktrees:list',
+  listBranches: 'worktrees:listBranches',
   getProjectContext: 'project:get',
   selectProjectRoot: 'project:select',
   setProjectRoot: 'project:set',

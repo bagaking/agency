@@ -174,6 +174,9 @@ Session Map 的类 RTS 游戏操作界面设计：它是一个跨界面、始终
  - **Cell = 城邦 / 阵营**：以“阵营色 + 城邦卡片 + 角色头像”表示；默认色基于 `Cell.state` + 创建顺序。
 - **Session = 角色**：以圆形角色 token + 状态点表示（active/detached/closed/stale）。Session 可携带专属头像，优先展示 `session.avatar`，缺省则回退到 Cell 头像或基于 session id 计算。
 - **离线状态**：Session 为 `closed / stale / archived` 或 Cell 为 `archived / closed` 时标记为离线。
+- **Detached Cell cleanup**：当 Cell 丢失 live worktree attachment 时，Agent Cells sidebar 不再把它当作普通开发中 Cell + session tree 渲染，而是移动到独立的 `Needs Cleanup` 区。该卡片主动作是 `Archive Cell`，负责把 Cell 从 active flow 收束出去；更高破坏性的 `Delete Cell` / attachment metadata 清理仍留在选中后的 details pane，不塞进 sidebar triage。
+- **Sessionless Cell**：Cell 允许零 session 存在。窗口启动、Cell 恢复、或 attached worktree 被重新看见时，都不应自动补一个 `Default` session；只有用户显式进入 runtime（例如 `Create Session` / 进入空 terminal 态后确认创建）时，才 materialize 新的 execution lane。
+- **Create vs Bind**：`Create Cell` 内部需要区分三种语义：Agency 新建 branch、绑定已有 worktree、绑定已有 branch。只有第一种受 branch strategy / naming 约束；后两种必须保留用户已有 branch identity，不把绑定流程伪装成新建流程。
 - **Hover 预览**：以“缩略图为主 + 一行毛玻璃信息条”为主视觉；缩略图按当前 session 字号与 tmux pane cols/rows 渲染，**高度随 rows 自适应**，上限固定为宽高比约 1.618；内容贴底显示，不强行裁切。hover 时淡至 85% 不透明度且可滚动查看。
 - **预览首帧策略**：首帧未 ready 前仅显示底部信息条（最小高度），首帧 ready 后向上展开缩略图，避免“先高后低”的位置跳动。
 - **加载态表现**：预览未 ready 时以推荐高度显示并覆盖 Loading，完成后内容淡入；若高度需变化，仅顶边在 0.2s 内平滑过渡。
