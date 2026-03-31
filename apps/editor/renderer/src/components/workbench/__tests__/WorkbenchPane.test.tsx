@@ -52,21 +52,21 @@ function renderWorkbenchPane(kind: string) {
   );
 }
 
-test('WorkbenchPane keeps quick-open and demotes review tools to contextual secondary actions', () => {
+test('WorkbenchPane keeps quick-open primary and does not expose contextual review tools before code state resolves', () => {
   const html = renderWorkbenchPane('code');
 
   assert.match(html, /Quick Open/);
+  assert.match(html, /aria-label="Quick Open"/);
   assert.doesNotMatch(html, />Split</);
   assert.match(html, /data-workbench-file-tools/);
-  assert.match(html, /data-workbench-review-tools/);
-  assert.ok(
-    html.indexOf('data-workbench-file-tools') < html.indexOf('data-workbench-review-tools')
-  );
+  assert.doesNotMatch(html, /data-workbench-review-tools/);
+  assert.doesNotMatch(html, /aria-pressed=/);
 });
 
-test('WorkbenchPane hides review tools when active tab is not code', () => {
+test('WorkbenchPane keeps file-tool buttons explicitly named without toggle semantics in static shell markup', () => {
   const html = renderWorkbenchPane('image');
 
-  assert.match(html, /Quick Open/);
-  assert.doesNotMatch(html, /data-workbench-review-tools/);
+  assert.match(html, /aria-label="Sync from Disk"/);
+  assert.match(html, /aria-label="Pinned"/);
+  assert.doesNotMatch(html, /aria-pressed=/);
 });

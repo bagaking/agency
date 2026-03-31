@@ -135,9 +135,9 @@ function WorkbenchPaneContent({
   const activeState = activeTab ? tabStateById[activeTab.id] || {} : {};
   const effectivePendingJump = pendingJump || localPendingJump;
   const resolvedCommentLines = Array.isArray(commentLines) ? commentLines : [];
-  const canComment = Boolean(activeTab && activeTab.kind === 'code');
-  const showReviewTools = canComment;
   const isCodeTab = activeState.kind === 'code';
+  const canComment = Boolean(activeTab && isCodeTab);
+  const showReviewTools = isCodeTab;
   const activeLanguageDecision =
     activeTab && isCodeTab
       ? resolveWorkbenchLanguageDecision({
@@ -493,6 +493,7 @@ function WorkbenchPaneContent({
                       icon={GitCompare}
                       title={activeState.diffEnabled ? 'Hide Diff' : 'Show Diff'}
                       tone="secondary"
+                      toggle={true}
                     />
                     <ToolButton
                       active={activeState.blameEnabled}
@@ -500,6 +501,7 @@ function WorkbenchPaneContent({
                       icon={GitCommit}
                       title={activeState.blameEnabled ? 'Hide Blame' : 'Show Blame'}
                       tone="secondary"
+                      toggle={true}
                     />
                     <div className="mx-0.5 h-3 w-px bg-white/[0.04]" />
                     <ToolButton
@@ -707,7 +709,9 @@ function WorkbenchPaneContent({
 function HeaderButton({ onClick, icon: Icon, label, shortcut, primary }: any) {
     return (
         <button 
+            type="button"
             onClick={onClick} 
+            aria-label={label}
             className={`flex items-center gap-2 px-2.5 py-1 rounded-md transition-all group ${primary ? 'hover:bg-primary/10' : 'hover:bg-white/5'}`}
             title={label}
         >
@@ -717,7 +721,7 @@ function HeaderButton({ onClick, icon: Icon, label, shortcut, primary }: any) {
     )
 }
 
-function ToolButton({ active, loading, onClick, icon: Icon, title, tone = 'default' }: any) {
+function ToolButton({ active, loading, onClick, icon: Icon, title, tone = 'default', toggle = false }: any) {
     const isSecondary = tone === 'secondary';
     const buttonClass = active
       ? isSecondary
@@ -730,7 +734,8 @@ function ToolButton({ active, loading, onClick, icon: Icon, title, tone = 'defau
         <button 
             type="button"
             onClick={onClick} 
-            aria-pressed={Boolean(active)}
+            aria-label={title}
+            aria-pressed={toggle ? Boolean(active) : undefined}
             className={`${isSecondary ? 'p-1' : 'p-1.5'} rounded-md transition-all ${buttonClass}`}
             title={title}
         >
