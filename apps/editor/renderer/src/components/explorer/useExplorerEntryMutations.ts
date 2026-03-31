@@ -1,6 +1,15 @@
 import { useCallback } from 'react';
 import { explorerPathUtils } from '../../hooks/useProjectExplorer';
 
+const buildDuplicateSuggestion = (name: string): string => {
+  const value = String(name || '');
+  const extensionIndex = value.lastIndexOf('.');
+  if (extensionIndex <= 0) {
+    return `${value}-copy`;
+  }
+  return `${value.slice(0, extensionIndex)}-copy${value.slice(extensionIndex)}`;
+};
+
 type UseExplorerEntryMutationsArgs = {
   activeDir: string;
   draftEntry: any;
@@ -129,7 +138,7 @@ export function useExplorerEntryMutations({
         title: 'Duplicate Entry',
         description: 'Choose the new name for the duplicated entry.',
         inputLabel: 'New name',
-        defaultValue: `${name}-copy`,
+        defaultValue: buildDuplicateSuggestion(name),
         confirmLabel: 'Duplicate',
         cancelLabel: 'Cancel',
         validateValue: (value: string) =>
@@ -154,7 +163,7 @@ export function useExplorerEntryMutations({
         setErrorMessage('Duplicate failed.');
       }
     },
-    [copyEntry, modal, refreshAll, setErrorMessage]
+    [clearError, copyEntry, modal, refreshAll, setErrorMessage, setSelectedPaths]
   );
 
   const handleReveal = useCallback(

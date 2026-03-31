@@ -1202,20 +1202,41 @@ async function deleteEntry({ rootPath, targetPath }) {
   return { path: normalizeRelPath(targetPath) };
 }
 
-async function copyEntry({ rootPath, sourcePath, targetPath }) {
+async function copyEntry({ rootPath, sourcePath, targetPath, resolveConflicts = false }) {
   const resolved = await resolveExplorerRoot(rootPath);
   ensureResolvedRoot(resolved);
   const fromPath = resolveSafePath(resolved.rootPath, sourcePath);
-  const toPath = resolveSafePath(resolved.rootPath, targetPath);
   if (!fs.existsSync(fromPath)) {
     throw new Error('Source does not exist.');
   }
-  if (fs.existsSync(toPath)) {
+  const sourceStats = await fsp.stat(fromPath);
+  const requestedTargetPath = resolveSafePath(resolved.rootPath, targetPath);
+  let destinationPath = requestedTargetPath;
+  let conflictIndex = 0;
+
+  if (resolveConflicts) {
+    const resolvedTarget = await resolveConflictTargetPath(
+      path.dirname(requestedTargetPath),
+      path.basename(requestedTargetPath),
+      { isDirectory: sourceStats.isDirectory() }
+    );
+    destinationPath = resolvedTarget.candidatePath;
+    conflictIndex = resolvedTarget.conflictIndex;
+  } else if (fs.existsSync(requestedTargetPath)) {
     throw new Error('Target already exists.');
   }
-  await fsp.mkdir(path.dirname(toPath), { recursive: true });
-  await fsp.cp(fromPath, toPath, { recursive: true });
-  return { path: normalizeRelPath(targetPath) };
+  if (sourceStats.isDirectory() && destinationPath.startsWith(`${fromPath}${path.sep}`)) {
+    throw new Error('Cannot copy a folder into itself.');
+  }
+  await fsp.mkdir(path.dirname(destinationPath), { recursive: true });
+  await fsp.cp(fromPath, destinationPath, { recursive: true });
+  const normalizedPath = normalizeRelPath(path.relative(resolved.rootPath, destinationPath));
+  return {
+    path: normalizedPath,
+    requestedPath: normalizeRelPath(targetPath),
+    conflictIndex,
+    conflictResolved: conflictIndex > 0,
+  };
 }
 
 

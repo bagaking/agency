@@ -213,6 +213,32 @@ test('performFileIntent import_copy keeps path-safety rules from explorer servic
   assert.match(result.failures[0]?.message || '', /path escapes repository root/i);
 });
 
+test('performFileIntent copy can resolve a conflict-safe sibling target for same-folder paste', async (t) => {
+  const rootDir = await createGitRoot();
+
+  t.after(async () => {
+    await fs.rm(rootDir, { recursive: true, force: true });
+  });
+
+  const sourcePath = path.join(rootDir, 'docs', 'guide.md');
+  await writeTextFile(sourcePath, 'guide');
+
+  const result = await performFileIntent({
+    intent: 'copy',
+    rootPath: rootDir,
+    sourcePath: 'docs/guide.md',
+    targetPath: 'docs/guide.md',
+    resolveConflicts: true,
+  });
+
+  assert.equal(result.success, true);
+  assert.equal(result.data?.requestedPath, 'docs/guide.md');
+  assert.equal(result.data?.path, 'docs/guide (1).md');
+  assert.equal(result.data?.conflictResolved, true);
+  assert.deepEqual(result.affectedPaths, ['docs/guide (1).md']);
+  assert.equal(await fs.readFile(path.join(rootDir, 'docs', 'guide (1).md'), 'utf8'), 'guide');
+});
+
 test('classifyAgentFiles merges builtin and project semantic rules by priority', async (t) => {
   const rootDir = await createGitRoot();
 

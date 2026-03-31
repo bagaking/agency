@@ -278,8 +278,10 @@ async function performFileIntent(payload = {}) {
         rootPath: payload.rootPath,
         sourcePath,
         targetPath,
+        resolveConflicts: Boolean(payload.resolveConflicts),
       });
-      return buildSuccess(intent, data, [targetPath]);
+      const affectedPath = normalizePath(data?.path || targetPath);
+      return buildSuccess(intent, data, affectedPath ? [affectedPath] : []);
     }
 
     if (intent === 'move' || intent === 'rename') {
