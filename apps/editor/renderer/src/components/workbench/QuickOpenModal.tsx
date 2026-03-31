@@ -1,17 +1,30 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, X } from 'lucide-react';
+import { CircleDot, FileText, Search, X } from 'lucide-react';
 import { isAgencyMethodAvailable, searchExplorerFiles } from '../../services/agencyBridge';
+import {
+  buildWorkbenchQuickOpenSections,
+  type WorkbenchQuickOpenItem,
+} from './workbenchQuickOpenModel';
 
-export function QuickOpenModal({ open, onClose, onSelect, rootPath }: any) {
+export function QuickOpenModal({
+  open,
+  onClose,
+  onSelect,
+  rootPath,
+  openTabs = [],
+  activeTabId = '',
+}: any) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [truncated, setTruncated] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
     if (!open) {
       setQuery('');
       setResults([]);
+      setTruncated(false);
       setActiveIndex(0);
     }
   }, [open]);
@@ -23,6 +36,7 @@ export function QuickOpenModal({ open, onClose, onSelect, rootPath }: any) {
     const handle = setTimeout(async () => {
       if (!query.trim()) {
         setResults([]);
+        setTruncated(false);
         return;
       }
       if (!isAgencyMethodAvailable('searchExplorerFiles')) {
@@ -35,8 +49,10 @@ export function QuickOpenModal({ open, onClose, onSelect, rootPath }: any) {
           rootPath: rootPath || undefined,
         });
         setResults(result?.matches || []);
+        setTruncated(Boolean(result?.truncated));
       } catch (error) {
         setResults([]);
+        setTruncated(false);
       } finally {
         setLoading(false);
       }
@@ -44,7 +60,20 @@ export function QuickOpenModal({ open, onClose, onSelect, rootPath }: any) {
     return () => clearTimeout(handle);
   }, [open, query, rootPath]);
 
-  const visible = useMemo(() => results.slice(0, 20), [results]);
+  const sections = useMemo(
+    () =>
+      buildWorkbenchQuickOpenSections({
+        query,
+        openTabs,
+        activeTabId,
+        fileMatches: results.slice(0, 40),
+      }),
+    [activeTabId, openTabs, query, results]
+  );
+  const visible = useMemo(
+    () => sections.flatMap((section) => section.items),
+    [sections]
+  );
 
   useEffect(() => {
     setActiveIndex(0);
@@ -84,9 +113,10 @@ export function QuickOpenModal({ open, onClose, onSelect, rootPath }: any) {
               }
               if (event.key === 'Enter' && visible[activeIndex]) {
                 onSelect(visible[activeIndex]);
+                onClose();
               }
             }}
-            placeholder="Quick open..."
+            placeholder="Quick open files and tabs..."
             className="flex-1 bg-transparent text-foreground outline-none"
           />
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -94,26 +124,84 @@ export function QuickOpenModal({ open, onClose, onSelect, rootPath }: any) {
           </button>
         </div>
         <div className="max-h-[320px] overflow-y-auto">
+          {!query.trim() && sections.length > 0 ? (
+            <div className="px-4 pt-3 text-[11px] text-muted-foreground">
+              Jump directly to an open tab, or start typing to search project files.
+            </div>
+          ) : null}
           {loading ? (
             <div className="px-4 py-3 text-xs text-muted-foreground">Searching...</div>
           ) : null}
-          {!loading && visible.length === 0 ? (
-            <div className="px-4 py-3 text-xs text-muted-foreground">No matches</div>
+          {truncated ? (
+            <div className="px-4 pt-3 text-[11px] text-amber-300/80">
+              Results truncated. Narrow the query to refine project files.
+            </div>
           ) : null}
-          {visible.map((path, index) => (
-            <button
-              key={path}
-              type="button"
-              className={`flex w-full items-center px-4 py-2 text-xs transition-colors ${
-                index === activeIndex ? 'bg-muted/60 text-foreground' : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
-              }`}
-              onClick={() => onSelect(path)}
-            >
-              {path}
-            </button>
+          {!loading && visible.length === 0 ? (
+            <div className="px-4 py-3 text-xs text-muted-foreground">
+              {query.trim() ? 'No matches' : 'No open tabs yet'}
+            </div>
+          ) : null}
+          {sections.map((section) => (
+            <div key={section.id} className="py-1">
+              <div className="px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
+                {section.label}
+              </div>
+              {section.items.map((item) => {
+                const index = visible.findIndex((entry) => entry.id === item.id);
+                return (
+                  <QuickOpenRow
+                    key={item.id}
+                    item={item}
+                    active={index === activeIndex}
+                    onClick={() => {
+                      onSelect(item);
+                      onClose();
+                    }}
+                  />
+                );
+              })}
+            </div>
           ))}
         </div>
       </div>
     </div>
+  );
+}
+
+function QuickOpenRow({
+  item,
+  active,
+  onClick,
+}: {
+  item: WorkbenchQuickOpenItem;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`flex w-full items-center gap-3 px-4 py-2 text-left transition-colors ${
+        active
+          ? 'bg-muted/60 text-foreground'
+          : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+      }`}
+      onClick={onClick}
+    >
+      {item.kind === 'tab' ? (
+        <CircleDot size={12} className={item.isActive ? 'text-primary' : 'text-muted-foreground/60'} />
+      ) : (
+        <FileText size={12} className="text-muted-foreground/60" />
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-xs font-medium">{item.title}</div>
+        <div className="truncate text-[10px] text-muted-foreground/75">{item.subtitle}</div>
+      </div>
+      {item.badge ? (
+        <span className="rounded-full border border-border/40 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/75">
+          {item.badge}
+        </span>
+      ) : null}
+    </button>
   );
 }

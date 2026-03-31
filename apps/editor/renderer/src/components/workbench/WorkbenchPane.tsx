@@ -11,8 +11,6 @@ import {
   Save,
   AlertTriangle,
   Search,
-  Maximize2,
-  Split,
   FileCode,
   FileWarning,
   FileCode2,
@@ -376,13 +374,18 @@ function WorkbenchPaneContent({
           })}
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <div className="flex items-center bg-white/[0.03] p-0.5 rounded-lg border border-white/[0.02]">
-            <HeaderButton onClick={() => setQuickOpenVisible(true)} icon={Search} label="Search" shortcut="⌘P" primary />
-            <HeaderButton icon={Split} label="Split" />
-          </div>
-        </div>
-      </div>
+	        <div className="flex items-center gap-1.5">
+	          <div className="flex items-center bg-white/[0.03] p-0.5 rounded-lg border border-white/[0.02]">
+	            <HeaderButton
+	              onClick={() => setQuickOpenVisible(true)}
+	              icon={Search}
+	              label="Quick Open"
+	              shortcut="⌘P"
+	              primary
+	            />
+	          </div>
+	        </div>
+	      </div>
 
       {/* 2. Toolbox Header: Breadcrumbs & Domain Actions */}
       <div className="flex h-9 shrink-0 items-center justify-between bg-[#0b0d11] border-b border-white/[0.02] px-4">
@@ -476,13 +479,13 @@ function WorkbenchPaneContent({
           </div>
         ) : null}
         {!activeTab ? (
-          <div className="flex h-full flex-col items-center justify-center text-white/[0.02] bg-[#0b0d11]">
-            <Logo size={120} className="opacity-10 grayscale animate-pulse-slow mb-8" />
-            <div className="grid grid-cols-2 gap-x-16 gap-y-4 text-[9px] font-bold uppercase tracking-[0.3em]">
-                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> CMD + P <span className="opacity-40">Open Path</span></div>
-                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> CMD + S <span className="opacity-40">Save Object</span></div>
-                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> Double Click <span className="opacity-40">Pin Tab</span></div>
-                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> Right Click <span className="opacity-40">Command Menu</span></div>
+	          <div className="flex h-full flex-col items-center justify-center text-white/[0.02] bg-[#0b0d11]">
+	            <Logo size={120} className="opacity-10 grayscale animate-pulse-slow mb-8" />
+	            <div className="grid grid-cols-2 gap-x-16 gap-y-4 text-[9px] font-bold uppercase tracking-[0.3em]">
+	                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> CMD + P <span className="opacity-40">Quick Open</span></div>
+	                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> CMD + S <span className="opacity-40">Save Object</span></div>
+	                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> Double Click <span className="opacity-40">Pin Tab</span></div>
+	                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> Right Click <span className="opacity-40">Command Menu</span></div>
             </div>
           </div>
         ) : activeState.loading ? (
@@ -578,18 +581,36 @@ function WorkbenchPaneContent({
                 onSelectLanguage={languageOverrides.setCurrentFileOverride}
                 onResetToAuto={languageOverrides.resetCurrentFileOverride}
               />
-            ) : (
-              <div className="flex items-center gap-2">
-                <FileCode size={10} className="text-primary/20" />
-                <span className="text-primary/20">{passiveFooterLabel}</span>
-              </div>
-            )}
-            <div className="h-3 w-px bg-white/[0.03]" />
-            <div className="flex items-center gap-2"><Maximize2 size={10} className="opacity-10" /><span>{formatWorkbenchBytes(activeState.size)}</span></div>
-        </div>
-      </div>
+	            ) : (
+	              <div className="flex items-center gap-2">
+	                <FileCode size={10} className="text-primary/20" />
+	                <span className="text-primary/20">{passiveFooterLabel}</span>
+	              </div>
+	            )}
+	            <div className="h-3 w-px bg-white/[0.03]" />
+	            <div className="flex items-center gap-2">
+	              <span className="opacity-35">Size</span>
+	              <span>{formatWorkbenchBytes(activeState.size)}</span>
+	            </div>
+	        </div>
+	      </div>
 
-      <QuickOpenModal open={quickOpenVisible} onClose={() => setQuickOpenVisible(false)} onSelect={(path) => openFile({ path, mode: 'preview', rootPath: activeRootPath })} rootPath={activeRootPath} />
+	      <QuickOpenModal
+	        open={quickOpenVisible}
+	        onClose={() => setQuickOpenVisible(false)}
+	        onSelect={(item) => {
+	          if (item?.kind === 'tab' && item?.tabId) {
+	            setActiveTab(item.tabId);
+	            return;
+	          }
+	          if (item?.path) {
+	            openFile({ path: item.path, mode: 'preview', rootPath: activeRootPath });
+	          }
+	        }}
+	        rootPath={activeRootPath}
+	        openTabs={tabs}
+	        activeTabId={activeTab?.id || ''}
+	      />
 
       {tabMenu && (
         <div
