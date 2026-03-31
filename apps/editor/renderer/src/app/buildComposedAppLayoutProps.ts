@@ -190,6 +190,7 @@ export function buildComposedAppLayoutProps({
     focusSessionInUi: actionHandlers.handleFocusSessionInUi,
     terminusProfiles: sessionReplyContext.terminusProfiles,
     handleSelectSessionFromSidebar: navigationHandlers.handleSelectSessionFromSidebar,
+    handleArchiveCell: actionHandlers.handleArchiveCell,
     projectReady: projectState.projectReady,
     projectError: projectState.projectError,
     projectRoot: projectState.projectRoot,

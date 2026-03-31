@@ -616,6 +616,7 @@ function AppShell() {
   const gatesCheckingByStage = scopedCell ? hierarchyConfig.gatesCheckingByCellId[scopedCell.id] || {} : {};
   const {
     handleStateChange,
+    handleArchiveCell,
     handleUpdateCellAvatar,
     handleClearAttachment,
     handleDelete,
@@ -972,6 +973,7 @@ function AppShell() {
     },
     actionHandlers: {
       handleStateChange,
+      handleArchiveCell,
       handleTurnGateCreateSheet,
       handleTurnGateExecuteSheet,
       handleOpenTerminal,

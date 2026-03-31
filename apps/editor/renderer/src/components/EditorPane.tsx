@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   ShieldCheck,
+  Archive,
     RefreshCw,
     RotateCcw,
     Layout,
@@ -270,6 +271,17 @@ export function EditorPane({
 	            <div className="flex items-center gap-3">
                   {attachmentState !== 'attached' ? (
                     <div className="flex items-center gap-1.5">
+                      {onStateChange && cell?.state !== 'archived' ? (
+                        <button
+                          type="button"
+                          onClick={() => onStateChange('archived')}
+                          className="flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-medium text-emerald-100 transition-colors hover:bg-emerald-500/10"
+                          title="Archive this detached Cell and remove it from the active Agent Cells flow"
+                        >
+                          <Archive size={12} />
+                          <span>Archive Cell</span>
+                        </button>
+                      ) : null}
                       {onClearCellAttachment ? (
                         <button
                           type="button"

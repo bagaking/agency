@@ -34,6 +34,7 @@ export function AgentCellsSidebar({
   onSettleTrackedHarnessRun,
   onFocusSessionInUi,
   onConfigureProfile,
+  onArchiveCell,
   onOpenFileReference,
   onRevealFileReference,
   onImportFileReferences,
@@ -173,6 +174,7 @@ export function AgentCellsSidebar({
           onSettleTrackedHarnessRun={onSettleTrackedHarnessRun}
           onFocusSessionInUi={onFocusSessionInUi}
           onConfigureProfile={onConfigureProfile}
+          onArchiveCell={onArchiveCell}
         />
 
         <AgentCellsExplorerPanel

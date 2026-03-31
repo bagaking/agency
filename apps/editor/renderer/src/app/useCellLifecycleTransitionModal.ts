@@ -7,7 +7,7 @@ type UseCellLifecycleTransitionModalArgs = {
   setPendingTransition: (value: any) => void;
   setTransitionError: (value: string) => void;
   setTransitionLoading: (value: boolean) => void;
-  loadCells: () => Promise<void>;
+  loadCells: (preferredSelection?: string | null) => Promise<void>;
   checkGatesForCell: (payload: any) => Promise<any[]>;
 };
 
@@ -40,7 +40,7 @@ export function useCellLifecycleTransitionModal({
         setTransitionError('Lifecycle transition failed.');
         return;
       }
-      await loadCells();
+      await loadCells(pendingTransition.cell.id || null);
       setPendingTransition(null);
     } catch (error: any) {
       setTransitionError(error?.message || 'Lifecycle transition failed.');

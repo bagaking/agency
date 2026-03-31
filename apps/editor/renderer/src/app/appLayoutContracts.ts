@@ -257,6 +257,7 @@ export type NavigationHandlers = UnknownRecord & {
 
 export type ActionHandlers = UnknownRecord & {
   handleStateChange?: FlexibleHandler;
+  handleArchiveCell?: FlexibleHandler;
   handleTurnGateCreateSheet?: FlexibleHandler;
   handleTurnGateExecuteSheet?: FlexibleHandler;
   handleOpenTerminal?: FlexibleHandler;
@@ -484,6 +485,7 @@ export interface BuildAppLayoutInput {
   settleTrackedHarnessRun?: FlexibleHandler;
   focusSessionInUi?: FlexibleHandler;
   handleContinueSessionOnMobile?: FlexibleHandler;
+  handleArchiveCell?: FlexibleHandler;
   projectReady: boolean;
   projectError: string;
   projectRoot: string;
