@@ -26,7 +26,7 @@ export const EXPLORER_WORKING_SET_DESCRIPTORS: ExplorerWorkingSetDescriptor[] = 
     implemented: true,
     panelId: 'tree',
     supportsFilterMenu: true,
-    supportedSearchModes: ['path', 'content'],
+    supportedSearchModes: ['path', 'content', 'url'],
     supportedContentScopeKinds: ['project', 'folder', 'selection'],
     title: 'Explorer Tree',
   },

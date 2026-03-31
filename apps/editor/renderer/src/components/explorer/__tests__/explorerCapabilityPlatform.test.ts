@@ -77,6 +77,17 @@ test('project policy can hide registered commands without changing registry orde
   assert.equal(commands.some((command) => command.id === 'explorer.newFile'), true);
 });
 
+test('tree working set keeps path, content, and url intake available', () => {
+  const tree = getExplorerWorkingSetDescriptor(EXPLORER_WORKING_SET_TREE);
+  const supportedModes = getExplorerSearchModeOptions(tree.supportedSearchModes);
+
+  assert.equal(tree.supportsFilterMenu, true);
+  assert.deepEqual(
+    supportedModes.map((option) => option.id),
+    [EXPLORER_SEARCH_MODE_PATH, EXPLORER_SEARCH_MODE_CONTENT, EXPLORER_SEARCH_MODE_URL]
+  );
+});
+
 test('changed-files working set advertises content and url search', () => {
   const changedFiles = getExplorerWorkingSetDescriptor(EXPLORER_WORKING_SET_CHANGED_FILES);
   const supportedModes = getExplorerSearchModeOptions(changedFiles.supportedSearchModes);
