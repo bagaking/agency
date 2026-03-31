@@ -196,7 +196,6 @@ export type SessionReplyContextState = UnknownRecord & {
   activeProfileId?: string;
   activeProfileBindings?: UnknownList;
   handleJumpToSession?: FlexibleHandler;
-  handleJumpToReplyMemo?: FlexibleHandler;
   activeSession?: unknown;
   activeReplySelection?: unknown;
   handleClearReplySelection?: FlexibleHandler;

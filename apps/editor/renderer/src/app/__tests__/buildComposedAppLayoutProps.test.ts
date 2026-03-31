@@ -87,7 +87,6 @@ function createFixture() {
   const sessionReplyContext = {
     activeProfileBindings: { Enter: 'send' },
     handleJumpToSession: noop,
-    handleJumpToReplyMemo: noop,
     activeSession: { id: 'sess-1' },
     activeReplySelection: { text: 'snippet' },
     handleClearReplySelection: noop,

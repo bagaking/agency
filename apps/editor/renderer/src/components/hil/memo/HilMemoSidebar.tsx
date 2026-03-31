@@ -44,7 +44,7 @@ export function HilMemoSidebar({
             </h2>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="text-xs font-semibold text-foreground truncate">
-                {summary.comment + summary.memo + summary.draft + (summary.reply || 0)} total items
+                {summary.comment + summary.memo + summary.draft} total items
               </span>
               <div className="h-1 w-1 rounded-full bg-primary/80" />
             </div>
@@ -288,7 +288,6 @@ const kindOptions = [
   { value: 'all', label: 'Everything' },
   { value: 'comment', label: 'Comments' },
   { value: 'memo', label: 'Memos' },
-  { value: 'reply', label: 'Replies' },
   { value: 'draft', label: 'Drafts' },
 ];
 

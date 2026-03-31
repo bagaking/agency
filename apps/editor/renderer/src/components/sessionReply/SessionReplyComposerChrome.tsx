@@ -155,12 +155,12 @@ export function SessionReplyComposerChrome({
           </div>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
-            <Tooltip label="Record as Memo" side="top">
+            <Tooltip label="Record Reply" side="top">
               <button
                 type="button"
                 onClick={() => handleCreateReply({ action: 'record' })}
                 disabled={!hasContent || submitting}
-                aria-label="Record reply as memo"
+                aria-label="Record reply locally"
                 className={`flex h-6 w-6 items-center justify-center rounded-md border border-border/30 bg-background/50 text-muted-foreground transition-colors hover:text-primary hover:border-primary/30 disabled:opacity-30 ${focusRingClass}`}
               >
                 {submitting && !sendMenuOpen ? <Loader2 size={12} className="animate-spin" /> : <StickyNote size={12} />}

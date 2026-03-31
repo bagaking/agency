@@ -60,6 +60,11 @@ Each reply artifact SHALL record explicit owner metadata for `cellId` and `sessi
 - **THEN** the editor writes a reply artifact into the worktree reply store
 - **AND** the stored artifact records the owning `cellId` and `sessionId`
 
+#### Scenario: Invalid legacy reply rows are preserved until repair
+- **WHEN** legacy HIL `reply` rows cannot be normalized into valid session ownership
+- **THEN** the editor does not silently delete them during migration
+- **AND** only successfully imported legacy reply rows are removed from the legacy HIL store
+
 ### Requirement: Session Reply Storage Tree Layout
 The editor SHALL store session reply artifacts under a session-owned tree layout while keeping the worktree reply index as the source of truth.
 

@@ -15,6 +15,7 @@ import {
   listHilItems,
   updateHilItem,
 } from '../repositories/hilRepository';
+import { updateSessionReply } from '../repositories/sessionReplyRepository';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -553,29 +554,49 @@ export async function confirmDelivery({
   }
   const references = Array.isArray(draft.references) ? draft.references : [];
   const promotedAt = new Date().toISOString();
-  await Promise.all(
-    references
-      .filter((ref: any) => ref?.system === 'hil' && ref?.id)
-      .map((ref: any) =>
-        updateHilItem({
-          worktreePath,
-          itemId: ref.id,
-          patch: {
-            meta: {
-              processed: true,
-              promotedDraftId: draftId,
-              promoteSessionId: draft.meta?.executionSessionId || null,
-              promotedAt,
-            },
-          },
-        }).catch(() => null)
-      )
-  );
-
   const source = normalizeSource(draft.meta?.deliverySource || draft.meta?.sourceBatch);
   const mode = normalizeMode(draft.meta?.deliveryMode);
   const sessionId = String(draft.meta?.executionSessionId || '').trim();
   const actionSheetId = String(draft.meta?.actionSheetId || '').trim();
+  const targetCellId = String(draft.meta?.deliveryCellId || '').trim();
+  await Promise.all(
+    references
+      .filter((ref: any) => ref?.id)
+      .map((ref: any) => {
+        if (ref.system === 'hil') {
+          return updateHilItem({
+            worktreePath,
+            itemId: ref.id,
+            patch: {
+              meta: {
+                processed: true,
+                promotedDraftId: draftId,
+                promoteSessionId: sessionId || null,
+                promotedAt,
+              },
+            },
+          }).catch(() => null);
+        }
+        if (ref.system === 'reply') {
+          return updateSessionReply({
+            worktreePath,
+            replyId: ref.id,
+            patch: {
+              delivery: {
+                draftId,
+                source,
+                mode,
+                targetSession: {
+                  cellId: targetCellId,
+                  sessionId,
+                },
+              },
+            },
+          }).catch(() => null);
+        }
+        return Promise.resolve(null);
+      })
+  );
 
   const completed = await markExecutionStatus({
     worktreePath,

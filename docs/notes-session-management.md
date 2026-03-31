@@ -107,10 +107,10 @@ Session Reply Relay 是面向 Session 的“回复资产化”机制，强调 **
 
 核心规则：
 - Reply 面板位于 Agent-Cells 的右侧 HIL 抽屉，进入 Agent-Cells 时默认打开并选中；每个 session 的 reply 线程相互隔离。
-- Reply 记录为 HIL `reply` 类型 memo；在 Memo 界面只读（不可输入），但支持 Promote（与 comment 同流程）。
-- Reply 元数据包含：`selection.site`（含高亮）、`selection.query`（用户输入）、`selection.timeTag`（无选区时为 `Nature`）、以及 `session` 归属信息。
+- Reply 记录为 session-owned artifact，独立存放在 `.agency/session-replies/`；它不是 HIL item，也不进入 Memo inbox / Promote 选择树。
+- Reply 元数据包含：`capture.selection.site`（含高亮）、`capture.selection.query`（用户输入）、`capture.selection.timeTag`（无选区时为 `Nature`）、以及显式 `owner.cellId/sessionId` 归属信息。
 - Reply 动作：Record / Send to Current / Send to Other；发送后在 Reply 面板生成“发送结果卡片”（头像 + 跳转）。
-- Record-only 卡片显示 memo icon；发送到其他 session 时显示 link icon 并支持跳转。
+- Record-only 卡片显示 local-record 标识；发送到其他 session 时显示 link icon 并支持 jump 到目标 session。
 - 发送 payload 采用标签包裹：`<reply time="..."><site>...</site><query>...</query></reply>`；若无 `site`，直接发送纯文本。
 - selection 高亮采用反引号包裹（例如 `xxxxxx` 中的 `yyy`），并保留 selection 前后原文。
 

@@ -16,11 +16,15 @@ From `apps/editor`:
 pnpm run package
 ```
 
-Strict release variants that also enforce the renderer bundle budget:
+Release variants that also enforce the renderer bundle budget:
 ```bash
-pnpm run package:strict
-pnpm run package:lite:strict
-pnpm run package:dir:strict
+make editor-package-release
+make editor-package-lite-release
+make editor-package-dir-release
+
+pnpm run package:release
+pnpm run package:lite:release
+pnpm run package:dir:release
 ```
 
 Remove all generated `dist` outputs before retrying packaging:
@@ -42,7 +46,7 @@ pnpm run package:dir
 
 Packaging prepare step:
 - `pnpm run package`, `package:lite`, and `package:dir` now run `package:prepare` before the expensive build/sign/DMG stages.
-- Strict release variants (`package:strict`, `package:lite:strict`, `package:dir:strict`) use the same prepare step and also run the renderer bundle budget gate before packaging.
+- Release variants (`package:release`, `package:lite:release`, `package:dir:release`) use the same prepare step and also run the renderer bundle budget gate before packaging.
 - The prepare step checks free space on:
   - the project volume
   - `/tmp`
@@ -63,13 +67,14 @@ Artifacts:
 Renderer budget policy:
 - `pnpm run build:renderer` only emits renderer assets.
 - `pnpm run build:renderer:budget` emits assets and then enforces the renderer budget gate.
+- `pnpm run accept:renderer-bundle-budget` refreshes the accepted-state file after an intentional budget decision.
 - The budget gate uses `apps/editor/scripts/renderer-bundle-budget.accepted.json` as the accepted-state ratchet.
 - JS and gzip budgets remain hard failures.
 - Raw CSS drift is warning-only, so packageability is not blocked by minor Tailwind raw-size churn.
 
 Why this split exists:
 - Packaging answers “can we produce the desktop artifact?” and should not fail on small non-runtime bundle drift.
-- Budget enforcement answers “did the boot footprint regress beyond the accepted state?” and belongs on the explicit budgeted/strict entrypoints.
+- Budget enforcement answers “did the boot footprint regress beyond the accepted state?” and belongs on the explicit budgeted/release entrypoints.
 - This rejects the tempting but wrong shortcut of making every local package command enforce the same front-end budget gate.
 
 ## Install

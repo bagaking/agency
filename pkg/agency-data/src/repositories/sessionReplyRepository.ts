@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 
 import {
@@ -6,12 +7,12 @@ import {
   sanitizeStorageSegment,
   type WorktreeStorageContext,
 } from './storageRoots';
-import { takeLegacyReplyItems } from './hilRepository';
 import { readYamlFile, writeYamlFileAtomic } from './yamlStore';
 
 const SESSION_REPLIES_DIR = 'session-replies';
 const REPLY_INDEX_PREFIX = 'index-';
 const YAML_EXT = '.yaml';
+const fsp = fs.promises;
 
 export type SessionReplyTarget = {
   type: string;
@@ -86,6 +87,16 @@ function getReplyArtifactPath(worktreePath: string, item: SessionReplyItem): str
   const cellId = sanitizeStorageSegment(item.owner?.cellId, 'cell');
   const sessionId = sanitizeStorageSegment(item.owner?.sessionId, 'session');
   return path.join(base, 'sessions', cellId, sessionId, `${item.id}${YAML_EXT}`);
+}
+
+function getLegacyHilIndexPath(worktreePath: string): string {
+  const { storageRootPath, worktreeName } = getStoragePaths({ worktreePath });
+  return path.join(storageRootPath, AGENCY_DIR, 'hil', `index-${worktreeName}${YAML_EXT}`);
+}
+
+function getLegacyHilReplyArtifactPath(worktreePath: string, replyId: string): string {
+  const { storageRootPath, worktreeName } = getStoragePaths({ worktreePath });
+  return path.join(storageRootPath, AGENCY_DIR, 'hil', worktreeName, 'items', 'reply', `${replyId}${YAML_EXT}`);
 }
 
 function normalizeReplyTarget(raw: Record<string, any> = {}): SessionReplyTarget {
@@ -237,11 +248,20 @@ async function writeReplyArtifact(worktreePath: string, item: SessionReplyItem):
 
 async function ensureReplyIndex(worktreePath: string): Promise<SessionReplyIndex> {
   const index = await readReplyIndex(worktreePath);
-  const legacyReplies = await takeLegacyReplyItems(worktreePath);
+  const legacyHilIndex = await readYamlFile<Record<string, any>>(
+    getLegacyHilIndexPath(worktreePath),
+    { version: 1, items: [] },
+    { backupCorrupt: true }
+  );
+  const legacyItems = Array.isArray(legacyHilIndex.items)
+    ? legacyHilIndex.items.filter((item) => item && typeof item === 'object')
+    : [];
+  const legacyReplies = legacyItems.filter((item) => String(item?.kind || '').trim() === 'reply');
   if (!legacyReplies.length) {
     return index;
   }
   const nextItems = [...index.items];
+  const remainingHilItems: Record<string, any>[] = [];
   const knownIds = new Set(nextItems.map((item) => item.id));
   const knownLegacyIds = new Set(
     nextItems
@@ -249,24 +269,65 @@ async function ensureReplyIndex(worktreePath: string): Promise<SessionReplyIndex
       .filter(Boolean)
   );
   let changed = false;
+  const migratedLegacyIds = new Set<string>();
   for (const legacyReply of legacyReplies) {
     const normalized = convertLegacyHilReply(legacyReply);
     if (!normalized) {
       continue;
     }
-    if (knownIds.has(normalized.id) || knownLegacyIds.has(String(legacyReply.id || ''))) {
+    const legacyId = String(legacyReply.id || '').trim();
+    if (knownIds.has(normalized.id) || (legacyId && knownLegacyIds.has(legacyId))) {
+      if (legacyId) {
+        migratedLegacyIds.add(legacyId);
+      }
       continue;
     }
     nextItems.push(normalized);
     knownIds.add(normalized.id);
-    knownLegacyIds.add(String(legacyReply.id || ''));
+    if (legacyId) {
+      knownLegacyIds.add(legacyId);
+      migratedLegacyIds.add(legacyId);
+    }
     changed = true;
     await writeReplyArtifact(worktreePath, normalized);
   }
+  legacyItems.forEach((item) => {
+    const itemKind = String(item?.kind || '').trim();
+    const itemId = String(item?.id || '').trim();
+    if (itemKind !== 'reply') {
+      remainingHilItems.push(item);
+      return;
+    }
+    if (!itemId || !migratedLegacyIds.has(itemId)) {
+      remainingHilItems.push(item);
+    }
+  });
   if (changed) {
     const nextIndex = { version: index.version || 1, items: nextItems };
     await writeReplyIndex(worktreePath, nextIndex);
+    if (migratedLegacyIds.size > 0) {
+      await writeYamlFileAtomic(getLegacyHilIndexPath(worktreePath), {
+        version: Number(legacyHilIndex.version || 1),
+        items: remainingHilItems,
+      });
+      await Promise.all(
+        Array.from(migratedLegacyIds).map((replyId) =>
+          fsp.rm(getLegacyHilReplyArtifactPath(worktreePath, replyId), { force: true }).catch(() => undefined)
+        )
+      );
+    }
     return nextIndex;
+  }
+  if (migratedLegacyIds.size > 0) {
+    await writeYamlFileAtomic(getLegacyHilIndexPath(worktreePath), {
+      version: Number(legacyHilIndex.version || 1),
+      items: remainingHilItems,
+    });
+    await Promise.all(
+      Array.from(migratedLegacyIds).map((replyId) =>
+        fsp.rm(getLegacyHilReplyArtifactPath(worktreePath, replyId), { force: true }).catch(() => undefined)
+      )
+    );
   }
   return index;
 }

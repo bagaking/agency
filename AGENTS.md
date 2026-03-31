@@ -81,6 +81,7 @@ Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeSc
 - Canonical domain objects are `App -> Window -> Project -> Cell -> Session -> Run`.
 - `Agent Cells`, `Explorer`, `Workbench`, `Session Map`, `Hierarchy`, `Memo`, and `Commander` are surfaces over those objects, not competing object roots.
 - HIL storage is bounded to `comment` / `memo` / `draft`; session replies are session-owned artifacts and must not be stored or surfaced as HIL inbox items.
+- Session-source delivery must reference reply artifacts as `system=reply`; do not backdoor reply provenance through HIL refs.
 - `Create Cell` is the worktree-bound workspace action.
 - `Create Agent` is the bounded child-execution action owned by a run.
 - `Fork` is a specialized `Create Agent` strategy, not the default noun for workspace creation or child execution.

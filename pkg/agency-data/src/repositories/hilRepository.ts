@@ -293,23 +293,6 @@ async function ensureHilIndexRaw(worktreePath: string): Promise<RawHilIndex> {
   return processedIndex;
 }
 
-export async function takeLegacyReplyItems(worktreePath: string): Promise<Record<string, any>[]> {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
-  }
-  const index = await ensureHilIndexRaw(worktreePath);
-  const legacyReplies = index.items.filter((item) => String(item?.kind || '').trim() === 'reply');
-  if (!legacyReplies.length) {
-    return [];
-  }
-  const nextItems = index.items.filter((item) => String(item?.kind || '').trim() !== 'reply');
-  await writeHilIndexRaw(worktreePath, {
-    version: index.version || 1,
-    items: nextItems,
-  });
-  return legacyReplies;
-}
-
 export async function listHilItems({
   worktreePath,
   kind,

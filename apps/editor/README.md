@@ -286,12 +286,12 @@ For a lower-peak local DMG build (DMG only, no ZIP), run:
 make editor-package-lite
 ```
 
-To package while also enforcing the renderer budget gate, use the strict variants:
+To package while also enforcing the renderer budget gate, use the release variants:
 
 ```bash
-pnpm run package:strict
-pnpm run package:lite:strict
-pnpm run package:dir:strict
+make editor-package-release
+make editor-package-lite-release
+make editor-package-dir-release
 ```
 
 For an unpacked build (no DMG), run:
@@ -337,12 +337,15 @@ Build semantics are split on purpose:
 ```bash
 pnpm run build:renderer
 pnpm run build:renderer:budget
+pnpm run accept:renderer-bundle-budget
 ```
 
 - `build:renderer` only emits renderer artifacts.
 - `build:renderer:budget` rebuilds the renderer and then enforces the bundle budget gate.
+- `accept:renderer-bundle-budget` refreshes the accepted-state file after an intentional budget decision.
 - The budget gate uses `apps/editor/scripts/renderer-bundle-budget.accepted.json` as the accepted-state ratchet.
 - Gzip budgets remain hard failures; raw CSS drift is reported as a warning so minor Tailwind churn does not block local packaging.
+- Release-gated packaging belongs on the explicit `*-release` entrypoints; packageability-first commands stay local and non-blocking by design.
 
 ## Makefile (from repo root)
 

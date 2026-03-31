@@ -124,7 +124,7 @@ export function useHilPromoteWorkflow({
         return;
       }
       const pending = (Array.isArray(list) ? list : [])
-        .filter((item) => item && (item.kind === 'comment' || item.kind === 'memo' || item.kind === 'reply'))
+        .filter((item) => item && (item.kind === 'comment' || item.kind === 'memo'))
         .filter((item) => item.meta?.processed !== true)
         .sort((a, b) => {
           const fileA = a.anchor?.file || '';

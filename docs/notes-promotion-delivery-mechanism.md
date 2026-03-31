@@ -9,7 +9,7 @@ sop:
 
 # Promotion Delivery Mechanism
 
-一句话：当前项目的 `promotion` 已经收口为一个统一 Delivery 协议，Promote / Explorer / Session Reply 只是不同入口，底层生命周期和存储契约一致。
+一句话：当前项目的 `promotion` 已经收口为一个统一 Delivery 协议，Promote / Explorer / Session Reply 只是不同入口；底层 dispatch lifecycle 一致，但 source artifact storage 仍按 owner 分仓。
 
 补充约束：`Delivery` 是 workflow artifact，不是新的执行对象层级。它负责把 source artifacts 和 target sessions 连接起来，但不替代 `Cell / Session / Run` 这组 canonical objects。
 
@@ -171,6 +171,7 @@ Promote 侧常见判定：
 Timeline 跳转策略：
 - 有 `draftId`：打开 Memo Draft。
 - 否则有 `actionSheetId`：打开 Action Sheet 面板。
+- 若需要回看 source artifact：`source=session` 返回 owning Session Reply history，`source=promote` 返回 HIL/Memo 上下文。
 
 ## 8. 兼容策略
 

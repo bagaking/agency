@@ -1985,9 +1985,9 @@ The editor SHALL ignore trailing punctuation characters when resolving the path.
 - **THEN** the resolved path is `docs/notes-terminal-keyboard.md` (excluding `行为说明。`)
 
 ### Requirement: Session Reply Relay
-The editor SHALL provide a session-side Reply panel for creating reply memos.
-The editor SHALL store replies as memo kind `reply` and isolate reply threads per session.
-The editor SHALL NOT allow editing reply memos inside the main Memo view.
+The editor SHALL provide a session-side Reply panel for creating session-owned reply artifacts.
+The editor SHALL store replies outside HIL with explicit session ownership and isolate reply threads per session.
+The editor SHALL NOT surface session replies as editable items inside the main Memo view.
 
 #### Scenario: Reply panel default
 - **WHEN** a user opens a session
@@ -1999,11 +1999,11 @@ The editor SHALL support `Record`, `Send to Current`, and `Send to Other` action
 
 #### Scenario: Record reply
 - **WHEN** a user submits a reply with `Record`
-- **THEN** the reply is saved as a memo without sending terminal input
+- **THEN** the reply is saved as a session reply artifact without sending terminal input
 
 #### Scenario: Send reply to current session
 - **WHEN** a user submits a reply with `Send to Current`
-- **THEN** the reply is saved as a memo and sent to the active session
+- **THEN** the reply is saved as a session reply artifact and sent to the active session
 
 ### Requirement: Reply metadata
 The editor SHALL record source site and query for replies in metadata.
@@ -2012,7 +2012,7 @@ The editor SHALL record the authoring cell/session and timestamp.
 
 #### Scenario: Reply metadata recorded
 - **WHEN** a reply is created
-- **THEN** its memo metadata includes source, selection time tag, and session identifiers
+- **THEN** its artifact metadata includes source, selection time tag, and session identifiers
 
 ### Requirement: Send-result cards
 The editor SHALL display send-result cards in the Reply panel.

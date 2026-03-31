@@ -10,7 +10,6 @@ export function SessionReplyHistory({
   loadingReplies,
   replyItems,
   onJumpToSession,
-  onJumpToMemo,
   onArchiveReply,
   onReeditReply,
 }: any) {
@@ -34,7 +33,7 @@ export function SessionReplyHistory({
             Empty
           </div>
           <div className="mt-1 max-w-[160px] text-[9px] leading-relaxed text-muted-foreground/80">
-            Record a memo or route a reply to another session.
+            Record a reply or route one to another session.
           </div>
         </div>
       ) : (
@@ -46,9 +45,7 @@ export function SessionReplyHistory({
             <SessionReplyHistoryCard
               key={item.id}
               item={item}
-              originSession={item.meta?.session}
               onJumpToSession={onJumpToSession}
-              onJumpToMemo={onJumpToMemo}
               onArchive={() => onArchiveReply(item)}
               onReedit={() => onReeditReply(item)}
               focusRingClass={focusRingClass}
@@ -62,18 +59,16 @@ export function SessionReplyHistory({
 
 function SessionReplyHistoryCard({
   item,
-  originSession,
   onJumpToSession,
-  onJumpToMemo,
   onArchive,
   onReedit,
   focusRingClass,
 }: any) {
-  const sentTargets = Array.isArray(item?.meta?.sent?.targets) ? item.meta.sent.targets : [];
+  const sentTargets = Array.isArray(item?.targets) ? item.targets : [];
   const createdLabel = item?.createdAt
     ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
     : '';
-  const site = item?.meta?.selection?.site || '';
+  const site = item?.capture?.selection?.site || '';
 
   const target = sentTargets[0];
   const isRecord = target?.type === 'record';
@@ -88,41 +83,36 @@ function SessionReplyHistoryCard({
             </div>
             <div className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-tight text-muted-foreground/40 truncate">
               <span className="truncate max-w-[50px] opacity-60">
-                {originSession?.sessionName || originSession?.sessionId || 'Reply'}
+                {item?.owner?.sessionName || item?.owner?.sessionId || 'Reply'}
               </span>
 
               {target ? (
                 <>
                   <ArrowUpRight size={8} className="shrink-0 opacity-30" />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (isRecord) {
-                        onJumpToMemo?.(item);
-                      } else if (target.cellId && target.sessionId) {
-                        onJumpToSession?.(target.cellId, target.sessionId);
-                      }
-                    }}
-                    aria-label={
-                      isRecord
-                        ? 'Open recorded reply in memo'
-                        : `Jump to ${target.sessionName || target.sessionId}`
-                    }
-                    className={`flex items-center gap-1 truncate text-primary/70 transition-colors hover:text-primary ${focusRingClass}`}
-                  >
-                    {isRecord ? (
+                  {isRecord ? (
+                    <span className="flex items-center gap-1 truncate text-muted-foreground/50">
                       <StickyNote size={8} className="opacity-60" />
-                    ) : (
+                      <span className="truncate">Recorded</span>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (target.cellId && target.sessionId) {
+                          onJumpToSession?.(target.cellId, target.sessionId);
+                        }
+                      }}
+                      aria-label={`Jump to ${target.sessionName || target.sessionId}`}
+                      className={`flex items-center gap-1 truncate text-primary/70 transition-colors hover:text-primary ${focusRingClass}`}
+                    >
                       <AgentAvatarBadge
                         avatarId={resolveAvatarId(target.avatar || target.sessionId || target.cellId)}
                         size={10}
                         showRing={false}
                       />
-                    )}
-                    <span className="truncate">
-                      {isRecord ? 'Record' : target.sessionName || target.sessionId}
-                    </span>
-                  </button>
+                      <span className="truncate">{target.sessionName || target.sessionId}</span>
+                    </button>
+                  )}
                 </>
               ) : null}
             </div>
