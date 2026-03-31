@@ -271,7 +271,13 @@ export function AppLayout({
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      <ActivityBar activeView={activeView} onSwitchView={onSwitchView} />
+      <ActivityBar
+        activeView={activeView}
+        onSwitchView={onSwitchView}
+        sidebarCollapsed={sidebarCollapsed}
+        sidebarVisible={hasSidebar}
+        onToggleSidebar={onToggleSidebar}
+      />
 
       {hasSidebar ? (
         <SidebarDock
@@ -279,7 +285,6 @@ export function AppLayout({
           collapsed={sidebarCollapsed}
           onResize={onResizeSidebar}
           onResizeEnd={onResizeSidebarEnd}
-          onToggleCollapse={onToggleSidebar}
         >
           {sidebarContent}
         </SidebarDock>

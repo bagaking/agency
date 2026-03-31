@@ -11,7 +11,6 @@ import {
 import {
   HIL_SURFACE_COPY,
   HilStatusBadge,
-  HilSurfaceHeader,
 } from '../hilSurfaceSystem';
 import { IconButton } from '../../ui/IconButton';
 import { focusRing } from '../../ui/focusRing';
@@ -34,24 +33,25 @@ export function HilMemoSidebar({
   summarizeBody,
 }: any) {
   const focusRingClass = focusRing.sidebar;
+  const totalRecords = Number(summary.comment || 0) + Number(summary.memo || 0) + Number(summary.draft || 0);
   return (
     <aside className="flex flex-col h-full bg-[linear-gradient(180deg,rgba(18,22,29,0.98),rgba(10,13,18,0.99))] overflow-hidden select-none">
       {/* Header Section */}
-      <div className="shrink-0 border-b border-white/[0.06] px-4 py-4 bg-white/[0.02] z-20">
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <HilSurfaceHeader
-            eyebrow={HIL_SURFACE_COPY.workspaceSubtitle}
-            title={HIL_SURFACE_COPY.workspaceTitle}
-            subtitle="Capture, review, and route artifact records from one workspace."
-            meta={
-              <>
-                <HilStatusBadge label={`${summary.comment + summary.memo + summary.draft} records`} tone="neutral" />
-                <HilStatusBadge label={`${pendingInboxCount} inbox`} tone="active" />
-                <HilStatusBadge label={`${draftCount} drafts`} tone="warning" />
-              </>
-            }
-            compact
-          />
+      <div className="shrink-0 border-b border-white/[0.06] bg-white/[0.02] px-4 py-3 z-20">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-center gap-2">
+              <h2 className="truncate text-[13px] font-semibold tracking-[0.01em] text-foreground">
+                {HIL_SURFACE_COPY.workspaceTitle}
+              </h2>
+              <span className="truncate rounded-full border border-border/30 bg-muted/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/65">
+                {totalRecords} records
+              </span>
+            </div>
+            <div className="mt-1 text-[10px] font-medium text-muted-foreground/58">
+              {pendingInboxCount} inbox · {draftCount} drafts
+            </div>
+          </div>
           <IconButton
             label="Refresh memo workspace"
             onClick={refresh}
@@ -110,7 +110,6 @@ export function HilMemoSidebar({
           <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/42">
             Capture & Review
           </div>
-          <HilStatusBadge label={`${pendingInboxCount}`} tone="neutral" className="px-2 py-0.5" />
         </div>
         
         <div className="flex flex-col py-1 pb-3">
@@ -152,7 +151,6 @@ export function HilMemoSidebar({
           <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/42">
             Drafts
           </div>
-          <HilStatusBadge label={`${draftCount}`} tone="warning" className="px-2 py-0.5" />
         </div>
         
         <div className="flex flex-col py-1 pb-8">

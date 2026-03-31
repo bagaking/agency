@@ -34,6 +34,15 @@ This doc exists to keep Explorer opinionated.
 
 Agency Explorer already has several strong traits that should be kept as non-negotiable foundations.
 
+### Shell-owned sidebar control
+
+Explorer lives inside the shared left dock. That means collapse and expand should belong to shell chrome, not to Explorer-local edge handles or per-surface corner buttons.
+
+Current boundary:
+- Activity Bar owns left-sidebar collapse and expand;
+- `SidebarDock` owns width and resize only;
+- Explorer header should not spend precious title-row space repeating shell-level collapse affordances.
+
 ### One execution hub, not many ad hoc file UIs
 
 The current architecture already treats Explorer as the canonical execution hub for file mutation and reveal, rather than letting every surface invent its own file behavior.

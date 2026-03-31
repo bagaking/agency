@@ -43,22 +43,27 @@ export function ExplorerHeader({
   const activeSearchModeDescriptor =
     searchModeDescriptors.find((option) => option.id === searchMode) || searchModeDescriptors[0];
   const searchPlaceholder = activeSearchModeDescriptor?.placeholder || 'Search files…';
+  const contextLabel = contextBits.join(' · ');
 
   return (
-    <header data-testid="explorer-header" className="shrink-0 space-y-3 px-4 py-3 border-b border-border/40 bg-sidebar text-sidebar-foreground">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col min-w-0">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">Explorer</h2>
-          <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-xs font-semibold text-foreground">{activeRootLabel}</span>
-            {contextBits.length ? (
-              <>
-                <div className="h-1 w-1 rounded-full bg-primary/70" />
-                <span className="truncate text-[9px] font-medium uppercase tracking-[0.16em] text-muted-foreground/[0.55]">
-                  {contextBits.join(' · ')}
-                </span>
-              </>
+    <header
+      data-testid="explorer-header"
+      className="shrink-0 space-y-2.5 border-b border-border/40 bg-sidebar px-4 py-3 text-sidebar-foreground"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <h2 className="truncate text-[13px] font-semibold tracking-[0.01em] text-foreground">
+              {activeRootLabel}
+            </h2>
+            {contextLabel ? (
+              <span className="truncate rounded-full border border-border/30 bg-muted/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/65">
+                {contextLabel}
+              </span>
             ) : null}
+          </div>
+          <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/42">
+            Explorer
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -75,52 +80,49 @@ export function ExplorerHeader({
         </div>
       </div>
 
-      {hasCells && (
+      {(hasCells || (Array.isArray(workingSetOptions) && workingSetOptions.length > 1)) && (
         <div className="flex items-center gap-2">
-            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/[0.4]">
-              Scope
-            </span>
-          <div className="group relative min-w-0 flex-1">
-          <select
-            aria-label="Active cell"
-            className={`w-full appearance-none rounded-md border border-border/40 bg-muted/10 px-2 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:border-border/80 cursor-pointer ${focusRingClass}`}
-            value={selectedId || ''}
-            onChange={(e) => onSelectCell?.(e.target.value)}
-          >
-            {cells.map((cell) => (
-              <option key={cell.id} value={cell.id} className="bg-popover text-foreground">
-                Cell: {cell.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={10} aria-hidden="true" className="absolute right-2 top-2.5 text-muted-foreground/40 pointer-events-none group-hover:text-muted-foreground transition-colors" />
-          </div>
+          {hasCells ? (
+            <div className="group relative min-w-0 flex-1">
+              <select
+                aria-label="Active cell"
+                className={`w-full appearance-none rounded-md border border-border/40 bg-muted/10 px-2 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:border-border/80 cursor-pointer ${focusRingClass}`}
+                value={selectedId || ''}
+                onChange={(e) => onSelectCell?.(e.target.value)}
+              >
+                {cells.map((cell) => (
+                  <option key={cell.id} value={cell.id} className="bg-popover text-foreground">
+                    {cell.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                size={10}
+                aria-hidden="true"
+                className="absolute right-2 top-2.5 text-muted-foreground/40 pointer-events-none group-hover:text-muted-foreground transition-colors"
+              />
+            </div>
+          ) : null}
+          {Array.isArray(workingSetOptions) && workingSetOptions.length > 1 ? (
+            <div className="inline-flex rounded-full border border-border/40 bg-muted/10 p-0.5">
+              {workingSetOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => onWorkingSetChange?.(option.id)}
+                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
+                    activeWorkingSetViewId === option.id
+                      ? 'bg-primary/15 text-primary'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       )}
-
-      {Array.isArray(workingSetOptions) && workingSetOptions.length > 1 ? (
-        <div className="flex items-center gap-2">
-          <span className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/[0.4]">
-            View
-          </span>
-          <div className="inline-flex rounded-full border border-border/40 bg-muted/10 p-0.5">
-            {workingSetOptions.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => onWorkingSetChange?.(option.id)}
-                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
-                  activeWorkingSetViewId === option.id
-                    ? 'bg-primary/15 text-primary'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
 
       <div className="flex items-center gap-1.5">
         {(Array.isArray(headerSecondaryCommands) ? headerSecondaryCommands : []).map((command) => (
@@ -228,14 +230,14 @@ function SecondaryHeaderAction({
   disabled = false,
 }: any) {
   return (
-    <button
-      type="button"
+    <IconButton
+      label={label}
+      focusRing="sidebar"
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex items-center gap-1 rounded-full border border-border/35 bg-muted/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-35 ${focusRingClass}`}
+      className={`h-7 w-7 rounded-md border border-border/35 bg-muted/10 p-1 text-muted-foreground/62 transition-colors hover:border-border hover:bg-muted/20 hover:text-foreground disabled:opacity-35 ${focusRingClass}`}
     >
-      <Icon size={11} strokeWidth={1.7} aria-hidden="true" />
-      <span>{label}</span>
-    </button>
+      <Icon size={12} strokeWidth={1.7} aria-hidden="true" />
+    </IconButton>
   );
 }

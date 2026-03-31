@@ -234,6 +234,10 @@ test('HilMemoSidebar shows row descriptions only for the active inbox section', 
 
     assert.match(html, /File-linked review notes/);
     assert.doesNotMatch(html, /Quick note capture/);
+    assert.match(html, /Memo/);
+    assert.match(html, /6 records/);
+    assert.doesNotMatch(html, /Artifact Workspace/);
+    assert.doesNotMatch(html, /Capture, review, and route artifact records from one workspace/);
   });
 });
 

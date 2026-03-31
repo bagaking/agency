@@ -1,9 +1,24 @@
 import React from 'react';
-import { Settings, ListTree, Folder, Brain, ClipboardList } from 'lucide-react';
+import {
+  Settings,
+  ListTree,
+  Folder,
+  Brain,
+  ClipboardList,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 import { Logo } from './Logo';
 import { focusRing } from './ui/focusRing';
+import { IconButton } from './ui/IconButton';
 
-export function ActivityBar({ activeView, onSwitchView }: any) {
+export function ActivityBar({
+  activeView,
+  onSwitchView,
+  onToggleSidebar,
+  sidebarCollapsed,
+  sidebarVisible = false,
+}: any) {
   const primaryItem = {
     id: 'agent-cells',
     label: 'Agency Console',
@@ -65,6 +80,23 @@ export function ActivityBar({ activeView, onSwitchView }: any) {
             onClick={() => onSwitchView(item.id)}
           />
         ))}
+        {sidebarVisible && typeof onToggleSidebar === 'function' ? (
+          <div className="pt-4">
+            <IconButton
+              label={sidebarCollapsed ? 'Expand left sidebar' : 'Collapse left sidebar'}
+              tooltip={sidebarCollapsed ? 'Expand left sidebar' : 'Collapse left sidebar'}
+              focusRing="sidebar"
+              onClick={onToggleSidebar}
+              className="h-10 w-10 rounded-xl border border-border/50 bg-white/5 text-muted-foreground/70 hover:text-foreground hover:border-border hover:bg-white/10 transition-colors"
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight size={18} strokeWidth={2} aria-hidden="true" />
+              ) : (
+                <ChevronLeft size={18} strokeWidth={2} aria-hidden="true" />
+              )}
+            </IconButton>
+          </div>
+        ) : null}
       </div>
     </aside>
   );

@@ -33,8 +33,40 @@ test('ExplorerHeader uses canonical cell naming for scope selection', () => {
   );
 
   assert.match(html, /aria-label="Active cell"/);
-  assert.match(html, /Cell: main/);
-  assert.match(html, /Cell: api/);
+  assert.match(html, />main</);
+  assert.match(html, />api</);
+});
+
+test('ExplorerHeader keeps the title row compact without redundant scope labels', () => {
+  const html = renderToStaticMarkup(
+    <ExplorerHeader
+      activeRootLabel="main"
+      activeFilterCount={0}
+      activeFilterSummary="Changes only"
+      headerPrimaryCommands={[]}
+      headerSecondaryCommands={[]}
+      hasCells={false}
+      cells={[]}
+      selectedId=""
+      onSelectCell={() => undefined}
+      searchMode="path"
+      searchModeOptions={[{ id: 'path', label: 'Paths', placeholder: 'Search files…' }]}
+      onSearchModeChange={() => undefined}
+      searchQuery=""
+      onSearchChange={() => undefined}
+      onClearSearch={() => undefined}
+      hasActiveFilters={false}
+      filterMenuOpen={false}
+      filterMenuId="explorer-filters"
+      filterMenuButtonRef={{ current: null }}
+      onToggleFilterMenu={() => undefined}
+      searchTruncated={false}
+    />
+  );
+
+  assert.match(html, /Changes only/);
+  assert.match(html, /Explorer/);
+  assert.doesNotMatch(html, /Scope/);
 });
 
 test('ExplorerHeader hides unsupported filter affordances for non-tree surfaces', () => {
@@ -112,5 +144,5 @@ test('ExplorerHeader renders secondary header actions outside the primary icon c
     />
   );
 
-  assert.match(html, /Open Research Lane/);
+  assert.match(html, /aria-label="Open Research Lane"/);
 });
