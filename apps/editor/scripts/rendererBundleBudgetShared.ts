@@ -16,16 +16,7 @@ export const ACCEPTED_BUDGET_PATH = path.resolve(
 );
 export const ACCEPTED_BUDGET_SCHEMA = 'agency.renderer-bundle-accepted/v1';
 
-export const DEFAULT_BUDGETS = {
-  initialJsRawBytes: 1_250_000,
-  initialJsGzipBytes: 270_000,
-  initialCssRawBytes: 120_000,
-  initialCssGzipBytes: 18_000,
-  largestInitialChunkRawBytes: 400_000,
-  largestInitialChunkGzipBytes: 110_000,
-} as const;
-
-export const DEFAULT_RATCHET_ALLOWANCES = {
+export const BUDGET_METRIC_ALLOWANCES = {
   initialJsRawBytes: 8_000,
   initialJsGzipBytes: 2_000,
   initialCssRawBytes: 1_024,
@@ -34,7 +25,7 @@ export const DEFAULT_RATCHET_ALLOWANCES = {
   largestInitialChunkGzipBytes: 1_024,
 } as const;
 
-export type BudgetMetricName = keyof typeof DEFAULT_BUDGETS;
+export type BudgetMetricName = keyof typeof BUDGET_METRIC_ALLOWANCES;
 
 export type BudgetMetrics = Record<BudgetMetricName, number>;
 
@@ -246,7 +237,7 @@ export function readAcceptedBudget(): AcceptedBudgetSnapshot {
     );
   }
   const metrics = {} as BudgetMetrics;
-  for (const name of Object.keys(DEFAULT_BUDGETS) as BudgetMetricName[]) {
+    for (const name of Object.keys(BUDGET_METRIC_ALLOWANCES) as BudgetMetricName[]) {
     const value = Number(raw?.metrics?.[name]);
     if (!Number.isFinite(value) || value <= 0) {
       throw new Error(`Accepted-state file is missing metric ${name}.`);

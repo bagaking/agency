@@ -1,7 +1,7 @@
 import path from 'node:path';
 import {
   ACCEPTED_BUDGET_PATH,
-  DEFAULT_RATCHET_ALLOWANCES,
+  BUDGET_METRIC_ALLOWANCES,
   type BudgetMetricName,
   type BudgetMetrics,
   formatBytes,
@@ -18,7 +18,7 @@ function readBudget(name: BudgetMetricName, acceptedMetrics: BudgetMetrics): num
       return Math.floor(rawValue);
     }
   }
-  return acceptedMetrics[name] + DEFAULT_RATCHET_ALLOWANCES[name];
+  return acceptedMetrics[name] + BUDGET_METRIC_ALLOWANCES[name];
 }
 
 function assertBudget(label: string, actual: number, budget: number, failures: string[]) {

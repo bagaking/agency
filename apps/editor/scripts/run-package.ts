@@ -38,6 +38,24 @@ function run(command: string, args: string[], extraEnv: Record<string, string> =
   });
 }
 
+function buildReleaseBudgetEnv() {
+  const env: Record<string, string> = {
+    AGENCY_RENDERER_ALLOW_OVERRIDE: '',
+  };
+  const overrideNames = [
+    'AGENCY_RENDERER_INITIAL_JS_RAW_BYTES',
+    'AGENCY_RENDERER_INITIAL_JS_GZIP_BYTES',
+    'AGENCY_RENDERER_INITIAL_CSS_RAW_BYTES',
+    'AGENCY_RENDERER_INITIAL_CSS_GZIP_BYTES',
+    'AGENCY_RENDERER_LARGEST_INITIAL_CHUNK_RAW_BYTES',
+    'AGENCY_RENDERER_LARGEST_INITIAL_CHUNK_GZIP_BYTES',
+  ];
+  overrideNames.forEach((name) => {
+    env[name] = '';
+  });
+  return env;
+}
+
 function resolveBuilderArgs(mode: PackageMode): string[] {
   if (mode === 'lite') {
     return ['exec', 'electron-builder', '--mac', 'dmg'];
@@ -53,7 +71,7 @@ async function main() {
   await run('pnpm', ['run', 'package:prepare', '--', '--mode', mode, '--governance', governance]);
   await run('pnpm', ['run', 'build:renderer']);
   if (governance === 'release') {
-    await run('pnpm', ['run', 'check:renderer-bundle-budget']);
+    await run('pnpm', ['run', 'check:renderer-bundle-budget'], buildReleaseBudgetEnv());
   }
   await run('pnpm', ['run', 'build:electron']);
   await run('pnpm', ['run', 'build:speech-helper']);

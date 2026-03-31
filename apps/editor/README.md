@@ -343,8 +343,9 @@ pnpm run accept:renderer-bundle-budget
 - `build:renderer` only emits renderer artifacts.
 - `build:renderer:budget` rebuilds the renderer and then enforces the bundle budget gate.
 - `accept:renderer-bundle-budget` refreshes the accepted-state file after an intentional budget decision.
-- The budget gate uses `apps/editor/scripts/renderer-bundle-budget.accepted.json` as the accepted-state ratchet.
-- Gzip budgets remain hard failures; raw CSS drift is reported as a warning so minor Tailwind churn does not block local packaging.
+- The budget gate uses `apps/editor/scripts/renderer-bundle-budget.accepted.json` as an accepted-state ratchet, not as a fixed universal ceiling.
+- Gzip budgets remain hard failures against the accepted state plus small allowances; raw CSS drift is reported as a warning so minor Tailwind churn does not block local packaging.
+- Local override env vars are intentionally ignored on `*-release` packaging entrypoints. To experiment locally with override thresholds, set `AGENCY_RENDERER_ALLOW_OVERRIDE=1` before running the standalone budget command.
 - Release-gated packaging belongs on the explicit `*-release` entrypoints; packageability-first commands stay local and non-blocking by design.
 
 ## Makefile (from repo root)
@@ -352,6 +353,10 @@ pnpm run accept:renderer-bundle-budget
 ```bash
 make editor-install
 make editor-dev
+make editor-accept-renderer-budget
+make editor-build-renderer-budget
+make editor-package-release
+make editor-package-lite-release
 ```
 
 ## Environment Flags

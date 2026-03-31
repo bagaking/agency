@@ -68,14 +68,16 @@ Renderer budget policy:
 - `pnpm run build:renderer` only emits renderer assets.
 - `pnpm run build:renderer:budget` emits assets and then enforces the renderer budget gate.
 - `pnpm run accept:renderer-bundle-budget` refreshes the accepted-state file after an intentional budget decision.
-- The budget gate uses `apps/editor/scripts/renderer-bundle-budget.accepted.json` as the accepted-state ratchet.
-- JS and gzip budgets remain hard failures.
+- The budget gate uses `apps/editor/scripts/renderer-bundle-budget.accepted.json` as an accepted-state ratchet, not as a fixed universal ceiling.
+- JS and gzip budgets remain hard failures against the accepted state plus small allowances.
 - Raw CSS drift is warning-only, so packageability is not blocked by minor Tailwind raw-size churn.
+- `AGENCY_RENDERER_ALLOW_OVERRIDE=1` enables per-metric override env vars for local experimentation only; the `*-release` package commands explicitly clear that escape hatch.
 
 Why this split exists:
 - Packaging answers “can we produce the desktop artifact?” and should not fail on small non-runtime bundle drift.
 - Budget enforcement answers “did the boot footprint regress beyond the accepted state?” and belongs on the explicit budgeted/release entrypoints.
 - This rejects the tempting but wrong shortcut of making every local package command enforce the same front-end budget gate.
+- Accepted-state updates are a deliberate bless step, not an incidental edit: use `make editor-accept-renderer-budget` / `pnpm run accept:renderer-bundle-budget` after intentionally approving the new boot footprint.
 
 ## Install
 1. Open the DMG and drag `Agency.app` into `/Applications`.
