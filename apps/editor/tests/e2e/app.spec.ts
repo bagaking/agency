@@ -162,6 +162,11 @@ test.afterEach(async () => {
   createdUserDataPaths.clear();
 });
 
+const cleanupTransientElectronApp = async () => {
+  killRepoElectronProcesses();
+  await new Promise((resolve) => setTimeout(resolve, 300));
+};
+
 const openExplorer = async (window) => {
   const header = window.getByTestId('explorer-header');
   if (await header.isVisible().catch(() => false)) {
@@ -519,8 +524,7 @@ test('url mode keeps Explorer as intake across working-set views', async () => {
     await window.getByRole('button', { name: 'Content', exact: true }).click();
     await expect(window.getByLabel('Search file contents…')).toBeVisible();
   } finally {
-    // afterEach process cleanup is more reliable here than waiting for Electron close
-    // while bounded web research/background work is still settling.
+    await cleanupTransientElectronApp();
   }
 });
 
@@ -546,8 +550,7 @@ test('url-shaped explorer input opens a bounded web research tab in Workbench', 
     await expect(window.getByTestId('workbench-web-research-save-markdown')).toBeVisible();
     await expect(window.getByTestId('workbench-web-research-cite')).toBeVisible();
   } finally {
-    // afterEach process cleanup is more reliable here than waiting for Electron close
-    // while bounded web research background work is still settling.
+    await cleanupTransientElectronApp();
   }
 });
 
