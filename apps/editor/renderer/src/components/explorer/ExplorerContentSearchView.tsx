@@ -44,6 +44,7 @@ type ExplorerContentSearchViewProps = {
   skippedLargeCount: number;
   error: string;
   selectedPaths: string[];
+  fullFilePaths: string[];
   selectedMatchKeys: string[];
   selectedFileCount: number;
   selectedMatchCount: number;
@@ -83,6 +84,7 @@ export function ExplorerContentSearchView({
   skippedLargeCount,
   error,
   selectedPaths,
+  fullFilePaths,
   selectedMatchKeys,
   selectedFileCount,
   selectedMatchCount,
@@ -97,8 +99,10 @@ export function ExplorerContentSearchView({
   const totalMatches = results.reduce((sum, entry) => sum + Number(entry.matchCount || 0), 0);
   const hasQuery = query.trim().length > 0;
   const selectedPathSet = new Set(selectedPaths);
+  const fullFilePathSet = new Set(fullFilePaths);
   const selectedMatchKeySet = new Set(selectedMatchKeys);
   const canReplace = hasQuery && selectedMatchCount > 0 && !loading && !replacing;
+  const hasHiddenMatchFiles = results.some((entry) => entry.matchCount > entry.matches.length);
 
   return (
     <section className="flex min-h-0 flex-1 flex-col bg-sidebar text-sidebar-foreground">
@@ -164,7 +168,12 @@ export function ExplorerContentSearchView({
           {skippedLargeCount > 0 ? <span>{skippedLargeCount} large skipped</span> : null}
           {truncated ? (
             <span className="text-amber-300/80">
-              Results truncated; replace is limited to confirmed visible matches
+              Search results are truncated; narrow the query if you need exhaustive review across more files
+            </span>
+          ) : null}
+          {hasHiddenMatchFiles ? (
+            <span className="text-amber-300/80">
+              Some files have hidden matches; use the file checkbox to confirm a full-file replace
             </span>
           ) : null}
         </div>
@@ -226,9 +235,14 @@ export function ExplorerContentSearchView({
                 return selectedMatchKeySet.has(matchKey) ? sum + 1 : sum;
               }, 0);
               const hasVisibleMatches = result.matches.length > 0;
-              const allVisibleSelected = hasVisibleMatches && selectedVisibleMatches === result.matches.length;
+              const fullFileSelected = fullFilePathSet.has(result.path);
+              const allVisibleSelected =
+                fullFileSelected ||
+                (hasVisibleMatches && selectedVisibleMatches === result.matches.length);
               const partiallySelected =
+                !fullFileSelected &&
                 selectedVisibleMatches > 0 && selectedVisibleMatches < result.matches.length;
+              const hasHiddenMatches = result.matchCount > result.matches.length;
               return (
                 <article
                   key={result.path}
@@ -236,13 +250,11 @@ export function ExplorerContentSearchView({
                 >
                   <header className="flex items-center gap-2 border-b border-border/20 px-3 py-2">
                     <label className="inline-flex items-center">
-                      <input
-                        type="checkbox"
+                      <ResultCheckbox
                         checked={allVisibleSelected}
-                        aria-checked={partiallySelected ? 'mixed' : allVisibleSelected}
+                        indeterminate={partiallySelected}
                         onChange={() => onToggleResult(result.path)}
-                        className="h-3.5 w-3.5 rounded border-border/40 bg-background/80"
-                        aria-label={`Confirm replace target ${result.path}`}
+                        label={`Confirm replace target ${result.path}`}
                       />
                     </label>
                     <button
@@ -258,12 +270,18 @@ export function ExplorerContentSearchView({
                     </span>
                     <span
                       className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] ${
-                        selectedPathSet.has(result.path)
+                        fullFileSelected
+                          ? 'bg-emerald-500/14 text-emerald-100'
+                          : selectedPathSet.has(result.path)
                           ? 'bg-emerald-500/12 text-emerald-200'
                           : 'bg-muted/20 text-muted-foreground'
                       }`}
                     >
-                      {selectedVisibleMatches}/{result.matches.length} reviewed
+                      {fullFileSelected
+                        ? `Full ${result.matchCount}/${result.matchCount}`
+                        : hasHiddenMatches
+                          ? `${selectedVisibleMatches}/${result.matches.length} visible`
+                          : `${selectedVisibleMatches}/${result.matches.length} reviewed`}
                     </span>
                     <IconButton
                       label={`Reveal ${result.path} in Explorer tree`}
@@ -327,6 +345,11 @@ export function ExplorerContentSearchView({
                                   Would become: {replacementPreview}
                                 </span>
                               ) : null}
+                              {hasHiddenMatches && index === result.matches.length - 1 ? (
+                                <span className="mt-1 block text-[10px] text-amber-300/80">
+                                  {result.matchCount - result.matches.length} additional matches are hidden in this file
+                                </span>
+                              ) : null}
                             </div>
                           </button>
                         </div>
@@ -340,6 +363,39 @@ export function ExplorerContentSearchView({
         )}
       </div>
     </section>
+  );
+}
+
+function ResultCheckbox({
+  checked,
+  indeterminate,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  indeterminate: boolean;
+  onChange: () => void;
+  label: string;
+}) {
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
+
+  React.useEffect(() => {
+    if (!inputRef.current) {
+      return;
+    }
+    inputRef.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+
+  return (
+    <input
+      ref={inputRef}
+      type="checkbox"
+      checked={checked}
+      aria-checked={indeterminate ? 'mixed' : checked}
+      onChange={onChange}
+      className="h-3.5 w-3.5 rounded border-border/40 bg-background/80"
+      aria-label={label}
+    />
   );
 }
 

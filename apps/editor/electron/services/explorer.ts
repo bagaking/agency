@@ -538,7 +538,7 @@ function buildContentLineBounds(content) {
   return lines;
 }
 
-function planContentMatchReplacements(content, confirmedMatches) {
+function planContentMatchReplacements(content, confirmedMatches, pattern) {
   const lines = buildContentLineBounds(content);
   const candidates = [];
   const skipped = [];
@@ -577,6 +577,19 @@ function planContentMatchReplacements(content, confirmedMatches) {
         reason: 'stale-match',
       });
       return;
+    }
+    if (pattern) {
+      pattern.lastIndex = 0;
+      if (!pattern.test(actual)) {
+        skipped.push({
+          path: match.path,
+          line: match.line,
+          column: match.column,
+          endColumn: match.endColumn,
+          reason: 'query-mismatch',
+        });
+        return;
+      }
     }
     candidates.push({
       ...match,
@@ -661,6 +674,19 @@ async function replaceContent({
   let replacedMatches = 0;
 
   if (hasMatchReview) {
+    const fullFilePaths = new Set();
+    Array.from(confirmedSet).forEach((confirmedPath) => {
+      if (!pathMatchesContentScope(confirmedPath, normalizedScope)) {
+        skipped.push({ path: confirmedPath, reason: 'out-of-scope' });
+        return;
+      }
+      if (!repoFileSet.has(confirmedPath)) {
+        skipped.push({ path: confirmedPath, reason: 'not-indexed' });
+        return;
+      }
+      fullFilePaths.add(confirmedPath);
+    });
+
     const groupedByPath = new Map();
     normalizedConfirmedMatches.forEach((match) => {
       if (!pathMatchesContentScope(match.path, normalizedScope)) {
@@ -683,20 +709,53 @@ async function replaceContent({
         });
         return;
       }
-      if (confirmedSet.size && !confirmedSet.has(match.path)) {
-        skipped.push({
-          path: match.path,
-          line: match.line,
-          column: match.column,
-          endColumn: match.endColumn,
-          reason: 'unconfirmed-path',
-        });
+      if (fullFilePaths.has(match.path)) {
         return;
       }
       const bucket = groupedByPath.get(match.path) || [];
       bucket.push(match);
       groupedByPath.set(match.path, bucket);
     });
+
+    for (const filePath of fullFilePaths) {
+      try {
+        const absolutePath = resolveSafePath(resolved.rootPath, filePath);
+        const stats = await fsp.stat(absolutePath);
+        if (!stats.isFile()) {
+          skipped.push({ path: filePath, reason: 'not-file' });
+          continue;
+        }
+        if (stats.size > CONTENT_SEARCH_MAX_FILE_BYTES) {
+          skipped.push({ path: filePath, reason: 'too-large' });
+          continue;
+        }
+        const buffer = await fsp.readFile(absolutePath);
+        const sample = buffer.subarray(0, Math.min(buffer.length, 1024));
+        if (sample.includes(0)) {
+          skipped.push({ path: filePath, reason: 'binary' });
+          continue;
+        }
+        const content = buffer.toString('utf8');
+        validatedPattern.lastIndex = 0;
+        let fileMatches = 0;
+        const nextContent = content.replace(validatedPattern, () => {
+          fileMatches += 1;
+          return replacement;
+        });
+        if (!fileMatches || nextContent === content) {
+          continue;
+        }
+        await fsp.writeFile(absolutePath, nextContent, 'utf8');
+        appliedPaths.push(filePath);
+        replacedFiles += 1;
+        replacedMatches += fileMatches;
+      } catch (error) {
+        failures.push({
+          path: filePath,
+          error: error?.message || String(error),
+        });
+      }
+    }
 
     for (const [filePath, fileMatches] of groupedByPath.entries()) {
       try {
@@ -717,7 +776,7 @@ async function replaceContent({
           continue;
         }
         const content = buffer.toString('utf8');
-        const plan = planContentMatchReplacements(content, fileMatches);
+        const plan = planContentMatchReplacements(content, fileMatches, validatedPattern);
         skipped.push(...plan.skipped);
         if (!plan.applied.length) {
           continue;
@@ -803,7 +862,7 @@ async function replaceContent({
     query: trimmedQuery,
     replacement,
     scope: normalizedScope,
-    reviewMode: hasMatchReview ? 'match' : 'file',
+    reviewMode: hasMatchReview ? (confirmedSet.size ? 'mixed' : 'match') : 'file',
     confirmedPaths: Array.from(confirmedSet),
     confirmedMatchCount: normalizedConfirmedMatches.length,
     replacedFiles,

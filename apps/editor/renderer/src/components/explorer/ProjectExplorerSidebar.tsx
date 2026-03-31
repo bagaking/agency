@@ -164,6 +164,7 @@ function ProjectExplorerSidebarContent({
   const [contentCaseSensitive, setContentCaseSensitive] = useState(false);
   const [contentWholeWord, setContentWholeWord] = useState(false);
   const [contentUseRegex, setContentUseRegex] = useState(false);
+  const [confirmedContentFullFilePaths, setConfirmedContentFullFilePaths] = useState<string[]>([]);
   const [confirmedContentMatchKeys, setConfirmedContentMatchKeys] = useState<string[]>([]);
   const [contentResultSelectionTouched, setContentResultSelectionTouched] = useState(false);
   const [workingSetMode, setWorkingSetMode] = useState<'flat' | 'tree'>('flat');
@@ -806,10 +807,14 @@ function ProjectExplorerSidebarContent({
 
   useEffect(() => {
     setContentResultSelectionTouched(false);
+    setConfirmedContentFullFilePaths([]);
     setConfirmedContentMatchKeys([]);
   }, [contentSelectionReviewKey]);
 
   useEffect(() => {
+    const visiblePaths = contentSearchResults.map((entry) => entry.path);
+    const visiblePathSet = new Set(visiblePaths);
+    setConfirmedContentFullFilePaths((current) => current.filter((path) => visiblePathSet.has(path)));
     setConfirmedContentMatchKeys((current) => {
       const pruned = current.filter((key) => visibleContentMatchKeySet.has(key));
       if (contentResultSelectionTouched) {
@@ -820,6 +825,7 @@ function ProjectExplorerSidebarContent({
   }, [
     contentResultSelectionTouched,
     contentSearchTruncated,
+    contentSearchResults,
     visibleContentMatchKeySet,
     visibleContentMatchKeys,
   ]);
@@ -852,14 +858,21 @@ function ProjectExplorerSidebarContent({
     [confirmedContentMatchKeys, visibleContentMatchRefByKey]
   );
   const confirmedContentResultPaths = useMemo(
-    () => Array.from(new Set(confirmedContentMatches.map((entry) => entry.path))),
-    [confirmedContentMatches]
+    () => Array.from(new Set([...confirmedContentFullFilePaths, ...confirmedContentMatches.map((entry) => entry.path)])),
+    [confirmedContentFullFilePaths, confirmedContentMatches]
+  );
+  const confirmedContentFullPathSet = useMemo(
+    () => new Set(confirmedContentFullFilePaths),
+    [confirmedContentFullFilePaths]
   );
   const confirmedContentFileCount = confirmedContentResultPaths.length;
 
   const handleToggleContentMatch = useCallback((targetMatch: ExplorerContentSearchConfirmedMatch) => {
     const matchKey = buildExplorerContentSearchMatchKey(targetMatch);
     setContentResultSelectionTouched(true);
+    setConfirmedContentFullFilePaths((current) =>
+      current.filter((path) => path !== targetMatch.path)
+    );
     setConfirmedContentMatchKeys((current) =>
       current.includes(matchKey)
         ? current.filter((entry) => entry !== matchKey)
@@ -868,11 +881,23 @@ function ProjectExplorerSidebarContent({
   }, []);
 
   const handleToggleContentResult = useCallback((targetPath: string) => {
+    const resultEntry = contentSearchResults.find((entry) => entry.path === targetPath);
     const pathKeys = visibleContentMatchKeysByPath.get(targetPath) || [];
-    if (!pathKeys.length) {
+    if (!resultEntry || !pathKeys.length) {
       return;
     }
+    const hasHiddenMatches = resultEntry.matchCount > resultEntry.matches.length;
     setContentResultSelectionTouched(true);
+    if (hasHiddenMatches) {
+      setConfirmedContentFullFilePaths((current) =>
+        current.includes(targetPath)
+          ? current.filter((path) => path !== targetPath)
+          : [...current, targetPath]
+      );
+      setConfirmedContentMatchKeys((current) => current.filter((key) => !pathKeys.includes(key)));
+      return;
+    }
+    setConfirmedContentFullFilePaths((current) => current.filter((path) => path !== targetPath));
     setConfirmedContentMatchKeys((current) => {
       const next = new Set(current);
       const allSelected = pathKeys.every((key) => next.has(key));
@@ -883,21 +908,35 @@ function ProjectExplorerSidebarContent({
       }
       return Array.from(next);
     });
-  }, [visibleContentMatchKeysByPath]);
+  }, [contentSearchResults, visibleContentMatchKeysByPath]);
 
   const handleSelectAllVisibleContentResults = useCallback(() => {
     setContentResultSelectionTouched(true);
+    setConfirmedContentFullFilePaths([]);
     setConfirmedContentMatchKeys(visibleContentMatchKeys);
   }, [visibleContentMatchKeys]);
 
   const handleClearConfirmedContentResults = useCallback(() => {
     setContentResultSelectionTouched(true);
+    setConfirmedContentFullFilePaths([]);
     setConfirmedContentMatchKeys([]);
   }, []);
 
   const confirmedContentMatchCount = useMemo(
-    () => confirmedContentMatches.length,
-    [confirmedContentMatches]
+    () =>
+      contentSearchResults.reduce((sum, entry) => {
+        if (confirmedContentFullPathSet.has(entry.path)) {
+          return sum + Number(entry.matchCount || 0);
+        }
+        return (
+          sum +
+          confirmedContentMatches.reduce(
+            (entrySum, match) => (match.path === entry.path ? entrySum + 1 : entrySum),
+            0
+          )
+        );
+      }, 0),
+    [confirmedContentFullPathSet, confirmedContentMatches, contentSearchResults]
   );
 
   const handleApplyContentReplace = useCallback(async () => {
@@ -914,7 +953,7 @@ function ProjectExplorerSidebarContent({
         replaceText
       )} across ${totalFiles} confirmed files and ${totalMatches} confirmed matches.${
         contentSearchTruncated
-          ? ` Search results are truncated; only the confirmed visible matches will be changed.`
+          ? ` Search results are truncated; narrow the query if you need exhaustive review across more files.`
           : ''
       }`,
     });
@@ -932,6 +971,8 @@ function ProjectExplorerSidebarContent({
   }, [
     applyContentReplace,
     confirmedContentFileCount,
+    confirmedContentFullFilePaths,
+    confirmedContentFullPathSet,
     confirmedContentMatchCount,
     confirmedContentMatches,
     confirmedContentResultPaths,
@@ -1398,6 +1439,7 @@ function ProjectExplorerSidebarContent({
             skippedLargeCount={contentSearchSkippedLargeCount}
             error={contentSearchError}
             selectedPaths={confirmedContentResultPaths}
+            fullFilePaths={confirmedContentFullFilePaths}
             selectedMatchKeys={confirmedContentMatchKeys}
             selectedFileCount={confirmedContentFileCount}
             selectedMatchCount={confirmedContentMatchCount}
