@@ -148,7 +148,9 @@
 - Session action failures no longer rely only on transient notices; `Command Ops` keeps the latest error visible until explicitly dismissed and supports copying the full text.
 - Attention now uses one vocabulary across shell chrome, Agent Cells, and Session Map: `Running`, `Failed`, `Confirm`, `Unread`, and `Review`.
 - The status bar shows the current top-priority attention item for the active Agency context and can jump directly to its owning object.
+- The status bar `Next` tooltip expands that shared attention label into a short destination-aware sentence so hover/focus explains where activation will go (`Jump to session`, `Open Session Map`, `Open Session Map evidence`, or `Focus window`).
 - The app-shell right-side attention rail owns the current-window `Priority Queue` and Commander `Briefing`.
+- In Agent Cells, that same right-side launcher rail also carries the `Session Reply Relay` entry at its lower end so the window keeps one right-edge launcher spine while `Attention`, `Commander`, and `Reply` remain distinct surfaces.
 - `Priority Queue` stays summary-first in that shell rail; long errors and timeline payloads belong in the Session Map `Ops` evidence area instead of expanding queue rows into log cards.
 - `Unread` is reserved for meaningful post-visit output; transient blur, attach replay, or silent refresh noise should not flip a session into `Unread` immediately.
 - Agent Cells keeps attention inline on Cell and Session affordances instead of inserting a separate attention queue above the management list.
@@ -195,6 +197,7 @@
 - Agent prompts are stored at `.agency/cells/<cell-id>/reply-quick-prompts.yaml`.
 - Effective prompts resolve by ordered union + dedupe (Global -> Project -> Agent) using normalized prompt text.
 - The Session Reply composer provides `快捷回复如何` near input controls and inserts the selected resolved prompt at the current cursor position.
+- In Agent Cells, `Session Reply Relay` may be opened from the shared shell right-edge launcher rail rather than a separate drawer-edge handle; the relay remains session-bound even though the launcher chrome is shared.
 
 ## Session Naming
 
@@ -383,6 +386,9 @@ make editor-dev
 - Switch away from a session and back without meaningful new output, and confirm it does not immediately become `Unread` just because of transient blur, attach replay, or silent refresh noise.
 - Trigger `Smart Fork [by commander]` or another `Create Agent` run and confirm Agent Cells keeps the list primary while exposing inline `Running`, the status bar shows `Running`, the shell right-side rail owns the queue-style triage path, and Session Map `Ops` stays focused on evidence.
 - Trigger a failed child-execution run and confirm Agent Cells inline markers, the shell right-side `Priority Queue`, and the status bar all surface the same `Failed` attention without introducing a separate Agent Cells queue card.
+- Trigger a pending lifecycle confirmation and confirm the status bar `Next` label stays `Confirm`, while its tooltip explains that activation will open `Session Map`.
+- Finish a child-execution run that creates a child session, hover `Next`, and confirm the visible label stays `Review` while the tooltip explains that activation will jump back to the child session.
+- Hover or focus `Next` for `Unread`, `Running`, `Failed`, and cross-window attention cases, and confirm the tooltip names the real destination instead of only repeating the badge text.
 - Finish a child-execution run that creates a child session, do not revisit that child, and confirm Agency surfaces `Review` / return-required attention until the child session is visited.
 - Open a second Agency window, create a higher-priority failure there, and confirm the current window's switcher surfaces that other window's primary attention state before you focus it.
 - Add a quick action with both commands and verify start/resume run in the active session.
