@@ -99,7 +99,55 @@ test('HierarchySidebar renders capabilities once and routes selection through cu
       click(document.querySelector('[data-testid="hierarchy-sidebar-harness-providers"]'));
     });
 
-    assert.deepEqual(events, ['actions:project', 'gates:agent', 'harness']);
+    assert.deepEqual(events, ['actions:project', 'gates:project', 'harness']);
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});
+
+test('HierarchySidebar falls back to a valid scope when remembered scope is unavailable', async () => {
+  const env = setupDom();
+  try {
+    const events: string[] = [];
+    const root = createRoot(document.getElementById('root')!);
+
+    await act(async () => {
+      root.render(
+        <HierarchySidebar
+          section="actions"
+          actionsScope="agent"
+          appShortcutsScope="project"
+          replyQuickPromptsScope="global"
+          sessionNamingScope="global"
+          gateScope="global"
+          canUseProjectScope={false}
+          canUseAgentScope={false}
+          actionSummary={{ agentLabel: 'Select Cell' }}
+          appShortcutsSummary={{}}
+          replyQuickPromptsSummary={{}}
+          sessionNamingSummary={{}}
+          gateSummary={{}}
+          onSelectActionsScope={(scope) => events.push(`actions:${scope}`)}
+          onSelectAppShortcutsScope={(scope) => events.push(`shortcuts:${scope}`)}
+          onSelectReplyQuickPromptsScope={() => undefined}
+          onSelectSessionNamingScope={() => undefined}
+          onSelectGateScope={() => undefined}
+          onSelectHarnessProviders={() => undefined}
+          onSelectSoftlinks={() => undefined}
+        />
+      );
+    });
+
+    await act(async () => {
+      click(document.querySelector('[data-testid="hierarchy-sidebar-actions"]'));
+      click(document.querySelector('[data-testid="hierarchy-sidebar-app-shortcuts"]'));
+    });
+
+    assert.deepEqual(events, ['actions:global', 'shortcuts:global']);
 
     await act(async () => {
       root.unmount();
