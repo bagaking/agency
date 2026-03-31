@@ -7,6 +7,7 @@ import {
   buildCommanderWelcomeTurn,
   resolveCommanderContext,
   resolveCommanderIntent,
+  resolveRelevantHarnessRun,
 } from '../sessionMapCommander';
 
 const runningRun = {
@@ -53,6 +54,15 @@ const failedRun = {
   ],
 };
 
+const focusedFailedRun = {
+  ...failedRun,
+  runId: 'run-3',
+  attentionRefs: {
+    cellId: 'cell-main',
+    sourceSessionId: 'session-ui',
+  },
+};
+
 const focusData = {
   cell: {
     id: 'cell-main',
@@ -93,6 +103,43 @@ test('buildCommanderQuickPrompts includes retry prompt for resumable runs', () =
 
   const prompts = buildCommanderQuickPrompts(context);
   assert.equal(prompts.some((item) => item.id === 'retry'), true);
+});
+
+test('resolveRelevantHarnessRun prefers the run bound to the focused session', () => {
+  const unrelatedRunningRun = {
+    ...runningRun,
+    runId: 'run-unrelated',
+    attentionRefs: {
+      cellId: 'cell-other',
+      sourceSessionId: 'session-other',
+    },
+  };
+
+  const relevantRun = resolveRelevantHarnessRun({
+    focusData,
+    harnessRuns: [unrelatedRunningRun, focusedFailedRun],
+  });
+
+  assert.equal(relevantRun?.runId, 'run-3');
+});
+
+test('resolveRelevantHarnessRun ignores a preferred run that points at another session', () => {
+  const unrelatedRunningRun = {
+    ...runningRun,
+    runId: 'run-unrelated',
+    attentionRefs: {
+      cellId: 'cell-other',
+      sourceSessionId: 'session-other',
+    },
+  };
+
+  const relevantRun = resolveRelevantHarnessRun({
+    focusData,
+    harnessRuns: [unrelatedRunningRun, focusedFailedRun],
+    preferredRunId: 'run-unrelated',
+  });
+
+  assert.equal(relevantRun?.runId, 'run-3');
 });
 
 test('buildCommanderWelcomeTurn carries session and run context', () => {

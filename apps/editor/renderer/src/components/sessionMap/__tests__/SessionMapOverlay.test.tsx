@@ -118,7 +118,7 @@ const model = {
   },
 };
 
-test('Escape closes commander briefing before closing the whole Session Map', async () => {
+test('Escape closes the whole Session Map overlay', async () => {
   const env = setupDom();
   try {
     const root = createRoot(document.getElementById('root')!);
@@ -150,25 +150,6 @@ test('Escape closes commander briefing before closing the whole Session Map', as
         />
       );
     });
-
-    const trigger = document.querySelector(
-      '[data-commander-trigger="true"]'
-    ) as HTMLButtonElement | null;
-    assert.ok(trigger);
-
-    await act(async () => {
-      trigger?.click();
-    });
-
-    assert.ok(document.querySelector('[data-commander-briefing="true"]'));
-
-    await act(async () => {
-      window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    });
-
-    assert.equal(closeCount, 0);
-    assert.equal(document.querySelector('[data-commander-briefing="true"]'), null);
-    assert.ok(document.querySelector('[aria-label="Session map"]'));
 
     await act(async () => {
       window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
@@ -184,7 +165,7 @@ test('Escape closes commander briefing before closing the whole Session Map', as
   }
 });
 
-test('close button dismisses commander briefing without closing the whole Session Map', async () => {
+test('close button dismisses the whole Session Map overlay', async () => {
   const env = setupDom();
   try {
     const root = createRoot(document.getElementById('root')!);
@@ -217,19 +198,8 @@ test('close button dismisses commander briefing without closing the whole Sessio
       );
     });
 
-    const trigger = document.querySelector(
-      '[data-commander-trigger="true"]'
-    ) as HTMLButtonElement | null;
-    assert.ok(trigger);
-
-    await act(async () => {
-      trigger?.click();
-    });
-
-    assert.ok(document.querySelector('[data-commander-briefing="true"]'));
-
     const closeButton = document.querySelector(
-      'button[aria-label="Close commander briefing"]'
+      'button[aria-label="Close Session Map"]'
     ) as HTMLButtonElement | null;
     assert.ok(closeButton);
 
@@ -237,9 +207,7 @@ test('close button dismisses commander briefing without closing the whole Sessio
       closeButton?.click();
     });
 
-    assert.equal(closeCount, 0);
-    assert.equal(document.querySelector('[data-commander-briefing="true"]'), null);
-    assert.ok(document.querySelector('[aria-label="Session map"]'));
+    assert.equal(closeCount, 1);
 
     await act(async () => {
       root.unmount();

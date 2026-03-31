@@ -30,7 +30,7 @@ type UseAttentionStateArgs = {
   selectSessionFromMap?: (
     cellId: string,
     sessionId: string,
-    options?: { focusView?: boolean }
+    options?: { focusView?: boolean; preserveRunFocus?: boolean }
   ) => void;
 };
 
@@ -159,7 +159,10 @@ export function useAttentionState({
           focusRunInUi?.(runId);
         }
         if (descriptor.mapSelection === 'session' && cellId && sessionId) {
-          selectSessionFromMap?.(cellId, sessionId, { focusView: false });
+          selectSessionFromMap?.(cellId, sessionId, {
+            focusView: false,
+            preserveRunFocus: Boolean(runId),
+          });
         } else if (descriptor.mapSelection === 'cell' && cellId) {
           setSelectedId?.(cellId);
         }

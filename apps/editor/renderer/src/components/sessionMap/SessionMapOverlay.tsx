@@ -22,6 +22,7 @@ import { logRuntime } from '../../services/agencyBridge';
 export function SessionMapOverlay({
   open,
   model,
+  focusedRunId = '',
   onSelectSession,
   onClose,
   resolveFontSize,
@@ -670,10 +671,11 @@ export function SessionMapOverlay({
         </div>
 
         {isDocked ? (
-      <SessionMapDockLayout
-        model={model}
-        radarPoints={radarPoints}
-        hoveredCellId={hoveredCellId}
+          <SessionMapDockLayout
+            model={model}
+            focusedRunId={focusedRunId}
+            radarPoints={radarPoints}
+            hoveredCellId={hoveredCellId}
             setHoveredCellId={setHoveredCellId}
             focusClusterCard={focusClusterCard}
             focusData={focusData}

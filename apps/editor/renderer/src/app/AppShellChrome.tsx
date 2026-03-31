@@ -13,6 +13,7 @@ const LazySessionMapOverlay = lazy(async () => {
 type AppShellChromeProps = {
   sessionMapOpen: boolean;
   sessionMapModel: any;
+  sessionMapFocusedRunId?: string;
   handleSelectSessionFromMap: (...args: any[]) => void;
   handleToggleSessionMap: () => void;
   resolveSessionMapFontSize: (...args: any[]) => number;
@@ -44,6 +45,7 @@ type AppShellChromeProps = {
 export function AppShellChrome({
   sessionMapOpen,
   sessionMapModel,
+  sessionMapFocusedRunId = '',
   handleSelectSessionFromMap,
   handleToggleSessionMap,
   resolveSessionMapFontSize,
@@ -78,6 +80,7 @@ export function AppShellChrome({
           <LazySessionMapOverlay
             open={sessionMapOpen}
             model={sessionMapModel}
+            focusedRunId={sessionMapFocusedRunId}
             onSelectSession={handleSelectSessionFromMap}
             onClose={handleToggleSessionMap}
             resolveFontSize={resolveSessionMapFontSize}
