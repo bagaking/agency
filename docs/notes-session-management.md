@@ -83,7 +83,7 @@ Main Agent Harness 是更高一层的 host-owned control plane。
 - `Attention` 是覆盖 `Window / Cell / Session / Run` 的共享状态层；window-level priority queue 与 commander briefing 应提升到 app-shell 右侧 station，`Ops` 只负责当前 focus session/run 的 evidence，不拥有 attention 本体，也不另造新的产品对象根。
 - Agent Cells 只能以内联方式在 owning Cell / Session 上表达 attention；不得再在 Cells 列表前面插入一个 queue 式 attention 面板来挤占主工作面。
 - Shell chrome 只负责紧凑 summary：Status Bar 承载当前窗口最高优先级的 `Next`，window switcher 承载跨窗口 primary attention；它们都不是第二个 queue surface。
-- `Next` 的 tooltip 必须扩展共享 attention 词汇，而不是发明第三套命名：它应同时告诉用户当前状态与真实跳转目标（例如 `Jump to session`、`Open Session Map`、`Open Session Map evidence`、`Focus window`）。
+- `Next` 的 tooltip 必须扩展共享 attention 词汇，而不是发明第三套命名：它应同时告诉用户当前状态与真实跳转目标（例如 `Jump to session`、`Open Session Map`、`Open evidence in Session Map`、`Focus window`）。
 - 在 Agent Cells，app-shell 右侧 launcher rail 的底部也应承载 `Session Reply Relay` 的展开/收缩入口，让窗口右缘保持一根统一 launcher spine；但 `Reply` 仍然是 session-bound communication surface，不得和 `Attention` / `Briefing` 混成一个语义面板。
 - Session Map 中的 token / cell 强调必须复用 Attention 的统一语义（`running / failed / pending confirmation / unread / return required`），不能再做一套只在地图里成立的告警词汇。
 - Session Map 右侧应被理解为一个单一的 `Right Station`：默认展示 `Ops` mode；`Commander` 只是这个 station 里的 operator affordance，而不是并列的第二列。

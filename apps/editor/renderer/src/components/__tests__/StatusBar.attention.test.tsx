@@ -168,10 +168,18 @@ test('StatusBar renders a clickable primary attention item', () => {
 test('StatusBar shows the NEXT tooltip on focus', async () => {
   const env = setupDom();
   try {
+    let jumpTarget: any = null;
     const root = createRoot(document.getElementById('root')!);
     await act(async () => {
       root.render(
-        <AttentionLayerProvider value={attentionValue as any}>
+        <AttentionLayerProvider
+          value={{
+            ...attentionValue,
+            jumpToAttention: (item: any) => {
+              jumpTarget = item;
+            },
+          } as any}
+        >
           <StatusBar
             loading={false}
             onRefresh={() => undefined}
@@ -195,6 +203,12 @@ test('StatusBar shows the NEXT tooltip on focus', async () => {
       tooltip?.textContent,
       'Next: Running. Create child agent from selected session. Open evidence in Session Map.'
     );
+
+    await act(async () => {
+      button.click();
+    });
+
+    assert.equal(jumpTarget?.id, 'run-running');
 
     await act(async () => {
       root.unmount();

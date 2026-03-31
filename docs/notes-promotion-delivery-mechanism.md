@@ -90,7 +90,7 @@ sop:
 
 ### 4.1 Promote（HIL Modal）
 
-- 选取待处理 `comment/memo/reply` 项。
+- 选取待处理 `comment/memo` 项。
 - 调 `startDelivery(source=promote)`。
 - quick：派发后立即 `confirmDelivery`。
 - gated：先跑 Action Sheet，满足 gate 后再 confirm。
@@ -104,7 +104,7 @@ sop:
 
 ### 4.3 Session Reply Quick Send
 
-- 先创建一条 `reply` 项（保留原对话语义）。
+- 先创建一条 session-owned `reply` artifact（保留原对话语义，但不进入 HIL）。
 - 调 `startDelivery(source=session, mode=quick)`。
 - 立即 confirm。
 - 回写 reply 与 delivery 的关联 meta（如 `deliveryDraftId`、`deliverySession`）。
@@ -122,7 +122,13 @@ delivery draft 统一写入 HIL：
 - 索引：`.agency/hil/index-<worktree>.yaml`
 - draft artifact：`.agency/hil/<worktree>/drafts/<id>.yaml`
 
-### 5.2 Audit Timeline（JSONL）
+### 5.2 Session Reply（独立 artifact store）
+
+session reply 统一写入独立存储：
+- 索引：`.agency/session-replies/index-<worktree>.yaml`
+- artifact：`.agency/session-replies/<worktree>/sessions/<cellId>/<sessionId>/<id>.yaml`
+
+### 5.3 Audit Timeline（JSONL）
 
 统一写入：
 - `.agency/delivery/events-<worktree>.jsonl`
@@ -146,6 +152,11 @@ draft `meta` 的核心字段：
 - `targetSession`（目标会话归属）
 - `selection`（来源上下文）
 - `promptBundle` / `promptText`（提示词上下文）
+
+source artifact 引用约束：
+- `source=promote`：引用 HIL `comment/memo` artifact。
+- `source=explorer`：引用 Explorer/file selection artifact。
+- `source=session`：引用 session reply artifact，`system=reply`。
 
 ## 7. UI 判定口径（Gate + Timeline）
 

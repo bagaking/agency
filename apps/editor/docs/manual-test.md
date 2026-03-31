@@ -53,7 +53,7 @@
 - [ ] Trigger a running child-execution attention state and confirm Agent Cells inline markers, Status Bar `Next`, and Session Map `Priority Queue` all use the same `Running` vocabulary without displacing the Agent Cells list.
 - [ ] Trigger a failed attention state and confirm Agent Cells inline markers, Status Bar `Next`, and Session Map `Priority Queue` all use the same `Failed` vocabulary without introducing a second queue surface in Agent Cells.
 - [ ] Trigger `Unread`, `Running`, `Failed`, `Confirm`, `Review`, and cross-window attention cases, hover or focus Status Bar `Next`, and confirm the tooltip preserves the shared state vocabulary while also naming the real jump destination.
-- [ ] Trigger a `Running` or `Failed` attention case that routes to evidence, hover `Next`, and confirm the tooltip explicitly says `Open Session Map evidence`.
+- [ ] Trigger a `Running` or `Failed` attention case that routes to evidence, hover `Next`, and confirm the tooltip explicitly says `Open evidence in Session Map`.
 - [ ] In Agent Cells, open and close `Session Reply Relay` from the bottom entry on the shared right-edge launcher rail, and confirm the window still has one launcher spine while `Reply` remains a session-bound surface.
 - [ ] Create or load multiple Cells and confirm the `Cells` command-center area wraps them into multiple card columns instead of letting one Cell stretch across the full width.
 - [ ] In the `Cells` area, confirm Cell title and state chip do not overlap, non-active tokens avoid noisy white borders, and the selected token is the clearest visual anchor in the group.

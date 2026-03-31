@@ -148,7 +148,7 @@
 - Session action failures no longer rely only on transient notices; `Command Ops` keeps the latest error visible until explicitly dismissed and supports copying the full text.
 - Attention now uses one vocabulary across shell chrome, Agent Cells, and Session Map: `Running`, `Failed`, `Confirm`, `Unread`, and `Review`.
 - The status bar shows the current top-priority attention item for the active Agency context and can jump directly to its owning object.
-- The status bar `Next` tooltip expands that shared attention label into a short destination-aware sentence so hover/focus explains where activation will go (`Jump to session`, `Open Session Map`, `Open Session Map evidence`, or `Focus window`).
+- The status bar `Next` tooltip expands that shared attention label into a short destination-aware sentence so hover/focus explains where activation will go (`Jump to session`, `Open Session Map`, `Open evidence in Session Map`, or `Focus window`).
 - The app-shell right-side attention rail owns the current-window `Priority Queue` and Commander `Briefing`.
 - In Agent Cells, that same right-side launcher rail also carries the `Session Reply Relay` entry at its lower end so the window keeps one right-edge launcher spine while `Attention`, `Commander`, and `Reply` remain distinct surfaces.
 - `Priority Queue` stays summary-first in that shell rail; long errors and timeline payloads belong in the Session Map `Ops` evidence area instead of expanding queue rows into log cards.
@@ -389,7 +389,7 @@ make editor-dev
 - Trigger a pending lifecycle confirmation and confirm the status bar `Next` label stays `Confirm`, while its tooltip expands that same canonical state into a full sentence and explains that activation will open `Session Map`.
 - Finish a child-execution run that creates a child session, hover `Next`, and confirm the visible label stays `Review` while the tooltip expands that same canonical state and explains that activation will jump back to the child session.
 - Hover or focus `Next` for `Unread`, `Running`, `Failed`, and cross-window attention cases, and confirm the tooltip keeps the shared state vocabulary in view while also naming the real destination instead of collapsing into destination-only copy.
-- Trigger a `Running` or `Failed` item that opens evidence rather than a direct session jump, hover `Next`, and confirm the tooltip explicitly says `Open Session Map evidence`.
+- Trigger a `Running` or `Failed` item that opens evidence rather than a direct session jump, hover `Next`, and confirm the tooltip explicitly says `Open evidence in Session Map`.
 - Finish a child-execution run that creates a child session, do not revisit that child, and confirm Agency surfaces `Review` / return-required attention until the child session is visited.
 - Open a second Agency window, create a higher-priority failure there, and confirm the current window's switcher surfaces that other window's primary attention state before you focus it.
 - Add a quick action with both commands and verify start/resume run in the active session.

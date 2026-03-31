@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 
 const GAP = 6;
 const MARGIN = 8;
+const MAX_WIDTH = 260;
 const ORDER = {
   top: ['top', 'bottom', 'right', 'left'],
   bottom: ['bottom', 'top', 'right', 'left'],
@@ -51,8 +52,10 @@ export function Tooltip({ label, side = 'top', children }: any) {
       top = anchorRect.top + anchorRect.height / 2 - tooltipRect.height / 2;
     }
 
-    const boundedLeft = clamp(left, MARGIN, viewportWidth - tooltipRect.width - MARGIN);
-    const boundedTop = clamp(top, MARGIN, viewportHeight - tooltipRect.height - MARGIN);
+    const maxLeft = Math.max(MARGIN, viewportWidth - tooltipRect.width - MARGIN);
+    const maxTop = Math.max(MARGIN, viewportHeight - tooltipRect.height - MARGIN);
+    const boundedLeft = clamp(left, MARGIN, maxLeft);
+    const boundedTop = clamp(top, MARGIN, maxTop);
 
     setPlacement(nextPlacement);
     setStyle({ left: boundedLeft, top: boundedTop });
@@ -96,8 +99,8 @@ export function Tooltip({ label, side = 'top', children }: any) {
               ref={tooltipRef}
               role="tooltip"
               data-side={placement}
-              style={tooltipStyle}
-              className="pointer-events-none fixed z-[10050] whitespace-nowrap rounded-md border border-border/60 bg-popover px-2 py-1 text-[10px] font-medium text-foreground shadow-lg opacity-100"
+              style={{ ...tooltipStyle, maxWidth: `${MAX_WIDTH}px` }}
+              className="pointer-events-none fixed z-[10050] rounded-md border border-border/60 bg-popover px-2 py-1 text-[10px] font-medium leading-snug text-foreground shadow-lg opacity-100 whitespace-normal break-words"
             >
               {label}
             </span>,

@@ -15,7 +15,7 @@ test('buildNextAttentionTooltip describes unread attention as a session jump', (
       },
       source: 'local',
     }),
-    'Next: Unread output. New output since you last visited. Jump to session.'
+    'Next: Unread. New output since you last visited. Jump to session.'
   );
 });
 
@@ -28,6 +28,7 @@ test('buildNextAttentionTooltip describes running attention as Session Map evide
       refs: {
         cellId: 'cell-a',
         sessionId: 'session-a',
+        runId: 'run-1',
       },
       source: 'local',
     }),
@@ -46,7 +47,7 @@ test('buildNextAttentionTooltip describes pending confirmation as opening Sessio
       },
       source: 'local',
     }),
-    'Next: Confirmation needed. Cell is waiting for lifecycle confirmation. Open Session Map.'
+    'Next: Confirm. Cell is waiting for lifecycle confirmation. Open Session Map.'
   );
 });
 
@@ -62,7 +63,7 @@ test('buildNextAttentionTooltip describes return required as a session jump', ()
       },
       source: 'local',
     }),
-    'Next: Review needed. Child session is ready and waiting. Jump to session.'
+    'Next: Review. Child session is ready and waiting. Jump to session.'
   );
 });
 
@@ -77,7 +78,7 @@ test('buildNextAttentionTooltip describes window attention as focusing another w
       },
       source: 'window',
     }),
-    'Next: Attention in another window. Failed run in another window. Focus window.'
+    'Next: Failed. Failed run in another window. Focus window.'
   );
 });
 
@@ -92,7 +93,7 @@ test('buildNextAttentionTooltip does not promise a session jump without a sessio
       },
       source: 'local',
     }),
-    'Next: Unread output. Output arrived. Open attention.'
+    'Next: Unread. Output arrived. Open attention.'
   );
 });
 

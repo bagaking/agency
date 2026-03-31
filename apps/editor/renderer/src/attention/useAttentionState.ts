@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
-import { ATTENTION_KINDS } from '../../../shared/attention';
 import { setUiState } from '../services/agencyBridge';
 import {
   buildAttentionModel,
   type AttentionItem,
 } from './attentionModel';
+import { describeAttentionNavigation } from './attentionNavigation';
 
 type UseAttentionStateArgs = {
   projectRoot?: string;
@@ -134,7 +134,8 @@ export function useAttentionState({
         return;
       }
       const windowStateId = normalizeText(item.refs.windowStateId);
-      if (item.source === 'window' && windowStateId) {
+      const descriptor = describeAttentionNavigation(item);
+      if (descriptor.target === 'focus-window' && windowStateId) {
         void focusWindow?.(windowStateId);
         return;
       }
@@ -142,7 +143,7 @@ export function useAttentionState({
       const cellId = normalizeText(item.refs.cellId);
       const sessionId = normalizeText(item.refs.sessionId);
 
-      if (item.kind === ATTENTION_KINDS.unread || item.kind === ATTENTION_KINDS.returnRequired) {
+      if (descriptor.target === 'jump-session') {
         if (cellId && sessionId) {
           setActiveView?.('agent-cells');
           focusSessionInUi?.(cellId, sessionId);
@@ -150,21 +151,14 @@ export function useAttentionState({
         return;
       }
 
-      if (item.kind === ATTENTION_KINDS.pendingConfirmation) {
-        if (cellId) {
+      if (descriptor.target === 'open-session-map') {
+        if (descriptor.mapSelection === 'session' && cellId && sessionId) {
+          selectSessionFromMap?.(cellId, sessionId, { focusView: false });
+        } else if (descriptor.mapSelection === 'cell' && cellId) {
           setSelectedId?.(cellId);
         }
         openSessionMap?.();
         return;
-      }
-
-      if (item.kind === ATTENTION_KINDS.failed || item.kind === ATTENTION_KINDS.running) {
-        if (cellId && sessionId) {
-          selectSessionFromMap?.(cellId, sessionId, { focusView: false });
-        } else if (cellId) {
-          setSelectedId?.(cellId);
-        }
-        openSessionMap?.();
       }
     },
     [
