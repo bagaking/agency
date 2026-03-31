@@ -65,7 +65,6 @@ export function StatusBar({
             <button
               type="button"
               onClick={() => attention.jumpToAttention(primaryAttention)}
-              aria-label={nextAttentionTooltip}
               data-testid="statusbar-attention"
               className="flex max-w-[320px] items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 transition-colors hover:bg-white/[0.08]"
             >

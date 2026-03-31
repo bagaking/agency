@@ -152,10 +152,6 @@ test('StatusBar renders a clickable primary attention item', () => {
     assert.match(html, /data-testid="statusbar-attention"/);
     assert.match(html, /Create Child Agent via Fork/);
     assert.match(html, /Running/);
-    assert.match(
-      html,
-      /aria-label="Next: Running\. Create child agent from selected session\. Open evidence in Session Map\."/
-    );
     assert.doesNotMatch(
       html,
       /data-testid="statusbar-attention"[^>]*title=/
@@ -203,6 +199,16 @@ test('StatusBar shows the NEXT tooltip on focus', async () => {
       tooltip?.textContent,
       'Next: Running. Create child agent from selected session. Open evidence in Session Map.'
     );
+    assert.ok(button.getAttribute('aria-describedby'));
+    assert.equal(button.getAttribute('aria-describedby'), tooltip?.id);
+
+    await act(async () => {
+      button.parentElement?.dispatchEvent(
+        new window.MouseEvent('mouseleave', { bubbles: true })
+      );
+    });
+
+    assert.ok(document.querySelector('[role="tooltip"]'));
 
     await act(async () => {
       button.click();

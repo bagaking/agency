@@ -1,4 +1,13 @@
-import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  cloneElement,
+  isValidElement,
+  useCallback,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 
 const GAP = 6;
@@ -14,11 +23,15 @@ const ORDER = {
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 export function Tooltip({ label, side = 'top', children }: any) {
-  const [open, setOpen] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [style, setStyle] = useState(null);
   const [placement, setPlacement] = useState(side);
+  const tooltipId = useId();
   const anchorRef = useRef(null);
   const tooltipRef = useRef(null);
+
+  const open = hovered || focused;
 
   const fallbackOrder = useMemo(() => ORDER[side] || ORDER.top, [side]);
 
@@ -82,20 +95,32 @@ export function Tooltip({ label, side = 'top', children }: any) {
   }, [open, updatePosition]);
 
   const tooltipStyle = style || { left: -9999, top: -9999 };
+  const describedChildren =
+    isValidElement(children)
+      ? cloneElement(children as React.ReactElement<any>, {
+          'aria-describedby':
+            open && label
+              ? [(children as any).props?.['aria-describedby'], tooltipId]
+                  .filter(Boolean)
+                  .join(' ')
+              : (children as any).props?.['aria-describedby'],
+        })
+      : children;
 
   return (
     <span
       ref={anchorRef}
       className="relative inline-flex"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
-      onBlur={() => setOpen(false)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
     >
-      {children}
+      {describedChildren}
       {open && label && typeof document !== 'undefined'
         ? createPortal(
             <span
+              id={tooltipId}
               ref={tooltipRef}
               role="tooltip"
               data-side={placement}

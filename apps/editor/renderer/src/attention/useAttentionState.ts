@@ -26,6 +26,7 @@ type UseAttentionStateArgs = {
   openSessionMap?: () => void;
   focusWindow?: (windowStateId: string) => Promise<void> | void;
   focusSessionInUi?: (cellId: string, sessionId: string) => void;
+  focusRunInUi?: (runId: string) => void;
   selectSessionFromMap?: (
     cellId: string,
     sessionId: string,
@@ -76,6 +77,7 @@ export function useAttentionState({
   openSessionMap,
   focusWindow,
   focusSessionInUi,
+  focusRunInUi,
   selectSessionFromMap,
 }: UseAttentionStateArgs) {
   const model = useMemo(
@@ -142,6 +144,7 @@ export function useAttentionState({
 
       const cellId = normalizeText(item.refs.cellId);
       const sessionId = normalizeText(item.refs.sessionId);
+      const runId = normalizeText(item.refs.runId);
 
       if (descriptor.target === 'jump-session') {
         if (cellId && sessionId) {
@@ -152,6 +155,9 @@ export function useAttentionState({
       }
 
       if (descriptor.target === 'open-session-map') {
+        if (descriptor.mapSelection === 'session' && runId) {
+          focusRunInUi?.(runId);
+        }
         if (descriptor.mapSelection === 'session' && cellId && sessionId) {
           selectSessionFromMap?.(cellId, sessionId, { focusView: false });
         } else if (descriptor.mapSelection === 'cell' && cellId) {
@@ -163,6 +169,7 @@ export function useAttentionState({
     },
     [
       focusSessionInUi,
+      focusRunInUi,
       focusWindow,
       openSessionMap,
       selectSessionFromMap,

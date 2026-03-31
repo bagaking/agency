@@ -265,7 +265,8 @@ pnpm run package
 Artifacts are written to `apps/editor/dist/release` (DMG + ZIP). Install by opening the DMG or unzipping the app and dragging `Agency.app` to `/Applications`.
 Unsigned builds may require Gatekeeper bypass (right-click → Open once, or run `xattr -dr com.apple.quarantine /Applications/Agency.app`).
 Packaging uses `TMPDIR=/tmp` to avoid `hdiutil` failures on some macOS setups.
-Packaging now runs a disk-space preflight before build/sign/DMG work. If free space is below the safe threshold, the preflight first deletes stale generated outputs under `apps/editor/dist/release` that would be overwritten by the current mode, then fails fast with cleanup guidance instead of spending minutes before `hdiutil` errors.
+Packaging now runs a preparation step before build/sign/DMG work. The prepare step checks disk space on the project volume, `/tmp`, and the Electron Builder cache volume, then clears stale generated outputs under `apps/editor/dist/release` that would conflict with the current mode before continuing.
+Packaging commands are intentionally packageability-first: they verify that the desktop artifact can be produced, but they do not enforce the renderer bundle budget gate.
 
 From repo root:
 
@@ -283,6 +284,14 @@ For a lower-peak local DMG build (DMG only, no ZIP), run:
 
 ```bash
 make editor-package-lite
+```
+
+To package while also enforcing the renderer budget gate, use the strict variants:
+
+```bash
+pnpm run package:strict
+pnpm run package:lite:strict
+pnpm run package:dir:strict
 ```
 
 For an unpacked build (no DMG), run:
@@ -323,7 +332,17 @@ Validate the renderer boot bundle budget from `apps/editor` with:
 pnpm run check:renderer-bundle-budget
 ```
 
-`pnpm run build:renderer` now runs this budget check automatically after the Vite build.
+Build semantics are split on purpose:
+
+```bash
+pnpm run build:renderer
+pnpm run build:renderer:budget
+```
+
+- `build:renderer` only emits renderer artifacts.
+- `build:renderer:budget` rebuilds the renderer and then enforces the bundle budget gate.
+- The budget gate uses `apps/editor/scripts/renderer-bundle-budget.accepted.json` as the accepted-state ratchet.
+- Gzip budgets remain hard failures; raw CSS drift is reported as a warning so minor Tailwind churn does not block local packaging.
 
 ## Makefile (from repo root)
 
