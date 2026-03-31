@@ -159,15 +159,25 @@ export const buildExplorerVisibleItems = ({
   const rootChildren = (tree.children[''] || []).filter((child) => checkMatch(child));
   rootChildren.forEach((child, index) => walk(child, 0, rootChildren.length, index + 1));
 
-  if (draftEntry?.parentPath) {
-    const idx = items.findIndex((it) => it.path === draftEntry.parentPath);
-    if (idx >= 0) {
-      items.splice(idx + 1, 0, {
-        path: `__d__${draftEntry.parentPath}`,
-        depth: items[idx].depth + 1,
+  if (draftEntry) {
+    const draftParentPath = String(draftEntry.parentPath || '');
+    if (!draftParentPath) {
+      items.unshift({
+        path: '__d__root',
+        depth: 0,
         type: draftEntry.type,
         draft: true,
       });
+    } else {
+      const idx = items.findIndex((it) => it.path === draftParentPath);
+      if (idx >= 0) {
+        items.splice(idx + 1, 0, {
+          path: `__d__${draftParentPath}`,
+          depth: items[idx].depth + 1,
+          type: draftEntry.type,
+          draft: true,
+        });
+      }
     }
   }
 

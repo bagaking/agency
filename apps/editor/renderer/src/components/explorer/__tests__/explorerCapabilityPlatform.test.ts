@@ -30,6 +30,7 @@ import {
   normalizeExplorerWorkingSetId,
   resolveExplorerWorkingSetOptions,
 } from '../explorerWorkingSets';
+import { buildExplorerVisibleItems } from '../explorerVisibleItems';
 
 test('filter descriptor helpers preserve readable summaries and counts', () => {
   const descriptorState = getDefaultExplorerFilterDescriptorState();
@@ -147,4 +148,35 @@ test('working-set resolution keeps the full implemented baseline when no presets
     workingSets.map((entry) => entry.id),
     [EXPLORER_WORKING_SET_TREE, EXPLORER_WORKING_SET_CHANGED_FILES]
   );
+});
+
+test('root-level draft entries stay visible when creating a new item at repository root', () => {
+  const items = buildExplorerVisibleItems({
+    tree: {
+      nodes: {
+        '': { path: '', name: '', type: 'dir' },
+        'README.md': { path: 'README.md', name: 'README.md', type: 'file' },
+      },
+      children: {
+        '': ['README.md'],
+      },
+    },
+    expandedPaths: new Set(['']),
+    isSearchActive: false,
+    showHidden: true,
+    showIgnored: true,
+    draftEntry: { parentPath: '', type: 'file' },
+    folderStatusByPath: {},
+    statusByPath: {},
+    getScopedEntry: (entry: any) => entry,
+    hasChangeFilter: false,
+    hasStatusFilters: false,
+    statusFilterSet: new Set(),
+    matchesSemanticFilter: () => true,
+    isPathIgnored: () => false,
+  });
+
+  assert.equal(items[0]?.draft, true);
+  assert.equal(items[0]?.path, '__d__root');
+  assert.equal(items[0]?.depth, 0);
 });

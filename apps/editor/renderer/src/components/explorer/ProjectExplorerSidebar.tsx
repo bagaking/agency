@@ -505,8 +505,8 @@ function ProjectExplorerSidebarContent({
         isSearchActive: isPathSearchActive,
         showHidden,
         showIgnored,
-        draftEntry: draftEntry?.parentPath
-          ? { parentPath: draftEntry.parentPath, type: draftEntry.type }
+        draftEntry: draftEntry
+          ? { parentPath: draftEntry.parentPath || '', type: draftEntry.type }
           : null,
         folderStatusByPath,
         statusByPath,
