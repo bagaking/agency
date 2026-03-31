@@ -148,8 +148,8 @@ test('root-level draft entries stay visible when creating a new item at reposito
   const items = buildExplorerVisibleItems({
     tree: {
       nodes: {
-        '': { path: '', name: '', type: 'dir' },
-        'README.md': { path: 'README.md', name: 'README.md', type: 'file' },
+        '': { name: '', type: 'dir' },
+        'README.md': { name: 'README.md', type: 'file' },
       },
       children: {
         '': ['README.md'],

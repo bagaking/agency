@@ -46,13 +46,16 @@ const killRepoElectronProcesses = () => {
 };
 
 const initializeGitRepo = (repoPath, trackedEntries) => {
-  fs.rmSync(repoPath, { recursive: true, force: true });
-  fs.mkdirSync(repoPath, { recursive: true });
+  const resetRepoDir = () => {
+    fs.rmSync(repoPath, { recursive: true, force: true, maxRetries: 10, retryDelay: 150 });
+    fs.mkdirSync(repoPath, { recursive: true });
+  };
+
+  resetRepoDir();
   try {
     execSync('git init', { cwd: repoPath });
   } catch (_error) {
-    fs.rmSync(repoPath, { recursive: true, force: true });
-    fs.mkdirSync(repoPath, { recursive: true });
+    resetRepoDir();
     execSync('git init', { cwd: repoPath });
   }
   trackedEntries.forEach(({ relativePath, content }) => {
