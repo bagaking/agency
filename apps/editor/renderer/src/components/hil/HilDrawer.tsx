@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight, Target } from 'lucide-react';
+import { HIL_SURFACE_COPY, HilStatusBadge } from './hilSurfaceSystem';
 import { IconButton } from '../ui/IconButton';
 import { focusRing } from '../ui/focusRing';
 
@@ -36,34 +37,37 @@ export function HilDrawer({
     <aside
       className={`relative flex h-full flex-shrink-0 flex-col ${
         drawerOpen || collapsedWidth > 0 ? 'border-l border-border/20' : 'border-l-0'
-      } bg-muted/5 backdrop-blur-2xl transition-[width] duration-300 ${drawerOpen ? 'w-[360px]' : ''}`}
+      } bg-[linear-gradient(180deg,rgba(20,24,31,0.96),rgba(12,15,20,0.98))] backdrop-blur-2xl transition-[width] duration-300 ${drawerOpen ? 'w-[376px]' : ''}`}
       style={drawerOpen ? undefined : { width: `${collapsedWidth}px` }}
     >
       <header
-        className={`shrink-0 h-9 items-center border-b border-border/10 bg-muted/10 ${
+        className={`shrink-0 min-h-[52px] items-center border-b border-white/[0.06] bg-white/[0.02] ${
           drawerOpen || showToggleButton ? 'flex' : 'hidden'
         } ${
-          drawerOpen ? (showToggleButton ? 'px-2 gap-1.5' : 'px-2.5 gap-0') : 'px-0 justify-center'
+          drawerOpen ? (showToggleButton ? 'px-3 gap-2.5' : 'px-3.5 gap-0') : 'px-0 justify-center'
         }`}
       >
         {showToggleButton ? (
           <IconButton
-            label={drawerOpen ? 'Collapse HIL drawer' : 'Expand HIL drawer'}
+            label={drawerOpen ? 'Collapse memo drawer' : 'Expand memo drawer'}
             onClick={handleToggle}
             aria-expanded={drawerOpen}
             aria-controls={contentId}
-            className="h-5 w-5 rounded-full border border-border/30 bg-background/60 text-muted-foreground/60 shadow-sm transition-colors hover:text-foreground hover:border-primary/30"
+            className="h-7 w-7 rounded-full border border-white/[0.08] bg-background/50 text-muted-foreground/65 shadow-sm transition-colors hover:text-foreground hover:border-primary/30"
           >
-            {drawerOpen ? <ChevronRight size={12} aria-hidden="true" /> : <ChevronLeft size={12} aria-hidden="true" />}
+            {drawerOpen ? <ChevronRight size={13} aria-hidden="true" /> : <ChevronLeft size={13} aria-hidden="true" />}
           </IconButton>
         ) : null}
         {drawerOpen ? (
           <div className="flex min-w-0 flex-1 flex-col">
-            <h2 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/70 truncate">
-              {title || 'HIL'}
+            <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/46 truncate">
+              {HIL_SURFACE_COPY.workspaceSubtitle}
+            </span>
+            <h2 className="mt-1 text-[15px] font-semibold tracking-[0.01em] text-foreground truncate">
+              {title || HIL_SURFACE_COPY.workspaceTitle}
             </h2>
             {subtitle ? (
-              <span className="text-[8px] font-medium text-muted-foreground/40 truncate uppercase tracking-tight leading-none">
+              <span className="mt-1 text-[10px] font-medium text-muted-foreground/58 truncate leading-none">
                 {subtitle}
               </span>
             ) : null}
@@ -73,11 +77,11 @@ export function HilDrawer({
           <button
             type="button"
             onClick={onOpenPromote}
-            className={`ml-auto flex items-center gap-1 rounded-md border border-border/20 bg-background/40 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-widest text-muted-foreground/60 transition-colors hover:text-foreground hover:border-primary/30 ${focusRingClass}`}
-            title="Promote items to draft"
+            className={`ml-auto flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-primary transition-colors hover:border-primary/45 hover:bg-primary/14 ${focusRingClass}`}
+            title="Promote selected records"
           >
-            <Target size={10} aria-hidden="true" />
-            Promote
+            <Target size={11} aria-hidden="true" />
+            {HIL_SURFACE_COPY.promoteTitle}
           </button>
         ) : null}
       </header>
@@ -87,7 +91,7 @@ export function HilDrawer({
         className={`flex h-full flex-col ${drawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} transition-opacity duration-200`}
       >
         {panels.length ? (
-          <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-border/10">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.06]">
             {panels.map((panel) => (
               <button
                 key={panel.id}
@@ -95,12 +99,12 @@ export function HilDrawer({
                 disabled={panel.disabled}
                 onClick={() => onSelectPanel?.(panel.id)}
                 aria-pressed={activePanel === panel.id}
-                className={`rounded-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider transition-colors ${focusRingClass} ${
+                className={`rounded-full px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
                   panel.disabled
                     ? 'text-muted-foreground/30 cursor-not-allowed'
                     : activePanel === panel.id
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground/50 hover:text-foreground'
+                      ? 'bg-primary/12 text-primary border border-primary/20'
+                      : 'text-muted-foreground/56 hover:text-foreground border border-transparent hover:border-white/[0.08]'
                 }`}
               >
                 {panel.label}
@@ -110,7 +114,7 @@ export function HilDrawer({
         ) : null}
 
         <div
-          className={`flex-1 ${contentScrollable ? 'overflow-y-auto' : 'overflow-hidden'} px-2 py-2 ${contentClassName}`}
+          className={`flex-1 ${contentScrollable ? 'overflow-y-auto' : 'overflow-hidden'} px-3 py-3 ${contentClassName}`}
         >
           {children}
         </div>

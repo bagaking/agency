@@ -17,6 +17,12 @@ import { focusRing } from '../ui/focusRing';
 import { resolveFileReferenceTarget } from '../../utils/fileReferences';
 import { setFileDragPayload } from '../../utils/fileDragPayload';
 import { useFileSnippetPreview } from '../../hooks/useFileSnippetPreview';
+import {
+  HIL_SURFACE_COPY,
+  HilStatusBadge,
+  HilSurfaceHeader,
+  HilSurfaceSection,
+} from './hilSurfaceSystem';
 
 const kindIcons = {
     comment: Terminal,
@@ -75,41 +81,47 @@ export function HilCommentsPanel({
   }, [commentModalOpen]);
 
   return (
-    <div className="flex flex-col gap-2 py-1 select-none">
-      <div className="flex items-center justify-between gap-2 px-0.5">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold tracking-wider text-foreground/80">
-            {fileLabel || 'HIL Comments'}
-          </span>
-          <span className="text-[9px] font-medium text-muted-foreground/60">
-            {pendingCount} open · {processedCount} done
-          </span>
-        </div>
-        <div className="flex items-center gap-0.5">
-          {activeFile ? (
-            <IconButton
-              label="Add comment"
+    <div className="flex flex-col gap-3 py-1 select-none">
+      <HilSurfaceHeader
+        eyebrow={HIL_SURFACE_COPY.commentsSubtitle}
+        title={HIL_SURFACE_COPY.commentsTitle}
+        subtitle={
+          activeFile
+            ? `Review notes for ${activeFile}`
+            : 'Review file-linked notes and route them into draft work.'
+        }
+        meta={
+          <>
+            <HilStatusBadge label={`${pendingCount} open`} tone="active" />
+            <HilStatusBadge label={`${processedCount} done`} tone="success" />
+            {activeFile ? <HilStatusBadge label={`Ln ${resolvedLine}`} tone="neutral" /> : null}
+          </>
+        }
+        actions={
+          activeFile ? (
+            <button
+              type="button"
               onClick={() =>
                 onOpenComment?.({
                   line: cursorPosition?.line || 1,
                   column: cursorPosition?.column || 1,
                 })
               }
-              className="h-6 w-6 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-muted/10 transition-colors transition-transform active:scale-95"
+              className={`inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-primary transition-colors hover:border-primary/45 hover:bg-primary/14 ${focusRingClass}`}
             >
-              <MessageSquarePlus size={13} strokeWidth={1.5} aria-hidden="true" />
-            </IconButton>
-          ) : null}
-        </div>
-      </div>
+              <MessageSquarePlus size={12} strokeWidth={1.8} aria-hidden="true" />
+              New Comment
+            </button>
+          ) : null
+        }
+      />
 
       {commentModalOpen ? (
-        <div className="rounded-xl border border-border/20 bg-card p-3 shadow-xl overflow-hidden relative ring-1 ring-black/5">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-              <MessageSquarePlus size={13} className="text-primary" strokeWidth={2} />
-              Add Comment
-            </div>
+        <HilSurfaceSection
+          eyebrow="Compose"
+          title="New Comment"
+          description="Capture the current line context first, then write the note you want to keep."
+          actions={
             <IconButton
               label="Close comment editor"
               onClick={onCloseComment}
@@ -117,11 +129,13 @@ export function HilCommentsPanel({
             >
               <X size={13} aria-hidden="true" />
             </IconButton>
-          </div>
-          
-          <div className="flex flex-col gap-1.5">
-            <div className="text-[10px] font-medium text-muted-foreground/60 px-0.5">
-                {activeFile ? `${activeFile} · Ln ${resolvedLine}` : `Ln ${resolvedLine}`}
+          }
+          tone="active"
+        >
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2 px-0.5">
+              {activeFile ? <HilStatusBadge label={activeFile} tone="neutral" /> : null}
+              <HilStatusBadge label={`Ln ${resolvedLine}`} tone="active" />
             </div>
 
             {commentSnippetLoading ? (
@@ -135,11 +149,11 @@ export function HilCommentsPanel({
             ) : null}
 
             {snippetLines?.length ? (
-                <div className="rounded-md border border-border/10 bg-muted/5 px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground/60 overflow-hidden">
+                <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2 font-mono text-[10px] text-muted-foreground/68 overflow-hidden shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)]">
                 {snippetLines.map((line) => (
                     <div
                     key={`${line.line}-${line.isTarget ? 't' : 'n'}`}
-                    className={`flex gap-3 h-4 items-center ${line.isTarget ? 'bg-primary/5 text-primary -mx-2.5 px-2.5 font-medium' : ''}`}
+                    className={`flex gap-3 min-h-[18px] items-center ${line.isTarget ? 'bg-primary/7 text-primary -mx-3 px-3 font-medium' : ''}`}
                     >
                     <span className="w-7 text-right opacity-30 tabular-nums select-none shrink-0">{line.line}</span>
                     <span className="truncate">{line.content || ' '}</span>
@@ -149,19 +163,19 @@ export function HilCommentsPanel({
             ) : null}
           </div>
 
-          <textarea
-            ref={messageRef}
+            <textarea
+              ref={messageRef}
             value={commentMessage}
             onChange={(event) => onCommentMessageChange?.(event.target.value)}
             rows={3}
             name="comment-message"
             autoComplete="off"
             aria-label="Comment message"
-            className="mt-2 w-full resize-none rounded-lg border border-border/20 bg-background px-2.5 py-2 text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-colors"
-            placeholder="Write a note…"
-          />
+              className="mt-1 w-full resize-none rounded-xl border border-white/[0.08] bg-background/80 px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-colors"
+              placeholder="Write the note you want the future draft to preserve…"
+            />
 
-          <div className="mt-2.5 flex items-center justify-between">
+            <div className="mt-2.5 flex items-center justify-between">
             <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 cursor-pointer group/todo select-none">
               <input
                 type="checkbox"
@@ -183,7 +197,7 @@ export function HilCommentsPanel({
                 type="button"
                 onClick={onSubmitComment}
                 disabled={commentSaving}
-                className={`rounded-md bg-primary hover:bg-primary/90 px-3 py-1 text-[10px] font-semibold text-primary-foreground shadow-sm transition-colors transition-transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none ${focusRingClass}`}
+                className={`rounded-full bg-primary hover:bg-primary/90 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-primary-foreground shadow-sm transition-colors transition-transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none ${focusRingClass}`}
               >
                 {commentSaving ? 'Saving…' : 'Submit'}
               </button>
@@ -194,7 +208,7 @@ export function HilCommentsPanel({
                 {commentError}
             </div>
           ) : null}
-        </div>
+        </HilSurfaceSection>
       ) : null}
 
       {error ? (
@@ -209,7 +223,8 @@ export function HilCommentsPanel({
           Loading comments…
         </div>
       ) : comments && comments.length > 0 ? (
-        comments.map((comment, i) => (
+        <div className="flex flex-col gap-3">
+        {comments.map((comment, i) => (
           <CommentItem 
             key={comment.id || i} 
             comment={comment} 
@@ -218,11 +233,12 @@ export function HilCommentsPanel({
             onOpenAnchor={onOpenAnchor}
             onRevealAnchor={onRevealAnchor}
           />
-        ))
+        ))}
+        </div>
       ) : (
-        <div className="py-16 flex flex-col items-center justify-center opacity-10">
+        <div className="py-16 flex flex-col items-center justify-center opacity-20 text-muted-foreground/40">
             <Hash size={32} strokeWidth={1} />
-            <p className="text-[10px] font-black uppercase tracking-widest mt-2">No HIL Data</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] mt-2">No comments yet</p>
         </div>
       )}
     </div>
@@ -236,20 +252,7 @@ function CommentItem({ comment, onUpdateStatus, worktreePath, onOpenAnchor, onRe
     const Icon = kindIcons[comment.kind] || Terminal;
     
     return (
-        <div className={`group relative flex flex-col rounded-lg transition-colors duration-300 ${isResolved ? 'opacity-40 grayscale' : 'hover:bg-muted/5'}`}>
-            {/* Type Indicator with Tooltip */}
-            <div className="absolute -left-2 -top-1.5 z-10">
-                <div
-                    title={`Type: ${kindLabel}`}
-                    className={`flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border shadow-sm transition-colors transition-shadow ${
-                        isResolved ? 'bg-muted border-border text-muted-foreground' : 'bg-popover border-border/40 text-primary'
-                    }`}
-                >
-                    <Icon size={8} strokeWidth={2.5} aria-hidden="true" />
-                </div>
-            </div>
-
-            {/* Contextual Linkage Header */}
+        <div className={`group relative flex flex-col rounded-2xl border border-white/[0.06] bg-[linear-gradient(180deg,rgba(28,33,42,0.68),rgba(16,19,24,0.9))] px-3 py-3 transition-colors duration-300 ${isResolved ? 'opacity-55 grayscale' : 'hover:border-primary/18 hover:bg-[linear-gradient(180deg,rgba(30,36,46,0.76),rgba(17,21,27,0.92))]'}`}>
             {comment.anchor && (
                 <ContextAnchor 
                     anchor={comment.anchor} 
@@ -261,33 +264,39 @@ function CommentItem({ comment, onUpdateStatus, worktreePath, onOpenAnchor, onRe
                 />
             )}
 
-            <div className="px-2 pb-2">
-                <header className="flex items-center justify-between mb-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold text-foreground/80 tracking-tight uppercase">
-                          {comment.author?.label || 'Agent'}
+            <div className="pt-1">
+                <header className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-white/[0.08] bg-background/40 text-primary/80">
+                        <Icon size={11} strokeWidth={2.2} aria-hidden="true" />
                       </span>
-                      {isProcessed ? (
-                        <span className="rounded border border-emerald-500/30 px-1 py-px text-[7px] font-bold uppercase tracking-widest text-emerald-400/70 leading-none">
-                          Done
-                        </span>
-                      ) : null}
+                      <div className="min-w-0">
+                        <div className="text-[11px] font-semibold text-foreground/86 tracking-[0.01em] truncate">
+                          {comment.author?.label || 'Agent'}
+                        </div>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <HilStatusBadge label={kindLabel} tone="neutral" className="px-2 py-0.5" />
+                          {isProcessed ? (
+                            <HilStatusBadge label="Done" tone="success" className="px-2 py-0.5" />
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
-                    <span className="text-[9px] font-medium text-muted-foreground/30 uppercase tabular-nums">
+                    <span className="text-[9px] font-medium text-muted-foreground/34 uppercase tabular-nums">
                         {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                     </span>
                 </header>
 
-                <div className="text-[11px] leading-snug text-muted-foreground break-words mb-1.5 selection:bg-primary/30">
+                <div className="text-[12px] leading-relaxed text-muted-foreground/86 break-words mb-2 selection:bg-primary/30">
                     {comment.body || comment.message}
                 </div>
 
-                <footer className="flex items-center justify-end opacity-0 translate-y-1 transition-opacity transition-transform group-hover:opacity-100 group-hover:translate-y-0 h-3.5">
+                <footer className="flex items-center justify-end opacity-0 translate-y-1 transition-opacity transition-transform group-hover:opacity-100 group-hover:translate-y-0 h-5">
                     <button
                         type="button"
                         onClick={() => onUpdateStatus?.(comment, isResolved ? 'open' : 'resolved')}
                         aria-label={isResolved ? 'Reopen comment' : 'Resolve comment'}
-                        className={`flex items-center gap-1 text-[9px] font-bold text-emerald-500/60 hover:text-emerald-400 transition-colors ${focusRingClass} focus-visible:ring-emerald-400/50`}
+                        className={`flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-emerald-300/88 hover:border-emerald-400/40 hover:text-emerald-200 transition-colors ${focusRingClass} focus-visible:ring-emerald-400/50`}
                     >
                         <CheckCircle2 size={9} aria-hidden="true" />
                         {isResolved ? 'Reopen' : 'Resolve'}
@@ -360,7 +369,7 @@ function ContextAnchor({ anchor, commentBody, worktreePath, isResolved, onOpenAn
         <div 
             role="button"
             tabIndex={0}
-            className="flex items-center gap-1.5 mb-1 px-0.5 cursor-pointer"
+            className="flex items-center gap-2 mb-1.5 cursor-pointer"
             onClick={handleOpen}
             onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
@@ -373,19 +382,20 @@ function ContextAnchor({ anchor, commentBody, worktreePath, isResolved, onOpenAn
             draggable={Boolean(resolvedReference?.absolutePath)}
             onDragStart={handleDragStart}
         >
-            <div className={`h-1 w-1 rounded-full ${isResolved ? 'bg-muted-foreground/20' : 'bg-primary shadow-[0_0_6px_rgba(59,130,246,0.6)]'}`} />
-            <span className={`text-[9px] font-black uppercase tracking-tighter ${isResolved ? 'text-muted-foreground/40' : 'text-primary'}`}>
-                Ln {anchor.line}
-            </span>
-            <span className="text-[9px] text-muted-foreground/30 font-mono italic truncate max-w-[180px]">
-                {anchor.file.split('/').pop()}
+            <HilStatusBadge
+              label={`Ln ${anchor.line}`}
+              tone={isResolved ? 'neutral' : 'active'}
+              className="px-2 py-0.5"
+            />
+            <span className="text-[10px] text-muted-foreground/46 font-mono italic truncate max-w-[180px]">
+                {anchor.file}
             </span>
             <div className={`h-px flex-1 bg-gradient-to-r ${isResolved ? 'from-muted-foreground/10' : 'from-primary/10'} to-transparent`} />
             {onRevealAnchor ? (
               <button
                 type="button"
                 onClick={handleReveal}
-                className="rounded border border-border/30 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground/70 hover:border-primary/50 hover:text-primary"
+                className="rounded-full border border-border/30 px-2 py-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70 hover:border-primary/50 hover:text-primary"
               >
                 Reveal
               </button>
@@ -480,4 +490,3 @@ function ContextTooltip({ x, y, snippet, loading, commentBody, fileName }: any) 
         document.body
     );
 }
-

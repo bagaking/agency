@@ -1,5 +1,6 @@
 import React from 'react';
 import { StickyNote, Camera, Inbox, Quote, ArrowLeft, ArrowUpRight } from 'lucide-react';
+import { HIL_SURFACE_COPY, HilStatusBadge, HilSurfaceHeader } from './hilSurfaceSystem';
 import { FlashCaptureCard } from './memo/FlashCaptureCard';
 import { ExcerptCaptureCard } from './memo/ExcerptCaptureCard';
 import { ScreenshotCaptureCard } from './memo/ScreenshotCaptureCard';
@@ -50,14 +51,13 @@ export function HilMemoDrawer({
 
   return (
     <div className="flex flex-col gap-4 py-1 select-none">
-      <div className="px-0.5">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted-foreground/50">
-          Inbox Shortcuts
-        </div>
-        <div className="mt-1 text-[11px] text-muted-foreground/60">
-          Jump to capture modes in the Memo inbox.
-        </div>
-      </div>
+      <HilSurfaceHeader
+        eyebrow={HIL_SURFACE_COPY.captureSubtitle}
+        title={HIL_SURFACE_COPY.captureTitle}
+        subtitle="Jump straight into capture modes without losing your place in Memo."
+        meta={<HilStatusBadge label={activeInboxId || 'shortcuts'} tone="neutral" />}
+        compact
+      />
 
       <div className="flex flex-col gap-3">
         <MemoShortcutCard
@@ -131,7 +131,7 @@ export function HilMemoDrawer({
       >
         <span className="flex items-center gap-2">
           <Inbox size={12} aria-hidden="true" />
-          Open Inbox
+          Open Memo
         </span>
         <span className="text-[9px] font-medium text-muted-foreground/40">Comments</span>
       </button>

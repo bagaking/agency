@@ -3,6 +3,12 @@ import { createPortal } from 'react-dom';
 import { Camera, FileCode, Quote, StickyNote, Terminal, X } from 'lucide-react';
 
 import { ActionSheetStatusPanel } from '../actionSheets/ActionSheetStatusPanel';
+import {
+  HIL_SURFACE_COPY,
+  HilStatusBadge,
+  HilSurfaceHeader,
+  HilSurfaceSection,
+} from './hilSurfaceSystem';
 import { IconButton } from '../ui/IconButton';
 import { focusRing } from '../ui/focusRing';
 
@@ -97,19 +103,28 @@ export function PromoteModal({
     : '—';
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const promoteTree = useMemo(() => buildPromoteTree(items), [items]);
+  const selectedCount = selectedIds.length;
 
   return createPortal(
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-3xl rounded-2xl border border-border/20 bg-card p-5 shadow-2xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-[12px] font-semibold text-foreground">Promote Items</div>
-            <div className="text-[10px] text-muted-foreground/60">
-              {deliveryMode === 'gated'
-                ? 'Gated mode runs via Action Sheets and gate tracking.'
-                : 'Quick mode dispatches immediately and consumes items after ACK.'}
-            </div>
-          </div>
+      <div className="w-full max-w-[1100px] rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(23,28,36,0.98),rgba(12,15,21,0.99))] p-6 shadow-[0_20px_70px_rgba(0,0,0,0.42)]">
+        <div className="flex items-start justify-between gap-4">
+          <HilSurfaceHeader
+            eyebrow={HIL_SURFACE_COPY.promoteSubtitle}
+            title={HIL_SURFACE_COPY.promoteTitle}
+            subtitle={
+              deliveryMode === 'gated'
+                ? 'Review the selected records, choose the execution lane, then confirm only when the draft gate is truly ready.'
+                : 'Review the selected records, choose the execution lane, and dispatch once the destination is right.'
+            }
+            meta={
+              <>
+                <HilStatusBadge label={`${selectedCount} selected`} tone="active" />
+                <HilStatusBadge label={deliveryMode} tone={deliveryMode === 'gated' ? 'warning' : 'neutral'} />
+                {promoteSessionId ? <HilStatusBadge label={promoteSessionId} tone="neutral" /> : null}
+              </>
+            }
+          />
           <IconButton
             label="Close promote dialog"
             onClick={onClose}
@@ -119,24 +134,32 @@ export function PromoteModal({
           </IconButton>
         </div>
 
-        <div className="mt-4 grid grid-cols-[1.3fr_1fr] gap-4">
+        <div className="mt-4 grid grid-cols-[1.25fr_0.95fr] gap-4">
           <div className="space-y-3">
-            <textarea
-              value={description}
-              onChange={(event) => onChangeDescription?.(event.target.value)}
-              rows={4}
-              disabled={isWaiting}
-              name="promote-description"
-              autoComplete="off"
-              aria-label="Draft description"
-              className="w-full resize-none rounded-lg border border-border/20 bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-colors disabled:opacity-60"
-              placeholder="Describe the draft you want to create from selected items…"
-            />
+            <HilSurfaceSection
+              eyebrow="Records"
+              title="Selected context"
+              description="The draft summary is the instruction spine. The tree below is the evidence that will travel with it."
+              tone="active"
+            >
+              <textarea
+                value={description}
+                onChange={(event) => onChangeDescription?.(event.target.value)}
+                rows={4}
+                disabled={isWaiting}
+                name="promote-description"
+                autoComplete="off"
+                aria-label="Draft description"
+                className="w-full resize-none rounded-xl border border-white/[0.08] bg-background/80 px-3.5 py-3 text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 focus:ring-1 focus:ring-primary/10 focus:outline-none transition-colors disabled:opacity-60"
+                placeholder="Describe the draft you want to create from selected records…"
+              />
+            </HilSurfaceSection>
 
-            <div className="rounded-xl border border-border/10 bg-muted/5 px-3 py-3">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
-                Delivery
-              </div>
+            <HilSurfaceSection
+              eyebrow="Delivery"
+              title="Execution lane"
+              description="Set the destination session and whether this should run as a quick send or a gated draft handoff."
+            >
               <div className="mt-2 flex items-center gap-2">
                 <div className="inline-flex rounded bg-background/60 p-0.5">
                   <button
@@ -211,17 +234,16 @@ export function PromoteModal({
                   ? `Using ${activeSession.name || activeSession.id} · ${activeSession.status} · idle at ${lastActivityLabel}`
                   : 'No session selected yet.'}
               </div>
-            </div>
+            </HilSurfaceSection>
           </div>
 
           <div className="space-y-3">
-            <div className="rounded-xl border border-border/10 bg-muted/5 px-3 py-3">
-              <div className="flex items-center justify-between">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
-                  Draft Gate
-                </div>
-                <PromoteGateBadge status={gateStatus} />
-              </div>
+            <HilSurfaceSection
+              eyebrow="Readiness"
+              title="Draft gate"
+              description="The gate answers whether it is actually safe to consume the source records."
+              actions={<PromoteGateBadge status={gateStatus} />}
+            >
               <div className="mt-2 text-[11px] text-muted-foreground/70 leading-relaxed">
                 {!isWaiting
                   ? deliveryMode === 'gated'
@@ -240,13 +262,14 @@ export function PromoteModal({
                   Draft ID: <span className="font-mono">{promoteDraft.id}</span>
                 </div>
               ) : null}
+            </HilSurfaceSection>
 
-              <div className="mt-3 flex items-center justify-between">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">
-                  Execution
-                </div>
-                <ExecutionStatusBadge status={executionStatus} />
-              </div>
+            <HilSurfaceSection
+              eyebrow="Execution"
+              title="Dispatch state"
+              description="Use this to see whether the selected session has acknowledged the current promote run."
+              actions={<ExecutionStatusBadge status={executionStatus} />}
+            >
               <div className="mt-2 text-[11px] text-muted-foreground/70 leading-relaxed">
               {executionStatus === 'running'
                 ? 'Dispatch sent. Track progress in the selected session.'
@@ -262,7 +285,7 @@ export function PromoteModal({
                           ? 'Draft metadata missing. Refresh and retry.'
                           : 'Execution status idle.'}
               </div>
-            </div>
+            </HilSurfaceSection>
 
             {promoteActionSheet ? (
               <ActionSheetStatusPanel
@@ -297,7 +320,7 @@ export function PromoteModal({
               const typeState = resolveSelectionState(typeIds, selectedSet);
               const TypeIcon = typeGroup.icon;
               return (
-                <div key={typeGroup.id} className="rounded-xl border border-border/10 bg-muted/5 px-3 py-2">
+                <div key={typeGroup.id} className="rounded-2xl border border-white/[0.06] bg-[linear-gradient(180deg,rgba(28,33,42,0.68),rgba(16,19,24,0.9))] px-4 py-3">
                   <div className="flex items-center gap-2 text-[11px] font-semibold text-foreground/80">
                     <TreeCheckbox
                       state={typeState}
@@ -305,17 +328,17 @@ export function PromoteModal({
                       onChange={() => onToggleGroup?.(typeIds)}
                     />
                     <TypeIcon size={13} className="text-primary/60" />
-                    <span className="uppercase tracking-[0.2em] text-[9px] text-muted-foreground/50">
+                    <span className="uppercase tracking-[0.18em] text-[9px] text-muted-foreground/50">
                       {typeGroup.label}
                     </span>
-                    <span className="text-[10px] text-muted-foreground/40">({typeIds.length})</span>
+                    <HilStatusBadge label={`${typeIds.length}`} tone="neutral" className="px-2 py-0.5" />
                   </div>
                   <div className="mt-2 space-y-2 pl-5">
                     {typeGroup.sources.map((sourceGroup) => {
                       const sourceIds = sourceGroup.items.map((item) => item.id);
                       const sourceState = resolveSelectionState(sourceIds, selectedSet);
                       return (
-                        <div key={sourceGroup.id} className="rounded-lg border border-border/10 bg-background/60 px-2.5 py-2">
+                        <div key={sourceGroup.id} className="rounded-xl border border-white/[0.06] bg-background/55 px-3 py-2.5">
                           <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
                             <TreeCheckbox
                               state={sourceState}
@@ -323,9 +346,7 @@ export function PromoteModal({
                               onChange={() => onToggleGroup?.(sourceIds)}
                             />
                             <span className="font-mono truncate">{sourceGroup.label}</span>
-                            <span className="ml-auto text-[9px] text-muted-foreground/40">
-                              {sourceIds.length}
-                            </span>
+                            <span className="ml-auto"><HilStatusBadge label={`${sourceIds.length}`} tone="neutral" className="px-2 py-0.5" /></span>
                           </div>
                           <div className="mt-2 space-y-2">
                             {sourceGroup.items.map((item) => {
@@ -334,7 +355,7 @@ export function PromoteModal({
                               return (
                                 <div
                                   key={item.id}
-                                  className="rounded-md border border-border/10 bg-muted/5 px-3 py-2 transition-colors hover:bg-muted/10 group/item select-none"
+                                  className="rounded-xl border border-white/[0.05] bg-white/[0.03] px-3 py-2.5 transition-colors hover:bg-white/[0.05] group/item select-none"
                                   onMouseEnter={() => onPreviewItem?.(item)}
                                 >
                                   <label className="flex items-start gap-3 cursor-pointer">
@@ -347,7 +368,7 @@ export function PromoteModal({
                                     />
                                     <div className="flex flex-1 flex-col gap-1 min-w-0">
                                       <div className="flex items-center justify-between">
-                                        <span className="font-semibold text-foreground/80 truncate mr-2 text-[11px]">
+                                        <span className="font-semibold text-foreground/84 truncate mr-2 text-[11px]">
                                           {item.body || item.message}
                                         </span>
                                         {item.anchor?.line ? (
@@ -360,7 +381,7 @@ export function PromoteModal({
                                         preview.error ? (
                                           <div className="mt-1 text-[10px] text-rose-400 opacity-80">{preview.error}</div>
                                         ) : (
-                                          <div className="mt-1 rounded border border-border/10 bg-background/60 px-2 py-1.5 font-mono text-[10px] text-muted-foreground/60 overflow-hidden">
+                                          <div className="mt-1 rounded-xl border border-white/[0.06] bg-black/18 px-2.5 py-2 font-mono text-[10px] text-muted-foreground/66 overflow-hidden">
                                             {preview.snippet?.map((line) => (
                                               <div key={`${item.id}-${line.line}`} className="flex gap-3">
                                                 <span className="w-7 text-right opacity-30 select-none tabular-nums shrink-0">
