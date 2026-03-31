@@ -172,7 +172,7 @@ function AppShell() {
     !projectReady && (activeView === 'explorer' || activeView === 'agent-cells');
   const windowHomeShell = useWindowHomeShell({
     homePath,
-    projectHomeVisible,
+    projectReady,
   });
   const { loadCells } = useRendererBootstrap({
     projectRoot,

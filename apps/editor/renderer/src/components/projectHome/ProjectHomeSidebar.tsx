@@ -24,13 +24,13 @@ export function ProjectHomeSidebar({
           : 'Start Home Shell';
 
   return (
-    <aside className="flex h-full min-h-0 w-full flex-col bg-sidebar text-sidebar-foreground">
-      <div className="border-b border-white/[0.06] px-4 py-3">
-        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40">
+    <aside className="flex h-full min-h-0 w-full flex-col bg-[linear-gradient(180deg,#10151d,#0c1016)] text-sidebar-foreground">
+      <div className="border-b border-white/[0.06] px-4 py-4">
+        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-100/52">
           <House size={12} />
           <span>Project Home</span>
         </div>
-        <div className="mt-2 text-[12px] font-semibold text-white/86">
+        <div className="mt-3 text-[16px] font-semibold tracking-[-0.02em] text-white">
           Open a repository or start a scratch shell for this window.
         </div>
         <div className="mt-2 text-[11px] text-white/52">No project selected</div>
@@ -46,7 +46,7 @@ export function ProjectHomeSidebar({
           <button
             type="button"
             onClick={onSelectProject}
-            className="flex items-center justify-between rounded-2xl border border-cyan-300/20 bg-cyan-500/[0.08] px-3 py-3 text-left transition-colors hover:bg-cyan-500/[0.12]"
+            className="flex items-center justify-between rounded-[20px] border border-cyan-300/20 bg-cyan-500/[0.1] px-3.5 py-3.5 text-left transition-colors hover:bg-cyan-500/[0.14]"
           >
             <div>
               <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-cyan-100/72">
@@ -59,7 +59,7 @@ export function ProjectHomeSidebar({
           <button
             type="button"
             onClick={shellVisible ? onCloseHomeShell : onOpenHomeShell}
-            className="flex items-center justify-between rounded-2xl border border-white/[0.08] bg-white/[0.04] px-3 py-3 text-left transition-colors hover:bg-white/[0.07]"
+            className="flex items-center justify-between rounded-[20px] border border-white/[0.08] bg-white/[0.04] px-3.5 py-3.5 text-left transition-colors hover:bg-white/[0.07]"
           >
             <div>
               <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/44">
@@ -71,9 +71,9 @@ export function ProjectHomeSidebar({
           </button>
         </div>
 
-        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] px-3 py-3">
+        <div className="rounded-[22px] border border-white/[0.06] bg-black/[0.16] px-3.5 py-3.5">
           <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/42">
-            Shell Scope
+            Window Scope
           </div>
           <div className="mt-2 text-[11px] text-white/82">{shellSummary?.cwd || 'Home directory'}</div>
           <div className="mt-1 text-[10px] text-white/44">
@@ -81,12 +81,14 @@ export function ProjectHomeSidebar({
           </div>
         </div>
 
-        <RecentProjectsList
-          projects={recentProjects}
-          onOpen={onOpenRecentProject}
-          title="Recent Projects"
-          emptyLabel="No recent projects yet"
-        />
+        <div className="rounded-[22px] border border-white/[0.04] bg-black/[0.08] px-2.5 py-3">
+          <RecentProjectsList
+            projects={recentProjects}
+            onOpen={onOpenRecentProject}
+            title="Recent Projects"
+            emptyLabel="No recent projects yet"
+          />
+        </div>
       </div>
     </aside>
   );

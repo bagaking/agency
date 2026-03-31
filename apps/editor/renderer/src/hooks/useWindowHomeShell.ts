@@ -7,10 +7,10 @@ export type WindowHomeShellStatus = 'idle' | 'starting' | 'ready' | 'exited' | '
 
 export function useWindowHomeShell({
   homePath,
-  projectHomeVisible,
+  projectReady,
 }: {
   homePath: string;
-  projectHomeVisible: boolean;
+  projectReady: boolean;
 }) {
   const [shellVisible, setShellVisible] = useState(false);
   const [shellStatus, setShellStatus] = useState<WindowHomeShellStatus>('idle');
@@ -51,23 +51,25 @@ export function useWindowHomeShell({
   );
 
   const handleShellExit = useCallback(() => {
+    setShellVisible(false);
     setShellStatus('exited');
   }, []);
 
   const handleShellError = useCallback((message: string) => {
     const normalized = String(message || '').trim();
+    setShellVisible(false);
     setShellStatus(normalized ? 'error' : 'idle');
     setShellError(normalized);
   }, []);
 
   useEffect(() => {
-    if (projectHomeVisible) {
+    if (!projectReady) {
       return;
     }
     if (shellVisible || shellStatus !== 'idle') {
       closeShell();
     }
-  }, [closeShell, projectHomeVisible, shellStatus, shellVisible]);
+  }, [closeShell, projectReady, shellStatus, shellVisible]);
 
   const shellSummary = useMemo(
     () => ({

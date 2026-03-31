@@ -92,54 +92,68 @@ export function startWindowHomeShell({
     };
   }
 
-  const shellPath = resolveShellPath();
-  const resolvedCwd = resolveHomeShellCwd(cwd);
-  const ptyProcess = pty.spawn(shellPath, ['-l'], {
-    name: 'xterm-256color',
-    cols: 120,
-    rows: 30,
-    cwd: resolvedCwd,
-    env: buildHomeShellEnv(),
-  });
-
-  const record: HomeShellRecord = {
-    windowStateId: normalizedWindowStateId,
-    windowId,
-    shellPath,
-    cwd: resolvedCwd,
-    ptyProcess,
-  };
-  homeShellsByWindowStateId.set(normalizedWindowStateId, record);
-
-  ptyProcess.onData((data: string) => {
-    emitToWindow(windowId, 'window-home-shell:data', {
-      windowStateId: normalizedWindowStateId,
-      data,
+  try {
+    const shellPath = resolveShellPath();
+    const resolvedCwd = resolveHomeShellCwd(cwd);
+    const ptyProcess = pty.spawn(shellPath, ['-l'], {
+      name: 'xterm-256color',
+      cols: 120,
+      rows: 30,
+      cwd: resolvedCwd,
+      env: buildHomeShellEnv(),
     });
-  });
 
-  ptyProcess.onExit((event: { exitCode?: number; signal?: number }) => {
-    homeShellsByWindowStateId.delete(normalizedWindowStateId);
-    emitToWindow(windowId, 'window-home-shell:exit', {
+    const record: HomeShellRecord = {
       windowStateId: normalizedWindowStateId,
-      exitCode: Number(event?.exitCode || 0),
-      signal: Number(event?.signal || 0),
+      windowId,
+      shellPath,
+      cwd: resolvedCwd,
+      ptyProcess,
+    };
+    homeShellsByWindowStateId.set(normalizedWindowStateId, record);
+
+    ptyProcess.onData((data: string) => {
+      emitToWindow(windowId, 'window-home-shell:data', {
+        windowStateId: normalizedWindowStateId,
+        data,
+      });
     });
-  });
 
-  logRuntime('info', 'window home shell started', {
-    windowStateId: normalizedWindowStateId,
-    windowId,
-    cwd: resolvedCwd,
-    shellPath,
-  });
+    ptyProcess.onExit((event: { exitCode?: number; signal?: number }) => {
+      homeShellsByWindowStateId.delete(normalizedWindowStateId);
+      emitToWindow(windowId, 'window-home-shell:exit', {
+        windowStateId: normalizedWindowStateId,
+        exitCode: Number(event?.exitCode || 0),
+        signal: Number(event?.signal || 0),
+      });
+    });
 
-  return {
-    ok: true,
-    cwd: resolvedCwd,
-    shellPath,
-    reused: false,
-  };
+    logRuntime('info', 'window home shell started', {
+      windowStateId: normalizedWindowStateId,
+      windowId,
+      cwd: resolvedCwd,
+      shellPath,
+    });
+
+    return {
+      ok: true,
+      cwd: resolvedCwd,
+      shellPath,
+      reused: false,
+    };
+  } catch (error: any) {
+    const message = error?.message || 'Window home shell failed to start.';
+    emitToWindow(windowId, 'window-home-shell:error', {
+      windowStateId: normalizedWindowStateId,
+      message,
+    });
+    logRuntime('error', 'window home shell start failed', {
+      windowStateId: normalizedWindowStateId,
+      windowId,
+      error: message,
+    });
+    throw error;
+  }
 }
 
 export function writeWindowHomeShell({

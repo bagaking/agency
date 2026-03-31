@@ -243,7 +243,7 @@ export function useRendererBootstrap({
           }
           if (!resolvedProjectRoot) {
             setSelectedId(null);
-            setTerminalOpen(true);
+            setTerminalOpen(false);
             setCells([]);
           }
           await loadCells(
@@ -315,7 +315,7 @@ export function useRendererBootstrap({
     if (!projectRoot) {
       setActiveView('explorer');
       setSelectedId(null);
-      setTerminalOpen(true);
+      setTerminalOpen(false);
     }
     loadCells(undefined, projectRoot);
   }, [loadCells, projectRoot, setActiveView, setSelectedId, setTerminalOpen, uiStateLoaded]);
