@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight, Target } from 'lucide-react';
-import { HIL_SURFACE_COPY, HilStatusBadge } from './hilSurfaceSystem';
+import { HIL_SURFACE_COPY } from './hilSurfaceSystem';
 import { IconButton } from '../ui/IconButton';
 import { focusRing } from '../ui/focusRing';
 

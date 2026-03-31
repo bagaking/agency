@@ -435,7 +435,7 @@ function ContextTooltip({ x, y, snippet, loading, commentBody, fileName }: any) 
         <div 
             ref={ref}
             style={{ left: pos.left, top: pos.top }}
-            className="fixed z-[999] w-[480px] rounded-xl border border-border/40 bg-popover/98 backdrop-blur-3xl shadow-2xl p-4 flex flex-col gap-3 ring-1 ring-border/10"
+            className="fixed z-[999] w-[460px] rounded-2xl border border-white/[0.08] bg-[linear-gradient(180deg,rgba(24,28,35,0.98),rgba(13,16,22,0.99))] backdrop-blur-3xl shadow-[0_16px_48px_rgba(0,0,0,0.36)] p-4 flex flex-col gap-3 ring-1 ring-white/[0.03]"
         >
             {/* Code Context Section */}
             <div className="flex flex-col gap-2">
@@ -445,20 +445,20 @@ function ContextTooltip({ x, y, snippet, loading, commentBody, fileName }: any) 
                             <FileCode size={13} />
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-foreground/80">Code Reference</span>
-                            <span className="text-[9px] font-mono text-muted-foreground/40">{fileName}</span>
+                            <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/48">Context</span>
+                            <span className="text-[10px] font-mono text-muted-foreground/62">{fileName}</span>
                         </div>
                     </div>
                     {loading && <RefreshCw size={12} className="animate-spin text-primary/40" />}
                 </header>
 
-                <div className="rounded-lg bg-background/40 border border-border/10 overflow-hidden">
+                <div className="rounded-xl bg-black/18 border border-white/[0.05] overflow-hidden">
                     {snippet ? (
                         <div className="py-1.5 flex flex-col">
                             {snippet.map((l, i) => (
-                                <div key={i} className={`flex items-center gap-3 px-3 h-5 text-[10px] ${l.isTarget ? 'bg-primary/10 border-y border-primary/5' : ''}`}>
-                                    <span className={`w-8 text-right font-mono text-[9px] shrink-0 tabular-nums ${l.isTarget ? 'text-primary font-bold' : 'text-muted-foreground/30'}`}>{l.line}</span>
-                                    <pre className={`truncate font-mono ${l.isTarget ? 'text-foreground font-semibold' : 'text-muted-foreground/40'}`}>{l.content || ' '}</pre>
+                                <div key={i} className={`flex items-center gap-3 px-3 min-h-[20px] text-[10px] ${l.isTarget ? 'bg-primary/8 border-y border-primary/5' : ''}`}>
+                                    <span className={`w-8 text-right font-mono text-[9px] shrink-0 tabular-nums ${l.isTarget ? 'text-primary font-bold' : 'text-muted-foreground/34'}`}>{l.line}</span>
+                                    <pre className={`truncate font-mono ${l.isTarget ? 'text-foreground font-semibold' : 'text-muted-foreground/48'}`}>{l.content || ' '}</pre>
                                 </div>
                             ))}
                         </div>
@@ -470,17 +470,16 @@ function ContextTooltip({ x, y, snippet, loading, commentBody, fileName }: any) 
                 </div>
             </div>
 
-            <div className="h-px w-full bg-border/10" />
+            <div className="h-px w-full bg-white/[0.06]" />
 
             {/* Comment Preview Section */}
-            <div className="flex flex-col gap-1.5 relative">
-                <div className="absolute -left-2 top-0 bottom-0 w-1 bg-primary/20 rounded-full" />
-                <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-primary/60 mb-0.5">
+            <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/48 mb-0.5">
                     <Quote size={10} fill="currentColor" />
-                    Annotation Detail
+                    Comment
                 </div>
-                <p className="text-[11px] leading-relaxed text-foreground/80 italic font-serif pl-2">
-                    "{commentBody}"
+                <p className="text-[11px] leading-relaxed text-foreground/82 pl-0.5">
+                    {commentBody}
                 </p>
             </div>
         </div>,

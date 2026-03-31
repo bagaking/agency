@@ -56,6 +56,7 @@ export function AppHilPanel({
         onToggle={onToggleHilDrawer}
         onSelectPanel={onSelectHilDrawerPanel}
         onOpenPromote={onOpenHilPromote}
+        eyebrow={meta.eyebrow}
         panels={meta.panels}
         title={meta.title}
         subtitle={meta.subtitle}

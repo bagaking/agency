@@ -310,7 +310,13 @@ export function PromoteModal({
           </div>
         </div>
 
-        <div className="mt-4 max-h-64 overflow-y-auto custom-scrollbar pr-1 space-y-3">
+        <HilSurfaceSection
+          eyebrow="Records map"
+          title="Included records"
+          description="Review the exact comments and memo captures that will be attached to this draft."
+          className="mt-4"
+        >
+        <div className="max-h-64 overflow-y-auto custom-scrollbar pr-1 space-y-3">
           {items.length === 0 ? (
             <div className="text-[11px] text-muted-foreground/40 py-6 text-center italic">
               No pending items.
@@ -321,7 +327,7 @@ export function PromoteModal({
               const typeState = resolveSelectionState(typeIds, selectedSet);
               const TypeIcon = typeGroup.icon;
               return (
-                <div key={typeGroup.id} className="rounded-2xl border border-white/[0.06] bg-[linear-gradient(180deg,rgba(28,33,42,0.68),rgba(16,19,24,0.9))] px-4 py-3">
+                <div key={typeGroup.id} className="rounded-2xl border border-white/[0.05] bg-white/[0.025] px-4 py-3">
                   <div className="flex items-center gap-2 text-[11px] font-semibold text-foreground/80">
                     <TreeCheckbox
                       state={typeState}
@@ -329,7 +335,7 @@ export function PromoteModal({
                       onChange={() => onToggleGroup?.(typeIds)}
                     />
                     <TypeIcon size={13} className="text-primary/60" />
-                    <span className="uppercase tracking-[0.18em] text-[9px] text-muted-foreground/50">
+                    <span className="tracking-[0.01em] text-[11px] text-foreground/74">
                       {typeGroup.label}
                     </span>
                     <HilStatusBadge label={`${typeIds.length}`} tone="neutral" className="px-2 py-0.5" />
@@ -339,14 +345,14 @@ export function PromoteModal({
                       const sourceIds = sourceGroup.items.map((item) => item.id);
                       const sourceState = resolveSelectionState(sourceIds, selectedSet);
                       return (
-                        <div key={sourceGroup.id} className="rounded-xl border border-white/[0.06] bg-background/55 px-3 py-2.5">
+                        <div key={sourceGroup.id} className="rounded-xl border border-white/[0.04] bg-black/18 px-3 py-2.5">
                           <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
                             <TreeCheckbox
                               state={sourceState}
                               disabled={isWaiting}
                               onChange={() => onToggleGroup?.(sourceIds)}
                             />
-                            <span className="font-mono truncate">{sourceGroup.label}</span>
+                            <HilContextChip label={sourceGroup.label} className="max-w-[260px]" />
                             <span className="ml-auto"><HilStatusBadge label={`${sourceIds.length}`} tone="neutral" className="px-2 py-0.5" /></span>
                           </div>
                           <div className="mt-2 space-y-2">
@@ -356,7 +362,7 @@ export function PromoteModal({
                               return (
                                 <div
                                   key={item.id}
-                                  className="rounded-xl border border-white/[0.05] bg-white/[0.03] px-3 py-2.5 transition-colors hover:bg-white/[0.05] group/item select-none"
+                                  className="rounded-xl border border-white/[0.04] bg-white/[0.025] px-3 py-2.5 transition-colors hover:bg-white/[0.04] group/item select-none"
                                   onMouseEnter={() => onPreviewItem?.(item)}
                                 >
                                   <label className="flex items-start gap-3 cursor-pointer">
@@ -382,7 +388,7 @@ export function PromoteModal({
                                         preview.error ? (
                                           <div className="mt-1 text-[10px] text-rose-400 opacity-80">{preview.error}</div>
                                         ) : (
-                                          <div className="mt-1 rounded-xl border border-white/[0.06] bg-black/18 px-2.5 py-2 font-mono text-[10px] text-muted-foreground/66 overflow-hidden">
+                                          <div className="mt-1 rounded-xl border border-white/[0.04] bg-black/16 px-2.5 py-2 font-mono text-[10px] text-muted-foreground/66 overflow-hidden">
                                             {preview.snippet?.map((line) => (
                                               <div key={`${item.id}-${line.line}`} className="flex gap-3">
                                                 <span className="w-7 text-right opacity-30 select-none tabular-nums shrink-0">
@@ -413,6 +419,7 @@ export function PromoteModal({
             })
           )}
         </div>
+        </HilSurfaceSection>
 
         {error ? (
           <div role="status" aria-live="polite" className="mt-3 text-[11px] font-medium text-rose-400 bg-rose-500/5 p-2 rounded border border-rose-500/10">

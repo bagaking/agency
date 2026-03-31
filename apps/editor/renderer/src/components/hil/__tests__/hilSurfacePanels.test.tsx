@@ -6,9 +6,29 @@ import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { JSDOM } from 'jsdom';
 
+import { AppHilPanel } from '../../layout/AppHilPanel';
+import { HilDraftsPanel } from '../HilDraftsPanel';
 import { HilCommentsPanel } from '../HilCommentsPanel';
 import { PromoteModal } from '../HilPromoteModal';
+import { HilMemoDrawer } from '../HilMemoDrawer';
 import { HilMemoSidebar } from '../memo/HilMemoSidebar';
+
+function withSuppressedLayoutEffectWarnings(run: () => void | Promise<void>) {
+  const originalConsoleError = console.error;
+  console.error = (...args: any[]) => {
+    const [firstArg] = args;
+    if (
+      typeof firstArg === 'string' &&
+      firstArg.includes('useLayoutEffect does nothing on the server')
+    ) {
+      return;
+    }
+    originalConsoleError(...args);
+  };
+  return Promise.resolve(run()).finally(() => {
+    console.error = originalConsoleError;
+  });
+}
 
 function setupDom() {
   const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', {
@@ -74,43 +94,45 @@ function setupDom() {
 }
 
 test('HilCommentsPanel exposes the new compose hierarchy when comment editor is open', () => {
-  const html = renderToStaticMarkup(
-    <HilCommentsPanel
-      activeFile="pkg/agency-data/src/repositories/hilRepository.ts"
-      cursorPosition={{ line: 42, column: 7 }}
-      comments={[]}
-      loading={false}
-      error=""
-      onOpenAnchor={() => undefined}
-      onRevealAnchor={() => undefined}
-      onOpenComment={() => undefined}
-      onUpdateStatus={() => undefined}
-      commentModalOpen={true}
-      commentTarget={{ line: 42, column: 7 }}
-      commentMessage=""
-      commentTodo={false}
-      commentError=""
-      commentSaving={false}
-      commentSnippet={{
-        snippet: [
-          { line: 41, content: 'before', isTarget: false },
-          { line: 42, content: 'target', isTarget: true },
-        ],
-      }}
-      commentSnippetLoading={false}
-      commentSnippetError=""
-      onCommentMessageChange={() => undefined}
-      onCommentTodoChange={() => undefined}
-      onCloseComment={() => undefined}
-      onSubmitComment={() => undefined}
-      worktreePath="/tmp/repo"
-    />
-  );
+  return withSuppressedLayoutEffectWarnings(() => {
+    const html = renderToStaticMarkup(
+      <HilCommentsPanel
+        activeFile="pkg/agency-data/src/repositories/hilRepository.ts"
+        cursorPosition={{ line: 42, column: 7 }}
+        comments={[]}
+        loading={false}
+        error=""
+        onOpenAnchor={() => undefined}
+        onRevealAnchor={() => undefined}
+        onOpenComment={() => undefined}
+        onUpdateStatus={() => undefined}
+        commentModalOpen={true}
+        commentTarget={{ line: 42, column: 7 }}
+        commentMessage=""
+        commentTodo={false}
+        commentError=""
+        commentSaving={false}
+        commentSnippet={{
+          snippet: [
+            { line: 41, content: 'before', isTarget: false },
+            { line: 42, content: 'target', isTarget: true },
+          ],
+        }}
+        commentSnippetLoading={false}
+        commentSnippetError=""
+        onCommentMessageChange={() => undefined}
+        onCommentTodoChange={() => undefined}
+        onCloseComment={() => undefined}
+        onSubmitComment={() => undefined}
+        worktreePath="/tmp/repo"
+      />
+    );
 
-  assert.match(html, /Comments/);
-  assert.match(html, /New Comment/);
-  assert.match(html, /Capture the current line context first/);
-  assert.match(html, /Write the note you want the future draft to preserve/);
+    assert.match(html, /Comments/);
+    assert.match(html, /New Comment/);
+    assert.match(html, /Capture the current line context first/);
+    assert.match(html, /Write the note you want the future draft to preserve/);
+  });
 });
 
 test('PromoteModal foregrounds records, execution lane, gate, and dispatch state', async () => {
@@ -186,31 +208,125 @@ test('PromoteModal foregrounds records, execution lane, gate, and dispatch state
 });
 
 test('HilMemoSidebar shows row descriptions only for the active inbox section', () => {
-  const html = renderToStaticMarkup(
-    <HilMemoSidebar
-      loading={false}
-      refresh={() => undefined}
-      searchQuery=""
-      onSearchChange={() => undefined}
-      filters={{ kind: 'all', status: 'all' }}
-      onFiltersChange={() => undefined}
-      summary={{ comment: 2, memo: 3, draft: 1 }}
-      inboxSections={[
-        { id: 'comments', label: 'Comments', description: 'File-linked review notes', icon: () => null },
-        { id: 'flash', label: 'Flash', description: 'Quick note capture', icon: () => null },
-      ]}
-      inboxCounts={{ comments: 2, flash: 1 }}
-      pendingInboxCount={3}
-      dockSelection={{ type: 'inbox', inboxType: 'comments', draftId: null }}
-      onDockSelectionChange={() => undefined}
-      draftItems={[]}
-      draftCount={0}
-      summarizeBody={() => ''}
-    />
-  );
+  return withSuppressedLayoutEffectWarnings(() => {
+    const html = renderToStaticMarkup(
+      <HilMemoSidebar
+        loading={false}
+        refresh={() => undefined}
+        searchQuery=""
+        onSearchChange={() => undefined}
+        filters={{ kind: 'all', status: 'all' }}
+        onFiltersChange={() => undefined}
+        summary={{ comment: 2, memo: 3, draft: 1 }}
+        inboxSections={[
+          { id: 'comments', label: 'Comments', description: 'File-linked review notes', icon: () => null },
+          { id: 'flash', label: 'Flash', description: 'Quick note capture', icon: () => null },
+        ]}
+        inboxCounts={{ comments: 2, flash: 1 }}
+        pendingInboxCount={3}
+        dockSelection={{ type: 'inbox', inboxType: 'comments', draftId: null }}
+        onDockSelectionChange={() => undefined}
+        draftItems={[]}
+        draftCount={0}
+        summarizeBody={() => ''}
+      />
+    );
 
-  assert.match(html, /File-linked review notes/);
-  assert.doesNotMatch(html, /Quick note capture/);
+    assert.match(html, /File-linked review notes/);
+    assert.doesNotMatch(html, /Quick note capture/);
+  });
+});
+
+test('AppHilPanel forwards the reply eyebrow into drawer chrome', () => {
+  return withSuppressedLayoutEffectWarnings(() => {
+    const html = renderToStaticMarkup(
+      <AppHilPanel
+        activeView="agent-cells"
+        hilDrawerOpen={true}
+        hilDrawerPanel="reply"
+        onToggleHilDrawer={() => undefined}
+        onSelectHilDrawerPanel={() => undefined}
+        onOpenHilPromote={() => undefined}
+        hilCommentsProps={{}}
+        hilDraftsProps={{}}
+        hilReplyProps={{ session: { id: 'session-a', name: 'Session A' } }}
+        memoDrawerProps={{}}
+        hilSubtitle=""
+      />
+    );
+
+    assert.match(html, /Session-owned relay/);
+    assert.doesNotMatch(html, /Artifact Workspace/);
+  });
+});
+
+test('HilDraftsPanel reflects memo-first draft queue language', () => {
+  return withSuppressedLayoutEffectWarnings(() => {
+    const html = renderToStaticMarkup(
+      <HilDraftsPanel
+        drafts={[
+          {
+            id: 'draft-1',
+            status: 'open',
+            body: 'Draft body',
+            meta: { actionSheetId: 'action-1' },
+          },
+        ]}
+        summarizeBody={() => 'Draft body'}
+        onOpenDraft={() => undefined}
+        onViewSession={() => undefined}
+        onRunDraft={() => undefined}
+        actionSheets={[{ id: 'action-1', state: 'idle' }]}
+        sessions={[]}
+        activeSessionId="session-a"
+      />
+    );
+
+    assert.match(html, /Execution-ready artifacts/);
+    assert.match(html, /Action Sheet action-1/);
+    assert.match(html, /Run/);
+  });
+});
+
+test('HilMemoDrawer keeps capture shortcuts visible as one rail', () => {
+  return withSuppressedLayoutEffectWarnings(() => {
+    const html = renderToStaticMarkup(
+      <HilMemoDrawer
+        activeInboxId="flash"
+        onSelectInbox={() => undefined}
+        onOpenInbox={() => undefined}
+        flashValue=""
+        onFlashChange={() => undefined}
+        onSaveFlash={() => undefined}
+        flashVoice={null}
+        flashVoiceSegments={[]}
+        flashVoiceShortcut=""
+        excerptUrl=""
+        onExcerptUrlChange={() => undefined}
+        onFetchExcerpt={() => undefined}
+        excerptPreview={null}
+        excerptFetching={false}
+        excerptNote=""
+        onExcerptNoteChange={() => undefined}
+        onSaveExcerpt={() => undefined}
+        screenshotAsset={null}
+        pendingCapture={null}
+        screenshotNote=""
+        onScreenshotNoteChange={() => undefined}
+        onCaptureScreenshot={() => undefined}
+        onOpenRouting={() => undefined}
+        captureLoading={false}
+        onFocusInboxInput={() => undefined}
+        screenshotShortcut=""
+      />
+    );
+
+    assert.match(html, /Capture/);
+    assert.match(html, /Flash/);
+    assert.match(html, /Excerpt/);
+    assert.match(html, /Screenshot/);
+    assert.match(html, /Open Memo/);
+  });
 });
 
 export {};
