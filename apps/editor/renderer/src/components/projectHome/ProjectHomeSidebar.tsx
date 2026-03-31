@@ -42,11 +42,12 @@ export function ProjectHomeSidebar({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-4">
-        <div className="grid grid-cols-1 gap-2">
+        <div className="rounded-[24px] bg-white/[0.035] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <div className="grid grid-cols-1 gap-2">
           <button
             type="button"
             onClick={onSelectProject}
-            className="flex items-center justify-between rounded-[20px] border border-cyan-300/20 bg-cyan-500/[0.1] px-3.5 py-3.5 text-left transition-colors hover:bg-cyan-500/[0.14]"
+            className="flex items-center justify-between rounded-[20px] bg-cyan-500/[0.12] px-3.5 py-3.5 text-left transition-colors hover:bg-cyan-500/[0.16]"
           >
             <div>
               <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-cyan-100/72">
@@ -59,7 +60,7 @@ export function ProjectHomeSidebar({
           <button
             type="button"
             onClick={shellVisible ? onCloseHomeShell : onOpenHomeShell}
-            className="flex items-center justify-between rounded-[20px] border border-white/[0.08] bg-white/[0.04] px-3.5 py-3.5 text-left transition-colors hover:bg-white/[0.07]"
+            className="flex items-center justify-between rounded-[20px] bg-black/[0.16] px-3.5 py-3.5 text-left transition-colors hover:bg-black/[0.22]"
           >
             <div>
               <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/44">
@@ -69,9 +70,10 @@ export function ProjectHomeSidebar({
             </div>
             <SquareTerminal size={16} className="text-white/76" />
           </button>
+          </div>
         </div>
 
-        <div className="rounded-[22px] border border-white/[0.06] bg-black/[0.16] px-3.5 py-3.5">
+        <div className="rounded-[22px] bg-black/[0.16] px-3.5 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
           <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/42">
             Window Scope
           </div>
@@ -81,7 +83,7 @@ export function ProjectHomeSidebar({
           </div>
         </div>
 
-        <div className="rounded-[22px] border border-white/[0.04] bg-black/[0.08] px-2.5 py-3">
+        <div className="rounded-[22px] bg-black/[0.08] px-2.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
           <RecentProjectsList
             projects={recentProjects}
             onOpen={onOpenRecentProject}

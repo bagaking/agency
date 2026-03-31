@@ -41,9 +41,11 @@
 
 ## Terminal
 - [ ] With no project selected, confirm Explorer and Agent Cells both show the same `Project Home` state instead of a fake local Cell/session row.
+- [ ] On no-project startup, confirm the right-side attention rail and HIL drawer do not auto-expand over `Project Home`.
+- [ ] On no-project startup, confirm Status Bar does not surface `Next` attention or Session Map controls that imply Project/Session context.
 - [ ] In the no-project state, click `Start Home Shell` and confirm an interactive shell opens from the user home directory.
 - [ ] While the no-project home shell is open, confirm no repo-backed Cell/session records are created and no Cell/session affordances appear.
-- [ ] Switch between Explorer and Agent Cells while still in the no-project state and confirm the shared `Project Home` surface stays coherent.
+- [ ] Switch between Explorer and Agent Cells while still in the no-project state and confirm the shared `Project Home` surface stays coherent without reopening right-side shell chrome.
 - [ ] Open a terminal session and verify output appears.
 - [ ] Start CLI and confirm Codex (or stub) launches in the embedded terminal.
 - [ ] Open Hierarchy -> Harness Providers, set `base_url`, `model`, and `OPENAI_API_KEY`, save, then restart the app process if needed and confirm the values persist.

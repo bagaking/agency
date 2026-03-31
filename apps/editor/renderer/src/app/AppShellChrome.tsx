@@ -110,6 +110,7 @@ export function AppShellChrome({
         ipcAvailable={ipcAvailable}
         centerSlot={projectHomeVisible ? null : sessionMapCenterSlot}
         suppressAttention={projectHomeVisible}
+        projectHomeMode={projectHomeVisible}
       />
 
       {pendingTransition ? (

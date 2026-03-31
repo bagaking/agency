@@ -14,6 +14,7 @@ export function StatusBar({
   ipcAvailable,
   centerSlot,
   suppressAttention = false,
+  projectHomeMode = false,
 }: any) {
   const attention = useAttentionLayer();
   const assetBase =
@@ -32,6 +33,38 @@ export function StatusBar({
   const nextAttentionTooltip = primaryAttention
     ? buildNextAttentionTooltip(primaryAttention)
     : '';
+
+  if (projectHomeMode) {
+    return (
+      <footer className="relative flex h-6 w-full items-center justify-between bg-status-bar px-3 text-xs text-status-bar-foreground select-none overflow-hidden">
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-status-bar-foreground/72">
+            Project Home
+          </span>
+          <span className="border-l border-status-bar-foreground/20 pl-3 text-status-bar-foreground/54">
+            Window-owned no-project state
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3 opacity-90">
+          <span className={ipcColor} title={ipcLabel}>
+            {ipcLabel}
+          </span>
+          <div className="flex items-center justify-center w-4 h-4">
+            {loading ? (
+              <RiveAnimation
+                src={`${assetBase}assets/animations/loader.riv`}
+                className="w-4 h-4"
+                fallback={<RefreshCw size={10} className="animate-spin" />}
+              />
+            ) : (
+              <div className="w-1.5 h-1.5 rounded-full bg-status-bar-foreground/50" />
+            )}
+          </div>
+        </div>
+      </footer>
+    );
+  }
 
   return (
     <footer className="relative flex h-6 w-full items-center justify-between bg-status-bar px-3 text-xs text-status-bar-foreground select-none overflow-hidden">

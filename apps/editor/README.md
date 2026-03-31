@@ -251,6 +251,8 @@
 - `Project Home` is window-owned: it is not a fake Project, Cell, or Session.
 - The no-project sidebar exposes `Open Project`, `Start Home Shell`, and recent projects as one coherent recovery surface.
 - Recent projects are the primary center-stage content in the no-project main panel.
+- On no-project startup, `Project Home` remains the single primary surface; the shell right rail, `Next`, and HIL drawer should not auto-expand over it.
+- The `Project Home` visual language should stay face-first and mass-first: fewer borders, more surface grouping, and no pseudo-dashboard right column before the home shell is actually opened.
 - The home shell starts from the user home directory and stays window-owned; it does not create repo-backed Cell/session records.
 - Use **Select Project** to choose a repository for the current window.
 - The app keeps one desktop instance and routes additional launches into that instance as new windows instead of relying on isolated parallel app processes.

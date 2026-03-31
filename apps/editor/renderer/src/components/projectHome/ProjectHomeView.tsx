@@ -18,8 +18,8 @@ function ProjectCard({
   const exists = project?.exists !== false;
   const lastOpened = formatRelativeTime(project?.lastOpenedAt);
   const accentClass = featured
-    ? 'bg-[linear-gradient(160deg,rgba(32,193,255,0.18),rgba(255,255,255,0.045))] shadow-[0_26px_70px_-34px_rgba(17,24,39,0.72)]'
-    : 'bg-white/[0.045] shadow-[0_24px_70px_-40px_rgba(15,23,42,0.72)]';
+    ? 'bg-[linear-gradient(160deg,rgba(32,193,255,0.16),rgba(255,255,255,0.04))] shadow-[0_26px_70px_-36px_rgba(17,24,39,0.7)]'
+    : 'bg-white/[0.04] shadow-[0_20px_56px_-42px_rgba(15,23,42,0.68)]';
 
   return (
     <button
@@ -30,7 +30,7 @@ function ProjectCard({
           onOpen?.(path);
         }
       }}
-      className={`group flex min-h-[180px] w-full min-w-0 break-inside-avoid flex-col justify-between rounded-[26px] p-5 text-left transition-all ${
+      className={`group flex min-h-[176px] w-full min-w-0 break-inside-avoid flex-col justify-between rounded-[24px] p-5 text-left transition-all ${
         exists
           ? `${accentClass} hover:-translate-y-0.5 hover:bg-white/[0.06]`
           : 'cursor-not-allowed bg-rose-500/[0.07] opacity-55'
@@ -38,15 +38,15 @@ function ProjectCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/42">
+          <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/42">
+            <FolderOpen size={11} className="opacity-72" />
+            <span>
             {featured ? 'Resume Fast' : 'Recent Project'}
+            </span>
           </div>
           <div className="mt-2 truncate text-[19px] font-semibold tracking-[-0.02em] text-white">
             {title}
           </div>
-        </div>
-        <div className="rounded-full bg-black/20 p-2 text-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-          <FolderOpen size={15} />
         </div>
       </div>
 
@@ -113,11 +113,11 @@ export function ProjectHomeView({
               ) : null}
               </div>
 
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,1.1fr)]">
+              <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
                   onClick={onSelectProject}
-                  className="flex items-center justify-between rounded-[24px] bg-cyan-500/[0.14] px-4 py-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-colors hover:bg-cyan-500/[0.18]"
+                  className="flex min-w-[240px] items-center justify-between rounded-[24px] bg-cyan-500/[0.14] px-4 py-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-colors hover:bg-cyan-500/[0.18]"
                 >
                   <div>
                     <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-cyan-50/72">
@@ -131,7 +131,7 @@ export function ProjectHomeView({
                 <button
                   type="button"
                   onClick={shellSummary?.visible ? onCloseHomeShell : onOpenHomeShell}
-                  className="flex items-center justify-between rounded-[24px] bg-white/[0.06] px-4 py-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-colors hover:bg-white/[0.085]"
+                  className="flex min-w-[240px] items-center justify-between rounded-[24px] bg-white/[0.06] px-4 py-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-colors hover:bg-white/[0.085]"
                 >
                   <div>
                     <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/48">
@@ -143,18 +143,8 @@ export function ProjectHomeView({
                   </div>
                   <SquareTerminal size={18} className="shrink-0 text-white/78" />
                 </button>
-
-                <div className="rounded-[24px] bg-black/[0.16] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                  <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/42">
-                    Window Scope
-                  </div>
-                  <div className="mt-2 text-[13px] font-medium text-white/82">{shellSummary?.cwd || homePath}</div>
-                  <div className="mt-2 text-[11px] leading-6 text-white/52">
-                    Window-owned shell. Not attached to any Project, Cell, or Session.
-                  </div>
-                  {shellSummary?.error ? (
-                    <div className="mt-3 text-[11px] text-rose-100">{shellSummary.error}</div>
-                  ) : null}
+                <div className="text-[11px] leading-6 text-white/52">
+                  Home shell scope: <span className="font-medium text-white/78">{shellSummary?.cwd || homePath}</span>
                 </div>
               </div>
             </div>
@@ -207,7 +197,7 @@ export function ProjectHomeView({
                   ))}
                 </div>
               ) : (
-                <div className="flex min-h-[320px] flex-1 items-center justify-center rounded-[24px] border border-dashed border-white/[0.08] bg-white/[0.02] text-center">
+                <div className="flex min-h-[280px] flex-1 items-center justify-center rounded-[24px] bg-white/[0.025] text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                   <div>
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/42">
                       No Recent Projects

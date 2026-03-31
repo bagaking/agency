@@ -38,7 +38,7 @@ Usage rules:
 | Item | Must/Nice | When to Use | Source of Truth |
 | --- | --- | --- | --- |
 | UI component reuse rules | MUST | Any UI component work. | `docs/guidelines-ui-components.md` |
-| Project Home no-project composition | MUST | Any no-project startup, recent-project recovery, or home-shell affordance work should reuse the shared Project Home composition instead of splitting Explorer-empty and Agent-Cells-empty into separate visual languages. | `apps/editor/renderer/src/components/projectHome/ProjectHomeSidebar.tsx`, `apps/editor/renderer/src/components/projectHome/ProjectHomeView.tsx`, `apps/editor/README.md` |
+| Project Home no-project composition | MUST | Any no-project startup, recent-project recovery, or home-shell affordance work should reuse the shared Project Home composition instead of splitting Explorer-empty and Agent-Cells-empty into separate visual languages. Startup should stay single-surface, avoid auto-expanded right-side chrome, and prefer face-first surfaces over repeated bordered cards. | `apps/editor/renderer/src/components/projectHome/ProjectHomeSidebar.tsx`, `apps/editor/renderer/src/components/projectHome/ProjectHomeView.tsx`, `apps/editor/README.md` |
 | Session map layout + hover behavior | MUST | Session map or hover preview changes. | `docs/notes-session-management.md` |
 | Attention surface hierarchy | MUST | Any attention / urgency UX change; keep queue-style triage in Session Map `Ops`, compact summaries in shell chrome, and inline/local indicators in Agent Cells. | `docs/notes-session-management.md`, `apps/editor/README.md` |
 | Terminal keyboard behavior | MUST | Terminal input/shortcut changes. | `docs/notes-terminal-keyboard.md` |
