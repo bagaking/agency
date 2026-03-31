@@ -8,6 +8,8 @@ description: Packaging, installation, and troubleshooting workflow for the Agenc
 ## Quick start
 - Use pnpm for dependencies and packaging.
 - Run packaging from repo root with `make editor-package`.
+- Use the `*-release` packaging variants only when you intentionally want bundle-governance enforcement in the same run.
+- Use `make editor-accept-renderer-budget` only after intentionally approving a new renderer boot footprint.
 - Validate installs by launching the packaged app and checking runtime logs.
 
 ## Workflow

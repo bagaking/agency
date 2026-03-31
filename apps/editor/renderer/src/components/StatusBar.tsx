@@ -2,7 +2,9 @@ import React from 'react';
 import { RefreshCw } from 'lucide-react';
 import { RiveAnimation } from './RiveAnimation';
 import { useAttentionLayer } from '../attention/AttentionLayerContext';
+import { buildNextAttentionTooltip } from '../attention/attentionNavigation';
 import { AttentionPill } from './attention/AttentionPill';
+import { Tooltip } from './ui/Tooltip';
 
 export function StatusBar({
   loading,
@@ -26,6 +28,9 @@ export function StatusBar({
       ? primaryAttention.count
       : attention.localSummary.itemCount
     : 0;
+  const nextAttentionTooltip = primaryAttention
+    ? buildNextAttentionTooltip(primaryAttention)
+    : '';
 
   return (
     <footer className="relative flex h-6 w-full items-center justify-between bg-status-bar px-3 text-xs text-status-bar-foreground select-none overflow-hidden">
@@ -56,21 +61,22 @@ export function StatusBar({
 
       <div className="flex items-center gap-3 opacity-90">
         {primaryAttention ? (
-          <button
-            type="button"
-            onClick={() => attention.jumpToAttention(primaryAttention)}
-            title={primaryAttention.detail || primaryAttention.label}
-            data-testid="statusbar-attention"
-            className="flex max-w-[320px] items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 transition-colors hover:bg-white/[0.08]"
-          >
-            <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-status-bar-foreground/58">
-              Next
-            </span>
-            <AttentionPill item={primaryAttention} count={attentionCount} className="px-1.5 py-[2px]" />
-            <span className="truncate text-[10px] text-status-bar-foreground/92">
-              {primaryAttention.label}
-            </span>
-          </button>
+          <Tooltip label={nextAttentionTooltip} side="top">
+            <button
+              type="button"
+              onClick={() => attention.jumpToAttention(primaryAttention)}
+              data-testid="statusbar-attention"
+              className="flex max-w-[320px] items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 transition-colors hover:bg-white/[0.08]"
+            >
+              <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-status-bar-foreground/58">
+                Next
+              </span>
+              <AttentionPill item={primaryAttention} count={attentionCount} className="px-1.5 py-[2px]" />
+              <span className="truncate text-[10px] text-status-bar-foreground/92">
+                {primaryAttention.label}
+              </span>
+            </button>
+          </Tooltip>
         ) : null}
         <span>UTF-8</span>
         <span>Javascript</span>

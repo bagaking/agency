@@ -1045,6 +1045,14 @@ function ProjectExplorerSidebarContent({
       })),
     [headerCommandContext, hiddenCommandIds, loadingPaths.size]
   );
+  const headerPrimaryCommands = useMemo(
+    () => headerCommands.filter((command) => command.placement !== 'secondary'),
+    [headerCommands]
+  );
+  const headerSecondaryCommands = useMemo(
+    () => headerCommands.filter((command) => command.placement === 'secondary'),
+    [headerCommands]
+  );
   const contextMenuCommandContext = useMemo(
     () => ({
       selectionTargets,
@@ -1204,7 +1212,8 @@ function ProjectExplorerSidebarContent({
         activeRootLabel={activeRootLabel}
         activeFilterCount={visibleFilterCount}
         activeFilterSummary={visibleFilterSummary}
-        headerCommands={headerCommands}
+        headerPrimaryCommands={headerPrimaryCommands}
+        headerSecondaryCommands={headerSecondaryCommands}
         hasCells={hasCells}
         cells={cells}
         selectedId={selectedId}
@@ -1298,6 +1307,7 @@ function ProjectExplorerSidebarContent({
             onToggleCaseSensitive={() => setContentCaseSensitive((current) => !current)}
             onToggleWholeWord={() => setContentWholeWord((current) => !current)}
             onToggleUseRegex={() => setContentUseRegex((current) => !current)}
+            replacementPreviewEnabled={Boolean(replaceText)}
             results={contentSearchResults}
             loading={contentSearchLoading}
             replacing={contentSearchReplacing}

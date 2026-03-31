@@ -16,6 +16,17 @@ From `apps/editor`:
 pnpm run package
 ```
 
+Release variants that also enforce the renderer bundle budget:
+```bash
+make editor-package-release
+make editor-package-lite-release
+make editor-package-dir-release
+
+pnpm run package:release
+pnpm run package:lite:release
+pnpm run package:dir:release
+```
+
 Remove all generated `dist` outputs before retrying packaging:
 ```bash
 make editor-package-clean
@@ -33,12 +44,15 @@ Unpacked build (skip DMG):
 pnpm run package:dir
 ```
 
-Packaging preflight:
-- `pnpm run package` now checks free disk space before the expensive build/sign/DMG stages.
-- `pnpm run package:lite` does the same with a lower threshold for DMG-only packaging.
-- `pnpm run package:dir` does the same with a lower threshold for unpacked builds.
-- When a check would fail, the preflight first deletes stale generated outputs in `apps/editor/dist/release` that the current mode would overwrite, then re-runs the free-space check.
-- If mode-specific cleanup is still not enough but deleting all generated `apps/editor/dist` outputs would make the build fit, the preflight now tells you to run `make editor-package-clean` before retrying.
+Packaging prepare step:
+- `pnpm run package`, `package:lite`, and `package:dir` now run `package:prepare` before the expensive build/sign/DMG stages.
+- Release variants (`package:release`, `package:lite:release`, `package:dir:release`) use the same prepare step and also run the renderer bundle budget gate before packaging.
+- The prepare step checks free space on:
+  - the project volume
+  - `/tmp`
+  - `~/Library/Caches/electron-builder` (or its parent cache volume when the directory does not exist yet)
+- Before packaging continues, the prepare step removes stale generated outputs in `apps/editor/dist/release` that would conflict with the current mode.
+- If mode-specific cleanup is still not enough but deleting all generated `apps/editor/dist` outputs would make the build fit, the prepare step tells you to run `make editor-package-clean` before retrying.
 - Threshold env overrides:
   - `AGENCY_PACKAGE_DMG_MIN_FREE_GIB`
   - `AGENCY_PACKAGE_LITE_MIN_FREE_GIB`
@@ -49,6 +63,22 @@ Artifacts:
 - `apps/editor/dist/release/Agency-<version>-arm64-mac.zip`
 - `apps/editor/dist/release/mac-arm64/Agency.app`
 - `make editor-package-lite` / `pnpm run package:lite` only emits the DMG artifact.
+
+Renderer budget policy:
+- `pnpm run build:renderer` only emits renderer assets.
+- `pnpm run build:renderer:budget` emits assets and then enforces the renderer budget gate.
+- `pnpm run accept:renderer-bundle-budget` refreshes the accepted-state file after an intentional budget decision.
+- The budget gate uses `apps/editor/scripts/renderer-bundle-budget.accepted.json` as an accepted-state ratchet, not as a fixed universal ceiling.
+- JS and gzip budgets remain hard failures against the accepted state plus small allowances.
+- Raw CSS drift is warning-only, so packageability is not blocked by minor Tailwind raw-size churn.
+- `AGENCY_RENDERER_ALLOW_OVERRIDE=1` enables per-metric override env vars for local experimentation only; the `*-release` package commands explicitly clear that escape hatch.
+
+Why this split exists:
+- Packaging answers “can we produce the desktop artifact?” and should not fail on small non-runtime bundle drift.
+- Budget enforcement answers “did the boot footprint regress beyond the accepted state?” and belongs on the explicit budgeted/release entrypoints.
+- This rejects the tempting but wrong shortcut of making every local package command enforce the same front-end budget gate.
+- Accepted-state updates are a deliberate bless step, not an incidental edit: use `make editor-accept-renderer-budget` / `pnpm run accept:renderer-bundle-budget` after intentionally approving the new boot footprint.
+- Do not point `build.electronDist` at `node_modules/electron/dist` for local packaging. That custom path can destabilize mac packaging and can mutate the installed Electron skeleton. Let electron-builder resolve the official Electron distribution on its default path.
 
 ## Install
 1. Open the DMG and drag `Agency.app` into `/Applications`.

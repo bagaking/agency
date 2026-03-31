@@ -1,5 +1,11 @@
 import React, { useMemo } from 'react';
 import { Layers, Play, Terminal } from 'lucide-react';
+import {
+  HIL_SURFACE_COPY,
+  HilContextChip,
+  HilStatusBadge,
+  HilSurfaceHeader,
+} from './hilSurfaceSystem';
 import { Tooltip } from '../ui/Tooltip';
 import { focusRing } from '../ui/focusRing';
 
@@ -35,16 +41,13 @@ export function HilDraftsPanel({
 
   return (
     <div className="flex flex-col gap-3 py-1 select-none">
-      <div className="flex items-center justify-between px-0.5">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold tracking-wider text-foreground/80">
-            Drafts
-          </span>
-          <span className="text-[9px] font-medium text-muted-foreground/60">
-            {drafts.length} total
-          </span>
-        </div>
-      </div>
+      <HilSurfaceHeader
+        eyebrow={HIL_SURFACE_COPY.draftsSubtitle}
+        title={HIL_SURFACE_COPY.draftsTitle}
+        subtitle="Review execution-ready artifacts and jump directly into the linked lane when needed."
+        meta={<HilStatusBadge label={`${drafts.length} drafts`} tone="warning" />}
+        compact
+      />
 
       {drafts.length ? (
         <div className="flex flex-col gap-2">
@@ -79,10 +82,10 @@ export function HilDraftsPanel({
                     }
                   }
                 }}
-                className={`group flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors cursor-pointer ${focusRingClass} ${
+                className={`group flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition-colors cursor-pointer ${focusRingClass} ${
                   isRunning
-                    ? 'border-primary/30 bg-primary/5 hover:bg-primary/10'
-                    : 'border-border/10 bg-muted/5 hover:border-primary/30 hover:bg-muted/10'
+                    ? 'border-primary/30 bg-primary/6 hover:bg-primary/10'
+                    : 'border-white/[0.06] bg-[linear-gradient(180deg,rgba(28,33,42,0.68),rgba(16,19,24,0.9))] hover:border-primary/20 hover:bg-[linear-gradient(180deg,rgba(30,36,46,0.76),rgba(17,21,27,0.92))]'
                 }`}
               >
                 <span
@@ -95,19 +98,23 @@ export function HilDraftsPanel({
                   <Layers size={14} aria-hidden="true" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[12px] font-semibold text-foreground/80 truncate group-hover:text-foreground">
+                  <div className="text-[12px] font-semibold text-foreground/84 truncate group-hover:text-foreground">
                     {summarizeBody ? summarizeBody(draft) : draft.body || 'Untitled Draft'}
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[9px] uppercase tracking-widest text-muted-foreground/40">
-                    <span>{draft.status || 'open'}</span>
-                    {actionSheetId ? <span className="text-muted-foreground/30">· AS</span> : null}
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <HilStatusBadge
+                      label={draft.status || 'open'}
+                      tone={isRunning ? 'active' : draft.status === 'resolved' ? 'success' : 'neutral'}
+                      className="px-2 py-0.5"
+                    />
+                    {actionSheetId ? <HilContextChip label={`Action Sheet ${actionSheetId}`} className="max-w-[160px]" /> : null}
                     {isRunning ? (
-                      <span className="inline-flex items-center gap-1 text-primary/70">
+                      <span className="inline-flex items-center gap-1 text-[10px] text-primary/74">
                         <Terminal size={10} aria-hidden="true" />
                         {sessionLabel || 'Session'}
                       </span>
                     ) : (
-                      <span className="text-muted-foreground/30">Idle</span>
+                      <span className="text-[10px] text-muted-foreground/34">Idle</span>
                     )}
                   </div>
                 </div>
@@ -120,7 +127,7 @@ export function HilDraftsPanel({
                         onRunDraft?.(draft);
                       }}
                       disabled={!canRun}
-                      className={`inline-flex h-7 items-center gap-1 rounded-md border border-primary/40 bg-primary/5 px-2.5 text-[9px] font-semibold uppercase tracking-widest text-primary transition-colors hover:bg-primary/10 disabled:opacity-40 ${focusRingClass}`}
+                      className={`inline-flex h-8 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3 text-[9px] font-semibold uppercase tracking-[0.16em] text-primary transition-colors hover:bg-primary/10 disabled:opacity-40 ${focusRingClass}`}
                     >
                       <Play size={11} aria-hidden="true" />
                       Run
@@ -132,7 +139,7 @@ export function HilDraftsPanel({
           })}
         </div>
       ) : (
-        <div className="rounded-xl border border-border/10 bg-muted/5 px-4 py-6 text-center text-[10px] text-muted-foreground/40">
+        <div className="rounded-2xl border border-white/[0.06] bg-[linear-gradient(180deg,rgba(28,33,42,0.68),rgba(16,19,24,0.9))] px-4 py-6 text-center text-[10px] text-muted-foreground/40">
           No active drafts
         </div>
       )}

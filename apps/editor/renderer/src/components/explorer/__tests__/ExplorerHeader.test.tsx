@@ -11,11 +11,8 @@ test('ExplorerHeader uses canonical cell naming for scope selection', () => {
       activeRootLabel="main"
       activeFilterCount={0}
       activeFilterSummary="Changes only"
-      onJumpToAgents={() => undefined}
-      onNewFile={() => undefined}
-      onNewFolder={() => undefined}
-      onRefresh={() => undefined}
-      isLoading={false}
+      headerPrimaryCommands={[]}
+      headerSecondaryCommands={[]}
       hasCells={true}
       cells={[
         { id: 'cell-main', name: 'main' },
@@ -46,7 +43,8 @@ test('ExplorerHeader hides unsupported filter affordances for non-tree surfaces'
       activeRootLabel="main"
       activeFilterCount={0}
       activeFilterSummary=""
-      headerCommands={[]}
+      headerPrimaryCommands={[]}
+      headerSecondaryCommands={[]}
       hasCells={false}
       cells={[]}
       selectedId=""
@@ -73,4 +71,46 @@ test('ExplorerHeader hides unsupported filter affordances for non-tree surfaces'
   assert.doesNotMatch(html, /Explorer filters/);
   assert.doesNotMatch(html, /Changes only/);
   assert.match(html, /Search file contents…/);
+});
+
+test('ExplorerHeader renders secondary header actions outside the primary icon cluster', () => {
+  const html = renderToStaticMarkup(
+    <ExplorerHeader
+      activeRootLabel="main"
+      activeFilterCount={0}
+      activeFilterSummary=""
+      headerPrimaryCommands={[]}
+      headerSecondaryCommands={[
+        {
+          id: 'explorer.researchLane',
+          label: 'Open Research Lane',
+          icon: () => null,
+          onSelect: () => undefined,
+          isDisabled: false,
+        },
+      ]}
+      hasCells={false}
+      cells={[]}
+      selectedId=""
+      onSelectCell={() => undefined}
+      workingSetOptions={[]}
+      activeWorkingSetViewId="tree"
+      onWorkingSetChange={() => undefined}
+      searchMode="path"
+      searchModeOptions={[{ id: 'path', label: 'Paths', placeholder: 'Search files…' }]}
+      onSearchModeChange={() => undefined}
+      searchQuery=""
+      onSearchChange={() => undefined}
+      onClearSearch={() => undefined}
+      hasActiveFilters={false}
+      showFilterMenuButton={true}
+      filterMenuOpen={false}
+      filterMenuId="explorer-filters"
+      filterMenuButtonRef={{ current: null }}
+      onToggleFilterMenu={() => undefined}
+      searchTruncated={false}
+    />
+  );
+
+  assert.match(html, /Open Research Lane/);
 });

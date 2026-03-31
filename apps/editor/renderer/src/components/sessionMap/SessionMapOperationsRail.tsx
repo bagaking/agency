@@ -23,6 +23,7 @@ const statusTone = (status: string) => {
 
 export function SessionMapOperationsRail({
   focusData,
+  focusedRunId = '',
   harnessRuns,
   sessionError,
   onClearSessionError,
@@ -34,6 +35,7 @@ export function SessionMapOperationsRail({
     focusData,
     harnessRuns: runList,
     sessionError,
+    preferredRunId: focusedRunId,
   });
   const focusSessionLabel = context.sessionName;
   const focusAvatarId = resolveSessionAvatarId(focusData?.session, focusData?.cell) || 'AGENCY_BACKEND_COMMANDER';
@@ -84,6 +86,7 @@ export function SessionMapOperationsRail({
       <div className="min-h-0 flex-1 overflow-hidden px-3 py-2.5">
         <SessionMapCommandPanel
           focusData={focusData}
+          focusedRunId={focusedRunId}
           harnessRuns={harnessRuns}
           sessionError={sessionError}
           onClearSessionError={onClearSessionError}

@@ -15,7 +15,8 @@ export function ExplorerHeader({
   activeRootLabel,
   activeFilterCount,
   activeFilterSummary,
-  headerCommands,
+  headerPrimaryCommands,
+  headerSecondaryCommands,
   hasCells,
   cells,
   selectedId,
@@ -61,7 +62,7 @@ export function ExplorerHeader({
           </div>
         </div>
         <div className="flex items-center gap-1">
-          {(Array.isArray(headerCommands) ? headerCommands : []).map((command) => (
+          {(Array.isArray(headerPrimaryCommands) ? headerPrimaryCommands : []).map((command) => (
             <HeaderButton
               key={command.id}
               icon={command.icon}
@@ -122,6 +123,15 @@ export function ExplorerHeader({
       ) : null}
 
       <div className="flex items-center gap-1.5">
+        {(Array.isArray(headerSecondaryCommands) ? headerSecondaryCommands : []).map((command) => (
+          <SecondaryHeaderAction
+            key={command.id}
+            icon={command.icon}
+            label={command.label}
+            onClick={command.onSelect}
+            disabled={command.isDisabled}
+          />
+        ))}
         {searchModeDescriptors.length ? (
           <div className="inline-flex rounded-full border border-border/40 bg-muted/10 p-0.5">
             {searchModeDescriptors.map((option) => (
@@ -208,5 +218,24 @@ function HeaderButton({ icon: Icon, onClick, title, className = "", disabled = f
     >
       <Icon size={14} strokeWidth={1.5} aria-hidden="true" />
     </IconButton>
+  );
+}
+
+function SecondaryHeaderAction({
+  icon: Icon,
+  label,
+  onClick,
+  disabled = false,
+}: any) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex items-center gap-1 rounded-full border border-border/35 bg-muted/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-35 ${focusRingClass}`}
+    >
+      <Icon size={11} strokeWidth={1.7} aria-hidden="true" />
+      <span>{label}</span>
+    </button>
   );
 }

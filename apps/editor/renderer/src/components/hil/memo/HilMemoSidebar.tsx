@@ -3,15 +3,16 @@ import { createPortal } from 'react-dom';
 import { 
   RefreshCw, 
   Search,
-  Terminal,
-  StickyNote,
   Layers,
-  Camera,
-  Quote,
   ChevronDown,
   Check,
   X
 } from 'lucide-react';
+import {
+  HIL_SURFACE_COPY,
+  HilStatusBadge,
+  HilSurfaceHeader,
+} from '../hilSurfaceSystem';
 import { IconButton } from '../../ui/IconButton';
 import { focusRing } from '../../ui/focusRing';
 
@@ -34,26 +35,28 @@ export function HilMemoSidebar({
 }: any) {
   const focusRingClass = focusRing.sidebar;
   return (
-    <aside className="flex flex-col h-full bg-sidebar overflow-hidden select-none">
+    <aside className="flex flex-col h-full bg-[linear-gradient(180deg,rgba(18,22,29,0.98),rgba(10,13,18,0.99))] overflow-hidden select-none">
       {/* Header Section */}
-      <div className="shrink-0 border-b border-sidebar-border px-4 py-3 bg-sidebar z-20">
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <div className="flex flex-col min-w-0">
-            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50 truncate">
-              HIL Repository
-            </h2>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-xs font-semibold text-foreground truncate">
-                {summary.comment + summary.memo + summary.draft + (summary.reply || 0)} total items
-              </span>
-              <div className="h-1 w-1 rounded-full bg-primary/80" />
-            </div>
-          </div>
+      <div className="shrink-0 border-b border-white/[0.06] px-4 py-4 bg-white/[0.02] z-20">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <HilSurfaceHeader
+            eyebrow={HIL_SURFACE_COPY.workspaceSubtitle}
+            title={HIL_SURFACE_COPY.workspaceTitle}
+            subtitle="Capture, review, and route artifact records from one workspace."
+            meta={
+              <>
+                <HilStatusBadge label={`${summary.comment + summary.memo + summary.draft} records`} tone="neutral" />
+                <HilStatusBadge label={`${pendingInboxCount} inbox`} tone="active" />
+                <HilStatusBadge label={`${draftCount} drafts`} tone="warning" />
+              </>
+            }
+            compact
+          />
           <IconButton
-            label="Refresh repository"
+            label="Refresh memo workspace"
             onClick={refresh}
             focusRing="sidebar"
-            className="shrink-0 p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground/40 hover:text-foreground transition-colors"
+            className="shrink-0 p-1.5 rounded-full border border-white/[0.08] bg-background/40 hover:bg-sidebar-accent text-muted-foreground/40 hover:text-foreground transition-colors"
           >
             <RefreshCw size={12} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
           </IconButton>
@@ -69,7 +72,7 @@ export function HilMemoSidebar({
             autoComplete="off"
             spellCheck={false}
             aria-label="Search repository"
-            placeholder="Search repository…"
+            placeholder="Search memo records…"
             className="w-full rounded-full border border-border/40 bg-muted/10 px-8 py-1.5 text-[11px] text-foreground transition-colors placeholder:text-muted-foreground/30 focus:bg-background focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
           />
           {searchQuery && (
@@ -103,13 +106,11 @@ export function HilMemoSidebar({
 
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {/* Inbox Section */}
-        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-1.5 bg-sidebar/95 border-b border-sidebar-border/40 backdrop-blur-md">
-          <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
-            Inbox
+        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 bg-sidebar/95 border-b border-sidebar-border/40 backdrop-blur-md">
+          <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/42">
+            Capture & Review
           </div>
-          <span className="text-[9px] font-mono text-muted-foreground/30 bg-sidebar-accent/30 px-1.5 rounded-sm">
-            {pendingInboxCount}
-          </span>
+          <HilStatusBadge label={`${pendingInboxCount}`} tone="neutral" className="px-2 py-0.5" />
         </div>
         
         <div className="flex flex-col py-1 pb-3">
@@ -123,30 +124,35 @@ export function HilMemoSidebar({
                 onClick={() => onDockSelectionChange({ type: 'inbox', inboxType: section.id, draftId: null })}
                 className={`flex w-full items-center justify-between px-4 py-1.5 text-left text-[11px] transition-colors border-l-2 ${focusRingClass} focus-visible:ring-primary/30 ${
                   active
-                    ? 'bg-sidebar-accent text-primary border-primary font-medium shadow-[inset_0_0_10px_rgba(59,130,246,0.02)]'
-                    : 'text-muted-foreground/70 hover:text-foreground border-transparent hover:bg-sidebar-accent/30'
+                    ? 'bg-sidebar-accent/70 text-primary border-primary font-medium shadow-[inset_0_0_10px_rgba(59,130,246,0.02)]'
+                    : 'text-muted-foreground/72 hover:text-foreground border-transparent hover:bg-sidebar-accent/30'
                 }`}
               >
                 <span className="flex items-center gap-2.5 truncate">
                   <Icon size={12} aria-hidden="true" className={active ? 'text-primary' : 'text-muted-foreground/40'} />
                   <span className="truncate">{section.label}</span>
                 </span>
-                <span className="text-[9px] font-mono opacity-30 shrink-0">
-                  {inboxCounts[section.id] || 0}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  {active ? (
+                    <span className="text-[9px] text-muted-foreground/42 truncate max-w-[82px]">
+                      {section.description}
+                    </span>
+                  ) : null}
+                  <span className="text-[9px] font-mono opacity-30">
+                    {inboxCounts[section.id] || 0}
+                  </span>
+                </div>
               </button>
             );
           })}
         </div>
 
         {/* Drafts Section */}
-        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-1.5 bg-sidebar/95 border-y border-sidebar-border/40 backdrop-blur-md">
-          <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">
+        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 bg-sidebar/95 border-y border-sidebar-border/40 backdrop-blur-md">
+          <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/42">
             Drafts
           </div>
-          <span className="text-[9px] font-mono text-muted-foreground/30 bg-sidebar-accent/30 px-1.5 rounded-sm">
-            {draftCount}
-          </span>
+          <HilStatusBadge label={`${draftCount}`} tone="warning" className="px-2 py-0.5" />
         </div>
         
         <div className="flex flex-col py-1 pb-8">
@@ -158,17 +164,25 @@ export function HilMemoSidebar({
                 onClick={() => onDockSelectionChange({ type: 'draft', draftId: item.id })}
                 className={`flex w-full flex-col gap-0.5 px-4 py-2.5 text-left transition-colors border-l-2 ${focusRingClass} focus-visible:ring-primary/30 ${
                   dockSelection.type === 'draft' && dockSelection.draftId === item.id
-                    ? 'bg-sidebar-accent text-primary border-primary shadow-[inset_0_0_10px_rgba(59,130,246,0.02)]'
-                    : 'text-muted-foreground/70 hover:text-foreground border-transparent hover:bg-sidebar-accent/30'
+                    ? 'bg-sidebar-accent/70 text-primary border-primary shadow-[inset_0_0_10px_rgba(59,130,246,0.02)]'
+                    : 'text-muted-foreground/72 hover:text-foreground border-transparent hover:bg-sidebar-accent/30'
                 }`}
               >
-                <span className={`text-[11px] truncate ${dockSelection.type === 'draft' && dockSelection.draftId === item.id ? 'font-medium' : ''}`}>
+                <span className={`text-[12px] truncate ${dockSelection.type === 'draft' && dockSelection.draftId === item.id ? 'font-medium' : ''}`}>
                   {summarizeBody(item)}
                 </span>
                 <div className="flex items-center justify-between gap-2 mt-0.5">
-                  <span className="text-[9px] uppercase tracking-wider opacity-40 truncate font-medium">
-                      {item.status}
-                  </span>
+                  <HilStatusBadge
+                    label={item.status}
+                    tone={
+                      item.status === 'open'
+                        ? 'active'
+                        : item.status === 'resolved'
+                          ? 'success'
+                          : 'neutral'
+                    }
+                    className="px-2 py-0.5"
+                  />
                   <Layers size={10} aria-hidden="true" className="opacity-10 shrink-0" />
                 </div>
               </button>
@@ -288,7 +302,6 @@ const kindOptions = [
   { value: 'all', label: 'Everything' },
   { value: 'comment', label: 'Comments' },
   { value: 'memo', label: 'Memos' },
-  { value: 'reply', label: 'Replies' },
   { value: 'draft', label: 'Drafts' },
 ];
 

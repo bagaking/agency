@@ -16,7 +16,6 @@ export function SessionReplyPanel({
   sessionTargets = [],
   onClearSelection,
   onJumpToSession,
-  onJumpToMemo,
 }: any) {
   const editorRef = useRef(null);
   const editorContainerRef = useRef(null);
@@ -84,7 +83,6 @@ export function SessionReplyPanel({
         loadingReplies={loadingReplies}
         replyItems={replyItems}
         onJumpToSession={onJumpToSession}
-        onJumpToMemo={onJumpToMemo}
         onArchiveReply={handleArchiveReply}
         onReeditReply={handleReeditReply}
       />

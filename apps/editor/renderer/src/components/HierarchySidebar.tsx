@@ -10,6 +10,7 @@ import {
   Link2,
 } from 'lucide-react';
 import { focusRing } from './ui/focusRing';
+import { resolveAvailableHierarchyScope } from '../app/hierarchyScope';
 
 type ScopeId = 'global' | 'project' | 'agent';
 
@@ -85,10 +86,6 @@ function getScopeMeta(summary?: ScopeSummary, scope?: ScopeId) {
   return undefined;
 }
 
-function inferScope(scope?: ScopeId): ScopeId {
-  return scope ?? 'global';
-}
-
 export function HierarchySidebar({
   section,
   actionsScope,
@@ -128,7 +125,10 @@ export function HierarchySidebar({
       icon: SquareTerminal,
       scope: actionsScope,
       summary: actionSummary,
-      onSelect: () => onSelectActionsScope?.(inferScope(actionsScope)),
+      onSelect: () =>
+        onSelectActionsScope?.(
+          resolveAvailableHierarchyScope(actionsScope, { canUseProjectScope, canUseAgentScope })
+        ),
     },
     {
       id: 'app-shortcuts',
@@ -137,7 +137,13 @@ export function HierarchySidebar({
       icon: Command,
       scope: appShortcutsScope,
       summary: appShortcutsSummary,
-      onSelect: () => onSelectAppShortcutsScope?.(inferScope(appShortcutsScope)),
+      onSelect: () =>
+        onSelectAppShortcutsScope?.(
+          resolveAvailableHierarchyScope(appShortcutsScope, {
+            canUseProjectScope,
+            canUseAgentScope,
+          })
+        ),
     },
     {
       id: 'reply-quick-prompts',
@@ -146,7 +152,13 @@ export function HierarchySidebar({
       icon: MessageSquareText,
       scope: replyQuickPromptsScope,
       summary: replyQuickPromptsSummary,
-      onSelect: () => onSelectReplyQuickPromptsScope?.(inferScope(replyQuickPromptsScope)),
+      onSelect: () =>
+        onSelectReplyQuickPromptsScope?.(
+          resolveAvailableHierarchyScope(replyQuickPromptsScope, {
+            canUseProjectScope,
+            canUseAgentScope,
+          })
+        ),
     },
     {
       id: 'session-naming',
@@ -155,7 +167,13 @@ export function HierarchySidebar({
       icon: Tag,
       scope: sessionNamingScope,
       summary: sessionNamingSummary,
-      onSelect: () => onSelectSessionNamingScope?.(inferScope(sessionNamingScope)),
+      onSelect: () =>
+        onSelectSessionNamingScope?.(
+          resolveAvailableHierarchyScope(sessionNamingScope, {
+            canUseProjectScope,
+            canUseAgentScope,
+          })
+        ),
     },
     {
       id: 'gates',
@@ -164,7 +182,10 @@ export function HierarchySidebar({
       icon: ShieldCheck,
       scope: gateScope,
       summary: gateSummary,
-      onSelect: () => onSelectGateScope?.(inferScope(gateScope)),
+      onSelect: () =>
+        onSelectGateScope?.(
+          resolveAvailableHierarchyScope(gateScope, { canUseProjectScope, canUseAgentScope })
+        ),
     },
     {
       id: 'harness-providers',
@@ -215,8 +236,8 @@ export function HierarchySidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-4">
-        <div className="rounded-2xl border border-border/60 bg-card/30 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-          <div className="text-[10px] font-bold uppercase tracking-[0.35em] text-muted-foreground/50">
+        <div className="rounded-2xl border border-border/60 bg-card/30 px-4 py-3 shadow-sm">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
             Current context
           </div>
           <div className="mt-2 flex items-center gap-2 text-base font-semibold text-foreground">
@@ -231,13 +252,15 @@ export function HierarchySidebar({
           {activeScopeLine ? (
             <p className="mt-2 text-[11px] font-semibold text-muted-foreground/70">{activeScopeLine}</p>
           ) : null}
-          <p className="mt-1 text-[11px] text-muted-foreground/70">
-            Agent cell:
-            <span className="ml-1 font-semibold text-foreground">{primaryAgentLabel}</span>
-          </p>
+          {activeCapability.scopeLabel ? (
+            <p className="mt-1 text-[11px] text-muted-foreground/70">
+              Selected cell:
+              <span className="ml-1 font-semibold text-foreground">{primaryAgentLabel}</span>
+            </p>
+          ) : null}
           <div className="mt-3 flex flex-wrap gap-2">
             <span
-              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.35em] ${
+              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${
                 canUseProjectScope
                   ? 'border-border/60 text-foreground'
                   : 'border-border/40 text-muted-foreground/60'
@@ -246,7 +269,7 @@ export function HierarchySidebar({
               Project scope {canUseProjectScope ? 'ready' : 'locked'}
             </span>
             <span
-              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.35em] ${
+              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${
                 canUseAgentScope
                   ? 'border-border/60 text-foreground'
                   : 'border-border/40 text-muted-foreground/60'
@@ -310,7 +333,7 @@ function CapabilityRow({
       data-testid={dataTestId}
       className={`group flex w-full gap-4 rounded-2xl border px-4 py-3 text-left transition-all ${focusRing.sidebar} ${
         selected
-          ? 'border-primary/40 bg-primary/5 shadow-[0_16px_40px_rgba(15,23,42,0.15)]'
+          ? 'border-primary/40 bg-primary/5 shadow-lg'
           : 'border-border/40 bg-card/60 hover:border-primary/40 hover:bg-muted/30'
       } ${isDisabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
     >
@@ -328,14 +351,14 @@ function CapabilityRow({
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold text-foreground">{title}</span>
           {statusLabel ? (
-            <span className="rounded-full border border-border/60 bg-muted/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+            <span className="rounded-full border border-border/60 bg-muted/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               {statusLabel}
             </span>
           ) : null}
         </div>
         <p className="mt-1 text-xs leading-5 text-muted-foreground/70">{description}</p>
         {(scopeLabel || scopeMeta) && (
-          <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/70">
+          <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
             {scopeLabel ? (
               <span className="rounded-full border border-border/50 bg-muted/10 px-2 py-0.5">
                 {scopeLabel} scope

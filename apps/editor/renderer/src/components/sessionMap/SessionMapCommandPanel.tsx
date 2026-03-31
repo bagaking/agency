@@ -5,8 +5,8 @@ import { formatRelativeTime } from '../../utils/timeFormat';
 import {
   isHarnessRunActiveStatus,
   isHarnessRunResumableStatus,
-  resolvePrimaryHarnessRun,
 } from '../../../../shared/commanderCore';
+import { resolveRelevantHarnessRun } from '../../utils/sessionMapCommander';
 
 const statusTone = (status: string) => {
   const normalized = String(status || '').trim().toLowerCase();
@@ -63,6 +63,7 @@ function buildTimelineDetailPreview(entry: any): string {
 
 export function SessionMapCommandPanel({
   focusData,
+  focusedRunId = '',
   harnessRuns,
   sessionError,
   onClearSessionError,
@@ -72,7 +73,15 @@ export function SessionMapCommandPanel({
   const [collapsed, setCollapsed] = useState(false);
   const [copiedKind, setCopiedKind] = useState('');
   const runList = Array.isArray(harnessRuns) ? harnessRuns : [];
-  const activeRun = useMemo(() => resolvePrimaryHarnessRun(runList), [runList]);
+  const activeRun = useMemo(
+    () =>
+      resolveRelevantHarnessRun({
+        focusData,
+        harnessRuns: runList,
+        preferredRunId: focusedRunId,
+      }),
+    [focusData, focusedRunId, runList]
+  );
   const timeline = Array.isArray(activeRun?.timeline) ? activeRun.timeline.slice(-6).reverse() : [];
   const tone = statusTone(activeRun?.status || '');
 

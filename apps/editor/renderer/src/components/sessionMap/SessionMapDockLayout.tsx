@@ -112,6 +112,7 @@ function SessionTokenButton({
 
 export function SessionMapDockLayout({
   model,
+  focusedRunId = '',
   radarPoints,
   hoveredCellId,
   setHoveredCellId,
@@ -295,6 +296,7 @@ export function SessionMapDockLayout({
       {/* Ops Evidence */}
       <SessionMapOperationsRail
         focusData={focusData}
+        focusedRunId={focusedRunId}
         harnessRuns={harnessRuns}
         sessionError={sessionError}
         onClearSessionError={onClearSessionError}

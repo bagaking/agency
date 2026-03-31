@@ -39,6 +39,7 @@ type ResolveCommanderContextArgs = {
   focusData?: any;
   harnessRuns?: any[];
   sessionError?: string;
+  preferredRunId?: string;
 };
 
 const normalizeText = (value: unknown) => String(value || '').trim();
@@ -133,15 +134,82 @@ const buildContextKey = ({
     normalizeText(resolveLatestFailureMessage(relevantRun, sessionError)),
   ].join('::');
 
+function resolveFocusedSessionRun(runList: any[], focusData: any) {
+  const focusCellId = normalizeText(focusData?.cell?.id);
+  const focusSessionId = normalizeText(focusData?.session?.id);
+  if (!focusCellId || !focusSessionId) {
+    return null;
+  }
+  const matchingRuns = runList.filter((run) => {
+    const attentionRefs = run?.attentionRefs || run?.contextRefs || {};
+    const runCellId = normalizeText(attentionRefs?.cellId);
+    const runSessionId = normalizeText(attentionRefs?.sourceSessionId || attentionRefs?.sessionId);
+    return runCellId === focusCellId && runSessionId === focusSessionId;
+  });
+  return resolveActiveHarnessRun(matchingRuns) || matchingRuns[0] || null;
+}
+
+function preferredRunMatchesFocus(preferredRun: any, focusData: any) {
+  if (!preferredRun) {
+    return false;
+  }
+  const focusCellId = normalizeText(focusData?.cell?.id);
+  const focusSessionId = normalizeText(focusData?.session?.id);
+  if (!focusCellId && !focusSessionId) {
+    return true;
+  }
+  const attentionRefs = preferredRun?.attentionRefs || preferredRun?.contextRefs || {};
+  const runCellId = normalizeText(attentionRefs?.cellId);
+  const runSessionId = normalizeText(attentionRefs?.sourceSessionId || attentionRefs?.sessionId);
+  if (focusCellId && runCellId && runCellId !== focusCellId) {
+    return false;
+  }
+  if (focusSessionId && runSessionId && runSessionId !== focusSessionId) {
+    return false;
+  }
+  return true;
+}
+
+export function resolveRelevantHarnessRun({
+  focusData = null,
+  harnessRuns = [],
+  preferredRunId = '',
+}: {
+  focusData?: any;
+  harnessRuns?: any[];
+  preferredRunId?: string;
+}) {
+  const runList = Array.isArray(harnessRuns) ? harnessRuns : [];
+  const normalizedPreferredRunId = normalizeText(preferredRunId);
+  const preferredRun = normalizedPreferredRunId
+    ? runList.find((run) => normalizeText(run?.runId) === normalizedPreferredRunId) || null
+    : null;
+  return (
+    (preferredRunMatchesFocus(preferredRun, focusData) ? preferredRun : null) ||
+    resolveFocusedSessionRun(runList, focusData) ||
+    resolvePrimaryHarnessRun(runList) ||
+    runList[0] ||
+    null
+  );
+}
+
 export function resolveCommanderContext({
   focusData = null,
   harnessRuns = [],
   sessionError = '',
+  preferredRunId = '',
 }: ResolveCommanderContextArgs) {
   const runList = Array.isArray(harnessRuns) ? harnessRuns : [];
   const activeRun = resolveActiveHarnessRun(runList);
   const latestRun = runList[0] || null;
-  const relevantRun = resolvePrimaryHarnessRun(runList) || latestRun || null;
+  const relevantRun =
+    resolveRelevantHarnessRun({
+      focusData,
+      harnessRuns: runList,
+      preferredRunId,
+    }) ||
+    latestRun ||
+    null;
   const latestFailedEntry = findLatestFailedEntry(relevantRun);
   const latestFailureMessage = resolveLatestFailureMessage(relevantRun, sessionError);
   const latestEvidenceLine = resolveLatestEvidenceLine(relevantRun);

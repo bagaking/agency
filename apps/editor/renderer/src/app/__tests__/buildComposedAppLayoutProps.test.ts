@@ -87,7 +87,6 @@ function createFixture() {
   const sessionReplyContext = {
     activeProfileBindings: { Enter: 'send' },
     handleJumpToSession: noop,
-    handleJumpToReplyMemo: noop,
     activeSession: { id: 'sess-1' },
     activeReplySelection: { text: 'snippet' },
     handleClearReplySelection: noop,
@@ -507,4 +506,21 @@ test('buildComposedAppLayoutProps derives attention rail focus session from the 
 
   assert.equal((result.attentionRailProps as any).focusData.cell.id, 'cell-2');
   assert.equal((result.attentionRailProps as any).focusData.session.id, 'sess-2');
+});
+
+test('buildComposedAppLayoutProps wires Agent Cells reply state into the shared attention rail', () => {
+  const fixture = createFixture();
+  fixture.refs.layoutState.activeView = 'agent-cells';
+  fixture.refs.layoutState.hilDrawerOpen = true;
+  fixture.refs.layoutState.hilDrawerPanel = 'reply';
+  fixture.refs.sessionReplyContext.activeSession = {
+    id: 'sess-1',
+    name: 'Main Session',
+  } as any;
+
+  const result = buildComposedAppLayoutProps(fixture.args as any);
+
+  assert.equal((result.attentionRailProps as any).replyEnabled, true);
+  assert.equal((result.attentionRailProps as any).replyOpen, true);
+  assert.equal((result.attentionRailProps as any).replyLabel, 'Main Session');
 });

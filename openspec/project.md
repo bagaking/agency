@@ -62,9 +62,10 @@ Agency Editor 是面向 agentic 并行开发的上下文管理桌面应用，核
 
 ## 经验沉淀
 - HIL 的输入与整理要分层：Inbox 负责采集，Promote 负责聚合转化，Draft 负责执行闭环。
+- Session Reply 历史属于 session 上下文，不要把 reply 记录伪装成 HIL item 或 Memo inbox section。
 - Promote 必须是全局流程，不做单条 comment 的 promote，避免碎片化与不可追踪。
 - 截图/素材采集避免依赖剪贴板，统一落盘到 `.agency/hil` 并记录元数据，保证可复现。
-- 新增 HIL 类型时，优先复用 “Type -> Source -> Item” 的树形组织，保持一致可扩展。
+- 新增 HIL-owned artifact 类型时，优先复用 “Type -> Source -> Item” 的树形组织，保持一致可扩展；不要把 session-owned reply 混入 HIL 类型空间。
 - HIL 抽屉为全局并列面板，跟随文件上下文联动，但不遮挡主工作区。
 
 ## Important Constraints

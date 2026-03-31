@@ -10,7 +10,7 @@ import {
   getDeliveryTimeline,
   startDelivery,
 } from '../promote-system';
-import { createHilItem, listHilItems } from '../repositories/hilRepository';
+import { createSessionReply, listSessionReplies } from '../repositories/sessionReplyRepository';
 
 async function createTempDir(prefix: string) {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix));
@@ -114,15 +114,20 @@ test('confirmDelivery marks source-cell references processed when delivery runs 
     await fs.rm(repoRoot, { recursive: true, force: true });
   });
 
-  const sourceReply = await createHilItem({
-    repoRootPath: repoRoot,
-    cellId: 'source-cell',
-    kind: 'reply',
+  const sourceReply = await createSessionReply({
+    worktreePath: repoRoot,
     body: 'Cross-cell reply',
-    meta: {
-      session: {
-        cellId: 'source-cell',
-        sessionId: 'sess-source',
+    owner: {
+      cellId: 'source-cell',
+      sessionId: 'sess-source',
+    },
+    capture: {
+      source: 'reply-panel',
+      selection: {
+        text: '',
+        site: 'Selection site',
+        timeTag: '00:03',
+        query: 'Cross-cell reply',
       },
     },
   });
@@ -141,8 +146,7 @@ test('confirmDelivery marks source-cell references processed when delivery runs 
           kind: sourceReply.kind,
           body: sourceReply.body,
           cellId: 'source-cell',
-          anchor: sourceReply.anchor,
-          references: sourceReply.references,
+          references: [],
         },
       ],
     },
@@ -159,10 +163,14 @@ test('confirmDelivery marks source-cell references processed when delivery runs 
     draftId: run.draftId,
   });
 
-  const sourceItems = await listHilItems({
-    repoRootPath: repoRoot,
+  const sourceItems = await listSessionReplies({
+    worktreePath: repoRoot,
     cellId: 'source-cell',
-    kind: 'reply',
+    sessionId: 'sess-source',
+    includeArchived: true,
   });
-  assert.equal(sourceItems[0]?.meta?.processed, true);
+  assert.equal(sourceItems.length, 1);
+  assert.equal(sourceItems[0]?.delivery?.draftId, run.draftId);
+  assert.equal(sourceItems[0]?.delivery?.targetSession?.cellId, 'target-cell');
+  assert.equal(sourceItems[0]?.delivery?.targetSession?.sessionId, 'sess-target');
 });

@@ -273,7 +273,7 @@ ${bodyText}` : bodyText,
     return (
       <ProjectEmptyState
         title="No project selected"
-        description="Select a workspace to manage HIL repository."
+        description="Select a workspace to manage Memo records."
         error={projectError}
         onSelect={onSelectProject}
       />

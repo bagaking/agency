@@ -61,7 +61,6 @@ export function EditorPane({
   onUpdateCellAvatar,
   onOpenWorkbenchFile,
   onJumpToSession,
-  onJumpToMemo,
   activityDiffThreshold,
   onSelectionContext,
   onReplySelection,

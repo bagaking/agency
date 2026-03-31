@@ -327,3 +327,71 @@ test('AppAttentionRail reopens for a new severe item after collapsing from brief
     env.cleanup();
   }
 });
+
+test('AppAttentionRail can host a reply launcher on the same right-edge spine', async () => {
+  const env = setupDom();
+  try {
+    function Harness() {
+      const [replyOpen, setReplyOpen] = React.useState(false);
+      return (
+        <AttentionLayerProvider value={attentionValue as any}>
+          <AppAttentionRail
+            focusData={{
+              cell: { id: 'cell-a', name: 'main' },
+              session: { id: 'session-main', name: 'UI' },
+            }}
+            harnessRuns={[runningRun]}
+            sessionError=""
+            onClearSessionError={() => undefined}
+            onCancelHarnessRun={() => undefined}
+            onResumeHarnessRun={() => undefined}
+            replyEnabled={true}
+            replyOpen={replyOpen}
+            replyLabel="UI session"
+            onToggleReply={setReplyOpen}
+          />
+        </AttentionLayerProvider>
+      );
+    }
+
+    const root = createRoot(document.getElementById('root')!);
+    await act(async () => {
+      root.render(<Harness />);
+    });
+
+    const replyToggle = Array.from(document.querySelectorAll('button')).find((node) =>
+      String(node.textContent || '').includes('Reply')
+    ) as HTMLButtonElement | undefined;
+    assert.ok(replyToggle);
+
+    await act(async () => {
+      replyToggle.click();
+    });
+
+    assert.equal(
+      document.querySelector('[data-attention-rail]')?.getAttribute('data-attention-rail'),
+      'closed'
+    );
+
+    const openAttention = document.querySelector(
+      '[aria-label="Open attention queue"]'
+    ) as HTMLButtonElement | null;
+    assert.ok(openAttention);
+
+    await act(async () => {
+      openAttention.click();
+    });
+
+    assert.equal(
+      document.querySelector('[data-attention-rail]')?.getAttribute('data-attention-rail'),
+      'open'
+    );
+    assert.ok(document.body.textContent?.includes('Priority Queue'));
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});

@@ -91,7 +91,7 @@ function ScopeSwitcher({
   }
 
   return (
-    <div className="inline-flex items-center gap-1 rounded-2xl border border-border/70 bg-sidebar/40 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <div className="inline-flex items-center gap-1 rounded-2xl border border-border/70 bg-sidebar/40 p-1 shadow-sm">
       {scopeOptions.map((option) => {
         const selected = option.id === scope;
         return (
@@ -103,7 +103,7 @@ function ScopeSwitcher({
             aria-pressed={selected}
             className={`min-w-[84px] rounded-xl px-3 py-2 text-xs font-semibold transition-all ${focusRing.default} ${
               selected
-                ? 'bg-primary/14 text-primary shadow-[0_10px_24px_rgba(0,0,0,0.18)]'
+                ? 'bg-primary/14 text-primary shadow-sm'
                 : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'
             } ${option.disabled ? 'cursor-not-allowed opacity-35' : ''}`}
           >
@@ -141,7 +141,7 @@ export function HierarchyPageShell({
 
   return (
     <section className="flex h-full flex-1 flex-col bg-background">
-      <header className="border-b border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))] px-6 py-5">
+      <header className="border-b border-border/70 bg-card/30 px-6 py-5">
         <div className="flex flex-wrap items-start gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3">
@@ -166,8 +166,8 @@ export function HierarchyPageShell({
               scopeOptions={scopeOptions}
               onSelectScope={onSelectScope}
             />
-            <div className="min-w-[280px] flex-1 rounded-2xl border border-border/60 bg-card/30 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-              <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground/45">
+            <div className="min-w-[280px] flex-1 rounded-2xl border border-border/60 bg-card/30 px-4 py-3 shadow-sm">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/45">
                 Source
               </div>
               <div

@@ -79,6 +79,7 @@ function AppShell() {
   const [transitionLoading, setTransitionLoading] = useState(false);
   const [uiStateLoaded, setUiStateLoaded] = useState(false);
   const [memoFocusTarget, setMemoFocusTarget] = useState('');
+  const [sessionMapFocusedRunId, setSessionMapFocusedRunId] = useState('');
   const [tmuxStatus, setTmuxStatus] = useState({ available: true, error: '', version: '' });
   const [ipcAvailable, setIpcAvailable] = useState(true);
   const [initialActiveSessions, setInitialActiveSessions] = useState({});
@@ -244,6 +245,7 @@ function AppShell() {
       if (!normalizedCellId || !normalizedSessionId) {
         return;
       }
+      setSessionMapFocusedRunId('');
       setSelectedId(normalizedCellId);
       sessionsState.selectSession(normalizedSessionId, normalizedCellId);
       handleOpenTerminal();
@@ -276,10 +278,10 @@ function AppShell() {
     sessionMapEnabled,
     sessionMapModel,
     sessionMapOpen,
-    openSessionMap,
-    handleToggleSessionMap,
+    openSessionMap: openSessionMapBase,
+    handleToggleSessionMap: handleToggleSessionMapBase,
     resolveSessionMapFontSize,
-    handleSelectSessionFromMap,
+    handleSelectSessionFromMap: handleSelectSessionFromMapBase,
   } = useSessionMapOverlayController({
     projectRoot,
     projectReady,
@@ -299,6 +301,31 @@ function AppShell() {
     setTerminalOpen,
     setActiveView: setActiveViewCompat,
   });
+  const handleFocusRunInUi = useCallback((runId: string) => {
+    setSessionMapFocusedRunId(String(runId || '').trim());
+  }, []);
+  const openSessionMap = useCallback(() => {
+    openSessionMapBase();
+  }, [openSessionMapBase]);
+  const handleToggleSessionMap = useCallback(() => {
+    if (sessionMapOpen) {
+      setSessionMapFocusedRunId('');
+    }
+    handleToggleSessionMapBase();
+  }, [handleToggleSessionMapBase, sessionMapOpen]);
+  const handleSelectSessionFromMap = useCallback(
+    (
+      cellId: string,
+      sessionId: string,
+      options: { focusView?: boolean; preserveRunFocus?: boolean } = {}
+    ) => {
+      if (!options?.preserveRunFocus) {
+        setSessionMapFocusedRunId('');
+      }
+      handleSelectSessionFromMapBase(cellId, sessionId, options);
+    },
+    [handleSelectSessionFromMapBase]
+  );
   const activeHarnessRun = useMemo(
     () =>
       (sessionsState.harnessRuns || []).find((run: any) =>
@@ -581,6 +608,7 @@ function AppShell() {
     openSessionMap,
     focusWindow: windowShellState.handleFocusWindow,
     focusSessionInUi: handleFocusSessionInUi,
+    focusRunInUi: handleFocusRunInUi,
     selectSessionFromMap: handleSelectSessionFromMap,
   });
   const gateDisplayStage = scopedCell?.state === 'archived' ? 'archived' : 'active';
@@ -673,6 +701,13 @@ function AppShell() {
     setReplyQuickPromptsScope: setReplyQuickPromptsScopeCompat,
     setGateScope: setGateScopeCompat,
     setSessionNamingScope: setSessionNamingScopeCompat,
+    actionsScope,
+    appShortcutsScope,
+    replyQuickPromptsScope,
+    gateScope,
+    sessionNamingScope,
+    canUseProjectScope: hierarchyConfig.canUseProjectScope,
+    canUseAgentScope: hierarchyConfig.canUseAgentScope,
     clearTerminusError: hierarchyConfig.clearTerminusError,
     clearHarnessProvidersError: hierarchyConfig.clearHarnessProvidersError,
     clearAppShortcutsError: hierarchyConfig.clearAppShortcutsError,
@@ -999,6 +1034,7 @@ function AppShell() {
         <AppShellChrome
           sessionMapOpen={sessionMapOpen}
           sessionMapModel={sessionMapModel}
+          sessionMapFocusedRunId={sessionMapFocusedRunId}
           handleSelectSessionFromMap={handleSelectSessionFromMap}
           handleToggleSessionMap={handleToggleSessionMap}
           resolveSessionMapFontSize={resolveSessionMapFontSize}

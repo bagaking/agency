@@ -186,7 +186,11 @@ export function useSessionMapOverlayController({
   );
 
   const handleSelectSessionFromMap = useCallback(
-    (cellId: string, sessionId: string, options: { focusView?: boolean } = {}) => {
+    (
+      cellId: string,
+      sessionId: string,
+      options: { focusView?: boolean; preserveRunFocus?: boolean } = {}
+    ) => {
       if (!cellId || !sessionId) {
         return;
       }

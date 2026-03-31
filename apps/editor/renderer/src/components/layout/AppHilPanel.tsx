@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
 import { HilDrawer } from '../hil/HilDrawer';
+import { resolveHilDrawerMeta } from '../hil/hilSurfaceSystem';
 import { DeferredMount } from '../ui/DeferredMount';
 import { lazyNamedComponent } from '../ui/lazyNamedComponent';
 
@@ -26,47 +27,6 @@ const LazySessionReplyPanel = lazyNamedComponent(
 
 const drawerPanelFallback = <div className="h-full w-full bg-transparent" />;
 
-const resolveHilDrawerMeta = ({
-  activeView,
-  hilDrawerPanel,
-  hilReplyProps,
-  hilSubtitle,
-}: any) => {
-  const isMemoView = activeView === 'memo';
-  const isAgentCellsView = activeView === 'agent-cells';
-  const panels = isMemoView
-    ? []
-    : isAgentCellsView
-      ? [{ id: 'reply', label: 'Reply' }]
-      : [
-          { id: 'comments', label: 'Comments' },
-          { id: 'drafts', label: 'Drafts' },
-        ];
-  const title = isMemoView
-    ? 'Memo Inbox'
-    : hilDrawerPanel === 'reply'
-      ? 'Session Reply Relay'
-      : hilDrawerPanel === 'drafts'
-        ? 'HIL Drafts'
-        : 'Neural Comments';
-  const subtitle = isMemoView
-    ? 'Shortcuts'
-    : hilDrawerPanel === 'reply'
-      ? hilReplyProps?.session?.name || hilReplyProps?.session?.id || ''
-      : hilSubtitle;
-  const contentScrollable = !(isAgentCellsView && hilDrawerPanel === 'reply');
-  const contentClassName = isAgentCellsView && hilDrawerPanel === 'reply' ? 'p-0' : '';
-  return {
-    isMemoView,
-    isAgentCellsView,
-    panels,
-    title,
-    subtitle,
-    contentScrollable,
-    contentClassName,
-  };
-};
-
 export function AppHilPanel({
   activeView,
   hilDrawerOpen,
@@ -86,6 +46,7 @@ export function AppHilPanel({
     hilReplyProps,
     hilSubtitle,
   });
+  const useSharedReplyLauncher = meta.isAgentCellsView;
 
   return (
     <>
@@ -95,11 +56,14 @@ export function AppHilPanel({
         onToggle={onToggleHilDrawer}
         onSelectPanel={onSelectHilDrawerPanel}
         onOpenPromote={onOpenHilPromote}
+        eyebrow={meta.eyebrow}
         panels={meta.panels}
         title={meta.title}
         subtitle={meta.subtitle}
         contentScrollable={meta.contentScrollable}
         contentClassName={meta.contentClassName}
+        showToggleButton={!useSharedReplyLauncher}
+        collapsedWidth={useSharedReplyLauncher ? 0 : 6}
       >
         <DeferredMount active={hilDrawerOpen} strategy="retain">
           <Suspense fallback={drawerPanelFallback}>

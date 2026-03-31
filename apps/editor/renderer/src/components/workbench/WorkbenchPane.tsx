@@ -11,8 +11,6 @@ import {
   Save,
   AlertTriangle,
   Search,
-  Maximize2,
-  Split,
   FileCode,
   FileWarning,
   FileCode2,
@@ -120,6 +118,7 @@ function WorkbenchPaneContent({
   
   const [tabStateById, setTabStateById] = useState({});
   const [quickOpenVisible, setQuickOpenVisible] = useState(false);
+  const [localPendingJump, setLocalPendingJump] = useState<any>(null);
   const [statusPosition, setStatusPosition] = useState({ line: 1, column: 1 });
   const [tabMenu, setTabMenu] = useState(null);
   const [editorToken, setEditorToken] = useState(0);
@@ -134,6 +133,7 @@ function WorkbenchPaneContent({
   });
 
   const activeState = activeTab ? tabStateById[activeTab.id] || {} : {};
+  const effectivePendingJump = pendingJump || localPendingJump;
   const resolvedCommentLines = Array.isArray(commentLines) ? commentLines : [];
   const canComment = Boolean(activeTab && activeTab.kind === 'code');
   const isCodeTab = activeState.kind === 'code';
@@ -303,17 +303,25 @@ function WorkbenchPaneContent({
   }, [activeTab?.id, onSelectionChange]);
 
   useEffect(() => {
-    if (!pendingJump || !activeTab) {
+    if (!effectivePendingJump || !activeTab) {
       return;
     }
-    if (pendingJump.path !== activeTab.path || pendingJump.rootPath !== activeTab.rootPath) {
+    if (
+      effectivePendingJump.path !== activeTab.path ||
+      effectivePendingJump.rootPath !== activeTab.rootPath
+    ) {
       return;
     }
     if (activeState.loading) {
       return;
     }
     if (activeState.kind !== 'code') {
-      onJumpHandled?.();
+      if (pendingJump) {
+        onJumpHandled?.();
+      }
+      if (localPendingJump) {
+        setLocalPendingJump(null);
+      }
       return;
     }
     const editor = activeEditorRef.current;
@@ -321,18 +329,25 @@ function WorkbenchPaneContent({
       return;
     }
     const model = editor.getModel?.();
-    const maxLine = model?.getLineCount?.() || pendingJump.line || 1;
-    const line = Math.min(Math.max(1, Math.floor(pendingJump.line || 1)), maxLine);
-    const column = Math.max(1, Math.floor(pendingJump.column || 1));
+    const maxLine = model?.getLineCount?.() || effectivePendingJump.line || 1;
+    const line = Math.min(Math.max(1, Math.floor(effectivePendingJump.line || 1)), maxLine);
+    const column = Math.max(1, Math.floor(effectivePendingJump.column || 1));
     editor.setPosition?.({ lineNumber: line, column });
     editor.revealPositionInCenter?.({ lineNumber: line, column });
     editor.focus?.();
-    onJumpHandled?.();
+    if (pendingJump) {
+      onJumpHandled?.();
+    }
+    if (localPendingJump) {
+      setLocalPendingJump(null);
+    }
   }, [
     activeState.kind,
     activeState.loading,
     activeTab,
     editorToken,
+    effectivePendingJump,
+    localPendingJump,
     onJumpHandled,
     pendingJump,
   ]);
@@ -376,13 +391,18 @@ function WorkbenchPaneContent({
           })}
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <div className="flex items-center bg-white/[0.03] p-0.5 rounded-lg border border-white/[0.02]">
-            <HeaderButton onClick={() => setQuickOpenVisible(true)} icon={Search} label="Search" shortcut="⌘P" primary />
-            <HeaderButton icon={Split} label="Split" />
-          </div>
-        </div>
-      </div>
+	        <div className="flex items-center gap-1.5">
+	          <div className="flex items-center bg-white/[0.03] p-0.5 rounded-lg border border-white/[0.02]">
+	            <HeaderButton
+	              onClick={() => setQuickOpenVisible(true)}
+	              icon={Search}
+	              label="Quick Open"
+	              shortcut="⌘P"
+	              primary
+	            />
+	          </div>
+	        </div>
+	      </div>
 
       {/* 2. Toolbox Header: Breadcrumbs & Domain Actions */}
       <div className="flex h-9 shrink-0 items-center justify-between bg-[#0b0d11] border-b border-white/[0.02] px-4">
@@ -415,23 +435,51 @@ function WorkbenchPaneContent({
 
         {activeTab && (
           <div className="flex items-center gap-3">
-            {/* Context Toolset */}
-            <div className="flex items-center gap-1 bg-white/[0.02] rounded-md p-0.5">
-                <ToolButton active={activeState.diffEnabled} onClick={toggleDiff} icon={GitCompare} title="Version Diff" />
-                <ToolButton active={activeState.blameEnabled} onClick={toggleBlame} icon={GitCommit} title="Git Blame" />
-                <div className="w-px h-3 bg-white/5 mx-0.5" />
-                <ToolButton onClick={() => onOpenComment?.({ line: statusPosition.line, column: statusPosition.column })} icon={MessageSquarePlus} title="Add HIL Comment" />
+            <div className="flex items-center gap-2 rounded-md border border-white/[0.03] bg-white/[0.02] px-2 py-1">
+              <span className="text-[8px] font-black uppercase tracking-[0.18em] text-white/22">
+                Review
+              </span>
+              <div className="flex items-center gap-1 rounded-md bg-black/10 p-0.5">
+                <ToolButton
+                  active={activeState.diffEnabled}
+                  onClick={toggleDiff}
+                  icon={GitCompare}
+                  title="Show Diff"
+                />
+                <ToolButton
+                  active={activeState.blameEnabled}
+                  onClick={toggleBlame}
+                  icon={GitCommit}
+                  title="Show Blame"
+                />
+                <div className="mx-0.5 h-3 w-px bg-white/5" />
+                <ToolButton
+                  onClick={() =>
+                    onOpenComment?.({ line: statusPosition.line, column: statusPosition.column })
+                  }
+                  icon={MessageSquarePlus}
+                  title="Add HIL Comment"
+                />
+              </div>
             </div>
 
             <div className="h-4 w-px bg-white/5" />
 
-            {/* Lifecycle Actions */}
-            <div className="flex items-center gap-1">
-                <ToolButton loading={activeState.loading} onClick={handleReload} icon={RefreshCw} title="Sync from Disk" />
-                
+            <div className="flex items-center gap-2 rounded-md border border-white/[0.03] bg-white/[0.02] px-2 py-1">
+              <span className="text-[8px] font-black uppercase tracking-[0.18em] text-white/22">
+                File
+              </span>
+              <div className="flex items-center gap-1">
+                <ToolButton
+                  loading={activeState.loading}
+                  onClick={handleReload}
+                  icon={RefreshCw}
+                  title="Sync from Disk"
+                />
+
                 <IconButton
-                  label={activeState.saving ? 'Saving changes' : 'Commit changes'}
-                  tooltip={activeState.saving ? 'Saving changes' : 'Commit changes'}
+                  label={activeState.saving ? 'Saving changes' : 'Save changes'}
+                  tooltip={activeState.saving ? 'Saving changes' : 'Save changes'}
                   side="bottom"
                   focusRing="dark"
                   onClick={handleSave}
@@ -445,12 +493,13 @@ function WorkbenchPaneContent({
                   <Save size={11} strokeWidth={3} aria-hidden="true" />
                 </IconButton>
 
-                <ToolButton 
-                    active={!activeTab.isPreview} 
-                    onClick={() => pinTab(activeTab.id)} 
-                    icon={activeTab.isPreview ? Pin : PinOff} 
-                    title={activeTab.isPreview ? "Keep Open" : "Object Pinned"} 
+                <ToolButton
+                    active={!activeTab.isPreview}
+                    onClick={() => pinTab(activeTab.id)}
+                    icon={activeTab.isPreview ? Pin : PinOff}
+                    title={activeTab.isPreview ? 'Keep Open' : 'Pinned'}
                 />
+              </div>
             </div>
           </div>
         )}
@@ -476,13 +525,13 @@ function WorkbenchPaneContent({
           </div>
         ) : null}
         {!activeTab ? (
-          <div className="flex h-full flex-col items-center justify-center text-white/[0.02] bg-[#0b0d11]">
-            <Logo size={120} className="opacity-10 grayscale animate-pulse-slow mb-8" />
-            <div className="grid grid-cols-2 gap-x-16 gap-y-4 text-[9px] font-bold uppercase tracking-[0.3em]">
-                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> CMD + P <span className="opacity-40">Open Path</span></div>
-                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> CMD + S <span className="opacity-40">Save Object</span></div>
-                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> Double Click <span className="opacity-40">Pin Tab</span></div>
-                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> Right Click <span className="opacity-40">Command Menu</span></div>
+	          <div className="flex h-full flex-col items-center justify-center text-white/[0.02] bg-[#0b0d11]">
+	            <Logo size={120} className="opacity-10 grayscale animate-pulse-slow mb-8" />
+	            <div className="grid grid-cols-2 gap-x-16 gap-y-4 text-[9px] font-bold uppercase tracking-[0.3em]">
+	                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> CMD + P <span className="opacity-40">Quick Open</span></div>
+	                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> CMD + S <span className="opacity-40">Save Object</span></div>
+	                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> Double Click <span className="opacity-40">Pin Tab</span></div>
+	                <div className="flex items-center gap-3"><div className="w-1.5 h-[1px] bg-primary/20" /> Right Click <span className="opacity-40">Command Menu</span></div>
             </div>
           </div>
         ) : activeState.loading ? (
@@ -578,18 +627,52 @@ function WorkbenchPaneContent({
                 onSelectLanguage={languageOverrides.setCurrentFileOverride}
                 onResetToAuto={languageOverrides.resetCurrentFileOverride}
               />
-            ) : (
-              <div className="flex items-center gap-2">
-                <FileCode size={10} className="text-primary/20" />
-                <span className="text-primary/20">{passiveFooterLabel}</span>
-              </div>
-            )}
-            <div className="h-3 w-px bg-white/[0.03]" />
-            <div className="flex items-center gap-2"><Maximize2 size={10} className="opacity-10" /><span>{formatWorkbenchBytes(activeState.size)}</span></div>
-        </div>
-      </div>
+	            ) : (
+	              <div className="flex items-center gap-2">
+	                <FileCode size={10} className="text-primary/20" />
+	                <span className="text-primary/20">{passiveFooterLabel}</span>
+	              </div>
+	            )}
+	            <div className="h-3 w-px bg-white/[0.03]" />
+	            <div className="flex items-center gap-2">
+	              <span className="opacity-35">Size</span>
+	              <span>{formatWorkbenchBytes(activeState.size)}</span>
+	            </div>
+	        </div>
+	      </div>
 
-      <QuickOpenModal open={quickOpenVisible} onClose={() => setQuickOpenVisible(false)} onSelect={(path) => openFile({ path, mode: 'preview', rootPath: activeRootPath })} rootPath={activeRootPath} />
+	      <QuickOpenModal
+	        open={quickOpenVisible}
+	        onClose={() => setQuickOpenVisible(false)}
+	        onSelect={(item) => {
+	          if (item?.kind === 'tab' && item?.tabId) {
+	            setActiveTab(item.tabId);
+	            if (item.line) {
+	              setLocalPendingJump({
+	                path: item.path,
+	                rootPath: item.rootPath || activeRootPath,
+	                line: item.line,
+	                column: item.column || 1,
+	              });
+	            }
+	            return;
+	          }
+	          if (item?.path) {
+	            openFile({ path: item.path, mode: 'preview', rootPath: activeRootPath });
+	            if (item.line) {
+	              setLocalPendingJump({
+	                path: item.path,
+	                rootPath: activeRootPath,
+	                line: item.line,
+	                column: item.column || 1,
+	              });
+	            }
+	          }
+	        }}
+	        rootPath={activeRootPath}
+	        openTabs={tabs}
+	        activeTabId={activeTab?.id || ''}
+	      />
 
       {tabMenu && (
         <div
@@ -625,7 +708,11 @@ function ToolButton({ active, loading, onClick, icon: Icon, title }: any) {
     return (
         <button 
             onClick={onClick} 
-            className={`p-1.5 rounded-md transition-all ${active ? 'bg-primary/10 text-primary' : 'text-white/20 hover:text-white/60 hover:bg-white/5'}`}
+            className={`p-1.5 rounded-md transition-all ${
+              active
+                ? 'bg-primary/10 text-primary'
+                : 'text-white/18 hover:text-white/55 hover:bg-white/5'
+            }`}
             title={title}
         >
             <Icon size={13} strokeWidth={active ? 2.5 : 1.5} className={loading ? 'animate-spin' : ''} />

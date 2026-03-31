@@ -59,7 +59,6 @@ export function buildComposedAppLayoutProps({
     onUpdateCellAvatar: actionHandlers.handleUpdateCellAvatar,
     onOpenWorkbenchFile: actionHandlers.handleOpenWorkbenchFile,
     onJumpToSession: sessionReplyContext.handleJumpToSession,
-    onJumpToMemo: sessionReplyContext.handleJumpToReplyMemo,
     activityDiffThreshold: gateState.activityDiffThreshold,
     onSelectionContext: actionHandlers.handleSelectionContext,
     onReplySelection: actionHandlers.handleReplySelection,
@@ -87,7 +86,6 @@ export function buildComposedAppLayoutProps({
     sessionTargets: selectionState.sessionTargets,
     handleClearReplySelection: sessionReplyContext.handleClearReplySelection,
     handleJumpToSession: sessionReplyContext.handleJumpToSession,
-    handleJumpToReplyMemo: sessionReplyContext.handleJumpToReplyMemo,
     activeTab: workbenchState.activeTab,
     cursorPosition: workbenchState.cursorPosition,
     ...hilCommentState,
@@ -348,6 +346,21 @@ export function buildComposedAppLayoutProps({
       onClearSessionError: sessionsState.clearSessionError,
       onCancelHarnessRun: sessionsState.cancelHarnessRun,
       onResumeHarnessRun: sessionsState.resumeHarnessRun,
+      replyEnabled: layoutState.activeView === 'agent-cells',
+      replyOpen:
+        layoutState.activeView === 'agent-cells' &&
+        layoutState.hilDrawerOpen &&
+        layoutState.hilDrawerPanel === 'reply',
+      replyLabel:
+        (sessionReplyContext.activeSession as any)?.name ||
+        (sessionReplyContext.activeSession as any)?.id ||
+        'Session Reply Relay',
+      onToggleReply: (nextOpen: boolean) => {
+        if (nextOpen) {
+          navigationHandlers.handleSelectHilDrawerPanel('reply');
+        }
+        navigationHandlers.setHilDrawerOpen(nextOpen);
+      },
     },
     appLayoutActionSheetsProps,
     appLayoutExplorerSidebarProps,

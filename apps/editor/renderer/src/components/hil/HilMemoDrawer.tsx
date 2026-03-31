@@ -1,5 +1,6 @@
 import React from 'react';
 import { StickyNote, Camera, Inbox, Quote, ArrowLeft, ArrowUpRight } from 'lucide-react';
+import { HIL_SURFACE_COPY, HilStatusBadge, HilSurfaceHeader } from './hilSurfaceSystem';
 import { FlashCaptureCard } from './memo/FlashCaptureCard';
 import { ExcerptCaptureCard } from './memo/ExcerptCaptureCard';
 import { ScreenshotCaptureCard } from './memo/ScreenshotCaptureCard';
@@ -50,14 +51,13 @@ export function HilMemoDrawer({
 
   return (
     <div className="flex flex-col gap-4 py-1 select-none">
-      <div className="px-0.5">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted-foreground/50">
-          Inbox Shortcuts
-        </div>
-        <div className="mt-1 text-[11px] text-muted-foreground/60">
-          Jump to capture modes in the Memo inbox.
-        </div>
-      </div>
+      <HilSurfaceHeader
+        eyebrow={HIL_SURFACE_COPY.captureSubtitle}
+        title={HIL_SURFACE_COPY.captureTitle}
+        subtitle="Jump straight into capture modes without losing your place in Memo."
+        meta={<HilStatusBadge label={activeInboxId || 'shortcuts'} tone="neutral" />}
+        compact
+      />
 
       <div className="flex flex-col gap-3">
         <MemoShortcutCard
@@ -131,7 +131,7 @@ export function HilMemoDrawer({
       >
         <span className="flex items-center gap-2">
           <Inbox size={12} aria-hidden="true" />
-          Open Inbox
+          Open Memo
         </span>
         <span className="text-[9px] font-medium text-muted-foreground/40">Comments</span>
       </button>
@@ -149,7 +149,6 @@ function MemoShortcutCard({
   onActivate,
   children,
 }: any) {
-  const expanded = !active;
   const focusRingClass = focusRing.strong;
   return (
     <div
@@ -165,26 +164,7 @@ function MemoShortcutCard({
           className="absolute left-1 top-3 bottom-3 w-0.5 rounded-full bg-primary/50 shadow-[0_0_8px_rgba(59,130,246,0.35)]"
         />
       ) : null}
-      <div
-        role={active ? 'button' : undefined}
-        tabIndex={active ? 0 : -1}
-        onClick={() => {
-          if (active) {
-            onActivate?.();
-          }
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            if (active) {
-              onActivate?.();
-            }
-          }
-        }}
-        className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left ${focusRingClass} ${
-          active ? 'cursor-pointer' : 'cursor-default'
-        }`}
-      >
+      <div className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left ${focusRingClass}`}>
         <span className="flex items-center gap-3">
           <span className={`flex h-8 w-8 items-center justify-center rounded-lg ring-1 ring-inset ${
             active
@@ -198,24 +178,24 @@ function MemoShortcutCard({
             <span className="block text-[10px] text-muted-foreground/50">{description}</span>
           </span>
         </span>
-        <span className="flex items-center gap-2">
-          {active ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-primary">
-              <ArrowLeft size={10} aria-hidden="true" />
-              In Inbox
-            </span>
-          ) : null}
-          {actions}
-        </span>
+          <span className="flex items-center gap-2">
+            {active ? (
+              <button
+                type="button"
+                onClick={() => onActivate?.()}
+                className={`inline-flex items-center gap-1 text-[9px] font-medium text-primary/78 ${focusRingClass}`}
+              >
+                <ArrowLeft size={10} aria-hidden="true" />
+                Focus in Memo
+              </button>
+            ) : (
+              <span className="text-[9px] text-muted-foreground/40">Shortcut</span>
+            )}
+            {actions}
+          </span>
       </div>
-      <div
-        className={`px-3 pb-3 overflow-hidden transition-[max-height,opacity] duration-300 ${
-          expanded ? 'max-h-[520px] opacity-100' : 'max-h-0 opacity-0'
-        }`}
-      >
-        <div className={`transition-transform duration-300 ${expanded ? 'translate-y-0' : '-translate-y-1'}`}>
-          {children}
-        </div>
+      <div className="px-3 pb-3">
+        {children}
       </div>
     </div>
   );

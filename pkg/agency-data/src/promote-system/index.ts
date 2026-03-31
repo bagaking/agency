@@ -15,6 +15,7 @@ import {
   listHilItems,
   updateHilItem,
 } from '../repositories/hilRepository';
+import { updateSessionReply } from '../repositories/sessionReplyRepository';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -143,9 +144,9 @@ async function resolveRepoRootPath(worktreePath: string): Promise<string> {
       timeout: 2000,
     });
     const root = String(stdout || '').trim();
-    return root || worktreePath;
+    return root || '';
   } catch (_error) {
-    return worktreePath;
+    return '';
   }
 }
 
@@ -193,6 +194,22 @@ const normalizeSource = (value: unknown): DeliverySource => {
     return 'session';
   }
   return 'promote';
+};
+
+const resolveDeliveryReferenceSystem = ({
+  source,
+  item,
+}: {
+  source: DeliverySource;
+  item: { kind?: string } | null | undefined;
+}) => {
+  if (source === 'explorer') {
+    return 'explorer';
+  }
+  if (source === 'session' || String(item?.kind || '').trim() === 'reply') {
+    return 'reply';
+  }
+  return 'hil';
 };
 
 const buildTimelineEntry = ({
@@ -412,7 +429,7 @@ export async function startDelivery({
   const requestedAt = new Date().toISOString();
   const actionSheetContext = resolveActionSheetContext(storage);
   const references = (Array.isArray(request.selectedItems) ? request.selectedItems : []).map((item) => ({
-    system: source === 'explorer' ? 'explorer' : 'hil',
+    system: resolveDeliveryReferenceSystem({ source, item }),
     id: item.id,
     cellId: String(item.cellId || request.cellId || '').trim() || null,
     path: item.anchor?.file || null,
@@ -599,31 +616,51 @@ export async function confirmDelivery({
   }
   const references = Array.isArray(draft.references) ? draft.references : [];
   const promotedAt = new Date().toISOString();
-  await Promise.all(
-    references
-      .filter((ref: any) => ref?.system === 'hil' && ref?.id)
-      .map((ref: any) =>
-        updateHilItem({
-          repoRootPath: storage.repoRootPath,
-          cellId: String(ref?.cellId || storage.cellId || '').trim(),
-          worktreePath: storage.worktreePath,
-          itemId: ref.id,
-          patch: {
-            meta: {
-              processed: true,
-              promotedDraftId: draftId,
-              promoteSessionId: draft.meta?.executionSessionId || null,
-              promotedAt,
-            },
-          },
-        }).catch(() => null)
-      )
-  );
-
   const source = normalizeSource(draft.meta?.deliverySource || draft.meta?.sourceBatch);
   const mode = normalizeMode(draft.meta?.deliveryMode);
   const sessionId = String(draft.meta?.executionSessionId || '').trim();
   const actionSheetId = String(draft.meta?.actionSheetId || '').trim();
+  const targetCellId = String(draft.meta?.deliveryCellId || '').trim();
+  await Promise.all(
+    references
+      .filter((ref: any) => ref?.id)
+      .map((ref: any) => {
+        if (ref.system === 'hil') {
+          return updateHilItem({
+            repoRootPath: storage.repoRootPath,
+            cellId: String(ref?.cellId || storage.cellId || '').trim(),
+            worktreePath: storage.worktreePath,
+            itemId: ref.id,
+            patch: {
+              meta: {
+                processed: true,
+                promotedDraftId: draftId,
+                promoteSessionId: sessionId || null,
+                promotedAt,
+              },
+            },
+          }).catch(() => null);
+        }
+        if (ref.system === 'reply') {
+          return updateSessionReply({
+            worktreePath: storage.worktreePath || storage.repoRootPath,
+            replyId: ref.id,
+            patch: {
+              delivery: {
+                draftId,
+                source,
+                mode,
+                targetSession: {
+                  cellId: targetCellId,
+                  sessionId,
+                },
+              },
+            },
+          }).catch(() => null);
+        }
+        return Promise.resolve(null);
+      })
+  );
 
   const completed = await markExecutionStatus({
     repoRootPath: storage.repoRootPath,

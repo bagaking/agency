@@ -822,6 +822,7 @@ Content replace SHALL provide target visibility and confirmation semantics suita
 #### Scenario: Replace keyword across a folder
 - **WHEN** a user runs content replace within a folder scope
 - **THEN** the editor shows target matches and replacement impact before applying the change
+- **AND** the result surface previews how confirmed file snippets would change when replacement text is present
 
 #### Scenario: Replace keyword across the project
 - **WHEN** a user runs content replace across the active project
@@ -883,6 +884,10 @@ The lane SHALL NOT behave as a general-purpose browser replacement.
 - **THEN** the explorer provides an explicit action to open the URL in the system browser
 - **AND** the research lane does not grow tab, cookie, or in-place browser session management
 
+#### Scenario: Research lane stays secondary to file browse
+- **WHEN** the explorer renders bounded research-lane entry points
+- **THEN** the lane is presented as a secondary workflow action rather than as a primary file-browse control
+
 ### Requirement: Explorer File Preview Pane
 The explorer SHALL open selected files inside a workbench tab area instead of a single static preview.
 Binary or oversized files MUST show a preview warning and offer a reveal/open action.
@@ -942,10 +947,30 @@ The workbench SHALL preview common media files (images, video, audio, PDF) with 
 
 ### Requirement: Workbench Navigation Aids
 The workbench SHALL display breadcrumbs for the active file and provide a quick-open affordance.
+The quick-open affordance SHALL behave like a navigation surface rather than a misleading generic search button.
+The quick-open surface SHALL accept optional `:line[:column]` suffixes and use them as in-editor jump targets after opening or focusing the selected file.
 
 #### Scenario: Quick-open a file
 - **WHEN** a user invokes quick-open and selects a file
-- **THEN** the editor opens the file in a new workbench tab
+- **THEN** the editor opens or activates the selected file target
+- **AND** the quick-open surface closes after the selection is accepted
+
+#### Scenario: Quick-open prioritizes already open context
+- **WHEN** a user invokes quick-open
+- **THEN** the surface may show open-tab matches ahead of broader project file matches
+- **AND** the affordance label remains truthful to that capability
+
+#### Scenario: Quick-open targets a location inside the file
+- **WHEN** a user enters a quick-open query with `:line` or `:line:column`
+- **THEN** the editor opens or focuses the selected file
+- **AND** places the cursor at the requested location
+
+### Requirement: Workbench Affordance Truthfulness
+The workbench MUST NOT expose primary toolbar controls for layout capabilities that are not actually implemented.
+
+#### Scenario: Split editor is unavailable
+- **WHEN** split-editor layout is not implemented
+- **THEN** the workbench does not expose a primary `Split` control that implies the feature already exists
 
 ### Requirement: Editor Packaging Workflow
 The repository SHALL provide a packaging workflow for the Agency Editor that produces macOS installable artifacts.
@@ -1110,6 +1135,7 @@ When available, the editor SHALL resolve comment author identity from git config
 The editor SHALL provide a global right-side drawer for HIL panels.
 The drawer SHALL be collapsible and default to collapsed.
 The drawer SHALL auto-open when a HIL action is invoked (e.g., submitting a comment).
+The drawer SHALL use `Memo` as the primary user-facing artifact noun while `HIL` remains an internal/storage term.
 
 #### Scenario: Auto-open drawer after comment
 - **WHEN** a user submits a line comment
@@ -1120,10 +1146,21 @@ The editor SHALL provide a Memo entry in the activity bar to access HIL artifact
 The Memo view SHALL list HIL items for the active worktree and allow filtering by kind and status.
 Memo file references SHALL provide unified `open` and `reveal` entry points.
 Memo SHALL support lightweight drag routing into Explorer import flows in phase 1.
+The Memo surface SHALL present artifact navigation, capture shortcuts, and draft review as one coherent workspace.
 
 #### Scenario: Open Memo view
 - **WHEN** a user selects Memo in the activity bar
 - **THEN** the editor shows the HIL list for the current worktree
+- **AND** the navigation, capture, and draft affordances read as one Memo workspace instead of disconnected sub-tools
+
+### Requirement: Comment Surface Hierarchy
+The Comments surface SHALL keep compose, file context, snippet evidence, and note history readable without collapsing into a generic dense tool card.
+The Comments surface SHALL make the current file/line, captured snippet evidence, note input, and submit action legible before secondary metadata.
+
+#### Scenario: Comment compose path stays obvious
+- **WHEN** a user opens comment compose from the Memo/HIL surface
+- **THEN** the UI clearly separates current file context, snippet evidence, note input, and submit controls
+- **AND** micro-labels do not carry the primary comprehension burden
 
 #### Scenario: Open file from Memo reference
 - **WHEN** a user activates a file reference in Memo
@@ -1199,6 +1236,7 @@ The Promote flow SHALL provide two execution modes:
 - `Quick` (default): one-step draft creation and direct structured dispatch.
 - `Gated` (advanced): Action Sheet-linked execution with gate tracking.
 The Promote UI SHALL use unified send semantics with explicit source/mode metadata.
+The Promote UI SHALL make the primary path legible in this order: selected records, target session, execution mode, and confirmation state.
 
 #### Scenario: Start quick promote dispatch
 - **WHEN** a user starts Promote in quick mode with selected items and target session
@@ -1209,6 +1247,11 @@ The Promote UI SHALL use unified send semantics with explicit source/mode metada
 - **WHEN** a user starts Promote in gated mode
 - **THEN** Action Sheet linkage is created or reused
 - **AND** gate status is reflected in execution state
+
+#### Scenario: Promote hierarchy stays legible
+- **WHEN** a user opens the Promote modal
+- **THEN** the UI makes it obvious what will be sent, where it will run, and whether the draft is ready to confirm
+- **AND** lower-priority metadata does not visually compete with the primary action path
 
 ### Requirement: Promote Tree Organization
 The Promote modal SHALL group selectable items in a tree by Type and Source.
@@ -1629,8 +1672,8 @@ The editor SHALL adjust the right-side HIL drawer content based on the active vi
 #### Scenario: Memo view shows Inbox shortcuts
 - **WHEN** the user is in Memo and opens the HIL drawer
 - **THEN** the drawer hides the Comments and Drafts tabs
-- **AND** the drawer shows Inbox shortcuts for Flash notes and Screenshot capture
-- **AND** the drawer provides an Open Inbox entry
+- **AND** the drawer shows Inbox shortcuts for Flash, Excerpt, and Screenshot capture
+- **AND** the drawer provides an Open Memo entry
 - **AND** the Memo main Inbox sections remain available in the main pane
 
 ### Requirement: Promote Default Session Selection
@@ -2018,9 +2061,9 @@ The editor SHALL ignore trailing punctuation characters when resolving the path.
 - **THEN** the resolved path is `docs/notes-terminal-keyboard.md` (excluding `行为说明。`)
 
 ### Requirement: Session Reply Relay
-The editor SHALL provide a session-side Reply panel for creating reply memos.
-The editor SHALL store replies as memo kind `reply` and isolate reply threads per session.
-The editor SHALL NOT allow editing reply memos inside the main Memo view.
+The editor SHALL provide a session-side Reply panel for creating session-owned reply artifacts.
+The editor SHALL store replies outside HIL with explicit session ownership and isolate reply threads per session.
+The editor SHALL NOT surface session replies as editable items inside the main Memo view.
 
 #### Scenario: Reply panel default
 - **WHEN** a user opens a session
@@ -2032,11 +2075,11 @@ The editor SHALL support `Record`, `Send to Current`, and `Send to Other` action
 
 #### Scenario: Record reply
 - **WHEN** a user submits a reply with `Record`
-- **THEN** the reply is saved as a memo without sending terminal input
+- **THEN** the reply is saved as a session reply artifact without sending terminal input
 
 #### Scenario: Send reply to current session
 - **WHEN** a user submits a reply with `Send to Current`
-- **THEN** the reply is saved as a memo and sent to the active session
+- **THEN** the reply is saved as a session reply artifact and sent to the active session
 
 ### Requirement: Reply metadata
 The editor SHALL record source site and query for replies in metadata.
@@ -2045,7 +2088,38 @@ The editor SHALL record the authoring cell/session and timestamp.
 
 #### Scenario: Reply metadata recorded
 - **WHEN** a reply is created
-- **THEN** its memo metadata includes source, selection time tag, and session identifiers
+- **THEN** its artifact metadata includes source, selection time tag, and session identifiers
+
+### Requirement: Session Reply Artifact Storage
+The editor SHALL store session reply artifacts in a worktree-scoped reply store separate from HIL.
+The reply store SHALL keep an index under `.agency/session-replies/index-<worktree>.yaml`.
+Each reply artifact SHALL record explicit owner metadata for `cellId` and `sessionId`.
+
+#### Scenario: Persist a recorded reply
+- **WHEN** a user records a reply from Session Reply
+- **THEN** the editor writes a reply artifact into the worktree reply store
+- **AND** the stored artifact records the owning `cellId` and `sessionId`
+
+#### Scenario: Invalid legacy reply rows are preserved until repair
+- **WHEN** legacy HIL `reply` rows cannot be normalized into valid session ownership
+- **THEN** the editor does not silently delete them during migration
+- **AND** only successfully imported legacy reply rows are removed from the legacy HIL store
+
+### Requirement: Session Reply Storage Tree Layout
+The editor SHALL store session reply artifacts under a session-owned tree layout while keeping the worktree reply index as the source of truth.
+
+#### Scenario: Write reply artifact files
+- **WHEN** a session reply artifact is created
+- **THEN** the editor updates `.agency/session-replies/index-<worktree>.yaml`
+- **AND** writes the artifact under `.agency/session-replies/<worktree>/sessions/<cellId>/<sessionId>/<replyId>.yaml`
+
+### Requirement: Session Delivery References Reply Artifacts
+When Session Reply triggers delivery, the resulting delivery draft SHALL reference the reply artifact rather than pretending the reply is a HIL item.
+
+#### Scenario: Delivery references a reply artifact
+- **WHEN** a user sends a reply through Session Reply quick delivery
+- **THEN** the delivery draft stores a source reference with `system=reply`
+- **AND** the target delivery draft remains a HIL `draft` artifact
 
 ### Requirement: Send-result cards
 The editor SHALL display send-result cards in the Reply panel.

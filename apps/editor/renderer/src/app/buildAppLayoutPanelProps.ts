@@ -9,7 +9,6 @@ export function buildAppLayoutPanelProps({
   handleClearReplySelection,
   sendSessionText,
   handleJumpToSession,
-  handleJumpToReplyMemo,
   activeTab,
   cursorPosition,
   comments,
@@ -139,7 +138,6 @@ export function buildAppLayoutPanelProps({
     onClearSelection: handleClearReplySelection,
     onSendSessionText: sendSessionText,
     onJumpToSession: handleJumpToSession,
-    onJumpToMemo: handleJumpToReplyMemo,
   };
 
   const hilCommentsProps = {

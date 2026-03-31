@@ -83,6 +83,8 @@ Main Agent Harness 是更高一层的 host-owned control plane。
 - `Attention` 是覆盖 `Window / Cell / Session / Run` 的共享状态层；window-level priority queue 与 commander briefing 应提升到 app-shell 右侧 station，`Ops` 只负责当前 focus session/run 的 evidence，不拥有 attention 本体，也不另造新的产品对象根。
 - Agent Cells 只能以内联方式在 owning Cell / Session 上表达 attention；不得再在 Cells 列表前面插入一个 queue 式 attention 面板来挤占主工作面。
 - Shell chrome 只负责紧凑 summary：Status Bar 承载当前窗口最高优先级的 `Next`，window switcher 承载跨窗口 primary attention；它们都不是第二个 queue surface。
+- `Next` 的 tooltip 必须扩展共享 attention 词汇，而不是发明第三套命名：它应同时告诉用户当前状态与真实跳转目标（例如 `Jump to session`、`Open Session Map`、`Open evidence in Session Map`、`Focus window`）。
+- 在 Agent Cells，app-shell 右侧 launcher rail 的底部也应承载 `Session Reply Relay` 的展开/收缩入口，让窗口右缘保持一根统一 launcher spine；但 `Reply` 仍然是 session-bound communication surface，不得和 `Attention` / `Briefing` 混成一个语义面板。
 - Session Map 中的 token / cell 强调必须复用 Attention 的统一语义（`running / failed / pending confirmation / unread / return required`），不能再做一套只在地图里成立的告警词汇。
 - Session Map 右侧应被理解为一个单一的 `Right Station`：默认展示 `Ops` mode；`Commander` 只是这个 station 里的 operator affordance，而不是并列的第二列。
 - 点击 `Commander` 后，右侧 station 应直接切换到 `Briefing` mode；不得再以浮层、popup、drawer 形式覆盖 `Ops` 或 `Cells`，也不应让 `Ops` 和 `Briefing` 作为两个并列右栏竞争空间。
@@ -105,10 +107,10 @@ Session Reply Relay 是面向 Session 的“回复资产化”机制，强调 **
 
 核心规则：
 - Reply 面板位于 Agent-Cells 的右侧 HIL 抽屉，进入 Agent-Cells 时默认打开并选中；每个 session 的 reply 线程相互隔离。
-- Reply 记录为 HIL `reply` 类型 memo；在 Memo 界面只读（不可输入），但支持 Promote（与 comment 同流程）。
-- Reply 元数据包含：`selection.site`（含高亮）、`selection.query`（用户输入）、`selection.timeTag`（无选区时为 `Nature`）、以及 `session` 归属信息。
+- Reply 记录为 session-owned artifact，独立存放在 `.agency/session-replies/`；它不是 HIL item，也不进入 Memo inbox / Promote 选择树。
+- Reply 元数据包含：`capture.selection.site`（含高亮）、`capture.selection.query`（用户输入）、`capture.selection.timeTag`（无选区时为 `Nature`）、以及显式 `owner.cellId/sessionId` 归属信息。
 - Reply 动作：Record / Send to Current / Send to Other；发送后在 Reply 面板生成“发送结果卡片”（头像 + 跳转）。
-- Record-only 卡片显示 memo icon；发送到其他 session 时显示 link icon 并支持跳转。
+- Record-only 卡片显示 local-record 标识；发送到其他 session 时显示 link icon 并支持 jump 到目标 session。
 - 发送 payload 采用标签包裹：`<reply time="..."><site>...</site><query>...</query></reply>`；若无 `site`，直接发送纯文本。
 - selection 高亮采用反引号包裹（例如 `xxxxxx` 中的 `yyy`），并保留 selection 前后原文。
 
@@ -245,6 +247,8 @@ cellColors:
 7. 触发一个 `Create Agent` 运行中的 child execution，确认 Agent Cells 的 inline marker、Status Bar `Next`、app-shell 右侧 `Priority Queue` 都显示 `Running`，且点击后会打开对应 session/run 上下文而不是把 run 埋在背景里；`Session Map Ops` 只承载 evidence。
 8. 制造一次失败 run，确认 Status Bar、Agent Cells inline marker、app-shell 右侧 `Priority Queue` 都显示同一条 `Failed` attention；它不会像 toast 一样自动消失，并且点击后能回到相关对象；完整错误仍在 `Session Map Ops` evidence 区。
 9. 在另一个窗口制造更高优先级的 attention，确认当前窗口的 window switcher 能显示该窗口的 primary attention，并可直接聚焦过去。
+10. 制造 `Confirm` 和 `Review` 两类 attention，确认 Status Bar `Next` 的可见 label 仍然保持共享词汇（`Confirm` / `Review`），而 tooltip 会补足真实跳转目标。
+11. 在 Agent Cells 中打开/关闭 `Session Reply Relay`，确认入口位于共享 right-edge launcher rail 的底部；`Reply` 打开时不会改写 `Attention` / `Commander` 的语义，也不会重新引入第二条右侧 launcher。
 
 ## 实现提示
 - 入口：Status Bar 中央的 Session Map Toggle。

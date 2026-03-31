@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BellDot, ChevronRight } from 'lucide-react';
+import { BellDot, ChevronRight, MessageSquareText } from 'lucide-react';
 
 import {
   resolveActiveCommanderRun,
@@ -35,6 +35,10 @@ export function AppAttentionRail({
   onClearSessionError,
   onCancelHarnessRun,
   onResumeHarnessRun,
+  replyEnabled = false,
+  replyOpen = false,
+  replyLabel = '',
+  onToggleReply,
 }: any) {
   const attention = useAttentionLayer();
   const [open, setOpen] = useState(false);
@@ -49,6 +53,7 @@ export function AppAttentionRail({
   const commanderRun = useMemo(() => resolvePrimaryCommanderRun(runList), [runList]);
   const commanderDirective = resolveCommanderDirectiveLabel(commanderRun);
   const commanderProvider = resolveCommanderProviderLabel(commanderRun);
+  const normalizedReplyLabel = String(replyLabel || '').trim();
   const queueItems = useMemo(
     () =>
       (Array.isArray(attention.localItems) ? attention.localItems : []).map((item: any) => ({
@@ -107,6 +112,9 @@ export function AppAttentionRail({
           <button
             type="button"
             onClick={() => {
+              if (replyOpen) {
+                onToggleReply?.(false);
+              }
               setMode('briefing');
               setOpen(true);
             }}
@@ -120,6 +128,24 @@ export function AppAttentionRail({
               ringSize={20}
             />
           </button>
+          {replyEnabled ? (
+            <button
+              type="button"
+              onClick={() => {
+                setMode('attention');
+                setOpen(false);
+                onToggleReply?.(!replyOpen);
+              }}
+              aria-label={replyOpen ? 'Collapse session reply relay' : 'Expand session reply relay'}
+              className={`mt-auto flex h-8 w-8 items-center justify-center rounded-full border border-white/[0.08] transition-colors ${focusRingClass} ${
+                replyOpen
+                  ? 'bg-cyan-400/14 text-cyan-100'
+                  : 'bg-white/[0.04] text-white/72 hover:bg-white/[0.08] hover:text-white'
+              }`}
+            >
+              <MessageSquareText size={14} />
+            </button>
+          ) : null}
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
@@ -148,7 +174,12 @@ export function AppAttentionRail({
             </button>
             <button
               type="button"
-              onClick={() => setMode('briefing')}
+              onClick={() => {
+                if (replyOpen) {
+                  onToggleReply?.(false);
+                }
+                setMode('briefing');
+              }}
               title={commanderDirective}
               className={`ml-auto inline-flex items-center gap-2 rounded-full px-2 py-1 text-[8px] font-semibold uppercase tracking-[0.14em] transition-colors ${focusRingClass} ${
                 mode === 'briefing'
@@ -200,6 +231,34 @@ export function AppAttentionRail({
               />
             </div>
           )}
+
+          {replyEnabled ? (
+            <div className="border-t border-white/[0.06] px-2.5 py-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('attention');
+                  setOpen(false);
+                  onToggleReply?.(!replyOpen);
+                }}
+                className={`flex w-full items-center justify-between rounded-xl border px-2.5 py-2 text-left transition-colors ${focusRingClass} ${
+                  replyOpen
+                    ? 'border-cyan-300/22 bg-cyan-500/[0.08] text-cyan-100'
+                    : 'border-white/[0.08] bg-white/[0.03] text-white/72 hover:bg-white/[0.06] hover:text-white'
+                }`}
+              >
+                <div className="min-w-0">
+                  <div className="text-[8px] font-semibold uppercase tracking-[0.14em]">
+                    Reply
+                  </div>
+                  <div className="mt-1 truncate text-[10px] text-inherit/70">
+                    {normalizedReplyLabel || 'Session Reply Relay'}
+                  </div>
+                </div>
+                <MessageSquareText size={14} className="shrink-0" />
+              </button>
+            </div>
+          ) : null}
         </div>
       )}
     </aside>

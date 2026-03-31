@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   confirmDelivery,
-  createHilItem,
-  listHilItems,
+  createSessionReply,
+  listSessionReplies,
   startDelivery,
-  updateHilItem,
+  updateSessionReply,
 } from '../../services/agencyBridge';
 import {
   buildReplyPayload,
@@ -61,12 +61,12 @@ export function useSessionReplyModel({
   const timeTag = selectionContext?.timeTag || formatReplyTimeTag(selectionContext?.updatedAt);
   const siteText = selectionContext?.site || '';
   const queryText = replyText.trim();
-  const hasSession = Boolean(cellId && sessionId && (worktreePath || projectRoot));
+  const hasSession = Boolean(cellId && sessionId && worktreePath);
   const hasContent = queryText.length > 0;
 
   const refreshReplies = useCallback(async () => {
     const requestScope = scopeKey;
-    if ((!worktreePath && !projectRoot) || !cellId || !sessionId) {
+    if (!worktreePath || !cellId || !sessionId) {
       setReplyItems([]);
       return;
     }
@@ -78,20 +78,15 @@ export function useSessionReplyModel({
     setLoadingReplies(true);
     setError('');
     try {
-      const list = await listHilItems({
+      const list = await listSessionReplies({
         worktreePath,
-        repoRootPath: projectRoot,
         cellId,
-        kind: 'reply',
-        status: 'all',
+        sessionId,
+        includeArchived: false,
       });
-      const filtered = (Array.isArray(list) ? list : [])
-        .filter((item) => item?.kind === 'reply' && !item?.meta?.archived)
-        .filter(
-          (item) =>
-            item?.meta?.session?.cellId === cellId && item?.meta?.session?.sessionId === sessionId
-        )
-        .sort((a, b) => Date.parse(a.createdAt || '') - Date.parse(b.createdAt || ''));
+      const filtered = (Array.isArray(list) ? list : []).sort(
+        (a, b) => Date.parse(a.createdAt || '') - Date.parse(b.createdAt || '')
+      );
       if (
         activeScopeRef.current !== requestScope ||
         refreshRequestRef.current !== requestId
@@ -116,7 +111,7 @@ export function useSessionReplyModel({
       }
       setLoadingReplies(false);
     }
-  }, [cellId, projectRoot, scopeKey, sessionId, worktreePath]);
+  }, [cellId, scopeKey, sessionId, worktreePath]);
 
   useEffect(() => {
     refreshReplies();
@@ -152,20 +147,15 @@ export function useSessionReplyModel({
 
   const handleArchiveReply = useCallback(
     async (item: any) => {
-      if (!item?.id || (!worktreePath && !projectRoot)) {
+      if (!item?.id || !worktreePath) {
         return;
       }
       try {
-        await updateHilItem({
+        await updateSessionReply({
           worktreePath,
-          repoRootPath: projectRoot,
-          cellId,
-          itemId: item.id,
+          replyId: item.id,
           patch: {
-            meta: {
-              ...(item?.meta || {}),
-              archived: true,
-            },
+            status: 'archived',
           },
         });
         await refreshReplies();
@@ -173,7 +163,7 @@ export function useSessionReplyModel({
         console.error('Failed to archive reply', archiveError);
       }
     },
-    [cellId, projectRoot, refreshReplies, worktreePath]
+    [refreshReplies, worktreePath]
   );
 
   const handleReeditReply = useCallback(
@@ -257,13 +247,16 @@ export function useSessionReplyModel({
       });
 
       try {
-        const createdReply = await createHilItem({
+        const createdReply = await createSessionReply({
           worktreePath,
-          repoRootPath: projectRoot,
-          cellId,
-          kind: 'reply',
           body: queryText,
-          meta: {
+          owner: {
+            cellId,
+            cellName,
+            sessionId,
+            sessionName,
+          },
+          capture: {
             source: selectionContext ? 'terminal-selection' : 'reply-panel',
             selection: {
               text: selectionContext?.text || '',
@@ -271,16 +264,8 @@ export function useSessionReplyModel({
               timeTag,
               query: queryText,
             },
-            session: {
-              cellId,
-              cellName,
-              sessionId,
-              sessionName,
-            },
-            sent: {
-              targets: [targetMeta],
-            },
           },
+          targets: targetMeta ? [targetMeta] : [],
         });
 
         const shouldDispatch = effectiveAction === 'current' || effectiveAction === 'other';
@@ -303,7 +288,6 @@ export function useSessionReplyModel({
                   id: String(createdReply?.id || ''),
                   kind: String(createdReply?.kind || 'reply'),
                   body: String(createdReply?.body || queryText),
-                  cellId,
                   anchor: createdReply?.anchor || null,
                   references: Array.isArray(createdReply?.references)
                     ? createdReply.references
@@ -341,24 +325,6 @@ export function useSessionReplyModel({
             repoRootPath: projectRoot,
             cellId: targetCellId,
             draftId,
-          });
-          await updateHilItem({
-            worktreePath,
-            repoRootPath: projectRoot,
-            cellId,
-            itemId: createdReply?.id,
-            patch: {
-              meta: {
-                ...(createdReply?.meta || {}),
-                deliverySource: 'session',
-                deliveryMode: 'quick',
-                deliveryDraftId: draftId,
-                deliverySession: {
-                  cellId: targetCellId,
-                  sessionId: targetSessionId,
-                },
-              },
-            },
           });
         }
 

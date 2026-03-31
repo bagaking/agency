@@ -22,6 +22,12 @@ Source: `docs/guidelines-doc-coauthoring.md`
 - Update this doc when your team changes its doc-writing workflow or quality bar.
 - Regenerate `docs/must-sop.md` after SOP/frontmatter changes.
 
+### HIL Surface Design Guidelines
+Source: `docs/guidelines-hil-surface-design.md`
+- Read this doc when changing Memo, Comments, Drafts, Promote, or HIL drawer chrome.
+- Update this doc when HIL terminology, hierarchy, or shared surface patterns change.
+- Regenerate docs/must-sop.md after updating this doc.
+
 ### UI Component Reuse Guidelines
 Source: `docs/guidelines-ui-components.md`
 - Use focusRing for focus-visible styles instead of inline classes.

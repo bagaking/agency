@@ -118,7 +118,7 @@ const model = {
   },
 };
 
-test('Escape closes the Session Map when overlay-local surfaces are inactive', async () => {
+test('Escape closes the whole Session Map overlay', async () => {
   const env = setupDom();
   try {
     const root = createRoot(document.getElementById('root')!);
@@ -151,9 +151,6 @@ test('Escape closes the Session Map when overlay-local surfaces are inactive', a
       );
     });
 
-    assert.equal(document.querySelector('[data-commander-trigger="true"]'), null);
-    assert.ok(document.querySelector('[aria-label="Session map"]'));
-
     await act(async () => {
       window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
@@ -168,7 +165,7 @@ test('Escape closes the Session Map when overlay-local surfaces are inactive', a
   }
 });
 
-test('close button closes the Session Map overlay', async () => {
+test('close button dismisses the whole Session Map overlay', async () => {
   const env = setupDom();
   try {
     const root = createRoot(document.getElementById('root')!);

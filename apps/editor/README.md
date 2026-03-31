@@ -44,7 +44,7 @@
 - Explorer can paste files or screenshots from the system clipboard, applying `-1` style conflict suffixes.
 - Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
 - Explorer includes a bounded research lane for public URL inspection, reader preview, workspace Markdown save, memo citation with optional saved-file references, and an explicit system-browser escape hatch.
-- The workbench supports multi-tab previews, quick open, diff/blame toggles, media previews, active-tab disk-change auto sync (auto-reload when clean, warning + reload when dirty), project-level language rules from `.agency/workbench.yaml` / `.agency/workbench.yml`, and a window-local document language control that shows `Auto` / `Project Rule` / `Local Override`.
+- The workbench supports multi-tab previews, a path-first Quick Open launcher for open tabs and project files with optional `:line[:column]` targeting, diff/blame toggles, media previews, active-tab disk-change auto sync (auto-reload when clean, warning + reload when dirty), project-level language rules from `.agency/workbench.yaml` / `.agency/workbench.yml`, and a window-local document language control that shows `Auto` / `Project Rule` / `Local Override`.
 
 ## Unified File Interaction Direction
 
@@ -120,6 +120,9 @@
 
 ## Memo Drawer Interactions
 
+- Memo is the primary user-facing artifact workspace noun; HIL remains an internal storage term rather than a competing panel label.
+- The right-side drawer now keeps one Memo-facing language across Comments, Drafts, and Capture instead of mixing ad-hoc labels per panel.
+- Comments emphasizes `context -> snippet evidence -> note -> submit`, while Promote emphasizes `selected records -> execution lane -> gate -> dispatch state`.
 - Memo drawer shortcut cards are interactive capture surfaces and do not switch the main Memo panel when clicked.
 - Use the explicit "View Records" action on a shortcut card to switch the main Memo inbox section.
 - After a capture is confirmed and saved, the main Memo panel switches to the corresponding inbox section.
@@ -148,7 +151,9 @@
 - Session action failures no longer rely only on transient notices; `Command Ops` keeps the latest error visible until explicitly dismissed and supports copying the full text.
 - Attention now uses one vocabulary across shell chrome, Agent Cells, and Session Map: `Running`, `Failed`, `Confirm`, `Unread`, and `Review`.
 - The status bar shows the current top-priority attention item for the active Agency context and can jump directly to its owning object.
+- The status bar `Next` tooltip expands that shared attention label into a short destination-aware sentence so hover/focus explains where activation will go (`Jump to session`, `Open Session Map`, `Open evidence in Session Map`, or `Focus window`).
 - The app-shell right-side attention rail owns the current-window `Priority Queue` and Commander `Briefing`.
+- In Agent Cells, that same right-side launcher rail also carries the `Session Reply Relay` entry at its lower end so the window keeps one right-edge launcher spine while `Attention`, `Commander`, and `Reply` remain distinct surfaces.
 - `Priority Queue` stays summary-first in that shell rail; long errors and timeline payloads belong in the Session Map `Ops` evidence area instead of expanding queue rows into log cards.
 - `Unread` is reserved for meaningful post-visit output; transient blur, attach replay, or silent refresh noise should not flip a session into `Unread` immediately.
 - Agent Cells keeps attention inline on Cell and Session affordances instead of inserting a separate attention queue above the management list.
@@ -195,6 +200,7 @@
 - Agent prompts are stored at `.agency/cells/<cell-id>/reply-quick-prompts.yaml`.
 - Effective prompts resolve by ordered union + dedupe (Global -> Project -> Agent) using normalized prompt text.
 - The Session Reply composer provides `快捷回复如何` near input controls and inserts the selected resolved prompt at the current cursor position.
+- In Agent Cells, `Session Reply Relay` may be opened from the shared shell right-edge launcher rail rather than a separate drawer-edge handle; the relay remains session-bound even though the launcher chrome is shared.
 
 ## Session Naming
 
@@ -262,7 +268,8 @@ pnpm run package
 Artifacts are written to `apps/editor/dist/release` (DMG + ZIP). Install by opening the DMG or unzipping the app and dragging `Agency.app` to `/Applications`.
 Unsigned builds may require Gatekeeper bypass (right-click → Open once, or run `xattr -dr com.apple.quarantine /Applications/Agency.app`).
 Packaging uses `TMPDIR=/tmp` to avoid `hdiutil` failures on some macOS setups.
-Packaging now runs a disk-space preflight before build/sign/DMG work. If free space is below the safe threshold, the preflight first deletes stale generated outputs under `apps/editor/dist/release` that would be overwritten by the current mode, then fails fast with cleanup guidance instead of spending minutes before `hdiutil` errors.
+Packaging now runs a preparation step before build/sign/DMG work. The prepare step checks disk space on the project volume, `/tmp`, and the Electron Builder cache volume, then clears stale generated outputs under `apps/editor/dist/release` that would conflict with the current mode before continuing.
+Packaging commands are intentionally packageability-first: they verify that the desktop artifact can be produced, but they do not enforce the renderer bundle budget gate.
 
 From repo root:
 
@@ -280,6 +287,14 @@ For a lower-peak local DMG build (DMG only, no ZIP), run:
 
 ```bash
 make editor-package-lite
+```
+
+To package while also enforcing the renderer budget gate, use the release variants:
+
+```bash
+make editor-package-release
+make editor-package-lite-release
+make editor-package-dir-release
 ```
 
 For an unpacked build (no DMG), run:
@@ -320,13 +335,32 @@ Validate the renderer boot bundle budget from `apps/editor` with:
 pnpm run check:renderer-bundle-budget
 ```
 
-`pnpm run build:renderer` now runs this budget check automatically after the Vite build.
+Build semantics are split on purpose:
+
+```bash
+pnpm run build:renderer
+pnpm run build:renderer:budget
+pnpm run accept:renderer-bundle-budget
+```
+
+- `build:renderer` only emits renderer artifacts.
+- `build:renderer:budget` rebuilds the renderer and then enforces the bundle budget gate.
+- `accept:renderer-bundle-budget` refreshes the accepted-state file after an intentional budget decision.
+- The budget gate uses `apps/editor/scripts/renderer-bundle-budget.accepted.json` as an accepted-state ratchet, not as a fixed universal ceiling.
+- Gzip budgets remain hard failures against the accepted state plus small allowances; raw CSS drift is reported as a warning so minor Tailwind churn does not block local packaging.
+- Local override env vars are intentionally ignored on `*-release` packaging entrypoints. To experiment locally with override thresholds, set `AGENCY_RENDERER_ALLOW_OVERRIDE=1` before running the standalone budget command.
+- Release-gated packaging belongs on the explicit `*-release` entrypoints; packageability-first commands stay local and non-blocking by design.
+- Packaging now relies on electron-builder's default Electron distribution resolution instead of pointing `build.electronDist` at `node_modules/electron/dist`. This avoids mutating the installed Electron skeleton during local packaging runs.
 
 ## Makefile (from repo root)
 
 ```bash
 make editor-install
 make editor-dev
+make editor-accept-renderer-budget
+make editor-build-renderer-budget
+make editor-package-release
+make editor-package-lite-release
 ```
 
 ## Environment Flags
@@ -354,7 +388,7 @@ make editor-dev
 - Create a memo citation from the same research capture and confirm it enters the existing HIL/Memo flow rather than a research-only dispatch path.
 - Try a localhost/private URL and confirm reader inspect is rejected while the explicit system-browser escape hatch remains visible.
 - Double-click a file to pin its tab, drag tabs to reorder, and close tabs from the tab strip menu.
-- Use Cmd/Ctrl+P to quick-open a file and confirm it opens as a preview tab.
+- Use Cmd/Ctrl+P to open Quick Open, confirm open tabs appear immediately, then search a project file and confirm selection closes the launcher and opens the file as a preview tab. Repeat with `path:line[:column]` and confirm the editor jumps to the requested location.
 - Toggle diff and blame on a modified file and confirm decorations/hover metadata appear.
 - Edit an opened file on disk outside Agency and confirm the active tab auto-refreshes when clean, or shows a reload warning when the tab has unsaved edits.
 - Open an image or PDF file and confirm media preview renders with zoom/fit controls.
@@ -383,6 +417,10 @@ make editor-dev
 - Switch away from a session and back without meaningful new output, and confirm it does not immediately become `Unread` just because of transient blur, attach replay, or silent refresh noise.
 - Trigger `Smart Fork [by commander]` or another `Create Agent` run and confirm Agent Cells keeps the list primary while exposing inline `Running`, the status bar shows `Running`, the shell right-side rail owns the queue-style triage path, and Session Map `Ops` stays focused on evidence.
 - Trigger a failed child-execution run and confirm Agent Cells inline markers, the shell right-side `Priority Queue`, and the status bar all surface the same `Failed` attention without introducing a separate Agent Cells queue card.
+- Trigger a pending lifecycle confirmation and confirm the status bar `Next` label stays `Confirm`, while its tooltip expands that same canonical state into a full sentence and explains that activation will open `Session Map`.
+- Finish a child-execution run that creates a child session, hover `Next`, and confirm the visible label stays `Review` while the tooltip expands that same canonical state and explains that activation will jump back to the child session.
+- Hover or focus `Next` for `Unread`, `Running`, `Failed`, and cross-window attention cases, and confirm the tooltip keeps the shared state vocabulary in view while also naming the real destination instead of collapsing into destination-only copy.
+- Trigger a `Running` or `Failed` item that opens evidence rather than a direct session jump, hover `Next`, and confirm the tooltip explicitly says `Open evidence in Session Map`.
 - Finish a child-execution run that creates a child session, do not revisit that child, and confirm Agency surfaces `Review` / return-required attention until the child session is visited.
 - Open a second Agency window, create a higher-priority failure there, and confirm the current window's switcher surfaces that other window's primary attention state before you focus it.
 - Add a quick action with both commands and verify start/resume run in the active session.

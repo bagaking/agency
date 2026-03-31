@@ -1,5 +1,4 @@
 import { useCallback, useMemo } from 'react';
-import type { ActiveView } from './appLayoutContracts';
 
 import { BASELINE_PROFILE_ID } from '../utils/terminusSettings';
 
@@ -11,11 +10,11 @@ type UseSessionReplyContextArgs = {
   replySelectionByKey: Record<string, any>;
   resolvedBindingsByProfile: any;
   projectRoot: string;
-  setActiveView: (view: ActiveView) => void;
-  sidebarCollapsed: boolean;
-  setSidebarCollapsed: (value: boolean) => void;
+  setActiveView?: (view: any) => void;
+  sidebarCollapsed?: boolean;
+  setSidebarCollapsed?: (value: boolean) => void;
   setReplySelectionByKey: (value: any) => void;
-  setDockSelection: (value: any) => void;
+  setDockSelection?: (value: any) => void;
   handleSelectSessionFromMap: (cellId: string, sessionId: string, options?: { focusView?: boolean }) => void;
 };
 
@@ -27,11 +26,7 @@ export function useSessionReplyContext({
   replySelectionByKey,
   resolvedBindingsByProfile,
   projectRoot,
-  setActiveView,
-  sidebarCollapsed,
-  setSidebarCollapsed,
   setReplySelectionByKey,
-  setDockSelection,
   handleSelectSessionFromMap,
 }: UseSessionReplyContextArgs) {
   const terminusProfiles = useMemo(
@@ -96,18 +91,6 @@ export function useSessionReplyContext({
     [handleSelectSessionFromMap]
   );
 
-  const handleJumpToReplyMemo = useCallback(() => {
-    setActiveView('memo');
-    if (sidebarCollapsed) {
-      setSidebarCollapsed(false);
-    }
-    setDockSelection({
-      type: 'inbox',
-      inboxType: 'reply',
-      draftId: null,
-    });
-  }, [setActiveView, sidebarCollapsed, setSidebarCollapsed, setDockSelection]);
-
   const handleClearReplySelection = useCallback(() => {
     if (!replySelectionKey) {
       return;
@@ -130,7 +113,6 @@ export function useSessionReplyContext({
     activeReplySelection,
     sessionNamingPreviewContext,
     handleJumpToSession,
-    handleJumpToReplyMemo,
     handleClearReplySelection,
   };
 }
