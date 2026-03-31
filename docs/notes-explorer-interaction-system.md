@@ -42,6 +42,7 @@ Current boundary:
 - Activity Bar owns left-sidebar collapse and expand;
 - `SidebarDock` owns width and resize only;
 - Explorer header should not spend precious title-row space repeating shell-level collapse affordances.
+- Explorer header should read as calm file-context chrome, not as a second surface competing with the tree itself.
 
 ### One execution hub, not many ad hoc file UIs
 
@@ -370,6 +371,16 @@ The Explorer left-tree list is the canonical file view, so each row needs a pred
 Ignored-entry treatment belongs squarely in that visibility layer: when `visibility.ignored` is disabled the rows disappear, but their row state (selection/focus/multi-select) stays preserved so re-enabling the filter immediately reconnects to the same row rather than auto-selecting a neighbor. When ignored entries are exposed the row should still honor the higher-priority state (for example, selection and focus keep dictating available commands) even while the row continues to surface its ignored metadata, which keeps reveal/open flows and Action Sheet dispatch consistent with tracked files.
 
 That means ignored rows should be de-emphasized, not visually “crossed out” as if they were deleted or broken. The row still needs to read like a valid, actionable file row. In practice the file name should stay legible, the ignored cue should be lighter than selection/focus, and row metadata should collapse to the most important workbench state instead of stacking equal-weight badges that compete with the file name.
+
+### Header Hierarchy
+
+The Explorer header exists to frame the current file scope, not to become a second surface above the tree. It should compress title, search mode, filter state, and utility actions into calm chrome that the user can read quickly and then ignore. The header is successful when the file rows remain the first thing the eye reads after opening Explorer.
+
+That means:
+- shell-level collapse/expand stays outside the header;
+- root/context labels should read as one quiet context line instead of stacked hero copy;
+- search/filter/working-set controls should stay legible without turning into a row of equally loud pills;
+- the list itself, not the header, remains the primary visual surface.
 
 ### Validation Notes
 

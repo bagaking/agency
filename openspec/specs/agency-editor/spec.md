@@ -1061,6 +1061,15 @@ Workbench activity metadata within a row SHALL prioritize the most important cur
 - **WHEN** a file row is both open in the workbench and has unsaved edits
 - **THEN** the row surfaces the higher-priority unsaved state instead of presenting two competing workbench-state badges
 
+### Requirement: Explorer Shell Hierarchy
+The Explorer shell SHALL keep title, search, filter, and working-set chrome subordinate to the tree rows they control.
+The shell SHALL present current context clearly without visually competing with the file list.
+
+#### Scenario: Header chrome stays subordinate to the tree
+- **WHEN** the Explorer header renders root context, search controls, and filter state
+- **THEN** those controls remain legible as file-context chrome
+- **AND** the tree rows continue to read as the primary visual surface
+
 ### Requirement: Explorer Keyboard Navigation
 The explorer SHALL support keyboard navigation (up/down, left/right to expand/collapse, Enter to open, F2 to rename).
 

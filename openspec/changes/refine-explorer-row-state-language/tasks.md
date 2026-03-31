@@ -9,15 +9,15 @@
 - [x] 2.2 Clarify hover / focus / selection hierarchy so row ownership reads more clearly.
 - [x] 2.3 Reduce row metadata density so file names stay primary.
 - [x] 2.4 Add focused renderer tests for the updated row-state behavior.
-- [ ] 2.5 Commit the checkpoint before review.
-- [ ] 2.6 Run parallel review and apply checkpoint fixes.
-- [ ] 2.7 Commit the reviewed row-state checkpoint.
+- [x] 2.5 Commit the checkpoint before review.
+- [x] 2.6 Run parallel review and apply checkpoint fixes.
+- [x] 2.7 Commit the reviewed row-state checkpoint.
 
 ## 3. Checkpoint 2: Header And Contract
 
-- [ ] 3.1 Refine the Explorer header so it stops competing with the list.
-- [ ] 3.2 Update docs/specs so ignored-entry treatment and row-state hierarchy survive reset.
-- [ ] 3.3 Keep the header aligned with shell-owned sidebar boundaries so it remains file-context chrome rather than a second local surface.
+- [x] 3.1 Refine the Explorer header so it stops competing with the list.
+- [x] 3.2 Update docs/specs so ignored-entry treatment and row-state hierarchy survive reset.
+- [x] 3.3 Keep the header aligned with shell-owned sidebar boundaries so it remains file-context chrome rather than a second local surface.
 - [ ] 3.4 Commit the header/spec checkpoint before review.
 - [ ] 3.5 Run parallel review and apply checkpoint fixes.
 - [ ] 3.6 Commit the reviewed final checkpoint.
