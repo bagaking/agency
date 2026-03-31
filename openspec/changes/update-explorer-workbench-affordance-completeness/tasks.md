@@ -19,6 +19,6 @@
 - [x] 3.2 Deepen the most visible Explorer/Workbench thin-capability seams without bloating the architecture.
 - [x] 3.3 Update spec/docs for final shipped boundaries and rationale.
 - [x] 3.4 Add or extend targeted regression coverage.
-- [ ] 3.5 Commit a checkpoint version before review.
-- [ ] 3.6 Run parallel review and apply checkpoint fixes.
+- [x] 3.5 Commit a checkpoint version before review.
+- [x] 3.6 Run parallel review and apply checkpoint fixes.
 - [ ] 3.7 Commit the reviewed final version.

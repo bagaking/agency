@@ -917,10 +917,30 @@ The workbench SHALL preview common media files (images, video, audio, PDF) with 
 
 ### Requirement: Workbench Navigation Aids
 The workbench SHALL display breadcrumbs for the active file and provide a quick-open affordance.
+The quick-open affordance SHALL behave like a navigation surface rather than a misleading generic search button.
+The quick-open surface SHALL accept optional `:line[:column]` suffixes and use them as in-editor jump targets after opening or focusing the selected file.
 
 #### Scenario: Quick-open a file
 - **WHEN** a user invokes quick-open and selects a file
-- **THEN** the editor opens the file in a new workbench tab
+- **THEN** the editor opens or activates the selected file target
+- **AND** the quick-open surface closes after the selection is accepted
+
+#### Scenario: Quick-open prioritizes already open context
+- **WHEN** a user invokes quick-open
+- **THEN** the surface may show open-tab matches ahead of broader project file matches
+- **AND** the affordance label remains truthful to that capability
+
+#### Scenario: Quick-open targets a location inside the file
+- **WHEN** a user enters a quick-open query with `:line` or `:line:column`
+- **THEN** the editor opens or focuses the selected file
+- **AND** places the cursor at the requested location
+
+### Requirement: Workbench Affordance Truthfulness
+The workbench MUST NOT expose primary toolbar controls for layout capabilities that are not actually implemented.
+
+#### Scenario: Split editor is unavailable
+- **WHEN** split-editor layout is not implemented
+- **THEN** the workbench does not expose a primary `Split` control that implies the feature already exists
 
 ### Requirement: Editor Packaging Workflow
 The repository SHALL provide a packaging workflow for the Agency Editor that produces macOS installable artifacts.

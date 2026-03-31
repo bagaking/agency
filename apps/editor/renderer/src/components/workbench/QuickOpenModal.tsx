@@ -118,10 +118,16 @@ export function QuickOpenModal({
               }
               if (event.key === 'ArrowDown') {
                 event.preventDefault();
+                if (!visible.length) {
+                  return;
+                }
                 setActiveIndex((current) => Math.min(current + 1, visible.length - 1));
               }
               if (event.key === 'ArrowUp') {
                 event.preventDefault();
+                if (!visible.length) {
+                  return;
+                }
                 setActiveIndex((current) => Math.max(current - 1, 0));
               }
               if (event.key === 'Enter' && visible[activeIndex]) {
@@ -139,7 +145,7 @@ export function QuickOpenModal({
         <div className="px-4 pt-2 text-[10px] text-muted-foreground/70">
           Type a path, or add <span className="font-mono">:line[:column]</span> to jump inside the file.
         </div>
-        <div className="max-h-[320px] overflow-y-auto">
+        <div className="max-h-[320px] overflow-y-auto" role="listbox" aria-label="Quick Open results">
           {!query.trim() && sections.length > 0 ? (
             <div className="px-4 pt-3 text-[11px] text-muted-foreground">
               Jump directly to an open tab, or start typing to search project files.
@@ -197,6 +203,8 @@ function QuickOpenRow({
   return (
     <button
       type="button"
+      role="option"
+      aria-selected={active}
       className={`flex w-full items-center gap-3 px-4 py-2 text-left transition-colors ${
         active
           ? 'bg-muted/60 text-foreground'
