@@ -9,8 +9,8 @@
 - [x] 2.2 Clarify the Workbench quick-open affordance in UI copy and interaction grammar.
 - [x] 2.3 Update spec and README to reflect the shipped Workbench navigation surface accurately.
 - [x] 2.4 Add targeted regression coverage for the Workbench quick-open/affordance shell.
-- [ ] 2.5 Commit a checkpoint version before review.
-- [ ] 2.6 Run parallel review and apply checkpoint fixes.
+- [x] 2.5 Commit a checkpoint version before review.
+- [x] 2.6 Run parallel review and apply checkpoint fixes.
 - [ ] 2.7 Commit the reviewed checkpoint version.
 
 ## 3. Checkpoint 2: Capability Depth

@@ -48,6 +48,12 @@ function setupDom() {
     configurable: true,
     value: dom.window.navigator,
   });
+  if (!(dom.window.HTMLElement.prototype as any).attachEvent) {
+    (dom.window.HTMLElement.prototype as any).attachEvent = () => undefined;
+  }
+  if (!(dom.window.HTMLElement.prototype as any).detachEvent) {
+    (dom.window.HTMLElement.prototype as any).detachEvent = () => undefined;
+  }
 
   return {
     cleanup() {

@@ -92,7 +92,13 @@ export function QuickOpenModal({
         }
       }}
     >
-      <div className="w-[520px] rounded border border-border bg-popover shadow-xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Quick Open"
+        data-testid="workbench-quick-open"
+        className="w-[520px] rounded border border-border bg-popover shadow-xl"
+      >
         <div className="flex items-center gap-2 border-b border-border px-3 py-2 text-xs text-muted-foreground">
           <Search size={14} />
           <input
