@@ -156,7 +156,7 @@ test('ExplorerItem shows a single prioritized row state badge and status indicat
 
     const openBadge = document.querySelector('[data-explorer-state="open"]');
     const dirtyBadge = document.querySelector('[data-explorer-state="dirty"]');
-    const statusIndicator = document.querySelector('span[role="status"][title="Modified"]');
+    const statusIndicator = document.querySelector('[data-explorer-status="modified"][title="Modified"]');
 
     assert.ok(openBadge);
     assert.equal(openBadge?.textContent, 'Open');
@@ -185,7 +185,7 @@ test('ExplorerItem keeps ignored entries legible and prioritizes dirty over open
       isOpen={true}
       isDirty={true}
       isIgnored={true}
-      status="ignored"
+      status={undefined}
       added={0}
       deleted={0}
       semanticTags={[]}
@@ -207,7 +207,8 @@ test('ExplorerItem keeps ignored entries legible and prioritizes dirty over open
   );
 
   assert.doesNotMatch(html, /line-through/);
-  assert.match(html, />Unsaved</);
+  assert.match(html, />Dirty</);
   assert.doesNotMatch(html, />Open</);
   assert.match(html, /ignored\.log/);
+  assert.match(html, /data-explorer-ignored="true"/);
 });

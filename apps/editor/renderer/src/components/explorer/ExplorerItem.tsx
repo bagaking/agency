@@ -3,6 +3,7 @@ import {
   ChevronRight, 
   ChevronDown, 
   RefreshCw, 
+  EyeOff,
   Link2,
   MessageSquare,
   FolderPlus,
@@ -79,7 +80,7 @@ export function ExplorerItem({
   const rowStateBadge = isDirty
     ? {
         key: 'dirty',
-        label: 'Unsaved',
+        label: 'Dirty',
         className: `${rowStateBadgeBase} bg-amber-400/[0.12] text-amber-200/90 border-amber-200/40`,
       }
     : isOpen
@@ -172,8 +173,8 @@ export function ExplorerItem({
         />
         {status && (
           <span
-            role="status"
-            aria-label={statusLabel}
+            data-explorer-status={status}
+            aria-hidden="true"
             title={statusLabel}
             className={`pointer-events-none absolute -bottom-1 -left-1 flex h-4 w-4 items-center justify-center rounded-full border border-white/10 text-[7px] font-semibold uppercase tracking-[0.3em] ${statusIndicatorTone}`}
           >
@@ -183,6 +184,19 @@ export function ExplorerItem({
         {isLink && (
           <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-[0.5px] ring-1 ring-sky-500/50">
             <Link2 size={8} className="text-sky-400" strokeWidth={3} />
+          </div>
+        )}
+        {isIgnored && (
+          <div
+            data-explorer-ignored="true"
+            aria-hidden="true"
+            className={`absolute -top-1 -right-1 rounded-full p-[0.5px] ring-1 ring-white/10 ${
+              isSelected || isFocused
+                ? 'bg-background/95 text-slate-300/84'
+                : 'bg-background/88 text-slate-400/68 group-hover:text-slate-300/82'
+            }`}
+          >
+            <EyeOff size={8} className="text-current" strokeWidth={2} />
           </div>
         )}
       </div>

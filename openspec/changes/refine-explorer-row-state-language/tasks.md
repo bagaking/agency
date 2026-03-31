@@ -15,11 +15,12 @@
 
 ## 3. Checkpoint 2: Header And Contract
 
-- [x] 3.1 Refine the Explorer header so it stops competing with the list.
-- [x] 3.2 Update docs/specs so ignored-entry treatment and row-state hierarchy survive reset.
-- [ ] 3.3 Commit the header/spec checkpoint before review.
-- [ ] 3.4 Run parallel review and apply checkpoint fixes.
-- [ ] 3.5 Commit the reviewed final checkpoint.
+- [ ] 3.1 Refine the Explorer header so it stops competing with the list.
+- [ ] 3.2 Update docs/specs so ignored-entry treatment and row-state hierarchy survive reset.
+- [ ] 3.3 Keep the header aligned with shell-owned sidebar boundaries so it remains file-context chrome rather than a second local surface.
+- [ ] 3.4 Commit the header/spec checkpoint before review.
+- [ ] 3.5 Run parallel review and apply checkpoint fixes.
+- [ ] 3.6 Commit the reviewed final checkpoint.
 
 ## 4. Verification
 

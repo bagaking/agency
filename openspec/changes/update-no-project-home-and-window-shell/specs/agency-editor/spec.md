@@ -36,6 +36,23 @@ The Project Home surface SHALL foreground:
 
 ## MODIFIED Requirements
 
+### Requirement: Project Root Selection
+The editor SHALL allow users to select a project directory when none is configured.
+The editor SHALL persist the selected project directory locally and restore it on launch.
+When no project is configured, the window SHALL stay in a window-owned home state instead of projecting synthetic Project, Cell, or Session objects.
+
+#### Scenario: Launch without project
+- **WHEN** the editor starts with no configured project directory
+- **THEN** the Explorer view is the default
+- **AND** a Project Home UI prompts the user to choose a project directory
+- **AND** the no-project window does not route through synthetic Cell/session identities
+- **AND** startup does not auto-expand the right-side attention rail or HIL drawer over the Project Home surface
+
+#### Scenario: Restore last project
+- **WHEN** a user selects a project directory
+- **THEN** the editor stores it locally
+- **AND** the next launch opens that project by default
+
 ### Requirement: Agent Cells Empty State
 When no project directory is configured, the Agent Cells surface SHALL show a window-owned home/placeholder state instead of a synthetic Cell row with Cell/session-owned affordances.
 Only window-owned actions that do not require a project-backed Cell SHALL be enabled until a project directory is selected.
@@ -53,3 +70,12 @@ Selecting a recent project SHALL open it and set the active project root.
 - **WHEN** a user selects a recent project from the no-project sidebar
 - **THEN** the editor switches to that project and loads its Cells
 - **AND** the current window leaves the no-project home state
+
+### Requirement: Project Home Surface Craft
+The no-project `Project Home` surface SHALL read as one primary work surface instead of a bordered dashboard split into independent side columns.
+The startup state SHALL prioritize larger surface groupings and restrained chrome over repeated outline boxes.
+
+#### Scenario: Startup uses a single primary no-project surface
+- **WHEN** a no-project window first appears
+- **THEN** the main `Project Home` composition reads as one coherent primary surface
+- **AND** it does not reserve a separately expanded right-side shell column before the home shell is opened
