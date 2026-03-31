@@ -3,15 +3,18 @@ import path from 'node:path';
 
 import {
   AGENCY_DIR,
-  getStoragePaths,
+  requireOwnerStorage,
   sanitizeStorageSegment,
+  type OwnerStorageResolution,
   type WorktreeStorageContext,
 } from './storageRoots';
 import { readYamlFile, writeYamlFileAtomic } from './yamlStore';
 
 const SESSION_REPLIES_DIR = 'session-replies';
 const REPLY_INDEX_PREFIX = 'index-';
+const REPLY_INDEX_FILENAME = 'index.yaml';
 const YAML_EXT = '.yaml';
+const LEGACY_HIL_DIR = 'hil';
 const fsp = fs.promises;
 
 export type SessionReplyTarget = {
@@ -72,31 +75,108 @@ type SessionReplyIndex = {
 
 type LegacyHilReply = Record<string, any>;
 
-function getReplyIndexPath(worktreePath: string, projectRootPath?: string): string {
-  const { storageRootPath, worktreeName } = getStoragePaths({ worktreePath, projectRootPath });
-  return path.join(storageRootPath, AGENCY_DIR, SESSION_REPLIES_DIR, `${REPLY_INDEX_PREFIX}${worktreeName}${YAML_EXT}`);
+type SessionReplyStorageInput =
+  | string
+  | (WorktreeStorageContext & {
+      repoRootPath?: string;
+      rootPath?: string;
+      cellId?: string;
+    });
+
+type SessionReplyStoragePaths = {
+  owner: OwnerStorageResolution;
+  indexPath: string;
+  repliesRoot: string;
+  legacyIndexPath: string;
+  legacyRepliesRoot: string;
+  legacyHilIndexPath: string;
+  legacyHilReplyRoot: string;
+};
+
+function normalizeText(value: unknown): string {
+  return String(value || '').trim();
 }
 
-function getReplyTreeRoot(context: WorktreeStorageContext): string {
-  const { storageRootPath, worktreeName } = getStoragePaths(context);
-  return path.join(storageRootPath, AGENCY_DIR, SESSION_REPLIES_DIR, worktreeName);
+function normalizeSessionReplyStorageInput(
+  input: SessionReplyStorageInput = {},
+  ownerCellId = ''
+): {
+  worktreePath: string;
+  projectRootPath: string;
+  cellId: string;
+} {
+  if (typeof input === 'string') {
+    return {
+      worktreePath: normalizeText(input),
+      projectRootPath: '',
+      cellId: sanitizeStorageSegment(ownerCellId, ''),
+    };
+  }
+  return {
+    worktreePath: normalizeText(input.worktreePath),
+    projectRootPath: normalizeText(
+      input.projectRootPath || input.repoRootPath || input.rootPath
+    ),
+    cellId: sanitizeStorageSegment(input.cellId || ownerCellId, ''),
+  };
 }
 
-function getReplyArtifactPath(worktreePath: string, item: SessionReplyItem): string {
-  const base = getReplyTreeRoot({ worktreePath });
-  const cellId = sanitizeStorageSegment(item.owner?.cellId, 'cell');
-  const sessionId = sanitizeStorageSegment(item.owner?.sessionId, 'session');
-  return path.join(base, 'sessions', cellId, sessionId, `${item.id}${YAML_EXT}`);
+function getLegacyReplyIndexPath(worktreePath: string): string {
+  const normalizedWorktreePath = path.resolve(worktreePath);
+  const worktreeName = path.basename(normalizedWorktreePath);
+  return path.join(
+    normalizedWorktreePath,
+    AGENCY_DIR,
+    SESSION_REPLIES_DIR,
+    `${REPLY_INDEX_PREFIX}${worktreeName}${YAML_EXT}`
+  );
+}
+
+function getLegacyReplyRoot(worktreePath: string): string {
+  const normalizedWorktreePath = path.resolve(worktreePath);
+  const worktreeName = path.basename(normalizedWorktreePath);
+  return path.join(normalizedWorktreePath, AGENCY_DIR, SESSION_REPLIES_DIR, worktreeName);
 }
 
 function getLegacyHilIndexPath(worktreePath: string): string {
-  const { storageRootPath, worktreeName } = getStoragePaths({ worktreePath });
-  return path.join(storageRootPath, AGENCY_DIR, 'hil', `index-${worktreeName}${YAML_EXT}`);
+  const normalizedWorktreePath = path.resolve(worktreePath);
+  const worktreeName = path.basename(normalizedWorktreePath);
+  return path.join(normalizedWorktreePath, AGENCY_DIR, LEGACY_HIL_DIR, `index-${worktreeName}${YAML_EXT}`);
 }
 
-function getLegacyHilReplyArtifactPath(worktreePath: string, replyId: string): string {
-  const { storageRootPath, worktreeName } = getStoragePaths({ worktreePath });
-  return path.join(storageRootPath, AGENCY_DIR, 'hil', worktreeName, 'items', 'reply', `${replyId}${YAML_EXT}`);
+function getLegacyHilReplyRoot(worktreePath: string): string {
+  const normalizedWorktreePath = path.resolve(worktreePath);
+  const worktreeName = path.basename(normalizedWorktreePath);
+  return path.join(normalizedWorktreePath, AGENCY_DIR, LEGACY_HIL_DIR, worktreeName, 'items', 'reply');
+}
+
+function resolveSessionReplyStoragePaths(
+  input: SessionReplyStorageInput = {},
+  ownerCellId = ''
+): SessionReplyStoragePaths {
+  const normalized = normalizeSessionReplyStorageInput(input, ownerCellId);
+  const owner = requireOwnerStorage(
+    normalized,
+    'cell',
+    'worktreePath or projectRootPath + cellId is required.'
+  );
+  const legacyWorktreeName = owner.legacy?.worktreeName || 'repo';
+  const repliesRoot =
+    owner.mode === 'canonical'
+      ? path.join(owner.ownerRoot, SESSION_REPLIES_DIR)
+      : path.join(owner.ownerRoot, SESSION_REPLIES_DIR, legacyWorktreeName);
+  return {
+    owner,
+    indexPath:
+      owner.mode === 'canonical'
+        ? path.join(repliesRoot, REPLY_INDEX_FILENAME)
+        : path.join(owner.ownerRoot, SESSION_REPLIES_DIR, `${REPLY_INDEX_PREFIX}${legacyWorktreeName}${YAML_EXT}`),
+    repliesRoot,
+    legacyIndexPath: owner.worktreePath ? getLegacyReplyIndexPath(owner.worktreePath) : '',
+    legacyRepliesRoot: owner.worktreePath ? getLegacyReplyRoot(owner.worktreePath) : '',
+    legacyHilIndexPath: owner.worktreePath ? getLegacyHilIndexPath(owner.worktreePath) : '',
+    legacyHilReplyRoot: owner.worktreePath ? getLegacyHilReplyRoot(owner.worktreePath) : '',
+  };
 }
 
 function normalizeReplyTarget(raw: Record<string, any> = {}): SessionReplyTarget {
@@ -229,30 +309,77 @@ function convertLegacyHilReply(raw: LegacyHilReply): SessionReplyItem | null {
   };
 }
 
-async function readReplyIndex(worktreePath: string): Promise<SessionReplyIndex> {
-  const indexPath = getReplyIndexPath(worktreePath);
-  const parsed = await readYamlFile<Record<string, any>>(indexPath, { version: 1, items: [] }, { backupCorrupt: true });
+function getReplyArtifactPath(paths: SessionReplyStoragePaths, item: SessionReplyItem): string {
+  const sessionId = sanitizeStorageSegment(item.owner?.sessionId, 'session');
+  if (paths.owner.mode === 'canonical') {
+    return path.join(paths.repliesRoot, 'sessions', sessionId, `${item.id}${YAML_EXT}`);
+  }
+  const cellId = sanitizeStorageSegment(item.owner?.cellId, 'cell');
+  return path.join(paths.repliesRoot, 'sessions', cellId, sessionId, `${item.id}${YAML_EXT}`);
+}
+
+function getLegacyHilReplyArtifactPath(paths: SessionReplyStoragePaths, replyId: string): string {
+  return path.join(paths.legacyHilReplyRoot, `${replyId}${YAML_EXT}`);
+}
+
+async function readReplyIndex(paths: SessionReplyStoragePaths): Promise<SessionReplyIndex> {
+  const parsed = await readYamlFile<Record<string, any>>(
+    paths.indexPath,
+    { version: 1, items: [] },
+    { backupCorrupt: true }
+  );
   return {
     version: Number(parsed.version || 1),
     items: Array.isArray(parsed.items) ? parsed.items.map((item) => normalizeSessionReplyItem(item)).filter(Boolean) : [],
   };
 }
 
-async function writeReplyIndex(worktreePath: string, payload: SessionReplyIndex): Promise<void> {
-  await writeYamlFileAtomic(getReplyIndexPath(worktreePath), payload);
+async function writeReplyIndex(paths: SessionReplyStoragePaths, payload: SessionReplyIndex): Promise<void> {
+  await writeYamlFileAtomic(paths.indexPath, payload);
 }
 
-async function writeReplyArtifact(worktreePath: string, item: SessionReplyItem): Promise<void> {
-  await writeYamlFileAtomic(getReplyArtifactPath(worktreePath, item), item);
+async function writeReplyArtifact(paths: SessionReplyStoragePaths, item: SessionReplyItem): Promise<void> {
+  await writeYamlFileAtomic(getReplyArtifactPath(paths, item), item);
 }
 
-async function ensureReplyIndex(worktreePath: string): Promise<SessionReplyIndex> {
-  const index = await readReplyIndex(worktreePath);
-  const legacyHilIndex = await readYamlFile<Record<string, any>>(
-    getLegacyHilIndexPath(worktreePath),
+async function seedCanonicalReplyIndexFromLegacy(
+  paths: SessionReplyStoragePaths
+): Promise<SessionReplyIndex | null> {
+  if (paths.owner.mode !== 'canonical' || !paths.legacyIndexPath || !fs.existsSync(paths.legacyIndexPath)) {
+    return null;
+  }
+  const legacyParsed = await readYamlFile<Record<string, any>>(
+    paths.legacyIndexPath,
     { version: 1, items: [] },
     { backupCorrupt: true }
   );
+  const nextIndex: SessionReplyIndex = {
+    version: Number(legacyParsed.version || 1),
+    items: Array.isArray(legacyParsed.items)
+      ? legacyParsed.items.map((item) => normalizeSessionReplyItem(item)).filter(Boolean)
+      : [],
+  };
+  if (!nextIndex.items.length) {
+    return null;
+  }
+  await writeReplyIndex(paths, nextIndex);
+  await Promise.all(nextIndex.items.map((item) => writeReplyArtifact(paths, item)));
+  return nextIndex;
+}
+
+async function ensureReplyIndex(paths: SessionReplyStoragePaths): Promise<SessionReplyIndex> {
+  let index = await readReplyIndex(paths);
+  if (paths.owner.mode === 'canonical' && !fs.existsSync(paths.indexPath)) {
+    index = (await seedCanonicalReplyIndexFromLegacy(paths)) || index;
+  }
+
+  const legacyHilIndex = paths.legacyHilIndexPath
+    ? await readYamlFile<Record<string, any>>(
+        paths.legacyHilIndexPath,
+        { version: 1, items: [] },
+        { backupCorrupt: true }
+      )
+    : { version: 1, items: [] };
   const legacyItems = Array.isArray(legacyHilIndex.items)
     ? legacyHilIndex.items.filter((item) => item && typeof item === 'object')
     : [];
@@ -260,6 +387,7 @@ async function ensureReplyIndex(worktreePath: string): Promise<SessionReplyIndex
   if (!legacyReplies.length) {
     return index;
   }
+
   const nextItems = [...index.items];
   const remainingHilItems: Record<string, any>[] = [];
   const knownIds = new Set(nextItems.map((item) => item.id));
@@ -270,6 +398,7 @@ async function ensureReplyIndex(worktreePath: string): Promise<SessionReplyIndex
   );
   let changed = false;
   const migratedLegacyIds = new Set<string>();
+
   for (const legacyReply of legacyReplies) {
     const normalized = convertLegacyHilReply(legacyReply);
     if (!normalized) {
@@ -289,8 +418,9 @@ async function ensureReplyIndex(worktreePath: string): Promise<SessionReplyIndex
       migratedLegacyIds.add(legacyId);
     }
     changed = true;
-    await writeReplyArtifact(worktreePath, normalized);
+    await writeReplyArtifact(paths, normalized);
   }
+
   legacyItems.forEach((item) => {
     const itemKind = String(item?.kind || '').trim();
     const itemId = String(item?.id || '').trim();
@@ -302,33 +432,36 @@ async function ensureReplyIndex(worktreePath: string): Promise<SessionReplyIndex
       remainingHilItems.push(item);
     }
   });
+
   if (changed) {
     const nextIndex = { version: index.version || 1, items: nextItems };
-    await writeReplyIndex(worktreePath, nextIndex);
-    if (migratedLegacyIds.size > 0) {
-      await writeYamlFileAtomic(getLegacyHilIndexPath(worktreePath), {
+    await writeReplyIndex(paths, nextIndex);
+    if (migratedLegacyIds.size > 0 && paths.legacyHilIndexPath) {
+      await writeYamlFileAtomic(paths.legacyHilIndexPath, {
         version: Number(legacyHilIndex.version || 1),
         items: remainingHilItems,
       });
       await Promise.all(
         Array.from(migratedLegacyIds).map((replyId) =>
-          fsp.rm(getLegacyHilReplyArtifactPath(worktreePath, replyId), { force: true }).catch(() => undefined)
+          fsp.rm(getLegacyHilReplyArtifactPath(paths, replyId), { force: true }).catch(() => undefined)
         )
       );
     }
     return nextIndex;
   }
-  if (migratedLegacyIds.size > 0) {
-    await writeYamlFileAtomic(getLegacyHilIndexPath(worktreePath), {
+
+  if (migratedLegacyIds.size > 0 && paths.legacyHilIndexPath) {
+    await writeYamlFileAtomic(paths.legacyHilIndexPath, {
       version: Number(legacyHilIndex.version || 1),
       items: remainingHilItems,
     });
     await Promise.all(
       Array.from(migratedLegacyIds).map((replyId) =>
-        fsp.rm(getLegacyHilReplyArtifactPath(worktreePath, replyId), { force: true }).catch(() => undefined)
+        fsp.rm(getLegacyHilReplyArtifactPath(paths, replyId), { force: true }).catch(() => undefined)
       )
     );
   }
+
   return index;
 }
 
@@ -337,20 +470,30 @@ function buildReplyId(): string {
 }
 
 export async function listSessionReplies({
-  worktreePath,
+  repoRootPath,
+  rootPath,
   cellId,
+  worktreePath,
   sessionId,
   includeArchived = false,
 }: {
-  worktreePath: string;
+  repoRootPath?: string;
+  rootPath?: string;
   cellId?: string;
+  worktreePath?: string;
   sessionId?: string;
   includeArchived?: boolean;
 }): Promise<SessionReplyItem[]> {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
-  }
-  const index = await ensureReplyIndex(worktreePath);
+  const paths = resolveSessionReplyStoragePaths(
+    {
+      repoRootPath,
+      rootPath,
+      cellId,
+      worktreePath,
+    },
+    cellId
+  );
+  const index = await ensureReplyIndex(paths);
   return index.items
     .filter((item) => (includeArchived ? true : item.status !== 'archived'))
     .filter((item) => (cellId ? item.owner.cellId === cellId : true))
@@ -359,6 +502,9 @@ export async function listSessionReplies({
 }
 
 export async function createSessionReply({
+  repoRootPath,
+  rootPath,
+  cellId,
   worktreePath,
   body,
   owner,
@@ -367,7 +513,10 @@ export async function createSessionReply({
   delivery,
   meta,
 }: {
-  worktreePath: string;
+  repoRootPath?: string;
+  rootPath?: string;
+  cellId?: string;
+  worktreePath?: string;
   body: string;
   owner: SessionReplyOwner;
   capture?: Partial<SessionReplyCapture>;
@@ -375,9 +524,6 @@ export async function createSessionReply({
   delivery?: SessionReplyDelivery;
   meta?: Record<string, any>;
 }): Promise<SessionReplyItem> {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
-  }
   if (!body || !String(body).trim()) {
     throw new Error('Reply body is required.');
   }
@@ -385,7 +531,16 @@ export async function createSessionReply({
   if (!normalizedOwner.cellId || !normalizedOwner.sessionId) {
     throw new Error('Reply owner requires cellId and sessionId.');
   }
-  const index = await ensureReplyIndex(worktreePath);
+  const paths = resolveSessionReplyStoragePaths(
+    {
+      repoRootPath,
+      rootPath,
+      cellId,
+      worktreePath,
+    },
+    normalizedOwner.cellId
+  );
+  const index = await ensureReplyIndex(paths);
   const now = new Date().toISOString();
   const item: SessionReplyItem = {
     id: buildReplyId(),
@@ -404,27 +559,38 @@ export async function createSessionReply({
     version: index.version || 1,
     items: [...index.items, item],
   };
-  await writeReplyIndex(worktreePath, nextIndex);
-  await writeReplyArtifact(worktreePath, item);
+  await writeReplyIndex(paths, nextIndex);
+  await writeReplyArtifact(paths, item);
   return item;
 }
 
 export async function updateSessionReply({
+  repoRootPath,
+  rootPath,
+  cellId,
   worktreePath,
   replyId,
   patch,
 }: {
-  worktreePath: string;
+  repoRootPath?: string;
+  rootPath?: string;
+  cellId?: string;
+  worktreePath?: string;
   replyId: string;
   patch: Partial<SessionReplyItem>;
 }): Promise<SessionReplyItem> {
-  if (!worktreePath) {
-    throw new Error('worktreePath is required.');
-  }
-  if (!replyId) {
-    throw new Error('replyId is required.');
-  }
-  const index = await ensureReplyIndex(worktreePath);
+  const inferredCellId =
+    patch?.owner && typeof patch.owner === 'object' ? String((patch.owner as any).cellId || '') : cellId || '';
+  const paths = resolveSessionReplyStoragePaths(
+    {
+      repoRootPath,
+      rootPath,
+      cellId,
+      worktreePath,
+    },
+    inferredCellId
+  );
+  const index = await ensureReplyIndex(paths);
   const nextItems = [...index.items];
   const targetIndex = nextItems.findIndex((item) => item.id === replyId);
   if (targetIndex === -1) {
@@ -450,7 +616,7 @@ export async function updateSessionReply({
     throw new Error('Session reply owner requires cellId and sessionId.');
   }
   nextItems[targetIndex] = next;
-  await writeReplyIndex(worktreePath, { version: index.version || 1, items: nextItems });
-  await writeReplyArtifact(worktreePath, next);
+  await writeReplyIndex(paths, { version: index.version || 1, items: nextItems });
+  await writeReplyArtifact(paths, next);
   return next;
 }

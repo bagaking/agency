@@ -1107,14 +1107,14 @@ New Window SHALL open a new editor window.
 - **WHEN** a user selects Switch Project from the application menu
 - **THEN** the editor prompts for a new repository and updates the active project context
 
-### Requirement: Worktree-Scoped HIL Index
-The editor SHALL store human-in-loop artifacts in a worktree-scoped HIL index under `.agency/hil/index-<worktree>.yaml`.
+### Requirement: Cell-Owned HIL Index
+The editor SHALL store human-in-loop artifacts in a cell-owned HIL index under `.agency/cells/<cellId>/hil/index.yaml`.
 The HIL index SHALL be YAML and mergeable, and SHALL contain items of kind `comment`, `memo`, or `draft`.
 Each HIL item SHALL include `meta.processed`, defaulting to `false` unless explicitly set.
 
 #### Scenario: Store a comment in HIL index
 - **WHEN** a user submits a line comment
-- **THEN** the editor appends a `comment` item to the HIL index for the active worktree
+- **THEN** the editor appends a `comment` item to the HIL index for the active cell
 - **AND** the new item has `meta.processed: false`
 
 ### Requirement: HIL Comment Context Snapshot
@@ -1143,14 +1143,14 @@ The drawer SHALL use `Memo` as the primary user-facing artifact noun while `HIL`
 
 ### Requirement: Memo Navigation Entry
 The editor SHALL provide a Memo entry in the activity bar to access HIL artifacts.
-The Memo view SHALL list HIL items for the active worktree and allow filtering by kind and status.
+The Memo view SHALL list HIL items for the active cell and allow filtering by kind and status.
 Memo file references SHALL provide unified `open` and `reveal` entry points.
 Memo SHALL support lightweight drag routing into Explorer import flows in phase 1.
 The Memo surface SHALL present artifact navigation, capture shortcuts, and draft review as one coherent workspace.
 
 #### Scenario: Open Memo view
 - **WHEN** a user selects Memo in the activity bar
-- **THEN** the editor shows the HIL list for the current worktree
+- **THEN** the editor shows the HIL list for the current cell
 - **AND** the navigation, capture, and draft affordances read as one Memo workspace instead of disconnected sub-tools
 
 ### Requirement: Comment Surface Hierarchy
@@ -1208,11 +1208,11 @@ Screenshot capture SHALL open an in-app capture UI for region selection and anno
 - **AND** the editor shows a routing panel to save to HIL, clipboard, or both
 
 ### Requirement: Memo Assets Storage
-Screenshot memo assets SHALL be stored as PNG under `.agency/hil/assets/<worktree>/` with a stable path recorded in the memo metadata.
+Screenshot memo assets SHALL be stored as PNG under `.agency/cells/<cellId>/hil/assets/` with a stable path recorded in the memo metadata.
 
 #### Scenario: Persist screenshot asset
 - **WHEN** a screenshot memo is created
-- **THEN** the image asset is saved under the worktree assets directory as a PNG
+- **THEN** the image asset is saved under the owning cell assets directory as a PNG
 
 ### Requirement: Promote Memo Items into Drafts
 Memo items SHALL be eligible for selection in the Promote flow and referenced by drafts.
@@ -1267,16 +1267,16 @@ The editor SHALL store HIL items under a tree-aligned directory layout while kee
 
 #### Scenario: Write HIL item files
 - **WHEN** a HIL item is created
-- **THEN** the editor writes comments and memos under `.agency/hil/<worktree>/items/<kind>/`
-- **AND** writes drafts under `.agency/hil/<worktree>/drafts/`
-- **AND** updates `.agency/hil/index-<worktree>.yaml`
+- **THEN** the editor writes comments and memos under `.agency/cells/<cellId>/hil/items/<kind>/`
+- **AND** writes drafts under `.agency/cells/<cellId>/hil/drafts/`
+- **AND** updates `.agency/cells/<cellId>/hil/index.yaml`
 
 ### Requirement: Legacy Comment Migration
 If legacy comment storage exists, the editor SHALL import those comments into the HIL index non-destructively.
 
 #### Scenario: Migrate legacy comments
 - **WHEN** a worktree contains `.agency/comments-<worktree>.yaml`
-- **THEN** the editor imports comments into the HIL index and leaves the legacy file intact
+- **THEN** the editor imports comments into the owning cell HIL index and leaves the legacy file intact
 
 ### Requirement: Memo Dock Navigation
 The editor SHALL render the Memo (HIL) view as a split layout with a left dock.
@@ -1387,7 +1387,7 @@ Captured Markdown files MUST use the `Clipboard-YYYYMMDD-HHMMSS.md` naming forma
 
 ### Requirement: Line Comment Submission
 The editor SHALL allow submitting a comment against the current file and line with an optional TODO flag.
-Comments MUST be stored in a worktree-scoped YAML file under `.agency/comments-<worktree>.yaml`.
+Comments MUST be stored as `comment` items in the owning cell HIL index.
 The comment payload SHOULD capture structured metadata for future threading and status updates.
 
 #### Scenario: Comment schema metadata
@@ -1396,7 +1396,7 @@ The comment payload SHOULD capture structured metadata for future threading and 
 
 #### Scenario: Submit a line comment
 - **WHEN** a user submits a comment on a specific line
-- **THEN** the editor appends the comment to the worktree comment file
+- **THEN** the editor appends the comment to the owning cell HIL index
 
 #### Scenario: Multiple comments per line
 - **WHEN** a user submits more than one comment on the same line
@@ -2091,13 +2091,13 @@ The editor SHALL record the authoring cell/session and timestamp.
 - **THEN** its artifact metadata includes source, selection time tag, and session identifiers
 
 ### Requirement: Session Reply Artifact Storage
-The editor SHALL store session reply artifacts in a worktree-scoped reply store separate from HIL.
-The reply store SHALL keep an index under `.agency/session-replies/index-<worktree>.yaml`.
+The editor SHALL store session reply artifacts in a cell-owned reply store separate from HIL.
+The reply store SHALL keep an index under `.agency/cells/<cellId>/session-replies/index.yaml`.
 Each reply artifact SHALL record explicit owner metadata for `cellId` and `sessionId`.
 
 #### Scenario: Persist a recorded reply
 - **WHEN** a user records a reply from Session Reply
-- **THEN** the editor writes a reply artifact into the worktree reply store
+- **THEN** the editor writes a reply artifact into the owning cell reply store
 - **AND** the stored artifact records the owning `cellId` and `sessionId`
 
 #### Scenario: Invalid legacy reply rows are preserved until repair
@@ -2106,12 +2106,12 @@ Each reply artifact SHALL record explicit owner metadata for `cellId` and `sessi
 - **AND** only successfully imported legacy reply rows are removed from the legacy HIL store
 
 ### Requirement: Session Reply Storage Tree Layout
-The editor SHALL store session reply artifacts under a session-owned tree layout while keeping the worktree reply index as the source of truth.
+The editor SHALL store session reply artifacts under a session-owned tree layout while keeping the cell-owned reply index as the source of truth.
 
 #### Scenario: Write reply artifact files
 - **WHEN** a session reply artifact is created
-- **THEN** the editor updates `.agency/session-replies/index-<worktree>.yaml`
-- **AND** writes the artifact under `.agency/session-replies/<worktree>/sessions/<cellId>/<sessionId>/<replyId>.yaml`
+- **THEN** the editor updates `.agency/cells/<cellId>/session-replies/index.yaml`
+- **AND** writes the artifact under `.agency/cells/<cellId>/session-replies/sessions/<sessionId>/<replyId>.yaml`
 
 ### Requirement: Session Delivery References Reply Artifacts
 When Session Reply triggers delivery, the resulting delivery draft SHALL reference the reply artifact rather than pretending the reply is a HIL item.
@@ -2653,7 +2653,7 @@ Compatibility wrappers MAY preserve legacy caller shapes, but the canonical exec
 ### Requirement: Unified Promotion Storage Contract
 Delivery runs across all sources SHALL be stored in one converged contract:
 - Draft records in HIL draft storage.
-- Audit timeline entries in `.agency/delivery/events-<worktree>.jsonl`.
+- Audit timeline entries in `.agency/cells/<cellId>/delivery/events.jsonl`.
 
 #### Scenario: Multi-source runs are stored in the same contract
 - **WHEN** delivery runs are created from different sources
@@ -2687,19 +2687,19 @@ The package SHALL NOT directly control renderer/UI transport.
 - **AND** transport details remain host-specific
 
 ### Requirement: Delivery Audit Event Persistence
-The editor SHALL persist delivery audit events under `.agency/delivery/` in an append-only format.
+The editor SHALL persist delivery audit events under the owning cell delivery directory in an append-only format.
 Events SHALL include source, mode, status transition, timestamps, and entity references.
 
 #### Scenario: Delivery run emits timeline events
 - **WHEN** a quick or gated delivery transitions state
-- **THEN** an event record is appended to the worktree audit log
+- **THEN** an event record is appended to the owning cell audit log
 - **AND** timeline queries can filter by source and mode
 
 ### Requirement: Backward-Compatible Agency Storage
-The package SHALL keep backward-compatible behavior for existing `.agency/hil/*` and `.agency/action-sheets/*` files.
+The package SHALL keep backward-compatible behavior for existing `.agency/hil/*`, `.agency/session-replies/*`, `.agency/delivery/*`, and `.agency/action-sheets/*` files.
 
 #### Scenario: Legacy files are read by package repositories
-- **WHEN** a project already contains legacy HIL or Action Sheet data
+- **WHEN** a project already contains legacy HIL, session reply, delivery, or Action Sheet data
 - **THEN** package repositories read and update them without requiring schema migration
 - **AND** previously stored fields remain available to existing views
 
@@ -2937,4 +2937,3 @@ The editor SHALL NOT auto-create Turn tooling artifacts during Cell creation unl
 #### Scenario: Explicit Gate Create
 - **WHEN** a user invokes Gate Create on an existing Cell
 - **THEN** the editor creates the Gate Create Action Sheet template for that Cell on demand
-
