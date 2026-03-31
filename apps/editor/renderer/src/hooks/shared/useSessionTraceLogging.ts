@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { logRuntime as logRuntimeBridge } from '../../services/agencyBridge';
 
+const isDevBuild = Boolean(import.meta.env?.DEV);
+
 type UseSessionTraceLoggingArgs = {
   activeSessionByCellId: Record<string, string>;
   selectedCellId?: string;
@@ -42,7 +44,7 @@ export function useSessionTraceLogging({
         message: 'session active pointer updated',
         meta,
       });
-      if (import.meta.env.DEV) {
+      if (isDevBuild) {
         console.debug('[SessionTrace] session active pointer updated', meta);
       }
     });
@@ -72,7 +74,7 @@ export function useSessionTraceLogging({
       message: 'session derived active changed',
       meta,
     });
-    if (import.meta.env.DEV) {
+    if (isDevBuild) {
       console.warn('[SessionTrace] session derived active changed', meta);
     }
     derivedActiveTraceRef.current = next;
