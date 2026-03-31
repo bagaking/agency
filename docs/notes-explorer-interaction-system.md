@@ -290,7 +290,8 @@ Current content-search guardrails:
 - large files are skipped once they exceed the host-side size cap;
 - invalid folder/selection scopes are rejected by the host instead of silently widening to project scope;
 - replace runs only against explicitly confirmed targets and reports failures/skips;
-- when replacement text is present, the result surface previews how confirmed snippet lines would change so replace review is not limited to raw search evidence.
+- when replacement text is present, the result surface previews how confirmed snippet lines would change so replace review is not limited to raw search evidence;
+- files with more total matches than the visible evidence list stay replaceable only through explicit full-file confirmation, rather than pretending the visible subset is exhaustive.
 
 ### 4. Working-set view family
 
@@ -364,7 +365,7 @@ Current validation baseline:
 
 Recommended manual checks before shipping larger follow-up changes:
 - switch between `Tree` and `Changed` views and confirm footer workflow behavior remains stable;
-- run a scoped content replace in a disposable repo and confirm target-count review + failure reporting;
+- run a scoped content replace in a disposable repo and confirm target-count review + failure reporting, including the full-file confirmation path for files with hidden matches;
 - inspect a public URL in the research lane, save Markdown into the workspace, and confirm `Open in Browser` escapes correctly;
 - add a handoff note, then confirm the saved Markdown and created memo citation both preserve that note;
 - try a localhost/private URL and confirm the bounded reader rejects it instead of silently becoming a general browser.

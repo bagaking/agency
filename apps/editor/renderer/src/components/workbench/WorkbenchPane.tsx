@@ -123,6 +123,7 @@ function WorkbenchPaneContent({
   const [tabMenu, setTabMenu] = useState(null);
   const [editorToken, setEditorToken] = useState(0);
   const activeEditorRef = useRef(null);
+  const tabElementByIdRef = useRef<Record<string, HTMLDivElement | null>>({});
   const tabStateByIdRef = useRef({});
   const loadRequestByTabRef = useRef({});
   const activePolicyRootPath = activeTab?.rootPath || activeRootPath;
@@ -137,7 +138,12 @@ function WorkbenchPaneContent({
   const resolvedCommentLines = Array.isArray(commentLines) ? commentLines : [];
   const isCodeTab = activeState.kind === 'code';
   const canComment = Boolean(activeTab && isCodeTab);
-  const showReviewTools = isCodeTab;
+  const canToggleDiff = Boolean(activeTab && isCodeTab && isAgencyMethodAvailable('diffWorkbenchEntry'));
+  const canToggleBlame = Boolean(
+    activeTab && isCodeTab && isAgencyMethodAvailable('blameWorkbenchEntry')
+  );
+  const canCreateComment = Boolean(activeTab && isCodeTab && onOpenComment);
+  const showReviewTools = canToggleDiff || canToggleBlame || canCreateComment;
   const activeLanguageDecision =
     activeTab && isCodeTab
       ? resolveWorkbenchLanguageDecision({
@@ -354,19 +360,85 @@ function WorkbenchPaneContent({
   ]);
 
   const breadcrumbs = activeTab ? buildWorkbenchBreadcrumbs(activeTab.path) : [];
+  const activePanelId = activeTab ? `workbench-panel-${activeTab.id}` : 'workbench-panel';
+
+  const focusTabElement = useCallback((tabId: string) => {
+    const node = tabElementByIdRef.current[tabId];
+    if (!node) {
+      return;
+    }
+    const scheduleFocus =
+      typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
+        ? window.requestAnimationFrame.bind(window)
+        : (callback: FrameRequestCallback) => window.setTimeout(callback, 0);
+    scheduleFocus(() => node.focus());
+  }, []);
+
+  const activateTabAtIndex = useCallback(
+    (index: number) => {
+      const nextTab = tabs[index];
+      if (!nextTab?.id) {
+        return;
+      }
+      setActiveTab(nextTab.id);
+      focusTabElement(nextTab.id);
+    },
+    [focusTabElement, setActiveTab, tabs]
+  );
+
+  const handleTabKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>, index: number) => {
+      if (!tabs.length) {
+        return;
+      }
+      let nextIndex: number | null = null;
+      switch (event.key) {
+        case 'ArrowRight':
+          nextIndex = (index + 1) % tabs.length;
+          break;
+        case 'ArrowLeft':
+          nextIndex = (index - 1 + tabs.length) % tabs.length;
+          break;
+        case 'Home':
+          nextIndex = 0;
+          break;
+        case 'End':
+          nextIndex = tabs.length - 1;
+          break;
+        default:
+          return;
+      }
+      event.preventDefault();
+      activateTabAtIndex(nextIndex);
+    },
+    [activateTabAtIndex, tabs]
+  );
 
   return (
     <section className="flex h-full flex-1 flex-col bg-[#0b0d11] overflow-hidden select-none">
       {/* 1. Integrated Header: Tabs & Global Context */}
       <div className="flex h-11 shrink-0 items-center bg-[#111318] border-b border-white/[0.03] pl-1 pr-3">
-        <div className="flex-1 flex items-center h-full overflow-x-auto no-scrollbar scroll-smooth">
-          {tabs.map((tab) => {
+        <div
+          role="tablist"
+          aria-label="Workbench tabs"
+          className="flex-1 flex items-center h-full overflow-x-auto no-scrollbar scroll-smooth"
+        >
+          {tabs.map((tab, index) => {
             const state = tabStateById[tab.id] || {};
             const isActive = activeTab?.id === tab.id;
             return (
               <div
                 key={tab.id}
+                ref={(node) => {
+                  tabElementByIdRef.current[tab.id] = node;
+                }}
+                role="tab"
+                id={`workbench-tab-${tab.id}`}
+                aria-selected={isActive}
+                aria-controls={activePanelId}
+                tabIndex={isActive ? 0 : -1}
                 onClick={() => setActiveTab(tab.id)}
+                onKeyDown={(event) => handleTabKeyDown(event, index)}
                 onContextMenu={(e) => { e.preventDefault(); setTabMenu({ x: e.clientX, y: e.clientY, tabId: tab.id }); }}
                 className={`group relative flex items-center gap-2.5 px-4 h-full min-w-fit transition-all cursor-pointer border-r border-white/[0.03] ${
                   isActive ? 'bg-[#0b0d11] text-foreground' : 'text-muted-foreground/50 hover:bg-white/[0.02] hover:text-muted-foreground'
@@ -381,7 +453,14 @@ function WorkbenchPaneContent({
                     <div className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)] ml-1" />
                 ) : (
                     <button
+                        type="button"
+                        aria-label={`Close ${tab.title}`}
                         onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }}
+                        onKeyDown={(event) => {
+                          if (['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) {
+                            event.stopPropagation();
+                          }
+                        }}
                         className={`p-1 rounded-md hover:bg-white/10 transition-all ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                     >
                         <X size={10} strokeWidth={2.5} />
@@ -487,31 +566,41 @@ function WorkbenchPaneContent({
                     Review
                   </span>
                   <div className="flex items-center gap-0.5 rounded-md p-0.5">
-                    <ToolButton
-                      active={activeState.diffEnabled}
-                      onClick={toggleDiff}
-                      icon={GitCompare}
-                      title={activeState.diffEnabled ? 'Hide Diff' : 'Show Diff'}
-                      tone="secondary"
-                      toggle={true}
-                    />
-                    <ToolButton
-                      active={activeState.blameEnabled}
-                      onClick={toggleBlame}
-                      icon={GitCommit}
-                      title={activeState.blameEnabled ? 'Hide Blame' : 'Show Blame'}
-                      tone="secondary"
-                      toggle={true}
-                    />
-                    <div className="mx-0.5 h-3 w-px bg-white/[0.04]" />
-                    <ToolButton
-                      onClick={() =>
-                        onOpenComment?.({ line: statusPosition.line, column: statusPosition.column })
-                      }
-                      icon={MessageSquarePlus}
-                      title="Add HIL Comment"
-                      tone="secondary"
-                    />
+                    {canToggleDiff ? (
+                      <ToolButton
+                        active={activeState.diffEnabled}
+                        onClick={toggleDiff}
+                        icon={GitCompare}
+                        title={activeState.diffEnabled ? 'Hide Diff' : 'Show Diff'}
+                        tone="secondary"
+                        toggle={true}
+                      />
+                    ) : null}
+                    {canToggleBlame ? (
+                      <ToolButton
+                        active={activeState.blameEnabled}
+                        onClick={toggleBlame}
+                        icon={GitCommit}
+                        title={activeState.blameEnabled ? 'Hide Blame' : 'Show Blame'}
+                        tone="secondary"
+                        toggle={true}
+                      />
+                    ) : null}
+                    {canCreateComment ? (
+                      <>
+                        {(canToggleDiff || canToggleBlame) ? (
+                          <div className="mx-0.5 h-3 w-px bg-white/[0.04]" />
+                        ) : null}
+                        <ToolButton
+                          onClick={() =>
+                            onOpenComment?.({ line: statusPosition.line, column: statusPosition.column })
+                          }
+                          icon={MessageSquarePlus}
+                          title="Add HIL Comment"
+                          tone="secondary"
+                        />
+                      </>
+                    ) : null}
                   </div>
                 </div>
               </>
@@ -521,7 +610,13 @@ function WorkbenchPaneContent({
       </div>
 
       {/* 3. Main Viewport */}
-      <div className="flex-1 overflow-hidden relative">
+      <div
+        role="tabpanel"
+        id={activePanelId}
+        aria-labelledby={activeTab ? `workbench-tab-${activeTab.id}` : undefined}
+        tabIndex={0}
+        className="flex-1 overflow-hidden relative"
+      >
         {activeTab && activeState.needsReload ? (
           <div className="absolute left-4 top-4 z-20 flex items-center gap-2 rounded-md border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-[10px] font-semibold text-amber-100 shadow-lg">
             <AlertTriangle size={12} className="text-amber-300" />

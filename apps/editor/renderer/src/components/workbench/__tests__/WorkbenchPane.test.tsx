@@ -132,8 +132,16 @@ function setupDom() {
   };
 }
 
-async function mountWorkbenchPane(path: string, kind: string) {
+async function mountWorkbenchPane(
+  path: string,
+  kind: string,
+  options: { onOpenComment?: ((payload: { line: number; column: number }) => void) | null } = {}
+) {
   const root = createRoot(document.getElementById('root')!);
+  const onOpenComment =
+    Object.prototype.hasOwnProperty.call(options, 'onOpenComment')
+      ? options.onOpenComment || undefined
+      : () => undefined;
   await act(async () => {
     root.render(
       <WorkbenchPane
@@ -171,6 +179,70 @@ async function mountWorkbenchPane(path: string, kind: string) {
         projectError=""
         onSelectProject={() => undefined}
         commentLines={[]}
+        onOpenComment={onOpenComment}
+        onCursorPositionChange={() => undefined}
+        onSelectionChange={() => undefined}
+        pendingJump={null}
+        onJumpHandled={() => undefined}
+        onRevealPathInExplorer={() => undefined}
+      />
+    );
+  });
+  return root;
+}
+
+async function mountInteractiveWorkbenchPane() {
+  const root = createRoot(document.getElementById('root')!);
+  const initialTabs = [
+    {
+      id: 'tab-1',
+      path: 'apps/editor/package.json',
+      rootPath: '/repo',
+      title: 'package.json',
+      kind: 'code',
+      isPreview: false,
+    },
+    {
+      id: 'tab-2',
+      path: 'apps/editor/README.md',
+      rootPath: '/repo',
+      title: 'README.md',
+      kind: 'code',
+      isPreview: false,
+    },
+  ];
+
+  function Harness() {
+    const [tabs, setTabs] = React.useState(initialTabs);
+    const [activeTabId, setActiveTabId] = React.useState<string | null>(initialTabs[0].id);
+    const activeTab = tabs.find((tab) => tab.id === activeTabId) || tabs[0] || null;
+    return (
+      <WorkbenchPane
+        workbench={{
+          tabs,
+          activeTab,
+          openFile() {},
+          closeTab(tabId: string) {
+            setTabs((current) => current.filter((tab) => tab.id !== tabId));
+            setActiveTabId((current) =>
+              current === tabId ? initialTabs.find((tab) => tab.id !== tabId)?.id || null : current
+            );
+          },
+          closeOtherTabs() {},
+          closeAllTabs() {},
+          pinTab() {},
+          setActiveTab(tabId: string) {
+            setActiveTabId(tabId);
+          },
+        }}
+        activeRootPath="/repo"
+        activeRootLabel="main"
+        onTabMetaChange={() => undefined}
+        cellId="cell-main"
+        projectReady={true}
+        projectError=""
+        onSelectProject={() => undefined}
+        commentLines={[]}
         onOpenComment={() => undefined}
         onCursorPositionChange={() => undefined}
         onSelectionChange={() => undefined}
@@ -179,6 +251,10 @@ async function mountWorkbenchPane(path: string, kind: string) {
         onRevealPathInExplorer={() => undefined}
       />
     );
+  }
+
+  await act(async () => {
+    root.render(<Harness />);
   });
   return root;
 }
@@ -197,8 +273,12 @@ test('WorkbenchPane keeps quick-open primary and does not expose contextual revi
 test('WorkbenchPane keeps file-tool buttons explicitly named without toggle semantics in static shell markup', () => {
   const html = renderWorkbenchPane('image');
 
+  assert.match(html, /role="tablist"/);
+  assert.match(html, /role="tab"/);
+  assert.match(html, /aria-selected="true"/);
   assert.match(html, /aria-label="Sync from Disk"/);
   assert.match(html, /aria-label="Pinned"/);
+  assert.match(html, /aria-label="Close package.json"/);
   assert.doesNotMatch(html, /aria-pressed=/);
 });
 
@@ -256,6 +336,91 @@ test('WorkbenchPane reveals review tools after unlocking an unknown document int
     await env.flush();
 
     assert.ok(document.querySelector('[data-workbench-review-tools]'));
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});
+
+test('WorkbenchPane hides review tools when host review capabilities are unavailable', async () => {
+  const env = setupDom();
+  try {
+    delete (window as any).agency.diffWorkbenchEntry;
+    delete (window as any).agency.blameWorkbenchEntry;
+    const root = await mountWorkbenchPane('apps/editor/package.json', 'code', {
+      onOpenComment: null,
+    });
+    await env.flush();
+
+    assert.equal(document.querySelector('[data-workbench-review-tools]'), null);
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});
+
+test('WorkbenchPane tablist supports keyboard tab navigation', async () => {
+  const env = setupDom();
+  try {
+    const root = await mountInteractiveWorkbenchPane();
+    await env.flush();
+
+    const tabs = Array.from(document.querySelectorAll('[role="tab"]')) as HTMLDivElement[];
+    assert.equal(tabs.length, 2);
+    assert.equal(tabs[0]?.getAttribute('aria-selected'), 'true');
+
+    await act(async () => {
+      tabs[0]?.dispatchEvent(
+        new window.KeyboardEvent('keydown', {
+          key: 'ArrowRight',
+          bubbles: true,
+        })
+      );
+    });
+    await env.flush();
+
+    const selectedTab = document.querySelector('[role="tab"][aria-selected="true"]');
+    assert.ok(selectedTab);
+    assert.match(selectedTab.textContent || '', /README\.md/);
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});
+
+test('WorkbenchPane close button does not bubble tab-navigation keys back into the parent tab', async () => {
+  const env = setupDom();
+  try {
+    const root = await mountInteractiveWorkbenchPane();
+    await env.flush();
+
+    const closeButton = document.querySelector(
+      'button[aria-label="Close package.json"]'
+    ) as HTMLButtonElement | null;
+    assert.ok(closeButton);
+
+    await act(async () => {
+      closeButton.dispatchEvent(
+        new window.KeyboardEvent('keydown', {
+          key: 'ArrowRight',
+          bubbles: true,
+        })
+      );
+    });
+    await env.flush();
+
+    const selectedTab = document.querySelector('[role="tab"][aria-selected="true"]');
+    assert.ok(selectedTab);
+    assert.match(selectedTab.textContent || '', /package\.json/);
 
     await act(async () => {
       root.unmount();

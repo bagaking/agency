@@ -35,7 +35,7 @@
 - Explorer scopes to the active Cell worktree (or repo root) and opens files in the workbench.
 - Workbench breadcrumbs are segment-clickable and reveal/select the target inside Explorer tree (without invoking OS Finder reveal).
 - Explorer supports descriptor-driven filters (hidden/ignored/changes/status/semantic), keyboard navigation, open/dirty indicators, and watch-based auto refresh.
-- Explorer distinguishes path search from cross-file content search; content search returns line-level evidence, rejects invalid folder/selection scopes, and only replaces explicitly confirmed targets.
+- Explorer distinguishes path search from cross-file content search; content search returns line-level evidence, rejects invalid folder/selection scopes, and only replaces explicitly confirmed targets through per-match review or explicit full-file confirmation when a file contains hidden matches beyond the visible review list.
 - Explorer supports semantic-file tags and semantic filters (built-in + project rules from `.agency/agent-files.yaml`).
 - Explorer semantic filters support quick-locate to jump to the first matching file.
 - Explorer promotes `Changed Files` into a registered working-set view and keeps room for future working-set families.
@@ -44,7 +44,7 @@
 - Explorer can paste files or screenshots from the system clipboard, applying `-1` style conflict suffixes.
 - Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
 - Explorer includes a bounded research lane for public URL inspection, reader preview, workspace Markdown save, memo citation with optional saved-file references, and an explicit system-browser escape hatch.
-- The workbench supports multi-tab previews, a path-first Quick Open launcher for open tabs and project files with optional `:line[:column]` targeting, diff/blame toggles, media previews, active-tab disk-change auto sync (auto-reload when clean, warning + reload when dirty), project-level language rules from `.agency/workbench.yaml` / `.agency/workbench.yml`, and a window-local document language control that shows `Auto` / `Project Rule` / `Local Override`.
+- The workbench supports multi-tab previews, a path-first Quick Open launcher for open tabs and project files with optional `:line[:column]` targeting, contextual secondary review tools for diff/blame/comment actions that appear only after the active document resolves to a code editor state, media previews, active-tab disk-change auto sync (auto-reload when clean, warning + reload when dirty), project-level language rules from `.agency/workbench.yaml` / `.agency/workbench.yml`, and a window-local document language control that shows `Auto` / `Project Rule` / `Local Override`.
 
 ## Unified File Interaction Direction
 

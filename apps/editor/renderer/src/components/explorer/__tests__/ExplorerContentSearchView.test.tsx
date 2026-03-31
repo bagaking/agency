@@ -128,3 +128,80 @@ test('ExplorerContentSearchView uses a real indeterminate checkbox for partially
     env.cleanup();
   }
 });
+
+test('ExplorerContentSearchView exposes active scope and modifier semantics for assistive tech', async () => {
+  const env = setupDom();
+  try {
+    const root = createRoot(document.getElementById('root')!);
+    await act(async () => {
+      root.render(
+        <ExplorerContentSearchView
+          query="content search"
+          replaceText=""
+          setReplaceText={() => undefined}
+          scopeOptions={[
+            { id: 'project', label: 'Project' },
+            { id: 'folder', label: 'Folder' },
+          ]}
+          activeScopeKind="folder"
+          onScopeChange={() => undefined}
+          caseSensitive={true}
+          wholeWord={false}
+          useRegex={true}
+          onToggleCaseSensitive={() => undefined}
+          onToggleWholeWord={() => undefined}
+          onToggleUseRegex={() => undefined}
+          replacementPreviewEnabled={false}
+          results={[]}
+          loading={false}
+          replacing={false}
+          truncated={false}
+          totalResultFiles={0}
+          totalResultMatches={0}
+          scannedFiles={0}
+          skippedBinaryCount={0}
+          skippedLargeCount={0}
+          error=""
+          selectedPaths={[]}
+          fullFilePaths={[]}
+          selectedMatchKeys={[]}
+          selectedFileCount={0}
+          selectedMatchCount={0}
+          onToggleResult={() => undefined}
+          onToggleMatch={() => undefined}
+          onSelectAllVisible={() => undefined}
+          onClearSelection={() => undefined}
+          onOpenResult={() => undefined}
+          onRevealResult={() => undefined}
+          onApplyReplace={() => undefined}
+        />
+      );
+    });
+
+    const folderScope = document.querySelector('button[role="radio"][aria-checked="true"]');
+    assert.ok(folderScope);
+    assert.match(folderScope.textContent || '', /Folder/);
+
+    const caseSensitiveToggle = document.querySelector(
+      'button[aria-label="Case sensitive"]'
+    ) as HTMLButtonElement | null;
+    const wholeWordToggle = document.querySelector(
+      'button[aria-label="Whole word"]'
+    ) as HTMLButtonElement | null;
+    const regexToggle = document.querySelector(
+      'button[aria-label="Regular expression"]'
+    ) as HTMLButtonElement | null;
+    assert.ok(caseSensitiveToggle);
+    assert.ok(wholeWordToggle);
+    assert.ok(regexToggle);
+    assert.equal(caseSensitiveToggle.getAttribute('aria-pressed'), 'true');
+    assert.equal(wholeWordToggle.getAttribute('aria-pressed'), 'false');
+    assert.equal(regexToggle.getAttribute('aria-pressed'), 'true');
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});

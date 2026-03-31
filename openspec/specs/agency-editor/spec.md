@@ -818,11 +818,13 @@ Content search SHALL support cross-file keyword discovery and SHALL NOT be treat
 ### Requirement: Explorer Content Search And Replace
 The editor SHALL support content search and scoped content replace across files.
 Content replace SHALL provide target visibility and confirmation semantics suitable for multi-file mutation.
+The editor SHALL allow confirmed targets to be curated at match granularity and SHALL require explicit full-file confirmation when a result file has more total matches than the visible review list.
 
 #### Scenario: Replace keyword across a folder
 - **WHEN** a user runs content replace within a folder scope
 - **THEN** the editor shows target matches and replacement impact before applying the change
 - **AND** the result surface previews how confirmed file snippets would change when replacement text is present
+- **AND** when a file contains more matches than the visible review list, the editor keeps an explicit full-file confirmation path instead of treating visible evidence as exhaustive
 
 #### Scenario: Replace keyword across the project
 - **WHEN** a user runs content replace across the active project
@@ -933,10 +935,16 @@ The editor SHALL allow toggling diff decorations per tab.
 ### Requirement: Blame Insights
 The workbench SHALL surface git blame metadata for the current line via hover or inline badge.
 The editor SHALL allow toggling blame visibility per tab.
+The workbench SHALL keep diff, blame, and comment actions as contextual secondary review tools that appear only when the active tab resolves to a code editor state.
+The shell SHALL NOT expose inert review actions when the backing capability is unavailable in the current environment.
 
 #### Scenario: Show blame metadata
 - **WHEN** a user hovers a line with blame enabled
 - **THEN** the editor shows author, commit id, and commit time
+
+#### Scenario: Review tools wait for code state resolution
+- **WHEN** a workbench tab has not yet resolved to a code editor state
+- **THEN** the shell keeps review actions hidden instead of exposing inert diff, blame, or comment controls
 
 ### Requirement: Media Preview
 The workbench SHALL preview common media files (images, video, audio, PDF) with zoom/fit controls.

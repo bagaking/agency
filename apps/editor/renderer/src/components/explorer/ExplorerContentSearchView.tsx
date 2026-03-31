@@ -108,11 +108,17 @@ export function ExplorerContentSearchView({
     <section className="flex min-h-0 flex-1 flex-col bg-sidebar text-sidebar-foreground">
       <div className="border-b border-border/40 px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-full border border-border/40 bg-muted/10 p-0.5">
+          <div
+            role="radiogroup"
+            aria-label="Content search scope"
+            className="inline-flex rounded-full border border-border/40 bg-muted/10 p-0.5"
+          >
             {scopeOptions.map((option) => (
               <button
                 key={option.id}
                 type="button"
+                role="radio"
+                aria-checked={activeScopeKind === option.id}
                 disabled={option.disabled}
                 onClick={() => onScopeChange(option.id)}
                 className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
@@ -125,10 +131,29 @@ export function ExplorerContentSearchView({
               </button>
             ))}
           </div>
-          <div className="inline-flex rounded-full border border-border/40 bg-muted/10 p-0.5">
-            <TogglePill label="Aa" active={caseSensitive} onClick={onToggleCaseSensitive} />
-            <TogglePill label="Word" active={wholeWord} onClick={onToggleWholeWord} />
-            <TogglePill label=".*" active={useRegex} onClick={onToggleUseRegex} />
+          <div
+            role="group"
+            aria-label="Content search modifiers"
+            className="inline-flex rounded-full border border-border/40 bg-muted/10 p-0.5"
+          >
+            <TogglePill
+              label="Aa"
+              ariaLabel="Case sensitive"
+              active={caseSensitive}
+              onClick={onToggleCaseSensitive}
+            />
+            <TogglePill
+              label="Word"
+              ariaLabel="Whole word"
+              active={wholeWord}
+              onClick={onToggleWholeWord}
+            />
+            <TogglePill
+              label=".*"
+              ariaLabel="Regular expression"
+              active={useRegex}
+              onClick={onToggleUseRegex}
+            />
           </div>
         </div>
 
@@ -401,16 +426,20 @@ function ResultCheckbox({
 
 function TogglePill({
   label,
+  ariaLabel,
   active,
   onClick,
 }: {
   label: string;
+  ariaLabel: string;
   active: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
+      aria-label={ariaLabel}
+      aria-pressed={active}
       onClick={onClick}
       className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
         active ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'

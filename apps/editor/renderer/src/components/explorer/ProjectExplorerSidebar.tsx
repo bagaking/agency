@@ -52,6 +52,10 @@ import {
   type ExplorerContentSearchConfirmedMatch,
   useExplorerContentSearch,
 } from './useExplorerContentSearch';
+import {
+  buildExplorerConfirmedContentFilePaths,
+  buildExplorerContentReplaceRequest,
+} from './explorerContentReviewModel';
 import { useExplorerChangedFilesActions } from './useExplorerChangedFilesActions';
 import { useExplorerCapabilityPreferences } from './useExplorerCapabilityPreferences';
 import { useExplorerDropHandlers } from './useExplorerDropHandlers';
@@ -858,7 +862,11 @@ function ProjectExplorerSidebarContent({
     [confirmedContentMatchKeys, visibleContentMatchRefByKey]
   );
   const confirmedContentResultPaths = useMemo(
-    () => Array.from(new Set([...confirmedContentFullFilePaths, ...confirmedContentMatches.map((entry) => entry.path)])),
+    () =>
+      buildExplorerConfirmedContentFilePaths({
+        fullFilePaths: confirmedContentFullFilePaths,
+        confirmedMatches: confirmedContentMatches,
+      }),
     [confirmedContentFullFilePaths, confirmedContentMatches]
   );
   const confirmedContentFullPathSet = useMemo(
@@ -960,10 +968,12 @@ function ProjectExplorerSidebarContent({
     if (!confirmed) {
       return;
     }
-    const response = await applyContentReplace({
-      confirmedPaths: confirmedContentResultPaths,
-      confirmedMatches: confirmedContentMatches,
-    });
+    const response = await applyContentReplace(
+      buildExplorerContentReplaceRequest({
+        fullFilePaths: confirmedContentFullFilePaths,
+        confirmedMatches: confirmedContentMatches,
+      })
+    );
     if (response) {
       await refreshAll({ forceStatus: true, reloadExpanded: true });
       await refreshChangesPanel();
