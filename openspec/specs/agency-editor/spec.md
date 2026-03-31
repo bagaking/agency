@@ -2014,6 +2014,37 @@ The editor SHALL record the authoring cell/session and timestamp.
 - **WHEN** a reply is created
 - **THEN** its artifact metadata includes source, selection time tag, and session identifiers
 
+### Requirement: Session Reply Artifact Storage
+The editor SHALL store session reply artifacts in a worktree-scoped reply store separate from HIL.
+The reply store SHALL keep an index under `.agency/session-replies/index-<worktree>.yaml`.
+Each reply artifact SHALL record explicit owner metadata for `cellId` and `sessionId`.
+
+#### Scenario: Persist a recorded reply
+- **WHEN** a user records a reply from Session Reply
+- **THEN** the editor writes a reply artifact into the worktree reply store
+- **AND** the stored artifact records the owning `cellId` and `sessionId`
+
+#### Scenario: Invalid legacy reply rows are preserved until repair
+- **WHEN** legacy HIL `reply` rows cannot be normalized into valid session ownership
+- **THEN** the editor does not silently delete them during migration
+- **AND** only successfully imported legacy reply rows are removed from the legacy HIL store
+
+### Requirement: Session Reply Storage Tree Layout
+The editor SHALL store session reply artifacts under a session-owned tree layout while keeping the worktree reply index as the source of truth.
+
+#### Scenario: Write reply artifact files
+- **WHEN** a session reply artifact is created
+- **THEN** the editor updates `.agency/session-replies/index-<worktree>.yaml`
+- **AND** writes the artifact under `.agency/session-replies/<worktree>/sessions/<cellId>/<sessionId>/<replyId>.yaml`
+
+### Requirement: Session Delivery References Reply Artifacts
+When Session Reply triggers delivery, the resulting delivery draft SHALL reference the reply artifact rather than pretending the reply is a HIL item.
+
+#### Scenario: Delivery references a reply artifact
+- **WHEN** a user sends a reply through Session Reply quick delivery
+- **THEN** the delivery draft stores a source reference with `system=reply`
+- **AND** the target delivery draft remains a HIL `draft` artifact
+
 ### Requirement: Send-result cards
 The editor SHALL display send-result cards in the Reply panel.
 Each card SHALL show the target avatar and provide a jump link to the destination.
