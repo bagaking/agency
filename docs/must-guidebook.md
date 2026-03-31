@@ -47,6 +47,7 @@ Promotion rule:
 - Terminal interaction requirements: `docs/notes-terminal-interaction-requirements.md`
 - Unified file interaction philosophy: `docs/notes-file-interaction-system.md`
 - Explorer interaction capability design: `docs/notes-explorer-interaction-system.md`
+- HIL / Memo surface craft: `docs/guidelines-hil-surface-design.md`
 - Workbench highlighting system: `docs/notes-workbench-highlighting-system.md`
 - Turn workflow (gates + Action Sheets): `docs/notes-gate-turn-workflow.md`
 - Promotion delivery mechanism: `docs/notes-promotion-delivery-mechanism.md`

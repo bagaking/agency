@@ -41,6 +41,7 @@ Usage rules:
 | Session map layout + hover behavior | MUST | Session map or hover preview changes. | `docs/notes-session-management.md` |
 | Attention surface hierarchy | MUST | Any attention / urgency UX change; keep queue-style triage in Session Map `Ops`, compact summaries in shell chrome, and inline/local indicators in Agent Cells. | `docs/notes-session-management.md`, `apps/editor/README.md` |
 | Terminal keyboard behavior | MUST | Terminal input/shortcut changes. | `docs/notes-terminal-keyboard.md` |
+| Memo/HIL surface language | SHOULD | Any Memo, Comments, Drafts, Capture, or Promote UI work should reuse the shared Memo-first terminology and chrome rules rather than inventing per-panel labels. | `docs/guidelines-hil-surface-design.md`, `apps/editor/renderer/src/components/hil/hilSurfaceSystem.tsx` |
 
 ## Deprecations
 - None currently.

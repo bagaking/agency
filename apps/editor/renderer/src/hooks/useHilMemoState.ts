@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useHilItems } from './useHilItems';
-import { Terminal, StickyNote, Quote, Camera } from 'lucide-react';
+import { HIL_MEMO_SECTION_DEFS } from '../components/hil/hilSurfaceSystem';
 
 const resolveBody = (item) =>
   typeof item?.body === 'string' ? item.body : typeof item?.message === 'string' ? item.message : '';
@@ -49,12 +49,7 @@ export function useHilMemoState({ worktreePath }) {
   );
 
   const inboxSections = useMemo(
-    () => [
-      { id: 'comments', label: 'Comments', kind: 'comment', noteType: null, icon: Terminal },
-      { id: 'flash', label: 'Flash', kind: 'memo', noteType: 'flash', icon: StickyNote },
-      { id: 'excerpt', label: 'Excerpt', kind: 'memo', noteType: 'excerpt', icon: Quote },
-      { id: 'screenshot', label: 'Screenshot', kind: 'memo', noteType: 'screenshot', icon: Camera },
-    ],
+    () => HIL_MEMO_SECTION_DEFS,
     []
   );
 

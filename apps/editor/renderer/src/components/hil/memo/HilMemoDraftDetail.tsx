@@ -13,6 +13,13 @@ import {
 } from 'lucide-react';
 
 import { ActionSheetStatusPanel } from '../../actionSheets/ActionSheetStatusPanel';
+import {
+  HIL_SURFACE_COPY,
+  HilContextChip,
+  HilStatusBadge,
+  HilSurfaceHeader,
+  HilSurfaceSection,
+} from '../hilSurfaceSystem';
 import { HilMemoRowAction } from './HilMemoRowAction';
 
 export function HilMemoDraftDetail({
@@ -55,28 +62,18 @@ export function HilMemoDraftDetail({
 
     return (
         <div className="flex h-full flex-col">
-            <header className="flex items-center justify-between px-6 py-4 border-b border-border/10">
-                <div>
-                    <div className="text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
-                        Draft Detail
-                    </div>
-                    <div className="text-lg font-semibold text-foreground tracking-tight">
-                        {summarizeBody(draft)}
-                    </div>
-                    <div className="mt-1 flex items-center gap-3 text-[10px] text-muted-foreground/40 uppercase tracking-[0.2em]">
-                        <span className="inline-flex items-center gap-1">
-                            <Layers size={12} />
-                            {draft.status}
-                        </span>
-                        {createdAt && (
-                            <span className="inline-flex items-center gap-1">
-                                <Clock size={12} />
-                                {createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
-                            </span>
-                        )}
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
+            <header className="border-b border-border/10 px-6 py-5">
+                <HilSurfaceHeader
+                  eyebrow={HIL_SURFACE_COPY.draftsSubtitle}
+                  title={summarizeBody(draft)}
+                  subtitle="Inspect the execution state, linked Action Sheet context, and source references before resuming or archiving this draft."
+                  meta={
+                    <>
+                      <HilStatusBadge label={draft.status} tone={draft.status === 'resolved' ? 'success' : 'warning'} />
+                      {createdAt ? <HilContextChip label={createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} /> : null}
+                    </>
+                  }
+                  actions={<div className="flex items-center gap-2">
                     {draft.status === 'open' ? (
                         <HilMemoRowAction
                             icon={CheckCircle2}
@@ -103,7 +100,8 @@ export function HilMemoDraftDetail({
                         onClick={() => onDeleteDraft?.(draft)}
                         color="hover:text-rose-400 hover:bg-rose-500/10"
                     />
-                </div>
+                  </div>}
+                />
             </header>
             {mutationError ? (
                 <div
@@ -115,18 +113,18 @@ export function HilMemoDraftDetail({
                 </div>
             ) : null}
             <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
-                <div className="rounded-2xl border border-border/10 bg-muted/5 p-4">
-                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
-                        Execution Status
+                <HilSurfaceSection
+                  eyebrow="Execution"
+                  title="Run state"
+                  description="Check readiness, linked execution lane, and timestamps before leaving this draft."
+                  actions={
+                    <div className="flex flex-wrap items-center gap-2">
+                      <HilStatusBadge label={executionStatus} tone={executionStatus === 'complete' ? 'success' : executionStatus === 'running' ? 'active' : executionStatus === 'failed' ? 'danger' : 'neutral'} className="px-2 py-0.5" />
+                      <HilStatusBadge label={gateReady ? 'Gate ready' : 'Gate waiting'} tone={gateReady ? 'success' : 'warning'} className="px-2 py-0.5" />
                     </div>
+                  }
+                >
                     <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground/70">
-                        <span className="inline-flex items-center gap-2 rounded-full border border-border/20 bg-muted/10 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60">
-                            {executionStatus}
-                        </span>
-                        <span className="inline-flex items-center gap-2">
-                            <Target size={12} className={gateReady ? 'text-emerald-400' : 'text-muted-foreground/40'} />
-                            {gateReady ? 'Gate ready' : 'Gate waiting'}
-                        </span>
                         {executionSessionId ? (
                             <span className="inline-flex items-center gap-2">
                                 <Terminal size={12} className="text-primary/60" />
@@ -153,12 +151,12 @@ export function HilMemoDraftDetail({
                             type="button"
                             onClick={() => onViewSession?.(executionSessionId)}
                             disabled={!executionSessionId}
-                            className="rounded-md border border-border/20 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-40"
+                            className="rounded-full border border-border/20 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-40"
                         >
                             View Session
                         </button>
                     </div>
-                </div>
+                </HilSurfaceSection>
                 {hasActionSheet ? (
                   actionSheetStatus ? (
                     <ActionSheetStatusPanel
@@ -175,59 +173,62 @@ export function HilMemoDraftDetail({
                       showSessionSelect={false}
                     />
                   ) : (
-                    <div className="rounded-2xl border border-border/10 bg-muted/5 p-4 mt-4">
-                      <div className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
-                        Action Sheet
-                      </div>
-                      <div className="mt-2 text-[11px] text-muted-foreground/60">
-                        Linked Action Sheet: {actionSheetId}
-                      </div>
+                    <HilSurfaceSection
+                      eyebrow="Action Sheet"
+                      title="Linked sheet missing"
+                      description={`Linked Action Sheet: ${actionSheetId}`}
+                      className="mt-4"
+                    >
                       <div className="mt-3">
                         <button
                           type="button"
                           onClick={() => onOpenActionSheets?.(actionSheetId)}
-                          className="rounded-md border border-border/30 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                          className="rounded-full border border-border/30 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
                         >
                           Open Action Sheets
                         </button>
                       </div>
-                    </div>
+                    </HilSurfaceSection>
                   )
                 ) : (
-                  <div className="rounded-2xl border border-border/10 bg-muted/5 p-4 mt-4">
-                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
-                      Action Sheet
-                    </div>
-                    <div className="mt-2 text-[11px] text-muted-foreground/60">
-                      No Action Sheet linked.
-                    </div>
+                  <HilSurfaceSection
+                    eyebrow="Action Sheet"
+                    title="No linked sheet"
+                    description="Create an Action Sheet if this draft needs a durable gated execution wrapper."
+                    className="mt-4"
+                  >
                     <div className="mt-3">
                       <button
                         type="button"
                         onClick={() => onCreateActionSheet?.(draft)}
                         disabled={!onCreateActionSheet}
-                        className="rounded-md border border-primary/40 bg-primary/5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-primary hover:bg-primary/10 disabled:opacity-40"
+                        className="rounded-full border border-primary/40 bg-primary/5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-primary hover:bg-primary/10 disabled:opacity-40"
                       >
                         <Plus size={12} className="inline mr-1" />
                         Create Action Sheet
                       </button>
                     </div>
-                  </div>
+                  </HilSurfaceSection>
                 )}
-                <div className="rounded-2xl border border-border/10 bg-muted/5 p-4 mt-4">
-                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
-                        Draft Body
-                    </div>
+                <HilSurfaceSection
+                  eyebrow="Draft"
+                  title="Draft body"
+                  description="This is the canonical artifact body that the promote flow generated."
+                  className="mt-4"
+                >
                     <div className="mt-3 text-[13px] leading-relaxed text-foreground/80 whitespace-pre-wrap font-mono">
                         {resolveBody(draft) || 'No content.'}
                     </div>
-                </div>
+                </HilSurfaceSection>
 
                 {references.length > 0 && (
                     <div className="mt-6">
-                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
-                            References
-                        </div>
+                        <HilSurfaceHeader
+                          eyebrow="References"
+                          title="Source records"
+                          subtitle="Open or reveal the records that seeded this draft."
+                          compact
+                        />
                         <div className="mt-2 flex flex-col gap-2">
                             {references.map((ref, index) => {
                                 const refPath = ref.path || ref.id || '';
@@ -280,4 +281,3 @@ export function HilMemoDraftDetail({
         </div>
     );
 }
-
