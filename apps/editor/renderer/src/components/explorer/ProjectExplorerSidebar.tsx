@@ -47,7 +47,11 @@ import {
   getExplorerWorkingSetDescriptor,
 } from './explorerWorkingSets';
 import { useExplorerClipboardActions } from './useExplorerClipboardActions';
-import { useExplorerContentSearch } from './useExplorerContentSearch';
+import {
+  buildExplorerContentSearchMatchKey,
+  type ExplorerContentSearchConfirmedMatch,
+  useExplorerContentSearch,
+} from './useExplorerContentSearch';
 import { useExplorerChangedFilesActions } from './useExplorerChangedFilesActions';
 import { useExplorerCapabilityPreferences } from './useExplorerCapabilityPreferences';
 import { useExplorerDropHandlers } from './useExplorerDropHandlers';
@@ -160,7 +164,7 @@ function ProjectExplorerSidebarContent({
   const [contentCaseSensitive, setContentCaseSensitive] = useState(false);
   const [contentWholeWord, setContentWholeWord] = useState(false);
   const [contentUseRegex, setContentUseRegex] = useState(false);
-  const [confirmedContentResultPaths, setConfirmedContentResultPaths] = useState<string[]>([]);
+  const [confirmedContentMatchKeys, setConfirmedContentMatchKeys] = useState<string[]>([]);
   const [contentResultSelectionTouched, setContentResultSelectionTouched] = useState(false);
   const [workingSetMode, setWorkingSetMode] = useState<'flat' | 'tree'>('flat');
   const [researchLaneOpen, setResearchLaneOpen] = useState(false);
@@ -752,22 +756,73 @@ function ProjectExplorerSidebarContent({
     ]
   );
 
+  const visibleContentMatchRefs = useMemo(() => {
+    const refs: ExplorerContentSearchConfirmedMatch[] = [];
+    contentSearchResults.forEach((entry) => {
+      entry.matches.forEach((match) => {
+        refs.push({
+          path: entry.path,
+          line: match.line,
+          column: match.column,
+          endColumn: match.endColumn,
+          text: match.text,
+        });
+      });
+    });
+    return refs;
+  }, [contentSearchResults]);
+
+  const visibleContentMatchKeys = useMemo(
+    () => visibleContentMatchRefs.map((entry) => buildExplorerContentSearchMatchKey(entry)),
+    [visibleContentMatchRefs]
+  );
+
+  const visibleContentMatchKeySet = useMemo(
+    () => new Set(visibleContentMatchKeys),
+    [visibleContentMatchKeys]
+  );
+
+  const visibleContentMatchRefByKey = useMemo(() => {
+    const map = new Map<string, ExplorerContentSearchConfirmedMatch>();
+    visibleContentMatchRefs.forEach((entry) => {
+      map.set(buildExplorerContentSearchMatchKey(entry), entry);
+    });
+    return map;
+  }, [visibleContentMatchRefs]);
+
+  const visibleContentMatchKeysByPath = useMemo(() => {
+    const map = new Map<string, string[]>();
+    visibleContentMatchRefs.forEach((entry) => {
+      const key = buildExplorerContentSearchMatchKey(entry);
+      const current = map.get(entry.path);
+      if (current) {
+        current.push(key);
+      } else {
+        map.set(entry.path, [key]);
+      }
+    });
+    return map;
+  }, [visibleContentMatchRefs]);
+
   useEffect(() => {
     setContentResultSelectionTouched(false);
-    setConfirmedContentResultPaths([]);
+    setConfirmedContentMatchKeys([]);
   }, [contentSelectionReviewKey]);
 
   useEffect(() => {
-    const visiblePaths = contentSearchResults.map((entry) => entry.path);
-    const visiblePathSet = new Set(visiblePaths);
-    setConfirmedContentResultPaths((current) => {
-      const pruned = current.filter((path) => visiblePathSet.has(path));
+    setConfirmedContentMatchKeys((current) => {
+      const pruned = current.filter((key) => visibleContentMatchKeySet.has(key));
       if (contentResultSelectionTouched) {
         return pruned;
       }
-      return contentSearchTruncated ? [] : visiblePaths;
+      return contentSearchTruncated ? [] : visibleContentMatchKeys;
     });
-  }, [contentResultSelectionTouched, contentSearchResults, contentSearchTruncated]);
+  }, [
+    contentResultSelectionTouched,
+    contentSearchTruncated,
+    visibleContentMatchKeySet,
+    visibleContentMatchKeys,
+  ]);
 
   useEffect(() => {
     if (activeContentScopeKind !== contentScopeKind) {
@@ -789,42 +844,64 @@ function ProjectExplorerSidebarContent({
     }
   }, [workingSetOptions, workingSetViewId]);
 
-  const confirmedContentResultSet = useMemo(
-    () => new Set(confirmedContentResultPaths),
-    [confirmedContentResultPaths]
+  const confirmedContentMatches = useMemo(
+    () =>
+      confirmedContentMatchKeys
+        .map((key) => visibleContentMatchRefByKey.get(key))
+        .filter(Boolean) as ExplorerContentSearchConfirmedMatch[],
+    [confirmedContentMatchKeys, visibleContentMatchRefByKey]
+  );
+  const confirmedContentResultPaths = useMemo(
+    () => Array.from(new Set(confirmedContentMatches.map((entry) => entry.path))),
+    [confirmedContentMatches]
   );
   const confirmedContentFileCount = confirmedContentResultPaths.length;
-  const confirmedContentMatchCount = useMemo(
-    () =>
-      contentSearchResults.reduce(
-        (sum, entry) =>
-          confirmedContentResultSet.has(entry.path) ? sum + Number(entry?.matchCount || 0) : sum,
-        0
-      ),
-    [confirmedContentResultSet, contentSearchResults]
-  );
 
-  const handleToggleContentResult = useCallback((targetPath: string) => {
+  const handleToggleContentMatch = useCallback((targetMatch: ExplorerContentSearchConfirmedMatch) => {
+    const matchKey = buildExplorerContentSearchMatchKey(targetMatch);
     setContentResultSelectionTouched(true);
-    setConfirmedContentResultPaths((current) =>
-      current.includes(targetPath)
-        ? current.filter((entry) => entry !== targetPath)
-        : [...current, targetPath]
+    setConfirmedContentMatchKeys((current) =>
+      current.includes(matchKey)
+        ? current.filter((entry) => entry !== matchKey)
+        : [...current, matchKey]
     );
   }, []);
 
+  const handleToggleContentResult = useCallback((targetPath: string) => {
+    const pathKeys = visibleContentMatchKeysByPath.get(targetPath) || [];
+    if (!pathKeys.length) {
+      return;
+    }
+    setContentResultSelectionTouched(true);
+    setConfirmedContentMatchKeys((current) => {
+      const next = new Set(current);
+      const allSelected = pathKeys.every((key) => next.has(key));
+      if (allSelected) {
+        pathKeys.forEach((key) => next.delete(key));
+      } else {
+        pathKeys.forEach((key) => next.add(key));
+      }
+      return Array.from(next);
+    });
+  }, [visibleContentMatchKeysByPath]);
+
   const handleSelectAllVisibleContentResults = useCallback(() => {
     setContentResultSelectionTouched(true);
-    setConfirmedContentResultPaths(contentSearchResults.map((entry) => entry.path));
-  }, [contentSearchResults]);
+    setConfirmedContentMatchKeys(visibleContentMatchKeys);
+  }, [visibleContentMatchKeys]);
 
   const handleClearConfirmedContentResults = useCallback(() => {
     setContentResultSelectionTouched(true);
-    setConfirmedContentResultPaths([]);
+    setConfirmedContentMatchKeys([]);
   }, []);
 
+  const confirmedContentMatchCount = useMemo(
+    () => confirmedContentMatches.length,
+    [confirmedContentMatches]
+  );
+
   const handleApplyContentReplace = useCallback(async () => {
-    if (!confirmedContentFileCount) {
+    if (!confirmedContentMatchCount) {
       return;
     }
     const totalFiles = confirmedContentFileCount;
@@ -837,7 +914,7 @@ function ProjectExplorerSidebarContent({
         replaceText
       )} across ${totalFiles} confirmed files and ${totalMatches} confirmed matches.${
         contentSearchTruncated
-          ? ` Search results are truncated; only the confirmed visible files will be changed.`
+          ? ` Search results are truncated; only the confirmed visible matches will be changed.`
           : ''
       }`,
     });
@@ -846,6 +923,7 @@ function ProjectExplorerSidebarContent({
     }
     const response = await applyContentReplace({
       confirmedPaths: confirmedContentResultPaths,
+      confirmedMatches: confirmedContentMatches,
     });
     if (response) {
       await refreshAll({ forceStatus: true, reloadExpanded: true });
@@ -855,6 +933,7 @@ function ProjectExplorerSidebarContent({
     applyContentReplace,
     confirmedContentFileCount,
     confirmedContentMatchCount,
+    confirmedContentMatches,
     confirmedContentResultPaths,
     contentSearchTruncated,
     contentSearchQuery,
@@ -1319,9 +1398,11 @@ function ProjectExplorerSidebarContent({
             skippedLargeCount={contentSearchSkippedLargeCount}
             error={contentSearchError}
             selectedPaths={confirmedContentResultPaths}
+            selectedMatchKeys={confirmedContentMatchKeys}
             selectedFileCount={confirmedContentFileCount}
             selectedMatchCount={confirmedContentMatchCount}
             onToggleResult={handleToggleContentResult}
+            onToggleMatch={handleToggleContentMatch}
             onSelectAllVisible={handleSelectAllVisibleContentResults}
             onClearSelection={handleClearConfirmedContentResults}
             onOpenResult={(path, line) => handleOpenContentResult(path, line)}

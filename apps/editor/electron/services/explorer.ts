@@ -478,6 +478,143 @@ async function searchContent({
   };
 }
 
+function normalizeConfirmedContentMatches(confirmedMatches) {
+  const source = Array.isArray(confirmedMatches) ? confirmedMatches : [];
+  const normalized = [];
+  source.forEach((entry) => {
+    if (!entry || typeof entry !== 'object') {
+      return;
+    }
+    const normalizedPath = normalizeRelPath(entry.path || '');
+    const line = Number(entry.line);
+    const column = Number(entry.column);
+    const endColumn = Number(entry.endColumn);
+    const text = typeof entry.text === 'string' ? entry.text : String(entry.text || '');
+    if (!normalizedPath) {
+      return;
+    }
+    if (!Number.isInteger(line) || line < 1) {
+      return;
+    }
+    if (!Number.isInteger(column) || column < 1) {
+      return;
+    }
+    if (!Number.isInteger(endColumn) || endColumn < column) {
+      return;
+    }
+    normalized.push({
+      path: normalizedPath,
+      line,
+      column,
+      endColumn,
+      text,
+    });
+  });
+  const deduped = new Map();
+  normalized.forEach((entry) => {
+    const key = JSON.stringify([entry.path, entry.line, entry.column, entry.endColumn, entry.text]);
+    if (!deduped.has(key)) {
+      deduped.set(key, entry);
+    }
+  });
+  return Array.from(deduped.values());
+}
+
+function buildContentLineBounds(content) {
+  const source = String(content || '');
+  const lines = [];
+  let offset = 0;
+  while (offset <= source.length) {
+    const newlineIndex = source.indexOf('\n', offset);
+    const lineEnd = newlineIndex === -1 ? source.length : newlineIndex;
+    const normalizedEnd =
+      lineEnd > offset && source[lineEnd - 1] === '\r' ? lineEnd - 1 : lineEnd;
+    lines.push({ start: offset, end: normalizedEnd });
+    if (newlineIndex === -1) {
+      break;
+    }
+    offset = newlineIndex + 1;
+  }
+  return lines;
+}
+
+function planContentMatchReplacements(content, confirmedMatches) {
+  const lines = buildContentLineBounds(content);
+  const candidates = [];
+  const skipped = [];
+
+  confirmedMatches.forEach((match) => {
+    const lineInfo = lines[match.line - 1];
+    if (!lineInfo) {
+      skipped.push({
+        path: match.path,
+        line: match.line,
+        column: match.column,
+        endColumn: match.endColumn,
+        reason: 'line-out-of-range',
+      });
+      return;
+    }
+    const startOffset = lineInfo.start + (match.column - 1);
+    const endOffset = lineInfo.start + (match.endColumn - 1);
+    if (startOffset < lineInfo.start || endOffset < startOffset || endOffset > lineInfo.end) {
+      skipped.push({
+        path: match.path,
+        line: match.line,
+        column: match.column,
+        endColumn: match.endColumn,
+        reason: 'column-out-of-range',
+      });
+      return;
+    }
+    const actual = content.slice(startOffset, endOffset);
+    if (actual !== match.text) {
+      skipped.push({
+        path: match.path,
+        line: match.line,
+        column: match.column,
+        endColumn: match.endColumn,
+        reason: 'stale-match',
+      });
+      return;
+    }
+    candidates.push({
+      ...match,
+      startOffset,
+      endOffset,
+    });
+  });
+
+  candidates.sort((left, right) => {
+    if (left.startOffset !== right.startOffset) {
+      return left.startOffset - right.startOffset;
+    }
+    return left.endOffset - right.endOffset;
+  });
+
+  const applied = [];
+  let previousEnd = -1;
+  candidates.forEach((entry) => {
+    if (entry.startOffset < previousEnd) {
+      skipped.push({
+        path: entry.path,
+        line: entry.line,
+        column: entry.column,
+        endColumn: entry.endColumn,
+        reason: 'overlap',
+      });
+      return;
+    }
+    applied.push(entry);
+    previousEnd = entry.endOffset;
+  });
+
+  return {
+    applied,
+    skipped,
+  };
+}
+
 async function replaceContent({
   rootPath,
   query,
@@ -487,6 +624,7 @@ async function replaceContent({
   wholeWord = false,
   useRegex = false,
   confirmedPaths = [],
+  confirmedMatches = [],
 } = {}) {
   const trimmedQuery = String(query || '').trim();
   if (!trimmedQuery) {
@@ -501,24 +639,20 @@ async function replaceContent({
       .map((entry) => normalizeRelPath(entry || ''))
       .filter(Boolean)
   );
-  if (!confirmedSet.size) {
-    throw new Error('Content replace requires explicit confirmed target paths.');
+  const normalizedConfirmedMatches = normalizeConfirmedContentMatches(confirmedMatches);
+  const hasMatchReview = normalizedConfirmedMatches.length > 0;
+  if (!confirmedSet.size && !hasMatchReview) {
+    throw new Error('Content replace requires explicit confirmed target paths or matches.');
   }
-  const pattern = buildContentSearchPattern({
+  const validatedPattern = buildContentSearchPattern({
     query: trimmedQuery,
     caseSensitive,
     wholeWord,
     useRegex,
   });
-  const files = (await listRepoFiles(resolved.rootPath)).filter((filePath) => {
-    if (!pathMatchesContentScope(filePath, normalizedScope)) {
-      return false;
-    }
-    if (!confirmedSet.size) {
-      return true;
-    }
-    return confirmedSet.has(filePath);
-  });
+
+  const repoFiles = await listRepoFiles(resolved.rootPath);
+  const repoFileSet = new Set(repoFiles);
 
   const appliedPaths = [];
   const failures = [];
@@ -526,43 +660,142 @@ async function replaceContent({
   let replacedFiles = 0;
   let replacedMatches = 0;
 
-  for (const filePath of files) {
-    try {
-      const absolutePath = resolveSafePath(resolved.rootPath, filePath);
-      const stats = await fsp.stat(absolutePath);
-      if (!stats.isFile()) {
-        skipped.push({ path: filePath, reason: 'not-file' });
-        continue;
+  if (hasMatchReview) {
+    const groupedByPath = new Map();
+    normalizedConfirmedMatches.forEach((match) => {
+      if (!pathMatchesContentScope(match.path, normalizedScope)) {
+        skipped.push({
+          path: match.path,
+          line: match.line,
+          column: match.column,
+          endColumn: match.endColumn,
+          reason: 'out-of-scope',
+        });
+        return;
       }
-      if (stats.size > CONTENT_SEARCH_MAX_FILE_BYTES) {
-        skipped.push({ path: filePath, reason: 'too-large' });
-        continue;
+      if (!repoFileSet.has(match.path)) {
+        skipped.push({
+          path: match.path,
+          line: match.line,
+          column: match.column,
+          endColumn: match.endColumn,
+          reason: 'not-indexed',
+        });
+        return;
       }
-      const buffer = await fsp.readFile(absolutePath);
-      const sample = buffer.subarray(0, Math.min(buffer.length, 1024));
-      if (sample.includes(0)) {
-        skipped.push({ path: filePath, reason: 'binary' });
-        continue;
+      if (confirmedSet.size && !confirmedSet.has(match.path)) {
+        skipped.push({
+          path: match.path,
+          line: match.line,
+          column: match.column,
+          endColumn: match.endColumn,
+          reason: 'unconfirmed-path',
+        });
+        return;
       }
-      const content = buffer.toString('utf8');
-      pattern.lastIndex = 0;
-      let fileMatches = 0;
-      const nextContent = content.replace(pattern, (...args) => {
-        fileMatches += 1;
-        return replacement;
-      });
-      if (!fileMatches || nextContent === content) {
-        continue;
+      const bucket = groupedByPath.get(match.path) || [];
+      bucket.push(match);
+      groupedByPath.set(match.path, bucket);
+    });
+
+    for (const [filePath, fileMatches] of groupedByPath.entries()) {
+      try {
+        const absolutePath = resolveSafePath(resolved.rootPath, filePath);
+        const stats = await fsp.stat(absolutePath);
+        if (!stats.isFile()) {
+          skipped.push({ path: filePath, reason: 'not-file' });
+          continue;
+        }
+        if (stats.size > CONTENT_SEARCH_MAX_FILE_BYTES) {
+          skipped.push({ path: filePath, reason: 'too-large' });
+          continue;
+        }
+        const buffer = await fsp.readFile(absolutePath);
+        const sample = buffer.subarray(0, Math.min(buffer.length, 1024));
+        if (sample.includes(0)) {
+          skipped.push({ path: filePath, reason: 'binary' });
+          continue;
+        }
+        const content = buffer.toString('utf8');
+        const plan = planContentMatchReplacements(content, fileMatches);
+        skipped.push(...plan.skipped);
+        if (!plan.applied.length) {
+          continue;
+        }
+        let nextContent = content;
+        for (let index = plan.applied.length - 1; index >= 0; index -= 1) {
+          const entry = plan.applied[index];
+          nextContent =
+            nextContent.slice(0, entry.startOffset) +
+            replacement +
+            nextContent.slice(entry.endOffset);
+        }
+        if (nextContent === content) {
+          continue;
+        }
+        await fsp.writeFile(absolutePath, nextContent, 'utf8');
+        appliedPaths.push(filePath);
+        replacedFiles += 1;
+        replacedMatches += plan.applied.length;
+      } catch (error) {
+        failures.push({
+          path: filePath,
+          error: error?.message || String(error),
+        });
       }
-      await fsp.writeFile(absolutePath, nextContent, 'utf8');
-      appliedPaths.push(filePath);
-      replacedFiles += 1;
-      replacedMatches += fileMatches;
-    } catch (error) {
-      failures.push({
-        path: filePath,
-        error: error?.message || String(error),
-      });
+    }
+  } else {
+    const pattern = validatedPattern;
+    Array.from(confirmedSet).forEach((confirmedPath) => {
+      if (!pathMatchesContentScope(confirmedPath, normalizedScope)) {
+        skipped.push({ path: confirmedPath, reason: 'out-of-scope' });
+        return;
+      }
+      if (!repoFileSet.has(confirmedPath)) {
+        skipped.push({ path: confirmedPath, reason: 'not-indexed' });
+      }
+    });
+    const files = repoFiles.filter(
+      (filePath) => pathMatchesContentScope(filePath, normalizedScope) && confirmedSet.has(filePath)
+    );
+    for (const filePath of files) {
+      try {
+        const absolutePath = resolveSafePath(resolved.rootPath, filePath);
+        const stats = await fsp.stat(absolutePath);
+        if (!stats.isFile()) {
+          skipped.push({ path: filePath, reason: 'not-file' });
+          continue;
+        }
+        if (stats.size > CONTENT_SEARCH_MAX_FILE_BYTES) {
+          skipped.push({ path: filePath, reason: 'too-large' });
+          continue;
+        }
+        const buffer = await fsp.readFile(absolutePath);
+        const sample = buffer.subarray(0, Math.min(buffer.length, 1024));
+        if (sample.includes(0)) {
+          skipped.push({ path: filePath, reason: 'binary' });
+          continue;
+        }
+        const content = buffer.toString('utf8');
+        pattern.lastIndex = 0;
+        let fileMatches = 0;
+        const nextContent = content.replace(pattern, () => {
+          fileMatches += 1;
+          return replacement;
+        });
+        if (!fileMatches || nextContent === content) {
+          continue;
+        }
+        await fsp.writeFile(absolutePath, nextContent, 'utf8');
+        appliedPaths.push(filePath);
+        replacedFiles += 1;
+        replacedMatches += fileMatches;
+      } catch (error) {
+        failures.push({
+          path: filePath,
+          error: error?.message || String(error),
+        });
+      }
     }
   }
 
@@ -570,7 +803,9 @@ async function replaceContent({
     query: trimmedQuery,
     replacement,
     scope: normalizedScope,
+    reviewMode: hasMatchReview ? 'match' : 'file',
     confirmedPaths: Array.from(confirmedSet),
+    confirmedMatchCount: normalizedConfirmedMatches.length,
     replacedFiles,
     replacedMatches,
     appliedPaths,

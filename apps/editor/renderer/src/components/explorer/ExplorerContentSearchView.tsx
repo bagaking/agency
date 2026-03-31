@@ -4,6 +4,10 @@ import { Eye, Replace, SearchCode } from 'lucide-react';
 import { IconButton } from '../ui/IconButton';
 import { focusRing } from '../ui/focusRing';
 import { buildExplorerContentReplacePreview } from './explorerContentReplacePreview';
+import {
+  buildExplorerContentSearchMatchKey,
+  type ExplorerContentSearchConfirmedMatch,
+} from './useExplorerContentSearch';
 
 type ExplorerContentSearchViewProps = {
   query: string;
@@ -40,9 +44,11 @@ type ExplorerContentSearchViewProps = {
   skippedLargeCount: number;
   error: string;
   selectedPaths: string[];
+  selectedMatchKeys: string[];
   selectedFileCount: number;
   selectedMatchCount: number;
   onToggleResult: (path: string) => void;
+  onToggleMatch: (match: ExplorerContentSearchConfirmedMatch) => void;
   onSelectAllVisible: () => void;
   onClearSelection: () => void;
   onOpenResult: (path: string, line?: number) => void | Promise<void>;
@@ -77,9 +83,11 @@ export function ExplorerContentSearchView({
   skippedLargeCount,
   error,
   selectedPaths,
+  selectedMatchKeys,
   selectedFileCount,
   selectedMatchCount,
   onToggleResult,
+  onToggleMatch,
   onSelectAllVisible,
   onClearSelection,
   onOpenResult,
@@ -89,7 +97,8 @@ export function ExplorerContentSearchView({
   const totalMatches = results.reduce((sum, entry) => sum + Number(entry.matchCount || 0), 0);
   const hasQuery = query.trim().length > 0;
   const selectedPathSet = new Set(selectedPaths);
-  const canReplace = hasQuery && selectedFileCount > 0 && !loading && !replacing;
+  const selectedMatchKeySet = new Set(selectedMatchKeys);
+  const canReplace = hasQuery && selectedMatchCount > 0 && !loading && !replacing;
 
   return (
     <section className="flex min-h-0 flex-1 flex-col bg-sidebar text-sidebar-foreground">
@@ -155,7 +164,7 @@ export function ExplorerContentSearchView({
           {skippedLargeCount > 0 ? <span>{skippedLargeCount} large skipped</span> : null}
           {truncated ? (
             <span className="text-amber-300/80">
-              Results truncated; replace is limited to confirmed visible files
+              Results truncated; replace is limited to confirmed visible matches
             </span>
           ) : null}
         </div>
@@ -175,7 +184,7 @@ export function ExplorerContentSearchView({
             <button
               type="button"
               onClick={onClearSelection}
-              disabled={selectedFileCount === 0}
+              disabled={selectedMatchCount === 0}
               className={`rounded-full border border-border/30 px-2 py-1 font-semibold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-35 ${focusRingClass}`}
             >
               Clear
@@ -205,45 +214,78 @@ export function ExplorerContentSearchView({
           />
         ) : (
           <div className="space-y-2">
-            {results.map((result) => (
-              <article
-                key={result.path}
-                className="overflow-hidden rounded-xl border border-border/40 bg-white/[0.03]"
-              >
-                <header className="flex items-center gap-2 border-b border-border/20 px-3 py-2">
-                  <label className="inline-flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedPathSet.has(result.path)}
-                      onChange={() => onToggleResult(result.path)}
-                      className="h-3.5 w-3.5 rounded border-border/40 bg-background/80"
-                      aria-label={`Confirm replace target ${result.path}`}
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => void onOpenResult(result.path, result.matches[0]?.line)}
-                    className={`min-w-0 flex-1 truncate text-left text-[11px] font-semibold text-foreground hover:text-primary ${focusRingClass}`}
-                    title={result.path}
-                  >
-                    {result.path}
-                  </button>
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-primary">
-                    {result.matchCount} matches
-                  </span>
-                  <IconButton
-                    label={`Reveal ${result.path} in Explorer tree`}
-                    focusRing="sidebar"
-                    className="h-6 w-6 rounded-md text-muted-foreground/60 hover:bg-white/5 hover:text-foreground"
-                    onClick={() => void onRevealResult(result.path)}
-                  >
-                    <Eye size={12} strokeWidth={1.6} />
-                  </IconButton>
-                </header>
+            {results.map((result) => {
+              const selectedVisibleMatches = result.matches.reduce((sum, match) => {
+                const matchKey = buildExplorerContentSearchMatchKey({
+                  path: result.path,
+                  line: match.line,
+                  column: match.column,
+                  endColumn: match.endColumn,
+                  text: match.text,
+                });
+                return selectedMatchKeySet.has(matchKey) ? sum + 1 : sum;
+              }, 0);
+              const hasVisibleMatches = result.matches.length > 0;
+              const allVisibleSelected = hasVisibleMatches && selectedVisibleMatches === result.matches.length;
+              const partiallySelected =
+                selectedVisibleMatches > 0 && selectedVisibleMatches < result.matches.length;
+              return (
+                <article
+                  key={result.path}
+                  className="overflow-hidden rounded-xl border border-border/40 bg-white/[0.03]"
+                >
+                  <header className="flex items-center gap-2 border-b border-border/20 px-3 py-2">
+                    <label className="inline-flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={allVisibleSelected}
+                        aria-checked={partiallySelected ? 'mixed' : allVisibleSelected}
+                        onChange={() => onToggleResult(result.path)}
+                        className="h-3.5 w-3.5 rounded border-border/40 bg-background/80"
+                        aria-label={`Confirm replace target ${result.path}`}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => void onOpenResult(result.path, result.matches[0]?.line)}
+                      className={`min-w-0 flex-1 truncate text-left text-[11px] font-semibold text-foreground hover:text-primary ${focusRingClass}`}
+                      title={result.path}
+                    >
+                      {result.path}
+                    </button>
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-primary">
+                      {result.matchCount} matches
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] ${
+                        selectedPathSet.has(result.path)
+                          ? 'bg-emerald-500/12 text-emerald-200'
+                          : 'bg-muted/20 text-muted-foreground'
+                      }`}
+                    >
+                      {selectedVisibleMatches}/{result.matches.length} reviewed
+                    </span>
+                    <IconButton
+                      label={`Reveal ${result.path} in Explorer tree`}
+                      focusRing="sidebar"
+                      className="h-6 w-6 rounded-md text-muted-foreground/60 hover:bg-white/5 hover:text-foreground"
+                      onClick={() => void onRevealResult(result.path)}
+                    >
+                      <Eye size={12} strokeWidth={1.6} />
+                    </IconButton>
+                  </header>
 
-                <div className="divide-y divide-border/10">
-                  {result.matches.map((match, index) => (
-                    (() => {
+                  <div className="divide-y divide-border/10">
+                    {result.matches.map((match, index) => {
+                      const matchReview = {
+                        path: result.path,
+                        line: match.line,
+                        column: match.column,
+                        endColumn: match.endColumn,
+                        text: match.text,
+                      };
+                      const matchKey = buildExplorerContentSearchMatchKey(matchReview);
+                      const matchSelected = selectedMatchKeySet.has(matchKey);
                       const replacementPreview = replacementPreviewEnabled
                         ? buildExplorerContentReplacePreview({
                             snippet: match.snippet,
@@ -255,30 +297,45 @@ export function ExplorerContentSearchView({
                           })
                         : '';
                       return (
-                    <button
-                      key={`${result.path}:${match.line}:${match.column}:${index}`}
-                      type="button"
-                      onClick={() => void onOpenResult(result.path, match.line)}
-                      className={`flex w-full items-start gap-3 px-3 py-2 text-left transition-colors hover:bg-white/[0.04] ${focusRingClass}`}
-                    >
-                      <div className="mt-0.5 shrink-0 rounded bg-background/60 px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground/80">
-                        {match.line}:{match.column}
-                      </div>
-                      <div className="min-w-0 flex-1 text-[11px] leading-5 text-muted-foreground/85">
-                        <span className="block break-words">{match.snippet}</span>
-                        {replacementPreview ? (
-                          <span className="mt-1 block break-words rounded-md border border-primary/15 bg-primary/5 px-2 py-1 text-primary/85">
-                            Would become: {replacementPreview}
-                          </span>
-                        ) : null}
-                      </div>
-                    </button>
+                        <div
+                          key={`${result.path}:${match.line}:${match.column}:${index}`}
+                          className={`flex items-start gap-2 px-3 py-2 transition-colors ${
+                            matchSelected ? 'bg-emerald-500/5' : ''
+                          }`}
+                        >
+                          <label className="mt-1 inline-flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={matchSelected}
+                              onChange={() => onToggleMatch(matchReview)}
+                              className="h-3.5 w-3.5 rounded border-border/40 bg-background/80"
+                              aria-label={`Confirm replace match at ${result.path}:${match.line}:${match.column}`}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => void onOpenResult(result.path, match.line)}
+                            className={`flex min-w-0 flex-1 items-start gap-3 text-left transition-colors hover:bg-white/[0.04] ${focusRingClass}`}
+                          >
+                            <div className="mt-0.5 shrink-0 rounded bg-background/60 px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground/80">
+                              {match.line}:{match.column}
+                            </div>
+                            <div className="min-w-0 flex-1 text-[11px] leading-5 text-muted-foreground/85">
+                              <span className="block break-words">{match.snippet}</span>
+                              {replacementPreview ? (
+                                <span className="mt-1 block break-words rounded-md border border-primary/15 bg-primary/5 px-2 py-1 text-primary/85">
+                                  Would become: {replacementPreview}
+                                </span>
+                              ) : null}
+                            </div>
+                          </button>
+                        </div>
                       );
-                    })()
-                  ))}
-                </div>
-              </article>
-            ))}
+                    })}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </div>

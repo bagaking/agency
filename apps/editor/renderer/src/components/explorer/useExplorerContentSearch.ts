@@ -19,11 +19,29 @@ export type ExplorerContentSearchResultMatch = {
   snippet: string;
 };
 
+export type ExplorerContentSearchConfirmedMatch = {
+  path: string;
+  line: number;
+  column: number;
+  endColumn: number;
+  text: string;
+};
+
 export type ExplorerContentSearchResult = {
   path: string;
   matchCount: number;
   matches: ExplorerContentSearchResultMatch[];
 };
+
+export function buildExplorerContentSearchMatchKey({
+  path,
+  line,
+  column,
+  endColumn,
+  text,
+}: ExplorerContentSearchConfirmedMatch): string {
+  return JSON.stringify([path, line, column, endColumn, text]);
+}
 
 type UseExplorerContentSearchOptions = {
   rootPath: string;
@@ -118,7 +136,13 @@ export function useExplorerContentSearch({
   }, [runSearch, serializedScope]);
 
   const applyReplace = useCallback(
-    async ({ confirmedPaths = [] }: { confirmedPaths?: string[] } = {}) => {
+    async ({
+      confirmedPaths = [],
+      confirmedMatches = [],
+    }: {
+      confirmedPaths?: string[];
+      confirmedMatches?: ExplorerContentSearchConfirmedMatch[];
+    } = {}) => {
       const trimmedQuery = query.trim();
       if (!enabled || !rootPath || !trimmedQuery) {
         return null;
@@ -135,6 +159,7 @@ export function useExplorerContentSearch({
           wholeWord,
           useRegex,
           confirmedPaths,
+          confirmedMatches,
         });
         await runSearch();
         return response;

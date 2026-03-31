@@ -119,13 +119,57 @@ test('replaceContent only mutates confirmed targets and reports counts', async (
 
     assert.equal(result.replacedFiles, 1);
     assert.equal(result.replacedMatches, 2);
+    assert.equal(result.reviewMode, 'file');
     assert.deepEqual(result.appliedPaths, ['docs/guide.md']);
     assert.match(await fs.readFile(docsPath, 'utf8'), /workspace search one/);
     assert.match(await fs.readFile(notesPath, 'utf8'), /content search should stay here/);
   });
 });
 
-test('replaceContent requires explicit confirmed target paths', async (t) => {
+test('replaceContent can apply only explicitly confirmed matches', async (t) => {
+  await withExplorerService(async ({ searchContent, replaceContent }) => {
+    const rootDir = await createGitRoot();
+    t.after(async () => {
+      await fs.rm(rootDir, { recursive: true, force: true });
+    });
+
+    const docsPath = path.join(rootDir, 'docs', 'guide.md');
+    await writeTextFile(docsPath, 'content search one\ncontent search two\n');
+
+    const search = await searchContent({
+      rootPath: rootDir,
+      query: 'content search',
+      scope: { kind: 'project' },
+    });
+    const docsMatch = search.results.find((entry) => entry.path === 'docs/guide.md')?.matches[0];
+    assert.ok(docsMatch, 'expected at least one visible match');
+
+    const result = await replaceContent({
+      rootPath: rootDir,
+      query: 'content search',
+      replacement: 'workspace search',
+      scope: { kind: 'project' },
+      confirmedMatches: [
+        {
+          path: 'docs/guide.md',
+          line: docsMatch.line,
+          column: docsMatch.column,
+          endColumn: docsMatch.endColumn,
+          text: docsMatch.text,
+        },
+      ],
+    });
+
+    const nextContent = await fs.readFile(docsPath, 'utf8');
+    assert.equal(result.reviewMode, 'match');
+    assert.equal(result.replacedFiles, 1);
+    assert.equal(result.replacedMatches, 1);
+    assert.match(nextContent, /workspace search one/);
+    assert.match(nextContent, /content search two/);
+  });
+});
+
+test('replaceContent requires explicit confirmed review targets', async (t) => {
   await withExplorerService(async ({ replaceContent }) => {
     const rootDir = await createGitRoot();
     t.after(async () => {
@@ -143,7 +187,7 @@ test('replaceContent requires explicit confirmed target paths', async (t) => {
           scope: { kind: 'project' },
           confirmedPaths: [],
         }),
-      /Content replace requires explicit confirmed target paths/
+      /Content replace requires explicit confirmed target paths or matches/
     );
   });
 });
