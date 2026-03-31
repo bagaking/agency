@@ -346,6 +346,21 @@ export function buildComposedAppLayoutProps({
       onClearSessionError: sessionsState.clearSessionError,
       onCancelHarnessRun: sessionsState.cancelHarnessRun,
       onResumeHarnessRun: sessionsState.resumeHarnessRun,
+      replyEnabled: layoutState.activeView === 'agent-cells',
+      replyOpen:
+        layoutState.activeView === 'agent-cells' &&
+        layoutState.hilDrawerOpen &&
+        layoutState.hilDrawerPanel === 'reply',
+      replyLabel:
+        (sessionReplyContext.activeSession as any)?.name ||
+        (sessionReplyContext.activeSession as any)?.id ||
+        'Session Reply Relay',
+      onToggleReply: (nextOpen: boolean) => {
+        if (nextOpen) {
+          navigationHandlers.handleSelectHilDrawerPanel('reply');
+        }
+        navigationHandlers.setHilDrawerOpen(nextOpen);
+      },
     },
     appLayoutActionSheetsProps,
     appLayoutExplorerSidebarProps,

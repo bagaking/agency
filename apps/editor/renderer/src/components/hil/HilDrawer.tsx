@@ -20,6 +20,8 @@ export function HilDrawer({
   panels = defaultPanels,
   contentClassName = '',
   contentScrollable = true,
+  showToggleButton = true,
+  collapsedWidth = 6,
 }: any) {
   const drawerOpen = Boolean(open);
   const contentId = 'hil-drawer-content';
@@ -32,24 +34,29 @@ export function HilDrawer({
 
   return (
     <aside
-      className={`relative flex h-full flex-shrink-0 flex-col border-l border-border/20 bg-muted/5 backdrop-blur-2xl transition-[width] duration-300 ${
-        drawerOpen ? 'w-[360px]' : 'w-6'
-      }`}
+      className={`relative flex h-full flex-shrink-0 flex-col ${
+        drawerOpen || collapsedWidth > 0 ? 'border-l border-border/20' : 'border-l-0'
+      } bg-muted/5 backdrop-blur-2xl transition-[width] duration-300 ${drawerOpen ? 'w-[360px]' : ''}`}
+      style={drawerOpen ? undefined : { width: `${collapsedWidth}px` }}
     >
       <header
-        className={`shrink-0 h-9 flex items-center border-b border-border/10 bg-muted/10 ${
-          drawerOpen ? 'px-2 gap-1.5' : 'px-0 justify-center'
+        className={`shrink-0 h-9 items-center border-b border-border/10 bg-muted/10 ${
+          drawerOpen || showToggleButton ? 'flex' : 'hidden'
+        } ${
+          drawerOpen ? (showToggleButton ? 'px-2 gap-1.5' : 'px-2.5 gap-0') : 'px-0 justify-center'
         }`}
       >
-        <IconButton
-          label={drawerOpen ? 'Collapse HIL drawer' : 'Expand HIL drawer'}
-          onClick={handleToggle}
-          aria-expanded={drawerOpen}
-          aria-controls={contentId}
-          className="h-5 w-5 rounded-full border border-border/30 bg-background/60 text-muted-foreground/60 shadow-sm transition-colors hover:text-foreground hover:border-primary/30"
-        >
-          {drawerOpen ? <ChevronRight size={12} aria-hidden="true" /> : <ChevronLeft size={12} aria-hidden="true" />}
-        </IconButton>
+        {showToggleButton ? (
+          <IconButton
+            label={drawerOpen ? 'Collapse HIL drawer' : 'Expand HIL drawer'}
+            onClick={handleToggle}
+            aria-expanded={drawerOpen}
+            aria-controls={contentId}
+            className="h-5 w-5 rounded-full border border-border/30 bg-background/60 text-muted-foreground/60 shadow-sm transition-colors hover:text-foreground hover:border-primary/30"
+          >
+            {drawerOpen ? <ChevronRight size={12} aria-hidden="true" /> : <ChevronLeft size={12} aria-hidden="true" />}
+          </IconButton>
+        ) : null}
         {drawerOpen ? (
           <div className="flex min-w-0 flex-1 flex-col">
             <h2 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/70 truncate">

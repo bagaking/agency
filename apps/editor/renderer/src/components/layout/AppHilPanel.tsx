@@ -86,6 +86,7 @@ export function AppHilPanel({
     hilReplyProps,
     hilSubtitle,
   });
+  const useSharedReplyLauncher = meta.isAgentCellsView;
 
   return (
     <>
@@ -100,6 +101,8 @@ export function AppHilPanel({
         subtitle={meta.subtitle}
         contentScrollable={meta.contentScrollable}
         contentClassName={meta.contentClassName}
+        showToggleButton={!useSharedReplyLauncher}
+        collapsedWidth={useSharedReplyLauncher ? 0 : 6}
       >
         <DeferredMount active={hilDrawerOpen} strategy="retain">
           <Suspense fallback={drawerPanelFallback}>

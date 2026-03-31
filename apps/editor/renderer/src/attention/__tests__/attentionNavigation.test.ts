@@ -31,7 +31,7 @@ test('buildNextAttentionTooltip describes running attention as Session Map evide
       },
       source: 'local',
     }),
-    'Next: Running. Waiting for child session readiness. Open Session Map evidence.'
+    'Next: Running. Waiting for child session readiness. Open evidence in Session Map.'
   );
 });
 
@@ -78,5 +78,35 @@ test('buildNextAttentionTooltip describes window attention as focusing another w
       source: 'window',
     }),
     'Next: Attention in another window. Failed run in another window. Focus window.'
+  );
+});
+
+test('buildNextAttentionTooltip does not promise a session jump without a session target', () => {
+  assert.equal(
+    buildNextAttentionTooltip({
+      kind: 'unread',
+      label: 'Unread Session',
+      detail: 'Output arrived.',
+      refs: {
+        cellId: 'cell-a',
+      },
+      source: 'local',
+    }),
+    'Next: Unread output. Output arrived. Open attention.'
+  );
+});
+
+test('buildNextAttentionTooltip falls back to opening Session Map when evidence target is incomplete', () => {
+  assert.equal(
+    buildNextAttentionTooltip({
+      kind: 'failed',
+      label: 'Failed Run',
+      detail: 'Needs review.',
+      refs: {
+        cellId: 'cell-a',
+      },
+      source: 'local',
+    }),
+    'Next: Failed. Needs review. Open Session Map.'
   );
 });

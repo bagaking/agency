@@ -9,7 +9,15 @@ type AttentionLike = {
     windowStateId?: string;
     cellId?: string;
     sessionId?: string;
+    runId?: string;
   };
+};
+
+export type AttentionNavigationDescriptor = {
+  stateLabel: string;
+  actionLabel: string;
+  target: 'focus-window' | 'jump-session' | 'open-session-map' | 'none';
+  mapSelection: 'session' | 'cell' | 'none';
 };
 
 function normalizeText(value: unknown): string {
@@ -29,55 +37,100 @@ function summarizeAttentionText(item: AttentionLike | null | undefined): string 
   return `${summary.slice(0, 85).trimEnd()}...`;
 }
 
-export function describeAttentionNavigation(item: AttentionLike | null | undefined): {
-  stateLabel: string;
-  actionLabel: string;
-} {
+export function describeAttentionNavigation(
+  item: AttentionLike | null | undefined
+): AttentionNavigationDescriptor {
   if (!item) {
     return {
       stateLabel: 'Attention',
       actionLabel: 'Open attention',
+      target: 'none',
+      mapSelection: 'none',
     };
   }
 
   const windowStateId = normalizeText(item.refs?.windowStateId);
+  const cellId = normalizeText(item.refs?.cellId);
+  const sessionId = normalizeText(item.refs?.sessionId);
+  const runId = normalizeText(item.refs?.runId);
   if (item.source === 'window' && windowStateId) {
     return {
-      stateLabel: 'Attention in another window',
+      stateLabel:
+        item.kind === ATTENTION_KINDS.failed
+          ? 'Failed'
+          : item.kind === ATTENTION_KINDS.pendingConfirmation
+            ? 'Confirm'
+            : item.kind === ATTENTION_KINDS.unread
+              ? 'Unread'
+              : item.kind === ATTENTION_KINDS.returnRequired
+                ? 'Review'
+                : item.kind === ATTENTION_KINDS.running
+                  ? 'Running'
+                  : 'Attention',
       actionLabel: 'Focus window',
+      target: 'focus-window',
+      mapSelection: 'none',
     };
   }
 
   switch (item.kind) {
     case ATTENTION_KINDS.unread:
       return {
-        stateLabel: 'Unread output',
-        actionLabel: 'Jump to session',
+        stateLabel: 'Unread',
+        actionLabel: cellId && sessionId ? 'Jump to session' : 'Open attention',
+        target: cellId && sessionId ? 'jump-session' : 'none',
+        mapSelection: 'none',
       };
     case ATTENTION_KINDS.returnRequired:
       return {
-        stateLabel: 'Review needed',
-        actionLabel: 'Jump to session',
+        stateLabel: 'Review',
+        actionLabel: cellId && sessionId ? 'Jump to session' : 'Open attention',
+        target: cellId && sessionId ? 'jump-session' : 'none',
+        mapSelection: 'none',
       };
     case ATTENTION_KINDS.pendingConfirmation:
       return {
-        stateLabel: 'Confirmation needed',
+        stateLabel: 'Confirm',
         actionLabel: 'Open Session Map',
+        target: 'open-session-map',
+        mapSelection: cellId ? 'cell' : 'none',
       };
     case ATTENTION_KINDS.failed:
       return {
         stateLabel: 'Failed',
-        actionLabel: 'Open Session Map evidence',
+        actionLabel:
+          cellId && sessionId && runId
+            ? 'Open evidence in Session Map'
+            : 'Open Session Map',
+        target: 'open-session-map',
+        mapSelection:
+          cellId && sessionId
+            ? 'session'
+            : cellId
+              ? 'cell'
+              : 'none',
       };
     case ATTENTION_KINDS.running:
       return {
         stateLabel: 'Running',
-        actionLabel: 'Open Session Map evidence',
+        actionLabel:
+          cellId && sessionId && runId
+            ? 'Open evidence in Session Map'
+            : 'Open Session Map',
+        target: 'open-session-map',
+        mapSelection:
+          cellId && sessionId
+            ? 'session'
+            : cellId
+              ? 'cell'
+              : 'none',
       };
     default:
       return {
         stateLabel: 'Attention',
         actionLabel: 'Open attention',
+        target: 'none',
+        mapSelection: 'none',
       };
   }
 }
