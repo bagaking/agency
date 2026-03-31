@@ -11,3 +11,4 @@
 ## 3. Verification
 - [x] 3.1 Add or update unit coverage for Agent Cells attention rendering.
 - [x] 3.2 Run targeted tests for attention rendering and interaction wiring.
+- [x] 3.3 Add destination-aware `Next` tooltip coverage and update manual verification wording.

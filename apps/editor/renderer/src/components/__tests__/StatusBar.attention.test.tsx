@@ -59,18 +59,42 @@ const attentionValue = {
 };
 
 test('StatusBar renders a clickable primary attention item', () => {
-  const html = renderToStaticMarkup(
-    <AttentionLayerProvider value={attentionValue as any}>
-      <StatusBar
-        loading={false}
-        onRefresh={() => undefined}
-        tmuxStatus={{ available: true, version: 'tmux 3.4' }}
-        ipcAvailable={true}
-      />
-    </AttentionLayerProvider>
-  );
+  const originalConsoleError = console.error;
+  console.error = (...args: any[]) => {
+    const [firstArg] = args;
+    if (
+      typeof firstArg === 'string' &&
+      firstArg.includes('useLayoutEffect does nothing on the server')
+    ) {
+      return;
+    }
+    originalConsoleError(...args);
+  };
 
-  assert.match(html, /data-testid="statusbar-attention"/);
-  assert.match(html, /Create Child Agent via Fork/);
-  assert.match(html, /Running/);
+  try {
+    const html = renderToStaticMarkup(
+      <AttentionLayerProvider value={attentionValue as any}>
+        <StatusBar
+          loading={false}
+          onRefresh={() => undefined}
+          tmuxStatus={{ available: true, version: 'tmux 3.4' }}
+          ipcAvailable={true}
+        />
+      </AttentionLayerProvider>
+    );
+
+    assert.match(html, /data-testid="statusbar-attention"/);
+    assert.match(html, /Create Child Agent via Fork/);
+    assert.match(html, /Running/);
+    assert.match(
+      html,
+      /aria-label="Next: Running\. Create child agent from selected session\. Open Session Map evidence\."/
+    );
+    assert.doesNotMatch(
+      html,
+      /data-testid="statusbar-attention"[^>]*title=/
+    );
+  } finally {
+    console.error = originalConsoleError;
+  }
 });
