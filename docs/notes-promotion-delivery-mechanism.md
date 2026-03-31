@@ -183,4 +183,5 @@ Timeline 跳转策略：
 1. Promote quick：生成 draft + audit，并在确认后 complete。
 2. Explorer quick：生成 `source=explorer` 的统一 draft + audit。
 3. Session Reply quick：生成 `source=session` 记录，且包含 origin/target session 元数据。
+   - 同时验证 reply source artifact 保存在独立 session-reply store，而不是 HIL index。
 4. gated 流：Action Sheet 与 draft 状态可通过 `getDeliveryStatus` 协同追踪。

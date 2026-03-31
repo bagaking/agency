@@ -75,3 +75,11 @@ When Session Reply triggers delivery, the resulting delivery draft SHALL referen
 - **WHEN** a user sends a reply through Session Reply quick delivery
 - **THEN** the delivery draft stores a source reference with `system=reply`
 - **AND** the target delivery draft remains a HIL `draft` artifact
+
+### Requirement: Legacy HIL Reply Migration
+If legacy reply records exist in HIL storage from older builds, the editor SHALL import them into the session reply store non-destructively and stop re-surfacing them through HIL/Memo queries.
+
+#### Scenario: Import legacy HIL reply records
+- **WHEN** a worktree contains legacy HIL items with `kind=reply`
+- **THEN** the editor imports those records into the session reply store with preserved session ownership metadata when available
+- **AND** the legacy HIL reply records are no longer returned as active HIL/Memo items

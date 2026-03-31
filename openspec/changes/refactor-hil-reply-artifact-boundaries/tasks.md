@@ -4,7 +4,7 @@
 
 ## 2. Domain
 - [ ] 2.1 Refactor `hilRepository` to typed HIL-only contracts and legacy reply migration escape hatches.
-- [ ] 2.2 Add `sessionReplyRepository` with explicit owner metadata and tree-aligned artifact storage.
+- [ ] 2.2 Add `sessionReplyRepository` with explicit owner metadata, tree-aligned artifact storage, and one-way legacy HIL reply import.
 - [ ] 2.3 Update promote-system so `source=session` references reply artifacts without treating them as HIL records.
 
 ## 3. Host + Renderer

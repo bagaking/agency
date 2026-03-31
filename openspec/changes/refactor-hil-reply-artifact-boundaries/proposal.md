@@ -23,6 +23,7 @@ The current implementation stores session reply records inside the HIL repositor
   - `apps/editor/electron/preload.ts`
   - `apps/editor/renderer/src/services/agencyBridge.ts`
   - `apps/editor/renderer/src/components/sessionReply/*`
+  - `apps/editor/renderer/src/app/useSessionReplyContext.ts`
   - `apps/editor/renderer/src/hooks/useHilMemoState.ts`
   - `apps/editor/renderer/src/components/hil/memo/*`
 - Risk:
