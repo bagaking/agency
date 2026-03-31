@@ -1,8 +1,14 @@
 {
-  "initialJsRawBytes": 952417,
-  "initialJsGzipBytes": 259160,
-  "initialCssRawBytes": 119704,
-  "initialCssGzipBytes": 17801,
-  "largestInitialChunkRawBytes": 395278,
-  "largestInitialChunkGzipBytes": 110886
+  "schema": "agency.renderer-bundle-accepted/v1",
+  "capturedAt": "2026-03-31T02:43:25.738Z",
+  "sourceCommand": "pnpm -C apps/editor run accept:renderer-bundle-budget",
+  "notes": "Refresh this accepted-state file only after intentionally approving renderer boot bundle growth or shrinkage.",
+  "metrics": {
+    "initialJsRawBytes": 953320,
+    "initialJsGzipBytes": 259502,
+    "initialCssRawBytes": 119704,
+    "initialCssGzipBytes": 17801,
+    "largestInitialChunkRawBytes": 395936,
+    "largestInitialChunkGzipBytes": 111088
+  }
 }

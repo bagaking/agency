@@ -3,7 +3,8 @@ import { execFileSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 
-type Mode = 'dir' | 'dmg' | 'lite';
+type Mode = 'dir' | 'full' | 'lite';
+type Governance = 'packageable' | 'release';
 type DiskCheck = {
   targetPath: string;
   filesystem: string;
@@ -16,11 +17,18 @@ const releaseOutputRoot = path.join(projectRoot, 'dist', 'release');
 const electronBuilderCacheRoot = path.join(os.homedir(), 'Library', 'Caches', 'electron-builder');
 const macCachesRoot = path.join(os.homedir(), 'Library', 'Caches');
 const modeArgIndex = process.argv.findIndex((value) => value === '--mode');
+const governanceArgIndex = process.argv.findIndex((value) => value === '--governance');
 const modeValue =
   modeArgIndex >= 0 && process.argv[modeArgIndex + 1]
     ? String(process.argv[modeArgIndex + 1]).trim().toLowerCase()
     : 'dmg';
-const mode: Mode = modeValue === 'dir' ? 'dir' : modeValue === 'lite' ? 'lite' : 'dmg';
+const governanceValue =
+  governanceArgIndex >= 0 && process.argv[governanceArgIndex + 1]
+    ? String(process.argv[governanceArgIndex + 1]).trim().toLowerCase()
+    : 'packageable';
+const mode: Mode =
+  modeValue === 'dir' ? 'dir' : modeValue === 'lite' ? 'lite' : 'full';
+const governance: Governance = governanceValue === 'release' ? 'release' : 'packageable';
 
 function parsePositiveGiBOverride(envKey: string, fallbackGiB: number): number {
   const raw = String(process.env[envKey] || '').trim();
@@ -168,13 +176,13 @@ function listStaleReleaseOutputs(modeToClean: Mode): string[] {
     }
 
     if (
-      (modeToClean === 'dmg' || modeToClean === 'lite') &&
+      (modeToClean === 'full' || modeToClean === 'lite') &&
       (lowerName.endsWith('.zip') || lowerName.endsWith('.blockmap'))
     ) {
       return [fullPath];
     }
 
-    if ((modeToClean === 'dmg' || modeToClean === 'lite') && lowerName.endsWith('.dmg')) {
+    if ((modeToClean === 'full' || modeToClean === 'lite') && lowerName.endsWith('.dmg')) {
       return [fullPath];
     }
 
@@ -202,20 +210,27 @@ function cleanupStaleReleaseOutputs(modeToClean: Mode): {
   return { removedPaths, reclaimedBytes };
 }
 
-function getRetryCommandForMode(modeToRetry: Mode): string {
+function getRetryCommandForMode(modeToRetry: Mode, nextGovernance: Governance): string {
+  const base = nextGovernance === 'release' ? 'release' : '';
   if (modeToRetry === 'dir') {
-    return 'make editor-package-clean && make editor-package-dir';
+    return base
+      ? 'pnpm run package:clean && pnpm run package:dir:release'
+      : 'pnpm run package:clean && pnpm run package:dir';
   }
   if (modeToRetry === 'lite') {
-    return 'make editor-package-clean && make editor-package-lite';
+    return base
+      ? 'pnpm run package:clean && pnpm run package:lite:release'
+      : 'pnpm run package:clean && pnpm run package:lite';
   }
-  return 'make editor-package-clean && make editor-package';
+  return base
+    ? 'pnpm run package:clean && pnpm run package:release'
+    : 'pnpm run package:clean && pnpm run package';
 }
 
 function main(): void {
   const minFreeGiBByMode: Record<Mode, number> = {
     dir: parsePositiveGiBOverride('AGENCY_PACKAGE_DIR_MIN_FREE_GIB', 2),
-    dmg: parsePositiveGiBOverride('AGENCY_PACKAGE_DMG_MIN_FREE_GIB', 4),
+    full: parsePositiveGiBOverride('AGENCY_PACKAGE_DMG_MIN_FREE_GIB', 4),
     lite: parsePositiveGiBOverride('AGENCY_PACKAGE_LITE_MIN_FREE_GIB', 3),
   };
   const requiredBytes = minFreeGiBByMode[mode] * 1024 * 1024 * 1024;
@@ -230,8 +245,8 @@ function main(): void {
   if (!isFailing(initialChecks, requiredBytes)) {
     const prefix =
       cleanup.removedPaths.length > 0
-        ? `[package-preflight] mode=${mode} free-space ok after cleaning stale release outputs`
-        : `[package-preflight] mode=${mode} free-space ok`;
+        ? `[package-preflight] mode=${mode} governance=${governance} free-space ok after cleaning stale release outputs`
+        : `[package-preflight] mode=${mode} governance=${governance} free-space ok`;
     console.log(`${prefix} (${initialChecks
       .map((entry) => `${entry.targetPath}: ${formatBytes(entry.availableBytes)}`)
       .join(', ')})`);
@@ -254,7 +269,7 @@ function main(): void {
   const fullDistCleanBytes = fs.existsSync(distRoot) ? getPathSizeBytes(distRoot) : 0;
 
   const lines = [
-    `[package-preflight] insufficient free space for mode=${mode}.`,
+    `[package-preflight] insufficient free space for mode=${mode} governance=${governance}.`,
     `required: at least ${minFreeGiBByMode[mode]} GiB free on the packaging volume.`,
     ...checks.map(
       (entry) => `observed: ${entry.targetPath} -> ${formatBytes(entry.availableBytes)} free`
@@ -268,12 +283,19 @@ function main(): void {
     '- preflight already deletes stale generated outputs in apps/editor/dist/release when they would block the current mode',
     ...(fullDistCleanWouldPass
       ? [
-          `- run \`${getRetryCommandForMode(mode)}\` to remove all generated dist outputs first; estimated reclaim: ${formatBytes(fullDistCleanBytes)}`,
+          `- run \`${getRetryCommandForMode(mode, governance)}\` to remove all generated dist outputs first; estimated reclaim: ${formatBytes(fullDistCleanBytes)}`,
         ]
       : []),
     '- clear ~/Library/Caches/electron-builder if it is safe to do so',
-    '- use `pnpm -C apps/editor run package:lite` to build only the DMG with a lower free-space threshold',
-    '- use `pnpm -C apps/editor run package:dir` when you only need an unpacked app',
+    ...(governance === 'release'
+      ? [
+          '- use `pnpm run package:lite:release` when you need a DMG-only release-gated build',
+          '- use `pnpm run package:dir:release` when you need an unpacked release-gated build',
+        ]
+      : [
+          '- use `pnpm run package:lite` to build only the DMG with a lower free-space threshold',
+          '- use `pnpm run package:dir` when you only need an unpacked app',
+        ]),
   ];
   console.error(lines.join('\n'));
   process.exit(1);
