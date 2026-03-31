@@ -10,7 +10,6 @@ import { ExplorerItem } from './ExplorerItem';
 import { ExplorerHeader } from './ExplorerHeader';
 import { ExplorerFilterPanel } from './ExplorerFilterPanel';
 import { ExplorerFooter } from './ExplorerFooter';
-import { ExplorerResearchLane } from './ExplorerResearchLane';
 import { ExplorerWorkingSetView } from './ExplorerWorkingSetView';
 import { 
   pickPrimaryStatus, 
@@ -35,8 +34,11 @@ import {
   EXPLORER_CONTENT_SCOPE_SELECTION,
   EXPLORER_SEARCH_MODE_CONTENT,
   EXPLORER_SEARCH_MODE_PATH,
+  EXPLORER_SEARCH_MODE_URL,
   getExplorerContentScopeOptions,
+  getExplorerSearchModeDescriptor,
   getExplorerSearchModeOptions,
+  normalizeExplorerSupportedPublicUrl,
   normalizeExplorerContentScopeKindForSupportedScopes,
   normalizeExplorerSearchModeForSupportedModes,
 } from './explorerSearchModel';
@@ -47,15 +49,7 @@ import {
   getExplorerWorkingSetDescriptor,
 } from './explorerWorkingSets';
 import { useExplorerClipboardActions } from './useExplorerClipboardActions';
-import {
-  buildExplorerContentSearchMatchKey,
-  type ExplorerContentSearchConfirmedMatch,
-  useExplorerContentSearch,
-} from './useExplorerContentSearch';
-import {
-  buildExplorerConfirmedContentFilePaths,
-  buildExplorerContentReplaceRequest,
-} from './explorerContentReviewModel';
+import { useExplorerContentSearch } from './useExplorerContentSearch';
 import { useExplorerChangedFilesActions } from './useExplorerChangedFilesActions';
 import { useExplorerCapabilityPreferences } from './useExplorerCapabilityPreferences';
 import { useExplorerDropHandlers } from './useExplorerDropHandlers';
@@ -98,6 +92,7 @@ function ProjectExplorerSidebarContent({
   sessionMapOpen,
   revealRequest,
   onRevealHandled,
+  onLaunchWebResearchUrl,
 }: any) {
   const modal = useModal();
   const sidebarRef = useRef<HTMLElement | null>(null);
@@ -168,11 +163,12 @@ function ProjectExplorerSidebarContent({
   const [contentCaseSensitive, setContentCaseSensitive] = useState(false);
   const [contentWholeWord, setContentWholeWord] = useState(false);
   const [contentUseRegex, setContentUseRegex] = useState(false);
-  const [confirmedContentFullFilePaths, setConfirmedContentFullFilePaths] = useState<string[]>([]);
-  const [confirmedContentMatchKeys, setConfirmedContentMatchKeys] = useState<string[]>([]);
+  const [confirmedContentResultPaths, setConfirmedContentResultPaths] = useState<string[]>([]);
   const [contentResultSelectionTouched, setContentResultSelectionTouched] = useState(false);
   const [workingSetMode, setWorkingSetMode] = useState<'flat' | 'tree'>('flat');
-  const [researchLaneOpen, setResearchLaneOpen] = useState(false);
+  const [urlSearchQuery, setUrlSearchQuery] = useState('');
+  const [urlResearchLaunchPending, setUrlResearchLaunchPending] = useState(false);
+  const [searchInputAutoFocusKey, setSearchInputAutoFocusKey] = useState(0);
   const [filterMenuPosition, setFilterMenuPosition] = useState<{ top: number; left: number } | null>(
     null
   );
@@ -200,17 +196,30 @@ function ProjectExplorerSidebarContent({
     () => getExplorerWorkingSetDescriptor(workingSetViewId),
     [workingSetViewId]
   );
+  const disabledSearchModeIds = useMemo(
+    () => (projectPolicy?.research?.enabled === false ? [EXPLORER_SEARCH_MODE_URL] : []),
+    [projectPolicy?.research?.enabled]
+  );
   const searchModeOptions = useMemo(
-    () => getExplorerSearchModeOptions(activeWorkingSetDescriptor.supportedSearchModes),
-    [activeWorkingSetDescriptor.supportedSearchModes]
+    () =>
+      getExplorerSearchModeOptions(
+        activeWorkingSetDescriptor.supportedSearchModes,
+        disabledSearchModeIds
+      ),
+    [activeWorkingSetDescriptor.supportedSearchModes, disabledSearchModeIds]
   );
   const activeSearchMode = useMemo(
     () =>
       normalizeExplorerSearchModeForSupportedModes(
         searchMode,
-        activeWorkingSetDescriptor.supportedSearchModes
+        activeWorkingSetDescriptor.supportedSearchModes,
+        disabledSearchModeIds
       ),
-    [activeWorkingSetDescriptor.supportedSearchModes, searchMode]
+    [activeWorkingSetDescriptor.supportedSearchModes, disabledSearchModeIds, searchMode]
+  );
+  const activeSearchModeDescriptor = useMemo(
+    () => getExplorerSearchModeDescriptor(activeSearchMode),
+    [activeSearchMode]
   );
   const activeContentScopeKind = useMemo(
     () =>
@@ -261,9 +270,7 @@ function ProjectExplorerSidebarContent({
     if (!selectedCellId) {
       return [];
     }
-    const baseRoot = String(
-      selectedCell?.attachedWorktreePath || rootPath || scopeRootPath || ''
-    ).replace(/\/+$/, '');
+    const baseRoot = String(selectedCell?.worktreePath || rootPath || scopeRootPath || '').replace(/\/+$/, '');
     return buildAgentCellModifiedFileChanges({
       statusFiles: statusByPath,
       cellId: selectedCellId,
@@ -443,12 +450,6 @@ function ProjectExplorerSidebarContent({
       setFilterMenuOpen(false);
     }
   }, [showFilterMenuButton]);
-
-  useEffect(() => {
-    if (projectPolicy?.research?.enabled === false && researchLaneOpen) {
-      setResearchLaneOpen(false);
-    }
-  }, [projectPolicy?.research?.enabled, researchLaneOpen]);
 
   useEffect(() => {
     const availableRuleIds = new Set(
@@ -661,7 +662,7 @@ function ProjectExplorerSidebarContent({
   } = useExplorerChangedFilesActions({
     rootPath,
     scopeRootPath,
-    selectedCellWorktreePath: String(selectedCell?.attachedWorktreePath || ''),
+    selectedCellWorktreePath: String(selectedCell?.worktreePath || ''),
     selectedCellId,
     isPanelOpen: workingSetViewId === EXPLORER_WORKING_SET_CHANGED_FILES,
     changedPanelEntries,
@@ -716,7 +717,6 @@ function ProjectExplorerSidebarContent({
     }
     return { kind: EXPLORER_CONTENT_SCOPE_PROJECT };
   }, [activeContentScopeKind, contentFolderPath, selectionTargets]);
-
   const {
     query: contentSearchQuery,
     setQuery: setContentSearchQuery,
@@ -735,7 +735,7 @@ function ProjectExplorerSidebarContent({
     applyReplace: applyContentReplace,
   } = useExplorerContentSearch({
     rootPath,
-    enabled: searchMode === EXPLORER_SEARCH_MODE_CONTENT,
+    enabled: activeSearchMode === EXPLORER_SEARCH_MODE_CONTENT,
     scope: contentSearchScope,
     caseSensitive: contentCaseSensitive,
     wholeWord: contentWholeWord,
@@ -761,78 +761,22 @@ function ProjectExplorerSidebarContent({
     ]
   );
 
-  const visibleContentMatchRefs = useMemo(() => {
-    const refs: ExplorerContentSearchConfirmedMatch[] = [];
-    contentSearchResults.forEach((entry) => {
-      entry.matches.forEach((match) => {
-        refs.push({
-          path: entry.path,
-          line: match.line,
-          column: match.column,
-          endColumn: match.endColumn,
-          text: match.text,
-        });
-      });
-    });
-    return refs;
-  }, [contentSearchResults]);
-
-  const visibleContentMatchKeys = useMemo(
-    () => visibleContentMatchRefs.map((entry) => buildExplorerContentSearchMatchKey(entry)),
-    [visibleContentMatchRefs]
-  );
-
-  const visibleContentMatchKeySet = useMemo(
-    () => new Set(visibleContentMatchKeys),
-    [visibleContentMatchKeys]
-  );
-
-  const visibleContentMatchRefByKey = useMemo(() => {
-    const map = new Map<string, ExplorerContentSearchConfirmedMatch>();
-    visibleContentMatchRefs.forEach((entry) => {
-      map.set(buildExplorerContentSearchMatchKey(entry), entry);
-    });
-    return map;
-  }, [visibleContentMatchRefs]);
-
-  const visibleContentMatchKeysByPath = useMemo(() => {
-    const map = new Map<string, string[]>();
-    visibleContentMatchRefs.forEach((entry) => {
-      const key = buildExplorerContentSearchMatchKey(entry);
-      const current = map.get(entry.path);
-      if (current) {
-        current.push(key);
-      } else {
-        map.set(entry.path, [key]);
-      }
-    });
-    return map;
-  }, [visibleContentMatchRefs]);
-
   useEffect(() => {
     setContentResultSelectionTouched(false);
-    setConfirmedContentFullFilePaths([]);
-    setConfirmedContentMatchKeys([]);
+    setConfirmedContentResultPaths([]);
   }, [contentSelectionReviewKey]);
 
   useEffect(() => {
     const visiblePaths = contentSearchResults.map((entry) => entry.path);
     const visiblePathSet = new Set(visiblePaths);
-    setConfirmedContentFullFilePaths((current) => current.filter((path) => visiblePathSet.has(path)));
-    setConfirmedContentMatchKeys((current) => {
-      const pruned = current.filter((key) => visibleContentMatchKeySet.has(key));
+    setConfirmedContentResultPaths((current) => {
+      const pruned = current.filter((path) => visiblePathSet.has(path));
       if (contentResultSelectionTouched) {
         return pruned;
       }
-      return contentSearchTruncated ? [] : visibleContentMatchKeys;
+      return contentSearchTruncated ? [] : visiblePaths;
     });
-  }, [
-    contentResultSelectionTouched,
-    contentSearchTruncated,
-    contentSearchResults,
-    visibleContentMatchKeySet,
-    visibleContentMatchKeys,
-  ]);
+  }, [contentResultSelectionTouched, contentSearchResults, contentSearchTruncated]);
 
   useEffect(() => {
     if (activeContentScopeKind !== contentScopeKind) {
@@ -854,101 +798,42 @@ function ProjectExplorerSidebarContent({
     }
   }, [workingSetOptions, workingSetViewId]);
 
-  const confirmedContentMatches = useMemo(
-    () =>
-      confirmedContentMatchKeys
-        .map((key) => visibleContentMatchRefByKey.get(key))
-        .filter(Boolean) as ExplorerContentSearchConfirmedMatch[],
-    [confirmedContentMatchKeys, visibleContentMatchRefByKey]
-  );
-  const confirmedContentResultPaths = useMemo(
-    () =>
-      buildExplorerConfirmedContentFilePaths({
-        fullFilePaths: confirmedContentFullFilePaths,
-        confirmedMatches: confirmedContentMatches,
-      }),
-    [confirmedContentFullFilePaths, confirmedContentMatches]
-  );
-  const confirmedContentFullPathSet = useMemo(
-    () => new Set(confirmedContentFullFilePaths),
-    [confirmedContentFullFilePaths]
+  const confirmedContentResultSet = useMemo(
+    () => new Set(confirmedContentResultPaths),
+    [confirmedContentResultPaths]
   );
   const confirmedContentFileCount = confirmedContentResultPaths.length;
-
-  const handleToggleContentMatch = useCallback((targetMatch: ExplorerContentSearchConfirmedMatch) => {
-    const matchKey = buildExplorerContentSearchMatchKey(targetMatch);
-    setContentResultSelectionTouched(true);
-    setConfirmedContentFullFilePaths((current) =>
-      current.filter((path) => path !== targetMatch.path)
-    );
-    setConfirmedContentMatchKeys((current) =>
-      current.includes(matchKey)
-        ? current.filter((entry) => entry !== matchKey)
-        : [...current, matchKey]
-    );
-  }, []);
+  const confirmedContentMatchCount = useMemo(
+    () =>
+      contentSearchResults.reduce(
+        (sum, entry) =>
+          confirmedContentResultSet.has(entry.path) ? sum + Number(entry?.matchCount || 0) : sum,
+        0
+      ),
+    [confirmedContentResultSet, contentSearchResults]
+  );
 
   const handleToggleContentResult = useCallback((targetPath: string) => {
-    const resultEntry = contentSearchResults.find((entry) => entry.path === targetPath);
-    const pathKeys = visibleContentMatchKeysByPath.get(targetPath) || [];
-    if (!resultEntry || !pathKeys.length) {
-      return;
-    }
-    const hasHiddenMatches = resultEntry.matchCount > resultEntry.matches.length;
     setContentResultSelectionTouched(true);
-    if (hasHiddenMatches) {
-      setConfirmedContentFullFilePaths((current) =>
-        current.includes(targetPath)
-          ? current.filter((path) => path !== targetPath)
-          : [...current, targetPath]
-      );
-      setConfirmedContentMatchKeys((current) => current.filter((key) => !pathKeys.includes(key)));
-      return;
-    }
-    setConfirmedContentFullFilePaths((current) => current.filter((path) => path !== targetPath));
-    setConfirmedContentMatchKeys((current) => {
-      const next = new Set(current);
-      const allSelected = pathKeys.every((key) => next.has(key));
-      if (allSelected) {
-        pathKeys.forEach((key) => next.delete(key));
-      } else {
-        pathKeys.forEach((key) => next.add(key));
-      }
-      return Array.from(next);
-    });
-  }, [contentSearchResults, visibleContentMatchKeysByPath]);
+    setConfirmedContentResultPaths((current) =>
+      current.includes(targetPath)
+        ? current.filter((entry) => entry !== targetPath)
+        : [...current, targetPath]
+    );
+  }, []);
 
   const handleSelectAllVisibleContentResults = useCallback(() => {
     setContentResultSelectionTouched(true);
-    setConfirmedContentFullFilePaths([]);
-    setConfirmedContentMatchKeys(visibleContentMatchKeys);
-  }, [visibleContentMatchKeys]);
+    setConfirmedContentResultPaths(contentSearchResults.map((entry) => entry.path));
+  }, [contentSearchResults]);
 
   const handleClearConfirmedContentResults = useCallback(() => {
     setContentResultSelectionTouched(true);
-    setConfirmedContentFullFilePaths([]);
-    setConfirmedContentMatchKeys([]);
+    setConfirmedContentResultPaths([]);
   }, []);
 
-  const confirmedContentMatchCount = useMemo(
-    () =>
-      contentSearchResults.reduce((sum, entry) => {
-        if (confirmedContentFullPathSet.has(entry.path)) {
-          return sum + Number(entry.matchCount || 0);
-        }
-        return (
-          sum +
-          confirmedContentMatches.reduce(
-            (entrySum, match) => (match.path === entry.path ? entrySum + 1 : entrySum),
-            0
-          )
-        );
-      }, 0),
-    [confirmedContentFullPathSet, confirmedContentMatches, contentSearchResults]
-  );
-
   const handleApplyContentReplace = useCallback(async () => {
-    if (!confirmedContentMatchCount) {
+    if (!confirmedContentFileCount) {
       return;
     }
     const totalFiles = confirmedContentFileCount;
@@ -961,19 +846,16 @@ function ProjectExplorerSidebarContent({
         replaceText
       )} across ${totalFiles} confirmed files and ${totalMatches} confirmed matches.${
         contentSearchTruncated
-          ? ` Search results are truncated; narrow the query if you need exhaustive review across more files.`
+          ? ` Search results are truncated; only the confirmed visible files will be changed.`
           : ''
       }`,
     });
     if (!confirmed) {
       return;
     }
-    const response = await applyContentReplace(
-      buildExplorerContentReplaceRequest({
-        fullFilePaths: confirmedContentFullFilePaths,
-        confirmedMatches: confirmedContentMatches,
-      })
-    );
+    const response = await applyContentReplace({
+      confirmedPaths: confirmedContentResultPaths,
+    });
     if (response) {
       await refreshAll({ forceStatus: true, reloadExpanded: true });
       await refreshChangesPanel();
@@ -981,10 +863,7 @@ function ProjectExplorerSidebarContent({
   }, [
     applyContentReplace,
     confirmedContentFileCount,
-    confirmedContentFullFilePaths,
-    confirmedContentFullPathSet,
     confirmedContentMatchCount,
-    confirmedContentMatches,
     confirmedContentResultPaths,
     contentSearchTruncated,
     contentSearchQuery,
@@ -1123,8 +1002,38 @@ function ProjectExplorerSidebarContent({
     },
     [expandAncestorsForPath, selectPathInExplorer]
   );
+  const handleSearchModeChange = useCallback(
+    (nextMode: string) => {
+      const normalized = normalizeExplorerSearchModeForSupportedModes(
+        nextMode,
+        activeWorkingSetDescriptor.supportedSearchModes,
+        disabledSearchModeIds
+      );
+      if (normalized === EXPLORER_SEARCH_MODE_URL) {
+        const candidate = normalizeExplorerSupportedPublicUrl(
+          activeSearchMode === EXPLORER_SEARCH_MODE_CONTENT ? contentSearchQuery : searchQuery
+        );
+        if (candidate) {
+          setUrlSearchQuery(candidate);
+        }
+      }
+      setSearchMode(normalized);
+      setSearchInputAutoFocusKey((current) => current + 1);
+    },
+    [
+      activeSearchMode,
+      activeWorkingSetDescriptor.supportedSearchModes,
+      contentSearchQuery,
+      disabledSearchModeIds,
+      searchQuery,
+    ]
+  );
   const headerSearchQuery =
-    activeSearchMode === EXPLORER_SEARCH_MODE_CONTENT ? contentSearchQuery : searchQuery;
+    activeSearchMode === EXPLORER_SEARCH_MODE_CONTENT
+      ? contentSearchQuery
+      : activeSearchMode === EXPLORER_SEARCH_MODE_URL
+        ? urlSearchQuery
+        : searchQuery;
   const setHeaderSearchQuery = useCallback(
     (value: string) => {
       if (activeSearchMode === EXPLORER_SEARCH_MODE_CONTENT) {
@@ -1134,6 +1043,10 @@ function ProjectExplorerSidebarContent({
         setContentSearchQuery(value);
         return;
       }
+      if (activeSearchMode === EXPLORER_SEARCH_MODE_URL) {
+        setUrlSearchQuery(value);
+        return;
+      }
       setSearchQuery(value);
     },
     [activeSearchMode, searchMode, setContentSearchQuery, setSearchMode, setSearchQuery]
@@ -1141,25 +1054,55 @@ function ProjectExplorerSidebarContent({
   const clearHeaderSearch = useCallback(() => {
     setHeaderSearchQuery('');
   }, [setHeaderSearchQuery]);
+  const urlLaunchCandidate = useMemo(
+    () => normalizeExplorerSupportedPublicUrl(headerSearchQuery),
+    [headerSearchQuery]
+  );
+  const canUseUrlResearch =
+    !disabledSearchModeIds.includes(EXPLORER_SEARCH_MODE_URL) &&
+    activeWorkingSetDescriptor.supportedSearchModes.includes(EXPLORER_SEARCH_MODE_URL);
+  const showUrlAffordance =
+    Boolean(urlLaunchCandidate) &&
+    canUseUrlResearch &&
+    activeSearchMode !== EXPLORER_SEARCH_MODE_URL;
+  const handleLaunchWebResearch = useCallback(async () => {
+    const candidate =
+      activeSearchMode === EXPLORER_SEARCH_MODE_URL
+        ? normalizeExplorerSupportedPublicUrl(urlSearchQuery)
+        : normalizeExplorerSupportedPublicUrl(headerSearchQuery);
+    if (!candidate || !onLaunchWebResearchUrl) {
+      return;
+    }
+    setUrlResearchLaunchPending(true);
+    try {
+      setUrlSearchQuery(candidate);
+      setSearchMode(EXPLORER_SEARCH_MODE_URL);
+      await onLaunchWebResearchUrl(candidate);
+    } finally {
+      setUrlResearchLaunchPending(false);
+    }
+  }, [activeSearchMode, headerSearchQuery, onLaunchWebResearchUrl, urlSearchQuery]);
+  const handleSubmitHeaderSearch = useCallback(() => {
+    if (activeSearchMode === EXPLORER_SEARCH_MODE_URL) {
+      void handleLaunchWebResearch();
+    }
+  }, [activeSearchMode, handleLaunchWebResearch]);
   const headerCommandContext = useMemo(
     () => ({
       selectionTargets,
       canPaste,
-      hasResearchLane: projectPolicy?.research?.enabled !== false,
       hiddenCommandIds: projectPolicy?.actions?.hiddenCommands || [],
       actions: {
         onJumpToAgents,
         onNewFile: () => startDraft('file'),
         onNewFolder: () => startDraft('dir'),
         onRefresh: () => refreshAll({ forceStatus: true, reloadExpanded: true }),
-        onToggleResearchLane: () => setResearchLaneOpen((current) => !current),
       },
     }),
     [
       canPaste,
       onJumpToAgents,
       projectPolicy?.actions?.hiddenCommands,
-      projectPolicy?.research?.enabled,
       refreshAll,
       selectionTargets,
       startDraft,
@@ -1174,14 +1117,6 @@ function ProjectExplorerSidebarContent({
         spinning: command.id === 'explorer.refresh' && loadingPaths.size > 0,
       })),
     [headerCommandContext, hiddenCommandIds, loadingPaths.size]
-  );
-  const headerPrimaryCommands = useMemo(
-    () => headerCommands.filter((command) => command.placement !== 'secondary'),
-    [headerCommands]
-  );
-  const headerSecondaryCommands = useMemo(
-    () => headerCommands.filter((command) => command.placement === 'secondary'),
-    [headerCommands]
   );
   const contextMenuCommandContext = useMemo(
     () => ({
@@ -1319,7 +1254,7 @@ function ProjectExplorerSidebarContent({
       ? 'No files match the current filters.'
       : 'No files to display.';
   const shouldRenderContentSearchPanel =
-    searchMode === EXPLORER_SEARCH_MODE_CONTENT &&
+    activeSearchMode === EXPLORER_SEARCH_MODE_CONTENT &&
     (activeWorkingSetDescriptor.panelId === 'tree' ||
       contentSearchQuery.trim().length > 0 ||
       replaceText.length > 0 ||
@@ -1342,8 +1277,7 @@ function ProjectExplorerSidebarContent({
         activeRootLabel={activeRootLabel}
         activeFilterCount={visibleFilterCount}
         activeFilterSummary={visibleFilterSummary}
-        headerPrimaryCommands={headerPrimaryCommands}
-        headerSecondaryCommands={headerSecondaryCommands}
+        headerCommands={headerCommands}
         hasCells={hasCells}
         cells={cells}
         selectedId={selectedId}
@@ -1353,10 +1287,26 @@ function ProjectExplorerSidebarContent({
         onWorkingSetChange={setWorkingSetViewId}
         searchMode={activeSearchMode}
         searchModeOptions={searchModeOptions}
-        onSearchModeChange={setSearchMode}
+        onSearchModeChange={handleSearchModeChange}
         searchQuery={headerSearchQuery}
         onSearchChange={setHeaderSearchQuery}
         onClearSearch={clearHeaderSearch}
+        searchInputType={activeSearchModeDescriptor.inputType}
+        searchSubmitLabel={activeSearchModeDescriptor.submitLabel}
+        searchSubmitBusyLabel={activeSearchModeDescriptor.submitBusyLabel}
+        searchSubmitPending={activeSearchMode === EXPLORER_SEARCH_MODE_URL && urlResearchLaunchPending}
+        searchSubmitDisabled={
+          activeSearchMode === EXPLORER_SEARCH_MODE_URL
+            ? !urlLaunchCandidate || urlResearchLaunchPending
+            : false
+        }
+        onSearchSubmit={
+          activeSearchModeDescriptor.submitLabel ? handleSubmitHeaderSearch : undefined
+        }
+        showUrlAffordance={showUrlAffordance}
+        urlAffordanceDisabled={!urlLaunchCandidate || urlResearchLaunchPending}
+        onUrlAffordance={() => void handleLaunchWebResearch()}
+        searchInputAutoFocusKey={searchInputAutoFocusKey || undefined}
         hasActiveFilters={surfaceHasActiveFilters}
         showFilterMenuButton={showFilterMenuButton}
         filterMenuOpen={filterMenuOpen}
@@ -1369,26 +1319,6 @@ function ProjectExplorerSidebarContent({
             : searchTruncated
         }
       />
-
-      {researchLaneOpen ? (
-        <ExplorerResearchLane
-          rootPath={rootPath}
-          projectRoot={repoRoot || rootPath}
-          selectedCellId={selectedCellId || ''}
-          targetDirPath={activeDir}
-          allowMemoCapture={projectPolicy?.research?.allowMemoCapture !== false}
-          allowMarkdownSave={projectPolicy?.research?.allowMarkdownSave !== false}
-          onOpenSavedFile={async (path) => {
-            await refreshAll({ forceStatus: true, reloadExpanded: true });
-            await handleOpenEntry(path, 'pinned');
-          }}
-          onRevealSavedFile={async (path) => {
-            await refreshAll({ forceStatus: true, reloadExpanded: true });
-            await handleRevealContentResult(path);
-          }}
-          onClose={() => setResearchLaneOpen(false)}
-        />
-      ) : null}
 
       {filterMenuOpen && showFilterMenuButton ? (
         <ExplorerFilterPanel
@@ -1437,7 +1367,6 @@ function ProjectExplorerSidebarContent({
             onToggleCaseSensitive={() => setContentCaseSensitive((current) => !current)}
             onToggleWholeWord={() => setContentWholeWord((current) => !current)}
             onToggleUseRegex={() => setContentUseRegex((current) => !current)}
-            replacementPreviewEnabled={Boolean(replaceText)}
             results={contentSearchResults}
             loading={contentSearchLoading}
             replacing={contentSearchReplacing}
@@ -1449,12 +1378,9 @@ function ProjectExplorerSidebarContent({
             skippedLargeCount={contentSearchSkippedLargeCount}
             error={contentSearchError}
             selectedPaths={confirmedContentResultPaths}
-            fullFilePaths={confirmedContentFullFilePaths}
-            selectedMatchKeys={confirmedContentMatchKeys}
             selectedFileCount={confirmedContentFileCount}
             selectedMatchCount={confirmedContentMatchCount}
             onToggleResult={handleToggleContentResult}
-            onToggleMatch={handleToggleContentMatch}
             onSelectAllVisible={handleSelectAllVisibleContentResults}
             onClearSelection={handleClearConfirmedContentResults}
             onOpenResult={(path, line) => handleOpenContentResult(path, line)}
@@ -1548,6 +1474,7 @@ export function ProjectExplorerSidebar({
   rootPath: scopeRootPath, rootLabel: scopeRootLabel, cells, selectedId, onSelectCell, selectedCell,
   sessions, activeSessionId, sessionActivityByKey, onOpenFile, onJumpToAgents, workbenchMeta,
   onDispatchFeed, explorerDeliverySummary, onOpenDeliveryTimeline, onAddComment, commentCountsByPath, onJumpToComments, onToggleSessionMap, sessionMapOpen,
+  onLaunchWebResearchUrl,
   revealRequest, onRevealHandled,
   projectReady, projectError, onSelectProject, recentProjects, onOpenRecentProject,
 }: any) {
@@ -1590,6 +1517,7 @@ export function ProjectExplorerSidebar({
       onJumpToComments={onJumpToComments}
       onToggleSessionMap={onToggleSessionMap}
       sessionMapOpen={sessionMapOpen}
+      onLaunchWebResearchUrl={onLaunchWebResearchUrl}
       revealRequest={revealRequest}
       onRevealHandled={onRevealHandled}
     />

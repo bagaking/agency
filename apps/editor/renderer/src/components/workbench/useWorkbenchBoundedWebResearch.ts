@@ -11,11 +11,19 @@ import {
   buildExplorerResearchMemoPayload,
   buildExplorerResearchSuggestedPath,
   type ExplorerResearchPreview,
-} from './explorerResearchArtifacts';
+} from '../explorer/explorerResearchArtifacts';
+import { normalizeWorkbenchResearchUrl } from './workbenchBoundedResearch';
 
-type ExplorerResearchLanePrompt = (defaultValue: string) => Promise<string | null>;
+type WorkbenchBoundedWebResearchPrompt = (defaultValue: string) => Promise<string | null>;
 
-type ExplorerResearchLaneDependencies = {
+type UseWorkbenchBoundedWebResearchArgs = {
+  rootPath: string;
+  url: string;
+  defaultTargetDirPath?: string;
+  promptForPath: WorkbenchBoundedWebResearchPrompt;
+};
+
+type WorkbenchBoundedWebResearchDependencies = {
   fetchPreview: (payload: { url: string }) => Promise<ExplorerResearchPreview | null>;
   openExternal: (payload: { url: string }) => Promise<{ ok?: boolean; error?: string } | void>;
   writeEntry: (payload: {
@@ -25,8 +33,6 @@ type ExplorerResearchLaneDependencies = {
   }) => Promise<{ path?: string } | null>;
   createMemo: (payload: {
     worktreePath: string;
-    repoRootPath?: string;
-    cellId?: string;
     kind: 'memo';
     body: string;
     references: Array<Record<string, any>>;
@@ -34,53 +40,20 @@ type ExplorerResearchLaneDependencies = {
   }) => Promise<{ id?: string } | null>;
 };
 
-type UseExplorerResearchLaneOptions = {
-  rootPath: string;
-  projectRoot?: string;
-  selectedCellId?: string;
-  targetDirPath: string;
-  allowMemoCapture: boolean;
-  allowMarkdownSave: boolean;
-  promptForPath: ExplorerResearchLanePrompt;
-  onOpenSavedFile?: (path: string) => void;
-  onRevealSavedFile?: (path: string) => void;
-};
-
-const defaultDependencies: ExplorerResearchLaneDependencies = {
+const defaultDependencies: WorkbenchBoundedWebResearchDependencies = {
   fetchPreview: fetchHilExcerpt,
   openExternal: openExternalUrl,
   writeEntry: writeWorkbenchEntry,
   createMemo: createHilItem,
 };
 
-function normalizeBrowserEscapeUrl(input: string) {
-  const value = String(input || '').trim();
-  if (!value) {
-    return '';
-  }
-  const candidate = value.includes('://') ? value : `https://${value}`;
-  try {
-    return new URL(candidate).toString();
-  } catch (_error) {
-    return value;
-  }
-}
-
-export function useExplorerResearchLane(
-  {
-    rootPath,
-    projectRoot = '',
-    selectedCellId = '',
-    targetDirPath,
-    allowMemoCapture,
-    allowMarkdownSave,
-    promptForPath,
-    onOpenSavedFile,
-    onRevealSavedFile,
-  }: UseExplorerResearchLaneOptions,
-  dependencies: ExplorerResearchLaneDependencies = defaultDependencies
-) {
-  const [url, setUrl] = useState('');
+export function useWorkbenchBoundedWebResearch({
+  rootPath,
+  url,
+  defaultTargetDirPath = 'docs',
+  promptForPath,
+}: UseWorkbenchBoundedWebResearchArgs,
+dependencies: WorkbenchBoundedWebResearchDependencies = defaultDependencies) {
   const [note, setNote] = useState('');
   const [preview, setPreview] = useState<ExplorerResearchPreview | null>(null);
   const [fetching, setFetching] = useState(false);
@@ -89,10 +62,11 @@ export function useExplorerResearchLane(
   const [error, setError] = useState('');
   const [savedArtifact, setSavedArtifact] = useState<{ path: string; savedAt: string } | null>(null);
   const [memoArtifact, setMemoArtifact] = useState<{ id: string; createdAt: string } | null>(null);
+  const [preferredMode, setPreferredMode] = useState<'live' | 'reader'>('live');
+  const [liveFrameKey, setLiveFrameKey] = useState(0);
 
-  const browserUrl = useMemo(() => {
-    return normalizeBrowserEscapeUrl(String(preview?.url || url || ''));
-  }, [preview?.url, url]);
+  const normalizedUrl = useMemo(() => normalizeWorkbenchResearchUrl(url), [url]);
+  const browserUrl = normalizedUrl;
 
   const suggestedPath = useMemo(() => {
     if (savedArtifact?.path) {
@@ -100,25 +74,12 @@ export function useExplorerResearchLane(
     }
     return buildExplorerResearchSuggestedPath({
       preview,
-      targetDirPath,
+      targetDirPath: defaultTargetDirPath,
     });
-  }, [preview, savedArtifact?.path, targetDirPath]);
-
-  useEffect(() => {
-    const normalizedInput = url.trim();
-    if (!preview || !normalizedInput) {
-      return;
-    }
-    if (preview.url && preview.url !== normalizedInput) {
-      setPreview(null);
-      setSavedArtifact(null);
-      setMemoArtifact(null);
-    }
-  }, [preview, url]);
+  }, [defaultTargetDirPath, preview, savedArtifact?.path]);
 
   const inspect = useCallback(async () => {
-    const trimmedUrl = url.trim();
-    if (!trimmedUrl) {
+    if (!normalizedUrl) {
       setError('Enter a URL to inspect.');
       return null;
     }
@@ -126,13 +87,12 @@ export function useExplorerResearchLane(
     setFetching(true);
     setError('');
     try {
-      const nextPreview = await dependencies.fetchPreview({ url: trimmedUrl });
+      const nextPreview = await dependencies.fetchPreview({ url: normalizedUrl });
       if (!nextPreview) {
         throw new Error('Unable to inspect URL.');
       }
       startTransition(() => {
         setPreview(nextPreview);
-        setUrl(nextPreview.url || trimmedUrl);
         setSavedArtifact(null);
         setMemoArtifact(null);
       });
@@ -148,7 +108,23 @@ export function useExplorerResearchLane(
     } finally {
       setFetching(false);
     }
-  }, [dependencies, url]);
+  }, [dependencies, normalizedUrl]);
+
+  useEffect(() => {
+    if (!normalizedUrl) {
+      setPreview(null);
+      setSavedArtifact(null);
+      setMemoArtifact(null);
+      setError('');
+      return;
+    }
+    void inspect();
+  }, [inspect, normalizedUrl]);
+
+  const reload = useCallback(async () => {
+    setLiveFrameKey((current) => current + 1);
+    await inspect();
+  }, [inspect]);
 
   const openInBrowser = useCallback(async () => {
     if (!browserUrl) {
@@ -163,7 +139,7 @@ export function useExplorerResearchLane(
   }, [browserUrl, dependencies]);
 
   const saveMarkdown = useCallback(async () => {
-    if (!preview || !allowMarkdownSave) {
+    if (!preview) {
       return null;
     }
     const targetPath = await promptForPath(suggestedPath);
@@ -179,6 +155,7 @@ export function useExplorerResearchLane(
         targetPath,
         content: buildExplorerResearchMarkdown(preview, {
           note,
+          sourceSurface: 'workbench-bounded-web-research',
         }),
       });
       const resolvedPath = String(result?.path || targetPath).trim();
@@ -195,13 +172,12 @@ export function useExplorerResearchLane(
     } finally {
       setSavingMarkdown(false);
     }
-  }, [allowMarkdownSave, dependencies, note, preview, promptForPath, rootPath, suggestedPath]);
+  }, [dependencies, note, preview, promptForPath, rootPath, suggestedPath]);
 
   const createCitationMemo = useCallback(async () => {
-    if (!preview || !allowMemoCapture) {
+    if (!preview) {
       return null;
     }
-
     setCreatingMemo(true);
     setError('');
     try {
@@ -209,11 +185,10 @@ export function useExplorerResearchLane(
         preview,
         note,
         savedPath: savedArtifact?.path || '',
+        sourceSurface: 'workbench-bounded-web-research',
       });
       const result = await dependencies.createMemo({
         worktreePath: rootPath,
-        repoRootPath: projectRoot,
-        cellId: selectedCellId,
         kind: 'memo',
         body: payload.body,
         references: payload.references,
@@ -232,25 +207,10 @@ export function useExplorerResearchLane(
     } finally {
       setCreatingMemo(false);
     }
-  }, [allowMemoCapture, dependencies, note, preview, projectRoot, rootPath, savedArtifact?.path, selectedCellId]);
-
-  const openSavedArtifact = useCallback(() => {
-    if (!savedArtifact?.path) {
-      return;
-    }
-    onOpenSavedFile?.(savedArtifact.path);
-  }, [onOpenSavedFile, savedArtifact?.path]);
-
-  const revealSavedArtifact = useCallback(() => {
-    if (!savedArtifact?.path) {
-      return;
-    }
-    onRevealSavedFile?.(savedArtifact.path);
-  }, [onRevealSavedFile, savedArtifact?.path]);
+  }, [dependencies, note, preview, rootPath, savedArtifact?.path]);
 
   return {
-    url,
-    setUrl,
+    url: normalizedUrl,
     note,
     setNote,
     preview,
@@ -262,11 +222,13 @@ export function useExplorerResearchLane(
     suggestedPath,
     savedArtifact,
     memoArtifact,
+    preferredMode,
+    setPreferredMode,
+    liveFrameKey,
     inspect,
+    reload,
     openInBrowser,
     saveMarkdown,
     createCitationMemo,
-    openSavedArtifact,
-    revealSavedArtifact,
   };
 }

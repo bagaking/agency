@@ -9,6 +9,7 @@ import {
   isPathPossiblyChanged,
   resolveExternalReloadStrategy,
 } from '../../utils/workbenchDiskSync';
+import { isWorkbenchBoundedResearchTab } from './workbenchBoundedResearch';
 import { WORKBENCH_TAB_DISK_SYNC_INTERVAL_MS } from './workbenchPaneHelpers';
 
 type WorkbenchDiskSyncBindings = {
@@ -27,7 +28,7 @@ export const useWorkbenchDiskSync = ({
   const diskCheckInFlightRef = useRef(new Set<string>());
   const checkTabDiskVersion = useCallback(
     async (tab: any) => {
-      if (!tab || !isAgencyMethodAvailable('statWorkbenchEntry')) {
+      if (!tab || isWorkbenchBoundedResearchTab(tab) || !isAgencyMethodAvailable('statWorkbenchEntry')) {
         return;
       }
       const tabId = tab.id;
@@ -103,7 +104,7 @@ export const useWorkbenchDiskSync = ({
   }, [activeTab, checkTabDiskVersion]);
 
   useEffect(() => {
-    if (!activeTab || !isAgencyMethodAvailable('onExplorerChanged')) {
+    if (!activeTab || isWorkbenchBoundedResearchTab(activeTab) || !isAgencyMethodAvailable('onExplorerChanged')) {
       return undefined;
     }
     const unsubscribe = onExplorerChanged((payload) => {

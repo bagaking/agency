@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { detectWorkbenchSecureKind } from '../components/workbench/workbenchPaneHelpers';
+import {
+  buildWorkbenchBoundedResearchTab,
+  deriveWorkbenchResearchTitle,
+  isWorkbenchBoundedResearchTab,
+  normalizeWorkbenchResearchUrl,
+  WORKBENCH_TAB_KIND_BOUNDED_WEB_RESEARCH,
+} from '../components/workbench/workbenchBoundedResearch';
 
 const buildTabId = (cellId, rootPath, filePath) => `${cellId}::${rootPath}::${filePath}`;
 
@@ -12,12 +19,29 @@ const serializeTabs = (tabsByCellId: Record<string, any[]>) => {
       path: tab.path,
       rootPath: tab.rootPath,
       isPreview: tab.isPreview,
+      kind: tab.kind,
+      title: tab.title,
+      url: tab.url,
     }));
   });
   return next;
 };
 
 const hydrateTab = (tab, cellId, fallbackRoot) => {
+  if (tab?.kind === WORKBENCH_TAB_KIND_BOUNDED_WEB_RESEARCH) {
+    const rootPath = tab.rootPath || fallbackRoot || '';
+    const url = normalizeWorkbenchResearchUrl(tab.url || tab.path);
+    if (!url) {
+      return null;
+    }
+    return buildWorkbenchBoundedResearchTab({
+      cellId,
+      rootPath,
+      url,
+      title: tab.title || deriveWorkbenchResearchTitle(url),
+      isPreview: Boolean(tab.isPreview),
+    });
+  }
   if (!tab?.path) {
     return null;
   }
@@ -171,6 +195,78 @@ export function useWorkbench({
     [cellKey, cellRootById, repoRoot, selectedCell]
   );
 
+  const openBoundedWebResearch = useCallback(
+    ({
+      url,
+      rootPath,
+      cellId: targetCellId,
+      mode = 'pinned',
+      title,
+    }: {
+      url: string;
+      rootPath?: string;
+      cellId?: string;
+      mode?: 'preview' | 'pinned';
+      title?: string;
+    }) => {
+      const normalizedUrl = normalizeWorkbenchResearchUrl(url);
+      if (!normalizedUrl) {
+        return;
+      }
+      const resolvedRoot =
+        rootPath ||
+        (targetCellId
+          ? cellRootById.get(targetCellId) || repoRoot || ''
+          : selectedCell?.worktreePath || repoRoot || '');
+      const activeCellKey = targetCellId || cellKey;
+      const nextTab = buildWorkbenchBoundedResearchTab({
+        cellId: activeCellKey,
+        rootPath: resolvedRoot,
+        url: normalizedUrl,
+        title,
+        isPreview: mode === 'preview',
+      });
+
+      setTabsByCellId((current) => {
+        const currentTabs = current[activeCellKey] || [];
+        const existingIndex = currentTabs.findIndex(
+          (tab) =>
+            isWorkbenchBoundedResearchTab(tab) && normalizeWorkbenchResearchUrl(tab.url) === normalizedUrl
+        );
+        let nextTabs = [...currentTabs];
+
+        if (existingIndex >= 0) {
+          const existing = currentTabs[existingIndex];
+          nextTabs[existingIndex] = {
+            ...existing,
+            ...nextTab,
+            isPreview: mode === 'preview' ? existing.isPreview : false,
+          };
+        } else if (mode === 'preview') {
+          const previewIndex = currentTabs.findIndex((tab) => tab.isPreview);
+          if (previewIndex >= 0) {
+            nextTabs[previewIndex] = nextTab;
+          } else {
+            nextTabs.push(nextTab);
+          }
+        } else {
+          nextTabs.push({ ...nextTab, isPreview: false });
+        }
+
+        return {
+          ...current,
+          [activeCellKey]: nextTabs,
+        };
+      });
+
+      setActiveTabByCellId((current) => ({
+        ...current,
+        [activeCellKey]: nextTab.id,
+      }));
+    },
+    [cellKey, cellRootById, repoRoot, selectedCell]
+  );
+
   const closeTab = useCallback(
     (tabId) => {
       setTabsByCellId((current) => {
@@ -279,6 +375,7 @@ export function useWorkbench({
     activeTabId,
     activeTab,
     openFile,
+    openBoundedWebResearch,
     closeTab,
     closeOtherTabs,
     closeAllTabs,

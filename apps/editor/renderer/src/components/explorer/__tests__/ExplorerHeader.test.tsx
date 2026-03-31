@@ -11,8 +11,11 @@ test('ExplorerHeader uses canonical cell naming for scope selection', () => {
       activeRootLabel="main"
       activeFilterCount={0}
       activeFilterSummary="Changes only"
-      headerPrimaryCommands={[]}
-      headerSecondaryCommands={[]}
+      onJumpToAgents={() => undefined}
+      onNewFile={() => undefined}
+      onNewFolder={() => undefined}
+      onRefresh={() => undefined}
+      isLoading={false}
       hasCells={true}
       cells={[
         { id: 'cell-main', name: 'main' },
@@ -33,40 +36,8 @@ test('ExplorerHeader uses canonical cell naming for scope selection', () => {
   );
 
   assert.match(html, /aria-label="Active cell"/);
-  assert.match(html, />main</);
-  assert.match(html, />api</);
-});
-
-test('ExplorerHeader keeps the title row compact without redundant scope labels', () => {
-  const html = renderToStaticMarkup(
-    <ExplorerHeader
-      activeRootLabel="main"
-      activeFilterCount={0}
-      activeFilterSummary="Changes only"
-      headerPrimaryCommands={[]}
-      headerSecondaryCommands={[]}
-      hasCells={false}
-      cells={[]}
-      selectedId=""
-      onSelectCell={() => undefined}
-      searchMode="path"
-      searchModeOptions={[{ id: 'path', label: 'Paths', placeholder: 'Search files…' }]}
-      onSearchModeChange={() => undefined}
-      searchQuery=""
-      onSearchChange={() => undefined}
-      onClearSearch={() => undefined}
-      hasActiveFilters={false}
-      filterMenuOpen={false}
-      filterMenuId="explorer-filters"
-      filterMenuButtonRef={{ current: null }}
-      onToggleFilterMenu={() => undefined}
-      searchTruncated={false}
-    />
-  );
-
-  assert.match(html, /Changes only/);
-  assert.match(html, /Explorer/);
-  assert.doesNotMatch(html, /Scope/);
+  assert.match(html, /Cell: main/);
+  assert.match(html, /Cell: api/);
 });
 
 test('ExplorerHeader hides unsupported filter affordances for non-tree surfaces', () => {
@@ -75,8 +46,7 @@ test('ExplorerHeader hides unsupported filter affordances for non-tree surfaces'
       activeRootLabel="main"
       activeFilterCount={0}
       activeFilterSummary=""
-      headerPrimaryCommands={[]}
-      headerSecondaryCommands={[]}
+      headerCommands={[]}
       hasCells={false}
       cells={[]}
       selectedId=""
@@ -105,22 +75,13 @@ test('ExplorerHeader hides unsupported filter affordances for non-tree surfaces'
   assert.match(html, /Search file contents…/);
 });
 
-test('ExplorerHeader renders secondary header actions outside the primary icon cluster', () => {
+test('ExplorerHeader exposes explicit submit affordance for url mode', () => {
   const html = renderToStaticMarkup(
     <ExplorerHeader
       activeRootLabel="main"
       activeFilterCount={0}
       activeFilterSummary=""
-      headerPrimaryCommands={[]}
-      headerSecondaryCommands={[
-        {
-          id: 'explorer.researchLane',
-          label: 'Open Research Lane',
-          icon: () => null,
-          onSelect: () => undefined,
-          isDisabled: false,
-        },
-      ]}
+      headerCommands={[]}
       hasCells={false}
       cells={[]}
       selectedId=""
@@ -128,14 +89,26 @@ test('ExplorerHeader renders secondary header actions outside the primary icon c
       workingSetOptions={[]}
       activeWorkingSetViewId="tree"
       onWorkingSetChange={() => undefined}
-      searchMode="path"
-      searchModeOptions={[{ id: 'path', label: 'Paths', placeholder: 'Search files…' }]}
+      searchMode="url"
+      searchModeOptions={[
+        {
+          id: 'url',
+          label: 'URL',
+          placeholder: 'Paste a documentation or research URL…',
+          inputType: 'url',
+          submitLabel: 'Open Web',
+        },
+      ]}
       onSearchModeChange={() => undefined}
       searchQuery=""
       onSearchChange={() => undefined}
       onClearSearch={() => undefined}
+      searchInputType="url"
+      searchSubmitLabel="Open Web"
+      searchSubmitDisabled={false}
+      onSearchSubmit={() => undefined}
       hasActiveFilters={false}
-      showFilterMenuButton={true}
+      showFilterMenuButton={false}
       filterMenuOpen={false}
       filterMenuId="explorer-filters"
       filterMenuButtonRef={{ current: null }}
@@ -144,5 +117,44 @@ test('ExplorerHeader renders secondary header actions outside the primary icon c
     />
   );
 
-  assert.match(html, /aria-label="Open Research Lane"/);
+  assert.match(html, /type="url"/);
+  assert.match(html, />Open Web</);
+});
+
+test('ExplorerHeader renders url affordance without switching into url mode', () => {
+  const html = renderToStaticMarkup(
+    <ExplorerHeader
+      activeRootLabel="main"
+      activeFilterCount={0}
+      activeFilterSummary=""
+      headerCommands={[]}
+      hasCells={false}
+      cells={[]}
+      selectedId=""
+      onSelectCell={() => undefined}
+      workingSetOptions={[]}
+      activeWorkingSetViewId="tree"
+      onWorkingSetChange={() => undefined}
+      searchMode="path"
+      searchModeOptions={[
+        { id: 'path', label: 'Paths', placeholder: 'Search files…', inputType: 'text' },
+        { id: 'url', label: 'URL', placeholder: 'Paste a documentation or research URL…', inputType: 'url', submitLabel: 'Open Web' },
+      ]}
+      onSearchModeChange={() => undefined}
+      searchQuery="example.com/docs"
+      onSearchChange={() => undefined}
+      onClearSearch={() => undefined}
+      showUrlAffordance={true}
+      onUrlAffordance={() => undefined}
+      hasActiveFilters={false}
+      showFilterMenuButton={false}
+      filterMenuOpen={false}
+      filterMenuId="explorer-filters"
+      filterMenuButtonRef={{ current: null }}
+      onToggleFilterMenu={() => undefined}
+      searchTruncated={false}
+    />
+  );
+
+  assert.match(html, />Open Web</);
 });

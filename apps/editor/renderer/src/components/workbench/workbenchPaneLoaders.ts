@@ -8,6 +8,7 @@ import {
   resolveWorkbenchLanguage,
   type WorkbenchSecureKind,
 } from './workbenchPaneHelpers';
+import { isWorkbenchBoundedResearchTab } from './workbenchBoundedResearch';
 
 type WorkbenchTabTarget = {
   rootPath: string;
@@ -98,10 +99,22 @@ const loadUnknownWorkbenchState = async ({
   };
 };
 
+const loadBoundedWebResearchState = async (): Promise<WorkbenchTabLoadResult> => {
+  return {
+    ...baseLoadedState,
+    kind: 'bounded-web-research',
+    isDirty: false,
+  };
+};
+
 export const loadWorkbenchTabState = async ({
   rootPath,
   targetPath,
-}: WorkbenchTabTarget): Promise<WorkbenchTabLoadResult> => {
+  tab,
+}: WorkbenchTabTarget & { tab?: any }): Promise<WorkbenchTabLoadResult> => {
+  if (isWorkbenchBoundedResearchTab(tab)) {
+    return loadBoundedWebResearchState();
+  }
   const secureKind = detectWorkbenchSecureKind(targetPath);
   if (secureKind === 'vector') {
     return loadVectorWorkbenchState({ rootPath, targetPath });
