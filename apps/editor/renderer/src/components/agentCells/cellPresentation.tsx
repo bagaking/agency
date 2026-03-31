@@ -65,25 +65,22 @@ export function resolveCellAttachmentMeta(cell: any): CellAttachmentMeta {
   };
 }
 
+export function isArchivedCell(cell: any): boolean {
+  if (!cell || cell.isVirtual) {
+    return false;
+  }
+  return String(cell?.state || 'draft').trim().toLowerCase() === 'archived';
+}
+
 export function isDetachedCellCleanupCandidate(cell: any): boolean {
   if (!cell || cell.isVirtual) {
     return false;
   }
   const attachmentState = resolveCellAttachmentMeta(cell).attachmentState;
-  const lifecycleState = String(cell?.state || 'draft').trim().toLowerCase();
-  return attachmentState !== 'attached' && lifecycleState !== 'archived';
+  return attachmentState !== 'attached' && !isArchivedCell(cell);
 }
 
-export function isArchivedDetachedCell(cell: any): boolean {
-  if (!cell || cell.isVirtual) {
-    return false;
-  }
-  const attachmentState = resolveCellAttachmentMeta(cell).attachmentState;
-  const lifecycleState = String(cell?.state || 'draft').trim().toLowerCase();
-  return attachmentState !== 'attached' && lifecycleState === 'archived';
-}
-
-export function buildDetachedCellSessionSummary(sessions: any[] = []): string[] {
+export function buildCellSessionSummary(sessions: any[] = []): string[] {
   const counts = sessions.reduce<Record<string, number>>((summary, session) => {
     const status = String(session?.status || 'unknown').trim().toLowerCase();
     summary[status] = (summary[status] || 0) + 1;
@@ -105,4 +102,23 @@ export function buildDetachedCellSessionSummary(sessions: any[] = []): string[] 
     return [`${sessions.length} session${sessions.length === 1 ? '' : 's'}`];
   }
   return ['No sessions'];
+}
+
+export function buildArchivedCellCopy(cell: any, sessionSummary: string[]) {
+  const attachmentMeta = resolveCellAttachmentMeta(cell);
+  const summary = sessionSummary.join(' · ');
+  if (attachmentMeta.attachmentState === 'attached') {
+    return {
+      eyebrow: 'Archived Cell',
+      body:
+        'This Cell is archived but still keeps its worktree attached for reference. Runtime evidence remains available from details without putting the Cell back into the active flow.',
+      summary,
+    };
+  }
+  return {
+    eyebrow: 'Archived Cell',
+    body:
+      'This Cell is archived and no longer has a live worktree attachment. Repo-owned sessions and evidence remain available from details.',
+    summary,
+  };
 }
