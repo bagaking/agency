@@ -1039,6 +1039,28 @@ The explorer SHOULD surface active filter state clearly enough that users do not
 - **WHEN** one or more Explorer filters are active
 - **THEN** Explorer surfaces a readable summary or equivalent state indicator in the visible shell
 
+### Requirement: Explorer Row State Hierarchy
+Explorer rows SHALL honor a deterministic state hierarchy so visibility controls do not unexpectedly rearrange focus or selection. The hierarchy SHALL give priority to explicit user intent (keyboard focus, selection, multi-select context, drag/drop target) before applying visibility filters (hidden, ignored, working-set filters) and SHALL keep semantic metadata (git status, cell attribution, search hits) legible without altering higher-priority actions.
+Ignored rows SHALL remain visually de-emphasized but still legible and actionable; the tree SHALL NOT style them as if they were deleted or invalid.
+Workbench activity metadata within a row SHALL prioritize the most important current state instead of presenting multiple equal-weight row-state badges that compete with the file name.
+
+#### Scenario: Hidden/ignored filters preserve selection state
+- **WHEN** a user filters ignored entries out of the tree while a focused row is part of a multi-select set
+- **THEN** the selection/focus metadata remains stored so re-enabling `visibility.hidden` or `visibility.ignored` immediately returns to the same configuration rather than auto-selecting an adjacent row
+
+#### Scenario: Ignored rows honor higher-priority actions when shown
+- **WHEN** `visibility.ignored` is enabled and the tree renders ignored rows
+- **THEN** the ignored rows respect existing focus or selection-based commands, and reveal/open flows for those entries behave the same as tracked files while still surfacing their ignored metadata
+
+#### Scenario: Ignored rows stay legible when visible
+- **WHEN** ignored rows are visible in the tree
+- **THEN** the file name remains readable enough to scan without guessing
+- **AND** the ignored treatment reads as de-emphasis rather than deletion
+
+#### Scenario: Workbench row metadata stays prioritized
+- **WHEN** a file row is both open in the workbench and has unsaved edits
+- **THEN** the row surfaces the higher-priority unsaved state instead of presenting two competing workbench-state badges
+
 ### Requirement: Explorer Keyboard Navigation
 The explorer SHALL support keyboard navigation (up/down, left/right to expand/collapse, Enter to open, F2 to rename).
 
@@ -1085,6 +1107,7 @@ When no project is configured, the window SHALL stay in a window-owned home stat
 - **THEN** the Explorer view is the default
 - **AND** a Project Home UI prompts the user to choose a project directory
 - **AND** the no-project window does not route through synthetic Cell/session identities
+- **AND** startup does not auto-expand the right-side attention rail or HIL drawer over the Project Home surface
 
 #### Scenario: Restore last project
 - **WHEN** a user selects a project directory
@@ -1099,6 +1122,15 @@ Only window-owned actions that do not require a project-backed Cell SHALL be ava
 - **WHEN** the user opens Agent Cells without a configured project directory
 - **THEN** the shared Project Home state is shown
 - **AND** Cell/session creation affordances stay disabled until a project is selected
+
+### Requirement: Project Home Surface Craft
+The no-project `Project Home` surface SHALL read as one primary work surface instead of a bordered dashboard split into independent side columns.
+The startup state SHALL prioritize larger surface groupings and restrained chrome over repeated outline boxes.
+
+#### Scenario: Startup uses a single primary no-project surface
+- **WHEN** a no-project window first appears
+- **THEN** the main `Project Home` composition reads as one coherent primary surface
+- **AND** it does not reserve a separately expanded right-side shell column before the home shell is opened
 
 ### Requirement: Packaged UI Loads Local Renderer
 Packaged builds SHALL load renderer assets from local resources without requiring a dev server.

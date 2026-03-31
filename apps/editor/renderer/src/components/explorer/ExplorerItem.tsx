@@ -3,7 +3,6 @@ import {
   ChevronRight, 
   ChevronDown, 
   RefreshCw, 
-  EyeOff, 
   Link2,
   MessageSquare,
   FolderPlus,
@@ -76,6 +75,32 @@ export function ExplorerItem({
     .filter(Boolean)
     .join(', ');
 
+  const rowStateBadgeBase = 'flex h-4 items-center justify-center rounded-full border border-white/10 px-2 text-[8px] font-semibold uppercase tracking-[0.18em]';
+  const rowStateBadge = isDirty
+    ? {
+        key: 'dirty',
+        label: 'Unsaved',
+        className: `${rowStateBadgeBase} bg-amber-400/[0.12] text-amber-200/90 border-amber-200/40`,
+      }
+    : isOpen
+      ? {
+          key: 'open',
+          label: 'Open',
+          className: `${rowStateBadgeBase} bg-sky-500/[0.12] text-sky-200/88 border-sky-200/34`,
+        }
+      : null;
+
+  const baseRowClass = 'group relative flex h-7 items-center gap-2 rounded-md border border-transparent border-l-2 px-2 py-1 text-xs transition-colors select-none';
+  const selectedRowClass = 'border-l-primary border-white/10 bg-primary/[0.17] text-foreground shadow-[inset_0_0_0_1px_rgba(59,130,246,0.14)]';
+  const focusedRowClass = 'border-l-primary/70 bg-white/[0.065] text-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.045)]';
+  const idleRowClass = 'border-l-transparent text-muted-foreground/80 hover:border-l-white/[0.08] hover:bg-white/[0.065] hover:text-foreground';
+  const rowToneClass = isIgnored && !isSelected && !isFocused ? 'text-muted-foreground/70' : '';
+  const rowClassName = `${baseRowClass} ${renameTarget ? 'cursor-text' : 'cursor-pointer'} ${isSelected ? selectedRowClass : isFocused ? focusedRowClass : idleRowClass} ${rowToneClass}`.trim();
+  const statusIndicatorTone = status ? statusMarkToneClasses[status] || 'bg-white/[0.08] text-muted-foreground/70' : '';
+  const statusIndicatorBadge = status
+    ? statusBadges[status] || status[0]?.toUpperCase() || ''
+    : '';
+
   if (item.draft) {
     return (
       <div
@@ -113,13 +138,7 @@ export function ExplorerItem({
       aria-setsize={item.setSize || undefined}
       aria-posinset={item.posInSet || undefined}
       data-explorer-path={item.path}
-      className={`group relative flex h-7 items-center gap-2 rounded-md border border-transparent border-l-2 px-2 py-1 text-xs transition-colors select-none ${
-        isSelected
-          ? 'border-l-primary border-white/10 bg-primary/[0.16] text-foreground shadow-[inset_0_0_0_1px_rgba(59,130,246,0.12)]'
-          : isFocused
-            ? 'border-l-primary/60 bg-white/[0.045] text-foreground'
-            : 'border-l-transparent text-muted-foreground/90 hover:bg-white/[0.04] hover:text-foreground'
-      } ${isIgnored ? 'opacity-90' : ''}`}
+      className={rowClassName}
       style={{ paddingLeft }}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
@@ -149,20 +168,21 @@ export function ExplorerItem({
         <FileIcon
           size={14}
           strokeWidth={1.5}
-          className={
-            isIgnored
-              ? 'text-slate-300/70'
-              : iconColor
-          }
+          className={isIgnored ? 'text-slate-400/62 group-hover:text-slate-300/76' : iconColor}
         />
+        {status && (
+          <span
+            role="status"
+            aria-label={statusLabel}
+            title={statusLabel}
+            className={`pointer-events-none absolute -bottom-1 -left-1 flex h-4 w-4 items-center justify-center rounded-full border border-white/10 text-[7px] font-semibold uppercase tracking-[0.3em] ${statusIndicatorTone}`}
+          >
+            {statusIndicatorBadge}
+          </span>
+        )}
         {isLink && (
           <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-[0.5px] ring-1 ring-sky-500/50">
             <Link2 size={8} className="text-sky-400" strokeWidth={3} />
-          </div>
-        )}
-        {isIgnored && (
-          <div className="absolute -top-1 -right-1 bg-background rounded-full p-[0.5px] opacity-40 group-hover:opacity-100 transition-opacity">
-            <EyeOff size={8} className="text-slate-400" strokeWidth={2} />
           </div>
         )}
       </div>
@@ -187,56 +207,44 @@ export function ExplorerItem({
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <span
             title={node.name}
-            className={`truncate font-medium ${isIgnored ? 'text-muted-foreground/70 line-through decoration-muted-foreground/40' : ''}`}
+            className={`truncate font-medium transition-colors ${
+              isIgnored
+                ? isSelected
+                  ? 'text-foreground/72'
+                  : isFocused
+                    ? 'text-foreground/68'
+                    : 'text-muted-foreground/56 group-hover:text-muted-foreground/72'
+                : 'text-inherit'
+            }`}
           >
             {node.name}
           </span>
-          <div className="flex shrink-0 items-center gap-1">
-            {isOpen ? (
-              <span className="inline-flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-sky-200/[0.75]">
-                <span
-                  className="h-1.5 w-1.5 rounded-full bg-sky-300/90 shadow-[0_0_0_3px_rgba(56,189,248,0.10)]"
-                  aria-hidden="true"
-                />
-                <span title="Open in workbench">Open</span>
+          {rowStateBadge ? (
+            <div className="flex shrink-0 items-center gap-1">
+              <span
+                data-explorer-state={rowStateBadge.key}
+                className={rowStateBadge.className}
+              >
+                {rowStateBadge.label}
               </span>
-            ) : null}
-            {isDirty ? (
-              <span className="inline-flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-amber-200/[0.8]">
-                <span
-                  className="h-1.5 w-1.5 rounded-full bg-amber-300/90 shadow-[0_0_0_3px_rgba(251,191,36,0.10)]"
-                  aria-hidden="true"
-                />
-                <span title="Unsaved workbench changes">Dirty</span>
-              </span>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </div>
       )}
 
       {!renameTarget ? (
-        <div className="ml-auto flex shrink-0 items-center gap-2 pl-2">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 pl-2">
           {primarySemanticTag && (
             <span
-              className="shrink-0 text-[8px] font-semibold uppercase tracking-[0.18em] text-sky-200/[0.7]"
+              className="shrink-0 text-[8px] font-semibold uppercase tracking-[0.16em] text-sky-200/[0.58]"
               title={`Semantic file: ${primarySemanticTag.label || primarySemanticTag.id}`}
             >
               {primarySemanticTag.label || primarySemanticTag.id}
             </span>
           )}
           {semanticOverflowCount > 0 && (
-            <span className="shrink-0 text-[8px] font-semibold uppercase tracking-[0.16em] text-sky-200/[0.55]">
+            <span className="shrink-0 text-[8px] font-semibold uppercase tracking-[0.16em] text-sky-200/[0.44]">
               +{semanticOverflowCount}
-            </span>
-          )}
-
-          {/* Git Status Badge */}
-          {status && (
-            <span
-              className={`inline-flex h-5 min-w-[1.35rem] items-center justify-center rounded-md px-1.5 text-[9px] font-black uppercase tracking-[0.16em] ${statusMarkToneClasses[status] || 'bg-white/[0.08] text-foreground'}`}
-              title={statusLabel}
-            >
-              {statusBadges[status]}
             </span>
           )}
 
@@ -257,7 +265,7 @@ export function ExplorerItem({
               <button
                 type="button"
                 tabIndex={isFocused ? 0 : -1}
-                className={`flex items-center gap-1 rounded-md px-1 py-0.5 text-muted-foreground/60 transition-colors hover:bg-white/[0.06] hover:text-primary ${focusRingClass}`}
+                className={`flex items-center gap-1 rounded-md px-1 py-0.5 text-muted-foreground/45 transition-colors hover:bg-white/[0.06] hover:text-primary ${focusRingClass}`}
                 onClick={(event) => {
                   event.stopPropagation();
                   onJumpToComments?.(item.path);

@@ -4,6 +4,7 @@ import { JSDOM } from 'jsdom';
 import React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 import { ExplorerItem } from '../ExplorerItem';
 
@@ -110,4 +111,103 @@ test('ExplorerItem exposes treeitem semantics and expander state for directories
   } finally {
     env.cleanup();
   }
+});
+
+test('ExplorerItem shows a single prioritized row state badge and status indicator', async () => {
+  const env = setupDom();
+  try {
+    const root = createRoot(document.getElementById('root')!);
+
+    await act(async () => {
+      root.render(
+        <ExplorerItem
+          item={{ path: 'src/app.ts', depth: 1, type: 'file' }}
+          node={{ name: 'app.ts', type: 'file' }}
+          treeItemId="explorer-treeitem-app"
+          isSelected={false}
+          isFocused={false}
+          isLoading={false}
+          isExpanded={false}
+          isSearchActive={false}
+          isOpen={true}
+          isDirty={false}
+          isIgnored={false}
+          status="modified"
+          added={0}
+          deleted={0}
+          semanticTags={[]}
+          commentCount={0}
+          onJumpToComments={() => {}}
+          cellBadges={null}
+          depth={1}
+          onToggle={() => {}}
+          onClick={() => {}}
+          onDoubleClick={() => {}}
+          onContextMenu={() => {}}
+          onDragStart={() => {}}
+          onDragOver={() => {}}
+          onDrop={() => {}}
+          renameTarget={null}
+          handleRenameSubmit={() => {}}
+          setRenameTarget={() => {}}
+        />
+      );
+    });
+
+    const openBadge = document.querySelector('[data-explorer-state="open"]');
+    const dirtyBadge = document.querySelector('[data-explorer-state="dirty"]');
+    const statusIndicator = document.querySelector('span[role="status"][title="Modified"]');
+
+    assert.ok(openBadge);
+    assert.equal(openBadge?.textContent, 'Open');
+    assert.equal(dirtyBadge, null);
+    assert.ok(statusIndicator);
+    assert.equal(statusIndicator?.textContent?.trim(), 'M');
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});
+
+test('ExplorerItem keeps ignored entries legible and prioritizes dirty over open state badges', () => {
+  const html = renderToStaticMarkup(
+    <ExplorerItem
+      item={{ path: 'ignored.log', depth: 0, type: 'file' }}
+      node={{ name: 'ignored.log', type: 'file' }}
+      treeItemId="explorer-treeitem-ignored-log"
+      isSelected={false}
+      isFocused={false}
+      isLoading={false}
+      isExpanded={false}
+      isOpen={true}
+      isDirty={true}
+      isIgnored={true}
+      status="ignored"
+      added={0}
+      deleted={0}
+      semanticTags={[]}
+      commentCount={0}
+      onJumpToComments={() => {}}
+      cellBadges={null}
+      depth={0}
+      onToggle={() => {}}
+      onClick={() => {}}
+      onDoubleClick={() => {}}
+      onContextMenu={() => {}}
+      onDragStart={() => {}}
+      onDragOver={() => {}}
+      onDrop={() => {}}
+      renameTarget={null}
+      handleRenameSubmit={() => {}}
+      setRenameTarget={() => {}}
+    />
+  );
+
+  assert.doesNotMatch(html, /line-through/);
+  assert.match(html, />Unsaved</);
+  assert.doesNotMatch(html, />Open</);
+  assert.match(html, /ignored\.log/);
 });
