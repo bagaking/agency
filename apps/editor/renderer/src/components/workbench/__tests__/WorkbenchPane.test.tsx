@@ -5,8 +5,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { WorkbenchPane } from '../WorkbenchPane';
 
-test('WorkbenchPane exposes truthful quick-open affordance without dead split control', () => {
-  const html = renderToStaticMarkup(
+function renderWorkbenchPane(kind: string) {
+  return renderToStaticMarkup(
     <WorkbenchPane
       workbench={{
         tabs: [
@@ -15,7 +15,7 @@ test('WorkbenchPane exposes truthful quick-open affordance without dead split co
             path: 'apps/editor/package.json',
             rootPath: '/repo',
             title: 'package.json',
-            kind: 'code',
+            kind,
             isPreview: false,
           },
         ],
@@ -24,7 +24,7 @@ test('WorkbenchPane exposes truthful quick-open affordance without dead split co
           path: 'apps/editor/package.json',
           rootPath: '/repo',
           title: 'package.json',
-          kind: 'code',
+          kind,
           isPreview: false,
         },
         openFile() {},
@@ -50,7 +50,23 @@ test('WorkbenchPane exposes truthful quick-open affordance without dead split co
       onRevealPathInExplorer={() => undefined}
     />
   );
+}
+
+test('WorkbenchPane keeps quick-open and demotes review tools to contextual secondary actions', () => {
+  const html = renderWorkbenchPane('code');
 
   assert.match(html, /Quick Open/);
   assert.doesNotMatch(html, />Split</);
+  assert.match(html, /data-workbench-file-tools/);
+  assert.match(html, /data-workbench-review-tools/);
+  assert.ok(
+    html.indexOf('data-workbench-file-tools') < html.indexOf('data-workbench-review-tools')
+  );
+});
+
+test('WorkbenchPane hides review tools when active tab is not code', () => {
+  const html = renderWorkbenchPane('image');
+
+  assert.match(html, /Quick Open/);
+  assert.doesNotMatch(html, /data-workbench-review-tools/);
 });

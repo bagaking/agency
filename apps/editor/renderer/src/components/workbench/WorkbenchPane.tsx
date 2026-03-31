@@ -136,6 +136,7 @@ function WorkbenchPaneContent({
   const effectivePendingJump = pendingJump || localPendingJump;
   const resolvedCommentLines = Array.isArray(commentLines) ? commentLines : [];
   const canComment = Boolean(activeTab && activeTab.kind === 'code');
+  const showReviewTools = canComment;
   const isCodeTab = activeState.kind === 'code';
   const activeLanguageDecision =
     activeTab && isCodeTab
@@ -434,38 +435,11 @@ function WorkbenchPaneContent({
         </div>
 
         {activeTab && (
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 rounded-md border border-white/[0.03] bg-white/[0.02] px-2 py-1">
-              <span className="text-[8px] font-black uppercase tracking-[0.18em] text-white/22">
-                Review
-              </span>
-              <div className="flex items-center gap-1 rounded-md bg-black/10 p-0.5">
-                <ToolButton
-                  active={activeState.diffEnabled}
-                  onClick={toggleDiff}
-                  icon={GitCompare}
-                  title="Show Diff"
-                />
-                <ToolButton
-                  active={activeState.blameEnabled}
-                  onClick={toggleBlame}
-                  icon={GitCommit}
-                  title="Show Blame"
-                />
-                <div className="mx-0.5 h-3 w-px bg-white/5" />
-                <ToolButton
-                  onClick={() =>
-                    onOpenComment?.({ line: statusPosition.line, column: statusPosition.column })
-                  }
-                  icon={MessageSquarePlus}
-                  title="Add HIL Comment"
-                />
-              </div>
-            </div>
-
-            <div className="h-4 w-px bg-white/5" />
-
-            <div className="flex items-center gap-2 rounded-md border border-white/[0.03] bg-white/[0.02] px-2 py-1">
+          <div className="flex items-center gap-2.5">
+            <div
+              data-workbench-file-tools
+              className="flex items-center gap-2 rounded-md border border-white/[0.03] bg-white/[0.02] px-2 py-1"
+            >
               <span className="text-[8px] font-black uppercase tracking-[0.18em] text-white/22">
                 File
               </span>
@@ -501,6 +475,45 @@ function WorkbenchPaneContent({
                 />
               </div>
             </div>
+
+            {showReviewTools ? (
+              <>
+                <div className="h-4 w-px bg-white/[0.03]" />
+                <div
+                  data-workbench-review-tools
+                  className="flex items-center gap-1.5 rounded-md border border-white/[0.02] bg-transparent px-1.5 py-1"
+                >
+                  <span className="text-[8px] font-bold uppercase tracking-[0.15em] text-white/18">
+                    Review
+                  </span>
+                  <div className="flex items-center gap-0.5 rounded-md p-0.5">
+                    <ToolButton
+                      active={activeState.diffEnabled}
+                      onClick={toggleDiff}
+                      icon={GitCompare}
+                      title={activeState.diffEnabled ? 'Hide Diff' : 'Show Diff'}
+                      tone="secondary"
+                    />
+                    <ToolButton
+                      active={activeState.blameEnabled}
+                      onClick={toggleBlame}
+                      icon={GitCommit}
+                      title={activeState.blameEnabled ? 'Hide Blame' : 'Show Blame'}
+                      tone="secondary"
+                    />
+                    <div className="mx-0.5 h-3 w-px bg-white/[0.04]" />
+                    <ToolButton
+                      onClick={() =>
+                        onOpenComment?.({ line: statusPosition.line, column: statusPosition.column })
+                      }
+                      icon={MessageSquarePlus}
+                      title="Add HIL Comment"
+                      tone="secondary"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : null}
           </div>
         )}
       </div>
@@ -704,18 +717,28 @@ function HeaderButton({ onClick, icon: Icon, label, shortcut, primary }: any) {
     )
 }
 
-function ToolButton({ active, loading, onClick, icon: Icon, title }: any) {
+function ToolButton({ active, loading, onClick, icon: Icon, title, tone = 'default' }: any) {
+    const isSecondary = tone === 'secondary';
+    const buttonClass = active
+      ? isSecondary
+        ? 'bg-white/[0.06] text-white/75 ring-1 ring-white/10'
+        : 'bg-primary/10 text-primary'
+      : isSecondary
+        ? 'text-white/20 hover:text-white/55 hover:bg-white/[0.04]'
+        : 'text-white/18 hover:text-white/55 hover:bg-white/5';
     return (
         <button 
+            type="button"
             onClick={onClick} 
-            className={`p-1.5 rounded-md transition-all ${
-              active
-                ? 'bg-primary/10 text-primary'
-                : 'text-white/18 hover:text-white/55 hover:bg-white/5'
-            }`}
+            aria-pressed={Boolean(active)}
+            className={`${isSecondary ? 'p-1' : 'p-1.5'} rounded-md transition-all ${buttonClass}`}
             title={title}
         >
-            <Icon size={13} strokeWidth={active ? 2.5 : 1.5} className={loading ? 'animate-spin' : ''} />
+            <Icon
+              size={isSecondary ? 12 : 13}
+              strokeWidth={active ? (isSecondary ? 2 : 2.5) : 1.5}
+              className={loading ? 'animate-spin' : ''}
+            />
         </button>
     )
 }

@@ -91,7 +91,9 @@ export function useWorkbenchDocumentCommands({
   }, [activeTab, loadTab]);
 
   const toggleDiff = useCallback(async () => {
-    if (!activeTab || !isAgencyMethodAvailable('diffWorkbenchEntry')) return;
+    if (!activeTab || activeState.kind !== 'code' || !isAgencyMethodAvailable('diffWorkbenchEntry')) {
+      return;
+    }
     const enabled = !activeState.diffEnabled;
     updateTabState(activeTab.id, { diffEnabled: enabled });
     if (enabled && !activeState.diffHunks) {
@@ -108,7 +110,9 @@ export function useWorkbenchDocumentCommands({
   }, [activeState, activeTab, updateTabState]);
 
   const toggleBlame = useCallback(async () => {
-    if (!activeTab || !isAgencyMethodAvailable('blameWorkbenchEntry')) return;
+    if (!activeTab || activeState.kind !== 'code' || !isAgencyMethodAvailable('blameWorkbenchEntry')) {
+      return;
+    }
     const enabled = !activeState.blameEnabled;
     updateTabState(activeTab.id, { blameEnabled: enabled });
     if (enabled && !activeState.blameLines) {
