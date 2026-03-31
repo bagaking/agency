@@ -223,3 +223,36 @@ test('StatusBar shows the NEXT tooltip on focus', async () => {
     env.cleanup();
   }
 });
+
+test('StatusBar hides NEXT attention when suppressAttention is enabled', () => {
+  const originalConsoleError = console.error;
+  console.error = (...args: any[]) => {
+    const [firstArg] = args;
+    if (
+      typeof firstArg === 'string' &&
+      firstArg.includes('useLayoutEffect does nothing on the server')
+    ) {
+      return;
+    }
+    originalConsoleError(...args);
+  };
+
+  try {
+    const html = renderToStaticMarkup(
+      <AttentionLayerProvider value={attentionValue as any}>
+        <StatusBar
+          loading={false}
+          onRefresh={() => undefined}
+          tmuxStatus={{ available: true, version: 'tmux 3.4' }}
+          ipcAvailable={true}
+          suppressAttention={true}
+        />
+      </AttentionLayerProvider>
+    );
+
+    assert.doesNotMatch(html, /data-testid="statusbar-attention"/);
+    assert.doesNotMatch(html, />Next</);
+  } finally {
+    console.error = originalConsoleError;
+  }
+});

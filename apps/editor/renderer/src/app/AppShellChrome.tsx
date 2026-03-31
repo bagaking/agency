@@ -11,6 +11,7 @@ const LazySessionMapOverlay = lazy(async () => {
 });
 
 type AppShellChromeProps = {
+  projectHomeVisible: boolean;
   sessionMapOpen: boolean;
   sessionMapModel: any;
   sessionMapFocusedRunId?: string;
@@ -43,6 +44,7 @@ type AppShellChromeProps = {
 };
 
 export function AppShellChrome({
+  projectHomeVisible,
   sessionMapOpen,
   sessionMapModel,
   sessionMapFocusedRunId = '',
@@ -106,7 +108,8 @@ export function AppShellChrome({
         onRefresh={loadCells}
         tmuxStatus={tmuxStatus}
         ipcAvailable={ipcAvailable}
-        centerSlot={sessionMapCenterSlot}
+        centerSlot={projectHomeVisible ? null : sessionMapCenterSlot}
+        suppressAttention={projectHomeVisible}
       />
 
       {pendingTransition ? (

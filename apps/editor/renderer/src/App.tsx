@@ -1023,6 +1023,7 @@ function AppShell() {
         />
         <AppLayout {...appLayoutProps} />
         <AppShellChrome
+          projectHomeVisible={projectHomeVisible}
           sessionMapOpen={sessionMapOpen}
           sessionMapModel={sessionMapModel}
           sessionMapFocusedRunId={sessionMapFocusedRunId}

@@ -13,6 +13,7 @@ export function StatusBar({
   tmuxStatus,
   ipcAvailable,
   centerSlot,
+  suppressAttention = false,
 }: any) {
   const attention = useAttentionLayer();
   const assetBase =
@@ -60,7 +61,7 @@ export function StatusBar({
       ) : null}
 
       <div className="flex items-center gap-3 opacity-90">
-        {primaryAttention ? (
+        {!suppressAttention && primaryAttention ? (
           <Tooltip label={nextAttentionTooltip} side="top">
             <button
               type="button"

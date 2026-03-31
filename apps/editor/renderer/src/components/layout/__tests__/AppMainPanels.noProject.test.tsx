@@ -47,6 +47,7 @@ test('AppMainPanels renders the shared Project Home surface for no-project explo
 
   assert.match(html, /Project Home/);
   assert.match(html, /Select Project/);
-  assert.match(html, /Start a scratch shell without inventing a fake Cell/);
+  assert.match(html, /Window Scope/);
+  assert.match(html, /No Recent Projects/);
   assert.doesNotMatch(html, /Select a project to begin/);
 });

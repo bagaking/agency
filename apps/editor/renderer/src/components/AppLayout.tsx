@@ -453,21 +453,23 @@ export function AppLayout({
           }}
         />
 
-        <AppAttentionRail {...attentionRailProps} />
+        {!projectHomeVisible ? <AppAttentionRail {...attentionRailProps} /> : null}
 
-        <AppHilPanel
-          activeView={activeView}
-          hilDrawerOpen={hilDrawerOpen}
-          hilDrawerPanel={hilDrawerPanel}
-          onToggleHilDrawer={onToggleHilDrawer}
-          onSelectHilDrawerPanel={onSelectHilDrawerPanel}
-          onOpenHilPromote={onOpenHilPromote}
-          hilCommentsProps={hilCommentsProps}
-          hilDraftsProps={hilDraftsProps}
-          hilReplyProps={hilReplyProps}
-          memoDrawerProps={memoDrawerProps}
-          hilSubtitle={hilSubtitle}
-        />
+        {!projectHomeVisible ? (
+          <AppHilPanel
+            activeView={activeView}
+            hilDrawerOpen={hilDrawerOpen}
+            hilDrawerPanel={hilDrawerPanel}
+            onToggleHilDrawer={onToggleHilDrawer}
+            onSelectHilDrawerPanel={onSelectHilDrawerPanel}
+            onOpenHilPromote={onOpenHilPromote}
+            hilCommentsProps={hilCommentsProps}
+            hilDraftsProps={hilDraftsProps}
+            hilReplyProps={hilReplyProps}
+            memoDrawerProps={memoDrawerProps}
+            hilSubtitle={hilSubtitle}
+          />
+        ) : null}
       </div>
     </div>
   );
