@@ -3,6 +3,7 @@ import { Eye, Replace, SearchCode } from 'lucide-react';
 
 import { IconButton } from '../ui/IconButton';
 import { focusRing } from '../ui/focusRing';
+import { buildExplorerContentReplacePreview } from './explorerContentReplacePreview';
 
 type ExplorerContentSearchViewProps = {
   query: string;
@@ -17,6 +18,7 @@ type ExplorerContentSearchViewProps = {
   onToggleCaseSensitive: () => void;
   onToggleWholeWord: () => void;
   onToggleUseRegex: () => void;
+  replacementPreviewEnabled: boolean;
   results: Array<{
     path: string;
     matchCount: number;
@@ -63,6 +65,7 @@ export function ExplorerContentSearchView({
   onToggleCaseSensitive,
   onToggleWholeWord,
   onToggleUseRegex,
+  replacementPreviewEnabled,
   results,
   loading,
   replacing,
@@ -240,6 +243,18 @@ export function ExplorerContentSearchView({
 
                 <div className="divide-y divide-border/10">
                   {result.matches.map((match, index) => (
+                    (() => {
+                      const replacementPreview = replacementPreviewEnabled
+                        ? buildExplorerContentReplacePreview({
+                            snippet: match.snippet,
+                            query,
+                            replacement: replaceText,
+                            caseSensitive,
+                            wholeWord,
+                            useRegex,
+                          })
+                        : '';
+                      return (
                     <button
                       key={`${result.path}:${match.line}:${match.column}:${index}`}
                       type="button"
@@ -250,9 +265,16 @@ export function ExplorerContentSearchView({
                         {match.line}:{match.column}
                       </div>
                       <div className="min-w-0 flex-1 text-[11px] leading-5 text-muted-foreground/85">
-                        <span className="break-words">{match.snippet}</span>
+                        <span className="block break-words">{match.snippet}</span>
+                        {replacementPreview ? (
+                          <span className="mt-1 block break-words rounded-md border border-primary/15 bg-primary/5 px-2 py-1 text-primary/85">
+                            Would become: {replacementPreview}
+                          </span>
+                        ) : null}
                       </div>
                     </button>
+                      );
+                    })()
                   ))}
                 </div>
               </article>

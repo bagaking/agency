@@ -39,6 +39,7 @@ export type ExplorerCommandDescriptor = {
   label: string;
   icon: any;
   surface: ExplorerCommandSurface;
+  placement?: 'primary' | 'secondary';
   group: ExplorerCommandGroup;
   shortcut?: string;
   when?: (context: ExplorerCommandContext) => boolean;
@@ -53,6 +54,7 @@ export const EXPLORER_COMMAND_REGISTRY: ExplorerCommandDescriptor[] = [
     label: 'Go to Agent Cells',
     icon: Layers,
     surface: 'header',
+    placement: 'primary',
     group: 'workspace',
     run: (context) => context.actions.onJumpToAgents?.(),
   },
@@ -61,6 +63,7 @@ export const EXPLORER_COMMAND_REGISTRY: ExplorerCommandDescriptor[] = [
     label: 'New File',
     icon: FilePlus2,
     surface: 'header',
+    placement: 'primary',
     group: 'create',
     run: (context) => context.actions.onNewFile?.(),
   },
@@ -69,6 +72,7 @@ export const EXPLORER_COMMAND_REGISTRY: ExplorerCommandDescriptor[] = [
     label: 'New Folder',
     icon: FolderPlus,
     surface: 'header',
+    placement: 'primary',
     group: 'create',
     run: (context) => context.actions.onNewFolder?.(),
   },
@@ -77,6 +81,7 @@ export const EXPLORER_COMMAND_REGISTRY: ExplorerCommandDescriptor[] = [
     label: 'Refresh',
     icon: RefreshCw,
     surface: 'header',
+    placement: 'primary',
     group: 'workspace',
     run: (context) => context.actions.onRefresh?.(),
   },
@@ -85,6 +90,7 @@ export const EXPLORER_COMMAND_REGISTRY: ExplorerCommandDescriptor[] = [
     label: 'Open Research Lane',
     icon: Globe,
     surface: 'header',
+    placement: 'secondary',
     group: 'workspace',
     when: (context) => Boolean(context.hasResearchLane),
     run: (context) => context.actions.onToggleResearchLane?.(),

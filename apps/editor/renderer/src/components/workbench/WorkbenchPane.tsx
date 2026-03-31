@@ -435,23 +435,51 @@ function WorkbenchPaneContent({
 
         {activeTab && (
           <div className="flex items-center gap-3">
-            {/* Context Toolset */}
-            <div className="flex items-center gap-1 bg-white/[0.02] rounded-md p-0.5">
-                <ToolButton active={activeState.diffEnabled} onClick={toggleDiff} icon={GitCompare} title="Version Diff" />
-                <ToolButton active={activeState.blameEnabled} onClick={toggleBlame} icon={GitCommit} title="Git Blame" />
-                <div className="w-px h-3 bg-white/5 mx-0.5" />
-                <ToolButton onClick={() => onOpenComment?.({ line: statusPosition.line, column: statusPosition.column })} icon={MessageSquarePlus} title="Add HIL Comment" />
+            <div className="flex items-center gap-2 rounded-md border border-white/[0.03] bg-white/[0.02] px-2 py-1">
+              <span className="text-[8px] font-black uppercase tracking-[0.18em] text-white/22">
+                Review
+              </span>
+              <div className="flex items-center gap-1 rounded-md bg-black/10 p-0.5">
+                <ToolButton
+                  active={activeState.diffEnabled}
+                  onClick={toggleDiff}
+                  icon={GitCompare}
+                  title="Show Diff"
+                />
+                <ToolButton
+                  active={activeState.blameEnabled}
+                  onClick={toggleBlame}
+                  icon={GitCommit}
+                  title="Show Blame"
+                />
+                <div className="mx-0.5 h-3 w-px bg-white/5" />
+                <ToolButton
+                  onClick={() =>
+                    onOpenComment?.({ line: statusPosition.line, column: statusPosition.column })
+                  }
+                  icon={MessageSquarePlus}
+                  title="Add HIL Comment"
+                />
+              </div>
             </div>
 
             <div className="h-4 w-px bg-white/5" />
 
-            {/* Lifecycle Actions */}
-            <div className="flex items-center gap-1">
-                <ToolButton loading={activeState.loading} onClick={handleReload} icon={RefreshCw} title="Sync from Disk" />
-                
+            <div className="flex items-center gap-2 rounded-md border border-white/[0.03] bg-white/[0.02] px-2 py-1">
+              <span className="text-[8px] font-black uppercase tracking-[0.18em] text-white/22">
+                File
+              </span>
+              <div className="flex items-center gap-1">
+                <ToolButton
+                  loading={activeState.loading}
+                  onClick={handleReload}
+                  icon={RefreshCw}
+                  title="Sync from Disk"
+                />
+
                 <IconButton
-                  label={activeState.saving ? 'Saving changes' : 'Commit changes'}
-                  tooltip={activeState.saving ? 'Saving changes' : 'Commit changes'}
+                  label={activeState.saving ? 'Saving changes' : 'Save changes'}
+                  tooltip={activeState.saving ? 'Saving changes' : 'Save changes'}
                   side="bottom"
                   focusRing="dark"
                   onClick={handleSave}
@@ -465,12 +493,13 @@ function WorkbenchPaneContent({
                   <Save size={11} strokeWidth={3} aria-hidden="true" />
                 </IconButton>
 
-                <ToolButton 
-                    active={!activeTab.isPreview} 
-                    onClick={() => pinTab(activeTab.id)} 
-                    icon={activeTab.isPreview ? Pin : PinOff} 
-                    title={activeTab.isPreview ? "Keep Open" : "Object Pinned"} 
+                <ToolButton
+                    active={!activeTab.isPreview}
+                    onClick={() => pinTab(activeTab.id)}
+                    icon={activeTab.isPreview ? Pin : PinOff}
+                    title={activeTab.isPreview ? 'Keep Open' : 'Pinned'}
                 />
+              </div>
             </div>
           </div>
         )}
@@ -679,7 +708,11 @@ function ToolButton({ active, loading, onClick, icon: Icon, title }: any) {
     return (
         <button 
             onClick={onClick} 
-            className={`p-1.5 rounded-md transition-all ${active ? 'bg-primary/10 text-primary' : 'text-white/20 hover:text-white/60 hover:bg-white/5'}`}
+            className={`p-1.5 rounded-md transition-all ${
+              active
+                ? 'bg-primary/10 text-primary'
+                : 'text-white/18 hover:text-white/55 hover:bg-white/5'
+            }`}
             title={title}
         >
             <Icon size={13} strokeWidth={active ? 2.5 : 1.5} className={loading ? 'animate-spin' : ''} />
