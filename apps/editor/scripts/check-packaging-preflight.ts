@@ -80,6 +80,25 @@ function getPathSizeBytes(targetPath: string): number {
   return Number.isFinite(sizeKib) && sizeKib > 0 ? sizeKib * 1024 : 0;
 }
 
+function removePath(targetPath: string): void {
+  try {
+    fs.rmSync(targetPath, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 200,
+    });
+  } catch (error) {
+    execFileSync('/bin/rm', ['-rf', targetPath], {
+      cwd: projectRoot,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    if (fs.existsSync(targetPath)) {
+      throw error;
+    }
+  }
+}
+
 function getChecks(targetPaths: string[]): DiskCheck[] {
   return targetPaths.map((targetPath) => getDiskCheck(targetPath));
 }
@@ -163,7 +182,7 @@ function cleanupStaleReleaseOutputs(modeToClean: Mode): {
       return;
     }
     reclaimedBytes += getPathSizeBytes(candidate);
-    fs.rmSync(candidate, { recursive: true, force: true });
+    removePath(candidate);
     removedPaths.push(candidate);
   });
 

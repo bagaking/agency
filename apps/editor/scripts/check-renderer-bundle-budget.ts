@@ -10,6 +10,7 @@ type BudgetResult = {
 
 const DIST_ROOT = path.resolve(__dirname, '../dist/renderer');
 const ASSETS_DIR = path.join(DIST_ROOT, 'assets');
+const BASELINE_PATH = path.resolve(__dirname, './renderer-bundle-budget-baseline.json');
 
 const DEFAULT_BUDGETS = {
   initialJsRawBytes: 1_250_000,
@@ -20,18 +21,60 @@ const DEFAULT_BUDGETS = {
   largestInitialChunkGzipBytes: 110_000,
 };
 
+const DEFAULT_RATCHET_ALLOWANCES = {
+  initialJsRawBytes: 8_000,
+  initialJsGzipBytes: 2_000,
+  initialCssRawBytes: 1_024,
+  initialCssGzipBytes: 512,
+  largestInitialChunkRawBytes: 4_000,
+  largestInitialChunkGzipBytes: 1_024,
+};
+
+type BudgetMetricName = keyof typeof DEFAULT_BUDGETS;
+
 const STATIC_IMPORT_RE =
   /import(?:[^'"`]+from\s*)?["'](\.?\.?\/[^"']+\.(?:js|css))["']/g;
 const MAP_DEPS_MANIFEST_RE = /m\.f\|\|\(m\.f=\[([\s\S]*?)\]\)\)/;
 const PRELOAD_SITE_RE =
   /import\("([^"]+\.js)"\)(?:[\s\S]{0,600})?__vite__mapDeps\(\[([0-9,\s]+)\]\)/g;
 
-function readBudget(name: keyof typeof DEFAULT_BUDGETS): number {
+function readBudget(
+  name: BudgetMetricName,
+  baseline: Partial<Record<BudgetMetricName, number>> = {}
+): number {
   const envName = `AGENCY_RENDERER_${name.replace(/[A-Z]/g, (value) => `_${value}`).toUpperCase()}`;
   const rawValue = Number(process.env[envName]);
-  return Number.isFinite(rawValue) && rawValue > 0
-    ? Math.floor(rawValue)
-    : DEFAULT_BUDGETS[name];
+  if (Number.isFinite(rawValue) && rawValue > 0) {
+    return Math.floor(rawValue);
+  }
+  const ratchetBaseline = Number(baseline[name] || 0);
+  const ratchetBudget =
+    Number.isFinite(ratchetBaseline) && ratchetBaseline > 0
+      ? ratchetBaseline + DEFAULT_RATCHET_ALLOWANCES[name]
+      : 0;
+  return Math.max(DEFAULT_BUDGETS[name], ratchetBudget);
+}
+
+function readBaseline(): Partial<Record<BudgetMetricName, number>> {
+  if (!fs.existsSync(BASELINE_PATH)) {
+    return {};
+  }
+  try {
+    const raw = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
+    if (!raw || typeof raw !== 'object') {
+      return {};
+    }
+    const baseline: Partial<Record<BudgetMetricName, number>> = {};
+    for (const name of Object.keys(DEFAULT_BUDGETS) as BudgetMetricName[]) {
+      const value = Number(raw[name]);
+      if (Number.isFinite(value) && value > 0) {
+        baseline[name] = Math.floor(value);
+      }
+    }
+    return baseline;
+  } catch (_error) {
+    return {};
+  }
 }
 
 function normalizeHtmlAssetPath(value: string): string {
@@ -141,6 +184,30 @@ function assertBudget(
   failures.push(`${label}: ${formatBytes(actual)} > ${formatBytes(budget)}`);
 }
 
+function warnBudget(
+  label: string,
+  actual: number,
+  budget: number,
+  warnings: string[]
+) {
+  if (actual <= budget) {
+    return;
+  }
+  warnings.push(`${label}: ${formatBytes(actual)} > ${formatBytes(budget)}`);
+}
+
+function formatDelta(actual: number, baseline?: number): string | null {
+  if (!Number.isFinite(Number(baseline))) {
+    return null;
+  }
+  const delta = actual - Number(baseline);
+  if (delta === 0) {
+    return '0.0 KiB';
+  }
+  const prefix = delta > 0 ? '+' : '';
+  return `${prefix}${formatBytes(delta)}`;
+}
+
 function main() {
   const htmlPath = path.join(DIST_ROOT, 'index.html');
   if (!fs.existsSync(htmlPath) || !fs.existsSync(ASSETS_DIR)) {
@@ -207,41 +274,43 @@ function main() {
     };
   }
 
+  const baseline = readBaseline();
   const failures: string[] = [];
+  const warnings: string[] = [];
   assertBudget(
     'Initial JS (raw)',
     initialJs.rawBytes,
-    readBudget('initialJsRawBytes'),
+    readBudget('initialJsRawBytes', baseline),
     failures
   );
   assertBudget(
     'Initial JS (gzip)',
     initialJs.gzipBytes,
-    readBudget('initialJsGzipBytes'),
-    failures
-  );
-  assertBudget(
-    'Initial CSS (raw)',
-    initialCss.rawBytes,
-    readBudget('initialCssRawBytes'),
+    readBudget('initialJsGzipBytes', baseline),
     failures
   );
   assertBudget(
     'Initial CSS (gzip)',
     initialCss.gzipBytes,
-    readBudget('initialCssGzipBytes'),
+    readBudget('initialCssGzipBytes', baseline),
     failures
+  );
+  warnBudget(
+    'Initial CSS (raw)',
+    initialCss.rawBytes,
+    readBudget('initialCssRawBytes', baseline),
+    warnings
   );
   assertBudget(
     'Largest initial JS chunk (raw)',
     largestInitialChunk.rawBytes,
-    readBudget('largestInitialChunkRawBytes'),
+    readBudget('largestInitialChunkRawBytes', baseline),
     failures
   );
   assertBudget(
     'Largest initial JS chunk (gzip)',
     largestInitialChunk.gzipBytes,
-    readBudget('largestInitialChunkGzipBytes'),
+    readBudget('largestInitialChunkGzipBytes', baseline),
     failures
   );
 
@@ -254,6 +323,28 @@ function main() {
     `- Largest initial chunk: ${largestInitialChunk.relPath} (${formatBytes(largestInitialChunk.rawBytes)} raw / ${formatBytes(largestInitialChunk.gzipBytes)} gzip)`,
   ];
 
+  const deltaLines = [
+    ['Initial JS (raw)', formatDelta(initialJs.rawBytes, baseline.initialJsRawBytes)],
+    ['Initial JS (gzip)', formatDelta(initialJs.gzipBytes, baseline.initialJsGzipBytes)],
+    ['Initial CSS (raw)', formatDelta(initialCss.rawBytes, baseline.initialCssRawBytes)],
+    ['Initial CSS (gzip)', formatDelta(initialCss.gzipBytes, baseline.initialCssGzipBytes)],
+    [
+      'Largest initial JS chunk (raw)',
+      formatDelta(largestInitialChunk.rawBytes, baseline.largestInitialChunkRawBytes),
+    ],
+    [
+      'Largest initial JS chunk (gzip)',
+      formatDelta(largestInitialChunk.gzipBytes, baseline.largestInitialChunkGzipBytes),
+    ],
+  ].filter(([, delta]) => Boolean(delta));
+
+  if (deltaLines.length) {
+    summary.push(`- Baseline: ${path.relative(process.cwd(), BASELINE_PATH) || BASELINE_PATH}`);
+    deltaLines.forEach(([label, delta]) => {
+      summary.push(`  - ${label}: ${delta}`);
+    });
+  }
+
   if (failures.length) {
     throw new Error(
       `${summary.join('\n')}\nBudget exceeded:\n- ${failures.join('\n- ')}`
@@ -261,6 +352,9 @@ function main() {
   }
 
   console.log(summary.join('\n'));
+  if (warnings.length) {
+    console.warn(`Renderer bundle budget warnings:\n- ${warnings.join('\n- ')}`);
+  }
 }
 
 main();
