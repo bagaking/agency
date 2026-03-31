@@ -37,6 +37,7 @@ import { useAttentionState } from './attention/useAttentionState';
 import { AppShellChrome } from './app/AppShellChrome';
 import { WindowTitleBar } from './components/WindowTitleBar';
 import { writeTextToClipboard } from './utils/clipboard';
+import { isWindowHomeCell } from './utils/windowHomeCell';
 
 const LazySessionMapToggle = lazy(async () => {
   const mod = await import('./components/sessionMap/SessionMapToggle');
@@ -143,6 +144,7 @@ function AppShell() {
       worktreePath: fallbackTerminalRoot || '/',
       state: 'draft',
       isVirtual: true,
+      ownerKind: 'window-home',
       validation: { warnings: ['Project root not selected.'] },
     };
   }, [fallbackTerminalRoot, projectReady]);
@@ -181,7 +183,7 @@ function AppShell() {
     selectionTraceRef.current = next;
   }, [selectedCell?.id, selectedId]);
   const scopedCell = useMemo(() => {
-    if (!projectReady || !selectedCell || selectedCell.isVirtual) {
+    if (!projectReady || !selectedCell || isWindowHomeCell(selectedCell)) {
       return null;
     }
     return selectedCell;

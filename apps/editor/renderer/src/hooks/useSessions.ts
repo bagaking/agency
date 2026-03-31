@@ -38,6 +38,9 @@ import {
   isTrackedHarnessEventRelevant,
   resolveTrackedHarnessTerminalOutcome,
 } from '../utils/commanderHarnessTracking';
+import { isProjectBackedCell } from '../utils/windowHomeCell';
+
+const isDevBuild = Boolean(import.meta.env?.DEV);
 
 export function useSessions(options: any = {}) {
   const {
@@ -159,6 +162,33 @@ export function useSessions(options: any = {}) {
       if (!cell || !isAgencyMethodAvailable('listSessions')) {
         return;
       }
+      if (!isProjectBackedCell(cell)) {
+        setSessionsByCellId((current) => {
+          if (!current[cell.id]?.length) {
+            return current;
+          }
+          return {
+            ...current,
+            [cell.id]: [],
+          };
+        });
+        setActiveSessionByCellId((current) => {
+          if (!current[cell.id]) {
+            return current;
+          }
+          const next = { ...current };
+          delete next[cell.id];
+          return next;
+        });
+        activeSessionByCellIdRef.current = Object.fromEntries(
+          Object.entries(activeSessionByCellIdRef.current).filter(([currentCellId]) => currentCellId !== cell.id)
+        );
+        if (!silent) {
+          setSessionError('');
+          setSessionLoading(false);
+        }
+        return;
+      }
       const attachedWorktreePath = cell.attachedWorktreePath || '';
       const selectionVersion = selectionVersionRef.current;
       if (!silent) {
@@ -227,7 +257,7 @@ export function useSessions(options: any = {}) {
         const open = filterOpenSessions(nextSessions, preferred);
         const active = resolveActiveSession({ openSessions: open, preferredSessionId: preferred });
         if (selectionVersionRef.current !== selectionVersion) {
-          if (import.meta.env.DEV) {
+          if (isDevBuild) {
             console.debug('[SessionTrace] skip stale session load result', {
               source: 'loadSessionsForCell',
               cellId: cell.id,
@@ -253,7 +283,7 @@ export function useSessions(options: any = {}) {
             message: 'session active pointer resolved from loaded sessions',
             meta,
           });
-          if (import.meta.env.DEV) {
+          if (isDevBuild) {
             console.debug('[SessionTrace] session active pointer resolved from loaded sessions', meta);
           }
           activeSessionByCellIdRef.current = {
@@ -671,7 +701,7 @@ export function useSessions(options: any = {}) {
         message: 'session selected',
         meta,
       });
-      if (import.meta.env.DEV) {
+      if (isDevBuild) {
         console.debug('[SessionTrace] session selected', meta);
       }
     },
@@ -683,6 +713,10 @@ export function useSessions(options: any = {}) {
       const targetCell =
         cellInput && typeof cellInput === 'object' ? cellInput : resolveCell(cellInput);
       if (!targetCell || !isAgencyMethodAvailable('createSession')) {
+        return null;
+      }
+      if (!isProjectBackedCell(targetCell)) {
+        setSessionError('Select a project before creating sessions.');
         return null;
       }
       const attachedWorktreePath = targetCell.attachedWorktreePath || '';
@@ -966,6 +1000,10 @@ export function useSessions(options: any = {}) {
       }
       const targetCell = resolveCell(cellId);
       if (!targetCell) {
+        return;
+      }
+      if (!isProjectBackedCell(targetCell)) {
+        setSessionError('Select a project before running session commands.');
         return;
       }
       const shouldAppendEnter = appendEnter ?? kind === 'dispatch';

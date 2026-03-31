@@ -23,6 +23,7 @@ import { useAttentionLayer } from '../../attention/AttentionLayerContext';
 import type { AttentionItem } from '../../attention/attentionModel';
 import { formatIdleShort } from '../../utils/timeFormat';
 import { resolveSessionAvatarId } from '../../utils/agentAvatar';
+import { isWindowHomeCell } from '../../utils/windowHomeCell';
 import {
   projectAgentCellSessionTree,
   SESSION_TREE_INDENT_PX,
@@ -852,7 +853,8 @@ export function AgentCellsSessionsPanel({
           <div className="space-y-3" data-testid="cell-list" role="tree" aria-label="Agent Cells">
             {cells.map((cell: any) => {
               const attachmentMeta = resolveCellAttachmentMeta(cell);
-              const hasAttachment = attachmentMeta.attachmentState === 'attached';
+              const isWindowHome = isWindowHomeCell(cell);
+              const hasAttachment = !isWindowHome && attachmentMeta.attachmentState === 'attached';
               const projection = projectionsByCellId[cell.id] || EMPTY_TREE;
               const visibleRows = visibleRowsByCellId[cell.id] || [];
               const activeSessionId =
@@ -1004,32 +1006,36 @@ export function AgentCellsSessionsPanel({
                           <FolderOpen size={13} strokeWidth={1.7} aria-hidden="true" />
                         </IconButton>
                       ) : null}
-                      <IconButton
-                        label="New Session"
-                        focusRing="sidebar"
-                        disabled={!hasAttachment}
-                        className="h-7 w-7 rounded-md text-primary transition-colors hover:bg-primary/12 hover:text-primary disabled:text-muted-foreground/40 disabled:hover:bg-transparent"
-                        title={
-                          hasAttachment ? 'Create a session inside the attached worktree.' : 'Attach a worktree before creating sessions.'
-                        }
-                        onClick={(event) => {
-                          if (!hasAttachment) {
-                            return;
+                      {!isWindowHome ? (
+                        <IconButton
+                          label="New Session"
+                          focusRing="sidebar"
+                          disabled={!hasAttachment}
+                          className="h-7 w-7 rounded-md text-primary transition-colors hover:bg-primary/12 hover:text-primary disabled:text-muted-foreground/40 disabled:hover:bg-transparent"
+                          title={
+                            hasAttachment
+                              ? 'Create a session inside the attached worktree.'
+                              : 'Attach a worktree before creating sessions.'
                           }
-                          event.stopPropagation();
-                          const rect = event.currentTarget.getBoundingClientRect();
-                          const spaceBelow = window.innerHeight - rect.bottom;
-                          const openUpwards = spaceBelow < 320;
-                          setCreateMenu({
-                            cellId: cell.id,
-                            x: rect.left,
-                            y: openUpwards ? rect.top - 6 : rect.bottom + 6,
-                            openUpwards,
-                          });
-                        }}
-                      >
-                        <Plus size={14} strokeWidth={1.8} aria-hidden="true" />
-                      </IconButton>
+                          onClick={(event) => {
+                            if (!hasAttachment) {
+                              return;
+                            }
+                            event.stopPropagation();
+                            const rect = event.currentTarget.getBoundingClientRect();
+                            const spaceBelow = window.innerHeight - rect.bottom;
+                            const openUpwards = spaceBelow < 320;
+                            setCreateMenu({
+                              cellId: cell.id,
+                              x: rect.left,
+                              y: openUpwards ? rect.top - 6 : rect.bottom + 6,
+                              openUpwards,
+                            });
+                          }}
+                        >
+                          <Plus size={14} strokeWidth={1.8} aria-hidden="true" />
+                        </IconButton>
+                      ) : null}
                       {hasOverflow ? (
                         <IconButton
                           label="Detached and closed sessions"
