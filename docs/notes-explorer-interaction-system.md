@@ -289,7 +289,8 @@ Current content-search guardrails:
 - binary files are skipped;
 - large files are skipped once they exceed the host-side size cap;
 - invalid folder/selection scopes are rejected by the host instead of silently widening to project scope;
-- replace runs only against explicitly confirmed targets and reports failures/skips.
+- replace runs only against explicitly confirmed targets and reports failures/skips;
+- when replacement text is present, the result surface previews how confirmed snippet lines would change so replace review is not limited to raw search evidence.
 
 ### 4. Working-set view family
 
@@ -341,6 +342,10 @@ Current lane:
 - memo citation via existing HIL item creation, with the saved Markdown path attached as a workspace reference when available;
 - optional handoff note carried into both the saved Markdown artifact and the memo citation metadata;
 - explicit “open in browser” escape hatch.
+
+Presentation boundary:
+- the lane belongs to Explorer, but it is a secondary workflow capability rather than a primary browse action;
+- it should sit closer to search/workflow controls than to core tree creation/refresh controls.
 
 Security/scope boundary:
 - only `http/https`;

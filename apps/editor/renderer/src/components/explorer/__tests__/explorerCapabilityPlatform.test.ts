@@ -71,6 +71,8 @@ test('command registry hides research actions unless the lane is enabled', () =>
     visibleCommands.some((command) => command.id === 'explorer.researchLane'),
     true
   );
+  const researchLane = visibleCommands.find((command) => command.id === 'explorer.researchLane');
+  assert.equal(researchLane?.placement, 'secondary');
 });
 
 test('project policy can hide registered commands without changing registry order', () => {

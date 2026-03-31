@@ -27,3 +27,19 @@ Placeholder or future capabilities SHALL remain hidden until the interaction con
 #### Scenario: Split editing is not yet shipped
 - **WHEN** the workbench does not have a split-editor layout model
 - **THEN** the main Workbench header does not expose a split-editor action
+
+## ADDED Requirements
+
+### Requirement: Explorer Replace Review Depth
+When Explorer content search is in replace mode, the result surface SHALL preview replacement impact strongly enough that users can review confirmed file targets before mutation.
+
+#### Scenario: Preview replacement impact for a confirmed target
+- **WHEN** a user enters replacement text in Explorer content search
+- **THEN** the result surface shows how matching snippet lines would change for confirmed targets before replace runs
+
+### Requirement: Explorer Research Lane Hierarchy
+The Explorer research lane SHALL remain a secondary workflow action within the Explorer shell.
+
+#### Scenario: Research lane remains secondary
+- **WHEN** Explorer renders the research-lane entry point
+- **THEN** the action appears as a secondary workflow control rather than a primary tree-browse control

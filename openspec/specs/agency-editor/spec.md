@@ -797,6 +797,7 @@ Content replace SHALL provide target visibility and confirmation semantics suita
 #### Scenario: Replace keyword across a folder
 - **WHEN** a user runs content replace within a folder scope
 - **THEN** the editor shows target matches and replacement impact before applying the change
+- **AND** the result surface previews how confirmed file snippets would change when replacement text is present
 
 #### Scenario: Replace keyword across the project
 - **WHEN** a user runs content replace across the active project
@@ -857,6 +858,10 @@ The lane SHALL NOT behave as a general-purpose browser replacement.
 - **WHEN** a user needs full browser behavior
 - **THEN** the explorer provides an explicit action to open the URL in the system browser
 - **AND** the research lane does not grow tab, cookie, or in-place browser session management
+
+#### Scenario: Research lane stays secondary to file browse
+- **WHEN** the explorer renders bounded research-lane entry points
+- **THEN** the lane is presented as a secondary workflow action rather than as a primary file-browse control
 
 ### Requirement: Explorer File Preview Pane
 The explorer SHALL open selected files inside a workbench tab area instead of a single static preview.
