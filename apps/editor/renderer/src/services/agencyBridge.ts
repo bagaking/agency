@@ -34,11 +34,17 @@ export const dispatchTerminalCommand = createOptionalAction('dispatchTerminalCom
 export const resizeTerminal = createOptionalAction('resizeTerminal');
 export const disposeTerminal = createOptionalAction('disposeTerminal');
 export const setSessionInteractive = createOptionalAction('setSessionInteractive');
+export const writeWindowHomeShell = createOptionalAction('writeWindowHomeShell');
+export const resizeWindowHomeShell = createOptionalAction('resizeWindowHomeShell');
+export const disposeWindowHomeShell = createOptionalAction('disposeWindowHomeShell');
 
 // Runtime subscriptions
 export const onTerminalData = createOptionalSubscribe('onTerminalData');
 export const onTerminalError = createOptionalSubscribe('onTerminalError');
 export const onTerminalDetached = createOptionalSubscribe('onTerminalDetached');
+export const onWindowHomeShellData = createOptionalSubscribe('onWindowHomeShellData');
+export const onWindowHomeShellError = createOptionalSubscribe('onWindowHomeShellError');
+export const onWindowHomeShellExit = createOptionalSubscribe('onWindowHomeShellExit');
 export const onAppShortcutTriggered = createOptionalSubscribe('onAppShortcutTriggered');
 export const onCellsUpdated = createOptionalSubscribe('onCellsUpdated');
 export const onVoiceCaptureEvent = createOptionalSubscribe('onVoiceCaptureEvent');
@@ -58,6 +64,7 @@ export const getSessionMapSnapshot = createOptionalInvoke('getSessionMapSnapshot
 
 // Terminal / settings
 export const startTerminal = createOptionalInvoke('startTerminal');
+export const startWindowHomeShell = createOptionalInvoke('startWindowHomeShell');
 export const getAppShortcuts = createOptionalInvoke('getAppShortcuts');
 export const setAppShortcuts = createOptionalInvoke('setAppShortcuts');
 export const applyAppShortcuts = createOptionalInvoke('applyAppShortcuts');

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Folder, AlertTriangle, Clock, ChevronRight, Hash } from 'lucide-react';
 
-const formatRelativeTime = (value) => {
+export const formatRelativeTime = (value) => {
   if (!value) return '';
   const timestamp = new Date(value).getTime();
   if (!Number.isFinite(timestamp)) return '';

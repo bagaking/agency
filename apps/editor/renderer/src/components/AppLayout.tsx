@@ -9,6 +9,9 @@ import { AppHilPanel } from './layout/AppHilPanel';
 
 export function AppLayout({
   activeView,
+  projectHomeVisible,
+  projectHomeSidebarProps,
+  projectHomeViewProps,
   onSwitchView,
   hierarchySection,
   appShortcutsScope,
@@ -199,6 +202,8 @@ export function AppLayout({
   const sidebarContent = (
     <AppSidebarContent
       activeView={activeView}
+      projectHomeVisible={projectHomeVisible}
+      projectHomeSidebarProps={projectHomeSidebarProps}
       projectContext={{
         ...explorerSidebarProps,
         projectReady,
@@ -291,9 +296,11 @@ export function AppLayout({
       ) : null}
 
       <div className="relative flex flex-1 overflow-hidden">
-        <AppMainPanels
-          activeView={activeView}
-          hierarchySection={hierarchySection}
+    <AppMainPanels
+      activeView={activeView}
+      projectHomeVisible={projectHomeVisible}
+      projectHomeViewProps={projectHomeViewProps}
+      hierarchySection={hierarchySection}
           editorPaneProps={editorPaneProps}
           explorerPaneProps={explorerPaneProps}
           memoPaneProps={memoPaneProps}

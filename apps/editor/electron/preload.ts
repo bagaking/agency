@@ -203,6 +203,7 @@ const INVOKE_CHANNELS: Record<string, string> = {
   clearCellAttachment: 'cells:clearAttachment',
   deleteCell: 'cells:delete',
   startTerminal: 'terminal:start',
+  startWindowHomeShell: 'window-home-shell:start',
   openExternalUrl: 'system:openExternal',
   openSystemPermissions: 'system:openPermissions',
 };
@@ -215,6 +216,9 @@ const SEND_CHANNELS: Record<string, string> = {
   resizeTerminal: 'terminal:resize',
   disposeTerminal: 'terminal:dispose',
   setSessionInteractive: 'session:interactive',
+  writeWindowHomeShell: 'window-home-shell:write',
+  resizeWindowHomeShell: 'window-home-shell:resize',
+  disposeWindowHomeShell: 'window-home-shell:dispose',
 };
 
 const SUBSCRIBE_CHANNELS: Record<string, string> = {
@@ -226,6 +230,9 @@ const SUBSCRIBE_CHANNELS: Record<string, string> = {
   onTerminalData: 'terminal:data',
   onTerminalError: 'terminal:error',
   onTerminalDetached: 'terminal:detached',
+  onWindowHomeShellData: 'window-home-shell:data',
+  onWindowHomeShellError: 'window-home-shell:error',
+  onWindowHomeShellExit: 'window-home-shell:exit',
   onCellsUpdated: 'cells:updated',
   onExplorerChanged: 'explorer:changed',
   onMainAgentHarnessProgress: 'main-agent-harness:progress',

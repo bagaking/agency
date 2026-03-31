@@ -2,6 +2,9 @@ import type { BuildAppLayoutInput } from './appLayoutContracts';
 
 export function buildAppLayoutProps({
   activeView,
+  projectHomeVisible,
+  projectHomeSidebarProps,
+  projectHomeViewProps,
   handleSwitchView,
   hierarchySection,
   handleSelectHierarchySection,
@@ -181,6 +184,9 @@ export function buildAppLayoutProps({
 }: BuildAppLayoutInput) {
   return {
     activeView,
+    projectHomeVisible,
+    projectHomeSidebarProps,
+    projectHomeViewProps,
     onSwitchView: handleSwitchView,
     hierarchySection,
     onSelectHierarchySection: handleSelectHierarchySection,

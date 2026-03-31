@@ -411,6 +411,7 @@ export interface HierarchyConfigState {
 export interface AppLayoutCompositionInput {
   layoutState: LayoutState;
   projectState: ProjectState;
+  windowHomeState?: UnknownRecord;
   scopeState: ScopeState;
   gateState: GateState;
   sessionsState: SessionsState;
@@ -453,6 +454,9 @@ export interface AppLayoutCompositionInput {
 
 export interface BuildAppLayoutInput {
   activeView: ActiveView;
+  projectHomeVisible?: boolean;
+  projectHomeSidebarProps?: UnknownRecord;
+  projectHomeViewProps?: UnknownRecord;
   handleSwitchView: FlexibleHandler<[ActiveView]>;
   hierarchySection: HierarchySection;
   handleSelectHierarchySection: FlexibleHandler<[HierarchySection]>;

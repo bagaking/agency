@@ -32,6 +32,7 @@ import { setupUiStateHandlers } from "../ipc/handlers/uiState";
 import { setupVoiceCaptureHandlers } from "../ipc/handlers/voiceCapture";
 import { setupWorkbenchHandlers } from "../ipc/handlers/workbench";
 import { setupWindowShellHandlers } from "../ipc/handlers/windowShell";
+import { setupWindowHomeShellHandlers } from "../ipc/handlers/windowHomeShell";
 import { setupWorktreeHandlers } from "../ipc/handlers/worktrees";
 import { setupWorktreeLinksHandlers } from "../ipc/handlers/worktreeLinks";
 
@@ -89,6 +90,7 @@ const IPC_REGISTRATIONS: IpcRegistration[] = [
   withoutDeps(setupVoiceCaptureHandlers),
   withoutDeps(setupSystemHandlers),
   withoutDeps(setupSessionMapHandlers),
+  withoutDeps(setupWindowHomeShellHandlers),
   withMainWindow(setupWindowShellHandlers),
 ];
 

@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
 import { AgentCellsSidebar } from '../AgentCellsSidebar';
+import { ProjectHomeSidebar } from '../projectHome/ProjectHomeSidebar';
 import { lazyNamedComponent } from '../ui/lazyNamedComponent';
 
 const LazyHierarchySidebar = lazyNamedComponent(
@@ -23,12 +24,18 @@ const sidebarFallback = <div className="h-full w-full bg-sidebar" />;
 
 export function AppSidebarContent({
   activeView,
+  projectHomeVisible,
+  projectHomeSidebarProps,
   projectContext,
   agentCellsProps,
   hierarchySidebarProps,
   actionSheetsProps,
   memoSidebarProps,
 }: any) {
+  if (projectHomeVisible) {
+    return <ProjectHomeSidebar {...projectHomeSidebarProps} />;
+  }
+
   if (activeView === 'explorer') {
     return (
       <Suspense fallback={sidebarFallback}>

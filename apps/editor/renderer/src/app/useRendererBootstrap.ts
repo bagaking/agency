@@ -27,7 +27,7 @@ type UseRendererBootstrapArgs = {
   setSelectedId: (value: any) => void;
   setProjectRoot: (value: string) => void;
   setRecentProjects: (value: any[]) => void;
-  setFallbackTerminalRoot: (value: string) => void;
+  setHomePath: (value: string) => void;
   setUserDataPath: (value: string) => void;
   setProjectError: (value: string) => void;
   setInitialActiveSessions: (value: any) => void;
@@ -69,7 +69,7 @@ export function useRendererBootstrap({
   setSelectedId,
   setProjectRoot,
   setRecentProjects,
-  setFallbackTerminalRoot,
+  setHomePath,
   setUserDataPath,
   setProjectError,
   setInitialActiveSessions,
@@ -132,7 +132,7 @@ export function useRendererBootstrap({
             return;
           }
           setCells([]);
-          setSelectedId((current: string | null) => current || 'local-terminal');
+          setSelectedId(null);
           return;
         }
         const result = await agencyListCells({ rootPath: effectiveRoot });
@@ -185,7 +185,7 @@ export function useRendererBootstrap({
       setProjectRoot(resolvedProjectRoot);
       setRecentProjects(Array.isArray(context?.recentProjects) ? context.recentProjects : []);
       const resolvedUserDataPath = context?.userDataPath || '';
-      setFallbackTerminalRoot(resolvedUserDataPath);
+      setHomePath(context?.homePath || '');
       setUserDataPath(resolvedUserDataPath);
 
       if (context?.storedRoot && !context?.valid) {
@@ -211,8 +211,6 @@ export function useRendererBootstrap({
           }
           if (state?.selectedId) {
             setSelectedId(state.selectedId);
-          } else if (!resolvedProjectRoot) {
-            setSelectedId('local-terminal');
           }
           if (typeof state?.sidebarWidth === 'number') {
             setSidebarWidth(state.sidebarWidth);
@@ -244,12 +242,12 @@ export function useRendererBootstrap({
             });
           }
           if (!resolvedProjectRoot) {
-            setSelectedId('local-terminal');
+            setSelectedId(null);
             setTerminalOpen(true);
             setCells([]);
           }
           await loadCells(
-            state?.selectedId || (resolvedProjectRoot ? undefined : 'local-terminal'),
+            state?.selectedId || undefined,
             resolvedProjectRoot
           );
           setUiStateLoaded(true);
@@ -268,7 +266,7 @@ export function useRendererBootstrap({
     loadCells,
     setActiveView,
     setCells,
-    setFallbackTerminalRoot,
+    setHomePath,
     setHilDrawerOpen,
     setHilDrawerPanel,
     setHilDrawerPanelByView,
@@ -316,7 +314,7 @@ export function useRendererBootstrap({
     }
     if (!projectRoot) {
       setActiveView('explorer');
-      setSelectedId('local-terminal');
+      setSelectedId(null);
       setTerminalOpen(true);
     }
     loadCells(undefined, projectRoot);

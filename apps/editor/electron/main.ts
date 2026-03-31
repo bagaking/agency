@@ -61,6 +61,7 @@ const {
   resolveActivatedEditorWindow,
   syncWindowTitle,
 } = require('./services/windowShell');
+const { disposeWindowHomeShellForWindow } = require('./services/windowHomeShell');
 
 type AgencyWindow = BrowserWindowType & {
   __agencyAllowStoredProjectRoot?: boolean;
@@ -439,6 +440,7 @@ function registerWindowShellTracking(win: AgencyWindow): void {
   win.on('closed', () => {
     clearPendingWindowStateWrite(win.id);
     clearWindowProjectRoot(win.id);
+    disposeWindowHomeShellForWindow(normalizeWindowStateId(win.__agencyWindowStateId));
     if (mainWindow === win) {
       mainWindow = undefined;
     }

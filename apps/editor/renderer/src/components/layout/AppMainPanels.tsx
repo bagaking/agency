@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
 import { EditorPane } from '../EditorPane';
+import { ProjectHomeView } from '../projectHome/ProjectHomeView';
 import { DeferredMount } from '../ui/DeferredMount';
 import { lazyNamedComponent } from '../ui/lazyNamedComponent';
 
@@ -51,6 +52,8 @@ const panelFallback = <div className="absolute inset-0 bg-background" />;
 
 export function AppMainPanels({
   activeView,
+  projectHomeVisible,
+  projectHomeViewProps,
   hierarchySection,
   editorPaneProps,
   explorerPaneProps,
@@ -65,19 +68,31 @@ export function AppMainPanels({
   worktreeLinksViewProps,
   projectSettingsViewProps,
 }: any) {
+  const showAgentCellsPane = !projectHomeVisible && activeView === 'agent-cells';
+  const showExplorerPane = !projectHomeVisible && activeView === 'explorer';
+
   return (
     <div className="relative flex-1 overflow-hidden">
-      <div className={`absolute inset-0 ${paneVisibilityClass(activeView === 'agent-cells')}`}>
-        <EditorPane {...editorPaneProps} />
-      </div>
-
-      <DeferredMount active={activeView === 'explorer'} strategy="retain">
-        <div className={`absolute inset-0 ${paneVisibilityClass(activeView === 'explorer')}`}>
-          <Suspense fallback={panelFallback}>
-            <LazyWorkbenchPane {...explorerPaneProps} />
-          </Suspense>
+      {projectHomeVisible ? (
+        <div className="absolute inset-0">
+          <ProjectHomeView {...projectHomeViewProps} />
         </div>
-      </DeferredMount>
+      ) : null}
+      {showAgentCellsPane ? (
+        <div className={`absolute inset-0 ${paneVisibilityClass(true)}`}>
+          <EditorPane {...editorPaneProps} />
+        </div>
+      ) : null}
+
+      {showExplorerPane ? (
+        <DeferredMount active={true} strategy="retain">
+          <div className={`absolute inset-0 ${paneVisibilityClass(true)}`}>
+            <Suspense fallback={panelFallback}>
+              <LazyWorkbenchPane {...explorerPaneProps} />
+            </Suspense>
+          </div>
+        </DeferredMount>
+      ) : null}
 
       {activeView === 'memo' ? (
         <div className="absolute inset-0">

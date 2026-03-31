@@ -6,6 +6,7 @@ import { buildAppLayoutProps } from './buildAppLayoutProps';
 export function buildComposedAppLayoutProps({
   layoutState,
   projectState,
+  windowHomeState,
   scopeState,
   gateState,
   sessionsState,
@@ -62,6 +63,32 @@ export function buildComposedAppLayoutProps({
     activityDiffThreshold: gateState.activityDiffThreshold,
     onSelectionContext: actionHandlers.handleSelectionContext,
     onReplySelection: actionHandlers.handleReplySelection,
+  };
+
+  const projectHomeVisible =
+    !projectState.projectReady &&
+    (layoutState.activeView === 'explorer' || layoutState.activeView === 'agent-cells');
+  const projectHomeSidebarProps = {
+    projectError: projectState.projectError,
+    recentProjects: projectState.recentProjects,
+    onSelectProject: navigationHandlers.handleSelectProjectRoot,
+    onOpenRecentProject: navigationHandlers.handleOpenRecentProject,
+    onCloseHomeShell: (windowHomeState as any)?.closeShell,
+    onOpenHomeShell: (windowHomeState as any)?.openShell,
+    shellSummary: (windowHomeState as any)?.shellSummary,
+  };
+  const projectHomeViewProps = {
+    homePath: String((windowHomeState as any)?.shellSummary?.cwd || ''),
+    projectError: projectState.projectError,
+    recentProjects: projectState.recentProjects,
+    onSelectProject: navigationHandlers.handleSelectProjectRoot,
+    onOpenRecentProject: navigationHandlers.handleOpenRecentProject,
+    shellSummary: (windowHomeState as any)?.shellSummary,
+    onOpenHomeShell: (windowHomeState as any)?.openShell,
+    onCloseHomeShell: (windowHomeState as any)?.closeShell,
+    onHomeShellReady: (windowHomeState as any)?.handleShellReady,
+    onHomeShellExit: (windowHomeState as any)?.handleShellExit,
+    onHomeShellError: (windowHomeState as any)?.handleShellError,
   };
 
   const {
@@ -159,6 +186,9 @@ export function buildComposedAppLayoutProps({
 
   const appLayoutInput: BuildAppLayoutInput = {
     activeView: layoutState.activeView,
+    projectHomeVisible,
+    projectHomeSidebarProps,
+    projectHomeViewProps,
     handleSwitchView: navigationHandlers.handleSwitchView,
     hierarchySection: layoutState.hierarchySection,
     handleSelectHierarchySection: navigationHandlers.handleSelectHierarchySection,

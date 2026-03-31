@@ -1,12 +1,9 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { logRuntime, startTerminal } from '../services/agencyBridge';
+import { DEFAULT_FONT_SIZE, TERMINAL_FONT_STACK, TERMINAL_THEME } from './sharedXtermConfig';
 
 const terminals = new Map();
-
-const DEFAULT_FONT_SIZE = 13;
-const TERMINAL_FONT_STACK =
-  'Menlo, Monaco, "SF Mono", "Hiragino Sans GB", "PingFang SC", "Noto Sans CJK SC", "Courier New", monospace';
 
 const buildKey = (cellId, sessionId) => `${cellId}:${sessionId}`;
 
@@ -23,10 +20,7 @@ const createEntry = ({ cellId, sessionId, fontSize }) => {
     macOptionClickForcesSelection: true,
     scrollback: 5000,
     scrollOnUserInput: true,
-    theme: {
-      background: '#0b0d12',
-      foreground: '#f8fafc',
-    },
+    theme: TERMINAL_THEME,
   });
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);

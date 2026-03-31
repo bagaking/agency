@@ -37,7 +37,7 @@ import { useAttentionState } from './attention/useAttentionState';
 import { AppShellChrome } from './app/AppShellChrome';
 import { WindowTitleBar } from './components/WindowTitleBar';
 import { writeTextToClipboard } from './utils/clipboard';
-import { isWindowHomeCell } from './utils/windowHomeCell';
+import { useWindowHomeShell } from './hooks/useWindowHomeShell';
 
 const LazySessionMapToggle = lazy(async () => {
   const mod = await import('./components/sessionMap/SessionMapToggle');
@@ -74,7 +74,7 @@ function AppShell() {
   const [projectRoot, setProjectRoot] = useState('');
   const [projectError, setProjectError] = useState('');
   const [recentProjects, setRecentProjects] = useState([]);
-  const [fallbackTerminalRoot, setFallbackTerminalRoot] = useState('');
+  const [homePath, setHomePath] = useState('');
   const [pendingTransition, setPendingTransition] = useState(null);
   const [transitionError, setTransitionError] = useState('');
   const [transitionLoading, setTransitionLoading] = useState(false);
@@ -133,27 +133,7 @@ function AppShell() {
     setTerminalMode,
   } = useAppShellLayoutState();
   const projectReady = Boolean(projectRoot);
-  const virtualCell = useMemo(() => {
-    if (projectReady) {
-      return null;
-    }
-    return {
-      id: 'local-terminal',
-      name: 'Local Terminal',
-      branch: 'local',
-      worktreePath: fallbackTerminalRoot || '/',
-      state: 'draft',
-      isVirtual: true,
-      ownerKind: 'window-home',
-      validation: { warnings: ['Project root not selected.'] },
-    };
-  }, [fallbackTerminalRoot, projectReady]);
-  const displayCells = useMemo(() => {
-    if (projectReady) {
-      return cells;
-    }
-    return virtualCell ? [virtualCell] : [];
-  }, [cells, projectReady, virtualCell]);
+  const displayCells = useMemo(() => (projectReady ? cells : []), [cells, projectReady]);
   const selectedCell = useMemo(
     () => displayCells.find((cell) => cell.id === selectedId) || null,
     [displayCells, selectedId]
@@ -172,7 +152,7 @@ function AppShell() {
     if (prev.selectedId === next.selectedId && prev.cellId === next.cellId) {
       return;
     }
-    if (import.meta.env.DEV) {
+    if (import.meta.env?.DEV) {
       console.warn('[SessionTrace] selected cell changed', {
         prevSelectedId: prev.selectedId,
         nextSelectedId: next.selectedId,
@@ -183,11 +163,17 @@ function AppShell() {
     selectionTraceRef.current = next;
   }, [selectedCell?.id, selectedId]);
   const scopedCell = useMemo(() => {
-    if (!projectReady || !selectedCell || isWindowHomeCell(selectedCell)) {
+    if (!projectReady || !selectedCell) {
       return null;
     }
     return selectedCell;
   }, [projectReady, selectedCell]);
+  const projectHomeVisible =
+    !projectReady && (activeView === 'explorer' || activeView === 'agent-cells');
+  const windowHomeShell = useWindowHomeShell({
+    homePath,
+    projectHomeVisible,
+  });
   const { loadCells } = useRendererBootstrap({
     projectRoot,
     selectedId,
@@ -197,7 +183,7 @@ function AppShell() {
     setSelectedId,
     setProjectRoot,
     setRecentProjects,
-    setFallbackTerminalRoot,
+    setHomePath,
     setUserDataPath,
     setProjectError,
     setInitialActiveSessions,
@@ -1019,6 +1005,7 @@ function AppShell() {
       handleContinueSessionOnMobile,
       handleFocusSessionInUi,
     },
+    windowHomeState: windowHomeShell,
   });
 
   return (
