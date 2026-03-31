@@ -6,8 +6,9 @@ import { promisify } from 'node:util';
 
 import {
   AGENCY_DIR,
-  getStoragePaths,
+  requireOwnerStorage,
   resolveWorktreeName,
+  type OwnerStorageResolution,
   type WorktreeStorageContext,
 } from './storageRoots';
 import { readYamlFile, writeYamlFileAtomic } from './yamlStore';
@@ -15,7 +16,6 @@ import { readYamlFile, writeYamlFileAtomic } from './yamlStore';
 const fsp = fs.promises;
 const execFileAsync = promisify(execFile);
 
-const CELL_STORE_DIR = 'cells';
 const HIL_DIR = 'hil';
 const HIL_INDEX_FILENAME = 'index.yaml';
 const HIL_PREFIX = 'index-';
@@ -36,10 +36,14 @@ type HilStorageInput =
     });
 
 type HilStoragePaths = {
-  mode: 'cell' | 'scoped' | 'legacy' | 'invalid';
+  mode: OwnerStorageResolution['mode'];
+  ownerKind: OwnerStorageResolution['ownerKind'];
   worktreePath: string;
   projectRootPath: string;
   cellId: string;
+  storageRootPath: string;
+  worktreeName: string;
+  ownerRoot: string;
   indexPath: string;
   treeRoot: string;
   legacyIndexPath: string;
@@ -70,13 +74,6 @@ function isHilKind(value: unknown): value is HilKind {
   return SUPPORTED_HIL_KINDS.has(String(value || '').trim());
 }
 
-function normalizeCellId(value: unknown): string {
-  return String(value || '')
-    .trim()
-    .replace(/[^a-zA-Z0-9._-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
 function normalizeHilStorageInput(input: HilStorageInput = {}): {
   worktreePath: string;
   projectRootPath: string;
@@ -94,74 +91,51 @@ function normalizeHilStorageInput(input: HilStorageInput = {}): {
     projectRootPath: String(
       input.projectRootPath || input.repoRootPath || input.rootPath || ''
     ).trim(),
-    cellId: normalizeCellId(input.cellId),
+    cellId: String(input.cellId || '').trim(),
   };
 }
 
 function getLegacyHilIndexPath(worktreePath: string): string {
-  const { storageRootPath, worktreeName } = getStoragePaths({ worktreePath });
-  return path.join(storageRootPath, AGENCY_DIR, HIL_DIR, `${HIL_PREFIX}${worktreeName}${HIL_EXT}`);
+  const normalizedWorktreePath = path.resolve(worktreePath);
+  const worktreeName = path.basename(normalizedWorktreePath);
+  return path.join(normalizedWorktreePath, AGENCY_DIR, HIL_DIR, `${HIL_PREFIX}${worktreeName}${HIL_EXT}`);
 }
 
 function getLegacyHilTreeRoot(worktreePath: string): string {
-  const { storageRootPath, worktreeName } = getStoragePaths({ worktreePath });
-  return path.join(storageRootPath, AGENCY_DIR, HIL_DIR, worktreeName);
-}
-
-function getCellHilRoot(projectRootPath: string, cellId: string): string {
-  return path.join(projectRootPath, AGENCY_DIR, CELL_STORE_DIR, cellId, HIL_DIR);
+  const normalizedWorktreePath = path.resolve(worktreePath);
+  const worktreeName = path.basename(normalizedWorktreePath);
+  return path.join(normalizedWorktreePath, AGENCY_DIR, HIL_DIR, worktreeName);
 }
 
 function resolveHilStoragePaths(input: HilStorageInput = {}): HilStoragePaths {
   const normalized = normalizeHilStorageInput(input);
-  if (normalized.projectRootPath && normalized.cellId) {
-    const treeRoot = getCellHilRoot(normalized.projectRootPath, normalized.cellId);
-    return {
-      mode: 'cell',
+  const owner = requireOwnerStorage(
+    {
       worktreePath: normalized.worktreePath,
       projectRootPath: normalized.projectRootPath,
       cellId: normalized.cellId,
-      indexPath: path.join(treeRoot, HIL_INDEX_FILENAME),
-      treeRoot,
-      legacyIndexPath: normalized.worktreePath ? getLegacyHilIndexPath(normalized.worktreePath) : '',
-      legacyCommentsPath: normalized.worktreePath ? getLegacyCommentsPath(normalized.worktreePath) : '',
-    };
-  }
-  if (normalized.worktreePath || normalized.projectRootPath) {
-    const scopedContext = {
-      worktreePath: normalized.worktreePath,
-      projectRootPath: normalized.projectRootPath,
-    };
-    const { storageRootPath, worktreeName } = getStoragePaths(scopedContext);
-    return {
-      mode: normalized.worktreePath ? 'legacy' : 'scoped',
-      worktreePath: normalized.worktreePath,
-      projectRootPath: normalized.projectRootPath,
-      cellId: '',
-      indexPath: path.join(storageRootPath, AGENCY_DIR, HIL_DIR, `${HIL_PREFIX}${worktreeName}${HIL_EXT}`),
-      treeRoot: path.join(storageRootPath, AGENCY_DIR, HIL_DIR, worktreeName),
-      legacyIndexPath: normalized.worktreePath ? getLegacyHilIndexPath(normalized.worktreePath) : '',
-      legacyCommentsPath: normalized.worktreePath ? getLegacyCommentsPath(normalized.worktreePath) : '',
-    };
-  }
+    },
+    'cell',
+    'worktreePath or projectRootPath + cellId is required.'
+  );
+  const hilRoot = path.join(owner.ownerRoot, HIL_DIR);
   return {
-    mode: 'invalid',
-    worktreePath: '',
-    projectRootPath: '',
-    cellId: '',
-    indexPath: '',
-    treeRoot: '',
-    legacyIndexPath: '',
-    legacyCommentsPath: '',
+    ...owner,
+    indexPath:
+      owner.mode === 'canonical'
+        ? path.join(hilRoot, HIL_INDEX_FILENAME)
+        : path.join(hilRoot, `${HIL_PREFIX}${owner.worktreeName}${HIL_EXT}`),
+    treeRoot:
+      owner.mode === 'canonical'
+        ? hilRoot
+        : path.join(hilRoot, owner.worktreeName),
+    legacyIndexPath: owner.worktreePath ? getLegacyHilIndexPath(owner.worktreePath) : '',
+    legacyCommentsPath: owner.worktreePath ? getLegacyCommentsPath(owner.worktreePath) : '',
   };
 }
 
 function requireHilStoragePaths(input: HilStorageInput = {}): HilStoragePaths {
-  const paths = resolveHilStoragePaths(input);
-  if (!paths.indexPath) {
-    throw new Error('worktreePath or projectRootPath + cellId is required.');
-  }
-  return paths;
+  return resolveHilStoragePaths(input);
 }
 
 export function getHilIndexPath(input: HilStorageInput, projectRootPath?: string): string {
@@ -172,10 +146,6 @@ export function getHilIndexPath(input: HilStorageInput, projectRootPath?: string
     }).indexPath;
   }
   return requireHilStoragePaths(input).indexPath;
-}
-
-function getHilTreeRoot(input: HilStorageInput): string {
-  return requireHilStoragePaths(input).treeRoot;
 }
 
 function getHilItemDir(kind: HilKind): string {
@@ -412,7 +382,7 @@ async function resolveAuthor(paths: HilStoragePaths): Promise<Record<string, any
 async function ensureHilIndexRaw(paths: HilStoragePaths): Promise<RawHilIndex> {
   let index = await readHilIndexRaw(paths);
   if (
-    paths.mode === 'cell' &&
+    paths.mode === 'canonical' &&
     !fs.existsSync(paths.indexPath) &&
     paths.legacyIndexPath &&
     fs.existsSync(paths.legacyIndexPath)

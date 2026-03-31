@@ -1,27 +1,34 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import {
+  AGENCY_DIR,
+  requireOwnerStorage,
+  type OwnerStorageResolution,
+  type WorktreeStorageContext,
+} from './storageRoots';
+
 const fsp = fs.promises;
 
-const AGENCY_DIR = '.agency';
-const CELL_STORE_DIR = 'cells';
 const DELIVERY_DIR = 'delivery';
 const DELIVERY_LOG_FILENAME = 'events.jsonl';
 
 type DeliveryAuditStorageInput =
   | string
-  | {
+  | (WorktreeStorageContext & {
       repoRootPath?: string;
       rootPath?: string;
-      cellId?: string;
-      worktreePath?: string;
-    };
+    });
 
 type DeliveryAuditStoragePaths = {
-  mode: 'cell' | 'legacy' | 'invalid';
+  mode: OwnerStorageResolution['mode'];
+  ownerKind: OwnerStorageResolution['ownerKind'];
   repoRootPath: string;
   cellId: string;
   worktreePath: string;
+  storageRootPath: string;
+  worktreeName: string;
+  ownerRoot: string;
   logPath: string;
   legacyLogPath: string;
 };
@@ -30,80 +37,41 @@ function normalizeText(value: unknown): string {
   return String(value || '').trim();
 }
 
-function normalizePathValue(value: unknown): string {
-  const normalized = normalizeText(value);
-  return normalized ? path.resolve(normalized) : '';
-}
-
-function normalizeCellId(value: unknown): string {
-  return normalizeText(value).replace(/[^a-zA-Z0-9-_]/g, '-');
-}
-
-function getWorktreeName(worktreePath: string): string {
-  return path.basename(worktreePath);
-}
-
 function getLegacyDeliveryAuditLogPath(worktreePath: string): string {
-  const worktreeName = getWorktreeName(worktreePath);
-  return path.join(worktreePath, AGENCY_DIR, DELIVERY_DIR, `events-${worktreeName}.jsonl`);
-}
-
-function getCellDeliveryAuditLogPath(repoRootPath: string, cellId: string): string {
-  return path.join(repoRootPath, AGENCY_DIR, CELL_STORE_DIR, cellId, DELIVERY_DIR, DELIVERY_LOG_FILENAME);
+  const normalizedWorktreePath = path.resolve(worktreePath);
+  const worktreeName = path.basename(normalizedWorktreePath);
+  return path.join(normalizedWorktreePath, AGENCY_DIR, DELIVERY_DIR, `events-${worktreeName}.jsonl`);
 }
 
 function resolveDeliveryAuditStoragePaths(input: DeliveryAuditStorageInput = {}): DeliveryAuditStoragePaths {
-  if (typeof input === 'string') {
-    const worktreePath = normalizePathValue(input);
-    return worktreePath
+  const normalized =
+    typeof input === 'string'
       ? {
-          mode: 'legacy',
-          repoRootPath: '',
+          worktreePath: input,
+          projectRootPath: '',
           cellId: '',
-          worktreePath,
-          logPath: getLegacyDeliveryAuditLogPath(worktreePath),
-          legacyLogPath: getLegacyDeliveryAuditLogPath(worktreePath),
         }
       : {
-          mode: 'invalid',
-          repoRootPath: '',
-          cellId: '',
-          worktreePath: '',
-          logPath: '',
-          legacyLogPath: '',
+          worktreePath: input.worktreePath || '',
+          projectRootPath: input.projectRootPath || input.repoRootPath || input.rootPath || '',
+          cellId: input.cellId || '',
         };
-  }
 
-  const worktreePath = normalizePathValue(input?.worktreePath);
-  const repoRootPath = normalizePathValue(input?.repoRootPath || input?.rootPath);
-  const cellId = normalizeCellId(input?.cellId);
-  if (repoRootPath && cellId) {
-    return {
-      mode: 'cell',
-      repoRootPath,
-      cellId,
-      worktreePath,
-      logPath: getCellDeliveryAuditLogPath(repoRootPath, cellId),
-      legacyLogPath: worktreePath ? getLegacyDeliveryAuditLogPath(worktreePath) : '',
-    };
-  }
-  if (worktreePath) {
-    return {
-      mode: 'legacy',
-      repoRootPath: '',
-      cellId: '',
-      worktreePath,
-      logPath: getLegacyDeliveryAuditLogPath(worktreePath),
-      legacyLogPath: getLegacyDeliveryAuditLogPath(worktreePath),
-    };
-  }
+  const owner = requireOwnerStorage(
+    normalized,
+    'cell',
+    'worktreePath or projectRootPath + cellId is required.'
+  );
+  const logPath =
+    owner.mode === 'canonical'
+      ? path.join(owner.ownerRoot, DELIVERY_DIR, DELIVERY_LOG_FILENAME)
+      : path.join(owner.ownerRoot, DELIVERY_DIR, `events-${owner.worktreeName}.jsonl`);
+
   return {
-    mode: 'invalid',
-    repoRootPath: '',
-    cellId: '',
-    worktreePath: '',
-    logPath: '',
-    legacyLogPath: '',
+    ...owner,
+    repoRootPath: owner.projectRootPath,
+    logPath,
+    legacyLogPath: owner.worktreePath ? getLegacyDeliveryAuditLogPath(owner.worktreePath) : '',
   };
 }
 
@@ -205,7 +173,7 @@ async function readAuditEventsFromPath(logPath: string): Promise<DeliveryAuditEv
 }
 
 async function ensureDeliveryAuditMigration(paths: DeliveryAuditStoragePaths): Promise<void> {
-  if (paths.mode !== 'cell' || !paths.logPath || !paths.legacyLogPath) {
+  if (paths.mode !== 'canonical' || !paths.logPath || !paths.legacyLogPath) {
     return;
   }
   const repoExists = await fsp
