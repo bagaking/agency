@@ -79,6 +79,8 @@ Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeSc
 ## Canonical Object Model
 
 - Canonical domain objects are `App -> Window -> Project -> Cell -> Session -> Run`.
+- When no project is selected, the window stays in a window-owned `Project Home` state; do not invent fake Project/Cell/Session objects just to reuse project-owned pipelines.
+- The no-project `Home Shell` is a window-owned capability rooted at the user home directory; it must not create repo-backed Cell/session storage.
 - `Agent Cells`, `Explorer`, `Workbench`, `Session Map`, `Hierarchy`, `Memo`, and `Commander` are surfaces over those objects, not competing object roots.
 - HIL storage is bounded to `comment` / `memo` / `draft`; session replies are session-owned artifacts and must not be stored or surfaced as HIL inbox items.
 - Session-source delivery must reference reply artifacts as `system=reply`; do not backdoor reply provenance through HIL refs.

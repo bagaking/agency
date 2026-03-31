@@ -30,7 +30,7 @@ test('AppSidebarContent uses shared Project Home sidebar for no-project explorer
   );
 
   assert.match(html, /Project Home/);
-  assert.match(html, /Open Project/);
+  assert.match(html, /Select Project/);
   assert.match(html, /Start Home Shell/);
   assert.doesNotMatch(html, /Agent Cells/);
 });

@@ -33,6 +33,7 @@ export function ProjectHomeSidebar({
         <div className="mt-2 text-[12px] font-semibold text-white/86">
           Open a repository or start a scratch shell for this window.
         </div>
+        <div className="mt-2 text-[11px] text-white/52">No project selected</div>
         {projectError ? (
           <div className="mt-3 rounded-xl border border-rose-300/20 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-100">
             {projectError}
@@ -51,7 +52,7 @@ export function ProjectHomeSidebar({
               <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-cyan-100/72">
                 Primary Action
               </div>
-              <div className="mt-1 text-[12px] font-semibold text-white">Open Project</div>
+              <div className="mt-1 text-[12px] font-semibold text-white">Select Project</div>
             </div>
             <FolderOpen size={16} className="text-cyan-100" />
           </button>

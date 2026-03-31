@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 
 import {
   onWindowHomeShellData,
@@ -17,12 +18,14 @@ import {
 export function WindowHomeShellPane({
   visible,
   homePath,
+  onClose,
   onReady,
   onExit,
   onError,
 }: {
   visible: boolean;
   homePath: string;
+  onClose?: () => void;
   onReady?: (payload?: { cwd?: string; shellPath?: string }) => void;
   onExit?: () => void;
   onError?: (message: string) => void;
@@ -140,11 +143,21 @@ export function WindowHomeShellPane({
           </div>
           <div className="truncate text-[11px] text-white/76">{homePath}</div>
         </div>
-        {localError ? (
-          <div className="rounded-full border border-rose-300/20 bg-rose-500/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-rose-200">
-            Error
-          </div>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {localError ? (
+            <div className="rounded-full border border-rose-300/20 bg-rose-500/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-rose-200">
+              Error
+            </div>
+          ) : null}
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] text-white/62 transition-colors hover:bg-white/[0.08] hover:text-white"
+            aria-label="Close home shell"
+          >
+            <X size={13} />
+          </button>
+        </div>
       </div>
       <div ref={containerRef} className="min-h-0 flex-1 bg-[#05070b] p-2" />
     </div>

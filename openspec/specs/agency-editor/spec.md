@@ -1060,11 +1060,13 @@ The explorer SHALL indicate which files are open in the workbench and which are 
 ### Requirement: Project Root Selection
 The editor SHALL allow users to select a project directory when none is configured.
 The editor SHALL persist the selected project directory locally and restore it on launch.
+When no project is configured, the window SHALL stay in a window-owned home state instead of projecting synthetic Project, Cell, or Session objects.
 
 #### Scenario: Launch without project
 - **WHEN** the editor starts with no configured project directory
 - **THEN** the Explorer view is the default
-- **AND** an empty-state UI prompts the user to choose a project directory
+- **AND** a Project Home UI prompts the user to choose a project directory
+- **AND** the no-project window does not route through synthetic Cell/session identities
 
 #### Scenario: Restore last project
 - **WHEN** a user selects a project directory
@@ -1072,13 +1074,13 @@ The editor SHALL persist the selected project directory locally and restore it o
 - **AND** the next launch opens that project by default
 
 ### Requirement: Agent Cells Empty State
-When no project directory is configured, the Agent Cells view SHALL show a placeholder node.
-Only the default terminal SHALL be available until a project directory is selected.
+When no project directory is configured, the Agent Cells surface SHALL show the shared window-owned Project Home state instead of a synthetic Cell row.
+Only window-owned actions that do not require a project-backed Cell SHALL be available until a project directory is selected.
 
 #### Scenario: No project configured
 - **WHEN** the user opens Agent Cells without a configured project directory
-- **THEN** the placeholder node is shown
-- **AND** only the default terminal action is enabled
+- **THEN** the shared Project Home state is shown
+- **AND** Cell/session creation affordances stay disabled until a project is selected
 
 ### Requirement: Packaged UI Loads Local Renderer
 Packaged builds SHALL load renderer assets from local resources without requiring a dev server.
@@ -1105,12 +1107,26 @@ The recent list SHALL update whenever a project is selected successfully.
 - **THEN** the recent projects list includes the last-opened project
 
 ### Requirement: Recent Projects Sidebar
-When no project is open, the left sidebar SHALL display a Recent Projects section.
+When no project is open, the left sidebar SHALL display recent projects together with explicit no-project recovery actions for the current window.
 Selecting a recent project SHALL open it and set the active project root.
 
 #### Scenario: Open recent project from sidebar
 - **WHEN** a user selects a recent project from the sidebar list
 - **THEN** the editor switches to that project and loads its Cells
+
+### Requirement: Window-Owned Home Shell
+The editor SHALL provide an optional home shell for no-project windows as a window-owned capability.
+The home shell SHALL use the user's home directory as its default working directory.
+The home shell SHALL NOT create or mutate repo-owned Cell/session storage.
+
+#### Scenario: Start a home shell before selecting a project
+- **WHEN** a user chooses `Start Home Shell` in a no-project window
+- **THEN** the editor opens a shell rooted at the user home directory
+- **AND** the shell is owned by that window rather than by a Project, Cell, or Session
+
+#### Scenario: Home shell stays out of Cell storage
+- **WHEN** a user uses the home shell in a no-project window
+- **THEN** the editor does not create `.agency/cells/**` session registry entries or Cell-owned runtime records for that shell
 
 ### Requirement: Project Menu Actions
 The editor SHALL expose menu actions for Open Project, Switch Project, and New Window.

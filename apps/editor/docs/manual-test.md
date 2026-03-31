@@ -3,6 +3,7 @@
 ## Launch
 - [ ] Start the renderer and main process with `npm run dev`.
 - [ ] Verify the Agency window opens, renders the custom title bar, and shows the current project name or an empty-project label.
+- [ ] Open a brand-new empty window and confirm no `Session Action Failed` notice appears before a project is selected.
 - [ ] Open a second window and confirm the title-bar app icon menu lists both windows and can switch focus between them.
 - [ ] On macOS, confirm the Dock stays on the native/default menu path instead of an app-defined window list.
 - [ ] On macOS, click the Dock icon while no editor window is focused and confirm an editor window is restored/focused.
@@ -32,6 +33,10 @@
 - [ ] Open an image, PDF, or unknown-file warning view and confirm Workbench does not show the language control there.
 
 ## Terminal
+- [ ] With no project selected, confirm Explorer and Agent Cells both show the same `Project Home` state instead of a fake local Cell/session row.
+- [ ] In the no-project state, click `Start Home Shell` and confirm an interactive shell opens from the user home directory.
+- [ ] While the no-project home shell is open, confirm no repo-backed Cell/session records are created and no Cell/session affordances appear.
+- [ ] Switch between Explorer and Agent Cells while still in the no-project state and confirm the shared `Project Home` surface stays coherent.
 - [ ] Open a terminal session and verify output appears.
 - [ ] Start CLI and confirm Codex (or stub) launches in the embedded terminal.
 - [ ] Open Hierarchy -> Harness Providers, set `base_url`, `model`, and `OPENAI_API_KEY`, save, then restart the app process if needed and confirm the values persist.

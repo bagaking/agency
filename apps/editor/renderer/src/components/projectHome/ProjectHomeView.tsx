@@ -98,6 +98,9 @@ export function ProjectHomeView({
               <h1 className="mt-3 text-[34px] font-semibold tracking-[-0.04em] text-white">
                 Pick up a repository fast, or open one clean scratch shell for this window.
               </h1>
+              <div className="mt-3 text-[12px] font-semibold uppercase tracking-[0.16em] text-white/48">
+                No project selected
+              </div>
               <p className="mt-3 max-w-2xl text-[14px] leading-7 text-white/62">
                 No fake Cells, no fake Sessions. Until a project is selected, this window stays in
                 a window-owned home state with clear recovery paths.
@@ -116,7 +119,7 @@ export function ProjectHomeView({
                 className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-500/[0.12] px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-50 transition-colors hover:bg-cyan-500/[0.18]"
               >
                 <FolderOpen size={14} />
-                <span>Open Project</span>
+                <span>Select Project</span>
               </button>
               <button
                 type="button"
@@ -203,6 +206,7 @@ export function ProjectHomeView({
                 <WindowHomeShellPane
                   visible={shellSummary.visible}
                   homePath={homePath}
+                  onClose={onCloseHomeShell}
                   onReady={onHomeShellReady}
                   onExit={onHomeShellExit}
                   onError={onHomeShellError}

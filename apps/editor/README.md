@@ -247,7 +247,11 @@
 
 ## Project Selection
 
-- If no project directory is configured, the editor opens Explorer with an empty-state prompt.
+- If no project directory is configured, the editor opens Explorer in a shared `Project Home` state.
+- `Project Home` is window-owned: it is not a fake Project, Cell, or Session.
+- The no-project sidebar exposes `Open Project`, `Start Home Shell`, and recent projects as one coherent recovery surface.
+- Recent projects are the primary center-stage content in the no-project main panel.
+- The home shell starts from the user home directory and stays window-owned; it does not create repo-backed Cell/session records.
 - Use **Select Project** to choose a repository for the current window.
 - The app keeps one desktop instance and routes additional launches into that instance as new windows instead of relying on isolated parallel app processes.
 - Clicking the custom title-bar app icon opens a window switcher for the currently open editor windows and also exposes `New Window`.
