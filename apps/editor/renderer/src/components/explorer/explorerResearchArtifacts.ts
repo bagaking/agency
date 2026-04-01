@@ -10,6 +10,8 @@ export type ExplorerResearchPreview = {
   charCount?: number;
   fetchedAt?: string;
   truncated?: boolean;
+  liveViewAllowed?: boolean;
+  liveViewBlockReason?: string;
 };
 
 type BuildExplorerResearchSuggestedPathOptions = {

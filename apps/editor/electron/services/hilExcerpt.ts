@@ -8,6 +8,55 @@ const EXCERPT_MAX_HTML_BYTES = 2 * 1024 * 1024;
 const EXCERPT_MAX_TEXT_CHARS = 20000;
 const SUMMARY_MAX_CHARS = 480;
 
+function normalizeHeaderValue(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function detectBlockedFrameAncestors(contentSecurityPolicy) {
+  const normalizedPolicy = String(contentSecurityPolicy || '').trim();
+  if (!normalizedPolicy) {
+    return '';
+  }
+  const frameAncestorsDirective = normalizedPolicy
+    .split(';')
+    .map((directive) => directive.trim())
+    .find((directive) => directive.toLowerCase().startsWith('frame-ancestors '));
+  if (!frameAncestorsDirective) {
+    return '';
+  }
+
+  const directiveValue = frameAncestorsDirective.slice('frame-ancestors'.length).trim().toLowerCase();
+  if (!directiveValue || directiveValue === '*') {
+    return '';
+  }
+  if (directiveValue.includes("'none'")) {
+    return "Content Security Policy frame-ancestors 'none'";
+  }
+  if (directiveValue.includes("'self'")) {
+    return "Content Security Policy frame-ancestors 'self'";
+  }
+  return `Content Security Policy ${frameAncestorsDirective}`;
+}
+
+function detectEmbeddingBlockReason(headers) {
+  const xFrameOptions = normalizeHeaderValue(headers?.get('x-frame-options'));
+  if (xFrameOptions.includes('deny')) {
+    return 'X-Frame-Options DENY';
+  }
+  if (xFrameOptions.includes('sameorigin')) {
+    return 'X-Frame-Options SAMEORIGIN';
+  }
+
+  const blockedFrameAncestors =
+    detectBlockedFrameAncestors(headers?.get('content-security-policy')) ||
+    detectBlockedFrameAncestors(headers?.get('content-security-policy-report-only'));
+  if (blockedFrameAncestors) {
+    return blockedFrameAncestors;
+  }
+
+  return '';
+}
+
 function isPrivateIpv4(parts) {
   if (parts.length !== 4) {
     return false;
@@ -128,7 +177,10 @@ async function fetchHtml(url) {
     if (buffer.length > EXCERPT_MAX_HTML_BYTES) {
       throw new Error('Excerpt is too large.');
     }
-    return buffer.toString('utf-8');
+    return {
+      html: buffer.toString('utf-8'),
+      embeddingBlockReason: detectEmbeddingBlockReason(response.headers),
+    };
   } finally {
     clearTimeout(timeoutId);
   }
@@ -136,7 +188,7 @@ async function fetchHtml(url) {
 
 async function fetchHilExcerpt({ url }) {
   const normalizedUrl = normalizeExcerptUrl(url);
-  const html = await fetchHtml(normalizedUrl);
+  const { html, embeddingBlockReason } = await fetchHtml(normalizedUrl);
   const dom = new JSDOM(html, { url: normalizedUrl });
   const reader = new Readability(dom.window.document);
   const article = reader.parse();
@@ -161,10 +213,13 @@ async function fetchHilExcerpt({ url }) {
     charCount: text.length,
     fetchedAt: new Date().toISOString(),
     truncated,
+    liveViewAllowed: !embeddingBlockReason,
+    liveViewBlockReason: embeddingBlockReason || '',
   };
 }
 
 export {
+  detectEmbeddingBlockReason,
   fetchHilExcerpt,
   EXCERPT_MAX_TEXT_CHARS,
   normalizeExcerptUrl,

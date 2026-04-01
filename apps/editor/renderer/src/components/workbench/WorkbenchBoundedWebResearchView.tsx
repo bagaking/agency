@@ -57,7 +57,7 @@ export function WorkbenchBoundedWebResearchView({
   const [locationDraft, setLocationDraft] = React.useState(String(url || ''));
   const [locationError, setLocationError] = React.useState('');
   const [liveFrameStatus, setLiveFrameStatus] = React.useState<
-    'loading' | 'ready' | 'timeout' | 'unstable'
+    'loading' | 'ready' | 'timeout' | 'unstable' | 'blocked'
   >('loading');
   const liveLoadEventsRef = React.useRef<number[]>([]);
   const {
@@ -145,6 +145,11 @@ export function WorkbenchBoundedWebResearchView({
       liveLoadEventsRef.current = [];
       return;
     }
+    if (preview?.liveViewAllowed === false) {
+      setLiveFrameStatus('blocked');
+      liveLoadEventsRef.current = [];
+      return;
+    }
     setLiveFrameStatus('loading');
     liveLoadEventsRef.current = [];
     const timeoutHandle = window.setTimeout(() => {
@@ -153,7 +158,7 @@ export function WorkbenchBoundedWebResearchView({
     return () => {
       window.clearTimeout(timeoutHandle);
     };
-  }, [browserUrl, liveFrameKey, preferredMode]);
+  }, [browserUrl, liveFrameKey, preferredMode, preview?.liveViewAllowed]);
 
   const previewText =
     preview?.summary || preview?.excerpt || preview?.text || 'No readable preview extracted.';
@@ -369,7 +374,40 @@ export function WorkbenchBoundedWebResearchView({
                 actions and file handoff available here.
               </div>
             ) : null}
-            {liveFrameStatus === 'unstable' ? (
+            {liveFrameStatus === 'blocked' ? (
+              <div className="flex h-full flex-col items-center justify-center gap-4 bg-white px-8 text-center text-slate-700">
+                <div className="max-w-lg space-y-2">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                    Embedded View Blocked
+                  </div>
+                  <div className="text-sm font-medium text-slate-900">
+                    This site refuses to load inside Agency&apos;s bounded view.
+                  </div>
+                  <div className="text-sm text-slate-600">
+                    {preview?.liveViewBlockReason
+                      ? `${preview.liveViewBlockReason}.`
+                      : 'The site blocks embedded framing.'}{' '}
+                    Use Reader for the extracted content or open it in the system browser.
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPreferredMode('reader')}
+                    className={`rounded-full border border-slate-300 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-100 ${focusRingClass}`}
+                  >
+                    Open Reader
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void openInBrowser()}
+                    className={`rounded-full border border-slate-300 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-100 ${focusRingClass}`}
+                  >
+                    Open in Browser
+                  </button>
+                </div>
+              </div>
+            ) : liveFrameStatus === 'unstable' ? (
               <div className="flex h-full flex-col items-center justify-center gap-4 bg-white px-8 text-center text-slate-700">
                 <div className="max-w-lg space-y-2">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
