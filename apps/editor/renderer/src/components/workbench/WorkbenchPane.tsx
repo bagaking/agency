@@ -885,7 +885,7 @@ function ToolButton({ active, loading, onClick, icon: Icon, title, toggle = fals
             className={`p-1.5 rounded-md transition-all ${active ? 'bg-primary/10 text-primary' : 'text-white/20 hover:text-white/60 hover:bg-white/5'}`}
             title={title}
             aria-label={title}
-            aria-pressed={toggle ? String(Boolean(active)) : undefined}
+            aria-pressed={toggle ? Boolean(active) : undefined}
             aria-busy={loading || undefined}
         >
             <Icon size={13} strokeWidth={active ? 2.5 : 1.5} className={loading ? 'animate-spin' : ''} />
