@@ -34,6 +34,7 @@
 - [ ] Switch Explorer search mode to `URL`, launch a public URL, and confirm Workbench opens a bounded web research tab instead of Explorer replacing its primary panel.
 - [ ] Switch Explorer to the `Changed` working-set view, then use `URL` mode and confirm the working-set surface stays visible while Workbench owns the bounded web tab.
 - [ ] In the bounded web tab, confirm `View` / `Reader` host modes and page-level actions (`Reload`, `Open in Browser`, `Save Markdown`, `Cite`) are visible and the surface reads as the true bounded browser view for that URL rather than a sidebar preview.
+- [ ] Confirm the toolbar stays compact: address/mode/actions remain legible without taking browser-sized vertical space, and the remote page stays visually dominant.
 - [ ] Open a site that rejects iframe embedding (for example GitHub) and confirm `View` still renders it inside Agency instead of failing with an embed error.
 - [ ] While staying in `View`, click an in-page link or redirect to another public URL and confirm the bounded research tab updates its address/title instead of drifting away from Workbench state.
 - [ ] Click `Open in Browser` from the bounded web tab and confirm the system browser opens the same URL, proving the explicit escape path works instead of adding general browser tabs inside Workbench.

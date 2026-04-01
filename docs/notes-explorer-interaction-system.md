@@ -360,9 +360,8 @@ Explorer now exposes bounded URL intake and Workbench now hosts the primary boun
 Current model:
 - `URL` is a first-class Explorer search mode alongside `Paths` and `Content`, not a hidden header utility;
 - the shared Explorer search row owns URL intake and can surface a compact `Open Web` affordance when the current input already looks like a supported public URL;
-- Workbench opens a bounded web research tab that owns the primary page/research surface and its actions;
-- `View` is a native browser surface rather than a renderer iframe, so browser-denied sites still render while the Workbench tab remains the owning object;
 - Workbench opens a bounded web research tab that owns the primary page/research surface and its actions; `View` is a native browser surface rather than a renderer iframe, so browser-denied sites still render while the Workbench tab remains the owning object and general browser tabs/cookies stay out of scope;
+- the Workbench surface should read browser-first: compact toolbar chrome, dominant page area, and bounded actions that stay attached to the same research object instead of explanatory cards pushing the page downward;
 - saved Markdown files keep fixed `agency_source_*` frontmatter so Workbench can reopen them in markdown + preview mode;
 - citations still route through Memo/HIL, and full browsing still escapes to the system browser.
 
