@@ -1,17 +1,24 @@
-import React, { useEffect, useRef } from 'react';
-import { 
+import React, { useEffect, useRef, useState } from 'react';
+import {
   Link2,
   Globe2,
-  Search, 
-  X, 
-  Filter, 
-  ChevronDown, 
-  Info 
+  Search,
+  X,
+  Filter,
+  ChevronDown,
+  Info,
 } from 'lucide-react';
+
 import { IconButton } from '../ui/IconButton';
 import { focusRing } from '../ui/focusRing';
+import { resolveExplorerHeaderLayout } from './explorerHeaderLayout';
 
 const focusRingClass = focusRing.sidebar;
+
+type HeaderSegmentOption = {
+  id: string;
+  label: string;
+};
 
 export function ExplorerHeader({
   activeRootLabel,
@@ -50,14 +57,18 @@ export function ExplorerHeader({
   onToggleFilterMenu,
   searchTruncated,
 }: any) {
+  const headerRef = useRef<HTMLElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const [layoutMode, setLayoutMode] = useState<'inline' | 'stacked'>('inline');
   const contextBits = showFilterMenuButton ? [activeFilterSummary || ''].filter(Boolean) : [];
+  const workingSets = Array.isArray(workingSetOptions) ? workingSetOptions : [];
   const searchModeDescriptors = Array.isArray(searchModeOptions) ? searchModeOptions : [];
   const activeSearchModeDescriptor =
     searchModeDescriptors.find((option) => option.id === searchMode) || searchModeDescriptors[0];
   const searchPlaceholder = activeSearchModeDescriptor?.placeholder || 'Search files…';
   const SearchLeadingIcon = searchInputType === 'url' ? Link2 : Search;
-  const hasExplicitSearchSubmit = typeof onSearchSubmit === 'function' && Boolean(searchSubmitLabel);
+  const hasExplicitSearchSubmit =
+    typeof onSearchSubmit === 'function' && Boolean(searchSubmitLabel);
   const inlineSearchAction = showUrlAffordance
     ? {
         label: urlAffordanceLabel,
@@ -75,7 +86,6 @@ export function ExplorerHeader({
           icon: Globe2,
         }
       : null;
-  const hasSearchSubmit = Boolean(inlineSearchAction);
   const searchInputPaddingClass = inlineSearchAction
     ? searchQuery
       ? 'pr-32'
@@ -92,203 +102,320 @@ export function ExplorerHeader({
     searchInputRef.current?.select();
   }, [searchInputAutoFocusKey]);
 
+  useEffect(() => {
+    const element = headerRef.current;
+    if (!element || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const updateLayout = (width: number) => {
+      setLayoutMode(resolveExplorerHeaderLayout(width));
+    };
+
+    updateLayout(element.getBoundingClientRect().width);
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) {
+        return;
+      }
+      updateLayout(entry.contentRect.width);
+    });
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
   return (
-    <header data-testid="explorer-header" className="shrink-0 space-y-3 px-4 py-3 border-b border-border/40 bg-sidebar text-sidebar-foreground">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col min-w-0">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">Explorer</h2>
-          <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-xs font-semibold text-foreground">{activeRootLabel}</span>
-            {contextBits.length ? (
-              <>
-                <div className="h-1 w-1 rounded-full bg-primary/70" />
-                <span className="truncate text-[9px] font-medium uppercase tracking-[0.16em] text-muted-foreground/[0.55]">
-                  {contextBits.join(' · ')}
+    <header
+      ref={headerRef}
+      data-testid="explorer-header"
+      data-explorer-header-layout={layoutMode}
+      className="shrink-0 border-b border-border/40 bg-sidebar px-4 py-3 text-sidebar-foreground"
+    >
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                Explorer
+              </div>
+              <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                <span className="truncate text-[13px] font-semibold text-foreground">
+                  {activeRootLabel}
                 </span>
-              </>
+                {contextBits.length ? (
+                  <>
+                    <div className="h-1 w-1 rounded-full bg-primary/70" />
+                    <span className="truncate text-[9px] font-medium uppercase tracking-[0.16em] text-muted-foreground/[0.55]">
+                      {contextBits.join(' · ')}
+                    </span>
+                  </>
+                ) : null}
+              </div>
+            </div>
+            {layoutMode === 'inline' && workingSets.length > 1 ? (
+              <CompactSegmentedControl
+                ariaLabel="Explorer view"
+                dataTestId="explorer-working-set-toggle"
+                options={workingSets}
+                activeId={activeWorkingSetViewId}
+                onSelect={onWorkingSetChange}
+                tone="context"
+              />
             ) : null}
           </div>
-        </div>
-        <div className="flex items-center gap-1">
-          {(Array.isArray(headerCommands) ? headerCommands : []).map((command) => (
-            <HeaderButton
-              key={command.id}
-              icon={command.icon}
-              onClick={command.onSelect}
-              title={command.label}
-              disabled={command.isDisabled}
-              className={command.id === 'explorer.refresh' && command.spinning ? 'animate-spin' : ''}
-            />
-          ))}
-        </div>
-      </div>
 
-      {hasCells && (
-        <div className="flex items-center gap-2">
-            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/[0.4]">
-              Scope
-            </span>
-          <div className="group relative min-w-0 flex-1">
-          <select
-            aria-label="Active cell"
-            className={`w-full appearance-none rounded-md border border-border/40 bg-muted/10 px-2 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:border-border/80 cursor-pointer ${focusRingClass}`}
-            value={selectedId || ''}
-            onChange={(e) => onSelectCell?.(e.target.value)}
-          >
-            {cells.map((cell) => (
-              <option key={cell.id} value={cell.id} className="bg-popover text-foreground">
-                Cell: {cell.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={10} aria-hidden="true" className="absolute right-2 top-2.5 text-muted-foreground/40 pointer-events-none group-hover:text-muted-foreground transition-colors" />
-          </div>
-        </div>
-      )}
-
-      {Array.isArray(workingSetOptions) && workingSetOptions.length > 1 ? (
-        <div className="flex items-center gap-2">
-          <span className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/[0.4]">
-            View
-          </span>
-          <div className="inline-flex rounded-full border border-border/40 bg-muted/10 p-0.5">
-            {workingSetOptions.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => onWorkingSetChange?.(option.id)}
-                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
-                  activeWorkingSetViewId === option.id
-                    ? 'bg-primary/15 text-primary'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      <div className="flex items-center gap-1.5">
-        {searchModeDescriptors.length ? (
-          <div className="inline-flex rounded-full border border-border/40 bg-muted/10 p-0.5">
-            {searchModeDescriptors.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => onSearchModeChange?.(option.id)}
-                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
-                  searchMode === option.id
-                    ? 'bg-primary/15 text-primary'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
-        <div className="relative min-w-0 flex-1 group">
-          <SearchLeadingIcon
-            size={12}
-            strokeWidth={searchInputType === 'url' ? 1.7 : 2}
-            aria-hidden="true"
-            className="absolute left-2.5 top-2 text-muted-foreground/30 group-focus-within:text-primary transition-colors"
-          />
-          <input
-            ref={searchInputRef}
-            type={searchInputType}
-            inputMode={searchInputType === 'url' ? 'url' : undefined}
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            onKeyDown={(event) => {
-              if (event.key !== 'Enter') {
-                return;
-              }
-
-              if (hasSearchSubmit) {
-                event.preventDefault();
-                onSearchSubmit();
-                return;
-              }
-
-              if (showUrlAffordance && !urlAffordanceDisabled) {
-                event.preventDefault();
-                onUrlAffordance?.();
-              }
-            }}
-            name="explorerSearch"
-            autoComplete="off"
-            placeholder={searchPlaceholder}
-            aria-label={searchPlaceholder}
-            className={`w-full rounded-full border border-border/40 bg-muted/10 pl-8 py-1.5 text-[11px] text-foreground transition-colors placeholder:text-muted-foreground/30 focus:bg-background focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20 ${searchInputPaddingClass} ${focusRingClass}`}
-          />
-          {(searchQuery || inlineSearchAction) && (
-            <div className="absolute inset-y-1 right-1 flex items-center gap-1">
-              {searchQuery ? (
-                <button
-                  type="button"
-                  className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground/40 transition-colors hover:bg-white/5 hover:text-foreground ${focusRingClass}`}
-                  onClick={onClearSearch}
-                  aria-label="Clear search"
-                >
-                  <X size={12} strokeWidth={1.5} aria-hidden="true" />
-                </button>
-              ) : null}
-              {inlineSearchAction ? (
-                <InlineSearchActionButton
-                  icon={inlineSearchAction.icon}
-                  label={inlineSearchAction.label}
-                  onClick={inlineSearchAction.onClick}
-                  disabled={inlineSearchAction.disabled}
-                  tone={inlineSearchAction.tone}
-                  title={
-                    inlineSearchAction.tone === 'secondary'
-                      ? 'Press Enter to open this URL'
-                      : undefined
-                  }
+          <div className="flex shrink-0 items-center gap-2">
+            {layoutMode === 'inline' && hasCells ? (
+              <CompactScopeSelect
+                cells={cells}
+                selectedId={selectedId}
+                onSelectCell={onSelectCell}
+              />
+            ) : null}
+            <div className="flex items-center gap-0.5">
+              {(Array.isArray(headerCommands) ? headerCommands : []).map((command) => (
+                <HeaderButton
+                  key={command.id}
+                  icon={command.icon}
+                  onClick={command.onSelect}
+                  title={command.label}
+                  disabled={command.isDisabled}
+                  className={command.id === 'explorer.refresh' && command.spinning ? 'animate-spin' : ''}
                 />
-              ) : null}
+              ))}
             </div>
-          )}
+          </div>
         </div>
-        {showFilterMenuButton ? (
-          <IconButton
-            ref={filterMenuButtonRef}
-            label="Explorer filters"
-            data-testid="explorer-filter-toggle"
-            onClick={onToggleFilterMenu}
-            aria-controls={filterMenuOpen ? filterMenuId : undefined}
-            aria-expanded={filterMenuOpen}
-            aria-haspopup="dialog"
-            aria-pressed={hasActiveFilters}
-            className={`h-7 w-7 rounded-full border transition-colors ${
-              hasActiveFilters ? 'border-primary/40 bg-primary/10 text-primary active-tab-glow' : 'border-border/40 text-muted-foreground/50 hover:border-border hover:text-foreground'
-            }`}
+
+        {layoutMode === 'stacked' && (workingSets.length > 1 || hasCells) ? (
+          <div
+            data-testid="explorer-secondary-rail"
+            className="flex min-w-0 items-center gap-2"
           >
-            <span className="relative inline-flex">
-              <Filter size={12} strokeWidth={1.5} aria-hidden="true" />
-              {activeFilterCount > 0 ? (
-                <span className="absolute -right-2 -top-2 min-w-[0.95rem] rounded-full bg-primary px-1 text-[8px] font-black leading-4 text-primary-foreground shadow-[0_0_0_2px_rgba(31,35,46,1)]">
-                  {activeFilterCount}
-                </span>
-              ) : null}
-            </span>
-          </IconButton>
+            {workingSets.length > 1 ? (
+              <CompactSegmentedControl
+                ariaLabel="Explorer view"
+                dataTestId="explorer-working-set-toggle"
+                options={workingSets}
+                activeId={activeWorkingSetViewId}
+                onSelect={onWorkingSetChange}
+                tone="context"
+              />
+            ) : null}
+            {hasCells ? (
+              <div className="ml-auto">
+                <CompactScopeSelect
+                  cells={cells}
+                  selectedId={selectedId}
+                  onSelectCell={onSelectCell}
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="flex min-w-0 items-center gap-1.5">
+          <div
+            data-testid="explorer-search-shell"
+            className="flex min-w-0 flex-1 items-center gap-1 rounded-xl border border-border/40 bg-muted/10 p-1"
+          >
+            {searchModeDescriptors.length ? (
+              <CompactSegmentedControl
+                ariaLabel="Explorer search mode"
+                options={searchModeDescriptors}
+                activeId={searchMode}
+                onSelect={onSearchModeChange}
+                tone="search"
+              />
+            ) : null}
+
+            <div className="relative min-w-0 flex-1 group">
+              <SearchLeadingIcon
+                size={12}
+                strokeWidth={searchInputType === 'url' ? 1.7 : 2}
+                aria-hidden="true"
+                className="absolute left-2.5 top-2 text-muted-foreground/30 transition-colors group-focus-within:text-primary"
+              />
+              <input
+                ref={searchInputRef}
+                type={searchInputType}
+                inputMode={searchInputType === 'url' ? 'url' : undefined}
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter') {
+                    return;
+                  }
+
+                  if (inlineSearchAction) {
+                    event.preventDefault();
+                    inlineSearchAction.onClick();
+                    return;
+                  }
+                }}
+                name="explorerSearch"
+                autoComplete="off"
+                placeholder={searchPlaceholder}
+                aria-label={searchPlaceholder}
+                className={`w-full rounded-lg border border-transparent bg-transparent py-1.5 pl-8 text-[11px] text-foreground transition-colors placeholder:text-muted-foreground/30 focus:bg-background/70 focus:border-primary/35 focus:outline-none focus:ring-1 focus:ring-primary/15 ${searchInputPaddingClass} ${focusRingClass}`}
+              />
+              {(searchQuery || inlineSearchAction) && (
+                <div className="absolute inset-y-1 right-1 flex items-center gap-1">
+                  {searchQuery ? (
+                    <button
+                      type="button"
+                      className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground/40 transition-colors hover:bg-white/5 hover:text-foreground ${focusRingClass}`}
+                      onClick={onClearSearch}
+                      aria-label="Clear search"
+                    >
+                      <X size={12} strokeWidth={1.5} aria-hidden="true" />
+                    </button>
+                  ) : null}
+                  {inlineSearchAction ? (
+                    <InlineSearchActionButton
+                      icon={inlineSearchAction.icon}
+                      label={inlineSearchAction.label}
+                      onClick={inlineSearchAction.onClick}
+                      disabled={inlineSearchAction.disabled}
+                      tone={inlineSearchAction.tone}
+                      title={
+                        inlineSearchAction.tone === 'secondary'
+                          ? 'Press Enter to open this URL'
+                          : undefined
+                      }
+                    />
+                  ) : null}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {showFilterMenuButton ? (
+            <IconButton
+              ref={filterMenuButtonRef}
+              label="Explorer filters"
+              data-testid="explorer-filter-toggle"
+              onClick={onToggleFilterMenu}
+              aria-controls={filterMenuOpen ? filterMenuId : undefined}
+              aria-expanded={filterMenuOpen}
+              aria-haspopup="dialog"
+              aria-pressed={hasActiveFilters}
+              className={`h-8 w-8 rounded-full border transition-colors ${
+                hasActiveFilters
+                  ? 'border-primary/40 bg-primary/10 text-primary active-tab-glow'
+                  : 'border-border/40 text-muted-foreground/50 hover:border-border hover:text-foreground'
+              }`}
+            >
+              <span className="relative inline-flex">
+                <Filter size={12} strokeWidth={1.5} aria-hidden="true" />
+                {activeFilterCount > 0 ? (
+                  <span className="absolute -right-2 -top-2 min-w-[0.95rem] rounded-full bg-primary px-1 text-[8px] font-black leading-4 text-primary-foreground shadow-[0_0_0_2px_rgba(31,35,46,1)]">
+                    {activeFilterCount}
+                  </span>
+                ) : null}
+              </span>
+            </IconButton>
+          ) : null}
+        </div>
+
+        {searchTruncated ? (
+          <div className="flex items-center gap-1.5 px-1 text-[10px] italic text-amber-400/70">
+            <Info size={10} aria-hidden="true" /> Search results truncated
+          </div>
         ) : null}
       </div>
-
-      {searchTruncated && (
-        <div className="flex items-center gap-1.5 px-1 text-[10px] text-amber-400/70 italic">
-          <Info size={10} aria-hidden="true" /> Search results truncated
-        </div>
-      )}
     </header>
   );
 }
 
-function HeaderButton({ icon: Icon, onClick, title, className = "", disabled = false }: any) {
+function CompactScopeSelect({
+  cells,
+  selectedId,
+  onSelectCell,
+}: {
+  cells: Array<{ id: string; name: string }>;
+  selectedId: string;
+  onSelectCell: (value: string) => void;
+}) {
+  return (
+    <div className="group relative w-[9.75rem] shrink-0">
+      <select
+        aria-label="Active cell"
+        className={`h-8 w-full appearance-none rounded-lg border border-border/40 bg-muted/10 px-3 pr-7 text-[11px] font-medium text-foreground transition-colors hover:border-border/80 ${focusRingClass}`}
+        value={selectedId || ''}
+        onChange={(e) => onSelectCell?.(e.target.value)}
+      >
+        {cells.map((cell) => (
+          <option key={cell.id} value={cell.id} className="bg-popover text-foreground">
+            {cell.name}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        size={11}
+        aria-hidden="true"
+        className="pointer-events-none absolute right-2.5 top-2.5 text-muted-foreground/40 transition-colors group-hover:text-muted-foreground"
+      />
+    </div>
+  );
+}
+
+function CompactSegmentedControl({
+  ariaLabel,
+  dataTestId,
+  options,
+  activeId,
+  onSelect,
+  tone = 'context',
+}: {
+  ariaLabel: string;
+  dataTestId?: string;
+  options: HeaderSegmentOption[];
+  activeId: string;
+  onSelect?: (id: string) => void;
+  tone?: 'context' | 'search';
+}) {
+  const shellClass =
+    tone === 'search'
+      ? 'rounded-lg border border-white/[0.05] bg-background/20'
+      : 'rounded-full border border-border/40 bg-muted/10';
+
+  return (
+    <div
+      aria-label={ariaLabel}
+      data-testid={dataTestId}
+      className={`inline-flex shrink-0 p-0.5 ${shellClass}`}
+      role="radiogroup"
+    >
+      {options.map((option) => (
+        <button
+          key={option.id}
+          type="button"
+          role="radio"
+          aria-checked={activeId === option.id}
+          onClick={() => onSelect?.(option.id)}
+          className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
+            activeId === option.id
+              ? 'bg-primary/15 text-primary'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function HeaderButton({
+  icon: Icon,
+  onClick,
+  title,
+  className = '',
+  disabled = false,
+}: any) {
   return (
     <IconButton
       label={title}
