@@ -94,6 +94,16 @@ It makes a hard distinction:
 
 That distinction should remain visible.
 
+The same honesty rule applies to clipboard behavior. Explorer should not blur together:
+- an Explorer-owned same-root selection that still carries copy/cut intent;
+- a generic OS clipboard payload from Finder or another app;
+- plain-text clipboard helpers such as copying paths.
+
+The user should get deterministic results:
+- same-root Explorer clipboard payload wins for Explorer paste;
+- external file/image clipboard payloads import/copy into Explorer;
+- path-text copy remains text-only and should not masquerade as file copy support.
+
 ## External Research
 
 The goal of this research is not to copy VS Code or Obsidian mechanically.

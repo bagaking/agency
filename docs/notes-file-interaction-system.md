@@ -72,6 +72,11 @@ Symlink handling sharpens the meaning of "safe by default":
 7. Progressive rollout:
    Explorer baseline first, then cross-surface entry points, then semantic-file affordances.
 
+Clipboard routing follows the same rule:
+- ordinary Explorer file copy should publish real file references into the system clipboard when the host supports that capability;
+- Explorer may keep Explorer-owned clipboard metadata so same-root paste can preserve copy/cut intent instead of degrading into a generic import;
+- same-root Explorer clipboard metadata gets first refusal on paste, then generic system clipboard file/image import, then any local fallback state.
+
 ## Current Program of Work
 - Authoritative change:
   `openspec/changes/archive/2026-02-10-add-agent-centric-file-interaction-system/`
@@ -129,6 +134,11 @@ Symlink handling sharpens the meaning of "safe by default":
    Explorer owns URL intake and launch, Workbench owns the bounded web research tab, `View` is hosted as a true native browser surface instead of a renderer iframe, reader previews save through the workbench file-writing path, saved Markdown files carry fixed `agency_source_*` frontmatter so Workbench can reopen them in markdown + preview mode, memo citations reuse HIL memo artifacts, in-view navigation stays constrained to the same public-URL policy as Explorer intake, and saved files hand back into standard Explorer/workbench open/reveal flows instead of creating a browser-local intake path while keeping cookies/session management and general browser tabs out of scope.
 19. Realpath-backed workspace boundaries are now part of the shared file contract:
    existing-path reads/searches and mutation-target parent resolution distinguish lexical repo paths from resolved filesystem targets, so symlink entries can stay visible while repo-external targets remain non-traversable and non-mutable through Explorer/Workbench surfaces.
+20. Explorer clipboard now distinguishes three layers explicitly:
+   - Explorer-owned selection state for same-root copy/cut semantics;
+   - generic OS file/image clipboard payloads for import/copy semantics;
+   - text-only clipboard utilities such as `Copy Path`.
+   The product should prefer the Explorer-owned payload when it belongs to the current root, fall back to OS import semantics otherwise, and only keep an internal fallback clipboard when system file-reference writing is unavailable or fails.
 
 ## Process-Boundary Compatibility Plan (Locked)
 - Keep `FileIntentPayload`/`FileIntentResult` as the stable wire format across renderer, tool, CLI, and future helper process callers.

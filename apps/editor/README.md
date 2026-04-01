@@ -41,6 +41,8 @@
 - Explorer promotes `Changed Files` into a registered working-set view and keeps room for future working-set families.
 - Explorer supports project-level defaults, working-set option ordering, and command visibility from `.agency/explorer.yaml` / `.agency/explorer.yml` without overriding user-local persisted state.
 - Explorer supports copy/cut/paste via context menu and keyboard shortcuts.
+- Ordinary Explorer file copy writes file references into the system clipboard when the host supports that capability; same-root Explorer paste still prefers Explorer-owned copy/cut semantics before falling back to generic OS clipboard import.
+- Explorer cut keeps move semantics Explorer-owned inside the same project root, even when the host also publishes file references into the system clipboard for cross-app interoperability.
 - Explorer can paste files or screenshots from the system clipboard, applying `-1` style conflict suffixes.
 - Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
 - Explorer includes a bounded `URL` research mode that launches a Workbench-hosted web research tab for public URL inspection. That tab owns a true `View` browser surface plus `Reader`, surfaces page-level actions (`Reload`, `Open in Browser`, `Save Markdown`, `Cite`), routes saved Markdown through fixed source frontmatter and memo citation flows, stays limited to public `http/https`, and keeps cookies/session/tab management out of scope while preserving the explicit system-browser escape hatch.

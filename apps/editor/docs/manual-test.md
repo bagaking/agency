@@ -28,6 +28,9 @@
 
 ## Explorer
 - [ ] Enter a public URL into Explorer search and confirm a compact `Open Web` affordance appears without forcing an immediate mode switch.
+- [ ] In Explorer, copy a file with `Cmd/Ctrl+C`, switch to another Finder-like destination or app that accepts file references, and confirm the clipboard now carries the copied file as a file reference rather than only an internal Explorer state.
+- [ ] In Explorer, copy a file with `Cmd/Ctrl+C`, keep an unrelated file/image in the OS clipboard from earlier, then paste back into the same Explorer root and confirm Explorer pastes the just-copied Explorer selection rather than importing the stale external clipboard.
+- [ ] In Explorer, cut a file with `Cmd/Ctrl+X`, paste within the same root, and confirm the file moves; then copy a file from another app and paste into Explorer to confirm external clipboard import still behaves as copy/import instead of move.
 - [ ] Switch Explorer search mode to `URL`, launch a public URL, and confirm Workbench opens a bounded web research tab instead of Explorer replacing its primary panel.
 - [ ] Switch Explorer to the `Changed` working-set view, then use `URL` mode and confirm the working-set surface stays visible while Workbench owns the bounded web tab.
 - [ ] In the bounded web tab, confirm `View` / `Reader` host modes and page-level actions (`Reload`, `Open in Browser`, `Save Markdown`, `Cite`) are visible and the surface reads as the true bounded browser view for that URL rather than a sidebar preview.

@@ -1460,6 +1460,9 @@ The dashboard SHALL include the current project summary and the recent projects 
 ### Requirement: Explorer Clipboard Operations
 The Explorer SHALL support copy, cut, and paste operations for files and folders.
 The editor SHALL expose these operations via context menu and keyboard shortcuts.
+Ordinary Explorer copy SHALL write file references into the system clipboard when the host supports that capability.
+Explorer cut MAY also write a system clipboard file-reference payload, but move semantics remain Explorer-owned rather than delegated to other apps.
+When Explorer paste sees both an Explorer-owned clipboard payload and generic OS clipboard file/image payloads, the Explorer-owned payload for the current root SHALL take precedence.
 If a target name conflicts during copy, cut, or duplicate, the editor SHALL append a numeric `-1` suffix until a free name is found.
 
 #### Scenario: Copy and paste a file
@@ -1473,6 +1476,21 @@ If a target name conflicts during copy, cut, or duplicate, the editor SHALL appe
 #### Scenario: Duplicate with conflict
 - **WHEN** a user duplicates a file and the target name already exists
 - **THEN** the editor creates a copy with a `-1` style suffix
+
+#### Scenario: Ordinary copy writes system clipboard file references
+- **WHEN** a user presses `Cmd/Ctrl+C` on Explorer file rows
+- **THEN** the editor writes file references into the system clipboard when the host supports file-reference clipboard formats
+- **AND** Explorer still preserves an internal fallback only if that system write fails
+
+#### Scenario: Same-root Explorer clipboard payload wins over generic clipboard import
+- **WHEN** Explorer paste sees an Explorer-owned clipboard payload for the current root and the OS clipboard also carries generic file/image data
+- **THEN** Explorer interprets the Explorer-owned payload first
+- **AND** copy continues to duplicate while cut continues to move within Explorer semantics
+
+#### Scenario: Foreign-root Explorer clipboard payload falls back to generic import
+- **WHEN** the clipboard carries Explorer-owned file metadata from a different project root plus generic file-reference formats
+- **THEN** the current Explorer ignores the foreign Explorer-owned metadata
+- **AND** falls back to generic system clipboard import behavior
 
 ### Requirement: Window-Local Project Context
 The editor SHALL treat the active project root as a window-local state.
@@ -1490,10 +1508,15 @@ Switching projects in one window SHALL NOT change the project context of other w
 ### Requirement: Explorer System Clipboard Import
 The Explorer SHALL allow pasting files or screenshots from the system clipboard into the selected folder.
 If a target name conflicts, the editor SHALL append a numeric `-1` suffix until a free name is found.
+If the clipboard payload originates from another app or from an Explorer payload whose root does not match the current root, Explorer SHALL treat the paste as an import/copy operation instead of a move.
 
 #### Scenario: Paste a file from system clipboard
 - **WHEN** a user copies a file in another app and pastes in Explorer
 - **THEN** the file is copied into the target folder with conflict-safe naming
+
+#### Scenario: Explorer clipboard payload from another root falls back to import semantics
+- **WHEN** the system clipboard carries an Explorer-owned file-reference payload for a different project root
+- **THEN** Explorer pastes by copying/importing those files into the current root rather than trying to move entries across roots
 
 #### Scenario: Paste a screenshot from system clipboard
 - **WHEN** a user pastes an image from the system clipboard in Explorer
