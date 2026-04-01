@@ -157,4 +157,5 @@ test('ExplorerHeader renders url affordance without switching into url mode', ()
   );
 
   assert.match(html, />Open Web</);
+  assert.match(html, /Press Enter to open this URL/);
 });

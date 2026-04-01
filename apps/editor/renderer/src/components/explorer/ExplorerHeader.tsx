@@ -203,9 +203,19 @@ export function ExplorerHeader({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && hasSearchSubmit) {
+              if (event.key !== 'Enter') {
+                return;
+              }
+
+              if (hasSearchSubmit) {
                 event.preventDefault();
                 onSearchSubmit();
+                return;
+              }
+
+              if (showUrlAffordance && !urlAffordanceDisabled) {
+                event.preventDefault();
+                onUrlAffordance?.();
               }
             }}
             name="explorerSearch"
