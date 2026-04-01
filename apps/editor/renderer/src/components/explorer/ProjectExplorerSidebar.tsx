@@ -1211,21 +1211,14 @@ function ProjectExplorerSidebarContent({
     }
     setUrlResearchLaunchPending(true);
     try {
-      setUrlSearchQuery(candidate);
-      setSearchMode(EXPLORER_SEARCH_MODE_URL);
+      if (activeSearchMode === EXPLORER_SEARCH_MODE_URL) {
+        setUrlSearchQuery(candidate);
+      }
       await onLaunchWebResearchUrl({
         url: candidate,
         allowMarkdownSave: projectPolicy?.research?.allowMarkdownSave !== false,
         allowMemoCapture: projectPolicy?.research?.allowMemoCapture !== false,
       });
-      if (activeSearchMode === EXPLORER_SEARCH_MODE_CONTENT) {
-        setContentSearchQuery('');
-      } else if (activeSearchMode === EXPLORER_SEARCH_MODE_URL) {
-        setUrlSearchQuery('');
-      } else {
-        setSearchQuery('');
-      }
-      setSearchMode(EXPLORER_SEARCH_MODE_URL);
     } finally {
       setUrlResearchLaunchPending(false);
     }
@@ -1235,15 +1228,13 @@ function ProjectExplorerSidebarContent({
     onLaunchWebResearchUrl,
     projectPolicy?.research?.allowMarkdownSave,
     projectPolicy?.research?.allowMemoCapture,
-    setContentSearchQuery,
-    setSearchQuery,
     urlSearchQuery,
   ]);
   const handleSubmitHeaderSearch = useCallback(() => {
-    if (activeSearchMode === EXPLORER_SEARCH_MODE_URL) {
+    if (activeSearchMode === EXPLORER_SEARCH_MODE_URL || showUrlAffordance) {
       void handleLaunchWebResearch();
     }
-  }, [activeSearchMode, handleLaunchWebResearch]);
+  }, [activeSearchMode, handleLaunchWebResearch, showUrlAffordance]);
   const headerCommandContext = useMemo(
     () => ({
       selectionTargets,

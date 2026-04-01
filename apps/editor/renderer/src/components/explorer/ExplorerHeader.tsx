@@ -56,8 +56,8 @@ export function ExplorerHeader({
   const activeSearchModeDescriptor =
     searchModeDescriptors.find((option) => option.id === searchMode) || searchModeDescriptors[0];
   const searchPlaceholder = activeSearchModeDescriptor?.placeholder || 'Search files…';
-  const hasSearchSubmit = typeof onSearchSubmit === 'function' && searchSubmitLabel;
   const SearchLeadingIcon = searchInputType === 'url' ? Link2 : Search;
+  const hasExplicitSearchSubmit = typeof onSearchSubmit === 'function' && Boolean(searchSubmitLabel);
   const inlineSearchAction = showUrlAffordance
     ? {
         label: urlAffordanceLabel,
@@ -66,7 +66,7 @@ export function ExplorerHeader({
         tone: 'secondary' as const,
         icon: Globe2,
       }
-    : hasSearchSubmit
+    : hasExplicitSearchSubmit
       ? {
           label: searchSubmitPending ? searchSubmitBusyLabel || searchSubmitLabel : searchSubmitLabel,
           disabled: searchSubmitDisabled,
@@ -75,6 +75,7 @@ export function ExplorerHeader({
           icon: Globe2,
         }
       : null;
+  const hasSearchSubmit = Boolean(inlineSearchAction);
   const searchInputPaddingClass = inlineSearchAction
     ? searchQuery
       ? 'pr-32'
@@ -232,6 +233,11 @@ export function ExplorerHeader({
                   onClick={inlineSearchAction.onClick}
                   disabled={inlineSearchAction.disabled}
                   tone={inlineSearchAction.tone}
+                  title={
+                    inlineSearchAction.tone === 'secondary'
+                      ? 'Press Enter to open this URL'
+                      : undefined
+                  }
                 />
               ) : null}
             </div>
@@ -292,12 +298,14 @@ function InlineSearchActionButton({
   onClick,
   disabled = false,
   tone = 'secondary',
+  title,
 }: {
   icon: any;
   label: string;
   onClick: () => void;
   disabled?: boolean;
   tone?: 'primary' | 'secondary';
+  title?: string;
 }) {
   const activeClass =
     tone === 'primary'
@@ -309,6 +317,7 @@ function InlineSearchActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] transition-colors ${focusRingClass} ${
         disabled ? 'border-border/30 text-muted-foreground/35' : activeClass
       } disabled:cursor-not-allowed`}

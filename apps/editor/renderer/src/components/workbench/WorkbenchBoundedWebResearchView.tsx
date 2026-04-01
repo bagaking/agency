@@ -144,24 +144,18 @@ export function WorkbenchBoundedWebResearchView({
 
   const previewText =
     preview?.summary || preview?.excerpt || preview?.text || 'No readable preview extracted.';
-  const surfacePills = linkedMarkdownMode
-    ? [
-        {
-          label: 'Linked markdown',
-          value: compactPath(linkedMarkdownPath),
-          tone: 'linked' as const,
-        },
-        {
-          label: 'Save keeps edits',
-          value: 'Overwrite regenerates source',
-          tone: 'linked' as const,
-        },
-      ]
-    : [
-        { label: 'Bounded host', value: 'Reader + live', tone: 'default' as const },
-        { label: 'Repo-native save', value: 'Markdown + cite', tone: 'default' as const },
-        { label: 'Browser escape', value: 'Open externally', tone: 'default' as const },
-      ];
+  const resolvedTitle = String(preview?.title || '').trim() || url;
+  const sourceMeta = [
+    preview?.siteName || '',
+    preview?.byline || '',
+    preview?.wordCount ? `${preview.wordCount} words` : '',
+    preview?.truncated ? 'truncated' : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const topSummary = linkedMarkdownMode
+    ? `Linked to ${compactPath(linkedMarkdownPath)}. Save keeps editor edits; overwrite regenerates from source.`
+    : 'Save Markdown and Cite stay here; full browsing still escapes to the system browser.';
 
   return (
     <section className="flex h-full min-h-0 flex-col bg-[#0b0d11] text-white">
@@ -170,29 +164,22 @@ export function WorkbenchBoundedWebResearchView({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <HeaderPill label={linkedMarkdownMode ? 'Linked Preview' : 'Bounded Web'} />
-              {linkedMarkdownMode ? (
-                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/34">
-                  Markdown + source
-                </span>
-              ) : (
-                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/34">
-                  Explorer intake -> Workbench host
-                </span>
-              )}
+              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/34">
+                {linkedMarkdownMode ? 'Markdown + source' : 'Explorer intake -> Workbench host'}
+              </span>
             </div>
-            <div className="mt-2 flex items-center gap-2 text-[12px] font-semibold text-white/90">
-              <Globe2 size={13} className="shrink-0 text-cyan-300/70" />
+            <div className="mt-2 truncate text-[16px] font-semibold tracking-[0.01em] text-white/92">
+              {resolvedTitle}
+            </div>
+            <div className="mt-1 flex items-center gap-2 text-[10px] text-white/48">
+              <Globe2 size={11} className="shrink-0 text-cyan-300/60" />
               <span className="truncate">{url}</span>
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              {surfacePills.map((pill) => (
-                <HeaderDetailPill
-                  key={`${pill.label}:${pill.value}`}
-                  label={pill.label}
-                  value={pill.value}
-                  tone={pill.tone}
-                />
-              ))}
+            {sourceMeta ? (
+              <div className="mt-1 text-[10px] text-white/42">{sourceMeta}</div>
+            ) : null}
+            <div className="mt-2 max-w-2xl text-[10px] leading-5 text-white/45">
+              {topSummary}
             </div>
           </div>
           <div className="inline-flex rounded-full border border-white/[0.08] bg-white/[0.03] p-0.5">
@@ -295,16 +282,10 @@ export function WorkbenchBoundedWebResearchView({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300/55">
-                    Reader Preview
-                  </div>
-                  <div className="mt-1 truncate text-[14px] font-semibold text-white/90">
-                    {preview?.title || url}
+                    Reader Text
                   </div>
                   <div className="mt-1 text-[10px] text-white/42">
-                    {preview?.siteName || 'Unknown source'}
-                    {preview?.byline ? ` · ${preview.byline}` : ''}
-                    {preview?.wordCount ? ` · ${preview.wordCount} words` : ''}
-                    {preview?.truncated ? ' · truncated' : ''}
+                    {sourceMeta || 'Reader snapshot from the linked source'}
                   </div>
                 </div>
                 <div className="inline-flex items-center gap-1 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-cyan-200">
@@ -416,31 +397,6 @@ function HeaderPill({ label }: { label: string }) {
   return (
     <span className="inline-flex items-center rounded-full border border-cyan-400/18 bg-cyan-400/10 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
       {label}
-    </span>
-  );
-}
-
-function HeaderDetailPill({
-  label,
-  value,
-  tone = 'default',
-}: {
-  label: string;
-  value: string;
-  tone?: 'default' | 'linked';
-}) {
-  const toneClass =
-    tone === 'linked'
-      ? 'border-emerald-400/16 bg-emerald-500/8 text-emerald-50/86'
-      : 'border-white/[0.08] bg-white/[0.03] text-white/78';
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-semibold ${toneClass}`}
-      title={value}
-    >
-      <span className="uppercase tracking-[0.16em] text-white/40">{label}</span>
-      <span className="max-w-[16rem] truncate text-[10px] normal-case tracking-normal">{value}</span>
     </span>
   );
 }
