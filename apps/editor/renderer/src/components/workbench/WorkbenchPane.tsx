@@ -300,13 +300,15 @@ function WorkbenchPaneContent({
         title: deriveWorkbenchResearchTitle(normalizedUrl),
       });
       updateTabState(tabId, {
-        note: '',
-        preview: null,
-        error: '',
-        savedArtifact: null,
-        memoArtifact: null,
-        preferredMode: 'live',
-        liveFrameKey: 0,
+        researchState: {
+          note: '',
+          preview: null,
+          error: '',
+          savedArtifact: null,
+          memoArtifact: null,
+          preferredMode: 'live',
+          liveFrameKey: 0,
+        },
       });
       return true;
     },
@@ -544,7 +546,9 @@ function WorkbenchPaneContent({
           ) : activeTab && isWorkbenchBoundedResearchTab(activeTab) ? (
             <>
               <ChevronRight size={10} className="text-white/5 shrink-0" />
-              <div className="text-[10px] font-medium text-white/56">Bounded Web Research</div>
+              <div className="min-w-0 max-w-[18rem] truncate text-[10px] font-medium text-white/56">
+                {activeTab.title || 'Bounded Web Research'}
+              </div>
             </>
           ) : null}
         </div>
@@ -707,10 +711,10 @@ function WorkbenchPaneContent({
             url={activeTab.url}
             allowMarkdownSave={activeTab.allowMarkdownSave !== false}
             allowMemoCapture={activeTab.allowMemoCapture !== false}
-            initialState={activeState}
+            initialState={activeState.researchState || null}
             onNavigateUrl={(nextUrl) => handleResearchTabNavigate(activeTab.id, nextUrl)}
             onStateChange={(nextState) => {
-              handleResearchTabStateChange(activeTab.id, nextState);
+              handleResearchTabStateChange(activeTab.id, { researchState: nextState });
             }}
             onMarkdownSaved={(savedPath) =>
               openFile({

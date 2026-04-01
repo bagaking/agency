@@ -22,6 +22,16 @@ The browser surface SHALL remain owned by the focused bounded web research tab a
 - **WHEN** the user switches tabs, windows, or leaves `View`
 - **THEN** the browser surface follows the active bounded research tab lifecycle instead of becoming a window-global browser root
 
+#### Scenario: In-view navigation updates the same research object
+- **WHEN** the page navigates to another public `http/https` URL inside `View`
+- **THEN** the bounded browser surface stays attached to the same Workbench research tab
+- **AND** the tab URL/title update so `Reader`, `Save Markdown`, and `Cite` refer to the new page rather than stale metadata
+
+#### Scenario: In-view navigation rejects non-public destinations
+- **WHEN** the page tries to navigate to a localhost, private-network, or non-`http/https` destination
+- **THEN** Agency rejects that navigation inside the browser surface
+- **AND** the failure stays local to the bounded research tab instead of promoting Agency into a general browser
+
 #### Scenario: Reader and bounded actions remain available
 - **WHEN** a bounded web research tab is active
 - **THEN** `Reader`, `Save Markdown`, `Cite`, and `Open in Browser` remain part of the same bounded research object flow

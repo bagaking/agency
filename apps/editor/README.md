@@ -43,7 +43,7 @@
 - Explorer supports copy/cut/paste via context menu and keyboard shortcuts.
 - Explorer can paste files or screenshots from the system clipboard, applying `-1` style conflict suffixes.
 - Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
-- Explorer includes a bounded `URL` research mode that launches a Workbench-hosted web research tab for public URL inspection, bounded live/reader viewing, workspace Markdown save with fixed source frontmatter, memo citation with optional saved-file references, and an explicit system-browser escape hatch.
+- Explorer includes a bounded `URL` research mode that launches a Workbench-hosted web research tab for public URL inspection, a true `View` browser surface plus `Reader`, workspace Markdown save with fixed source frontmatter, memo citation with optional saved-file references, and an explicit system-browser escape hatch.
 - Explorer and Memo sidebars keep a compact context-first header grammar, prioritizing the active root or record summary over explanatory subtitle copy.
 - The workbench supports multi-tab previews, a path-first Quick Open launcher for open tabs and project files with optional `:line[:column]` targeting, contextual secondary review tools for diff/blame/comment actions that appear only after the active document resolves to a code editor state, media previews, active-tab disk-change auto sync (auto-reload when clean, warning + reload when dirty), project-level language rules from `.agency/workbench.yaml` / `.agency/workbench.yml`, and a window-local document language control that shows `Auto` / `Project Rule` / `Local Override`.
 
@@ -58,7 +58,7 @@
 - Explorer capabilities are being packaged as tool-capable interfaces so agent workflows can invoke the same safe path/permission/conflict logic.
 - Tool-invoked file intents enforce caller metadata (`callerId`, `traceId`) and capability scopes (`file.read` / `file.write`).
 - Agent semantic files (for example `Agency.md`, Spark conventions, and project-defined rules) are treated as first-class discoverability targets.
-- Research lane stays subordinate to Explorer/file workflow: reader previews save through the existing workbench write path, citations reuse HIL memo artifacts, and full browsing still escapes to the system browser.
+- Research lane stays subordinate to Explorer/file workflow: Explorer owns URL intake, Workbench owns the bounded browser/research object, the native `View` host stays limited to public `http/https` pages, reader previews save through the existing workbench write path, citations reuse HIL memo artifacts, and full browsing still escapes to the system browser.
 - Current authoritative design and rollout:
   - `openspec/changes/archive/2026-02-10-add-agent-centric-file-interaction-system/`
   - Follow-up evolution (delivered): `openspec/changes/archive/2026-02-16-update-agent-cells-embedded-explorer/`

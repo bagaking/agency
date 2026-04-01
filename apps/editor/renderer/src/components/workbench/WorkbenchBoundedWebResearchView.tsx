@@ -12,6 +12,7 @@ import {
 import { useModal } from '../modals/ModalSystem';
 import { focusRing } from '../ui/focusRing';
 import { normalizeWorkbenchResearchUrl } from './workbenchBoundedResearch';
+import { useWorkbenchBrowserSurface } from './useWorkbenchBrowserSurface';
 import { useWorkbenchBoundedWebResearch } from './useWorkbenchBoundedWebResearch';
 
 const focusRingClass = focusRing.dark;
@@ -25,6 +26,7 @@ const compactPath = (value: string, max = 56) => {
 
 export function WorkbenchBoundedWebResearchView({
   rootPath,
+  tabId,
   url,
   allowMarkdownSave = true,
   allowMemoCapture = true,
@@ -39,6 +41,7 @@ export function WorkbenchBoundedWebResearchView({
   onNavigateUrl,
 }: {
   rootPath: string;
+  tabId: string;
   url: string;
   allowMarkdownSave?: boolean;
   allowMemoCapture?: boolean;
@@ -56,10 +59,16 @@ export function WorkbenchBoundedWebResearchView({
   const linkedMarkdownMode = Boolean(linkedMarkdownPath);
   const [locationDraft, setLocationDraft] = React.useState(String(url || ''));
   const [locationError, setLocationError] = React.useState('');
-  const [liveFrameStatus, setLiveFrameStatus] = React.useState<
-    'loading' | 'ready' | 'timeout' | 'unstable' | 'blocked'
-  >('loading');
-  const liveLoadEventsRef = React.useRef<number[]>([]);
+  const [browserSurfaceSuspended, setBrowserSurfaceSuspended] = React.useState(false);
+  const lastForwardedBrowserSurfaceUrlRef = React.useRef('');
+  const runWithBrowserSurfaceSuspended = React.useCallback(async <T,>(task: () => Promise<T>) => {
+    setBrowserSurfaceSuspended(true);
+    try {
+      return await task();
+    } finally {
+      setBrowserSurfaceSuspended(false);
+    }
+  }, []);
   const {
     note,
     setNote,
@@ -90,21 +99,23 @@ export function WorkbenchBoundedWebResearchView({
       if (!linkedMarkdownPath || !linkedMarkdownDirty) {
         return true;
       }
-      const confirmed = await modal?.confirm?.({
-        title: 'Overwrite Markdown',
-        description:
-          'This Markdown tab has unsaved edits. Overwriting will replace the current file contents with the latest bounded web research capture.',
-        confirmLabel: 'Overwrite',
-        cancelLabel: 'Cancel',
-        tone: 'warning',
-      });
+      const confirmed = await runWithBrowserSurfaceSuspended(async () =>
+        (await modal?.confirm?.({
+          title: 'Overwrite Markdown',
+          description:
+            'This Markdown tab has unsaved edits. Overwriting will replace the current file contents with the latest bounded web research capture.',
+          confirmLabel: 'Overwrite',
+          cancelLabel: 'Cancel',
+          tone: 'warning',
+        })) ?? false
+      );
       return Boolean(confirmed);
     },
     initialState,
     onStateChange,
     onMarkdownSaved,
     promptForPath: async (defaultValue) => {
-      return (
+      return runWithBrowserSurfaceSuspended(async () =>
         (await modal?.prompt?.({
           title: 'Save Research Capture',
           description:
@@ -139,27 +150,6 @@ export function WorkbenchBoundedWebResearchView({
     setLocationError('');
   }, [url]);
 
-  React.useEffect(() => {
-    if (preferredMode !== 'live') {
-      setLiveFrameStatus('loading');
-      liveLoadEventsRef.current = [];
-      return;
-    }
-    if (preview?.liveViewAllowed === false) {
-      setLiveFrameStatus('blocked');
-      liveLoadEventsRef.current = [];
-      return;
-    }
-    setLiveFrameStatus('loading');
-    liveLoadEventsRef.current = [];
-    const timeoutHandle = window.setTimeout(() => {
-      setLiveFrameStatus((current) => (current === 'ready' ? current : 'timeout'));
-    }, 4000);
-    return () => {
-      window.clearTimeout(timeoutHandle);
-    };
-  }, [browserUrl, liveFrameKey, preferredMode, preview?.liveViewAllowed]);
-
   const previewText =
     preview?.summary || preview?.excerpt || preview?.text || 'No readable preview extracted.';
   const resolvedTitle = String(preview?.title || '').trim() || url;
@@ -175,18 +165,42 @@ export function WorkbenchBoundedWebResearchView({
     ? `Linked to ${compactPath(linkedMarkdownPath)}. Save keeps editor edits; overwrite regenerates from source.`
     : 'Save Markdown and Cite stay here; full browsing still escapes to the system browser.';
   const canNavigate = !linkedMarkdownMode && typeof onNavigateUrl === 'function';
-  const handleLiveFrameLoad = React.useCallback(() => {
-    const now = Date.now();
-    const recentLoads = [...liveLoadEventsRef.current, now].filter(
-      (timestamp) => now - timestamp < 3000
-    );
-    liveLoadEventsRef.current = recentLoads;
-    if (recentLoads.length >= 4) {
-      setLiveFrameStatus('unstable');
+  const browserSurface = useWorkbenchBrowserSurface({
+    tabId,
+    url: browserUrl,
+    visible: preferredMode === 'live' && !browserSurfaceSuspended,
+    navigationKey: liveFrameKey,
+  });
+  const liveSurfaceFailed =
+    browserSurface.surfaceState.phase === 'error' || browserSurface.surfaceState.phase === 'crashed';
+
+  React.useEffect(() => {
+    const nativeTitle = String(browserSurface.surfaceState.title || '').trim();
+    if (!nativeTitle) {
       return;
     }
-    setLiveFrameStatus('ready');
-  }, []);
+    onResolvedTitle?.(nativeTitle);
+  }, [browserSurface.surfaceState.title, onResolvedTitle]);
+
+  React.useEffect(() => {
+    if (!canNavigate || typeof onNavigateUrl !== 'function') {
+      return;
+    }
+    const surfaceUrl = normalizeWorkbenchResearchUrl(browserSurface.surfaceState.url);
+    if (!surfaceUrl || surfaceUrl === browserUrl) {
+      lastForwardedBrowserSurfaceUrlRef.current = '';
+      return;
+    }
+    if (surfaceUrl === lastForwardedBrowserSurfaceUrlRef.current) {
+      return;
+    }
+    lastForwardedBrowserSurfaceUrlRef.current = surfaceUrl;
+    const didNavigate = onNavigateUrl(surfaceUrl);
+    if (didNavigate === false) {
+      lastForwardedBrowserSurfaceUrlRef.current = '';
+    }
+  }, [browserSurface.surfaceState.url, browserUrl, canNavigate, onNavigateUrl]);
+
   const handleLocationSubmit = React.useCallback(
     (event?: React.FormEvent) => {
       event?.preventDefault();
@@ -254,7 +268,7 @@ export function WorkbenchBoundedWebResearchView({
                   type="submit"
                   className={`rounded-full border border-cyan-400/28 bg-cyan-400/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100 transition-colors hover:border-cyan-300/45 hover:bg-cyan-400/16 ${focusRingClass}`}
                 >
-                  Open
+                  View
                 </button>
               </form>
             ) : (
@@ -365,29 +379,31 @@ export function WorkbenchBoundedWebResearchView({
         {preferredMode === 'live' ? (
           <div className="flex h-full flex-col">
             <div className="border-b border-white/[0.05] px-4 py-2 text-[10px] text-white/42">
-              Live mode stays bounded. If the page blocks embedding, switch to Reader or open it in
-              the system browser.
+              View uses a native browser surface. Reader stays available for extracted content and
+              Save/Cite remain bounded to this research object.
             </div>
-            {liveFrameStatus === 'timeout' ? (
-              <div className="border-b border-amber-400/12 bg-amber-400/6 px-4 py-2 text-[10px] text-amber-100/82">
-                This site may refuse embedded preview. The bounded tab still keeps your research
-                actions and file handoff available here.
-              </div>
-            ) : null}
-            {liveFrameStatus === 'blocked' ? (
+            {browserSurfaceSuspended ? (
               <div className="flex h-full flex-col items-center justify-center gap-4 bg-white px-8 text-center text-slate-700">
                 <div className="max-w-lg space-y-2">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    Embedded View Blocked
+                    View Paused
                   </div>
                   <div className="text-sm font-medium text-slate-900">
-                    This site refuses to load inside Agency&apos;s bounded view.
+                    Browser view is temporarily hidden while Agency finishes the current action.
+                  </div>
+                </div>
+              </div>
+            ) : !browserSurface.browserSurfaceAvailable ? (
+              <div className="flex h-full flex-col items-center justify-center gap-4 bg-white px-8 text-center text-slate-700">
+                <div className="max-w-lg space-y-2">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                    Browser Surface Unavailable
+                  </div>
+                  <div className="text-sm font-medium text-slate-900">
+                    This build does not currently expose the native browser host.
                   </div>
                   <div className="text-sm text-slate-600">
-                    {preview?.liveViewBlockReason
-                      ? `${preview.liveViewBlockReason}.`
-                      : 'The site blocks embedded framing.'}{' '}
-                    Use Reader for the extracted content or open it in the system browser.
+                    Use Reader or open the page in the system browser until the browser surface is available.
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-2">
@@ -407,25 +423,25 @@ export function WorkbenchBoundedWebResearchView({
                   </button>
                 </div>
               </div>
-            ) : liveFrameStatus === 'unstable' ? (
+            ) : liveSurfaceFailed ? (
               <div className="flex h-full flex-col items-center justify-center gap-4 bg-white px-8 text-center text-slate-700">
                 <div className="max-w-lg space-y-2">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    Embedded View Unstable
+                    View Failed
                   </div>
                   <div className="text-sm font-medium text-slate-900">
-                    This page keeps reloading inside the bounded host.
+                    The native browser surface could not load this page.
                   </div>
                   <div className="text-sm text-slate-600">
-                    Stay in Reader, open it in the system browser, or use the address bar to try a
-                    different URL.
+                    {browserSurface.surfaceState.error ||
+                      'Switch to Reader, open it in the system browser, or try another URL.'}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   <button
                     type="button"
                     onClick={() => {
-                      liveLoadEventsRef.current = [];
+                      setPreferredMode('live');
                       void reload();
                     }}
                     className={`rounded-full border border-slate-300 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-100 ${focusRingClass}`}
@@ -442,15 +458,25 @@ export function WorkbenchBoundedWebResearchView({
                 </div>
               </div>
             ) : (
-              <iframe
-                key={`${browserUrl}:${liveFrameKey}`}
-                title="Bounded web research page"
-                src={browserUrl}
-                className="h-full w-full bg-white"
-                referrerPolicy="no-referrer"
-                sandbox="allow-same-origin allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox"
-                onLoad={handleLiveFrameLoad}
-              />
+              <div className="relative min-h-0 flex-1 bg-white">
+                <div
+                  ref={browserSurface.hostRef}
+                  data-testid="workbench-browser-surface-host"
+                  className="absolute inset-0"
+                />
+                {browserSurface.surfaceState.phase !== 'ready' ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/92 text-slate-600">
+                    <div className="text-center">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        Opening View
+                      </div>
+                      <div className="mt-2 text-sm">
+                        {browserSurface.surfaceState.title || browserUrl}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             )}
           </div>
         ) : (

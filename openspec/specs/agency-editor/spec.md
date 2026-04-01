@@ -910,6 +910,25 @@ The feature SHALL NOT behave as a general-purpose browser replacement.
 - **THEN** the bounded web research tab provides an explicit action to open the URL in the system browser
 - **AND** Agency does not grow tab, cookie, auth, or in-place browser session management
 
+### Requirement: Workbench Browser-Surface View
+The Workbench SHALL host bounded web research `View` as a true browser surface rather than a renderer iframe.
+The browser surface SHALL stay owned by the active bounded web research tab and SHALL keep the same bounded public-URL policy as Explorer intake.
+
+#### Scenario: Browser-denied sites still render in View
+- **WHEN** a bounded web research tab enters `View`
+- **THEN** Agency hosts the page in a browser surface that is not subject to iframe embedding limits
+- **AND** sites that deny framing still render inside Agency without forcing a system-browser escape
+
+#### Scenario: In-view navigation keeps Workbench state coherent
+- **WHEN** a user clicks a link or the page redirects to another public `http/https` URL inside `View`
+- **THEN** the browser surface stays inside the same bounded research tab
+- **AND** the tab URL/title update so `Reader`, `Save Markdown`, and `Cite` still refer to the current research object
+
+#### Scenario: Non-public destinations stay outside the browser surface
+- **WHEN** a page or user action attempts to navigate `View` to a localhost, private-network, or non-`http/https` destination
+- **THEN** the browser surface rejects that navigation inside Agency
+- **AND** the bounded workbench surface keeps the failure local instead of turning into a general browser
+
 ### Requirement: Explorer File Preview Pane
 The explorer SHALL open selected files inside a workbench tab area instead of a single static preview.
 Binary or oversized files MUST show a preview warning and offer a reveal/open action.

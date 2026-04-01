@@ -121,7 +121,7 @@ It is the shared policy layer above local implementation details.
 17. Explorer sidebar now includes a companion changed-files panel above the Agent footer:
    this panel mirrors Agent Cells file-dashboard row/tree affordances (open/reveal/preview + drag payload), remains changes-only (no scope toggle), and preserves cross-view visual continuity.
 18. Bounded web research now stays inside existing Agency seams:
-   Explorer owns URL intake and launch, Workbench owns the bounded web research tab, reader previews save through the workbench file-writing path, saved Markdown files carry fixed `agency_source_*` frontmatter so Workbench can reopen them in markdown + preview mode, memo citations reuse HIL memo artifacts, and saved files hand back into standard Explorer/workbench open/reveal flows instead of creating a browser-local intake path.
+   Explorer owns URL intake and launch, Workbench owns the bounded web research tab, `View` is hosted as a true native browser surface instead of a renderer iframe, reader previews save through the workbench file-writing path, saved Markdown files carry fixed `agency_source_*` frontmatter so Workbench can reopen them in markdown + preview mode, memo citations reuse HIL memo artifacts, in-view navigation stays constrained to the same public-URL policy as Explorer intake, and saved files hand back into standard Explorer/workbench open/reveal flows instead of creating a browser-local intake path.
 
 ## Process-Boundary Compatibility Plan (Locked)
 - Keep `FileIntentPayload`/`FileIntentResult` as the stable wire format across renderer, tool, CLI, and future helper process callers.
