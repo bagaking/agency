@@ -196,3 +196,75 @@ test('useWorkbenchBrowserSurface syncs visible bounds, hides cleanly, and dispos
     env.cleanup();
   }
 });
+
+test('useWorkbenchBrowserSurface can hide on unmount without disposing the native host', async () => {
+  const env = setupDom();
+  try {
+    const syncCalls: Array<Record<string, any>> = [];
+    const disposeCalls: Array<Record<string, any>> = [];
+    const root = createRoot(document.getElementById('root')!);
+
+    (window as any).agency = {
+      syncWorkbenchBrowserSurface: async (payload: Record<string, any>) => {
+        syncCalls.push(payload);
+        return {
+          tabId: payload.tabId,
+          url: payload.url,
+          title: 'Example View',
+          phase: payload.visible === false ? 'hidden' : 'ready',
+          error: '',
+          visible: payload.visible !== false,
+        };
+      },
+      disposeWorkbenchBrowserSurface: async (payload: Record<string, any>) => {
+        disposeCalls.push(payload);
+        return { ok: true };
+      },
+      onWorkbenchBrowserSurfaceEvent: () => () => undefined,
+    };
+
+    function Harness() {
+      const browserSurface = useWorkbenchBrowserSurface({
+        tabId: 'tab-persist',
+        url: 'https://example.com/docs',
+        visible: true,
+        navigationKey: 0,
+        disposeOnUnmount: false,
+      });
+
+      return (
+        <div
+          ref={(node) => {
+            browserSurface.hostRef.current = node;
+            if (node) {
+              node.getBoundingClientRect = () =>
+                ({
+                  left: 24,
+                  top: 36,
+                  width: 640,
+                  height: 420,
+                  right: 664,
+                  bottom: 456,
+                }) as DOMRect;
+            }
+          }}
+        />
+      );
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+    });
+    await env.flush();
+
+    await act(async () => {
+      root.unmount();
+    });
+
+    assert.equal(disposeCalls.length, 0);
+    assert.equal(syncCalls.some((payload) => payload.tabId === 'tab-persist' && payload.visible === false), true);
+    delete (window as any).agency;
+  } finally {
+    env.cleanup();
+  }
+});

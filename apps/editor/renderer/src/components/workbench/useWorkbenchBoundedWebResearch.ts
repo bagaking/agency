@@ -1,4 +1,4 @@
-import { startTransition, useCallback, useEffect, useMemo, useState } from 'react';
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   createHilItem,
@@ -80,6 +80,7 @@ export function useWorkbenchBoundedWebResearch({
   promptForPath,
 }: UseWorkbenchBoundedWebResearchArgs,
 dependencies: WorkbenchBoundedWebResearchDependencies = defaultDependencies) {
+  const onStateChangeRef = useRef(onStateChange);
   const [note, setNote] = useState(String(initialState?.note || ''));
   const [preview, setPreview] = useState<ExplorerResearchPreview | null>(initialState?.preview || null);
   const [fetching, setFetching] = useState(false);
@@ -97,6 +98,10 @@ dependencies: WorkbenchBoundedWebResearchDependencies = defaultDependencies) {
   );
   const [liveFrameKey, setLiveFrameKey] = useState(Number(initialState?.liveFrameKey || 0));
 
+  useEffect(() => {
+    onStateChangeRef.current = onStateChange;
+  }, [onStateChange]);
+
   const normalizedUrl = useMemo(() => normalizeWorkbenchResearchUrl(url), [url]);
   const browserUrl = normalizedUrl;
 
@@ -111,7 +116,7 @@ dependencies: WorkbenchBoundedWebResearchDependencies = defaultDependencies) {
   }, [defaultTargetDirPath, preview, savedArtifact?.path]);
 
   useEffect(() => {
-    onStateChange?.({
+    onStateChangeRef.current?.({
       note,
       preview,
       error,
@@ -125,7 +130,6 @@ dependencies: WorkbenchBoundedWebResearchDependencies = defaultDependencies) {
     liveFrameKey,
     memoArtifact,
     note,
-    onStateChange,
     preferredMode,
     preview,
     savedArtifact,

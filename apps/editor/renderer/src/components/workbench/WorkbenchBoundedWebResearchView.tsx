@@ -61,6 +61,8 @@ export function WorkbenchBoundedWebResearchView({
   const [locationError, setLocationError] = React.useState('');
   const [browserSurfaceSuspended, setBrowserSurfaceSuspended] = React.useState(false);
   const lastForwardedBrowserSurfaceUrlRef = React.useRef('');
+  const lastResolvedPreviewTitleRef = React.useRef('');
+  const lastResolvedBrowserTitleRef = React.useRef('');
   const runWithBrowserSurfaceSuspended = React.useCallback(async <T,>(task: () => Promise<T>) => {
     setBrowserSurfaceSuspended(true);
     try {
@@ -139,9 +141,10 @@ export function WorkbenchBoundedWebResearchView({
 
   React.useEffect(() => {
     const nextTitle = String(preview?.title || '').trim();
-    if (!nextTitle) {
+    if (!nextTitle || nextTitle === lastResolvedPreviewTitleRef.current) {
       return;
     }
+    lastResolvedPreviewTitleRef.current = nextTitle;
     onResolvedTitle?.(nextTitle);
   }, [onResolvedTitle, preview?.title]);
 
@@ -170,15 +173,17 @@ export function WorkbenchBoundedWebResearchView({
     url: browserUrl,
     visible: preferredMode === 'live' && !browserSurfaceSuspended,
     navigationKey: liveFrameKey,
+    disposeOnUnmount: false,
   });
   const liveSurfaceFailed =
     browserSurface.surfaceState.phase === 'error' || browserSurface.surfaceState.phase === 'crashed';
 
   React.useEffect(() => {
     const nativeTitle = String(browserSurface.surfaceState.title || '').trim();
-    if (!nativeTitle) {
+    if (!nativeTitle || nativeTitle === lastResolvedBrowserTitleRef.current) {
       return;
     }
+    lastResolvedBrowserTitleRef.current = nativeTitle;
     onResolvedTitle?.(nativeTitle);
   }, [browserSurface.surfaceState.title, onResolvedTitle]);
 
@@ -213,10 +218,10 @@ export function WorkbenchBoundedWebResearchView({
         return;
       }
       setLocationError('');
+      setPreferredMode('live');
       const changed = normalizedUrl !== browserUrl;
       const didNavigate = onNavigateUrl?.(normalizedUrl);
       if (!changed && didNavigate !== false) {
-        setPreferredMode('live');
         void reload();
       }
     },
@@ -268,7 +273,7 @@ export function WorkbenchBoundedWebResearchView({
                   type="submit"
                   className={`rounded-full border border-cyan-400/28 bg-cyan-400/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100 transition-colors hover:border-cyan-300/45 hover:bg-cyan-400/16 ${focusRingClass}`}
                 >
-                  View
+                  Open
                 </button>
               </form>
             ) : (

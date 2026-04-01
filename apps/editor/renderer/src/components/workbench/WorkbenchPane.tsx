@@ -28,6 +28,7 @@ import { Logo } from '../Logo';
 import { IconButton } from '../ui/IconButton';
 import { useModal } from '../modals/ModalSystem';
 import {
+  disposeWorkbenchBrowserSurface,
   isAgencyAvailable,
   isAgencyMethodAvailable,
 } from '../../services/agencyBridge';
@@ -135,6 +136,7 @@ function WorkbenchPaneContent({
   const tabStateByIdRef = useRef({});
   const loadRequestByTabRef = useRef({});
   const activePolicyRootPath = activeTab?.rootPath || activeRootPath;
+  const managedBrowserSurfaceTabIdsRef = useRef<Set<string>>(new Set());
   const projectPolicy = useWorkbenchProjectPolicy(activePolicyRootPath);
   const languageOverrides = useWorkbenchLanguageOverrides({
     stateKey: activePolicyRootPath,
@@ -175,6 +177,47 @@ function WorkbenchPaneContent({
   useEffect(() => {
     tabStateByIdRef.current = tabStateById;
   }, [tabStateById]);
+
+  useEffect(() => {
+    if (!isAgencyMethodAvailable('disposeWorkbenchBrowserSurface')) {
+      managedBrowserSurfaceTabIdsRef.current = new Set();
+      return;
+    }
+
+    const nextManagedTabIds = new Set<string>();
+    (tabs || []).forEach((tab) => {
+      if (!tab?.id) {
+        return;
+      }
+      if (isWorkbenchBoundedResearchTab(tab)) {
+        nextManagedTabIds.add(tab.id);
+        return;
+      }
+      const tabState = tabStateById[tab.id] || {};
+      if (tabState.kind === 'code' && String(tabState.researchSourceUrl || '').trim()) {
+        nextManagedTabIds.add(tab.id);
+      }
+    });
+
+    managedBrowserSurfaceTabIdsRef.current.forEach((tabId) => {
+      if (!nextManagedTabIds.has(tabId)) {
+        void disposeWorkbenchBrowserSurface({ tabId });
+      }
+    });
+    managedBrowserSurfaceTabIdsRef.current = nextManagedTabIds;
+  }, [tabStateById, tabs]);
+
+  useEffect(() => {
+    return () => {
+      if (!isAgencyMethodAvailable('disposeWorkbenchBrowserSurface')) {
+        return;
+      }
+      managedBrowserSurfaceTabIdsRef.current.forEach((tabId) => {
+        void disposeWorkbenchBrowserSurface({ tabId });
+      });
+      managedBrowserSurfaceTabIdsRef.current.clear();
+    };
+  }, []);
 
   const updateTabState = useCallback((tabId, updates) => {
     setTabStateById((current) => ({

@@ -21,6 +21,7 @@ type UseWorkbenchBrowserSurfaceArgs = {
   url: string;
   visible: boolean;
   navigationKey: number;
+  disposeOnUnmount?: boolean;
 };
 
 const requestAnimationFrameFallback = (callback: FrameRequestCallback) =>
@@ -31,6 +32,7 @@ export function useWorkbenchBrowserSurface({
   url,
   visible,
   navigationKey,
+  disposeOnUnmount = true,
 }: UseWorkbenchBrowserSurfaceArgs) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [surfaceState, setSurfaceState] = useState<WorkbenchBrowserSurfaceEvent>({
@@ -210,9 +212,13 @@ export function useWorkbenchBrowserSurface({
       return undefined;
     }
     return () => {
+      if (!disposeOnUnmount) {
+        hideSurface();
+        return;
+      }
       void disposeWorkbenchBrowserSurface({ tabId });
     };
-  }, [browserSurfaceAvailable, tabId]);
+  }, [browserSurfaceAvailable, disposeOnUnmount, hideSurface, tabId]);
 
   return {
     hostRef,
