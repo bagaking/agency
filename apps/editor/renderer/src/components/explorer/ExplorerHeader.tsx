@@ -178,9 +178,19 @@ export function ExplorerHeader({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && hasSearchSubmit) {
+              if (event.key !== 'Enter') {
+                return;
+              }
+
+              if (hasSearchSubmit) {
                 event.preventDefault();
                 onSearchSubmit();
+                return;
+              }
+
+              if (showUrlAffordance && !urlAffordanceDisabled) {
+                event.preventDefault();
+                onUrlAffordance?.();
               }
             }}
             name="explorerSearch"
@@ -201,20 +211,23 @@ export function ExplorerHeader({
           )}
         </div>
         {showUrlAffordance ? (
-          <button
-            type="button"
-            onClick={() => onUrlAffordance?.()}
-            disabled={urlAffordanceDisabled}
-            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
-              urlAffordanceDisabled
-                ? 'border-border/30 text-muted-foreground/35'
-                : 'border-sky-500/40 bg-sky-500/10 text-sky-300 hover:border-sky-500/60 hover:bg-sky-500/15'
-            } disabled:cursor-not-allowed`}
-            aria-label={urlAffordanceLabel}
-          >
-            <Globe2 size={11} strokeWidth={1.7} aria-hidden="true" />
-            {urlAffordanceLabel}
-          </button>
+          <div className="flex flex-col items-end gap-0.5">
+            <button
+              type="button"
+              onClick={() => onUrlAffordance?.()}
+              disabled={urlAffordanceDisabled}
+              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
+                urlAffordanceDisabled
+                  ? 'border-border/30 text-muted-foreground/35'
+                  : 'border-sky-500/40 bg-sky-500/10 text-sky-300 hover:border-sky-500/60 hover:bg-sky-500/15'
+              } disabled:cursor-not-allowed`}
+              aria-label={urlAffordanceLabel}
+            >
+              <Globe2 size={11} strokeWidth={1.7} aria-hidden="true" />
+              {urlAffordanceLabel}
+            </button>
+            <span className="text-[9px] leading-none text-muted-foreground/60">Press Enter to open this URL</span>
+          </div>
         ) : null}
         {hasSearchSubmit ? (
           <button
