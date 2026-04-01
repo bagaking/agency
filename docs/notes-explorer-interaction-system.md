@@ -340,23 +340,23 @@ The project policy currently governs defaults, working-set option exposure/order
 What is active now:
 - `workingSet.presets` can reorder registered working-set entries without hard-coding a new branch in `ProjectExplorerSidebar`;
 - `actions.hiddenCommands` can remove registered header/context-menu commands without mutating the command registry itself;
-- project policy still cannot redefine file-intent behavior or turn the research lane into a general browser surface.
+- project policy still cannot redefine file-intent behavior or turn bounded web research into a general browser surface.
 
-### 6. Bounded research lane
+### 6. Bounded URL intake
 
-Explorer now exposes a bounded research lane rather than assuming all URL work belongs in another app.
+Explorer now exposes bounded URL intake and Workbench now hosts the primary bounded web research surface rather than assuming all URL work belongs in another app.
 
-Current lane:
-- URL input + inline inspection;
-- reader/excerpt extraction through the existing host excerpt pipeline;
-- workspace Markdown save via the existing workbench file-writing path;
-- memo citation via existing HIL item creation, with the saved Markdown path attached as a workspace reference when available;
-- optional handoff note carried into both the saved Markdown artifact and the memo citation metadata;
-- explicit “open in browser” escape hatch.
+Current model:
+- `URL` is a first-class Explorer search mode alongside `Paths` and `Content`, not a hidden header utility;
+- the shared Explorer search row owns URL intake and can surface a compact `Open Web` affordance when the current input already looks like a supported public URL;
+- Workbench opens a bounded web research tab that owns the primary page/research surface and its actions;
+- saved Markdown files keep fixed `agency_source_*` frontmatter so Workbench can reopen them in markdown + preview mode;
+- citations still route through Memo/HIL, and full browsing still escapes to the system browser.
 
 Presentation boundary:
-- the lane belongs to Explorer, but it is a secondary workflow capability rather than a primary browse action;
-- it should sit closer to search/workflow controls than to core tree creation/refresh controls.
+- Explorer owns discovery, intent selection, and launch/focus into the bounded web flow;
+- Workbench owns reading, reload/open-browser/save/cite actions, and linked markdown preview;
+- the product still does not grow tabs, cookies, auth state, or browser-global session management inside Agency.
 
 Security/scope boundary:
 - only `http/https`;

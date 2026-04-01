@@ -43,7 +43,7 @@
 - Explorer supports copy/cut/paste via context menu and keyboard shortcuts.
 - Explorer can paste files or screenshots from the system clipboard, applying `-1` style conflict suffixes.
 - Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
-- Explorer includes a bounded research lane for public URL inspection, reader preview, workspace Markdown save, memo citation with optional saved-file references, and an explicit system-browser escape hatch.
+- Explorer includes a bounded `URL` research mode that launches a Workbench-hosted web research tab for public URL inspection, bounded live/reader viewing, workspace Markdown save with fixed source frontmatter, memo citation with optional saved-file references, and an explicit system-browser escape hatch.
 - Explorer and Memo sidebars keep a compact context-first header grammar, prioritizing the active root or record summary over explanatory subtitle copy.
 - The workbench supports multi-tab previews, a path-first Quick Open launcher for open tabs and project files with optional `:line[:column]` targeting, contextual secondary review tools for diff/blame/comment actions that appear only after the active document resolves to a code editor state, media previews, active-tab disk-change auto sync (auto-reload when clean, warning + reload when dirty), project-level language rules from `.agency/workbench.yaml` / `.agency/workbench.yml`, and a window-local document language control that shows `Auto` / `Project Rule` / `Local Override`.
 
@@ -390,8 +390,10 @@ make editor-package-lite-release
 - Create, rename, delete, and drag/drop a file or folder from the Explorer view.
 - Select a file in Explorer and confirm it opens in a workbench tab with line numbers and syntax highlighting.
 - Click each segment in the workbench breadcrumb and confirm Explorer expands ancestors and focuses the matching node (no Finder popup).
-- Open `Research Lane` from Explorer, inspect a public URL, and confirm the lane shows a reader preview instead of a tabbed browser.
-- Save a research capture as Markdown and confirm the file stays inside the project, then use the lane's `Open Saved` / `Reveal` actions to land back in Workbench/Explorer.
+- Enter a public URL into Explorer search and confirm a compact `Open Web` affordance appears without needing to switch modes first.
+- Switch Explorer search mode to `URL`, launch a public URL, and confirm Workbench opens a bounded web research tab instead of Explorer replacing its primary panel.
+- Save a research capture as Markdown and confirm the file stays inside the project, the saved file includes fixed `agency_source_*` frontmatter, and Workbench focuses that Markdown file.
+- Reopen a Markdown file carrying bounded-web source frontmatter and confirm Workbench enters markdown + preview mode with `Overwrite Markdown` available on the preview side.
 - Create a memo citation from the same research capture and confirm it enters the existing HIL/Memo flow rather than a research-only dispatch path.
 - Try a localhost/private URL and confirm reader inspect is rejected while the explicit system-browser escape hatch remains visible.
 - Double-click a file to pin its tab, drag tabs to reorder, and close tabs from the tab strip menu.

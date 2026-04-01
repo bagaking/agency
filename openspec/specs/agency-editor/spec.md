@@ -884,29 +884,31 @@ Named Explorer presets are deferred until there is a stronger product contract f
 - **THEN** Explorer applies those defaults on first load for that project scope
 - **AND** user-local persisted state can still override them afterwards
 
-### Requirement: Explorer Bounded URL Research Lane
-The explorer SHALL provide a bounded research lane for URL-driven file workflows.
-The lane SHALL inspect public `http/https` URLs into a reader preview and hand them back into workspace files or memo artifacts.
-The lane SHALL NOT behave as a general-purpose browser replacement.
+### Requirement: Explorer Bounded URL Intake
+The explorer SHALL provide bounded URL intake for URL-driven file workflows.
+Explorer SHALL own discovery, intent selection, and launch/focus into a bounded web research workflow hosted by Workbench.
+The feature SHALL NOT behave as a general-purpose browser replacement.
 
-#### Scenario: Save URL preview into the workspace
-- **WHEN** a user inspects a public URL and saves it from the Explorer research lane
+#### Scenario: Launch URL research into Workbench
+- **WHEN** a user enters or confirms a public `http/https` URL from Explorer
+- **THEN** the editor launches or focuses a bounded web research tab in Workbench
+- **AND** Explorer remains the intake surface rather than replacing its primary panel with a browser-like page
+
+#### Scenario: Save URL research into the workspace
+- **WHEN** a user saves a bounded web research result as Markdown
 - **THEN** the editor writes a Markdown artifact inside the active project scope
+- **AND** the artifact carries fixed source frontmatter so Workbench can reopen it in markdown + preview mode
 - **AND** the saved artifact can be opened or revealed back through the existing Explorer/workbench flows
 
-#### Scenario: Cite URL preview into memo workflow
-- **WHEN** a user cites an inspected URL from the Explorer research lane
+#### Scenario: Cite URL research into memo workflow
+- **WHEN** a user cites an inspected URL from the bounded web research tab
 - **THEN** the editor creates a memo artifact through the existing HIL/Memo flow
 - **AND** any previously saved Markdown path is attached as a workspace reference when available
 
 #### Scenario: Escape to the system browser
 - **WHEN** a user needs full browser behavior
-- **THEN** the explorer provides an explicit action to open the URL in the system browser
-- **AND** the research lane does not grow tab, cookie, or in-place browser session management
-
-#### Scenario: Research lane stays secondary to file browse
-- **WHEN** the explorer renders bounded research-lane entry points
-- **THEN** the lane is presented as a secondary workflow action rather than as a primary file-browse control
+- **THEN** the bounded web research tab provides an explicit action to open the URL in the system browser
+- **AND** Agency does not grow tab, cookie, auth, or in-place browser session management
 
 ### Requirement: Explorer File Preview Pane
 The explorer SHALL open selected files inside a workbench tab area instead of a single static preview.

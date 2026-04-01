@@ -162,6 +162,11 @@ test.afterEach(async () => {
   createdUserDataPaths.clear();
 });
 
+const cleanupTransientElectronApp = async () => {
+  killRepoElectronProcesses();
+  await new Promise((resolve) => setTimeout(resolve, 300));
+};
+
 const openExplorer = async (window) => {
   const header = window.getByTestId('explorer-header');
   if (await header.isVisible().catch(() => false)) {
@@ -489,6 +494,63 @@ test('changed working-set switches Explorer into content-search layering', async
     await expect(window.getByRole('button', { name: 'Selection', exact: true })).toHaveCount(0);
   } finally {
     await electronApp.close();
+  }
+});
+
+test('url mode keeps Explorer as intake across working-set views', async () => {
+  const electronApp = await launchTestApp();
+
+  try {
+    const window = await getFirstWindow(electronApp);
+    await openFirstCellInHomeView(window);
+    await openExplorer(window);
+
+    await window.getByRole('button', { name: 'URL', exact: true }).click();
+
+    await expect(window.getByLabel('Paste a documentation or research URL…')).toBeVisible();
+    await expect(window.getByRole('button', { name: 'Open Web', exact: true })).toBeVisible();
+    await expect(window.getByTestId('explorer-tree')).toBeVisible();
+    await expect(window.getByTestId('explorer-filter-toggle')).toHaveCount(0);
+
+    await window.getByRole('button', { name: 'Changed', exact: true }).click();
+
+    await expect(window.getByRole('button', { name: 'URL', exact: true })).toBeVisible();
+    await expect(window.getByLabel('Paste a documentation or research URL…')).toBeVisible();
+    await expect(window.getByRole('button', { name: 'Open Web', exact: true })).toBeVisible();
+    await expect(window.getByTestId('explorer-working-set-list')).toBeVisible();
+    await expect(window.getByText('Changed Files')).toBeVisible();
+    await expect(window.getByTestId('explorer-filter-toggle')).toHaveCount(0);
+
+    await window.getByRole('button', { name: 'Content', exact: true }).click();
+    await expect(window.getByLabel('Search file contents…')).toBeVisible();
+  } finally {
+    await cleanupTransientElectronApp();
+  }
+});
+
+test('url-shaped explorer input opens a bounded web research tab in Workbench', async () => {
+  const electronApp = await launchTestApp();
+
+  try {
+    const window = await getFirstWindow(electronApp);
+    await openFirstCellInHomeView(window);
+    await openExplorer(window);
+
+    const searchInput = window.getByLabel('Search files…');
+    await searchInput.fill('example.com/docs');
+    await expect(window.getByRole('button', { name: 'Open Web', exact: true })).toBeVisible();
+
+    await window.getByRole('button', { name: 'Open Web', exact: true }).click();
+
+    await expect(window.getByRole('button', { name: 'Live', exact: true })).toBeVisible();
+    await expect(window.getByRole('button', { name: 'Reader', exact: true })).toBeVisible();
+    await window.getByRole('button', { name: 'Reader', exact: true }).click();
+    await expect(window.getByTestId('workbench-web-research-reload')).toBeVisible();
+    await expect(window.getByTestId('workbench-web-research-open-browser')).toBeVisible();
+    await expect(window.getByTestId('workbench-web-research-save-markdown')).toBeVisible();
+    await expect(window.getByTestId('workbench-web-research-cite')).toBeVisible();
+  } finally {
+    await cleanupTransientElectronApp();
   }
 });
 

@@ -15,8 +15,12 @@ import {
 import {
   EXPLORER_SEARCH_MODE_CONTENT,
   EXPLORER_SEARCH_MODE_PATH,
+  EXPLORER_SEARCH_MODE_URL,
+  getExplorerSearchModeDescriptor,
   getExplorerContentScopeOptions,
   getExplorerSearchModeOptions,
+  isExplorerSupportedPublicUrl,
+  normalizeExplorerSupportedPublicUrl,
   normalizeExplorerContentScopeKindForSupportedScopes,
   normalizeExplorerContentScopeKind,
   normalizeExplorerSearchMode,
@@ -64,7 +68,27 @@ test('project policy can hide registered commands without changing registry orde
   assert.equal(commands.some((command) => command.id === 'explorer.newFile'), true);
 });
 
-test('changed-files working set advertises content search only', () => {
+test('url mode is a first-class search descriptor with explicit intake semantics', () => {
+  const descriptor = getExplorerSearchModeDescriptor(EXPLORER_SEARCH_MODE_URL);
+
+  assert.equal(descriptor.label, 'URL');
+  assert.equal(descriptor.inputType, 'url');
+  assert.equal(descriptor.submitLabel, 'Open Web');
+  assert.equal(descriptor.submitBusyLabel, 'Opening…');
+});
+
+test('tree working set keeps path, content, and url intake available', () => {
+  const tree = getExplorerWorkingSetDescriptor(EXPLORER_WORKING_SET_TREE);
+  const supportedModes = getExplorerSearchModeOptions(tree.supportedSearchModes);
+
+  assert.equal(tree.supportsFilterMenu, true);
+  assert.deepEqual(
+    supportedModes.map((option) => option.id),
+    [EXPLORER_SEARCH_MODE_PATH, EXPLORER_SEARCH_MODE_CONTENT, EXPLORER_SEARCH_MODE_URL]
+  );
+});
+
+test('changed-files working set advertises content and url search', () => {
   const changedFiles = getExplorerWorkingSetDescriptor(EXPLORER_WORKING_SET_CHANGED_FILES);
   const supportedModes = getExplorerSearchModeOptions(changedFiles.supportedSearchModes);
   const supportedScopes = getExplorerContentScopeOptions(changedFiles.supportedContentScopeKinds);
@@ -72,7 +96,7 @@ test('changed-files working set advertises content search only', () => {
   assert.equal(changedFiles.supportsFilterMenu, false);
   assert.deepEqual(
     supportedModes.map((option) => option.id),
-    [EXPLORER_SEARCH_MODE_CONTENT]
+    [EXPLORER_SEARCH_MODE_CONTENT, EXPLORER_SEARCH_MODE_URL]
   );
   assert.deepEqual(
     supportedScopes.map((option) => option.id),
@@ -96,11 +120,23 @@ test('changed-files working set advertises content search only', () => {
 
 test('platform normalization falls back to safe built-in defaults', () => {
   assert.equal(normalizeExplorerSearchMode('content'), EXPLORER_SEARCH_MODE_CONTENT);
+  assert.equal(normalizeExplorerSearchMode('url'), EXPLORER_SEARCH_MODE_URL);
   assert.equal(normalizeExplorerSearchMode('unknown'), EXPLORER_SEARCH_MODE_PATH);
   assert.equal(normalizeExplorerContentScopeKind('selection'), 'selection');
   assert.equal(normalizeExplorerContentScopeKind('other'), 'project');
   assert.equal(normalizeExplorerWorkingSetId(EXPLORER_WORKING_SET_CHANGED_FILES), 'changed-files');
   assert.equal(normalizeExplorerWorkingSetId('future-view'), EXPLORER_WORKING_SET_TREE);
+});
+
+test('public url normalization accepts docs-like urls and rejects local/private hosts', () => {
+  assert.equal(
+    normalizeExplorerSupportedPublicUrl('example.com/docs'),
+    'https://example.com/docs'
+  );
+  assert.equal(isExplorerSupportedPublicUrl('https://example.com'), true);
+  assert.equal(normalizeExplorerSupportedPublicUrl('http://localhost:3000'), '');
+  assert.equal(normalizeExplorerSupportedPublicUrl('http://192.168.1.2/docs'), '');
+  assert.equal(normalizeExplorerSupportedPublicUrl('notes/internal'), '');
 });
 
 test('working-set presets can narrow and order visible working-set options', () => {

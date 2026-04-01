@@ -24,9 +24,12 @@
 - [ ] In `Bind Existing Branch`, select a user-created branch that does not follow the Agency naming prefix rules and confirm the Cell binds to that branch without renaming it.
 
 ## Explorer
-- [ ] Open Explorer, trigger `Open Research Lane`, and confirm the lane appears inline under the Explorer header instead of opening a separate browser surface.
-- [ ] Inspect a public documentation URL and confirm the lane shows a bounded reader preview with source metadata and no tab/cookie/session UI.
-- [ ] Save the inspected page as Markdown, confirm the chosen path stays inside the project, and verify `Open Saved` / `Reveal` route back through Workbench and Explorer.
+- [ ] Enter a public URL into Explorer search and confirm a compact `Open Web` affordance appears without forcing an immediate mode switch.
+- [ ] Switch Explorer search mode to `URL`, launch a public URL, and confirm Workbench opens a bounded web research tab instead of Explorer replacing its primary panel.
+- [ ] Switch Explorer to the `Changed` working-set view, then use `URL` mode and confirm the working-set surface stays visible while Workbench owns the bounded web tab.
+- [ ] In the bounded web tab, confirm `Live` / `Reader` host modes and page-level actions (`Reload`, `Open in Browser`, `Save Markdown`, `Cite`) are visible.
+- [ ] Save the inspected page as Markdown, confirm the chosen path stays inside the project, the saved file contains fixed `agency_source_*` frontmatter, and Workbench automatically focuses that Markdown file.
+- [ ] Reopen a Markdown file carrying bounded-web source frontmatter and confirm Workbench enters markdown + preview mode, with the preview side showing `Overwrite Markdown`.
 - [ ] Create a memo citation from the same preview and confirm it enters the existing HIL/Memo flow; if a Markdown file was saved first, confirm the memo artifact carries that workspace reference.
 - [ ] Enter a localhost/private URL and confirm reader inspect is rejected while the explicit system-browser escape hatch remains available for full browsing.
 
