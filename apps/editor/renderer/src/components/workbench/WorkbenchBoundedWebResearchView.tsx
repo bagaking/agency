@@ -164,9 +164,6 @@ export function WorkbenchBoundedWebResearchView({
   ]
     .filter(Boolean)
     .join(' · ');
-  const topSummary = linkedMarkdownMode
-    ? `Linked to ${compactPath(linkedMarkdownPath)}. Save keeps editor edits; overwrite regenerates from source.`
-    : 'Save Markdown and Cite stay here; full browsing still escapes to the system browser.';
   const canNavigate = !linkedMarkdownMode && typeof onNavigateUrl === 'function';
   const browserSurface = useWorkbenchBrowserSurface({
     tabId,
@@ -230,8 +227,8 @@ export function WorkbenchBoundedWebResearchView({
 
   return (
     <section className="flex h-full min-h-0 flex-col bg-[#0b0d11] text-white">
-      <div className="border-b border-white/[0.05] px-4 py-3">
-        <div className="flex items-start justify-between gap-4">
+      <div className="border-b border-white/[0.05] px-4 py-2.5">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <HeaderPill label={linkedMarkdownMode ? 'Linked Preview' : 'Bounded Web'} />
@@ -240,8 +237,11 @@ export function WorkbenchBoundedWebResearchView({
                   ? 'Markdown + source'
                   : 'Explorer intake to Workbench host'}
               </span>
+              {sourceMeta ? (
+                <span className="truncate text-[10px] text-white/38">{sourceMeta}</span>
+              ) : null}
             </div>
-            <div className="mt-2 truncate text-[16px] font-semibold tracking-[0.01em] text-white/92">
+            <div className="mt-1 truncate text-[14px] font-semibold tracking-[0.01em] text-white/92">
               {resolvedTitle}
             </div>
             {canNavigate ? (
@@ -282,17 +282,11 @@ export function WorkbenchBoundedWebResearchView({
                 <span className="truncate">{url}</span>
               </div>
             )}
-            {sourceMeta ? (
-              <div className="mt-1 text-[10px] text-white/42">{sourceMeta}</div>
-            ) : null}
-            <div className="mt-2 max-w-2xl text-[10px] leading-5 text-white/45">
-              {topSummary}
-            </div>
             {locationError ? (
-              <div className="mt-2 text-[10px] text-amber-200">{locationError}</div>
+              <div className="mt-1.5 text-[10px] text-amber-200">{locationError}</div>
             ) : null}
           </div>
-          <div className="inline-flex rounded-full border border-white/[0.08] bg-white/[0.03] p-0.5">
+          <div className="inline-flex shrink-0 rounded-full border border-white/[0.08] bg-white/[0.03] p-0.5">
             <ModePill
               active={preferredMode === 'live'}
               label="View"
@@ -306,7 +300,7 @@ export function WorkbenchBoundedWebResearchView({
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <ActionButton
               icon={RefreshCw}
@@ -351,7 +345,7 @@ export function WorkbenchBoundedWebResearchView({
         </div>
 
         {linkedMarkdownMode ? (
-          <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-3 text-[10px] leading-5 text-white/48">
+          <div className="mt-2 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5 text-[10px] leading-5 text-white/48">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-[9px] font-semibold uppercase tracking-[0.3em] text-white/40">
@@ -374,7 +368,7 @@ export function WorkbenchBoundedWebResearchView({
         ) : null}
       </div>
 
-      {error ? (
+      {error && (preferredMode === 'reader' || liveSurfaceFailed || !browserSurface.browserSurfaceAvailable) ? (
         <div className="border-b border-rose-500/15 bg-rose-500/8 px-4 py-2 text-[11px] text-rose-200">
           {error}
         </div>
@@ -383,10 +377,6 @@ export function WorkbenchBoundedWebResearchView({
       <div className="min-h-0 flex-1 overflow-hidden">
         {preferredMode === 'live' ? (
           <div className="flex h-full flex-col">
-            <div className="border-b border-white/[0.05] px-4 py-2 text-[10px] text-white/42">
-              View uses a native browser surface. Reader stays available for extracted content and
-              Save/Cite remain bounded to this research object.
-            </div>
             {browserSurfaceSuspended ? (
               <div className="flex h-full flex-col items-center justify-center gap-4 bg-white px-8 text-center text-slate-700">
                 <div className="max-w-lg space-y-2">

@@ -75,17 +75,6 @@ export function useWorkbenchBrowserSurface({
     });
   }, [applySurfaceState, browserSurfaceAvailable, tabId]);
 
-  useEffect(() => {
-    applySurfaceState({
-      tabId,
-      url,
-      title: '',
-      phase: visible ? 'loading' : 'hidden',
-      error: '',
-      visible,
-    });
-  }, [applySurfaceState, navigationKey, tabId, url, visible]);
-
   const hideSurface = useCallback(() => {
     if (!browserSurfaceAvailable) {
       return;

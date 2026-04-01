@@ -357,6 +357,7 @@ function createWorkbenchBrowserSurfaceService(deps: BrowserSurfaceDependencies) 
 
   function ensureViewAttached(window: BrowserSurfaceWindow, record: BrowserSurfaceRecord) {
     if (record.parentView) {
+      record.parentView.addChildView(record.view);
       return;
     }
     const parentView = window.getContentView?.() ?? window.contentView;
@@ -452,6 +453,9 @@ function createWorkbenchBrowserSurfaceService(deps: BrowserSurfaceDependencies) 
       }
     }
 
+    if (record.parentView) {
+      record.parentView.addChildView(record.view);
+    }
     record.view.setVisible(true);
     visibleSurfaceByWindow.set(windowId, record.key);
     publishRecord(record, { visible: true }, { keepPhase: true });
