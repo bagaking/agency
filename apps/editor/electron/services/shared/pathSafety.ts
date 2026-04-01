@@ -71,11 +71,11 @@ async function inspectExistingPath(rootPath, targetPath, { fallbackToCwd = false
 
 async function resolveExistingPathWithinRoot(rootPath, targetPath, options = {}) {
   const inspection = await inspectExistingPath(rootPath, targetPath, options);
-  if (!inspection.insideRoot) {
-    throw new Error('Path resolves outside repository root.');
-  }
   if (!inspection.stat) {
     throw new Error('Broken symbolic-link target.');
+  }
+  if (!inspection.insideRoot) {
+    throw new Error('Path resolves outside repository root.');
   }
   return inspection;
 }
