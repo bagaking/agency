@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Archive,
   Plus,
   GitBranch,
   ArrowUpLeft,
@@ -218,6 +217,43 @@ function buildAttentionActionLabel({
       ? `${normalizedOwnerLabel} attention: ${item.label}`
       : item.label;
   return `${baseLabel}. ${countLabel}. ${item.detail}`;
+}
+
+function LifecycleSectionHeader({
+  label,
+  count,
+  tone,
+  action,
+}: {
+  label: string;
+  count: number;
+  tone: 'cleanup' | 'archived';
+  action?: React.ReactNode;
+}) {
+  const toneClass =
+    tone === 'cleanup'
+      ? 'text-amber-100/72'
+      : 'text-slate-200/72';
+  const countClass =
+    tone === 'cleanup'
+      ? 'border-amber-300/16 bg-amber-500/[0.08] text-amber-100/72'
+      : 'border-white/8 bg-white/[0.03] text-slate-200/70';
+
+  return (
+    <div className="flex items-center justify-between gap-2 px-1">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className={`truncate text-[10px] font-semibold uppercase tracking-[0.18em] ${toneClass}`}>
+          {label}
+        </span>
+        <span
+          className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[9px] font-medium ${countClass}`}
+        >
+          {count}
+        </span>
+      </div>
+      {action}
+    </div>
+  );
 }
 
 function SessionTreeGuides({
@@ -1381,14 +1417,11 @@ export function AgentCellsSessionsPanel({
 
             {cleanupCells.length > 0 ? (
               <section
-                className="space-y-2"
+                className="space-y-1.5"
                 data-testid="cleanup-cell-list"
                 aria-label="Cells waiting for cleanup"
               >
-                <div className="flex items-center justify-between px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100/70">
-                  <span>Needs Cleanup</span>
-                  <span className="text-muted-foreground/70">{cleanupCells.length}</span>
-                </div>
+                <LifecycleSectionHeader label="Needs Cleanup" count={cleanupCells.length} tone="cleanup" />
                 {cleanupCells.map((cell: any) => {
                   const cellAttention = attention.byCellId[cell.id];
                   return (
@@ -1409,32 +1442,40 @@ export function AgentCellsSessionsPanel({
 
             {archivedCells.length > 0 ? (
               <section
-                className="space-y-2"
+                className="space-y-1.5"
                 data-testid="archived-cell-shell"
                 aria-label="Archived cells"
               >
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2 text-left transition-colors hover:border-slate-300/16 hover:bg-white/[0.05]"
-                  onClick={() => setShowArchivedCells((value) => !value)}
-                >
-                  <span className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-200/75">
-                    <Archive size={12} strokeWidth={1.8} />
-                    {showArchivedCells ? 'Hide Archived' : 'View Archived'}
-                  </span>
-                  <span className="text-[10px] font-medium text-muted-foreground/70">{archivedCells.length}</span>
-                </button>
+                <LifecycleSectionHeader
+                  label="Archived"
+                  count={archivedCells.length}
+                  tone="archived"
+                  action={
+                    <button
+                      type="button"
+                      onClick={() => setShowArchivedCells((value) => !value)}
+                      className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground"
+                      aria-label="Archived cells"
+                      aria-expanded={showArchivedCells}
+                      aria-controls="archived-cell-list"
+                    >
+                      {showArchivedCells ? (
+                        <ChevronDown size={12} strokeWidth={1.7} />
+                      ) : (
+                        <ChevronRight size={12} strokeWidth={1.7} />
+                      )}
+                      <span>{showArchivedCells ? 'Hide Archived' : 'View Archived'}</span>
+                    </button>
+                  }
+                />
 
                 {showArchivedCells ? (
                   <div
-                    className="space-y-2"
+                    id="archived-cell-list"
+                    className="space-y-1.5"
                     data-testid="archived-cell-list"
                     aria-label="Archived cells"
                   >
-                    <div className="flex items-center justify-between px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300/70">
-                      <span>Archived</span>
-                      <span className="text-muted-foreground/70">{archivedCells.length}</span>
-                    </div>
                     {archivedCells.map((cell: any) => {
                       const cellAttention = attention.byCellId[cell.id];
                       return (

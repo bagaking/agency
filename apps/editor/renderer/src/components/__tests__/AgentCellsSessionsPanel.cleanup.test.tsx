@@ -170,6 +170,7 @@ test('AgentCellsSessionsPanel shows an explicit archived entry point alongside a
 
   assert.match(html, /data-testid="cell-item-cell-active"/);
   assert.match(html, /Needs Cleanup/);
+  assert.match(html, /Cleanup Recommended/);
   assert.match(html, /View Archived/);
   assert.match(html, /detached-cell-cleanup-cell-needs-cleanup/);
   assert.match(html, /Archive Cell/);

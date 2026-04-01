@@ -2999,8 +2999,9 @@ The editor SHALL surface attachment state distinctly from lifecycle state.
 The editor SHALL allow users to archive or delete a Cell after its worktree attachment has been removed.
 The editor SHALL allow users to clear stale attachment metadata without recreating the old worktree first.
 The Agent Cells sidebar SHALL project missing/detached non-archived Cells into a cleanup-first section rather than rendering them as ordinary session-tree cards.
-The cleanup-first section SHALL represent attachment triage rather than lifecycle completion.
+The cleanup-first section SHALL represent attachment triage rather than lifecycle completion and SHALL render each entry with a `Cleanup Recommended` eyebrow that pairs evidence-preserving microcopy with early CTA visibility.
 Cells whose lifecycle state is already `archived` SHALL leave the cleanup queue and active development buckets and become reachable through an explicit archived-view affordance.
+Cleanup and archived lifecycle surfaces SHALL stay visually compact, avoid nested card-within-card scaffolding, and rely on a single-shell action grammar rather than duplicated bordered wells.
 
 #### Scenario: Archive a detached Cell
 - **WHEN** a user archives a Cell whose worktree attachment has already been removed or marked detached
@@ -3011,6 +3012,7 @@ Cells whose lifecycle state is already `archived` SHALL leave the cleanup queue 
 - **WHEN** the Agent Cells sidebar contains Cells whose worktree attachment is missing or detached and whose lifecycle state is not `archived`
 - **THEN** those Cells appear in a dedicated `Needs Cleanup` section with preserved-evidence copy and session summary
 - **AND** each cleanup Cell exposes a direct archive action
+- **AND** the cleanup card surfaces a `Cleanup Recommended` eyebrow to keep the attachment triage tone consistent while distinguishing `missing` vs `detached` copy
 - **AND** cleanup copy distinguishes `missing` attachment from intentionally `detached` attachment
 - **AND** the sidebar does not render their session tree inline as though they were still attached development Cells
 
@@ -3018,6 +3020,7 @@ Cells whose lifecycle state is already `archived` SHALL leave the cleanup queue 
 - **WHEN** the Agent Cells sidebar contains one or more Cells whose lifecycle state is `archived`
 - **THEN** the sidebar exposes an explicit `View Archived` affordance
 - **AND** archived Cells render through an archived-history surface with `View Details`, preserved-evidence copy, and session summary rather than cleanup triage
+- **AND** each archived card visible in that surface displays an `Archived` badge while keeping `View Details` as the primary CTA
 
 #### Scenario: Archived detached Cell uses archived surface
 - **WHEN** the Agent Cells sidebar contains a Cell whose worktree attachment is missing or detached and whose lifecycle state is `archived`
