@@ -56,9 +56,10 @@ export function WorkbenchBoundedWebResearchView({
   const linkedMarkdownMode = Boolean(linkedMarkdownPath);
   const [locationDraft, setLocationDraft] = React.useState(String(url || ''));
   const [locationError, setLocationError] = React.useState('');
-  const [liveFrameStatus, setLiveFrameStatus] = React.useState<'loading' | 'ready' | 'timeout'>(
-    'loading'
-  );
+  const [liveFrameStatus, setLiveFrameStatus] = React.useState<
+    'loading' | 'ready' | 'timeout' | 'unstable'
+  >('loading');
+  const liveLoadEventsRef = React.useRef<number[]>([]);
   const {
     note,
     setNote,
@@ -141,11 +142,13 @@ export function WorkbenchBoundedWebResearchView({
   React.useEffect(() => {
     if (preferredMode !== 'live') {
       setLiveFrameStatus('loading');
+      liveLoadEventsRef.current = [];
       return;
     }
     setLiveFrameStatus('loading');
+    liveLoadEventsRef.current = [];
     const timeoutHandle = window.setTimeout(() => {
-      setLiveFrameStatus('timeout');
+      setLiveFrameStatus((current) => (current === 'ready' ? current : 'timeout'));
     }, 4000);
     return () => {
       window.clearTimeout(timeoutHandle);
@@ -167,6 +170,18 @@ export function WorkbenchBoundedWebResearchView({
     ? `Linked to ${compactPath(linkedMarkdownPath)}. Save keeps editor edits; overwrite regenerates from source.`
     : 'Save Markdown and Cite stay here; full browsing still escapes to the system browser.';
   const canNavigate = !linkedMarkdownMode && typeof onNavigateUrl === 'function';
+  const handleLiveFrameLoad = React.useCallback(() => {
+    const now = Date.now();
+    const recentLoads = [...liveLoadEventsRef.current, now].filter(
+      (timestamp) => now - timestamp < 3000
+    );
+    liveLoadEventsRef.current = recentLoads;
+    if (recentLoads.length >= 4) {
+      setLiveFrameStatus('unstable');
+      return;
+    }
+    setLiveFrameStatus('ready');
+  }, []);
   const handleLocationSubmit = React.useCallback(
     (event?: React.FormEvent) => {
       event?.preventDefault();
@@ -234,7 +249,7 @@ export function WorkbenchBoundedWebResearchView({
                   type="submit"
                   className={`rounded-full border border-cyan-400/28 bg-cyan-400/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100 transition-colors hover:border-cyan-300/45 hover:bg-cyan-400/16 ${focusRingClass}`}
                 >
-                  Go
+                  Open
                 </button>
               </form>
             ) : (
@@ -354,15 +369,51 @@ export function WorkbenchBoundedWebResearchView({
                 actions and file handoff available here.
               </div>
             ) : null}
-            <iframe
-              key={`${browserUrl}:${liveFrameKey}`}
-              title="Bounded web research page"
-              src={browserUrl}
-              className="h-full w-full bg-white"
-              referrerPolicy="no-referrer"
-              sandbox="allow-same-origin allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox"
-              onLoad={() => setLiveFrameStatus('ready')}
-            />
+            {liveFrameStatus === 'unstable' ? (
+              <div className="flex h-full flex-col items-center justify-center gap-4 bg-white px-8 text-center text-slate-700">
+                <div className="max-w-lg space-y-2">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                    Embedded View Unstable
+                  </div>
+                  <div className="text-sm font-medium text-slate-900">
+                    This page keeps reloading inside the bounded host.
+                  </div>
+                  <div className="text-sm text-slate-600">
+                    Stay in Reader, open it in the system browser, or use the address bar to try a
+                    different URL.
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      liveLoadEventsRef.current = [];
+                      void reload();
+                    }}
+                    className={`rounded-full border border-slate-300 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-100 ${focusRingClass}`}
+                  >
+                    Retry View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void openInBrowser()}
+                    className={`rounded-full border border-slate-300 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-100 ${focusRingClass}`}
+                  >
+                    Open in Browser
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <iframe
+                key={`${browserUrl}:${liveFrameKey}`}
+                title="Bounded web research page"
+                src={browserUrl}
+                className="h-full w-full bg-white"
+                referrerPolicy="no-referrer"
+                sandbox="allow-same-origin allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox"
+                onLoad={handleLiveFrameLoad}
+              />
+            )}
           </div>
         ) : (
           <div className="flex h-full min-h-0 flex-col overflow-y-auto px-4 py-4">
