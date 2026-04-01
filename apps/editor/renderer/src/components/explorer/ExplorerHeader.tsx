@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Link2,
   Globe2,
@@ -14,6 +14,8 @@ import { focusRing } from '../ui/focusRing';
 import { resolveExplorerHeaderLayout } from './explorerHeaderLayout';
 
 const focusRingClass = focusRing.sidebar;
+const useIsomorphicLayoutEffect =
+  typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 type HeaderSegmentOption = {
   id: string;
@@ -102,9 +104,9 @@ export function ExplorerHeader({
     searchInputRef.current?.select();
   }, [searchInputAutoFocusKey]);
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const element = headerRef.current;
-    if (!element || typeof ResizeObserver === 'undefined') {
+    if (!element) {
       return;
     }
 
@@ -113,6 +115,9 @@ export function ExplorerHeader({
     };
 
     updateLayout(element.getBoundingClientRect().width);
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (!entry) {
@@ -192,7 +197,7 @@ export function ExplorerHeader({
         {layoutMode === 'stacked' && (workingSets.length > 1 || hasCells) ? (
           <div
             data-testid="explorer-secondary-rail"
-            className="flex min-w-0 items-center gap-2"
+            className="flex min-w-0 flex-wrap items-center gap-2"
           >
             {workingSets.length > 1 ? (
               <CompactSegmentedControl
@@ -205,11 +210,12 @@ export function ExplorerHeader({
               />
             ) : null}
             {hasCells ? (
-              <div className="ml-auto">
+              <div className="ml-auto min-w-[8rem] max-w-full flex-1 basis-[9.75rem]">
                 <CompactScopeSelect
                   cells={cells}
                   selectedId={selectedId}
                   onSelectCell={onSelectCell}
+                  fluid={true}
                 />
               </div>
             ) : null}
@@ -334,13 +340,15 @@ function CompactScopeSelect({
   cells,
   selectedId,
   onSelectCell,
+  fluid = false,
 }: {
   cells: Array<{ id: string; name: string }>;
   selectedId: string;
   onSelectCell: (value: string) => void;
+  fluid?: boolean;
 }) {
   return (
-    <div className="group relative w-[9.75rem] shrink-0">
+    <div className={`group relative ${fluid ? 'w-full min-w-0' : 'w-[9.75rem] shrink-0'}`}>
       <select
         aria-label="Active cell"
         className={`h-8 w-full appearance-none rounded-lg border border-border/40 bg-muted/10 px-3 pr-7 text-[11px] font-medium text-foreground transition-colors hover:border-border/80 ${focusRingClass}`}
@@ -377,10 +385,15 @@ function CompactSegmentedControl({
   onSelect?: (id: string) => void;
   tone?: 'context' | 'search';
 }) {
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const shellClass =
     tone === 'search'
       ? 'rounded-lg border border-white/[0.05] bg-background/20'
       : 'rounded-full border border-border/40 bg-muted/10';
+
+  const focusOption = (index: number) => {
+    optionRefs.current[index]?.focus();
+  };
 
   return (
     <div
@@ -389,13 +402,48 @@ function CompactSegmentedControl({
       className={`inline-flex shrink-0 p-0.5 ${shellClass}`}
       role="radiogroup"
     >
-      {options.map((option) => (
+      {options.map((option, index) => (
         <button
           key={option.id}
+          ref={(element) => {
+            optionRefs.current[index] = element;
+          }}
           type="button"
           role="radio"
           aria-checked={activeId === option.id}
+          tabIndex={activeId === option.id ? 0 : -1}
           onClick={() => onSelect?.(option.id)}
+          onKeyDown={(event) => {
+            if (!options.length) {
+              return;
+            }
+            if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+              event.preventDefault();
+              const nextIndex = (index + 1) % options.length;
+              onSelect?.(options[nextIndex].id);
+              focusOption(nextIndex);
+              return;
+            }
+            if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+              event.preventDefault();
+              const nextIndex = (index - 1 + options.length) % options.length;
+              onSelect?.(options[nextIndex].id);
+              focusOption(nextIndex);
+              return;
+            }
+            if (event.key === 'Home') {
+              event.preventDefault();
+              onSelect?.(options[0].id);
+              focusOption(0);
+              return;
+            }
+            if (event.key === 'End') {
+              event.preventDefault();
+              const nextIndex = options.length - 1;
+              onSelect?.(options[nextIndex].id);
+              focusOption(nextIndex);
+            }
+          }}
           className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
             activeId === option.id
               ? 'bg-primary/15 text-primary'
