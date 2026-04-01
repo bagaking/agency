@@ -1,5 +1,5 @@
 import React from 'react';
-import { Archive, ArrowUpRight, GitBranch, Layers3 } from 'lucide-react';
+import { Archive, ArrowUpRight, GitBranch, Layers3, ShieldCheck } from 'lucide-react';
 
 import { AttentionPill } from '../attention/AttentionPill';
 import type { AttentionItem } from '../../attention/attentionModel';
@@ -20,10 +20,13 @@ type DetachedCellCleanupCardProps = {
 };
 
 function buildCleanupCopy(cell: any, sessionSummary: string[]) {
+  const attachmentState = resolveCellAttachmentMeta(cell).attachmentState;
   return {
     eyebrow: 'Cleanup Recommended',
     body:
-      'No live worktree remains for this Cell. Archive it to remove it from the active Agent Cells flow while preserving repo-owned sessions and evidence.',
+      attachmentState === 'missing'
+        ? 'The recorded worktree path is no longer available for this Cell. Archive it to remove it from the active Agent Cells flow while preserving repo-owned sessions and evidence.'
+        : 'This Cell is detached from its worktree and no longer belongs in the active Agent Cells flow. Archive it while preserving repo-owned sessions and evidence.',
     summary: sessionSummary.join(' · '),
   };
 }
@@ -91,6 +94,10 @@ export function DetachedCellCleanupCard({
         <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{copy.body}</p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium text-foreground/80">
+            <ShieldCheck size={10} strokeWidth={1.6} />
+            Evidence retained
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium text-foreground/80">
             <Layers3 size={10} strokeWidth={1.6} />
             {copy.summary}
           </span>
@@ -108,7 +115,11 @@ export function DetachedCellCleanupCard({
             event.stopPropagation();
           }}
           className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-500/12 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100 transition-colors hover:bg-amber-500/18"
-          title="Archive this detached Cell"
+          title={
+            attachmentMeta.attachmentState === 'missing'
+              ? 'Archive this missing Cell'
+              : 'Archive this detached Cell'
+          }
         >
           <Archive size={12} strokeWidth={1.8} />
           <span>Archive Cell</span>

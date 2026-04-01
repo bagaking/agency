@@ -2966,14 +2966,15 @@ Cells whose lifecycle state is already `archived` SHALL leave the cleanup queue 
 
 #### Scenario: Cleanup section in Agent Cells
 - **WHEN** the Agent Cells sidebar contains Cells whose worktree attachment is missing or detached and whose lifecycle state is not `archived`
-- **THEN** those Cells appear in a dedicated `Needs Cleanup` section with preserved-evidence summary
+- **THEN** those Cells appear in a dedicated `Needs Cleanup` section with preserved-evidence copy and session summary
 - **AND** each cleanup Cell exposes a direct archive action
+- **AND** cleanup copy distinguishes `missing` attachment from intentionally `detached` attachment
 - **AND** the sidebar does not render their session tree inline as though they were still attached development Cells
 
 #### Scenario: View archived Cells
 - **WHEN** the Agent Cells sidebar contains one or more Cells whose lifecycle state is `archived`
 - **THEN** the sidebar exposes an explicit `View Archived` affordance
-- **AND** archived Cells render through an archived-history surface with review/details affordances rather than cleanup triage
+- **AND** archived Cells render through an archived-history surface with `View Details`, preserved-evidence copy, and session summary rather than cleanup triage
 
 #### Scenario: Archived detached Cell uses archived surface
 - **WHEN** the Agent Cells sidebar contains a Cell whose worktree attachment is missing or detached and whose lifecycle state is `archived`

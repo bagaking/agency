@@ -16,8 +16,9 @@
 - [ ] Reuse an existing worktree and confirm lifecycle file creation.
 - [ ] Change lifecycle state and confirm the `.agency` file updates.
 - [ ] Remove or detach a non-archived Cell worktree, reopen Agent Cells, and confirm that Cell moves into a `Needs Cleanup` section instead of rendering as a normal session-tree card.
+- [ ] In `Needs Cleanup`, confirm `missing` and `detached` Cells use different explanatory copy, and the card shows both an evidence-retained hint and a session summary.
 - [ ] From the cleanup card, trigger `Archive Cell` and confirm the attachment-aware lifecycle confirmation explains that repo-owned sessions/evidence remain available.
-- [ ] Complete that archive transition and confirm the Cell leaves `Needs Cleanup`, becomes reachable through `View Archived`, and switches from the cleanup CTA to archived review/details affordances while keeping repo-owned sessions/evidence accessible.
+- [ ] Complete that archive transition and confirm the Cell leaves `Needs Cleanup`, becomes reachable through `View Archived`, and switches from the cleanup CTA to archived `View Details` affordances while keeping repo-owned sessions/evidence accessible.
 - [ ] Archive an attached finished Cell and confirm it also appears under `View Archived` instead of remaining in the active Agent Cells list.
 - [ ] Restart with an attached Cell whose session registry is empty and confirm the window does not auto-create a `Default` session.
 - [ ] In the empty terminal state for such a Cell, click `Create Session` and confirm a session is created only at that explicit step.

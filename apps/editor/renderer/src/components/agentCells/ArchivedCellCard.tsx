@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUpRight, FolderArchive, GitBranch, Layers3 } from 'lucide-react';
+import { ArrowUpRight, FolderArchive, GitBranch, Layers3, ShieldCheck } from 'lucide-react';
 
 import { AttentionPill } from '../attention/AttentionPill';
 import type { AttentionItem } from '../../attention/attentionModel';
@@ -80,6 +80,10 @@ export function ArchivedCellCard({
         </div>
         <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{copy.body}</p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium text-foreground/80">
+            <ShieldCheck size={10} strokeWidth={1.6} />
+            Evidence retained
+          </span>
           <span className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium text-foreground/80">
             <Layers3 size={10} strokeWidth={1.6} />
             {copy.summary}
