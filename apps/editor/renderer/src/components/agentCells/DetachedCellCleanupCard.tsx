@@ -47,24 +47,15 @@ export function DetachedCellCleanupCard({
 
   return (
     <div
-      role="button"
-      tabIndex={0}
       data-testid={`detached-cell-cleanup-${cell?.id || 'unknown'}`}
-      onClick={() => onSelect?.(cell.id)}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onSelect?.(cell.id);
-        }
-      }}
-      className={`rounded-2xl border px-3 py-3 transition-colors ${
+      className={`rounded-xl px-3 py-2.5 text-foreground transition-colors duration-200 ${
         selected
-          ? 'border-amber-300/26 bg-amber-500/[0.08] shadow-[0_10px_30px_-20px_rgba(251,191,36,0.6)]'
-          : 'border-white/8 bg-white/[0.03] hover:border-amber-300/18 hover:bg-white/[0.05]'
+          ? 'bg-gradient-to-br from-amber-500/[0.14] via-amber-500/[0.06] to-transparent ring-1 ring-amber-300/26 shadow-[0_22px_42px_-34px_rgba(251,191,36,0.9)]'
+          : 'bg-slate-950/38 ring-1 ring-amber-200/12 shadow-[0_18px_36px_-34px_rgba(0,0,0,0.9)] hover:ring-amber-300/20 hover:bg-slate-950/52'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="truncate text-[12px] font-semibold tracking-[0.01em] text-foreground">
               {cell?.name || 'Detached Cell'}
@@ -81,30 +72,25 @@ export function DetachedCellCleanupCard({
             <GitBranch size={10} strokeWidth={1.7} className="shrink-0" />
             <span className="truncate">{worktreeLabel}</span>
           </div>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px]">
+            <span className="font-semibold uppercase tracking-[0.18em] text-amber-100/78">{copy.eyebrow}</span>
+            <span className="inline-flex items-center gap-1 text-foreground/76">
+              <ShieldCheck size={10} strokeWidth={1.6} />
+              Evidence retained
+            </span>
+            <span className="inline-flex items-center gap-1 text-muted-foreground/78">
+              <Layers3 size={10} strokeWidth={1.6} />
+              {copy.summary}
+            </span>
+          </div>
+          <p className="mt-1.5 text-[11px] leading-[1.45] text-muted-foreground">{copy.body}</p>
         </div>
         {attentionItem ? (
           <AttentionPill item={attentionItem} count={attentionCount} className="shrink-0 px-1.5 py-[2px]" />
         ) : null}
       </div>
 
-      <div className="mt-3 rounded-xl border border-white/6 bg-black/10 px-3 py-2.5">
-        <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-amber-100/80">
-          {copy.eyebrow}
-        </div>
-        <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{copy.body}</p>
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium text-foreground/80">
-            <ShieldCheck size={10} strokeWidth={1.6} />
-            Evidence retained
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium text-foreground/80">
-            <Layers3 size={10} strokeWidth={1.6} />
-            {copy.summary}
-          </span>
-        </div>
-      </div>
-
-      <div className="mt-3 flex items-center justify-between gap-2">
+      <div className="mt-2.5 flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={(event) => {
@@ -114,7 +100,7 @@ export function DetachedCellCleanupCard({
           onKeyDown={(event) => {
             event.stopPropagation();
           }}
-          className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-500/12 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100 transition-colors hover:bg-amber-500/18"
+          className="inline-flex items-center gap-2 rounded-full border border-amber-300/24 bg-amber-500/[0.12] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100 transition-colors hover:bg-amber-500/[0.18]"
           title={
             attachmentMeta.attachmentState === 'missing'
               ? 'Archive this missing Cell'
@@ -134,7 +120,7 @@ export function DetachedCellCleanupCard({
           onKeyDown={(event) => {
             event.stopPropagation();
           }}
-          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-white/[0.05] hover:text-foreground"
+          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground"
         >
           <ArrowUpRight size={12} strokeWidth={1.7} />
           <span>Details</span>
