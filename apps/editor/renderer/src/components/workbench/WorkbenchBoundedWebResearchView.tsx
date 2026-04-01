@@ -137,92 +137,117 @@ export function WorkbenchBoundedWebResearchView({
 
   const previewText =
     preview?.summary || preview?.excerpt || preview?.text || 'No readable preview extracted.';
+  const headerStatusTags = linkedMarkdownMode
+    ? ['Linked Markdown', 'Bounded host']
+    : ['Bounded host', 'No browser-global tabs', 'No cookies UI'];
 
   return (
     <section className="flex h-full min-h-0 flex-col bg-[#0b0d11] text-white">
       <div className="border-b border-white/[0.05] px-4 py-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 space-y-1">
             <div className="text-[10px] font-black uppercase tracking-[0.24em] text-cyan-300/60">
-              {linkedMarkdownMode ? 'Linked Web Preview' : 'Web Research'}
+              {linkedMarkdownMode ? 'Linked Web Preview' : 'Bounded Web Research'}
             </div>
             <div className="mt-1 flex items-center gap-2 text-[12px] font-semibold text-white/90">
               <Globe2 size={13} className="shrink-0 text-cyan-300/70" />
               <span className="truncate">{url}</span>
             </div>
-            <div className="mt-1 text-[10px] leading-5 text-white/45">
+            <p className="mt-1 text-[11px] text-white/60">
               {linkedMarkdownMode
-                ? 'The Markdown file on the left is the repo-native artifact. The preview on the right stays linked to its source URL.'
-                : 'Explorer launches this bounded tab; primary research actions stay here, while full browsing still escapes to the system browser.'}
+                ? 'This preview mirrors the Markdown file on the left so you can save captures directly into the repo artifact.'
+                : 'This bounded tab keeps your research actions contained; open the full browser when you need tabs or cookies.'}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {headerStatusTags.map((tag) => (
+                <StatusPill key={tag} label={tag} />
+              ))}
             </div>
           </div>
-          <div className="inline-flex rounded-full border border-white/[0.08] bg-white/[0.03] p-0.5">
-            <ModePill
-              active={preferredMode === 'live'}
-              label="Live"
-              onClick={() => setPreferredMode('live')}
-            />
-            <ModePill
-              active={preferredMode === 'reader'}
-              label="Reader"
-              onClick={() => setPreferredMode('reader')}
-            />
+          <div className="flex min-w-[260px] flex-col gap-2">
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-3 py-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-[9px] font-semibold uppercase tracking-[0.3em] text-white/40">
+                  View mode
+                </span>
+                <div className="inline-flex overflow-hidden rounded-full border border-white/[0.08] bg-[#111318] p-0.5">
+                  <ModePill
+                    active={preferredMode === 'live'}
+                    label="Live"
+                    onClick={() => setPreferredMode('live')}
+                  />
+                  <ModePill
+                    active={preferredMode === 'reader'}
+                    label="Reader"
+                    onClick={() => setPreferredMode('reader')}
+                  />
+                </div>
+                {liveFrameStatus === 'timeout' ? <StatusPill label="Embed blocked" tone="warning" /> : null}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <ActionButton
+                  icon={RefreshCw}
+                  label={fetching ? 'Reloading…' : 'Reload'}
+                  onClick={() => void reload()}
+                  disabled={fetching}
+                  tone="primary"
+                  testId="workbench-web-research-reload"
+                />
+                <ActionButton
+                  icon={ExternalLink}
+                  label="Open in Browser"
+                  onClick={() => void openInBrowser()}
+                  disabled={!browserUrl}
+                  testId="workbench-web-research-open-browser"
+                />
+                <ActionButton
+                  icon={FileDown}
+                  label={
+                    savingMarkdown
+                      ? linkedMarkdownPath
+                        ? 'Overwriting…'
+                        : 'Saving…'
+                      : linkedMarkdownPath
+                        ? 'Overwrite Markdown'
+                        : 'Save Markdown'
+                  }
+                  onClick={() => void saveMarkdown()}
+                  disabled={!preview || savingMarkdown || !allowMarkdownSave}
+                  testId="workbench-web-research-save-markdown"
+                />
+                <ActionButton
+                  icon={Quote}
+                  label={creatingMemo ? 'Citing…' : 'Cite'}
+                  onClick={() => void createCitationMemo()}
+                  disabled={!preview || creatingMemo || !allowMemoCapture}
+                  testId="workbench-web-research-cite"
+                />
+              </div>
+            </div>
           </div>
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <ActionButton
-            icon={RefreshCw}
-            label={fetching ? 'Reloading…' : 'Reload'}
-            onClick={() => void reload()}
-            disabled={fetching}
-            tone="primary"
-            testId="workbench-web-research-reload"
-          />
-          <ActionButton
-            icon={ExternalLink}
-            label="Open in Browser"
-            onClick={() => void openInBrowser()}
-            disabled={!browserUrl}
-            testId="workbench-web-research-open-browser"
-          />
-          <ActionButton
-            icon={FileDown}
-            label={
-              savingMarkdown
-                ? linkedMarkdownPath
-                  ? 'Overwriting…'
-                  : 'Saving…'
-                : linkedMarkdownPath
-                  ? 'Overwrite Markdown'
-                  : 'Save Markdown'
-            }
-            onClick={() => void saveMarkdown()}
-            disabled={!preview || savingMarkdown || !allowMarkdownSave}
-            testId="workbench-web-research-save-markdown"
-          />
-          <ActionButton
-            icon={Quote}
-            label={creatingMemo ? 'Citing…' : 'Cite'}
-            onClick={() => void createCitationMemo()}
-            disabled={!preview || creatingMemo || !allowMemoCapture}
-            testId="workbench-web-research-cite"
-          />
         </div>
 
         {linkedMarkdownMode ? (
-          <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2 text-[10px] leading-5 text-white/48">
-            <span className="font-semibold text-white/70">Save</span> in the editor preserves your
-            Markdown edits. <span className="font-semibold text-white/70">Overwrite Markdown</span>{' '}
-            regenerates this file from the source preview.
+          <div className="mt-3 rounded-2xl border border-white/[0.06] bg-black/30 px-3 py-3 text-[11px] text-white/70">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-[0.3em] text-white/40">
+                  Linked Markdown
+                </div>
+                <p className="mt-1 text-[11px] text-white/60">
+                  This preview stays tied to the Markdown file on the left; saving or overwriting pushes the latest capture into that artifact.
+                </p>
+              </div>
+              <StatusPill
+                tone={linkedMarkdownDirty ? 'warning' : 'success'}
+                label={linkedMarkdownDirty ? 'Editor dirty' : 'In sync'}
+              />
+            </div>
+            <div className="mt-2 rounded-xl border border-white/[0.04] bg-black/20 px-3 py-2 text-[10px] font-mono text-white/70">
+              {linkedMarkdownPath}
+            </div>
           </div>
-        ) : (
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/38">
-            <span className="rounded-full border border-white/[0.08] px-2 py-1">Bounded host</span>
-            <span className="rounded-full border border-white/[0.08] px-2 py-1">No browser-global tabs</span>
-            <span className="rounded-full border border-white/[0.08] px-2 py-1">No cookies UI</span>
-          </div>
-        )}
+        ) : null}
       </div>
 
       {error ? (
@@ -284,29 +309,29 @@ export function WorkbenchBoundedWebResearchView({
 
             {!linkedMarkdownMode ? (
               <div className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
-                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">
-                  Workspace Handoff
-                </div>
-                <div className="mt-1 text-[11px] leading-5 text-white/56">
-                  Save the current research result into repo-owned Markdown or cite it into Memo
-                  without leaving the hosted tab.
-                </div>
-                <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2">
-                  <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/36">
-                    {linkedMarkdownPath ? 'Linked Markdown Path' : 'Target Markdown Path'}
-                  </div>
-                  <div className="mt-1 font-mono text-[11px] text-white/86">
-                    {linkedMarkdownPath || suggestedPath}
-                  </div>
-                </div>
-                <div className="mt-3">
-                  <label className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/36">
-                    Handoff Note
-                  </label>
-                  <textarea
-                    value={note}
-                    onChange={(event) => setNote(event.target.value)}
-                    rows={3}
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">
+              Workspace Handoff
+            </div>
+            <div className="mt-1 text-[11px] leading-5 text-white/56">
+              Capture a quick summary, save it into repo Markdown, or cite it into Memo without leaving
+              the bounded view.
+            </div>
+            <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2">
+              <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/36">
+                {linkedMarkdownPath ? 'Linked Markdown Path' : 'Target Markdown Path'}
+              </div>
+              <div className="mt-1 font-mono text-[11px] text-white/86">
+                {linkedMarkdownPath || suggestedPath}
+              </div>
+            </div>
+            <div className="mt-3">
+              <label className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/36">
+                Capture note
+              </label>
+              <textarea
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                rows={3}
                     placeholder="Why this page matters, what should be saved, or how it should be used next…"
                     className={`mt-2 w-full resize-y rounded-xl border border-white/[0.08] bg-black/20 px-3 py-2 text-[11px] leading-5 text-white outline-none placeholder:text-white/25 ${focusRingClass}`}
                   />
@@ -409,5 +434,28 @@ function ActionButton({
       <Icon size={11} strokeWidth={1.7} />
       {label}
     </button>
+  );
+}
+
+function StatusPill({
+  label,
+  tone = 'default',
+}: {
+  label: string;
+  tone?: 'default' | 'warning' | 'success';
+}) {
+  const base =
+    tone === 'success'
+      ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-100'
+      : tone === 'warning'
+      ? 'border-amber-400/30 bg-amber-400/10 text-amber-100'
+      : 'border-white/[0.08] bg-white/[0.03] text-white/60';
+
+  return (
+    <span
+      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] ${base}`}
+    >
+      {label}
+    </span>
   );
 }

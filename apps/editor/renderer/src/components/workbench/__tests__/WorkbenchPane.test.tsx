@@ -262,11 +262,12 @@ async function mountInteractiveWorkbenchPane() {
 test('WorkbenchPane keeps quick-open primary and does not expose contextual review tools before code state resolves', () => {
   const html = renderWorkbenchPane('code');
 
-  assert.match(html, /Quick Open/);
-  assert.match(html, /aria-label="Quick Open"/);
-  assert.doesNotMatch(html, />Split</);
+  assert.match(html, /title="Quick Open"/);
+  assert.match(html, /⌘P/);
+  assert.doesNotMatch(html, /title="Split"/);
   assert.match(html, /data-workbench-file-tools/);
   assert.doesNotMatch(html, /data-workbench-review-tools/);
+  assert.doesNotMatch(html, /title="Show Diff"/);
   assert.doesNotMatch(html, /aria-pressed=/);
 });
 
