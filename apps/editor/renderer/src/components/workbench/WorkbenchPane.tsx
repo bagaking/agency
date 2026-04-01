@@ -702,6 +702,7 @@ function WorkbenchPaneContent({
         ) : activeState.kind === 'bounded-web-research' ? (
           <WorkbenchBoundedWebResearchView
             key={`bounded-web-research:${activeTab.id}`}
+            tabId={activeTab.id}
             rootPath={activeTab.rootPath}
             url={activeTab.url}
             allowMarkdownSave={activeTab.allowMarkdownSave !== false}
@@ -765,6 +766,7 @@ function WorkbenchPaneContent({
             <div className="min-w-0 flex-1">
               <WorkbenchBoundedWebResearchView
                 key={`linked-research:${activeTab.id}`}
+                tabId={activeTab.id}
                 rootPath={activeTab.rootPath}
                 url={activeState.researchSourceUrl}
                 linkedMarkdownPath={activeTab.path}
