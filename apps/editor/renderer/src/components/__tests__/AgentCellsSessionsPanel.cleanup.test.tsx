@@ -195,6 +195,11 @@ test('AgentCellsSessionsPanel renders detached cells as cleanup cards instead of
             name: 'Default',
             status: 'stale',
           },
+          {
+            id: 'session-detached',
+            name: 'Sidecar',
+            status: 'detached',
+          },
         ],
       },
     })
@@ -203,7 +208,36 @@ test('AgentCellsSessionsPanel renders detached cells as cleanup cards instead of
   assert.match(html, /Needs Cleanup/);
   assert.match(html, /Archive Cell/);
   assert.match(html, /detached-cell-cleanup-cell-missing/);
+  assert.match(html, /Evidence retained/);
+  assert.match(html, /1 detached · 1 stale/);
+  assert.match(html, /The recorded worktree path is no longer available/);
   assert.doesNotMatch(html, /data-testid="session-tab-session-stale"/);
+});
+
+test('cleanup cards distinguish missing and detached attachment copy', () => {
+  const html = renderToStaticMarkup(
+    renderPanel({
+      cells: [
+        {
+          id: 'cell-missing',
+          name: 'missing-cell',
+          state: 'draft',
+          attachmentState: 'missing',
+          lastKnownWorktreePath: '/repo/.worktrees/missing-cell',
+        },
+        {
+          id: 'cell-detached',
+          name: 'detached-cell',
+          state: 'draft',
+          attachmentState: 'detached',
+          lastKnownWorktreePath: '/repo/.worktrees/detached-cell',
+        },
+      ],
+    })
+  );
+
+  assert.match(html, /The recorded worktree path is no longer available/);
+  assert.match(html, /This Cell is detached from its worktree/);
 });
 
 test('View Archived reveals archived cards and keeps archived cells out of cleanup semantics', async () => {
@@ -255,9 +289,12 @@ test('View Archived reveals archived cards and keeps archived cells out of clean
     });
 
     assert.ok(document.querySelector('[data-testid="archived-cell-list"]'));
+    assert.match(document.body.textContent || '', /Archived/);
     assert.ok(document.querySelector('[data-testid="archived-cell-card-cell-archived"]'));
     assert.ok(document.querySelector('[data-testid="archived-cell-card-cell-archived-attached"]'));
     assert.equal(document.querySelector('[data-testid="detached-cell-cleanup-cell-archived"]'), null);
+    assert.match(document.body.textContent || '', /Evidence retained/);
+    assert.match(document.body.textContent || '', /No sessions/);
 
     const reviewButton = Array.from(document.querySelectorAll('button')).find((node) =>
       node.textContent?.includes('View Details')
