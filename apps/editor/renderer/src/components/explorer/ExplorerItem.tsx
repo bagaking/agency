@@ -101,6 +101,7 @@ export function ExplorerItem({
   const statusIndicatorBadge = status
     ? statusBadges[status] || status[0]?.toUpperCase() || ''
     : '';
+  const shouldRenderStatusMark = Boolean(status && status !== 'ignored');
 
   if (item.draft) {
     return (
@@ -165,22 +166,12 @@ export function ExplorerItem({
         <span className="w-4 shrink-0" />
       )}
 
-      <div className="relative shrink-0">
+      <div className="relative flex h-4 w-4 shrink-0 items-center justify-center">
         <FileIcon
           size={14}
           strokeWidth={1.5}
           className={isIgnored ? 'text-slate-400/62 group-hover:text-slate-300/76' : iconColor}
         />
-        {status && (
-          <span
-            data-explorer-status={status}
-            aria-hidden="true"
-            title={statusLabel}
-            className={`pointer-events-none absolute -bottom-1 -left-1 flex h-4 w-4 items-center justify-center rounded-full border border-white/10 text-[7px] font-semibold uppercase tracking-[0.3em] ${statusIndicatorTone}`}
-          >
-            {statusIndicatorBadge}
-          </span>
-        )}
         {isLink && (
           <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-[0.5px] ring-1 ring-sky-500/50">
             <Link2 size={8} className="text-sky-400" strokeWidth={3} />
@@ -247,10 +238,23 @@ export function ExplorerItem({
       )}
 
       {!renameTarget ? (
-        <div className="ml-auto flex shrink-0 items-center gap-1.5 pl-2">
+        <div
+          data-explorer-meta-rail="true"
+          className="ml-auto flex min-w-0 max-w-[45%] items-center justify-end gap-1.5 overflow-hidden pl-2"
+        >
+          {shouldRenderStatusMark ? (
+            <span
+              data-explorer-status={status}
+              aria-hidden="true"
+              title={statusLabel}
+              className={`flex h-4 min-w-[1rem] shrink-0 items-center justify-center rounded-sm px-1 text-[8px] font-semibold uppercase tracking-[0.12em] ${statusIndicatorTone}`}
+            >
+              {statusIndicatorBadge}
+            </span>
+          ) : null}
           {primarySemanticTag && (
             <span
-              className="shrink-0 text-[8px] font-semibold uppercase tracking-[0.16em] text-sky-200/[0.58]"
+              className="min-w-0 truncate text-[8px] font-semibold uppercase tracking-[0.16em] text-sky-200/[0.58]"
               title={`Semantic file: ${primarySemanticTag.label || primarySemanticTag.id}`}
             >
               {primarySemanticTag.label || primarySemanticTag.id}
@@ -264,7 +268,7 @@ export function ExplorerItem({
 
           {/* Diff Counts */}
           {(added > 0 || deleted > 0) && (
-            <div className="flex items-center gap-1 text-[9px] font-semibold tabular-nums">
+            <div className="flex shrink-0 items-center gap-1 text-[9px] font-semibold tabular-nums">
               {added > 0 && <span className="text-emerald-300/90">+{added}</span>}
               {deleted > 0 && <span className="text-rose-300/90">-{deleted}</span>}
             </div>

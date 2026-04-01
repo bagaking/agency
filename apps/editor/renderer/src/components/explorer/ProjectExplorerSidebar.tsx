@@ -1325,15 +1325,15 @@ function ProjectExplorerSidebarContent({
     const isRenaming = renameTarget?.path === item.path;
     const sorted = Object.values((entry?.cells || {}) as Record<string, any>).sort((a: any, b: any) => (b.added + b.deleted) - (a.added + a.deleted));
     const cellBadges = sorted.length > 0 && (
-        <div className="flex items-center gap-1 pr-0.5 opacity-70 transition-opacity group-hover:opacity-95">
+        <div className="flex min-w-0 max-w-[5.5rem] items-center gap-1 pr-0.5 opacity-70 transition-opacity group-hover:opacity-95">
             <span
               key={sorted[0].id}
-              className="text-[8px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60"
+              className="truncate text-[8px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60"
               title={`Attributed to ${sorted[0].name}`}
             >
               {sorted[0].name}
             </span>
-            {sorted.length > 1 && <span className="text-[8px] font-semibold text-muted-foreground/[0.45]">+{sorted.length - 1}</span>}
+            {sorted.length > 1 && <span className="shrink-0 text-[8px] font-semibold text-muted-foreground/[0.45]">+{sorted.length - 1}</span>}
         </div>
     );
 

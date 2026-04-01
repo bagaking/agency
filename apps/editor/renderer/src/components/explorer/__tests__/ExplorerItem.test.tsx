@@ -211,4 +211,49 @@ test('ExplorerItem keeps ignored entries legible and prioritizes dirty over open
   assert.doesNotMatch(html, />Open</);
   assert.match(html, /ignored\.log/);
   assert.match(html, /data-explorer-ignored="true"/);
+  assert.doesNotMatch(html, /data-explorer-status="ignored"/);
+});
+
+test('ExplorerItem constrains the metadata rail so status labels do not collide with file names', () => {
+  const html = renderToStaticMarkup(
+    <ExplorerItem
+      item={{ path: 'apps', depth: 0, type: 'dir' }}
+      node={{ name: 'apps', type: 'dir' }}
+      treeItemId="explorer-treeitem-apps"
+      isSelected={false}
+      isFocused={false}
+      isLoading={false}
+      isExpanded={false}
+      isOpen={false}
+      isDirty={false}
+      isIgnored={false}
+      status="modified"
+      added={4}
+      deleted={4}
+      semanticTags={[]}
+      commentCount={0}
+      onJumpToComments={() => {}}
+      cellBadges={
+        <div className="flex min-w-0 items-center gap-1">
+          <span className="truncate">MAIN</span>
+          <span className="shrink-0">+2</span>
+        </div>
+      }
+      depth={0}
+      onToggle={() => {}}
+      onClick={() => {}}
+      onDoubleClick={() => {}}
+      onContextMenu={() => {}}
+      onDragStart={() => {}}
+      onDragOver={() => {}}
+      onDrop={() => {}}
+      renameTarget={null}
+      handleRenameSubmit={() => {}}
+      setRenameTarget={() => {}}
+    />
+  );
+
+  assert.match(html, /data-explorer-status="modified"/);
+  assert.match(html, /data-explorer-meta-rail="true"/);
+  assert.match(html, /max-w-\[45%\]/);
 });

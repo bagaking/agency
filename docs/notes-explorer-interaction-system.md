@@ -372,6 +372,8 @@ Ignored-entry treatment belongs squarely in that visibility layer: when `visibil
 
 That means ignored rows should be de-emphasized, not visually “crossed out” as if they were deleted or broken. The row still needs to read like a valid, actionable file row. In practice the file name should stay legible, the ignored cue should be lighter than selection/focus, and row metadata should collapse to the most important workbench state instead of stacking equal-weight badges that compete with the file name.
 
+Git-status monograms need their own reserved lane inside the row. They should not sit on top of file/folder glyphs or lean into the filename baseline, because that makes the row read like corrupted iconography instead of deliberate state language. Likewise, low-priority metadata rails such as cell attribution should yield first under narrow sidebar widths through truncation or collapse, rather than pushing the filename and primary row state into collision.
+
 ### Header Hierarchy
 
 The Explorer header exists to frame the current file scope, not to become a second surface above the tree. It should compress title, search mode, filter state, and utility actions into calm chrome that the user can read quickly and then ignore. The header is successful when the file rows remain the first thing the eye reads after opening Explorer.

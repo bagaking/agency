@@ -9,65 +9,10 @@ import {
   searchExplorerFiles,
   watchExplorer,
 } from '../services/agencyBridge';
-
-const buildAncestorPaths = (path) => {
-  const parts = path.split('/').filter(Boolean);
-  const ancestors = [''];
-  let current = '';
-  for (let i = 0; i < parts.length - 1; i += 1) {
-    current = [current, parts[i]].filter(Boolean).join('/');
-    ancestors.push(current);
-  }
-  return ancestors;
-};
+import { buildTreeFromMatches } from './projectExplorerSearchTree';
 
 const SEMANTIC_CLASSIFY_BATCH_SIZE = 200;
 const SEMANTIC_CLASSIFY_CONTINUE_DELAY_MS = 48;
-
-const buildTreeFromMatches = (paths) => {
-  const nodes = {
-    '': { path: '', name: '', type: 'dir' },
-  };
-  const children = { '': [] };
-  const ensureNode = (path, type = 'dir') => {
-    if (!nodes[path]) {
-      const name = path.split('/').filter(Boolean).pop() || '';
-      nodes[path] = { path, name, type };
-    }
-    if (!children[path]) {
-      children[path] = [];
-    }
-  };
-
-  paths.forEach((filePath) => {
-    const ancestors = buildAncestorPaths(filePath);
-    ancestors.forEach((ancestor) => ensureNode(ancestor, 'dir'));
-    const fileName = filePath.split('/').filter(Boolean).pop() || filePath;
-    nodes[filePath] = { path: filePath, name: fileName, type: 'file' };
-    if (!children[filePath]) {
-      children[filePath] = [];
-    }
-    ancestors.forEach((ancestor, index) => {
-      const next = index === ancestors.length - 1 ? filePath : ancestors[index + 1];
-      if (next && !children[ancestor].includes(next)) {
-        children[ancestor].push(next);
-      }
-    });
-  });
-
-  Object.keys(children).forEach((key) => {
-    children[key] = children[key].sort((a, b) => {
-      const nodeA = nodes[a];
-      const nodeB = nodes[b];
-      if (nodeA?.type !== nodeB?.type) {
-        return nodeA?.type === 'dir' ? -1 : 1;
-      }
-      return (nodeA?.name || '').localeCompare(nodeB?.name || '');
-    });
-  });
-
-  return { nodes, children };
-};
 
 const toRelativePath = (value) => value.replace(/\\/g, '/').replace(/^\.?\//, '');
 const dirname = (value) => value.split('/').slice(0, -1).join('/');

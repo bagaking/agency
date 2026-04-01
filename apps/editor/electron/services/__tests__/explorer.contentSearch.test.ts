@@ -78,6 +78,56 @@ test('searchContent returns line-level evidence within the requested scope', asy
   });
 });
 
+test('listDirectory keeps symbolic-link directories typed as directories', async (t) => {
+  await withExplorerService(async ({ listDirectory }) => {
+    const rootDir = await createGitRoot();
+    t.after(async () => {
+      await fs.rm(rootDir, { recursive: true, force: true });
+    });
+
+    const sourceDir = path.join(rootDir, 'linked-source');
+    const linkDir = path.join(rootDir, 'docs-link');
+    await fs.mkdir(sourceDir, { recursive: true });
+    await fs.symlink(sourceDir, linkDir, 'dir');
+
+    const result = await listDirectory({
+      rootPath: rootDir,
+      relativePath: '',
+      showHidden: true,
+    });
+
+    const entry = result.entries.find((item) => item.path === 'docs-link');
+    assert.ok(entry);
+    assert.equal(entry.type, 'dir');
+    assert.equal(entry.isSymbolicLink, true);
+  });
+});
+
+test('searchFiles preserves symbolic-link metadata for path search results', async (t) => {
+  await withExplorerService(async ({ searchFiles }) => {
+    const rootDir = await createGitRoot();
+    t.after(async () => {
+      await fs.rm(rootDir, { recursive: true, force: true });
+    });
+
+    const sourcePath = path.join(rootDir, 'guide.md');
+    const linkPath = path.join(rootDir, 'guide-link.md');
+    await writeTextFile(sourcePath, '# guide\n');
+    await fs.symlink(sourcePath, linkPath, 'file');
+
+    const result = await searchFiles({
+      rootPath: rootDir,
+      query: 'guide-link',
+    });
+
+    assert.equal(result.truncated, false);
+    assert.equal(result.matches.length, 1);
+    assert.equal(result.matches[0]?.path, 'guide-link.md');
+    assert.equal(result.matches[0]?.type, 'file');
+    assert.equal(result.matches[0]?.isSymbolicLink, true);
+  });
+});
+
 test('searchContent rejects folder scope without a concrete directory context', async (t) => {
   await withExplorerService(async ({ searchContent }) => {
     const rootDir = await createGitRoot();

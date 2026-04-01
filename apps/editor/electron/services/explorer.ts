@@ -99,6 +99,41 @@ function sortEntries(a, b) {
   return a.name.localeCompare(b.name);
 }
 
+async function describeExplorerEntry(rootPath, relativePath, dirent = null) {
+  const normalizedPath = normalizeRelPath(relativePath);
+  const absolutePath = resolveSafePath(rootPath, normalizedPath);
+  const name = dirent?.name || path.basename(normalizedPath) || normalizedPath;
+  const isSymbolicLink = dirent ? dirent.isSymbolicLink() : (await fsp.lstat(absolutePath)).isSymbolicLink();
+
+  if (dirent && dirent.isDirectory() && !isSymbolicLink) {
+    return {
+      path: normalizedPath,
+      name,
+      type: ENTRY_TYPES.dir,
+      isSymbolicLink: false,
+    };
+  }
+
+  try {
+    const targetStats = isSymbolicLink ? await fsp.stat(absolutePath) : dirent ? null : await fsp.lstat(absolutePath);
+    const type =
+      targetStats?.isDirectory?.() || dirent?.isDirectory?.() ? ENTRY_TYPES.dir : ENTRY_TYPES.file;
+    return {
+      path: normalizedPath,
+      name,
+      type,
+      isSymbolicLink,
+    };
+  } catch {
+    return {
+      path: normalizedPath,
+      name,
+      type: ENTRY_TYPES.file,
+      isSymbolicLink,
+    };
+  }
+}
+
 async function listDirectory({ rootPath, relativePath = '', showHidden = true }) {
   const resolved = await resolveExplorerRoot(rootPath);
   if (!resolved.rootPath) {
@@ -110,26 +145,21 @@ async function listDirectory({ rootPath, relativePath = '', showHidden = true })
     throw new Error('Target path is not a directory.');
   }
   const entries = await fsp.readdir(targetPath, { withFileTypes: true });
-  const items = entries
-    .filter((entry) => {
-      if (DEFAULT_EXCLUDES.has(entry.name)) {
-        return false;
-      }
-      if (!showHidden && entry.name.startsWith('.')) {
-        return false;
-      }
-      return true;
-    })
-    .map((entry) => {
-      const entryPath = normalizeRelPath(path.join(relativePath, entry.name));
-      return {
-        path: entryPath,
-        name: entry.name,
-        type: entry.isDirectory() ? ENTRY_TYPES.dir : ENTRY_TYPES.file,
-        isSymbolicLink: entry.isSymbolicLink(),
-      };
-    })
-    .sort(sortEntries);
+  const visibleEntries = entries.filter((entry) => {
+    if (DEFAULT_EXCLUDES.has(entry.name)) {
+      return false;
+    }
+    if (!showHidden && entry.name.startsWith('.')) {
+      return false;
+    }
+    return true;
+  });
+  const items = await Promise.all(
+    visibleEntries.map((entry) =>
+      describeExplorerEntry(resolved.rootPath, path.join(relativePath, entry.name), entry)
+    )
+  );
+  items.sort(sortEntries);
   return { path: normalizeRelPath(relativePath), entries: items };
 }
 
@@ -1145,7 +1175,7 @@ async function searchFiles({ rootPath, query, includeAll = false, limit = 1000 }
     const normalized = normalizeRelPath(token);
     const normalizedLower = normalized.toLowerCase();
     if (matchAll || normalizedLower.includes(trimmedQuery)) {
-      matches.push(normalized);
+      matches.push(await describeExplorerEntry(resolved.rootPath, normalized));
       if (matches.length >= limit) {
         return { matches, truncated: true };
       }
