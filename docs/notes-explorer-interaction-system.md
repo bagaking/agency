@@ -242,6 +242,7 @@ It means:
 
 This is the right place to borrow from Obsidian Web viewer and `cmux` URL browser.
 
+The Workbench bounded web research tab is now the canonical browser surface for the lane, so it should render the remote page as a true surface (complete with `Live`/`Reader` views and page-level actions) while the rest of the product keeps the lane bounded to `http`/`https`, avoids cookies/auth-session state, and refuses general browser-global tab chrome.
 ## What Agency Explorer Still Needs
 
 The current gaps are not primarily about missing CRUD.
@@ -344,12 +345,12 @@ What is active now:
 
 ### 6. Bounded URL intake
 
-Explorer now exposes bounded URL intake and Workbench now hosts the primary bounded web research surface rather than assuming all URL work belongs in another app.
+Explorer now exposes bounded URL intake and Workbench now hosts the primary bounded browser surface rather than assuming all URL work belongs in another app.
 
 Current model:
 - `URL` is a first-class Explorer search mode alongside `Paths` and `Content`, not a hidden header utility;
 - the shared Explorer search row owns URL intake and can surface a compact `Open Web` affordance when the current input already looks like a supported public URL;
-- Workbench opens a bounded web research tab that owns the primary page/research surface and its actions;
+- Workbench opens a bounded browser surface that owns the primary page/research surface, exposes page-level actions (`Reload`, `Open in Browser`, `Save Markdown`, `Cite`), and feels like the canonical inline browser view for the URL while still keeping cookies/session management and general browser tabs out of scope;
 - saved Markdown files keep fixed `agency_source_*` frontmatter so Workbench can reopen them in markdown + preview mode;
 - citations still route through Memo/HIL, and full browsing still escapes to the system browser.
 
@@ -357,6 +358,8 @@ Presentation boundary:
 - Explorer owns discovery, intent selection, and launch/focus into the bounded web flow;
 - Workbench owns reading, reload/open-browser/save/cite actions, and linked markdown preview;
 - the product still does not grow tabs, cookies, auth state, or browser-global session management inside Agency.
+
+Treat that tab as the Workbench browser surface: it renders the remote URL and owns view controls plus page-level actions, while the rest of Agency keeps the lane bounded to `http`/`https` and routes persistent artifacts through the existing Explorer/workbench/save/cite flows.
 
 Security/scope boundary:
 - only `http/https`;

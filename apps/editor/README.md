@@ -43,7 +43,7 @@
 - Explorer supports copy/cut/paste via context menu and keyboard shortcuts.
 - Explorer can paste files or screenshots from the system clipboard, applying `-1` style conflict suffixes.
 - Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
-- Explorer includes a bounded `URL` research mode that launches a Workbench-hosted web research tab for public URL inspection, bounded live/reader viewing, workspace Markdown save with fixed source frontmatter, memo citation with optional saved-file references, and an explicit system-browser escape hatch.
+- Explorer includes a bounded `URL` research mode that launches the Workbench browser surface as the canonical inline browser view for public URLs. The Workbench tab renders the page, toggles between `Live`/`Reader` views, surfaces page-level actions (`Reload`, `Open in Browser`, `Save Markdown`, `Cite`), stays limited to `http/https`, routes saves/citations through the existing workbench write path and memo-powered citations, and keeps cookies/session/tab management out of scope while preserving the explicit system-browser escape hatch.
 - Explorer and Memo sidebars keep a compact context-first header grammar, prioritizing the active root or record summary over explanatory subtitle copy.
 - The workbench supports multi-tab previews, a path-first Quick Open launcher for open tabs and project files with optional `:line[:column]` targeting, contextual secondary review tools for diff/blame/comment actions that appear only after the active document resolves to a code editor state, media previews, active-tab disk-change auto sync (auto-reload when clean, warning + reload when dirty), project-level language rules from `.agency/workbench.yaml` / `.agency/workbench.yml`, and a window-local document language control that shows `Auto` / `Project Rule` / `Local Override`.
 
@@ -58,7 +58,7 @@
 - Explorer capabilities are being packaged as tool-capable interfaces so agent workflows can invoke the same safe path/permission/conflict logic.
 - Tool-invoked file intents enforce caller metadata (`callerId`, `traceId`) and capability scopes (`file.read` / `file.write`).
 - Agent semantic files (for example `Agency.md`, Spark conventions, and project-defined rules) are treated as first-class discoverability targets.
-- Research lane stays subordinate to Explorer/file workflow: reader previews save through the existing workbench write path, citations reuse HIL memo artifacts, and full browsing still escapes to the system browser.
+- Research lane stays subordinate to Explorer/file workflow: the Workbench browser surface hosts reader previews and page-level actions before routing saves/citations through the existing workbench write path, citations reuse HIL memo artifacts, and full browsing still escapes to the system browser via the explicit `Open in Browser` action, while the surface keeps cookie/session management and general browser tabs out of scope.
 - Current authoritative design and rollout:
   - `openspec/changes/archive/2026-02-10-add-agent-centric-file-interaction-system/`
   - Follow-up evolution (delivered): `openspec/changes/archive/2026-02-16-update-agent-cells-embedded-explorer/`
@@ -391,11 +391,11 @@ make editor-package-lite-release
 - Select a file in Explorer and confirm it opens in a workbench tab with line numbers and syntax highlighting.
 - Click each segment in the workbench breadcrumb and confirm Explorer expands ancestors and focuses the matching node (no Finder popup).
 - Enter a public URL into Explorer search and confirm a compact `Open Web` affordance appears without needing to switch modes first.
-- Switch Explorer search mode to `URL`, launch a public URL, and confirm Workbench opens a bounded web research tab instead of Explorer replacing its primary panel.
+- Switch Explorer search mode to `URL`, launch a public URL, and confirm Workbench opens the bounded browser surface (Live/Reader modes, page-level actions such as `Reload`, `Open in Browser`, `Save Markdown`, `Cite`) instead of Explorer replacing its primary panel.
 - Save a research capture as Markdown and confirm the file stays inside the project, the saved file includes fixed `agency_source_*` frontmatter, and Workbench focuses that Markdown file.
 - Reopen a Markdown file carrying bounded-web source frontmatter and confirm Workbench enters markdown + preview mode with `Overwrite Markdown` available on the preview side.
 - Create a memo citation from the same research capture and confirm it enters the existing HIL/Memo flow rather than a research-only dispatch path.
-- Try a localhost/private URL and confirm reader inspect is rejected while the explicit system-browser escape hatch remains visible.
+- Try a localhost/private URL and confirm the bounded browser surface rejects it while the explicit `Open in Browser` escape hatch remains visible and accessible.
 - Double-click a file to pin its tab, drag tabs to reorder, and close tabs from the tab strip menu.
 - Use Cmd/Ctrl+P to open Quick Open, confirm open tabs appear immediately, then search a project file and confirm selection closes the launcher and opens the file as a preview tab. Repeat with `path:line[:column]` and confirm the editor jumps to the requested location.
 - Toggle diff and blame on a modified file and confirm decorations/hover metadata appear.

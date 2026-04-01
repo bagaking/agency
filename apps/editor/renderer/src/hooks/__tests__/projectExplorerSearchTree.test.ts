@@ -10,11 +10,13 @@ test('buildTreeFromMatches preserves symbolic-link metadata on matched entries',
       name: 'guide-link.md',
       type: 'file',
       isSymbolicLink: true,
+      symlinkBoundaryState: 'outside-root',
     },
   ]);
 
   assert.equal(tree.nodes['docs/guide-link.md']?.type, 'file');
   assert.equal(tree.nodes['docs/guide-link.md']?.isSymbolicLink, true);
+  assert.equal(tree.nodes['docs/guide-link.md']?.symlinkBoundaryState, 'outside-root');
   assert.deepEqual(tree.children[''], ['docs']);
   assert.deepEqual(tree.children.docs, ['docs/guide-link.md']);
 });

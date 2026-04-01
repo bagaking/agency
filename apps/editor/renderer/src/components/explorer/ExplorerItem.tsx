@@ -51,6 +51,18 @@ export function ExplorerItem({
 }: any) {
   const isDir = item.type === 'dir';
   const isLink = item.isSymbolicLink;
+  const symlinkBoundaryState = node?.symlinkBoundaryState;
+  const canExpand = isDir && symlinkBoundaryState !== 'outside-root' && symlinkBoundaryState !== 'cycle' && symlinkBoundaryState !== 'broken';
+  const symlinkBoundaryLabel =
+    symlinkBoundaryState === 'outside-root'
+      ? 'Symbolic link resolves outside workspace'
+      : symlinkBoundaryState === 'cycle'
+        ? 'Symbolic link cycle blocked'
+        : symlinkBoundaryState === 'broken'
+          ? 'Broken symbolic link'
+          : isLink
+            ? 'Symbolic link'
+            : '';
   const hasComments = Number(commentCount) > 0;
   const primarySemanticTag = Array.isArray(semanticTags) ? semanticTags[0] : null;
   const semanticOverflowCount = Array.isArray(semanticTags) && semanticTags.length > 1 ? semanticTags.length - 1 : 0;
@@ -70,6 +82,7 @@ export function ExplorerItem({
     isIgnored ? 'ignored' : '',
     isOpen ? 'open in workbench' : '',
     isDirty ? 'has unsaved changes' : '',
+    symlinkBoundaryLabel ? symlinkBoundaryLabel.toLowerCase() : '',
     primarySemanticTag ? `semantic file ${primarySemanticTag.label || primarySemanticTag.id}` : '',
     hasComments ? `${commentCount} comment${commentCount === 1 ? '' : 's'}` : '',
   ]
@@ -151,7 +164,7 @@ export function ExplorerItem({
       onDrop={onDrop}
     >
       {/* Expander */}
-      {isDir ? (
+      {canExpand ? (
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggle(); }}
@@ -173,7 +186,14 @@ export function ExplorerItem({
           className={isIgnored ? 'text-slate-400/62 group-hover:text-slate-300/76' : iconColor}
         />
         {isLink && (
-          <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-[0.5px] ring-1 ring-sky-500/50">
+          <div
+            title={symlinkBoundaryLabel}
+            className={`absolute -bottom-1 -right-1 rounded-full bg-background p-[0.5px] ring-1 ${
+              symlinkBoundaryState && symlinkBoundaryState !== 'inside-root'
+                ? 'ring-amber-300/55'
+                : 'ring-sky-500/50'
+            }`}
+          >
             <Link2 size={8} className="text-sky-400" strokeWidth={3} />
           </div>
         )}

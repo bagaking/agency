@@ -257,3 +257,41 @@ test('ExplorerItem constrains the metadata rail so status labels do not collide 
   assert.match(html, /data-explorer-meta-rail="true"/);
   assert.match(html, /max-w-\[45%\]/);
 });
+
+test('ExplorerItem hides the expander for restricted symbolic-link directories', () => {
+  const html = renderToStaticMarkup(
+    <ExplorerItem
+      item={{ path: 'outside-dir', depth: 0, type: 'dir', isSymbolicLink: true }}
+      node={{ name: 'outside-dir', type: 'dir', symlinkBoundaryState: 'outside-root' }}
+      treeItemId="explorer-treeitem-outside-dir"
+      isSelected={false}
+      isFocused={false}
+      isLoading={false}
+      isExpanded={false}
+      isOpen={false}
+      isDirty={false}
+      isIgnored={false}
+      status={undefined}
+      added={0}
+      deleted={0}
+      semanticTags={[]}
+      commentCount={0}
+      onJumpToComments={() => {}}
+      cellBadges={null}
+      depth={0}
+      onToggle={() => {}}
+      onClick={() => {}}
+      onDoubleClick={() => {}}
+      onContextMenu={() => {}}
+      onDragStart={() => {}}
+      onDragOver={() => {}}
+      onDrop={() => {}}
+      renameTarget={null}
+      handleRenameSubmit={() => {}}
+      setRenameTarget={() => {}}
+    />
+  );
+
+  assert.doesNotMatch(html, /Expand outside-dir/);
+  assert.match(html, /symbolic link resolves outside workspace/);
+});

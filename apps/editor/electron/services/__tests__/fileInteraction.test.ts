@@ -91,6 +91,30 @@ test('performFileIntent open rejects paths outside root', async (t) => {
   assert.match(result.failures[0]?.message || '', /path escapes repository root/i);
 });
 
+test('performFileIntent open rejects symlink targets that resolve outside root', async (t) => {
+  const rootDir = await createGitRoot();
+  const externalDir = await createTempDir('agency-file-intent-external-');
+
+  t.after(async () => {
+    await fs.rm(rootDir, { recursive: true, force: true });
+    await fs.rm(externalDir, { recursive: true, force: true });
+  });
+
+  const externalFile = path.join(externalDir, 'outside.md');
+  await writeTextFile(externalFile, 'outside');
+  await fs.symlink(externalFile, path.join(rootDir, 'outside-link.md'), 'file');
+
+  const result = await performFileIntent({
+    intent: 'open',
+    rootPath: rootDir,
+    targetPath: 'outside-link.md',
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.failures[0]?.code, 'USER_ERROR');
+  assert.match(result.failures[0]?.message || '', /outside repository root/i);
+});
+
 test('performFileIntent keeps open/reveal semantics stable across surfaces', async (t) => {
   const rootDir = await createGitRoot();
 

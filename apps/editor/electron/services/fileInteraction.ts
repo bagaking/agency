@@ -14,7 +14,11 @@ const {
 const { logRuntime } = require('./runtimeLog');
 const { resolveProjectRoot } = require('./projectRoot');
 const { getRepoRoot } = require('./git');
-const { normalizeRelPath, resolveSafePath } = require('./shared/pathSafety');
+const {
+  normalizeRelPath,
+  resolveExistingPathWithinRoot,
+  resolveSafePath,
+} = require('./shared/pathSafety');
 
 const SUPPORTED_INTENTS = new Set([
   'open',
@@ -121,7 +125,11 @@ function failureCodeFromError(error) {
     'target directory',
     'target path',
     'path escapes repository root',
+    'path resolves outside repository root',
+    'target parent resolves outside repository root',
     'outside root',
+    'broken symbolic-link',
+    'symbolic-link cycle',
     'not a directory',
     'invalid path',
     'enoent',
@@ -199,9 +207,10 @@ async function ensureIntentTargetReadable({ rootPath, targetPath, requireExistin
   if (!normalizedPath) {
     throw new Error('targetPath is required.');
   }
-  const absolutePath = resolveSafePath(rootAbsolute, normalizedPath);
   if (requireExisting) {
-    await fs.promises.access(absolutePath);
+    await resolveExistingPathWithinRoot(rootAbsolute, normalizedPath);
+  } else {
+    resolveSafePath(rootAbsolute, normalizedPath);
   }
   return {
     rootPath: rootAbsolute,

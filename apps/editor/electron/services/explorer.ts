@@ -8,7 +8,13 @@ const path = require('path');
 const { getRepoRoot } = require('./git');
 const { resolveProjectRoot } = require('./projectRoot');
 const { listCells } = require('./cells');
-const { normalizeRelPath, resolveSafePath } = require('./shared/pathSafety');
+const {
+  inspectExistingPath,
+  normalizeRelPath,
+  resolveExistingPathWithinRoot,
+  resolveMutationTargetWithinRoot,
+  resolveSafePath,
+} = require('./shared/pathSafety');
 
 const execFileAsync = promisify(execFile);
 const fsp = fs.promises;
@@ -99,39 +105,77 @@ function sortEntries(a, b) {
   return a.name.localeCompare(b.name);
 }
 
-async function describeExplorerEntry(rootPath, relativePath, dirent = null) {
+async function describeExplorerEntry(
+  rootPath,
+  relativePath,
+  { dirent = null, ancestorRealPaths = null } = {}
+) {
   const normalizedPath = normalizeRelPath(relativePath);
   const absolutePath = resolveSafePath(rootPath, normalizedPath);
   const name = dirent?.name || path.basename(normalizedPath) || normalizedPath;
-  const isSymbolicLink = dirent ? dirent.isSymbolicLink() : (await fsp.lstat(absolutePath)).isSymbolicLink();
 
-  if (dirent && dirent.isDirectory() && !isSymbolicLink) {
+  if (dirent && !dirent.isSymbolicLink()) {
     return {
       path: normalizedPath,
       name,
-      type: ENTRY_TYPES.dir,
+      type: dirent.isDirectory() ? ENTRY_TYPES.dir : ENTRY_TYPES.file,
       isSymbolicLink: false,
     };
   }
 
-  try {
-    const targetStats = isSymbolicLink ? await fsp.stat(absolutePath) : dirent ? null : await fsp.lstat(absolutePath);
-    const type =
-      targetStats?.isDirectory?.() || dirent?.isDirectory?.() ? ENTRY_TYPES.dir : ENTRY_TYPES.file;
+  const inspection = await inspectExistingPath(rootPath, normalizedPath);
+  const type = inspection.stat?.isDirectory?.() ? ENTRY_TYPES.dir : ENTRY_TYPES.file;
+  let symlinkBoundaryState = inspection.resolutionError
+    ? 'broken'
+    : inspection.insideRoot
+      ? 'inside-root'
+      : 'outside-root';
+  if (symlinkBoundaryState === 'inside-root' && type === ENTRY_TYPES.dir && ancestorRealPaths?.has(inspection.realPath)) {
+    symlinkBoundaryState = 'cycle';
+  }
+
+  if (!inspection.isSymbolicLink) {
     return {
       path: normalizedPath,
       name,
       type,
-      isSymbolicLink,
-    };
-  } catch {
-    return {
-      path: normalizedPath,
-      name,
-      type: ENTRY_TYPES.file,
-      isSymbolicLink,
+      isSymbolicLink: false,
     };
   }
+
+  return {
+    path: normalizedPath,
+    name,
+    type,
+    isSymbolicLink: true,
+    symlinkBoundaryState,
+    isTraversalRestricted:
+      type === ENTRY_TYPES.dir &&
+      (symlinkBoundaryState === 'outside-root' || symlinkBoundaryState === 'cycle' || symlinkBoundaryState === 'broken'),
+  };
+}
+
+async function buildDirectoryTraversalContext(rootPath, relativePath = '') {
+  const normalizedPath = normalizeRelPath(relativePath);
+  const segments = normalizedPath ? normalizedPath.split('/').filter(Boolean) : [];
+  const rootInspection = await resolveExistingPathWithinRoot(rootPath, '');
+  const ancestorRealPaths = new Set([rootInspection.realPath]);
+  let currentInspection = rootInspection;
+  let currentRelativePath = '';
+
+  for (const segment of segments) {
+    currentRelativePath = currentRelativePath ? `${currentRelativePath}/${segment}` : segment;
+    currentInspection = await resolveExistingPathWithinRoot(rootPath, currentRelativePath);
+    if (ancestorRealPaths.has(currentInspection.realPath)) {
+      throw new Error('Path contains a symbolic-link cycle.');
+    }
+    ancestorRealPaths.add(currentInspection.realPath);
+  }
+
+  return {
+    inspection: currentInspection,
+    ancestorRealPaths,
+  };
 }
 
 async function listDirectory({ rootPath, relativePath = '', showHidden = true }) {
@@ -139,11 +183,11 @@ async function listDirectory({ rootPath, relativePath = '', showHidden = true })
   if (!resolved.rootPath) {
     return { path: normalizeRelPath(relativePath), entries: [] };
   }
-  const targetPath = resolveSafePath(resolved.rootPath, relativePath);
-  const stats = await fsp.stat(targetPath);
-  if (!stats.isDirectory()) {
+  const directoryContext = await buildDirectoryTraversalContext(resolved.rootPath, relativePath);
+  if (!directoryContext.inspection.stat?.isDirectory?.()) {
     throw new Error('Target path is not a directory.');
   }
+  const targetPath = directoryContext.inspection.absolutePath;
   const entries = await fsp.readdir(targetPath, { withFileTypes: true });
   const visibleEntries = entries.filter((entry) => {
     if (DEFAULT_EXCLUDES.has(entry.name)) {
@@ -156,7 +200,10 @@ async function listDirectory({ rootPath, relativePath = '', showHidden = true })
   });
   const items = await Promise.all(
     visibleEntries.map((entry) =>
-      describeExplorerEntry(resolved.rootPath, path.join(relativePath, entry.name), entry)
+      describeExplorerEntry(resolved.rootPath, path.join(relativePath, entry.name), {
+        dirent: entry,
+        ancestorRealPaths: directoryContext.ancestorRealPaths,
+      })
     )
   );
   items.sort(sortEntries);
@@ -366,15 +413,25 @@ function clampSnippet(value) {
   return `${line.slice(0, CONTENT_SEARCH_SNIPPET_MAX_CHARS - 3)}...`;
 }
 
-async function inspectContentSearchCandidate(rootAbsolutePath, relativePath, pattern) {
-  const stats = await fsp.stat(rootAbsolutePath);
+async function inspectContentSearchCandidate(rootPath, relativePath, pattern) {
+  let inspection;
+  try {
+    inspection = await resolveExistingPathWithinRoot(rootPath, relativePath);
+  } catch (error) {
+    return {
+      kind: 'restricted',
+      path: relativePath,
+      reason: error?.message || 'restricted-path',
+    };
+  }
+  const stats = inspection.stat;
   if (!stats.isFile()) {
     return { kind: 'skip' };
   }
   if (stats.size > CONTENT_SEARCH_MAX_FILE_BYTES) {
     return { kind: 'large', path: relativePath, size: stats.size };
   }
-  const buffer = await fsp.readFile(rootAbsolutePath);
+  const buffer = await fsp.readFile(inspection.absolutePath);
   const sample = buffer.subarray(0, Math.min(buffer.length, 1024));
   if (sample.includes(0)) {
     return { kind: 'binary', path: relativePath, size: stats.size };
@@ -436,6 +493,7 @@ async function searchContent({
       scannedFiles: 0,
       skippedBinaryCount: 0,
       skippedLargeCount: 0,
+      skippedRestrictedCount: 0,
     };
   }
   const resolved = await resolveExplorerRoot(rootPath);
@@ -448,6 +506,7 @@ async function searchContent({
       scannedFiles: 0,
       skippedBinaryCount: 0,
       skippedLargeCount: 0,
+      skippedRestrictedCount: 0,
     };
   }
   const normalizedScope = assertValidContentSearchScope(normalizeContentSearchScope(scope));
@@ -461,11 +520,7 @@ async function searchContent({
     pathMatchesContentScope(filePath, normalizedScope)
   );
   const inspections = await mapWithConcurrency(files, CONTENT_SEARCH_CONCURRENCY, async (filePath) =>
-    inspectContentSearchCandidate(
-      resolveSafePath(resolved.rootPath, filePath),
-      filePath,
-      pattern
-    )
+    inspectContentSearchCandidate(resolved.rootPath, filePath, pattern)
   );
 
   const results = [];
@@ -473,6 +528,7 @@ async function searchContent({
   let totalResultMatches = 0;
   let skippedBinaryCount = 0;
   let skippedLargeCount = 0;
+  let skippedRestrictedCount = 0;
   let truncated = false;
   for (const inspection of inspections) {
     if (inspection?.kind === 'binary') {
@@ -481,6 +537,10 @@ async function searchContent({
     }
     if (inspection?.kind === 'large') {
       skippedLargeCount += 1;
+      continue;
+    }
+    if (inspection?.kind === 'restricted') {
+      skippedRestrictedCount += 1;
       continue;
     }
     if (inspection?.kind !== 'result') {
@@ -505,6 +565,7 @@ async function searchContent({
     scannedFiles: files.length,
     skippedBinaryCount,
     skippedLargeCount,
+    skippedRestrictedCount,
   };
 }
 
@@ -749,8 +810,9 @@ async function replaceContent({
 
     for (const filePath of fullFilePaths) {
       try {
-        const absolutePath = resolveSafePath(resolved.rootPath, filePath);
-        const stats = await fsp.stat(absolutePath);
+        const inspection = await resolveExistingPathWithinRoot(resolved.rootPath, filePath);
+        const absolutePath = inspection.absolutePath;
+        const stats = inspection.stat;
         if (!stats.isFile()) {
           skipped.push({ path: filePath, reason: 'not-file' });
           continue;
@@ -789,8 +851,9 @@ async function replaceContent({
 
     for (const [filePath, fileMatches] of groupedByPath.entries()) {
       try {
-        const absolutePath = resolveSafePath(resolved.rootPath, filePath);
-        const stats = await fsp.stat(absolutePath);
+        const inspection = await resolveExistingPathWithinRoot(resolved.rootPath, filePath);
+        const absolutePath = inspection.absolutePath;
+        const stats = inspection.stat;
         if (!stats.isFile()) {
           skipped.push({ path: filePath, reason: 'not-file' });
           continue;
@@ -849,8 +912,9 @@ async function replaceContent({
     );
     for (const filePath of files) {
       try {
-        const absolutePath = resolveSafePath(resolved.rootPath, filePath);
-        const stats = await fsp.stat(absolutePath);
+        const inspection = await resolveExistingPathWithinRoot(resolved.rootPath, filePath);
+        const absolutePath = inspection.absolutePath;
+        const stats = inspection.stat;
         if (!stats.isFile()) {
           skipped.push({ path: filePath, reason: 'not-file' });
           continue;
@@ -1192,7 +1256,10 @@ async function createEntry({ rootPath, parentPath, name, type }) {
   ensureResolvedRoot(resolved);
   const relativeParent = normalizeRelPath(parentPath);
   const targetRel = normalizeRelPath(path.join(relativeParent, name));
-  const targetPath = resolveSafePath(resolved.rootPath, targetRel);
+  const { absolutePath: targetPath } = await resolveMutationTargetWithinRoot(
+    resolved.rootPath,
+    targetRel
+  );
   if (fs.existsSync(targetPath)) {
     throw new Error('Target already exists.');
   }
@@ -1209,7 +1276,10 @@ async function renameEntry({ rootPath, sourcePath, targetPath }) {
   const resolved = await resolveExplorerRoot(rootPath);
   ensureResolvedRoot(resolved);
   const fromPath = resolveSafePath(resolved.rootPath, sourcePath);
-  const toPath = resolveSafePath(resolved.rootPath, targetPath);
+  const { absolutePath: toPath } = await resolveMutationTargetWithinRoot(
+    resolved.rootPath,
+    targetPath
+  );
   if (!fs.existsSync(fromPath)) {
     throw new Error('Source does not exist.');
   }
@@ -1239,8 +1309,11 @@ async function copyEntry({ rootPath, sourcePath, targetPath, resolveConflicts = 
   if (!fs.existsSync(fromPath)) {
     throw new Error('Source does not exist.');
   }
-  const sourceStats = await fsp.stat(fromPath);
-  const requestedTargetPath = resolveSafePath(resolved.rootPath, targetPath);
+  const sourceStats = await fsp.lstat(fromPath);
+  const { absolutePath: requestedTargetPath } = await resolveMutationTargetWithinRoot(
+    resolved.rootPath,
+    targetPath
+  );
   let destinationPath = requestedTargetPath;
   let conflictIndex = 0;
 
@@ -1310,9 +1383,9 @@ async function importEntries({ rootPath, targetDir = '', sourcePaths = [] }) {
   ensureResolvedRoot(resolved);
   const rootAbsolute = path.resolve(resolved.rootPath);
   const targetRelative = normalizeRelPath(targetDir);
-  const targetAbsolute = resolveSafePath(rootAbsolute, targetRelative);
-
-  const targetStats = await fsp.stat(targetAbsolute).catch(() => null);
+  const targetInspection = await resolveExistingPathWithinRoot(rootAbsolute, targetRelative);
+  const targetAbsolute = targetInspection.absolutePath;
+  const targetStats = targetInspection.stat;
   if (!targetStats || !targetStats.isDirectory()) {
     throw new Error('Target directory does not exist.');
   }
@@ -1406,8 +1479,9 @@ async function readEntry({ rootPath, targetPath }) {
   }
   const resolved = await resolveExplorerRoot(rootPath);
   ensureResolvedRoot(resolved);
-  const absolute = resolveSafePath(resolved.rootPath, targetPath);
-  const stats = await fsp.stat(absolute);
+  const inspection = await resolveExistingPathWithinRoot(resolved.rootPath, targetPath);
+  const absolute = inspection.absolutePath;
+  const stats = inspection.stat;
   if (!stats.isFile()) {
     throw new Error('Target is not a file.');
   }

@@ -100,6 +100,7 @@ test('listDirectory keeps symbolic-link directories typed as directories', async
     assert.ok(entry);
     assert.equal(entry.type, 'dir');
     assert.equal(entry.isSymbolicLink, true);
+    assert.equal(entry.symlinkBoundaryState, 'inside-root');
   });
 });
 
@@ -125,6 +126,77 @@ test('searchFiles preserves symbolic-link metadata for path search results', asy
     assert.equal(result.matches[0]?.path, 'guide-link.md');
     assert.equal(result.matches[0]?.type, 'file');
     assert.equal(result.matches[0]?.isSymbolicLink, true);
+    assert.equal(result.matches[0]?.symlinkBoundaryState, 'inside-root');
+  });
+});
+
+test('listDirectory keeps outside-root symlink directories visible but non-traversable', async (t) => {
+  await withExplorerService(async ({ listDirectory }) => {
+    const rootDir = await createGitRoot();
+    const externalDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agency-explorer-external-'));
+    t.after(async () => {
+      await fs.rm(rootDir, { recursive: true, force: true });
+      await fs.rm(externalDir, { recursive: true, force: true });
+    });
+
+    await fs.symlink(externalDir, path.join(rootDir, 'outside-dir'), 'dir');
+
+    const result = await listDirectory({
+      rootPath: rootDir,
+      relativePath: '',
+      showHidden: true,
+    });
+
+    const entry = result.entries.find((item) => item.path === 'outside-dir');
+    assert.ok(entry);
+    assert.equal(entry.type, 'dir');
+    assert.equal(entry.isSymbolicLink, true);
+    assert.equal(entry.symlinkBoundaryState, 'outside-root');
+    assert.equal(entry.isTraversalRestricted, true);
+
+    await assert.rejects(
+      () =>
+        listDirectory({
+          rootPath: rootDir,
+          relativePath: 'outside-dir',
+          showHidden: true,
+        }),
+      /outside repository root/i
+    );
+  });
+});
+
+test('listDirectory marks symlink cycles as non-traversable', async (t) => {
+  await withExplorerService(async ({ listDirectory }) => {
+    const rootDir = await createGitRoot();
+    t.after(async () => {
+      await fs.rm(rootDir, { recursive: true, force: true });
+    });
+
+    await fs.symlink(rootDir, path.join(rootDir, 'loop'), 'dir');
+
+    const result = await listDirectory({
+      rootPath: rootDir,
+      relativePath: '',
+      showHidden: true,
+    });
+
+    const entry = result.entries.find((item) => item.path === 'loop');
+    assert.ok(entry);
+    assert.equal(entry.type, 'dir');
+    assert.equal(entry.isSymbolicLink, true);
+    assert.equal(entry.symlinkBoundaryState, 'cycle');
+    assert.equal(entry.isTraversalRestricted, true);
+
+    await assert.rejects(
+      () =>
+        listDirectory({
+          rootPath: rootDir,
+          relativePath: 'loop',
+          showHidden: true,
+        }),
+      /symbolic-link cycle/i
+    );
   });
 });
 
@@ -143,6 +215,59 @@ test('searchContent rejects folder scope without a concrete directory context', 
           scope: { kind: 'folder', path: '' },
         }),
       /Folder content scope requires a directory context/
+    );
+  });
+});
+
+test('searchContent skips symlink targets that resolve outside the repository root', async (t) => {
+  await withExplorerService(async ({ searchContent }) => {
+    const rootDir = await createGitRoot();
+    const externalDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agency-explorer-external-'));
+    t.after(async () => {
+      await fs.rm(rootDir, { recursive: true, force: true });
+      await fs.rm(externalDir, { recursive: true, force: true });
+    });
+
+    const externalFile = path.join(externalDir, 'outside.md');
+    await writeTextFile(externalFile, 'content search outside\n');
+    await fs.symlink(externalFile, path.join(rootDir, 'outside-link.md'), 'file');
+
+    const result = await searchContent({
+      rootPath: rootDir,
+      query: 'content search',
+      scope: { kind: 'project' },
+    });
+
+    assert.equal(result.results.length, 0);
+    assert.equal(result.skippedRestrictedCount, 1);
+  });
+});
+
+test('searchContent skips broken symbolic-link targets instead of crashing the search', async (t) => {
+  await withExplorerService(async ({ searchContent, readEntry }) => {
+    const rootDir = await createGitRoot();
+    t.after(async () => {
+      await fs.rm(rootDir, { recursive: true, force: true });
+    });
+
+    await fs.symlink(path.join(rootDir, 'missing.md'), path.join(rootDir, 'broken-link.md'), 'file');
+
+    const result = await searchContent({
+      rootPath: rootDir,
+      query: 'content search',
+      scope: { kind: 'project' },
+    });
+
+    assert.equal(result.results.length, 0);
+    assert.equal(result.skippedRestrictedCount, 1);
+
+    await assert.rejects(
+      () =>
+        readEntry({
+          rootPath: rootDir,
+          targetPath: 'broken-link.md',
+        }),
+      /broken symbolic-link target/i
     );
   });
 });
@@ -173,6 +298,78 @@ test('replaceContent only mutates confirmed targets and reports counts', async (
     assert.deepEqual(result.appliedPaths, ['docs/guide.md']);
     assert.match(await fs.readFile(docsPath, 'utf8'), /workspace search one/);
     assert.match(await fs.readFile(notesPath, 'utf8'), /content search should stay here/);
+  });
+});
+
+test('createEntry rejects destinations whose parent resolves outside the repository root', async (t) => {
+  await withExplorerService(async ({ createEntry }) => {
+    const rootDir = await createGitRoot();
+    const externalDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agency-explorer-external-'));
+    t.after(async () => {
+      await fs.rm(rootDir, { recursive: true, force: true });
+      await fs.rm(externalDir, { recursive: true, force: true });
+    });
+
+    await fs.symlink(externalDir, path.join(rootDir, 'outside-dir'), 'dir');
+
+    await assert.rejects(
+      () =>
+        createEntry({
+          rootPath: rootDir,
+          parentPath: 'outside-dir',
+          name: 'new.md',
+          type: 'file',
+        }),
+      /outside repository root/i
+    );
+  });
+});
+
+test('renameEntry rejects destinations whose parent resolves outside the repository root', async (t) => {
+  await withExplorerService(async ({ renameEntry }) => {
+    const rootDir = await createGitRoot();
+    const externalDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agency-explorer-external-'));
+    t.after(async () => {
+      await fs.rm(rootDir, { recursive: true, force: true });
+      await fs.rm(externalDir, { recursive: true, force: true });
+    });
+
+    await writeTextFile(path.join(rootDir, 'guide.md'), 'guide');
+    await fs.symlink(externalDir, path.join(rootDir, 'outside-dir'), 'dir');
+
+    await assert.rejects(
+      () =>
+        renameEntry({
+          rootPath: rootDir,
+          sourcePath: 'guide.md',
+          targetPath: 'outside-dir/guide.md',
+        }),
+      /outside repository root/i
+    );
+  });
+});
+
+test('copyEntry rejects destinations whose parent resolves outside the repository root', async (t) => {
+  await withExplorerService(async ({ copyEntry }) => {
+    const rootDir = await createGitRoot();
+    const externalDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agency-explorer-external-'));
+    t.after(async () => {
+      await fs.rm(rootDir, { recursive: true, force: true });
+      await fs.rm(externalDir, { recursive: true, force: true });
+    });
+
+    await writeTextFile(path.join(rootDir, 'guide.md'), 'guide');
+    await fs.symlink(externalDir, path.join(rootDir, 'outside-dir'), 'dir');
+
+    await assert.rejects(
+      () =>
+        copyEntry({
+          rootPath: rootDir,
+          sourcePath: 'guide.md',
+          targetPath: 'outside-dir/guide.md',
+        }),
+      /outside repository root/i
+    );
   });
 });
 

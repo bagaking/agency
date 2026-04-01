@@ -20,6 +20,7 @@ type ExplorerSearchMatch =
       name?: string;
       type?: string;
       isSymbolicLink?: boolean;
+      symlinkBoundaryState?: string;
     };
 
 function normalizeSearchMatch(match: ExplorerSearchMatch) {
@@ -32,6 +33,7 @@ function normalizeSearchMatch(match: ExplorerSearchMatch) {
     name: typeof match === 'string' ? basename(path) : match?.name || basename(path),
     type: typeof match === 'string' ? 'file' : match?.type === 'dir' ? 'dir' : 'file',
     isSymbolicLink: typeof match === 'string' ? false : Boolean(match?.isSymbolicLink),
+    symlinkBoundaryState: typeof match === 'string' ? undefined : match?.symlinkBoundaryState,
   };
 }
 
@@ -62,6 +64,7 @@ export function buildTreeFromMatches(matches: ExplorerSearchMatch[] = []) {
       name: match.name,
       type: match.type,
       isSymbolicLink: match.isSymbolicLink,
+      symlinkBoundaryState: match.symlinkBoundaryState,
     };
     if (!children[match.path]) {
       children[match.path] = [];

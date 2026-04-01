@@ -765,10 +765,22 @@ Explorer SHALL execute file intents from other surfaces using the same path safe
 ### Requirement: Explorer Tree Loading and Refresh
 The explorer SHALL lazily load directory children to keep large repositories responsive.
 The explorer SHALL provide a manual refresh control for the tree.
+The explorer SHALL preserve symbolic-link metadata in tree rows and path-search results.
+Directory symbolic links that resolve outside the active workspace root, are broken, or would create a traversal cycle SHALL remain visible but SHALL NOT expand as normal directories.
 
 #### Scenario: Expand large folder
 - **WHEN** a user expands a large folder
 - **THEN** the explorer loads children on demand and shows a loading indicator
+
+#### Scenario: Outside-root symbolic link stays visible but bounded
+- **WHEN** Explorer encounters a symbolic-link directory whose resolved target is outside the active workspace root
+- **THEN** the row remains visible with symbolic-link metadata
+- **AND** the row does not offer normal directory expansion into the external target
+
+#### Scenario: Symbolic-link cycle stays bounded
+- **WHEN** Explorer encounters a symbolic-link directory whose resolved target would create a traversal cycle
+- **THEN** the row remains visible as a symbolic link
+- **AND** the row does not expand into an infinite lexical subtree
 
 ### Requirement: VCS Status Decorations
 The explorer SHALL decorate files and folders with git status (modified, added, deleted, renamed, untracked, ignored).
@@ -2365,6 +2377,9 @@ The system SHALL maintain one canonical session naming rule parser/formatter reu
 
 ### Requirement: Shared Path Safety Utilities
 The system SHALL use shared path utilities for relative path normalization and root-boundary-safe resolution in Electron services and preload fallbacks.
+Lexical root checks alone are insufficient once symbolic links exist.
+Existing-path reads and traversal MUST validate resolved real paths against the workspace root.
+Mutation destinations MUST validate the nearest existing parent directory's resolved real path before creating or writing new content through that path.
 
 #### Scenario: Backslash and trailing separator normalization
 - **GIVEN** a relative path containing Windows separators and trailing slashes
@@ -2375,6 +2390,16 @@ The system SHALL use shared path utilities for relative path normalization and r
 - **GIVEN** a root path and a target path that escapes the root
 - **WHEN** safe path resolution is attempted
 - **THEN** the operation fails with a path-escape error
+
+#### Scenario: Existing symbolic-link target resolves outside root
+- **GIVEN** a repo-local path whose symbolic-link target resolves outside the workspace root
+- **WHEN** Explorer or Workbench attempts to read, search, diff, blame, or otherwise traverse that target
+- **THEN** the operation rejects the resolved target as outside the repository root
+
+#### Scenario: Mutation target parent resolves outside root
+- **GIVEN** a repo-local destination whose nearest existing parent directory resolves outside the workspace root through a symbolic link
+- **WHEN** Explorer or Workbench attempts to create, rename, copy, or write through that destination
+- **THEN** the operation rejects the target parent as outside the repository root
 
 ### Requirement: Shared Scoped Settings State Lifecycle
 The system SHALL provide a reusable renderer state lifecycle utility for scoped settings (global/project/agent) including IPC availability guard, dirty tracking, saving status, and error handling.

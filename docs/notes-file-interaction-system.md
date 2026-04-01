@@ -27,6 +27,11 @@ It is the shared policy layer above local implementation details.
 4. Evolvable architecture:
    the same contract must stay valid when callers move from renderer UI to tool/agent processes.
 
+Symlink handling sharpens the meaning of "safe by default":
+- lexical path normalization is necessary but not sufficient;
+- any capability that reads file content, traverses directories, or chooses a mutation destination must distinguish between the link object and the resolved target path;
+- deleting or renaming a symlink entry can remain a repo-local lexical operation, but reading through a symlink or writing through a symlinked parent must still honor the real workspace boundary.
+
 ## End-State Definition
 1. Unified file intent contract:
    `open`, `reveal`, `import_copy`, `move`, `copy`, `delete`.
@@ -121,7 +126,9 @@ It is the shared policy layer above local implementation details.
 17. Explorer sidebar now includes a companion changed-files panel above the Agent footer:
    this panel mirrors Agent Cells file-dashboard row/tree affordances (open/reveal/preview + drag payload), remains changes-only (no scope toggle), and preserves cross-view visual continuity.
 18. Bounded web research now stays inside existing Agency seams:
-   Explorer owns URL intake and launch, Workbench owns the bounded web research tab, reader previews save through the workbench file-writing path, saved Markdown files carry fixed `agency_source_*` frontmatter so Workbench can reopen them in markdown + preview mode, memo citations reuse HIL memo artifacts, and saved files hand back into standard Explorer/workbench open/reveal flows instead of creating a browser-local intake path.
+   Explorer owns URL intake and launch, Workbench owns the bounded browser surface tab (rendering the remote page, exposing `Live`/`Reader` views, and surfacing page-level actions such as `Reload`, `Open in Browser`, `Save Markdown`, and `Cite`), reader previews save through the workbench file-writing path, saved Markdown files carry fixed `agency_source_*` frontmatter so Workbench can reopen them in markdown + preview mode, memo citations reuse HIL memo artifacts, and saved files hand back into standard Explorer/workbench open/reveal flows instead of creating a browser-local intake path while keeping cookies/session management and general browser tabs out of scope.
+19. Realpath-backed workspace boundaries are now part of the shared file contract:
+   existing-path reads/searches and mutation-target parent resolution distinguish lexical repo paths from resolved filesystem targets, so symlink entries can stay visible while repo-external targets remain non-traversable and non-mutable through Explorer/Workbench surfaces.
 
 ## Process-Boundary Compatibility Plan (Locked)
 - Keep `FileIntentPayload`/`FileIntentResult` as the stable wire format across renderer, tool, CLI, and future helper process callers.

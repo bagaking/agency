@@ -7,7 +7,11 @@ const { pathToFileURL } = require('url');
 
 const { getRepoRoot } = require('./git');
 const { resolveProjectRoot } = require('./projectRoot');
-const { normalizeRelPath, resolveSafePath } = require('./shared/pathSafety');
+const {
+  normalizeRelPath,
+  resolveExistingPathWithinRoot,
+  resolveMutationTargetWithinRoot,
+} = require('./shared/pathSafety');
 
 const execFileAsync = promisify(execFile);
 const fsp = fs.promises;
@@ -77,8 +81,9 @@ async function statEntry({ rootPath, targetPath }) {
   }
   const resolved = await resolveWorkbenchRoot(rootPath);
   ensureWorkbenchRoot(resolved);
-  const absolute = resolveSafePath(resolved.rootPath, targetPath);
-  const stats = await fsp.stat(absolute);
+  const inspection = await resolveExistingPathWithinRoot(resolved.rootPath, targetPath);
+  const absolute = inspection.absolutePath;
+  const stats = inspection.stat;
   return {
     path: normalizeRelPath(targetPath),
     absolutePath: absolute,
@@ -114,7 +119,10 @@ async function readTextFile({ rootPath, targetPath }) {
 async function writeTextFile({ rootPath, targetPath, content }) {
   const resolved = await resolveWorkbenchRoot(rootPath);
   ensureWorkbenchRoot(resolved);
-  const absolute = resolveSafePath(resolved.rootPath, targetPath);
+  const { absolutePath: absolute } = await resolveMutationTargetWithinRoot(
+    resolved.rootPath,
+    targetPath
+  );
   await fsp.mkdir(path.dirname(absolute), { recursive: true });
   await fsp.writeFile(absolute, content ?? '', 'utf-8');
   const stats = await fsp.stat(absolute);
@@ -178,6 +186,7 @@ async function getDiff({ rootPath, targetPath }) {
   const resolved = await resolveWorkbenchRoot(rootPath);
   ensureWorkbenchRoot(resolved);
   const relativePath = normalizeRelPath(targetPath);
+  await resolveExistingPathWithinRoot(resolved.rootPath, relativePath);
   const output = await runGit(
     ['diff', '--unified=0', '--no-color', 'HEAD', '--', relativePath],
     resolved.rootPath
@@ -245,8 +254,8 @@ async function getBlame({ rootPath, targetPath }) {
   const resolved = await resolveWorkbenchRoot(rootPath);
   ensureWorkbenchRoot(resolved);
   const relativePath = normalizeRelPath(targetPath);
-  const absolute = resolveSafePath(resolved.rootPath, relativePath);
-  const stats = await fsp.stat(absolute);
+  const inspection = await resolveExistingPathWithinRoot(resolved.rootPath, relativePath);
+  const stats = inspection.stat;
   if (stats.size > MAX_BLAME_BYTES) {
     return { truncated: true, lines: [] };
   }
