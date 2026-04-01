@@ -1,9 +1,11 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { explorerPathUtils } from '../../hooks/useProjectExplorer';
 import {
+  inspectClipboardPayload,
   isAgencyMethodAvailable,
   materializeClipboard,
   materializeMarkdown,
+  writeClipboardFileReferences,
 } from '../../services/agencyBridge';
 import { writeTextToClipboard } from '../../utils/clipboard';
 
@@ -12,6 +14,7 @@ type ClipboardMode = 'copy' | 'cut';
 type ClipboardState = {
   mode: ClipboardMode;
   paths: string[];
+  preferInternalPaste: boolean;
 } | null;
 
 type UseExplorerClipboardActionsOptions = {
@@ -44,6 +47,43 @@ const normalizePathList = (targets: PathListInput): string[] =>
 
 const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
 
+const dedupeClipboardPaths = (paths: string[]): string[] =>
+  Array.from(new Set((Array.isArray(paths) ? paths : []).map((value) => String(value || '')).filter(Boolean)));
+
+export const buildExplorerClipboardState = ({
+  mode,
+  selectionTargets,
+  wroteSystemClipboard,
+}: {
+  mode: ClipboardMode;
+  selectionTargets: string[];
+  wroteSystemClipboard: boolean;
+}): ClipboardState => {
+  const paths = dedupeClipboardPaths(selectionTargets);
+  if (!paths.length) {
+    return null;
+  }
+  if (wroteSystemClipboard) {
+    return null;
+  }
+  return {
+    mode,
+    paths,
+    preferInternalPaste: mode === 'cut' || !wroteSystemClipboard,
+  };
+};
+
+export const shouldUseInternalExplorerClipboard = (clipboard: ClipboardState): boolean =>
+  Boolean(clipboard?.preferInternalPaste && clipboard.paths.length);
+
+type ClipboardPayloadSummary = {
+  hasFiles?: boolean;
+  hasImage?: boolean;
+} | null;
+
+export const hasExplorerExternalClipboardPayload = (payload: ClipboardPayloadSummary): boolean =>
+  Boolean(payload?.hasFiles || payload?.hasImage);
+
 export const useExplorerClipboardActions = ({
   rootPath,
   repoRoot,
@@ -60,11 +100,41 @@ export const useExplorerClipboardActions = ({
   openEntry,
 }: UseExplorerClipboardActionsOptions) => {
   const [clipboard, setClipboard] = useState<ClipboardState>(null);
+  const [externalClipboardPayload, setExternalClipboardPayload] = useState<ClipboardPayloadSummary>(
+    null
+  );
+
+  const refreshExternalClipboardPayload = useCallback(async () => {
+    if (!isAgencyMethodAvailable('inspectClipboardPayload')) {
+      setExternalClipboardPayload(null);
+      return;
+    }
+    try {
+      const payload = await inspectClipboardPayload();
+      setExternalClipboardPayload(payload || null);
+    } catch {
+      setExternalClipboardPayload(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshExternalClipboardPayload();
+    const handleFocus = () => {
+      void refreshExternalClipboardPayload();
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [refreshExternalClipboardPayload]);
 
   const canPaste = useMemo(
     () =>
-      Boolean(clipboard?.paths?.length) || isAgencyMethodAvailable('materializeClipboard'),
-    [clipboard]
+      Boolean(clipboard?.paths?.length) ||
+      hasExplorerExternalClipboardPayload(externalClipboardPayload),
+    [clipboard, externalClipboardPayload]
   );
 
   const resolvePasteDirectory = useCallback((): string => {
@@ -76,23 +146,49 @@ export const useExplorerClipboardActions = ({
   }, [activeTarget, treeNodes]);
 
   const handleCopySelection = useCallback(
-    (mode: ClipboardMode) => {
-      if (!selectionTargets.length) {
+    async (mode: ClipboardMode) => {
+      const normalizedTargets = dedupeClipboardPaths(selectionTargets);
+      if (!normalizedTargets.length) {
         return;
       }
-      setClipboard({
-        mode,
-        paths: Array.from(new Set(selectionTargets)),
-      });
+      let wroteSystemClipboard = false;
+      if (isAgencyMethodAvailable('writeClipboardFileReferences')) {
+        try {
+          const baseRoot = rootPath || repoRoot || '';
+          if (baseRoot) {
+            await writeClipboardFileReferences({
+              rootPath: baseRoot,
+              relativePaths: normalizedTargets,
+              mode,
+            });
+            wroteSystemClipboard = true;
+            setExternalClipboardPayload({ hasFiles: true, hasImage: false });
+            clearError();
+          }
+        } catch {
+          // Fall back to Explorer-local clipboard state.
+        }
+      }
+      setClipboard(
+        buildExplorerClipboardState({
+          mode,
+          selectionTargets: normalizedTargets,
+          wroteSystemClipboard,
+        })
+      );
     },
-    [selectionTargets]
+    [clearError, repoRoot, rootPath, selectionTargets]
   );
 
   const handlePasteSelection = useCallback(async () => {
     const baseRoot = rootPath || repoRoot || '';
     const targetDir = resolvePasteDirectory();
 
-    if (baseRoot && isAgencyMethodAvailable('materializeClipboard')) {
+    if (
+      baseRoot &&
+      isAgencyMethodAvailable('materializeClipboard') &&
+      hasExplorerExternalClipboardPayload(externalClipboardPayload)
+    ) {
       try {
         const result = await materializeClipboard({
           rootPath: baseRoot,
@@ -100,6 +196,75 @@ export const useExplorerClipboardActions = ({
           includeText: false,
           relativeTo: baseRoot,
         });
+        if (result?.type === 'explorer-selection') {
+          const sourcePaths = dedupeClipboardPaths(result.paths || []);
+          const mode = result.mode === 'cut' ? 'cut' : 'copy';
+          let didApply = false;
+          let hadError = false;
+          const pastedPaths: string[] = [];
+          for (const sourcePath of sourcePaths) {
+            const baseName = explorerPathUtils.basename(sourcePath);
+            const targetPath = [targetDir, baseName].filter(Boolean).join('/');
+            if (targetDir && targetDir.startsWith(`${sourcePath}/`)) {
+              setErrorMessage('Cannot paste a folder into itself.');
+              hadError = true;
+              continue;
+            }
+            if (sourcePath === targetPath && mode === 'cut') {
+              setErrorMessage('Target already matches current location.');
+              hadError = true;
+              continue;
+            }
+            if (mode === 'cut') {
+              const moveResult = await renameEntry({ sourcePath, targetPath });
+              const nextPath = explorerPathUtils.toRelativePath(moveResult?.path || targetPath);
+              if (nextPath) {
+                pastedPaths.push(nextPath);
+              }
+            } else {
+              const copyResult = await copyEntry({
+                sourcePath,
+                targetPath,
+                resolveConflicts: true,
+              });
+              const nextPath = explorerPathUtils.toRelativePath(copyResult?.path || targetPath);
+              if (nextPath) {
+                pastedPaths.push(nextPath);
+              }
+            }
+            didApply = true;
+          }
+
+          if (!hadError) {
+            clearError();
+          }
+          if (didApply) {
+            setClipboard(null);
+            if (mode === 'cut' && isAgencyMethodAvailable('writeClipboardFileReferences') && pastedPaths.length) {
+              try {
+                await writeClipboardFileReferences({
+                  rootPath: baseRoot,
+                  relativePaths: pastedPaths,
+                  mode: 'copy',
+                });
+                setExternalClipboardPayload({ hasFiles: true, hasImage: false });
+              } catch {
+                // Ignore clipboard rewrite failures after a successful move.
+              }
+            } else {
+              await refreshExternalClipboardPayload();
+            }
+            await refreshAll();
+            if (targetDir) {
+              await expandPath(targetDir);
+            }
+            if (pastedPaths.length) {
+              setSelectedPaths(pastedPaths);
+            }
+          }
+          return;
+        }
+
         if (result?.type === 'files' || result?.type === 'image') {
           if (targetDir) {
             await expandPath(targetDir);
@@ -108,6 +273,7 @@ export const useExplorerClipboardActions = ({
           if (Array.isArray(result?.paths) && result.paths.length) {
             setSelectedPaths(result.paths);
           }
+          await refreshExternalClipboardPayload();
           clearError();
           return;
         }
@@ -117,12 +283,16 @@ export const useExplorerClipboardActions = ({
       }
     }
 
+    if (!shouldUseInternalExplorerClipboard(clipboard)) {
+      return;
+    }
+
     if (!clipboard?.paths?.length) {
       return;
     }
 
     try {
-      let didMove = false;
+      let didCopy = false;
       let hadError = false;
       const pastedPaths: string[] = [];
       for (const sourcePath of clipboard.paths) {
@@ -133,40 +303,22 @@ export const useExplorerClipboardActions = ({
           hadError = true;
           continue;
         }
-        if (sourcePath === targetPath) {
-          if (clipboard.mode === 'cut') {
-            setErrorMessage('Target already matches current location.');
-            hadError = true;
-            continue;
-          }
+        const result = await copyEntry({
+          sourcePath,
+          targetPath,
+          resolveConflicts: true,
+        });
+        const nextPath = explorerPathUtils.toRelativePath(result?.path || targetPath);
+        if (nextPath) {
+          pastedPaths.push(nextPath);
         }
-        if (clipboard.mode === 'cut') {
-          const result = await renameEntry({ sourcePath, targetPath });
-          const nextPath = explorerPathUtils.toRelativePath(result?.path || targetPath);
-          if (nextPath) {
-            pastedPaths.push(nextPath);
-          }
-        } else {
-          const result = await copyEntry({
-            sourcePath,
-            targetPath,
-            resolveConflicts: true,
-          });
-          const nextPath = explorerPathUtils.toRelativePath(result?.path || targetPath);
-          if (nextPath) {
-            pastedPaths.push(nextPath);
-          }
-        }
-        didMove = true;
+        didCopy = true;
       }
 
       if (!hadError) {
         clearError();
       }
-      if (clipboard.mode === 'cut' && didMove) {
-        setClipboard(null);
-      }
-      if (didMove) {
+      if (didCopy) {
         await refreshAll();
         if (targetDir) {
           await expandPath(targetDir);
@@ -183,7 +335,9 @@ export const useExplorerClipboardActions = ({
     clearError,
     copyEntry,
     expandPath,
+    externalClipboardPayload,
     refreshAll,
+    refreshExternalClipboardPayload,
     renameEntry,
     repoRoot,
     resolvePasteDirectory,
@@ -252,6 +406,7 @@ export const useExplorerClipboardActions = ({
 
   return {
     canPaste,
+    refreshExternalClipboardPayload,
     handleCopySelection,
     handlePasteSelection,
     handlePasteMarkdown,

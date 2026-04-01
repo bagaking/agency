@@ -101,8 +101,10 @@ export const watchExplorer = createOptionalInvoke('watchExplorer');
 export const performFileIntent = createOptionalInvoke('performFileIntent');
 export const performToolFileIntent = createOptionalInvoke('performToolFileIntent');
 export const classifyAgentFiles = createOptionalInvoke('classifyAgentFiles');
+export const inspectClipboardPayload = createOptionalInvoke('inspectClipboardPayload');
 export const materializeClipboard = createOptionalInvoke('materializeClipboard');
 export const materializeMarkdown = createOptionalInvoke('materializeMarkdown');
+export const writeClipboardFileReferences = createOptionalInvoke('writeClipboardFileReferences');
 
 // HIL / comments / action sheets
 export const listComments = createOptionalInvoke('listComments');

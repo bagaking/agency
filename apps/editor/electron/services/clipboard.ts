@@ -1,11 +1,12 @@
 const { clipboard } = require('electron');
 const fs = require('fs');
 const path = require('path');
-const { fileURLToPath } = require('url');
+const { fileURLToPath, pathToFileURL } = require('url');
 
 const { normalizeRelPath, resolveSafePath } = require('./shared/pathSafety');
 
 const fsp = fs.promises;
+const EXPLORER_CLIPBOARD_FORMAT = 'application/x-agency-explorer-file-refs';
 
 function formatTimestamp(date = new Date()) {
   const pad = (value) => String(value).padStart(2, '0');
@@ -105,6 +106,121 @@ function readClipboardHtml() {
   return cleaned;
 }
 
+function buildClipboardUriList(paths) {
+  return paths.map((entry) => pathToFileURL(entry).toString()).join('\r\n');
+}
+
+function buildWindowsFileListBuffer(paths) {
+  return Buffer.from(`${paths.join('\0')}\0\0`, 'utf16le');
+}
+
+function readExplorerClipboardState(currentRootPath = '') {
+  const raw = clipboard.readBuffer(EXPLORER_CLIPBOARD_FORMAT);
+  if (!raw || !raw.length) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw.toString('utf8'));
+    const rootPath = String(parsed?.rootPath || '').trim();
+    const mode = parsed?.mode === 'cut' ? 'cut' : 'copy';
+    const relativePaths = Array.from(
+      new Set(
+        (Array.isArray(parsed?.relativePaths) ? parsed.relativePaths : [])
+          .map((entry) => normalizeRelPath(entry))
+          .filter(Boolean)
+      )
+    );
+    if (!rootPath || !relativePaths.length) {
+      return null;
+    }
+    return {
+      rootPath,
+      mode,
+      relativePaths,
+      rootMatches:
+        !currentRootPath || path.resolve(currentRootPath) === path.resolve(rootPath),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function writeClipboardFileReferences(params: any = {}) {
+  const { rootPath, relativePaths = [], mode = 'copy' } = params || {};
+  if (!rootPath) {
+    throw new Error('rootPath is required.');
+  }
+  const normalizedPaths = Array.from(
+    new Set(
+      (Array.isArray(relativePaths) ? relativePaths : [])
+        .map((entry) => normalizeRelPath(entry))
+        .filter(Boolean)
+    )
+  );
+  if (!normalizedPaths.length) {
+    throw new Error('relativePaths must contain at least one path.');
+  }
+
+  const absolutePaths = [];
+  for (const relativePath of normalizedPaths) {
+    const absolutePath = resolveSafePath(rootPath, relativePath);
+    await fsp.access(absolutePath);
+    absolutePaths.push(absolutePath);
+  }
+
+  const uriList = buildClipboardUriList(absolutePaths);
+  const normalizedMode = mode === 'cut' ? 'cut' : 'copy';
+  clipboard.clear();
+  clipboard.writeText(absolutePaths.join('\n'));
+  clipboard.writeBuffer('text/uri-list', Buffer.from(uriList, 'utf8'));
+  clipboard.writeBuffer(
+    'public.file-url',
+    Buffer.from(pathToFileURL(absolutePaths[0]).toString(), 'utf8')
+  );
+  clipboard.writeBuffer('public/uri-list', Buffer.from(uriList, 'utf8'));
+  if (process.platform === 'win32') {
+    clipboard.writeBuffer('FileNameW', buildWindowsFileListBuffer(absolutePaths));
+  }
+  clipboard.writeBuffer(
+    EXPLORER_CLIPBOARD_FORMAT,
+    Buffer.from(
+      JSON.stringify({
+        rootPath: path.resolve(rootPath),
+        relativePaths: normalizedPaths,
+        mode: normalizedMode,
+      }),
+      'utf8'
+    )
+  );
+
+  return {
+    type: 'file-references',
+    paths: normalizedPaths,
+    absolutePaths,
+    mode: normalizedMode,
+  };
+}
+
+function inspectClipboardPayload() {
+  const explorerSelection = readExplorerClipboardState();
+  const files = readClipboardFiles();
+  const image = readClipboardImage();
+  const text = readClipboardText();
+  return {
+    hasFiles: Boolean(explorerSelection?.relativePaths?.length) || files.length > 0,
+    hasImage: Boolean(image),
+    hasText: Boolean(String(text || '').trim()),
+    fileCount: explorerSelection?.relativePaths?.length || files.length,
+    explorerSelection:
+      explorerSelection?.relativePaths?.length
+        ? {
+            mode: explorerSelection.mode,
+            pathCount: explorerSelection.relativePaths.length,
+          }
+        : null,
+  };
+}
+
 async function ensureDirectory(targetDir) {
   await fsp.mkdir(targetDir, { recursive: true });
 }
@@ -143,6 +259,14 @@ async function materializeClipboard(params: any = {}) {
   } = params || {};
   if (!rootPath) {
     throw new Error('rootPath is required.');
+  }
+  const explorerClipboardState = readExplorerClipboardState(rootPath);
+  if (explorerClipboardState?.rootMatches) {
+    return {
+      type: 'explorer-selection',
+      mode: explorerClipboardState.mode,
+      paths: explorerClipboardState.relativePaths,
+    };
   }
   const resolvedTarget = resolveSafePath(rootPath, targetDir);
   await ensureDirectory(resolvedTarget);
@@ -288,7 +412,12 @@ async function materializeMarkdown(params: any = {}) {
 }
 
 export {
+  buildClipboardUriList,
+  buildWindowsFileListBuffer,
+  readExplorerClipboardState,
   materializeClipboard,
   buildScreenshotName,
+  inspectClipboardPayload,
   materializeMarkdown,
+  writeClipboardFileReferences,
 };
