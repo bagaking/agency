@@ -1456,6 +1456,8 @@ export function AgentCellsSessionsPanel({
                       onClick={() => setShowArchivedCells((value) => !value)}
                       className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground"
                       aria-label="Archived cells"
+                      aria-expanded={showArchivedCells}
+                      aria-controls="archived-cell-list"
                     >
                       {showArchivedCells ? (
                         <ChevronDown size={12} strokeWidth={1.7} />
@@ -1469,6 +1471,7 @@ export function AgentCellsSessionsPanel({
 
                 {showArchivedCells ? (
                   <div
+                    id="archived-cell-list"
                     className="space-y-1.5"
                     data-testid="archived-cell-list"
                     aria-label="Archived cells"
