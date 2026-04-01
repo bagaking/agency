@@ -1078,11 +1078,23 @@ Workbench activity metadata within a row SHALL prioritize the most important cur
 ### Requirement: Explorer Shell Hierarchy
 The Explorer shell SHALL keep title, search, filter, and working-set chrome subordinate to the tree rows they control.
 The shell SHALL present current context clearly without visually competing with the file list.
+The shell SHALL prioritize the search field over secondary labels and SHALL collapse secondary controls before letting the search field become illegible.
+Explorer-local path/content/url search SHALL remain Explorer-owned rather than moving into window-global title-bar chrome.
 
 #### Scenario: Header chrome stays subordinate to the tree
 - **WHEN** the Explorer header renders root context, search controls, and filter state
 - **THEN** those controls remain legible as file-context chrome
 - **AND** the tree rows continue to read as the primary visual surface
+
+#### Scenario: Narrow sidebar width stacks secondary controls before search collapses
+- **WHEN** the Explorer sidebar becomes narrower than the normal compact-inline width budget
+- **THEN** the shell moves lower-priority controls such as scope or working-set toggles into a secondary rail
+- **AND** the search field remains the dominant readable control in the header
+
+#### Scenario: Window title bar keeps global search ownership
+- **WHEN** the app shell exposes a title-bar search slot or future global quick-open affordance
+- **THEN** Explorer-local `Paths`, `Content`, and `URL` search remain in the Explorer shell
+- **AND** the title bar does not become a second rendering path for Explorer-local search semantics
 
 ### Requirement: Explorer Keyboard Navigation
 The explorer SHALL support keyboard navigation (up/down, left/right to expand/collapse, Enter to open, F2 to rename).

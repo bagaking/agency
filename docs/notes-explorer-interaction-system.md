@@ -387,6 +387,12 @@ That means:
 - search/filter/working-set controls should stay legible without turning into a row of equally loud pills;
 - the list itself, not the header, remains the primary visual surface.
 
+Responsive reliability rules:
+- Explorer header should prefer a compact two-band shell in normal sidebar widths: one context rail, one search rail.
+- When width becomes constrained, low-priority secondary controls such as scope/work-set toggles should move into a secondary rail before the search field is squeezed into illegibility.
+- Explorer search remains Explorer-owned. If the app later adds a title-bar-centered search slot, that slot should be window-global quick open / command style chrome rather than a second home for Explorer-local `Paths / Content / URL` search semantics.
+- Container-local collapse rules should be driven by the sidebar surface width, not by viewport breakpoints alone.
+
 ### Validation Notes
 
 Current validation baseline:
