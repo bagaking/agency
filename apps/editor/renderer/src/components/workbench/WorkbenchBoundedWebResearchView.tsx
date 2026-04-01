@@ -228,63 +228,17 @@ export function WorkbenchBoundedWebResearchView({
   return (
     <section className="flex h-full min-h-0 flex-col bg-[#0b0d11] text-white">
       <div className="border-b border-white/[0.05] px-4 py-2.5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <HeaderPill label={linkedMarkdownMode ? 'Linked Preview' : 'Bounded Web'} />
-              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/34">
-                {linkedMarkdownMode
-                  ? 'Markdown + source'
-                  : 'Explorer intake to Workbench host'}
-              </span>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <HeaderPill label={linkedMarkdownMode ? 'Linked Preview' : 'Bounded Web'} />
+            <div className="min-w-0">
+              <div className="truncate text-[13px] font-semibold tracking-[0.01em] text-white/92">
+                {resolvedTitle}
+              </div>
               {sourceMeta ? (
-                <span className="truncate text-[10px] text-white/38">{sourceMeta}</span>
+                <div className="truncate text-[10px] text-white/38">{sourceMeta}</div>
               ) : null}
             </div>
-            <div className="mt-1 truncate text-[14px] font-semibold tracking-[0.01em] text-white/92">
-              {resolvedTitle}
-            </div>
-            {canNavigate ? (
-              <form className="mt-2 flex items-center gap-2" onSubmit={handleLocationSubmit}>
-                <label className="sr-only" htmlFor="workbench-web-research-location">
-                  Web research address
-                </label>
-                <div className="relative min-w-0 flex-1">
-                  <Globe2
-                    size={11}
-                    className="pointer-events-none absolute left-3 top-2.5 text-cyan-300/60"
-                  />
-                  <input
-                    id="workbench-web-research-location"
-                    type="url"
-                    inputMode="url"
-                    value={locationDraft}
-                    onChange={(event) => {
-                      setLocationDraft(event.target.value);
-                      if (locationError) {
-                        setLocationError('');
-                      }
-                    }}
-                    className={`w-full rounded-full border border-white/[0.08] bg-white/[0.03] py-2 pl-8 pr-4 text-[11px] text-white outline-none placeholder:text-white/24 focus:border-cyan-300/30 focus:ring-1 focus:ring-cyan-300/15 ${focusRingClass}`}
-                    placeholder="Paste a public URL…"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className={`rounded-full border border-cyan-400/28 bg-cyan-400/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100 transition-colors hover:border-cyan-300/45 hover:bg-cyan-400/16 ${focusRingClass}`}
-                >
-                  Open
-                </button>
-              </form>
-            ) : (
-              <div className="mt-1 flex items-center gap-2 text-[10px] text-white/48">
-                <Globe2 size={11} className="shrink-0 text-cyan-300/60" />
-                <span className="truncate">{url}</span>
-              </div>
-            )}
-            {locationError ? (
-              <div className="mt-1.5 text-[10px] text-amber-200">{locationError}</div>
-            ) : null}
           </div>
           <div className="inline-flex shrink-0 rounded-full border border-white/[0.08] bg-white/[0.03] p-0.5">
             <ModePill
@@ -300,7 +254,45 @@ export function WorkbenchBoundedWebResearchView({
           </div>
         </div>
 
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {canNavigate ? (
+            <form className="flex min-w-0 flex-1 items-center gap-2" onSubmit={handleLocationSubmit}>
+              <label className="sr-only" htmlFor="workbench-web-research-location">
+                Web research address
+              </label>
+              <div className="relative min-w-0 flex-1">
+                <Globe2
+                  size={11}
+                  className="pointer-events-none absolute left-3 top-2.5 text-cyan-300/60"
+                />
+                <input
+                  id="workbench-web-research-location"
+                  type="url"
+                  inputMode="url"
+                  value={locationDraft}
+                  onChange={(event) => {
+                    setLocationDraft(event.target.value);
+                    if (locationError) {
+                      setLocationError('');
+                    }
+                  }}
+                  className={`w-full rounded-full border border-white/[0.08] bg-white/[0.03] py-2 pl-8 pr-4 text-[11px] text-white outline-none placeholder:text-white/24 focus:border-cyan-300/30 focus:ring-1 focus:ring-cyan-300/15 ${focusRingClass}`}
+                  placeholder="Paste a public URL…"
+                />
+              </div>
+              <button
+                type="submit"
+                className={`rounded-full border border-cyan-400/28 bg-cyan-400/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100 transition-colors hover:border-cyan-300/45 hover:bg-cyan-400/16 ${focusRingClass}`}
+              >
+                Open
+              </button>
+            </form>
+          ) : (
+            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[10px] text-white/55">
+              <Globe2 size={11} className="shrink-0 text-cyan-300/60" />
+              <span className="truncate">{url}</span>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <ActionButton
               icon={RefreshCw}
@@ -316,8 +308,6 @@ export function WorkbenchBoundedWebResearchView({
               disabled={!browserUrl}
               testId="workbench-web-research-open-browser"
             />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
             <ActionButton
               icon={FileDown}
               label={
@@ -343,6 +333,10 @@ export function WorkbenchBoundedWebResearchView({
             />
           </div>
         </div>
+
+        {locationError ? (
+          <div className="mt-1.5 text-[10px] text-amber-200">{locationError}</div>
+        ) : null}
 
         {linkedMarkdownMode ? (
           <div className="mt-2 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5 text-[10px] leading-5 text-white/48">
