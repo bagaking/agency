@@ -309,6 +309,23 @@ export function buildAppLayoutPanelProps({
         cellId: selectedCell?.id || undefined,
       });
     },
+    onLaunchWebResearchUrl: async ({
+      url,
+      allowMarkdownSave,
+      allowMemoCapture,
+    }: {
+      url: string;
+      allowMarkdownSave?: boolean;
+      allowMemoCapture?: boolean;
+    }) => {
+      workbench.openBoundedWebResearch({
+        url,
+        rootPath: explorerRootPath,
+        cellId: selectedCell?.id || undefined,
+        allowMarkdownSave,
+        allowMemoCapture,
+      });
+    },
     onAddComment: handleAddCommentFromExplorer,
     commentCountsByPath: hilCommentCounts,
     onJumpToComments: handleJumpToComments,

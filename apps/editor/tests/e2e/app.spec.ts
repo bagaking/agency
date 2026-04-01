@@ -46,9 +46,18 @@ const killRepoElectronProcesses = () => {
 };
 
 const initializeGitRepo = (repoPath, trackedEntries) => {
-  fs.rmSync(repoPath, { recursive: true, force: true });
-  fs.mkdirSync(repoPath, { recursive: true });
-  execSync('git init', { cwd: repoPath });
+  const resetRepoDir = () => {
+    fs.rmSync(repoPath, { recursive: true, force: true, maxRetries: 10, retryDelay: 150 });
+    fs.mkdirSync(repoPath, { recursive: true });
+  };
+
+  resetRepoDir();
+  try {
+    execSync('git init', { cwd: repoPath });
+  } catch (_error) {
+    resetRepoDir();
+    execSync('git init', { cwd: repoPath });
+  }
   trackedEntries.forEach(({ relativePath, content }) => {
     const absolutePath = path.join(repoPath, relativePath);
     fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
@@ -121,10 +130,19 @@ const launchTestApp = async ({
   if (emptyState) {
     env.AGENCY_TEST_EMPTY_STATE = '1';
   }
-  return electron.launch({
-    args: [path.join(__dirname, '..', '..', '.electron-build', 'electron', 'main.js')],
-    env,
-  });
+  const launch = () =>
+    electron.launch({
+      args: [path.join(__dirname, '..', '..', '.electron-build', 'electron', 'main.js')],
+      env,
+    });
+
+  try {
+    return await launch();
+  } catch (error) {
+    killRepoElectronProcesses();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    return launch();
+  }
 };
 
 test.afterEach(async () => {
@@ -145,8 +163,20 @@ test.afterEach(async () => {
 });
 
 const openExplorer = async (window) => {
-  await window.getByRole('button', { name: 'Explorer', exact: true }).click();
-  await expect(window.getByTestId('explorer-header')).toBeVisible();
+  const header = window.getByTestId('explorer-header');
+  if (await header.isVisible().catch(() => false)) {
+    return;
+  }
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await window.getByRole('button', { name: 'Explorer', exact: true }).click();
+    try {
+      await expect(header).toBeVisible({ timeout: 4000 });
+      return;
+    } catch (_error) {
+      // Retry around occasional sidebar/activity timing jitter.
+    }
+  }
+  await expect(header).toBeVisible();
 };
 
 const ensureExplorerDirectoryExpanded = async (window, directoryPath, visibleChildPath) => {

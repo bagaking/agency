@@ -41,6 +41,10 @@ function quoteBlock(value: string) {
     .join('\n');
 }
 
+function toFrontmatterScalar(value: unknown) {
+  return JSON.stringify(String(value || ''));
+}
+
 function slugify(value: string) {
   return String(value || '')
     .trim()
@@ -74,6 +78,19 @@ export function buildExplorerResearchMarkdown(
 
   const sections = [
     [
+      '---',
+      `agency_source_url: ${toFrontmatterScalar(normalizeText(preview?.url))}`,
+      `agency_source_title: ${toFrontmatterScalar(normalizeText(preview?.title))}`,
+      `agency_source_site_name: ${toFrontmatterScalar(normalizeText(preview?.siteName))}`,
+      preview?.fetchedAt
+        ? `agency_source_fetched_at: ${toFrontmatterScalar(normalizeText(preview.fetchedAt))}`
+        : '',
+      `agency_source_surface: ${toFrontmatterScalar(sourceSurface)}`,
+      '---',
+    ]
+      .filter(Boolean)
+      .join('\n'),
+    [
       `# ${normalizeText(preview?.title) || 'Research Capture'}`,
       `- Source: ${normalizeText(preview?.url)}`,
       preview?.siteName ? `- Site: ${normalizeText(preview.siteName)}` : '',
@@ -91,6 +108,38 @@ export function buildExplorerResearchMarkdown(
   ];
 
   return sections.filter(Boolean).join('\n\n');
+}
+
+export function parseExplorerResearchFrontmatter(content: string) {
+  const normalized = String(content || '').replace(/\r\n/g, '\n');
+  const match = normalized.match(/^---\n([\s\S]*?)\n---\n?/);
+  if (!match) {
+    return null;
+  }
+  const frontmatter = match[1];
+  const readField = (key: string) => {
+    const lineMatch = frontmatter.match(new RegExp(`^${key}:\\s*(.+)$`, 'm'));
+    if (!lineMatch) {
+      return '';
+    }
+    const raw = String(lineMatch[1] || '').trim();
+    try {
+      return JSON.parse(raw);
+    } catch (_error) {
+      return raw.replace(/^['"]|['"]$/g, '');
+    }
+  };
+  const url = readField('agency_source_url');
+  if (!url) {
+    return null;
+  }
+  return {
+    url,
+    title: readField('agency_source_title'),
+    siteName: readField('agency_source_site_name'),
+    fetchedAt: readField('agency_source_fetched_at'),
+    sourceSurface: readField('agency_source_surface'),
+  };
 }
 
 export function buildExplorerResearchMemoPayload({

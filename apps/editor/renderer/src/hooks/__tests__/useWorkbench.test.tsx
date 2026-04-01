@@ -133,12 +133,31 @@ function WorkbenchHarness({
       >
         open-makefile-pinned
       </button>
+      <button
+        id="open-web-research"
+        type="button"
+        onClick={() =>
+          workbench.openBoundedWebResearch({
+            url: 'https://example.com/docs',
+            rootPath: '/repo',
+            cellId: undefined,
+            allowMarkdownSave: false,
+            allowMemoCapture: false,
+          })
+        }
+      >
+        open-web-research
+      </button>
       <output id="tabs">
         {JSON.stringify(
           workbench.tabs.map((tab: any) => ({
             path: tab.path,
             kind: tab.kind,
             isPreview: Boolean(tab.isPreview),
+            title: tab.title,
+            url: tab.url,
+            allowMarkdownSave: tab.allowMarkdownSave,
+            allowMemoCapture: tab.allowMemoCapture,
           }))
         )}
       </output>
@@ -169,6 +188,7 @@ test('useWorkbench.openFile follows shared file kind detection for svg tabs', as
         path: 'assets/icon.svg',
         kind: 'vector',
         isPreview: true,
+        title: 'icon.svg',
       },
     ]);
 
@@ -199,11 +219,13 @@ test('useWorkbench.openFile keeps special no-extension text files as code tabs',
         path: '.gitignore',
         kind: 'code',
         isPreview: false,
+        title: '.gitignore',
       },
       {
         path: 'Makefile',
         kind: 'code',
         isPreview: false,
+        title: 'Makefile',
       },
     ]);
 
@@ -238,11 +260,89 @@ test('useWorkbench hydrates initial tabs with the same shared file kind detectio
         path: 'assets/logo.svg',
         kind: 'vector',
         isPreview: false,
+        title: 'logo.svg',
       },
       {
         path: 'Makefile',
         kind: 'code',
         isPreview: true,
+        title: 'Makefile',
+      },
+    ]);
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});
+
+test('useWorkbench opens bounded web research tabs as explicit non-file objects', async () => {
+  const env = setupDom();
+  try {
+    const root = createRoot(document.getElementById('root')!);
+
+    await act(async () => {
+      root.render(<WorkbenchHarness />);
+    });
+
+    await act(async () => {
+      (document.getElementById('open-web-research') as HTMLButtonElement).click();
+    });
+
+    assert.deepEqual(readTabs(), [
+      {
+        kind: 'bounded-web-research',
+        isPreview: false,
+        title: 'example.com',
+        url: 'https://example.com/docs',
+        allowMarkdownSave: false,
+        allowMemoCapture: false,
+      },
+    ]);
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});
+
+test('useWorkbench hydrates bounded web research tabs without pretending they are files', async () => {
+  const env = setupDom();
+  try {
+    const root = createRoot(document.getElementById('root')!);
+
+    await act(async () => {
+      root.render(
+        <WorkbenchHarness
+          initialTabsByCellId={{
+            'cell-1': [
+              {
+                kind: 'bounded-web-research',
+                url: 'https://example.com/spec',
+                rootPath: '/repo',
+                isPreview: false,
+                title: 'Spec Docs',
+                allowMarkdownSave: true,
+                allowMemoCapture: false,
+              },
+            ],
+          }}
+        />
+      );
+    });
+
+    assert.deepEqual(readTabs(), [
+      {
+        kind: 'bounded-web-research',
+        isPreview: false,
+        title: 'Spec Docs',
+        url: 'https://example.com/spec',
+        allowMarkdownSave: true,
+        allowMemoCapture: false,
       },
     ]);
 

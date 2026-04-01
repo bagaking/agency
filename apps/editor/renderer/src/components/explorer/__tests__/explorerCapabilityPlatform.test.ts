@@ -10,7 +10,6 @@ import {
   getDefaultExplorerFilterDescriptorState,
 } from '../explorerFilterDescriptors';
 import {
-  getExplorerCommandsForSurface,
   resolveExplorerCommandsForSurface,
 } from '../explorerCommands';
 import {
@@ -48,50 +47,20 @@ test('filter descriptor helpers preserve readable summaries and counts', () => {
   );
 });
 
-test('command registry hides research actions unless the lane is enabled', () => {
-  const hiddenCommands = getExplorerCommandsForSurface('header', {
-    selectionTargets: [],
-    canPaste: false,
-    hasResearchLane: false,
-    hiddenCommandIds: [],
-    actions: {},
-  });
-  const visibleCommands = getExplorerCommandsForSurface('header', {
-    selectionTargets: [],
-    canPaste: false,
-    hasResearchLane: true,
-    hiddenCommandIds: [],
-    actions: {},
-  });
-
-  assert.equal(
-    hiddenCommands.some((command) => command.id === 'explorer.researchLane'),
-    false
-  );
-  assert.equal(
-    visibleCommands.some((command) => command.id === 'explorer.researchLane'),
-    true
-  );
-  const researchLane = visibleCommands.find((command) => command.id === 'explorer.researchLane');
-  assert.equal(researchLane?.placement, 'secondary');
-});
-
 test('project policy can hide registered commands without changing registry order', () => {
   const commands = resolveExplorerCommandsForSurface(
     'header',
     {
       selectionTargets: [],
       canPaste: false,
-      hasResearchLane: true,
       actions: {},
     },
     {
-      hiddenCommandIds: ['explorer.refresh', 'explorer.researchLane'],
+      hiddenCommandIds: ['explorer.refresh'],
     }
   );
 
   assert.equal(commands.some((command) => command.id === 'explorer.refresh'), false);
-  assert.equal(commands.some((command) => command.id === 'explorer.researchLane'), false);
   assert.equal(commands.some((command) => command.id === 'explorer.newFile'), true);
 });
 
@@ -154,8 +123,8 @@ test('root-level draft entries stay visible when creating a new item at reposito
   const items = buildExplorerVisibleItems({
     tree: {
       nodes: {
-        '': { path: '', name: '', type: 'dir' },
-        'README.md': { path: 'README.md', name: 'README.md', type: 'file' },
+        '': { name: '', type: 'dir' },
+        'README.md': { name: 'README.md', type: 'file' },
       },
       children: {
         '': ['README.md'],

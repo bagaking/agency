@@ -18,11 +18,11 @@
 - [x] 3.1 Refine the Explorer header so it stops competing with the list.
 - [x] 3.2 Update docs/specs so ignored-entry treatment and row-state hierarchy survive reset.
 - [x] 3.3 Keep the header aligned with shell-owned sidebar boundaries so it remains file-context chrome rather than a second local surface.
-- [ ] 3.4 Commit the header/spec checkpoint before review.
-- [ ] 3.5 Run parallel review and apply checkpoint fixes.
-- [ ] 3.6 Commit the reviewed final checkpoint.
+- [x] 3.4 Commit the header/spec checkpoint before review.
+- [x] 3.5 Run parallel review and apply checkpoint fixes.
+- [x] 3.6 Commit the reviewed final checkpoint.
 
 ## 4. Verification
 
 - [x] 4.1 Run focused Explorer renderer tests for row/header behavior.
-- [ ] 4.2 Perform final review against the AGENTS four-question bar.
+- [x] 4.2 Perform final review against the AGENTS four-question bar.

@@ -8,6 +8,8 @@ import {
   resolveWorkbenchLanguage,
   type WorkbenchSecureKind,
 } from './workbenchPaneHelpers';
+import { isWorkbenchBoundedResearchTab } from './workbenchBoundedResearch';
+import { parseExplorerResearchFrontmatter } from '../explorer/explorerResearchArtifacts';
 
 type WorkbenchTabTarget = {
   rootPath: string;
@@ -71,6 +73,8 @@ const loadCodeWorkbenchState = async ({
 }: WorkbenchTabTarget): Promise<WorkbenchTabLoadResult> => {
   const result = await readWorkbenchEntry({ rootPath, targetPath });
   const content = result?.content || '';
+  const language = resolveWorkbenchLanguage(targetPath);
+  const researchSource = language === 'markdown' ? parseExplorerResearchFrontmatter(content) : null;
   return {
     ...baseLoadedState,
     content,
@@ -79,9 +83,12 @@ const loadCodeWorkbenchState = async ({
     mtimeMs: result?.mtimeMs || 0,
     binary: Boolean(result?.binary),
     truncated: Boolean(result?.truncated),
-    language: resolveWorkbenchLanguage(targetPath),
+    language,
     isDirty: false,
     kind: 'code',
+    researchSourceUrl: researchSource?.url || '',
+    researchSourceTitle: researchSource?.title || '',
+    researchSourceSiteName: researchSource?.siteName || '',
   };
 };
 
@@ -98,10 +105,22 @@ const loadUnknownWorkbenchState = async ({
   };
 };
 
+const loadBoundedWebResearchState = async (): Promise<WorkbenchTabLoadResult> => {
+  return {
+    ...baseLoadedState,
+    kind: 'bounded-web-research',
+    isDirty: false,
+  };
+};
+
 export const loadWorkbenchTabState = async ({
   rootPath,
   targetPath,
-}: WorkbenchTabTarget): Promise<WorkbenchTabLoadResult> => {
+  tab,
+}: WorkbenchTabTarget & { tab?: any }): Promise<WorkbenchTabLoadResult> => {
+  if (isWorkbenchBoundedResearchTab(tab)) {
+    return loadBoundedWebResearchState();
+  }
   const secureKind = detectWorkbenchSecureKind(targetPath);
   if (secureKind === 'vector') {
     return loadVectorWorkbenchState({ rootPath, targetPath });
