@@ -1,12 +1,12 @@
 import React from 'react';
-import { ArrowUpRight, GitBranch, Layers3 } from 'lucide-react';
+import { ArrowUpRight, FolderArchive, GitBranch, Layers3, ShieldCheck } from 'lucide-react';
 
 import { AttentionPill } from '../attention/AttentionPill';
 import type { AttentionItem } from '../../attention/attentionModel';
 import {
   CellStateBadge,
-  buildArchivedCellCardCopy,
-  buildDetachedCellSessionSummary,
+  buildArchivedCellCopy,
+  buildCellSessionSummary,
   resolveCellAttachmentMeta,
 } from './cellPresentation';
 
@@ -28,8 +28,8 @@ export function ArchivedCellCard({
   onSelect,
 }: ArchivedCellCardProps) {
   const attachmentMeta = resolveCellAttachmentMeta(cell);
-  const sessionSummary = buildDetachedCellSessionSummary(sessions);
-  const copy = buildArchivedCellCardCopy(cell, sessionSummary);
+  const sessionSummary = buildCellSessionSummary(sessions);
+  const copy = buildArchivedCellCopy(cell, sessionSummary);
   const worktreeLabel = attachmentMeta.pathLabel || `${attachmentMeta.label} worktree`;
 
   return (
@@ -46,8 +46,8 @@ export function ArchivedCellCard({
       }}
       className={`rounded-2xl border px-3 py-3 transition-colors ${
         selected
-          ? 'border-slate-200/30 bg-slate-500/[0.12] shadow-[0_10px_30px_-20px_rgba(148,163,184,0.8)]'
-          : 'border-white/6 bg-slate-950/60 hover:border-slate-200/25 hover:bg-slate-900/[0.55]'
+          ? 'border-slate-300/22 bg-slate-400/[0.08] shadow-[0_10px_30px_-20px_rgba(148,163,184,0.55)]'
+          : 'border-white/8 bg-white/[0.025] hover:border-slate-300/18 hover:bg-white/[0.04]'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -74,10 +74,16 @@ export function ArchivedCellCard({
         ) : null}
       </div>
 
-      <div className="mt-3 rounded-xl border border-white/6 bg-slate-900/50 px-3 py-2.5">
-        <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-100/80">{copy.eyebrow}</div>
+      <div className="mt-3 rounded-xl border border-white/6 bg-black/10 px-3 py-2.5">
+        <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-200/80">
+          {copy.eyebrow}
+        </div>
         <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{copy.body}</p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium text-foreground/80">
+            <ShieldCheck size={10} strokeWidth={1.6} />
+            Evidence retained
+          </span>
           <span className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium text-foreground/80">
             <Layers3 size={10} strokeWidth={1.6} />
             {copy.summary}
@@ -85,7 +91,11 @@ export function ArchivedCellCard({
         </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
+          <FolderArchive size={12} strokeWidth={1.7} />
+          Archived
+        </span>
         <button
           type="button"
           onClick={(event) => {
@@ -95,10 +105,9 @@ export function ArchivedCellCard({
           onKeyDown={(event) => {
             event.stopPropagation();
           }}
-          className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:border-white/15 hover:bg-white/[0.04] hover:text-foreground"
-          title="Open the archived cell details"
+          className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-foreground/80 transition-colors hover:bg-white/[0.08]"
         >
-          <ArrowUpRight size={12} strokeWidth={1.8} />
+          <ArrowUpRight size={12} strokeWidth={1.7} />
           <span>View Details</span>
         </button>
       </div>

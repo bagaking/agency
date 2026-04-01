@@ -174,7 +174,8 @@ Session Map 的类 RTS 游戏操作界面设计：它是一个跨界面、始终
  - **Cell = 城邦 / 阵营**：以“阵营色 + 城邦卡片 + 角色头像”表示；默认色基于 `Cell.state` + 创建顺序。
 - **Session = 角色**：以圆形角色 token + 状态点表示（active/detached/closed/stale）。Session 可携带专属头像，优先展示 `session.avatar`，缺省则回退到 Cell 头像或基于 session id 计算。
 - **离线状态**：Session 为 `closed / stale / archived` 或 Cell 为 `archived / closed` 时标记为离线。
-- **Detached Cell cleanup**：当 Cell 丢失 live worktree attachment 时，Agent Cells sidebar 不再把它当作普通开发中 Cell + session tree 渲染，而是移动到独立的 `Needs Cleanup` 区。该卡片主动作是 `Archive Cell`，负责把 Cell 从 active flow 收束出去；更高破坏性的 `Delete Cell` / attachment metadata 清理仍留在选中后的 details pane，不塞进 sidebar triage。
+- **Detached Cell cleanup**：当 Cell 丢失 live worktree attachment 且 lifecycle state 还不是 `archived` 时，Agent Cells sidebar 不再把它当作普通开发中 Cell + session tree 渲染，而是移动到独立的 `Needs Cleanup` 区。这个区表达的是 attachment triage，不是 lifecycle 已归档；该卡片主动作是 `Archive Cell`，负责把 Cell 从 active flow 收束出去。cleanup copy 需要明确区分 `missing` 与 `detached`：前者表示记录中的 worktree 已不存在，后者表示 Cell 已与仍可辨认的 worktree 脱离绑定。卡片还要给出简洁的 preserved-evidence 提示和 session 摘要；更高破坏性的 `Delete Cell` / attachment metadata 清理仍留在选中后的 details pane，不塞进 sidebar triage。
+- **Archived lifecycle surface**：`Archived` 是独立 lifecycle view，而不是 cleanup 余项。当 Cell 进入 `archived` 状态后，它必须离开 `Needs Cleanup` / active buckets，并通过明确的 `View Archived` 入口进入归档区。若该 Cell 同时缺失 live worktree attachment，可以在 archived card 内表达 offline copy，但主语义仍然是 archived lifecycle；主 affordance 应偏向 `View Details`，并明确说明 evidence retained / session summary 仍可访问。
 - **Sessionless Cell**：Cell 允许零 session 存在。窗口启动、Cell 恢复、或 attached worktree 被重新看见时，都不应自动补一个 `Default` session；只有用户显式进入 runtime（例如 `Create Session` / 进入空 terminal 态后确认创建）时，才 materialize 新的 execution lane。
 - **Create vs Bind**：`Create Cell` 内部需要区分三种语义：Agency 新建 branch、绑定已有 worktree、绑定已有 branch。只有第一种受 branch strategy / naming 约束；后两种必须保留用户已有 branch identity，不把绑定流程伪装成新建流程。
 - **Hover 预览**：以“缩略图为主 + 一行毛玻璃信息条”为主视觉；缩略图按当前 session 字号与 tmux pane cols/rows 渲染，**高度随 rows 自适应**，上限固定为宽高比约 1.618；内容贴底显示，不强行裁切。hover 时淡至 85% 不透明度且可滚动查看。
@@ -241,17 +242,19 @@ cellColors:
 - `cellColors`: 以 Cell id 覆盖单个阵营色（优先级最高）。
 
 ## Manual Verification
-1. 打开一个 session，记录 idle 显示时间。
-2. 切换到其他 session，再切回；若输出没有变化，idle 不应被刷新。
-3. 在当前 session 输出少量文本（低于阈值，例如 `echo ok`），idle 不应刷新。
-4. 输出超过阈值的文本（例如 `python - <<'PY'\nprint('x'*50)\nPY`），idle 应刷新。
-5. 仅因临时失焦、attach replay 或 silent refresh 回到当前 window / surface 时，session 不应立刻被标成 `Unread`。
-6. 在一个后台 session 产生新输出后，确认 Agent Cells 的 cell/session 内联 attention、app-shell 右侧 `Priority Queue`、Status Bar 主 attention 使用同一套 `Unread` 语义，并且点击任一入口会回到对应 session。
-7. 触发一个 `Create Agent` 运行中的 child execution，确认 Agent Cells 的 inline marker、Status Bar `Next`、app-shell 右侧 `Priority Queue` 都显示 `Running`，且点击后会打开对应 session/run 上下文而不是把 run 埋在背景里；`Session Map Ops` 只承载 evidence。
-8. 制造一次失败 run，确认 Status Bar、Agent Cells inline marker、app-shell 右侧 `Priority Queue` 都显示同一条 `Failed` attention；它不会像 toast 一样自动消失，并且点击后能回到相关对象；完整错误仍在 `Session Map Ops` evidence 区。
-9. 在另一个窗口制造更高优先级的 attention，确认当前窗口的 window switcher 能显示该窗口的 primary attention，并可直接聚焦过去。
-10. 制造 `Confirm` 和 `Review` 两类 attention，确认 Status Bar `Next` 的可见 label 仍然保持共享词汇（`Confirm` / `Review`），而 tooltip 会补足真实跳转目标。
-11. 在 Agent Cells 中打开/关闭 `Session Reply Relay`，确认入口位于共享 right-edge launcher rail 的底部；`Reply` 打开时不会改写 `Attention` / `Commander` 的语义，也不会重新引入第二条右侧 launcher。
+1. 移除或 detach 一个非 `archived` 的 Cell worktree，确认 Agent Cells 将其移到 `Needs Cleanup` 区，显示 preserved-evidence 提示与 session 摘要，且不再按普通 session tree 渲染；`missing` 与 `detached` 的文案应有所区分。
+2. 从该 cleanup card 执行 `Archive Cell` 并完成确认，确认该 Cell 离开 `Needs Cleanup`，改为通过 `View Archived` 进入 `Archived` 区；此时主动作变为 `View Details`（而不是继续显示 `Archive Cell`），repo-owned sessions/evidence 仍可从 details 访问。
+3. 打开一个 session，记录 idle 显示时间。
+4. 切换到其他 session，再切回；若输出没有变化，idle 不应被刷新。
+5. 在当前 session 输出少量文本（低于阈值，例如 `echo ok`），idle 不应刷新。
+6. 输出超过阈值的文本（例如 `python - <<'PY'\nprint('x'*50)\nPY`），idle 应刷新。
+7. 仅因临时失焦、attach replay 或 silent refresh 回到当前 window / surface 时，session 不应立刻被标成 `Unread`。
+8. 在一个后台 session 产生新输出后，确认 Agent Cells 的 cell/session 内联 attention、app-shell 右侧 `Priority Queue`、Status Bar 主 attention 使用同一套 `Unread` 语义，并且点击任一入口会回到对应 session。
+9. 触发一个 `Create Agent` 运行中的 child execution，确认 Agent Cells 的 inline marker、Status Bar `Next`、app-shell 右侧 `Priority Queue` 都显示 `Running`，且点击后会打开对应 session/run 上下文而不是把 run 埋在背景里；`Session Map Ops` 只承载 evidence。
+10. 制造一次失败 run，确认 Status Bar、Agent Cells inline marker、app-shell 右侧 `Priority Queue` 都显示同一条 `Failed` attention；它不会像 toast 一样自动消失，并且点击后能回到相关对象；完整错误仍在 `Session Map Ops` evidence 区。
+11. 在另一个窗口制造更高优先级的 attention，确认当前窗口的 window switcher 能显示该窗口的 primary attention，并可直接聚焦过去。
+12. 制造 `Confirm` 和 `Review` 两类 attention，确认 Status Bar `Next` 的可见 label 仍然保持共享词汇（`Confirm` / `Review`），而 tooltip 会补足真实跳转目标。
+13. 在 Agent Cells 中打开/关闭 `Session Reply Relay`，确认入口位于共享 right-edge launcher rail 的底部；`Reply` 打开时不会改写 `Attention` / `Commander` 的语义，也不会重新引入第二条右侧 launcher。
 
 ## 实现提示
 - 入口：Status Bar 中央的 Session Map Toggle。

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Archive,
   Plus,
   GitBranch,
   ArrowUpLeft,
@@ -35,7 +36,7 @@ import { DetachedCellCleanupCard } from './DetachedCellCleanupCard';
 import { ArchivedCellCard } from './ArchivedCellCard';
 import {
   CellStateBadge,
-  isArchivedDetachedCell,
+  isArchivedCell,
   isDetachedCellCleanupCandidate,
   resolveCellAttachmentMeta,
 } from './cellPresentation';
@@ -331,6 +332,7 @@ export function AgentCellsSessionsPanel({
   const [pendingActiveSessionByCellId, setPendingActiveSessionByCellId] = useState<Record<string, string>>({});
   const [draggingSession, setDraggingSession] = useState<{ cellId: string; sessionId: string } | null>(null);
   const [dropTarget, setDropTarget] = useState<SessionDropTarget | null>(null);
+  const [showArchivedCells, setShowArchivedCells] = useState(false);
 
   const closedMenuRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
@@ -345,14 +347,14 @@ export function AgentCellsSessionsPanel({
     [cells]
   );
 
-  const { activeCells, cleanupCells, archivedDetachedCells } = useMemo(() => {
+  const { activeCells, cleanupCells, archivedCells } = useMemo(() => {
     const primary: any[] = [];
     const cleanup: any[] = [];
     const archived: any[] = [];
     (cells || []).forEach((cell: any) => {
       if (isDetachedCellCleanupCandidate(cell)) {
         cleanup.push(cell);
-      } else if (isArchivedDetachedCell(cell)) {
+      } else if (isArchivedCell(cell)) {
         archived.push(cell);
       } else {
         primary.push(cell);
@@ -361,9 +363,19 @@ export function AgentCellsSessionsPanel({
     return {
       activeCells: primary,
       cleanupCells: cleanup,
-      archivedDetachedCells: archived,
+      archivedCells: archived,
     };
   }, [cells]);
+
+  useEffect(() => {
+    if (!selectedId) {
+      return;
+    }
+    const selectedArchived = archivedCells.some((cell: any) => cell?.id === selectedId);
+    if (selectedArchived) {
+      setShowArchivedCells(true);
+    }
+  }, [archivedCells, selectedId]);
 
   useEffect(() => {
     const interval = setInterval(() => setIdleNow(Date.now()), 1000);
@@ -819,7 +831,7 @@ export function AgentCellsSessionsPanel({
           </>
         ) : null}
 
-        {activeCells.length === 0 && cleanupCells.length === 0 && archivedDetachedCells.length === 0 ? (
+        {activeCells.length === 0 && cleanupCells.length === 0 && archivedCells.length === 0 ? (
           <div className="px-4 py-8 text-center text-xs text-muted-foreground">No active cells</div>
         ) : (
           <div className="space-y-4">
@@ -1395,30 +1407,50 @@ export function AgentCellsSessionsPanel({
               </section>
             ) : null}
 
-            {archivedDetachedCells.length > 0 ? (
+            {archivedCells.length > 0 ? (
               <section
                 className="space-y-2"
-                data-testid="archived-detached-cell-list"
-                aria-label="Archived offline cells"
+                data-testid="archived-cell-shell"
+                aria-label="Archived cells"
               >
-                <div className="flex items-center justify-between px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300/70">
-                  <span>Archived Offline</span>
-                  <span className="text-muted-foreground/70">{archivedDetachedCells.length}</span>
-                </div>
-                {archivedDetachedCells.map((cell: any) => {
-                  const cellAttention = attention.byCellId[cell.id];
-                  return (
-                    <ArchivedCellCard
-                      key={cell.id}
-                      cell={cell}
-                      sessions={resolveCellSessions(String(cell.id))}
-                      selected={selectedId === cell.id}
-                      attentionItem={cellAttention?.strongest || null}
-                      attentionCount={cellAttention?.count || 0}
-                      onSelect={onSelect}
-                    />
-                  );
-                })}
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2 text-left transition-colors hover:border-slate-300/16 hover:bg-white/[0.05]"
+                  onClick={() => setShowArchivedCells((value) => !value)}
+                >
+                  <span className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-200/75">
+                    <Archive size={12} strokeWidth={1.8} />
+                    {showArchivedCells ? 'Hide Archived' : 'View Archived'}
+                  </span>
+                  <span className="text-[10px] font-medium text-muted-foreground/70">{archivedCells.length}</span>
+                </button>
+
+                {showArchivedCells ? (
+                  <div
+                    className="space-y-2"
+                    data-testid="archived-cell-list"
+                    aria-label="Archived cells"
+                  >
+                    <div className="flex items-center justify-between px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300/70">
+                      <span>Archived</span>
+                      <span className="text-muted-foreground/70">{archivedCells.length}</span>
+                    </div>
+                    {archivedCells.map((cell: any) => {
+                      const cellAttention = attention.byCellId[cell.id];
+                      return (
+                        <ArchivedCellCard
+                          key={cell.id}
+                          cell={cell}
+                          sessions={resolveCellSessions(String(cell.id))}
+                          selected={selectedId === cell.id}
+                          attentionItem={cellAttention?.strongest || null}
+                          attentionCount={cellAttention?.count || 0}
+                          onSelect={onSelect}
+                        />
+                      );
+                    })}
+                  </div>
+                ) : null}
               </section>
             ) : null}
           </div>

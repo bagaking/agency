@@ -1,11 +1,11 @@
 import React from 'react';
-import { Archive, ArrowUpRight, GitBranch, Layers3 } from 'lucide-react';
+import { Archive, ArrowUpRight, GitBranch, Layers3, ShieldCheck } from 'lucide-react';
 
 import { AttentionPill } from '../attention/AttentionPill';
 import type { AttentionItem } from '../../attention/attentionModel';
 import {
   CellStateBadge,
-  buildDetachedCellSessionSummary,
+  buildCellSessionSummary,
   resolveCellAttachmentMeta,
 } from './cellPresentation';
 
@@ -20,19 +20,13 @@ type DetachedCellCleanupCardProps = {
 };
 
 function buildCleanupCopy(cell: any, sessionSummary: string[]) {
-  const state = String(cell?.state || 'draft').trim().toLowerCase();
-  if (state === 'archived') {
-    return {
-      eyebrow: 'Archived Cell',
-      body:
-        'This Cell no longer has a live worktree and is already archived. Repo-owned sessions and evidence remain available from details.',
-      summary: sessionSummary.join(' · '),
-    };
-  }
+  const attachmentState = resolveCellAttachmentMeta(cell).attachmentState;
   return {
     eyebrow: 'Cleanup Recommended',
     body:
-      'No live worktree remains for this Cell. Archive it to remove it from the active Agent Cells flow while preserving repo-owned sessions and evidence.',
+      attachmentState === 'missing'
+        ? 'The recorded worktree path is no longer available for this Cell. Archive it to remove it from the active Agent Cells flow while preserving repo-owned sessions and evidence.'
+        : 'This Cell is detached from its worktree and no longer belongs in the active Agent Cells flow. Archive it while preserving repo-owned sessions and evidence.',
     summary: sessionSummary.join(' · '),
   };
 }
@@ -47,9 +41,8 @@ export function DetachedCellCleanupCard({
   onArchive,
 }: DetachedCellCleanupCardProps) {
   const attachmentMeta = resolveCellAttachmentMeta(cell);
-  const sessionSummary = buildDetachedCellSessionSummary(sessions);
+  const sessionSummary = buildCellSessionSummary(sessions);
   const copy = buildCleanupCopy(cell, sessionSummary);
-  const isArchived = String(cell?.state || '').trim().toLowerCase() === 'archived';
   const worktreeLabel = attachmentMeta.pathLabel || `${attachmentMeta.label} worktree`;
 
   return (
@@ -101,6 +94,10 @@ export function DetachedCellCleanupCard({
         <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{copy.body}</p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium text-foreground/80">
+            <ShieldCheck size={10} strokeWidth={1.6} />
+            Evidence retained
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium text-foreground/80">
             <Layers3 size={10} strokeWidth={1.6} />
             {copy.summary}
           </span>
@@ -112,24 +109,20 @@ export function DetachedCellCleanupCard({
           type="button"
           onClick={(event) => {
             event.stopPropagation();
-            if (!isArchived) {
-              onArchive?.(cell);
-            } else {
-              onSelect?.(cell.id);
-            }
+            onArchive?.(cell);
           }}
           onKeyDown={(event) => {
             event.stopPropagation();
           }}
-          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] transition-colors ${
-            isArchived
-              ? 'border-white/10 bg-white/[0.04] text-foreground/75 hover:bg-white/[0.08]'
-              : 'border-amber-300/30 bg-amber-500/12 text-amber-100 hover:bg-amber-500/18'
-          }`}
-          title={isArchived ? 'Open the archived Cell details' : 'Archive this detached Cell'}
+          className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-500/12 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100 transition-colors hover:bg-amber-500/18"
+          title={
+            attachmentMeta.attachmentState === 'missing'
+              ? 'Archive this missing Cell'
+              : 'Archive this detached Cell'
+          }
         >
-          {isArchived ? <ArrowUpRight size={12} strokeWidth={1.8} /> : <Archive size={12} strokeWidth={1.8} />}
-          <span>{isArchived ? 'Review Details' : 'Archive Cell'}</span>
+          <Archive size={12} strokeWidth={1.8} />
+          <span>Archive Cell</span>
         </button>
 
         <button
