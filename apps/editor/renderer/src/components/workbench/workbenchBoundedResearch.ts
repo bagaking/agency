@@ -1,4 +1,4 @@
-import { normalizeExplorerSupportedPublicUrl } from '../explorer/explorerSearchModel';
+import { normalizeSupportedPublicUrl } from '../../../../shared/publicUrl';
 
 export const WORKBENCH_TAB_KIND_BOUNDED_WEB_RESEARCH = 'bounded-web-research';
 
@@ -16,7 +16,7 @@ export type WorkbenchBoundedResearchTab = {
 };
 
 export function normalizeWorkbenchResearchUrl(input: unknown) {
-  return normalizeExplorerSupportedPublicUrl(input);
+  return normalizeSupportedPublicUrl(input);
 }
 
 export function deriveWorkbenchResearchTitle(url: unknown, fallback = DEFAULT_WORKBENCH_RESEARCH_TAB_TITLE) {

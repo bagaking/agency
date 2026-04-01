@@ -145,6 +145,8 @@ const INVOKE_CHANNELS: Record<string, string> = {
   getFileSnippet: 'workbench:snippet',
   diffWorkbenchEntry: 'workbench:diff',
   blameWorkbenchEntry: 'workbench:blame',
+  syncWorkbenchBrowserSurface: 'workbench:browserSurface:sync',
+  disposeWorkbenchBrowserSurface: 'workbench:browserSurface:dispose',
   materializeClipboard: 'clipboard:materialize',
   materializeMarkdown: 'clipboard:materializeMarkdown',
   createExplorerEntry: 'explorer:create',
@@ -237,6 +239,7 @@ const SUBSCRIBE_CHANNELS: Record<string, string> = {
   onCellsUpdated: 'cells:updated',
   onExplorerChanged: 'explorer:changed',
   onMainAgentHarnessProgress: 'main-agent-harness:progress',
+  onWorkbenchBrowserSurfaceEvent: 'workbench:browserSurface:event',
 };
 
 const agencyBridge = {

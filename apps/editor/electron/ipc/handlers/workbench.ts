@@ -1,4 +1,4 @@
-const { ipcMain } = require('electron');
+const { BrowserWindow, ipcMain } = require('electron');
 const {
   statEntry,
   readTextFile,
@@ -9,6 +9,10 @@ const {
   getFileSnippet,
 } = require('../../services/workbench');
 const { readWorkbenchProjectPolicy } = require('../../services/workbenchPolicy');
+const {
+  syncWorkbenchBrowserSurface,
+  disposeWorkbenchBrowserSurface,
+} = require('../../services/workbenchBrowserSurface');
 
 function setupWorkbenchHandlers() {
   ipcMain.handle('workbench:policy', async (_event, payload) => {
@@ -55,6 +59,19 @@ function setupWorkbenchHandlers() {
     const rootPath = payload?.rootPath;
     const targetPath = payload?.targetPath;
     return getBlame({ rootPath, targetPath });
+  });
+
+  ipcMain.handle('workbench:browserSurface:sync', async (event, payload) => {
+    const ownerWindow = BrowserWindow.fromWebContents(event.sender);
+    return syncWorkbenchBrowserSurface({ ownerWindow, payload });
+  });
+
+  ipcMain.handle('workbench:browserSurface:dispose', async (event, payload) => {
+    disposeWorkbenchBrowserSurface({
+      ownerWindow: BrowserWindow.fromWebContents(event.sender),
+      tabId: payload?.tabId,
+    });
+    return { ok: true };
   });
 }
 

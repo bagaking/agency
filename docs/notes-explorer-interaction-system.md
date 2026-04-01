@@ -350,7 +350,9 @@ Explorer now exposes bounded URL intake and Workbench now hosts the primary boun
 Current model:
 - `URL` is a first-class Explorer search mode alongside `Paths` and `Content`, not a hidden header utility;
 - the shared Explorer search row owns URL intake and can surface a compact `Open Web` affordance when the current input already looks like a supported public URL;
-- Workbench opens a bounded browser surface that owns the primary page/research surface, exposes page-level actions (`Reload`, `Open in Browser`, `Save Markdown`, `Cite`), and feels like the canonical inline browser view for the URL while still keeping cookies/session management and general browser tabs out of scope;
+- Workbench opens a bounded web research tab that owns the primary page/research surface and its actions;
+- `View` is a native browser surface rather than a renderer iframe, so browser-denied sites still render while the Workbench tab remains the owning object;
+- Workbench opens a bounded web research tab that owns the primary page/research surface and its actions; `View` is a native browser surface rather than a renderer iframe, so browser-denied sites still render while the Workbench tab remains the owning object and general browser tabs/cookies stay out of scope;
 - saved Markdown files keep fixed `agency_source_*` frontmatter so Workbench can reopen them in markdown + preview mode;
 - citations still route through Memo/HIL, and full browsing still escapes to the system browser.
 
@@ -363,7 +365,7 @@ Treat that tab as the Workbench browser surface: it renders the remote URL and o
 
 Security/scope boundary:
 - only `http/https`;
-- local/private hosts are rejected by the shared excerpt fetcher;
+- local/private hosts are rejected by the shared public-URL policy in both renderer intake and native browser-host navigation;
 - the lane is for URL -> workspace/workflow handoff, not arbitrary browsing;
 - the lane does not own tabs, cookies, auth/session state, or a window-global webview.
 

@@ -160,6 +160,9 @@ export const statWorkbenchEntry = createOptionalInvoke('statWorkbenchEntry');
 export const writeWorkbenchEntry = createOptionalInvoke('writeWorkbenchEntry');
 export const diffWorkbenchEntry = createOptionalInvoke('diffWorkbenchEntry');
 export const blameWorkbenchEntry = createOptionalInvoke('blameWorkbenchEntry');
+export const syncWorkbenchBrowserSurface = createOptionalInvoke('syncWorkbenchBrowserSurface');
+export const disposeWorkbenchBrowserSurface = createOptionalInvoke('disposeWorkbenchBrowserSurface');
+export const onWorkbenchBrowserSurfaceEvent = createOptionalSubscribe('onWorkbenchBrowserSurfaceEvent');
 
 // Project-level helpers / OS
 export const selectProjectRoot = createOptionalInvoke('selectProjectRoot');

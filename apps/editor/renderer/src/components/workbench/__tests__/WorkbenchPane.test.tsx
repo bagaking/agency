@@ -430,3 +430,151 @@ test('WorkbenchPane close button does not bubble tab-navigation keys back into t
     env.cleanup();
   }
 });
+
+test('WorkbenchPane keeps bounded web research fallback inside the workbench surface', async () => {
+  const env = setupDom();
+  try {
+    const root = createRoot(document.getElementById('root')!);
+    await act(async () => {
+      root.render(
+        <WorkbenchPane
+          workbench={{
+            tabs: [
+              {
+                id: 'web-tab',
+                rootPath: '/repo',
+                title: 'Example Docs',
+                kind: 'bounded-web-research',
+                isPreview: false,
+                url: 'https://example.com/docs',
+              },
+            ],
+            activeTab: {
+              id: 'web-tab',
+              rootPath: '/repo',
+              title: 'Example Docs',
+              kind: 'bounded-web-research',
+              isPreview: false,
+              url: 'https://example.com/docs',
+            },
+            openFile() {},
+            closeTab() {},
+            closeOtherTabs() {},
+            closeAllTabs() {},
+            pinTab() {},
+            setActiveTab() {},
+            updateTab() {},
+          }}
+          activeRootPath="/repo"
+          activeRootLabel="main"
+          onTabMetaChange={() => undefined}
+          cellId="cell-main"
+          projectReady={true}
+          projectError=""
+          onSelectProject={() => undefined}
+          commentLines={[]}
+          onOpenComment={() => undefined}
+          onCursorPositionChange={() => undefined}
+          onSelectionChange={() => undefined}
+          pendingJump={null}
+          onJumpHandled={() => undefined}
+          onRevealPathInExplorer={() => undefined}
+        />
+      );
+    });
+    await env.flush();
+
+    assert.match(document.body.textContent || '', /Browser Surface Unavailable/);
+    assert.doesNotMatch(document.body.textContent || '', /Emergency Retry/);
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});
+
+test('WorkbenchPane disposes bounded browser surfaces when their owning tab closes', async () => {
+  const env = setupDom();
+  try {
+    const disposeCalls: Array<Record<string, any>> = [];
+    (window as any).agency.disposeWorkbenchBrowserSurface = async (payload: Record<string, any>) => {
+      disposeCalls.push(payload);
+      return { ok: true };
+    };
+
+    const root = createRoot(document.getElementById('root')!);
+
+    function Harness() {
+      const [tabs, setTabs] = React.useState([
+        {
+          id: 'web-tab',
+          rootPath: '/repo',
+          title: 'Example Docs',
+          kind: 'bounded-web-research',
+          isPreview: false,
+          url: 'https://example.com/docs',
+        },
+      ]);
+      const activeTab = tabs[0] || null;
+
+      return (
+        <WorkbenchPane
+          workbench={{
+            tabs,
+            activeTab,
+            openFile() {},
+            closeTab(tabId: string) {
+              setTabs((current) => current.filter((tab) => tab.id !== tabId));
+            },
+            closeOtherTabs() {},
+            closeAllTabs() {
+              setTabs([]);
+            },
+            pinTab() {},
+            setActiveTab() {},
+            updateTab() {},
+          }}
+          activeRootPath="/repo"
+          activeRootLabel="main"
+          onTabMetaChange={() => undefined}
+          cellId="cell-main"
+          projectReady={true}
+          projectError=""
+          onSelectProject={() => undefined}
+          commentLines={[]}
+          onOpenComment={() => undefined}
+          onCursorPositionChange={() => undefined}
+          onSelectionChange={() => undefined}
+          pendingJump={null}
+          onJumpHandled={() => undefined}
+          onRevealPathInExplorer={() => undefined}
+        />
+      );
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+    });
+    await env.flush();
+
+    const closeButton = document.querySelector(
+      'button[aria-label="Close Example Docs"]'
+    ) as HTMLButtonElement | null;
+    assert.ok(closeButton);
+
+    await act(async () => {
+      closeButton.click();
+    });
+    await env.flush();
+
+    assert.deepEqual(disposeCalls, [{ tabId: 'web-tab' }]);
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});

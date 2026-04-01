@@ -1,11 +1,19 @@
-## 1. Specs
-- [ ] 1.1 Modify `agency-editor` spec so the Workbench bounded web research tab is explicitly described as the browser surface for URL research while still obeying bounded product limits.
+## 1. Specification And Documentation
+- [x] 1.1 Update the `agency-editor` spec from iframe-backed `View` wording to browser-surface host wording.
+- [x] 1.2 Update Explorer/Workbench notes, README, and manual test docs to reflect the new host model and bounded limits.
+- [x] 1.3 Update reusable-items docs for the new Electron browser-surface seam.
 
-## 2. Documentation
-- [ ] 2.1 Update `apps/editor/README.md` to describe the Workbench browser surface (Live/Reader modes, page-level actions, system-browser escape) and note it is still bounded.
-- [ ] 2.2 Update `apps/editor/docs/manual-test.md` so checkboxes validate the true browser surface, its actions, and the escape path back to the system browser.
-- [ ] 2.3 Update `docs/notes-explorer-interaction-system.md`, `docs/notes-file-interaction-system.md`, and `docs/notes-reusable-items-coding.md` so the notes/catalog emphasize the browser surface role and the bounded constraints.
-- [ ] 2.4 Regenerate `docs/must-sop.md` after touching the `sop` docs.
+## 2. Native Browser Surface Host
+- [x] 2.1 Add an Electron service that owns browser-surface lifecycle per window + bounded research tab.
+- [x] 2.2 Add preload / IPC bridge methods for ensure/show/hide/navigate/dispose/query state.
+- [x] 2.3 Block host drift into window-global browser behavior; keep lifecycle keyed to Workbench bounded research tabs.
 
-## 3. Validation
-- [ ] 3.1 Run `pnpm exec openspec validate update-workbench-browser-surface --strict`.
+## 3. Renderer Integration
+- [x] 3.1 Replace iframe-backed `View` with a browser-host shell in Workbench bounded web research.
+- [x] 3.2 Keep `Reader`, `Save Markdown`, `Cite`, linked Markdown preview, and `Open in Browser` coherent with the new host.
+- [x] 3.3 Support editable URL navigation inside the bounded host without duplicating Workbench tab SSOT.
+
+## 4. Validation
+- [x] 4.1 Add unit coverage for browser-host lifecycle state and bounded research tab state transitions.
+- [x] 4.2 Add E2E coverage for browser-surface navigation and blocked-site behavior.
+- [x] 4.3 Run typecheck, targeted tests, and packaged build verification.

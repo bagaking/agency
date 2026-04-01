@@ -28,6 +28,7 @@ import { Logo } from '../Logo';
 import { IconButton } from '../ui/IconButton';
 import { useModal } from '../modals/ModalSystem';
 import {
+  disposeWorkbenchBrowserSurface,
   isAgencyAvailable,
   isAgencyMethodAvailable,
 } from '../../services/agencyBridge';
@@ -135,6 +136,7 @@ function WorkbenchPaneContent({
   const tabStateByIdRef = useRef({});
   const loadRequestByTabRef = useRef({});
   const activePolicyRootPath = activeTab?.rootPath || activeRootPath;
+  const managedBrowserSurfaceTabIdsRef = useRef<Set<string>>(new Set());
   const projectPolicy = useWorkbenchProjectPolicy(activePolicyRootPath);
   const languageOverrides = useWorkbenchLanguageOverrides({
     stateKey: activePolicyRootPath,
@@ -175,6 +177,47 @@ function WorkbenchPaneContent({
   useEffect(() => {
     tabStateByIdRef.current = tabStateById;
   }, [tabStateById]);
+
+  useEffect(() => {
+    if (!isAgencyMethodAvailable('disposeWorkbenchBrowserSurface')) {
+      managedBrowserSurfaceTabIdsRef.current = new Set();
+      return;
+    }
+
+    const nextManagedTabIds = new Set<string>();
+    (tabs || []).forEach((tab) => {
+      if (!tab?.id) {
+        return;
+      }
+      if (isWorkbenchBoundedResearchTab(tab)) {
+        nextManagedTabIds.add(tab.id);
+        return;
+      }
+      const tabState = tabStateById[tab.id] || {};
+      if (tabState.kind === 'code' && String(tabState.researchSourceUrl || '').trim()) {
+        nextManagedTabIds.add(tab.id);
+      }
+    });
+
+    managedBrowserSurfaceTabIdsRef.current.forEach((tabId) => {
+      if (!nextManagedTabIds.has(tabId)) {
+        void disposeWorkbenchBrowserSurface({ tabId });
+      }
+    });
+    managedBrowserSurfaceTabIdsRef.current = nextManagedTabIds;
+  }, [tabStateById, tabs]);
+
+  useEffect(() => {
+    return () => {
+      if (!isAgencyMethodAvailable('disposeWorkbenchBrowserSurface')) {
+        return;
+      }
+      managedBrowserSurfaceTabIdsRef.current.forEach((tabId) => {
+        void disposeWorkbenchBrowserSurface({ tabId });
+      });
+      managedBrowserSurfaceTabIdsRef.current.clear();
+    };
+  }, []);
 
   const updateTabState = useCallback((tabId, updates) => {
     setTabStateById((current) => ({
@@ -300,13 +343,15 @@ function WorkbenchPaneContent({
         title: deriveWorkbenchResearchTitle(normalizedUrl),
       });
       updateTabState(tabId, {
-        note: '',
-        preview: null,
-        error: '',
-        savedArtifact: null,
-        memoArtifact: null,
-        preferredMode: 'live',
-        liveFrameKey: 0,
+        researchState: {
+          note: '',
+          preview: null,
+          error: '',
+          savedArtifact: null,
+          memoArtifact: null,
+          preferredMode: 'live',
+          liveFrameKey: 0,
+        },
       });
       return true;
     },
@@ -544,7 +589,9 @@ function WorkbenchPaneContent({
           ) : activeTab && isWorkbenchBoundedResearchTab(activeTab) ? (
             <>
               <ChevronRight size={10} className="text-white/5 shrink-0" />
-              <div className="text-[10px] font-medium text-white/56">Bounded Web Research</div>
+              <div className="min-w-0 max-w-[18rem] truncate text-[10px] font-medium text-white/56">
+                {activeTab.title || 'Bounded Web Research'}
+              </div>
             </>
           ) : null}
         </div>
@@ -702,14 +749,15 @@ function WorkbenchPaneContent({
         ) : activeState.kind === 'bounded-web-research' ? (
           <WorkbenchBoundedWebResearchView
             key={`bounded-web-research:${activeTab.id}`}
+            tabId={activeTab.id}
             rootPath={activeTab.rootPath}
             url={activeTab.url}
             allowMarkdownSave={activeTab.allowMarkdownSave !== false}
             allowMemoCapture={activeTab.allowMemoCapture !== false}
-            initialState={activeState}
+            initialState={activeState.researchState || null}
             onNavigateUrl={(nextUrl) => handleResearchTabNavigate(activeTab.id, nextUrl)}
             onStateChange={(nextState) => {
-              handleResearchTabStateChange(activeTab.id, nextState);
+              handleResearchTabStateChange(activeTab.id, { researchState: nextState });
             }}
             onMarkdownSaved={(savedPath) =>
               openFile({
@@ -765,6 +813,7 @@ function WorkbenchPaneContent({
             <div className="min-w-0 flex-1">
               <WorkbenchBoundedWebResearchView
                 key={`linked-research:${activeTab.id}`}
+                tabId={activeTab.id}
                 rootPath={activeTab.rootPath}
                 url={activeState.researchSourceUrl}
                 linkedMarkdownPath={activeTab.path}

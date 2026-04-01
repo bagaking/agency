@@ -110,6 +110,7 @@ const loadBoundedWebResearchState = async (): Promise<WorkbenchTabLoadResult> =>
     ...baseLoadedState,
     kind: 'bounded-web-research',
     isDirty: false,
+    researchState: null,
   };
 };
 
