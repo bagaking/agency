@@ -165,7 +165,9 @@ export function WorkbenchBoundedWebResearchView({
             <div className="flex flex-wrap items-center gap-2">
               <HeaderPill label={linkedMarkdownMode ? 'Linked Preview' : 'Bounded Web'} />
               <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/34">
-                {linkedMarkdownMode ? 'Markdown + source' : 'Explorer intake -> Workbench host'}
+                {linkedMarkdownMode
+                  ? 'Markdown + source'
+                  : 'Explorer intake to Workbench host'}
               </span>
             </div>
             <div className="mt-2 truncate text-[16px] font-semibold tracking-[0.01em] text-white/92">
