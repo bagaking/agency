@@ -11,6 +11,7 @@ import {
 
 import { useModal } from '../modals/ModalSystem';
 import { focusRing } from '../ui/focusRing';
+import { normalizeWorkbenchResearchUrl } from './workbenchBoundedResearch';
 import { useWorkbenchBoundedWebResearch } from './useWorkbenchBoundedWebResearch';
 
 const focusRingClass = focusRing.dark;
@@ -35,6 +36,7 @@ export function WorkbenchBoundedWebResearchView({
   onOpenSavedFile,
   onRevealSavedFile,
   onResolvedTitle,
+  onNavigateUrl,
 }: {
   rootPath: string;
   url: string;
@@ -48,9 +50,12 @@ export function WorkbenchBoundedWebResearchView({
   onOpenSavedFile?: (path: string) => void;
   onRevealSavedFile?: (path: string) => void;
   onResolvedTitle?: (title: string) => void;
+  onNavigateUrl?: (url: string) => boolean | void;
 }) {
   const modal = useModal();
   const linkedMarkdownMode = Boolean(linkedMarkdownPath);
+  const [locationDraft, setLocationDraft] = React.useState(String(url || ''));
+  const [locationError, setLocationError] = React.useState('');
   const [liveFrameStatus, setLiveFrameStatus] = React.useState<'loading' | 'ready' | 'timeout'>(
     'loading'
   );
@@ -129,6 +134,11 @@ export function WorkbenchBoundedWebResearchView({
   }, [onResolvedTitle, preview?.title]);
 
   React.useEffect(() => {
+    setLocationDraft(String(url || ''));
+    setLocationError('');
+  }, [url]);
+
+  React.useEffect(() => {
     if (preferredMode !== 'live') {
       setLiveFrameStatus('loading');
       return;
@@ -156,6 +166,28 @@ export function WorkbenchBoundedWebResearchView({
   const topSummary = linkedMarkdownMode
     ? `Linked to ${compactPath(linkedMarkdownPath)}. Save keeps editor edits; overwrite regenerates from source.`
     : 'Save Markdown and Cite stay here; full browsing still escapes to the system browser.';
+  const canNavigate = !linkedMarkdownMode && typeof onNavigateUrl === 'function';
+  const handleLocationSubmit = React.useCallback(
+    (event?: React.FormEvent) => {
+      event?.preventDefault();
+      if (!canNavigate) {
+        return;
+      }
+      const normalizedUrl = normalizeWorkbenchResearchUrl(locationDraft);
+      if (!normalizedUrl) {
+        setLocationError('Enter a public http/https URL.');
+        return;
+      }
+      setLocationError('');
+      const changed = normalizedUrl !== browserUrl;
+      const didNavigate = onNavigateUrl?.(normalizedUrl);
+      if (!changed && didNavigate !== false) {
+        setPreferredMode('live');
+        void reload();
+      }
+    },
+    [browserUrl, canNavigate, locationDraft, onNavigateUrl, reload, setPreferredMode]
+  );
 
   return (
     <section className="flex h-full min-h-0 flex-col bg-[#0b0d11] text-white">
@@ -173,21 +205,58 @@ export function WorkbenchBoundedWebResearchView({
             <div className="mt-2 truncate text-[16px] font-semibold tracking-[0.01em] text-white/92">
               {resolvedTitle}
             </div>
-            <div className="mt-1 flex items-center gap-2 text-[10px] text-white/48">
-              <Globe2 size={11} className="shrink-0 text-cyan-300/60" />
-              <span className="truncate">{url}</span>
-            </div>
+            {canNavigate ? (
+              <form className="mt-2 flex items-center gap-2" onSubmit={handleLocationSubmit}>
+                <label className="sr-only" htmlFor="workbench-web-research-location">
+                  Web research address
+                </label>
+                <div className="relative min-w-0 flex-1">
+                  <Globe2
+                    size={11}
+                    className="pointer-events-none absolute left-3 top-2.5 text-cyan-300/60"
+                  />
+                  <input
+                    id="workbench-web-research-location"
+                    type="url"
+                    inputMode="url"
+                    value={locationDraft}
+                    onChange={(event) => {
+                      setLocationDraft(event.target.value);
+                      if (locationError) {
+                        setLocationError('');
+                      }
+                    }}
+                    className={`w-full rounded-full border border-white/[0.08] bg-white/[0.03] py-2 pl-8 pr-4 text-[11px] text-white outline-none placeholder:text-white/24 focus:border-cyan-300/30 focus:ring-1 focus:ring-cyan-300/15 ${focusRingClass}`}
+                    placeholder="Paste a public URL…"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className={`rounded-full border border-cyan-400/28 bg-cyan-400/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100 transition-colors hover:border-cyan-300/45 hover:bg-cyan-400/16 ${focusRingClass}`}
+                >
+                  Go
+                </button>
+              </form>
+            ) : (
+              <div className="mt-1 flex items-center gap-2 text-[10px] text-white/48">
+                <Globe2 size={11} className="shrink-0 text-cyan-300/60" />
+                <span className="truncate">{url}</span>
+              </div>
+            )}
             {sourceMeta ? (
               <div className="mt-1 text-[10px] text-white/42">{sourceMeta}</div>
             ) : null}
             <div className="mt-2 max-w-2xl text-[10px] leading-5 text-white/45">
               {topSummary}
             </div>
+            {locationError ? (
+              <div className="mt-2 text-[10px] text-amber-200">{locationError}</div>
+            ) : null}
           </div>
           <div className="inline-flex rounded-full border border-white/[0.08] bg-white/[0.03] p-0.5">
             <ModePill
               active={preferredMode === 'live'}
-              label="Live"
+              label="View"
               onClick={() => setPreferredMode('live')}
             />
             <ModePill
@@ -291,6 +360,7 @@ export function WorkbenchBoundedWebResearchView({
               src={browserUrl}
               className="h-full w-full bg-white"
               referrerPolicy="no-referrer"
+              sandbox="allow-same-origin allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox"
               onLoad={() => setLiveFrameStatus('ready')}
             />
           </div>

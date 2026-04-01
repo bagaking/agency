@@ -93,7 +93,7 @@ dependencies: WorkbenchBoundedWebResearchDependencies = defaultDependencies) {
     initialState?.memoArtifact || null
   );
   const [preferredMode, setPreferredMode] = useState<'live' | 'reader'>(
-    initialState?.preferredMode || 'reader'
+    initialState?.preferredMode || 'live'
   );
   const [liveFrameKey, setLiveFrameKey] = useState(Number(initialState?.liveFrameKey || 0));
 

@@ -134,6 +134,7 @@ test('useWorkbenchBoundedWebResearch hosts bounded url actions in a workbench co
 
     assert.deepEqual(inspectedUrls, ['https://example.com/capability-platform']);
     assert.equal(latestState.preview?.title, 'Capability Platform');
+    assert.equal(latestState.preferredMode, 'live');
 
     await act(async () => {
       latestState.setNote('Keep the actions in Workbench.');

@@ -542,7 +542,7 @@ test('url-shaped explorer input opens a bounded web research tab in Workbench', 
 
     await window.getByRole('button', { name: 'Open Web', exact: true }).click();
 
-    await expect(window.getByRole('button', { name: 'Live', exact: true })).toBeVisible();
+    await expect(window.getByRole('button', { name: 'View', exact: true })).toBeVisible();
     await expect(window.getByRole('button', { name: 'Reader', exact: true })).toBeVisible();
     await window.getByRole('button', { name: 'Reader', exact: true }).click();
     await expect(window.getByTestId('workbench-web-research-reload')).toBeVisible();

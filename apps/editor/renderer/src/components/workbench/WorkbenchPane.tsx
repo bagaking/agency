@@ -36,7 +36,11 @@ import {
   formatWorkbenchBytes,
 } from './workbenchPaneHelpers';
 import { loadWorkbenchCodeState, loadWorkbenchTabState } from './workbenchPaneLoaders';
-import { isWorkbenchBoundedResearchTab } from './workbenchBoundedResearch';
+import {
+  deriveWorkbenchResearchTitle,
+  isWorkbenchBoundedResearchTab,
+  normalizeWorkbenchResearchUrl,
+} from './workbenchBoundedResearch';
 import {
 } from './workbenchPaneCommands';
 import { useWorkbenchKeyboardShortcuts } from './useWorkbenchKeyboardShortcuts';
@@ -284,6 +288,29 @@ function WorkbenchPaneContent({
       updateTab(tabId, { title });
     },
     [updateTab]
+  );
+  const handleResearchTabNavigate = useCallback(
+    (tabId: string, nextUrl: string) => {
+      const normalizedUrl = normalizeWorkbenchResearchUrl(nextUrl);
+      if (!normalizedUrl) {
+        return false;
+      }
+      updateTab(tabId, {
+        url: normalizedUrl,
+        title: deriveWorkbenchResearchTitle(normalizedUrl),
+      });
+      updateTabState(tabId, {
+        note: '',
+        preview: null,
+        error: '',
+        savedArtifact: null,
+        memoArtifact: null,
+        preferredMode: 'live',
+        liveFrameKey: 0,
+      });
+      return true;
+    },
+    [updateTab, updateTabState]
   );
 
   const runEditorAction = useCallback((actionId) => {
@@ -680,6 +707,7 @@ function WorkbenchPaneContent({
             allowMarkdownSave={activeTab.allowMarkdownSave !== false}
             allowMemoCapture={activeTab.allowMemoCapture !== false}
             initialState={activeState}
+            onNavigateUrl={(nextUrl) => handleResearchTabNavigate(activeTab.id, nextUrl)}
             onStateChange={(nextState) => {
               handleResearchTabStateChange(activeTab.id, nextState);
             }}
