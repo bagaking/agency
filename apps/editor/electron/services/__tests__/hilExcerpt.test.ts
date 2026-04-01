@@ -61,3 +61,5 @@ test('detectEmbeddingBlockReason flags x-frame-options and frame-ancestors block
     ''
   );
 });
+
+export {};
