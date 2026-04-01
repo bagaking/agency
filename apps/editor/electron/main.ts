@@ -326,6 +326,31 @@ function resolveRendererHtmlPath(): string {
   return path.join(__dirname, '../../dist/renderer/index.html');
 }
 
+function isAllowedRendererNavigationUrl(candidateUrl: string): boolean {
+  const normalizedUrl = String(candidateUrl || '').trim();
+  if (!normalizedUrl) {
+    return false;
+  }
+  if (normalizedUrl === 'about:blank') {
+    return true;
+  }
+
+  const rendererInfo = (resolveRendererUrl() || {}) as RendererInfo;
+  const rendererUrl = String(rendererInfo.url || '').trim();
+  if (rendererUrl) {
+    try {
+      const current = new URL(normalizedUrl);
+      const allowed = new URL(rendererUrl);
+      return current.origin === allowed.origin;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  const fallbackRendererUrl = pathToFileURL(resolveRendererHtmlPath()).toString();
+  return normalizedUrl === fallbackRendererUrl || normalizedUrl.startsWith(`${fallbackRendererUrl}#`);
+}
+
 function loadRendererWindow(win: BrowserWindow): void {
   const rendererInfo = (resolveRendererUrl() || {}) as RendererInfo;
   const rendererUrl = rendererInfo.url || '';
@@ -345,6 +370,26 @@ function loadRendererWindow(win: BrowserWindow): void {
 }
 
 function attachWindowDiagnostics(win: BrowserWindow): void {
+  win.webContents.on('will-navigate', (event, navigationUrl) => {
+    if (isAllowedRendererNavigationUrl(navigationUrl)) {
+      return;
+    }
+    event.preventDefault();
+    logRuntime('warn', 'blocked top-level renderer navigation', {
+      navigationUrl,
+    });
+  });
+
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (isAllowedRendererNavigationUrl(url)) {
+      return { action: 'allow' };
+    }
+    logRuntime('warn', 'blocked renderer window.open navigation', {
+      url,
+    });
+    return { action: 'deny' };
+  });
+
   win.webContents.on('did-finish-load', () => {
     const currentUrl = win.webContents.getURL();
     recordStartup('renderer-loaded', { url: currentUrl });
@@ -357,6 +402,15 @@ function attachWindowDiagnostics(win: BrowserWindow): void {
       errorDescription,
       validatedURL,
     });
+
+    if (validatedURL && !isAllowedRendererNavigationUrl(validatedURL)) {
+      logRuntime('warn', 'renderer fallback skipped for blocked external navigation', {
+        errorCode,
+        errorDescription,
+        validatedURL,
+      });
+      return;
+    }
 
     const rendererInfo = (resolveRendererUrl() || {}) as RendererInfo;
     if (!app.isPackaged && rendererInfo.url) {
