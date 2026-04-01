@@ -14,6 +14,13 @@ import { focusRing } from '../ui/focusRing';
 import { useWorkbenchBoundedWebResearch } from './useWorkbenchBoundedWebResearch';
 
 const focusRingClass = focusRing.dark;
+const compactPath = (value: string, max = 56) => {
+  const trimmed = String(value || '').trim();
+  if (!trimmed || trimmed.length <= max) {
+    return trimmed;
+  }
+  return `...${trimmed.slice(-(max - 3))}`;
+};
 
 export function WorkbenchBoundedWebResearchView({
   rootPath,
@@ -137,23 +144,55 @@ export function WorkbenchBoundedWebResearchView({
 
   const previewText =
     preview?.summary || preview?.excerpt || preview?.text || 'No readable preview extracted.';
+  const surfacePills = linkedMarkdownMode
+    ? [
+        {
+          label: 'Linked markdown',
+          value: compactPath(linkedMarkdownPath),
+          tone: 'linked' as const,
+        },
+        {
+          label: 'Save keeps edits',
+          value: 'Overwrite regenerates source',
+          tone: 'linked' as const,
+        },
+      ]
+    : [
+        { label: 'Bounded host', value: 'Reader + live', tone: 'default' as const },
+        { label: 'Repo-native save', value: 'Markdown + cite', tone: 'default' as const },
+        { label: 'Browser escape', value: 'Open externally', tone: 'default' as const },
+      ];
 
   return (
     <section className="flex h-full min-h-0 flex-col bg-[#0b0d11] text-white">
       <div className="border-b border-white/[0.05] px-4 py-3">
         <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="text-[10px] font-black uppercase tracking-[0.24em] text-cyan-300/60">
-              {linkedMarkdownMode ? 'Linked Web Preview' : 'Web Research'}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <HeaderPill label={linkedMarkdownMode ? 'Linked Preview' : 'Bounded Web'} />
+              {linkedMarkdownMode ? (
+                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/34">
+                  Markdown + source
+                </span>
+              ) : (
+                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/34">
+                  Explorer intake -> Workbench host
+                </span>
+              )}
             </div>
-            <div className="mt-1 flex items-center gap-2 text-[12px] font-semibold text-white/90">
+            <div className="mt-2 flex items-center gap-2 text-[12px] font-semibold text-white/90">
               <Globe2 size={13} className="shrink-0 text-cyan-300/70" />
               <span className="truncate">{url}</span>
             </div>
-            <div className="mt-1 text-[10px] leading-5 text-white/45">
-              {linkedMarkdownMode
-                ? 'The Markdown file on the left is the repo-native artifact. The preview on the right stays linked to its source URL.'
-                : 'Explorer launches this bounded tab; primary research actions stay here, while full browsing still escapes to the system browser.'}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {surfacePills.map((pill) => (
+                <HeaderDetailPill
+                  key={`${pill.label}:${pill.value}`}
+                  label={pill.label}
+                  value={pill.value}
+                  tone={pill.tone}
+                />
+              ))}
             </div>
           </div>
           <div className="inline-flex rounded-full border border-white/[0.08] bg-white/[0.03] p-0.5">
@@ -170,59 +209,56 @@ export function WorkbenchBoundedWebResearchView({
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <ActionButton
-            icon={RefreshCw}
-            label={fetching ? 'Reloading…' : 'Reload'}
-            onClick={() => void reload()}
-            disabled={fetching}
-            tone="primary"
-            testId="workbench-web-research-reload"
-          />
-          <ActionButton
-            icon={ExternalLink}
-            label="Open in Browser"
-            onClick={() => void openInBrowser()}
-            disabled={!browserUrl}
-            testId="workbench-web-research-open-browser"
-          />
-          <ActionButton
-            icon={FileDown}
-            label={
-              savingMarkdown
-                ? linkedMarkdownPath
-                  ? 'Overwriting…'
-                  : 'Saving…'
-                : linkedMarkdownPath
-                  ? 'Overwrite Markdown'
-                  : 'Save Markdown'
-            }
-            onClick={() => void saveMarkdown()}
-            disabled={!preview || savingMarkdown || !allowMarkdownSave}
-            testId="workbench-web-research-save-markdown"
-          />
-          <ActionButton
-            icon={Quote}
-            label={creatingMemo ? 'Citing…' : 'Cite'}
-            onClick={() => void createCitationMemo()}
-            disabled={!preview || creatingMemo || !allowMemoCapture}
-            testId="workbench-web-research-cite"
-          />
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <ActionButton
+              icon={RefreshCw}
+              label={fetching ? 'Reloading…' : 'Reload'}
+              onClick={() => void reload()}
+              disabled={fetching}
+              testId="workbench-web-research-reload"
+            />
+            <ActionButton
+              icon={ExternalLink}
+              label="Open in Browser"
+              onClick={() => void openInBrowser()}
+              disabled={!browserUrl}
+              testId="workbench-web-research-open-browser"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <ActionButton
+              icon={FileDown}
+              label={
+                savingMarkdown
+                  ? linkedMarkdownPath
+                    ? 'Overwriting…'
+                    : 'Saving…'
+                  : linkedMarkdownPath
+                    ? 'Overwrite Markdown'
+                    : 'Save Markdown'
+              }
+              onClick={() => void saveMarkdown()}
+              disabled={!preview || savingMarkdown || !allowMarkdownSave}
+              tone="primary"
+              testId="workbench-web-research-save-markdown"
+            />
+            <ActionButton
+              icon={Quote}
+              label={creatingMemo ? 'Citing…' : 'Cite'}
+              onClick={() => void createCitationMemo()}
+              disabled={!preview || creatingMemo || !allowMemoCapture}
+              testId="workbench-web-research-cite"
+            />
+          </div>
         </div>
 
         {linkedMarkdownMode ? (
           <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2 text-[10px] leading-5 text-white/48">
-            <span className="font-semibold text-white/70">Save</span> in the editor preserves your
-            Markdown edits. <span className="font-semibold text-white/70">Overwrite Markdown</span>{' '}
-            regenerates this file from the source preview.
+            Save in the editor keeps your Markdown edits. Overwrite regenerates this file from the
+            current bounded source preview.
           </div>
-        ) : (
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/38">
-            <span className="rounded-full border border-white/[0.08] px-2 py-1">Bounded host</span>
-            <span className="rounded-full border border-white/[0.08] px-2 py-1">No browser-global tabs</span>
-            <span className="rounded-full border border-white/[0.08] px-2 py-1">No cookies UI</span>
-          </div>
-        )}
+        ) : null}
       </div>
 
       {error ? (
@@ -235,9 +271,8 @@ export function WorkbenchBoundedWebResearchView({
         {preferredMode === 'live' ? (
           <div className="flex h-full flex-col">
             <div className="border-b border-white/[0.05] px-4 py-2 text-[10px] text-white/42">
-              Live mode stays bounded. If the page is blank or blocked, switch to{' '}
-              <span className="text-white/65">Reader</span> or use{' '}
-              <span className="text-white/65">Open in Browser</span>.
+              Live mode stays bounded. If the page blocks embedding, switch to Reader or open it in
+              the system browser.
             </div>
             {liveFrameStatus === 'timeout' ? (
               <div className="border-b border-amber-400/12 bg-amber-400/6 px-4 py-2 text-[10px] text-amber-100/82">
@@ -284,12 +319,13 @@ export function WorkbenchBoundedWebResearchView({
 
             {!linkedMarkdownMode ? (
               <div className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
-                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">
-                  Workspace Handoff
-                </div>
-                <div className="mt-1 text-[11px] leading-5 text-white/56">
-                  Save the current research result into repo-owned Markdown or cite it into Memo
-                  without leaving the hosted tab.
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">
+                    Workspace Handoff
+                  </div>
+                  <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/32">
+                    Repo-native output
+                  </div>
                 </div>
                 <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2">
                   <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/36">
@@ -373,6 +409,39 @@ function ModePill({
     >
       {label}
     </button>
+  );
+}
+
+function HeaderPill({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-cyan-400/18 bg-cyan-400/10 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
+      {label}
+    </span>
+  );
+}
+
+function HeaderDetailPill({
+  label,
+  value,
+  tone = 'default',
+}: {
+  label: string;
+  value: string;
+  tone?: 'default' | 'linked';
+}) {
+  const toneClass =
+    tone === 'linked'
+      ? 'border-emerald-400/16 bg-emerald-500/8 text-emerald-50/86'
+      : 'border-white/[0.08] bg-white/[0.03] text-white/78';
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-semibold ${toneClass}`}
+      title={value}
+    >
+      <span className="uppercase tracking-[0.16em] text-white/40">{label}</span>
+      <span className="max-w-[16rem] truncate text-[10px] normal-case tracking-normal">{value}</span>
+    </span>
   );
 }
 

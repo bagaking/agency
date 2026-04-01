@@ -58,6 +58,30 @@ export function ExplorerHeader({
   const searchPlaceholder = activeSearchModeDescriptor?.placeholder || 'Search files…';
   const hasSearchSubmit = typeof onSearchSubmit === 'function' && searchSubmitLabel;
   const SearchLeadingIcon = searchInputType === 'url' ? Link2 : Search;
+  const inlineSearchAction = showUrlAffordance
+    ? {
+        label: urlAffordanceLabel,
+        disabled: urlAffordanceDisabled,
+        onClick: () => onUrlAffordance?.(),
+        tone: 'secondary' as const,
+        icon: Globe2,
+      }
+    : hasSearchSubmit
+      ? {
+          label: searchSubmitPending ? searchSubmitBusyLabel || searchSubmitLabel : searchSubmitLabel,
+          disabled: searchSubmitDisabled,
+          onClick: () => onSearchSubmit(),
+          tone: 'primary' as const,
+          icon: Globe2,
+        }
+      : null;
+  const searchInputPaddingClass = inlineSearchAction
+    ? searchQuery
+      ? 'pr-32'
+      : 'pr-28'
+    : searchQuery
+      ? 'pr-14'
+      : 'pr-8';
 
   useEffect(() => {
     if (searchInputAutoFocusKey === undefined) {
@@ -164,7 +188,7 @@ export function ExplorerHeader({
             ))}
           </div>
         ) : null}
-        <div className="relative flex-1 group">
+        <div className="relative min-w-0 flex-1 group">
           <SearchLeadingIcon
             size={12}
             strokeWidth={searchInputType === 'url' ? 1.7 : 2}
@@ -187,49 +211,32 @@ export function ExplorerHeader({
             autoComplete="off"
             placeholder={searchPlaceholder}
             aria-label={searchPlaceholder}
-            className={`w-full rounded-full border border-border/40 bg-muted/10 px-8 py-1.5 text-[11px] text-foreground transition-colors placeholder:text-muted-foreground/30 focus:bg-background focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20 ${focusRingClass}`}
+            className={`w-full rounded-full border border-border/40 bg-muted/10 pl-8 py-1.5 text-[11px] text-foreground transition-colors placeholder:text-muted-foreground/30 focus:bg-background focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20 ${searchInputPaddingClass} ${focusRingClass}`}
           />
-          {searchQuery && (
-            <button
-              type="button"
-              className={`absolute right-2.5 top-1.5 text-muted-foreground/40 transition-colors hover:text-foreground ${focusRingClass}`}
-              onClick={onClearSearch}
-              aria-label="Clear search"
-            >
-              <X size={12} strokeWidth={1.5} aria-hidden="true" />
-            </button>
+          {(searchQuery || inlineSearchAction) && (
+            <div className="absolute inset-y-1 right-1 flex items-center gap-1">
+              {searchQuery ? (
+                <button
+                  type="button"
+                  className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground/40 transition-colors hover:bg-white/5 hover:text-foreground ${focusRingClass}`}
+                  onClick={onClearSearch}
+                  aria-label="Clear search"
+                >
+                  <X size={12} strokeWidth={1.5} aria-hidden="true" />
+                </button>
+              ) : null}
+              {inlineSearchAction ? (
+                <InlineSearchActionButton
+                  icon={inlineSearchAction.icon}
+                  label={inlineSearchAction.label}
+                  onClick={inlineSearchAction.onClick}
+                  disabled={inlineSearchAction.disabled}
+                  tone={inlineSearchAction.tone}
+                />
+              ) : null}
+            </div>
           )}
         </div>
-        {showUrlAffordance ? (
-          <button
-            type="button"
-            onClick={() => onUrlAffordance?.()}
-            disabled={urlAffordanceDisabled}
-            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
-              urlAffordanceDisabled
-                ? 'border-border/30 text-muted-foreground/35'
-                : 'border-sky-500/40 bg-sky-500/10 text-sky-300 hover:border-sky-500/60 hover:bg-sky-500/15'
-            } disabled:cursor-not-allowed`}
-            aria-label={urlAffordanceLabel}
-          >
-            <Globe2 size={11} strokeWidth={1.7} aria-hidden="true" />
-            {urlAffordanceLabel}
-          </button>
-        ) : null}
-        {hasSearchSubmit ? (
-          <button
-            type="button"
-            onClick={() => onSearchSubmit()}
-            disabled={searchSubmitDisabled}
-            className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
-              searchSubmitDisabled
-                ? 'border-border/30 text-muted-foreground/35'
-                : 'border-primary/30 bg-primary/10 text-primary hover:border-primary/50 hover:bg-primary/15'
-            } disabled:cursor-not-allowed`}
-          >
-            {searchSubmitPending ? searchSubmitBusyLabel || searchSubmitLabel : searchSubmitLabel}
-          </button>
-        ) : null}
         {showFilterMenuButton ? (
           <IconButton
             ref={filterMenuButtonRef}
@@ -276,5 +283,38 @@ function HeaderButton({ icon: Icon, onClick, title, className = "", disabled = f
     >
       <Icon size={14} strokeWidth={1.5} aria-hidden="true" />
     </IconButton>
+  );
+}
+
+function InlineSearchActionButton({
+  icon: Icon,
+  label,
+  onClick,
+  disabled = false,
+  tone = 'secondary',
+}: {
+  icon: any;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  tone?: 'primary' | 'secondary';
+}) {
+  const activeClass =
+    tone === 'primary'
+      ? 'border-primary/40 bg-primary/12 text-primary hover:border-primary/55 hover:bg-primary/18'
+      : 'border-sky-500/40 bg-sky-500/10 text-sky-300 hover:border-sky-500/60 hover:bg-sky-500/15';
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] transition-colors ${focusRingClass} ${
+        disabled ? 'border-border/30 text-muted-foreground/35' : activeClass
+      } disabled:cursor-not-allowed`}
+    >
+      <Icon size={10} strokeWidth={1.7} aria-hidden="true" />
+      {label}
+    </button>
   );
 }
