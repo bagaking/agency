@@ -936,6 +936,11 @@ The browser surface SHALL stay owned by the active bounded web research tab and 
 - **THEN** the browser surface stays inside the same bounded research tab
 - **AND** the tab URL/title update so `Reader`, `Save Markdown`, and `Cite` still refer to the current research object
 
+#### Scenario: Basic browser controls stay first-class inside the bounded host
+- **WHEN** a bounded web research tab is active in `View`
+- **THEN** the Workbench surface exposes basic browser controls such as `Back`, `Forward`, and `Reload` alongside the address bar and mode switch
+- **AND** advanced research actions such as `Save Markdown`, `Cite`, and `Open in Browser` remain visually subordinate so the browser content stays dominant
+
 #### Scenario: Non-public destinations stay outside the browser surface
 - **WHEN** a page or user action attempts to navigate `View` to a localhost, private-network, or non-`http/https` destination
 - **THEN** the browser surface rejects that navigation inside Agency

@@ -147,6 +147,8 @@ const INVOKE_CHANNELS: Record<string, string> = {
   blameWorkbenchEntry: 'workbench:blame',
   syncWorkbenchBrowserSurface: 'workbench:browserSurface:sync',
   disposeWorkbenchBrowserSurface: 'workbench:browserSurface:dispose',
+  goBackWorkbenchBrowserSurface: 'workbench:browserSurface:goBack',
+  goForwardWorkbenchBrowserSurface: 'workbench:browserSurface:goForward',
   inspectClipboardPayload: 'clipboard:inspect',
   materializeClipboard: 'clipboard:materialize',
   materializeMarkdown: 'clipboard:materializeMarkdown',

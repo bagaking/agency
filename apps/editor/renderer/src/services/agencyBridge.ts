@@ -164,6 +164,8 @@ export const diffWorkbenchEntry = createOptionalInvoke('diffWorkbenchEntry');
 export const blameWorkbenchEntry = createOptionalInvoke('blameWorkbenchEntry');
 export const syncWorkbenchBrowserSurface = createOptionalInvoke('syncWorkbenchBrowserSurface');
 export const disposeWorkbenchBrowserSurface = createOptionalInvoke('disposeWorkbenchBrowserSurface');
+export const goBackWorkbenchBrowserSurface = createOptionalInvoke('goBackWorkbenchBrowserSurface');
+export const goForwardWorkbenchBrowserSurface = createOptionalInvoke('goForwardWorkbenchBrowserSurface');
 export const onWorkbenchBrowserSurfaceEvent = createOptionalSubscribe('onWorkbenchBrowserSurfaceEvent');
 
 // Project-level helpers / OS

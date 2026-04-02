@@ -45,12 +45,20 @@ class FakeWebContents extends FakeEventEmitter {
   focused: boolean;
   destroyed: boolean;
   windowOpenHandler: ((details?: unknown) => { action: 'allow' | 'deny' }) | null;
+  canGoBackValue: boolean;
+  canGoForwardValue: boolean;
+  goBackCalls: number;
+  goForwardCalls: number;
   constructor() {
     super();
     this.loadUrls = [];
     this.focused = false;
     this.destroyed = false;
     this.windowOpenHandler = null;
+    this.canGoBackValue = false;
+    this.canGoForwardValue = false;
+    this.goBackCalls = 0;
+    this.goForwardCalls = 0;
   }
   loadURL(url) {
     this.loadUrls.push(url);
@@ -63,6 +71,18 @@ class FakeWebContents extends FakeEventEmitter {
   }
   setWindowOpenHandler(handler) {
     this.windowOpenHandler = handler;
+  }
+  canGoBack() {
+    return this.canGoBackValue;
+  }
+  canGoForward() {
+    return this.canGoForwardValue;
+  }
+  goBack() {
+    this.goBackCalls += 1;
+  }
+  goForward() {
+    this.goForwardCalls += 1;
   }
 }
 
@@ -254,10 +274,12 @@ test('status events propagate from web contents', () => {
   const tabId = 'tab-status';
   ensureSurface(service, fakeWindow, tabId);
   const view = getAttachedView(fakeWindow);
+  view.webContents.canGoBackValue = true;
   view.webContents.emit('did-start-navigation', null, 'https://example.com/', false, true);
   view.webContents.emit('did-finish-load');
   assert.ok(statusEvents.some((event) => event.phase === 'loading'));
   assert.ok(statusEvents.some((event) => event.phase === 'ready'));
+  assert.ok(statusEvents.some((event) => event.canGoBack === true));
 });
 
 test('blocks non-public in-view navigation inside the browser surface', () => {
@@ -331,6 +353,23 @@ test('sync helper only reloads when url or navigation key changes', () => {
     },
   });
   assert.equal(view.webContents.loadUrls.length, 2);
+});
+
+test('browser surface goBack/goForward follow webContents history affordances', () => {
+  const { service, fakeWindow } = setupService();
+  const tabId = 'tab-history';
+  ensureSurface(service, fakeWindow, tabId);
+  const view = getAttachedView(fakeWindow);
+
+  view.webContents.canGoBackValue = true;
+  const backState = service.goBackBrowserSurface({ windowId: fakeWindow.id, tabId });
+  assert.equal(view.webContents.goBackCalls, 1);
+  assert.equal(backState.canGoBack, true);
+
+  view.webContents.canGoForwardValue = true;
+  const forwardState = service.goForwardBrowserSurface({ windowId: fakeWindow.id, tabId });
+  assert.equal(view.webContents.goForwardCalls, 1);
+  assert.equal(forwardState.canGoForward, true);
 });
 
 export {};

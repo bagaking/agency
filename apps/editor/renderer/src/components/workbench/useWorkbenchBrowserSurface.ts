@@ -14,6 +14,8 @@ type WorkbenchBrowserSurfaceEvent = {
   phase?: 'hidden' | 'loading' | 'ready' | 'error' | 'crashed' | 'disposed';
   error?: string;
   visible?: boolean;
+  canGoBack?: boolean;
+  canGoForward?: boolean;
 };
 
 type UseWorkbenchBrowserSurfaceArgs = {
@@ -42,6 +44,8 @@ export function useWorkbenchBrowserSurface({
     phase: visible ? 'loading' : 'hidden',
     error: '',
     visible,
+    canGoBack: false,
+    canGoForward: false,
   });
 
   const browserSurfaceAvailable =
@@ -58,6 +62,8 @@ export function useWorkbenchBrowserSurface({
         phase: payload?.phase || 'hidden',
         error: String(payload?.error || ''),
         visible: payload?.visible !== false,
+        canGoBack: Boolean(payload?.canGoBack),
+        canGoForward: Boolean(payload?.canGoForward),
       });
     },
     [tabId, url]
@@ -99,6 +105,8 @@ export function useWorkbenchBrowserSurface({
           phase: 'hidden',
           visible: false,
           error: String(error?.message || ''),
+          canGoBack: false,
+          canGoForward: false,
         });
       });
   }, [applySurfaceState, browserSurfaceAvailable, navigationKey, tabId, url]);
@@ -145,6 +153,8 @@ export function useWorkbenchBrowserSurface({
           phase: 'error',
           visible: false,
           error: String(error?.message || 'Failed to sync browser surface.'),
+          canGoBack: false,
+          canGoForward: false,
         });
       });
   }, [applySurfaceState, browserSurfaceAvailable, hideSurface, navigationKey, tabId, url, visible]);

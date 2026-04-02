@@ -1,5 +1,7 @@
 import React from 'react';
 import {
+  ChevronLeft,
+  ChevronRight,
   Eye,
   ExternalLink,
   FileDown,
@@ -14,6 +16,10 @@ import { focusRing } from '../ui/focusRing';
 import { normalizeWorkbenchResearchUrl } from './workbenchBoundedResearch';
 import { useWorkbenchBrowserSurface } from './useWorkbenchBrowserSurface';
 import { useWorkbenchBoundedWebResearch } from './useWorkbenchBoundedWebResearch';
+import {
+  goBackWorkbenchBrowserSurface,
+  goForwardWorkbenchBrowserSurface,
+} from '../../services/agencyBridge';
 
 const focusRingClass = focusRing.dark;
 const compactPath = (value: string, max = 56) => {
@@ -229,15 +235,17 @@ export function WorkbenchBoundedWebResearchView({
     <section className="flex h-full min-h-0 flex-col bg-[#0b0d11] text-white">
       <div className="border-b border-white/[0.05] px-4 py-2.5">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <HeaderPill label={linkedMarkdownMode ? 'Linked Preview' : 'Bounded Web'} />
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-cyan-400/18 bg-cyan-400/10 text-cyan-200">
+              <Globe2 size={14} />
+            </div>
             <div className="min-w-0">
               <div className="truncate text-[13px] font-semibold tracking-[0.01em] text-white/92">
                 {resolvedTitle}
               </div>
-              {sourceMeta ? (
-                <div className="truncate text-[10px] text-white/38">{sourceMeta}</div>
-              ) : null}
+              <div className="truncate text-[10px] text-white/38">
+                {sourceMeta || (linkedMarkdownMode ? 'Linked markdown preview' : 'Bounded web view')}
+              </div>
             </div>
           </div>
           <div className="inline-flex shrink-0 rounded-full border border-white/[0.08] bg-white/[0.03] p-0.5">
@@ -295,48 +303,63 @@ export function WorkbenchBoundedWebResearchView({
           )}
           <div className="flex flex-wrap items-center gap-2">
             <ActionButton
+              icon={ChevronLeft}
+              label="Back"
+              onClick={() => void goBackWorkbenchBrowserSurface({ tabId })}
+              disabled={!browserSurface.surfaceState.canGoBack}
+              testId="workbench-web-research-back"
+            />
+            <ActionButton
+              icon={ChevronRight}
+              label="Forward"
+              onClick={() => void goForwardWorkbenchBrowserSurface({ tabId })}
+              disabled={!browserSurface.surfaceState.canGoForward}
+              testId="workbench-web-research-forward"
+            />
+            <ActionButton
               icon={RefreshCw}
               label={fetching ? 'Reloading…' : 'Reload'}
               onClick={() => void reload()}
               disabled={fetching}
               testId="workbench-web-research-reload"
             />
-            <ActionButton
-              icon={ExternalLink}
-              label="Open in Browser"
-              onClick={() => void openInBrowser()}
-              disabled={!browserUrl}
-              testId="workbench-web-research-open-browser"
-            />
-            <ActionButton
-              icon={FileDown}
-              label={
-                savingMarkdown
-                  ? linkedMarkdownPath
-                    ? 'Overwriting…'
-                    : 'Saving…'
-                  : linkedMarkdownPath
-                    ? 'Overwrite Markdown'
-                    : 'Save Markdown'
-              }
-              onClick={() => void saveMarkdown()}
-              disabled={!preview || savingMarkdown || !allowMarkdownSave}
-              tone="primary"
-              testId="workbench-web-research-save-markdown"
-            />
-            <ActionButton
-              icon={Quote}
-              label={creatingMemo ? 'Citing…' : 'Cite'}
-              onClick={() => void createCitationMemo()}
-              disabled={!preview || creatingMemo || !allowMemoCapture}
-              testId="workbench-web-research-cite"
-            />
           </div>
         </div>
 
-        {locationError ? (
-          <div className="mt-1.5 text-[10px] text-amber-200">{locationError}</div>
-        ) : null}
+        {locationError ? <div className="mt-1.5 text-[10px] text-amber-200">{locationError}</div> : null}
+
+        <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/[0.04] pt-2">
+          <ActionButton
+            icon={ExternalLink}
+            label="Open in Browser"
+            onClick={() => void openInBrowser()}
+            disabled={!browserUrl}
+            testId="workbench-web-research-open-browser"
+          />
+          <ActionButton
+            icon={FileDown}
+            label={
+              savingMarkdown
+                ? linkedMarkdownPath
+                  ? 'Overwriting…'
+                  : 'Saving…'
+                : linkedMarkdownPath
+                  ? 'Overwrite Markdown'
+                  : 'Save Markdown'
+            }
+            onClick={() => void saveMarkdown()}
+            disabled={!preview || savingMarkdown || !allowMarkdownSave}
+            tone="primary"
+            testId="workbench-web-research-save-markdown"
+          />
+          <ActionButton
+            icon={Quote}
+            label={creatingMemo ? 'Citing…' : 'Cite'}
+            onClick={() => void createCitationMemo()}
+            disabled={!preview || creatingMemo || !allowMemoCapture}
+            testId="workbench-web-research-cite"
+          />
+        </div>
 
         {linkedMarkdownMode ? (
           <div className="mt-2 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5 text-[10px] leading-5 text-white/48">
@@ -453,16 +476,9 @@ export function WorkbenchBoundedWebResearchView({
                   data-testid="workbench-browser-surface-host"
                   className="absolute inset-0"
                 />
-                {browserSurface.surfaceState.phase !== 'ready' ? (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/92 text-slate-600">
-                    <div className="text-center">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                        Opening View
-                      </div>
-                      <div className="mt-2 text-sm">
-                        {browserSurface.surfaceState.title || browserUrl}
-                      </div>
-                    </div>
+                {browserSurface.surfaceState.phase === 'loading' ? (
+                  <div className="pointer-events-none absolute right-3 top-3 rounded-full border border-black/10 bg-white/88 px-2.5 py-1 text-[10px] font-medium text-slate-600 shadow-sm">
+                    Loading page
                   </div>
                 ) : null}
               </div>
@@ -576,20 +592,12 @@ function ModePill({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
+      className={`rounded-full px-3 py-1 text-[10px] font-semibold transition-colors ${focusRingClass} ${
         active ? 'bg-cyan-400/15 text-cyan-200' : 'text-white/48 hover:text-white/78'
       }`}
     >
       {label}
     </button>
-  );
-}
-
-function HeaderPill({ label }: { label: string }) {
-  return (
-    <span className="inline-flex items-center rounded-full border border-cyan-400/18 bg-cyan-400/10 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
-      {label}
-    </span>
   );
 }
 
@@ -619,7 +627,7 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled}
       data-testid={testId}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors ${focusRingClass} ${
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-medium transition-colors ${focusRingClass} ${
         disabled ? 'border-white/[0.05] text-white/25' : activeClass
       } disabled:cursor-not-allowed`}
     >

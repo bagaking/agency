@@ -15,6 +15,8 @@ type BrowserSurfaceEventPayload = {
   phase: BrowserSurfacePhase;
   error: string;
   visible: boolean;
+  canGoBack: boolean;
+  canGoForward: boolean;
 };
 
 type BrowserSurfaceWebContents = {
@@ -24,6 +26,10 @@ type BrowserSurfaceWebContents = {
   focus?: () => void;
   destroy?: () => void;
   getTitle?: () => string;
+  canGoBack?: () => boolean;
+  canGoForward?: () => boolean;
+  goBack?: () => void;
+  goForward?: () => void;
   setWindowOpenHandler?: (
     handler: (details?: unknown) => { action: 'allow' | 'deny' }
   ) => unknown;
@@ -113,6 +119,13 @@ type BrowserSurfaceDependencies = {
   publishEvent?: (payload: BrowserSurfaceEventPayload) => void;
 };
 
+type BrowserSurfaceHistoryResult = {
+  windowId: number;
+  tabId: string;
+  canGoBack: boolean;
+  canGoForward: boolean;
+};
+
 const DEFAULT_WEB_PREFERENCES: WebPreferences = {
   contextIsolation: true,
   nodeIntegration: false,
@@ -197,6 +210,8 @@ function createWorkbenchBrowserSurfaceService(deps: BrowserSurfaceDependencies) 
       phase: record.phase,
       error: record.error,
       navigationKey: record.navigationKey,
+      canGoBack: Boolean(record.view.webContents.canGoBack?.()),
+      canGoForward: Boolean(record.view.webContents.canGoForward?.()),
     };
   }
 
@@ -229,6 +244,8 @@ function createWorkbenchBrowserSurfaceService(deps: BrowserSurfaceDependencies) 
       phase: nextPhase,
       error: nextError,
       visible: nextVisible,
+      canGoBack: Boolean(record.view.webContents.canGoBack?.()),
+      canGoForward: Boolean(record.view.webContents.canGoForward?.()),
     });
   }
 
@@ -353,6 +370,46 @@ function createWorkbenchBrowserSurfaceService(deps: BrowserSurfaceDependencies) 
     });
 
     webContents.setWindowOpenHandler?.(() => ({ action: 'deny' }));
+  }
+
+  function goBackBrowserSurface(payload?: BrowserSurfacePayload): BrowserSurfaceHistoryResult {
+    const windowId = Number(payload?.windowId || 0);
+    const tabId = normalizeBrowserSurfaceTabId(payload?.tabId);
+    const record = getRecord(windowId, tabId);
+    if (!record) {
+      throw new Error('Browser surface is not initialized.');
+    }
+    if (record.view.webContents.canGoBack?.()) {
+      record.view.webContents.goBack?.();
+    }
+    publishRecord(record, {}, { keepPhase: true });
+    const state = buildState(record)!;
+    return {
+      windowId: state.windowId,
+      tabId: state.tabId,
+      canGoBack: state.canGoBack,
+      canGoForward: state.canGoForward,
+    };
+  }
+
+  function goForwardBrowserSurface(payload?: BrowserSurfacePayload): BrowserSurfaceHistoryResult {
+    const windowId = Number(payload?.windowId || 0);
+    const tabId = normalizeBrowserSurfaceTabId(payload?.tabId);
+    const record = getRecord(windowId, tabId);
+    if (!record) {
+      throw new Error('Browser surface is not initialized.');
+    }
+    if (record.view.webContents.canGoForward?.()) {
+      record.view.webContents.goForward?.();
+    }
+    publishRecord(record, {}, { keepPhase: true });
+    const state = buildState(record)!;
+    return {
+      windowId: state.windowId,
+      tabId: state.tabId,
+      canGoBack: state.canGoBack,
+      canGoForward: state.canGoForward,
+    };
   }
 
   function ensureViewAttached(window: BrowserSurfaceWindow, record: BrowserSurfaceRecord) {
@@ -561,6 +618,8 @@ function createWorkbenchBrowserSurfaceService(deps: BrowserSurfaceDependencies) 
     navigateBrowserSurface,
     disposeBrowserSurface,
     getBrowserSurfaceState,
+    goBackBrowserSurface,
+    goForwardBrowserSurface,
   };
 }
 
@@ -672,6 +731,38 @@ function disposeWorkbenchBrowserSurface(args: {
   return disposeWorkbenchBrowserSurfaceWithService(defaultService, args);
 }
 
+function goBackWorkbenchBrowserSurface({
+  ownerWindow,
+  tabId,
+}: {
+  ownerWindow: BrowserSurfaceWindow | null | undefined;
+  tabId?: unknown;
+}) {
+  if (!ownerWindow) {
+    throw new Error('Owner window is unavailable.');
+  }
+  return defaultService.goBackBrowserSurface({
+    windowId: ownerWindow.id,
+    tabId: normalizeBrowserSurfaceTabId(tabId),
+  });
+}
+
+function goForwardWorkbenchBrowserSurface({
+  ownerWindow,
+  tabId,
+}: {
+  ownerWindow: BrowserSurfaceWindow | null | undefined;
+  tabId?: unknown;
+}) {
+  if (!ownerWindow) {
+    throw new Error('Owner window is unavailable.');
+  }
+  return defaultService.goForwardBrowserSurface({
+    windowId: ownerWindow.id,
+    tabId: normalizeBrowserSurfaceTabId(tabId),
+  });
+}
+
 module.exports = {
   createWorkbenchBrowserSurfaceService,
   ...defaultService,
@@ -681,6 +772,8 @@ module.exports = {
   syncWorkbenchBrowserSurfaceWithService,
   disposeWorkbenchBrowserSurface,
   disposeWorkbenchBrowserSurfaceWithService,
+  goBackWorkbenchBrowserSurface,
+  goForwardWorkbenchBrowserSurface,
 };
 
 export {};

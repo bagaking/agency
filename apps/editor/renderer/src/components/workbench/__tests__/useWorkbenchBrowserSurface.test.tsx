@@ -95,6 +95,8 @@ test('useWorkbenchBrowserSurface syncs visible bounds, hides cleanly, and dispos
           phase: payload.visible === false ? 'hidden' : 'ready',
           error: '',
           visible: payload.visible !== false,
+          canGoBack: payload.visible !== false,
+          canGoForward: false,
         };
       },
       disposeWorkbenchBrowserSurface: async (payload: Record<string, any>) => {
@@ -174,10 +176,13 @@ test('useWorkbenchBrowserSurface syncs visible bounds, hides cleanly, and dispos
         phase: 'ready',
         error: '',
         visible: true,
+        canGoBack: true,
+        canGoForward: false,
       });
     });
     assert.equal(latestState.phase, 'ready');
     assert.equal(latestState.title, 'Example View');
+    assert.equal(latestState.canGoBack, true);
 
     await act(async () => {
       root.render(<Harness visible={false} navigationKey={0} />);
@@ -214,6 +219,8 @@ test('useWorkbenchBrowserSurface can hide on unmount without disposing the nativ
           phase: payload.visible === false ? 'hidden' : 'ready',
           error: '',
           visible: payload.visible !== false,
+          canGoBack: false,
+          canGoForward: false,
         };
       },
       disposeWorkbenchBrowserSurface: async (payload: Record<string, any>) => {

@@ -12,6 +12,8 @@ const { readWorkbenchProjectPolicy } = require('../../services/workbenchPolicy')
 const {
   syncWorkbenchBrowserSurface,
   disposeWorkbenchBrowserSurface,
+  goBackWorkbenchBrowserSurface,
+  goForwardWorkbenchBrowserSurface,
 } = require('../../services/workbenchBrowserSurface');
 
 function setupWorkbenchHandlers() {
@@ -72,6 +74,20 @@ function setupWorkbenchHandlers() {
       tabId: payload?.tabId,
     });
     return { ok: true };
+  });
+
+  ipcMain.handle('workbench:browserSurface:goBack', async (event, payload) => {
+    return goBackWorkbenchBrowserSurface({
+      ownerWindow: BrowserWindow.fromWebContents(event.sender),
+      tabId: payload?.tabId,
+    });
+  });
+
+  ipcMain.handle('workbench:browserSurface:goForward', async (event, payload) => {
+    return goForwardWorkbenchBrowserSurface({
+      ownerWindow: BrowserWindow.fromWebContents(event.sender),
+      tabId: payload?.tabId,
+    });
   });
 }
 

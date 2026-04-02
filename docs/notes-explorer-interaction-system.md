@@ -252,7 +252,7 @@ It means:
 
 This is the right place to borrow from Obsidian Web viewer and `cmux` URL browser.
 
-The Workbench bounded web research tab is now the canonical browser surface for the lane, so it should render the remote page as a true surface (complete with `Live`/`Reader` views and page-level actions) while the rest of the product keeps the lane bounded to `http`/`https`, avoids cookies/auth-session state, and refuses general browser-global tab chrome.
+The Workbench bounded web research tab is now the canonical browser surface for the lane, so it should render the remote page as a true surface (complete with `View`/`Reader`, basic navigation controls like `Back`/`Forward`/`Reload`, and page-level actions) while the rest of the product keeps the lane bounded to `http`/`https`, avoids cookies/auth-session state, and refuses general browser-global tab chrome.
 ## What Agency Explorer Still Needs
 
 The current gaps are not primarily about missing CRUD.
@@ -361,7 +361,7 @@ Current model:
 - `URL` is a first-class Explorer search mode alongside `Paths` and `Content`, not a hidden header utility;
 - the shared Explorer search row owns URL intake and can surface a compact `Open Web` affordance when the current input already looks like a supported public URL;
 - Workbench opens a bounded web research tab that owns the primary page/research surface and its actions; `View` is a native browser surface rather than a renderer iframe, so browser-denied sites still render while the Workbench tab remains the owning object and general browser tabs/cookies stay out of scope;
-- the Workbench surface should read browser-first: compact toolbar chrome, dominant page area, and bounded actions that stay attached to the same research object instead of explanatory cards pushing the page downward;
+- the Workbench surface should read browser-first: compact toolbar chrome, dominant page area, basic browser controls in the first row, and bounded research actions in a quieter second row instead of explanatory cards pushing the page downward;
 - saved Markdown files keep fixed `agency_source_*` frontmatter so Workbench can reopen them in markdown + preview mode;
 - citations still route through Memo/HIL, and full browsing still escapes to the system browser.
 
