@@ -234,35 +234,30 @@ export function WorkbenchBoundedWebResearchView({
   return (
     <section className="flex h-full min-h-0 flex-col bg-[#0b0d11] text-white">
       <div className="border-b border-white/[0.05] px-4 py-2.5">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-cyan-400/18 bg-cyan-400/10 text-cyan-200">
-              <Globe2 size={14} />
-            </div>
-            <div className="min-w-0">
-              <div className="truncate text-[13px] font-semibold tracking-[0.01em] text-white/92">
-                {resolvedTitle}
-              </div>
-              <div className="truncate text-[10px] text-white/38">
-                {sourceMeta || (linkedMarkdownMode ? 'Linked markdown preview' : 'Bounded web view')}
-              </div>
-            </div>
-          </div>
-          <div className="inline-flex shrink-0 rounded-full border border-white/[0.08] bg-white/[0.03] p-0.5">
-            <ModePill
-              active={preferredMode === 'live'}
-              label="View"
-              onClick={() => setPreferredMode('live')}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <ActionButton
+              icon={ChevronLeft}
+              label="Back"
+              onClick={() => void goBackWorkbenchBrowserSurface({ tabId })}
+              disabled={!browserSurface.surfaceState.canGoBack}
+              testId="workbench-web-research-back"
             />
-            <ModePill
-              active={preferredMode === 'reader'}
-              label="Reader"
-              onClick={() => setPreferredMode('reader')}
+            <ActionButton
+              icon={ChevronRight}
+              label="Forward"
+              onClick={() => void goForwardWorkbenchBrowserSurface({ tabId })}
+              disabled={!browserSurface.surfaceState.canGoForward}
+              testId="workbench-web-research-forward"
+            />
+            <ActionButton
+              icon={RefreshCw}
+              label={fetching ? 'Reloading…' : 'Reload'}
+              onClick={() => void reload()}
+              disabled={fetching}
+              testId="workbench-web-research-reload"
             />
           </div>
-        </div>
-
-        <div className="mt-2 flex flex-wrap items-center gap-2">
           {canNavigate ? (
             <form className="flex min-w-0 flex-1 items-center gap-2" onSubmit={handleLocationSubmit}>
               <label className="sr-only" htmlFor="workbench-web-research-location">
@@ -301,34 +296,37 @@ export function WorkbenchBoundedWebResearchView({
               <span className="truncate">{url}</span>
             </div>
           )}
-          <div className="flex flex-wrap items-center gap-2">
-            <ActionButton
-              icon={ChevronLeft}
-              label="Back"
-              onClick={() => void goBackWorkbenchBrowserSurface({ tabId })}
-              disabled={!browserSurface.surfaceState.canGoBack}
-              testId="workbench-web-research-back"
+          <div className="inline-flex shrink-0 rounded-full border border-white/[0.08] bg-white/[0.03] p-0.5">
+            <ModePill
+              active={preferredMode === 'live'}
+              label="View"
+              onClick={() => setPreferredMode('live')}
             />
-            <ActionButton
-              icon={ChevronRight}
-              label="Forward"
-              onClick={() => void goForwardWorkbenchBrowserSurface({ tabId })}
-              disabled={!browserSurface.surfaceState.canGoForward}
-              testId="workbench-web-research-forward"
-            />
-            <ActionButton
-              icon={RefreshCw}
-              label={fetching ? 'Reloading…' : 'Reload'}
-              onClick={() => void reload()}
-              disabled={fetching}
-              testId="workbench-web-research-reload"
+            <ModePill
+              active={preferredMode === 'reader'}
+              label="Reader"
+              onClick={() => setPreferredMode('reader')}
             />
           </div>
         </div>
 
         {locationError ? <div className="mt-1.5 text-[10px] text-amber-200">{locationError}</div> : null}
 
-        <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/[0.04] pt-2">
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.04] pt-2">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-cyan-400/18 bg-cyan-400/10 text-cyan-200">
+              <Globe2 size={13} />
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-[12px] font-semibold tracking-[0.01em] text-white/88">
+                {resolvedTitle}
+              </div>
+              <div className="truncate text-[10px] text-white/38">
+                {sourceMeta || (linkedMarkdownMode ? 'Linked markdown preview' : 'Bounded web view')}
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
           <ActionButton
             icon={ExternalLink}
             label="Open in Browser"
@@ -359,6 +357,7 @@ export function WorkbenchBoundedWebResearchView({
             disabled={!preview || creatingMemo || !allowMemoCapture}
             testId="workbench-web-research-cite"
           />
+          </div>
         </div>
 
         {linkedMarkdownMode ? (

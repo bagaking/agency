@@ -484,8 +484,11 @@ test('WorkbenchPane keeps bounded web research fallback inside the workbench sur
     });
     await env.flush();
 
-    assert.match(document.body.textContent || '', /Browser Surface Unavailable/);
-    assert.doesNotMatch(document.body.textContent || '', /Emergency Retry/);
+    const bodyText = document.body.textContent || '';
+    assert.match(bodyText, /Browser Surface Unavailable/);
+    assert.match(bodyText, /Open Reader/);
+    assert.match(bodyText, /Open in Browser/);
+    assert.doesNotMatch(bodyText, /Emergency Retry/);
 
     await act(async () => {
       root.unmount();
