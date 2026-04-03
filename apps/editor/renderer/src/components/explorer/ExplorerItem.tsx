@@ -12,6 +12,7 @@ import {
 import {
   getFileIcon,
   getFolderIcon,
+  resolveExplorerNodeName,
   statusBadges,
   statusLabels,
   statusMarkToneClasses,
@@ -51,6 +52,7 @@ export function ExplorerItem({
 }: any) {
   const isDir = item.type === 'dir';
   const isLink = item.isSymbolicLink;
+  const nodeName = resolveExplorerNodeName(node, item.path);
   const symlinkBoundaryState = node?.symlinkBoundaryState;
   const canExpand = isDir && symlinkBoundaryState !== 'outside-root' && symlinkBoundaryState !== 'cycle' && symlinkBoundaryState !== 'broken';
   const symlinkBoundaryLabel =
@@ -68,15 +70,15 @@ export function ExplorerItem({
   const semanticOverflowCount = Array.isArray(semanticTags) && semanticTags.length > 1 ? semanticTags.length - 1 : 0;
   const focusRingClass = focusRing.sidebar;
 
-  const iconInfo = isDir ? null : getFileIcon(node.name, isLink);
-  const FileIcon = isDir ? getFolderIcon(node.name, isExpanded) : iconInfo.icon;
+  const iconInfo = isDir ? null : getFileIcon(nodeName, isLink);
+  const FileIcon = isDir ? getFolderIcon(nodeName, isExpanded) : iconInfo.icon;
   const iconColor = isDir ? 'text-primary/70' : iconInfo.color;
 
   const paddingLeft = `${depth * 12 + 8}px`;
   const ariaLevel = depth + 1;
   const statusLabel = status ? statusLabels[status] || status : '';
   const rowAriaLabel = [
-    node.name,
+    nodeName,
     isDir ? 'folder' : 'file',
     statusLabel ? `${statusLabel} git status` : '',
     isIgnored ? 'ignored' : '',
@@ -145,7 +147,7 @@ export function ExplorerItem({
     <div
       id={treeItemId}
       role="treeitem"
-      aria-label={rowAriaLabel || node.name}
+      aria-label={rowAriaLabel || nodeName}
       aria-level={ariaLevel}
       aria-selected={isSelected}
       aria-expanded={isDir ? isExpanded : undefined}
@@ -168,7 +170,7 @@ export function ExplorerItem({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggle(); }}
-          aria-label={isExpanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
+          aria-label={isExpanded ? `Collapse ${nodeName}` : `Expand ${nodeName}`}
           aria-expanded={isExpanded}
           tabIndex={-1}
           className={`shrink-0 rounded-sm text-muted-foreground/70 transition-colors hover:bg-white/5 hover:text-foreground ${focusRingClass}`}
@@ -216,7 +218,7 @@ export function ExplorerItem({
       {renameTarget ? (
         <input
           autoFocus
-          aria-label={`Rename ${node.name}`}
+          aria-label={`Rename ${nodeName}`}
           className="flex-1 rounded border border-border bg-transparent px-1 text-xs text-foreground focus:outline-none select-text"
           value={renameTarget.value}
           onChange={(e) => setRenameTarget(prev => ({ ...prev, value: e.target.value }))}
@@ -231,7 +233,7 @@ export function ExplorerItem({
       ) : (
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <span
-            title={node.name}
+            title={nodeName}
             className={`truncate font-medium transition-colors ${
               isIgnored
                 ? isSelected
@@ -242,7 +244,7 @@ export function ExplorerItem({
                 : 'text-inherit'
             }`}
           >
-            {node.name}
+            {nodeName}
           </span>
           {rowStateBadge ? (
             <div className="flex shrink-0 items-center gap-1">
@@ -308,7 +310,7 @@ export function ExplorerItem({
                   event.stopPropagation();
                   onJumpToComments?.(item.path);
                 }}
-                aria-label={`View ${commentCount} comment${commentCount === 1 ? '' : 's'} for ${node.name}`}
+                aria-label={`View ${commentCount} comment${commentCount === 1 ? '' : 's'} for ${nodeName}`}
               >
                 <MessageSquare size={12} strokeWidth={1.5} />
                 <span className="text-[9px] font-semibold tabular-nums">{commentCount}</span>

@@ -141,6 +141,20 @@ export const getFileIcon = (name, isSymbolicLink) => {
   return { icon: FileText, color: 'text-muted-foreground/40' };
 };
 
+export const resolveExplorerNodeName = (node: { name?: string } | null | undefined, path = '') => {
+  const explicitName = String(node?.name || '').trim();
+  if (explicitName) {
+    return explicitName;
+  }
+  const normalizedPath = String(path || '').trim().replace(/\/+$/, '');
+  if (!normalizedPath) {
+    return 'Untitled';
+  }
+  const slashIndex = normalizedPath.lastIndexOf('/');
+  const fallbackName = slashIndex >= 0 ? normalizedPath.slice(slashIndex + 1) : normalizedPath;
+  return fallbackName || 'Untitled';
+};
+
 // 辅助图标 (用于在 getFileIcon 中引用)
 function FileSymlink({ size, className, strokeWidth }: any) {
     return (

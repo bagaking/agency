@@ -295,3 +295,41 @@ test('ExplorerItem hides the expander for restricted symbolic-link directories',
   assert.doesNotMatch(html, /Expand outside-dir/);
   assert.match(html, /symbolic link resolves outside workspace/);
 });
+
+test('ExplorerItem falls back to the path basename when node.name is missing', () => {
+  const html = renderToStaticMarkup(
+    <ExplorerItem
+      item={{ path: 'apps/editor/config.toml', depth: 0, type: 'file' }}
+      node={{ type: 'file' }}
+      treeItemId="explorer-treeitem-config-toml"
+      isSelected={false}
+      isFocused={false}
+      isLoading={false}
+      isExpanded={false}
+      isOpen={false}
+      isDirty={false}
+      isIgnored={false}
+      status={undefined}
+      added={0}
+      deleted={0}
+      semanticTags={[]}
+      commentCount={0}
+      onJumpToComments={() => {}}
+      cellBadges={null}
+      depth={0}
+      onToggle={() => {}}
+      onClick={() => {}}
+      onDoubleClick={() => {}}
+      onContextMenu={() => {}}
+      onDragStart={() => {}}
+      onDragOver={() => {}}
+      onDrop={() => {}}
+      renameTarget={null}
+      handleRenameSubmit={() => {}}
+      setRenameTarget={() => {}}
+    />
+  );
+
+  assert.match(html, /config\.toml/);
+  assert.match(html, /aria-label="config\.toml, file"/);
+});
