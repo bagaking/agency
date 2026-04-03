@@ -189,6 +189,49 @@ test('updateCellState updates detached cells without running attached-worktree g
   );
 });
 
+test('updateCellState does not block attached cells on default gate checks', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-state-attached-');
+  const attachedWorktreePath = path.join(repoRoot, '.worktrees', 'gamma');
+  await fs.mkdir(path.join(repoRoot, '.agency', 'cells', 'gamma'), { recursive: true });
+  await fs.mkdir(attachedWorktreePath, { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, '.agency', 'cells', 'gamma', 'cell.yaml'),
+    [
+      'version: 2',
+      'id: gamma',
+      'name: Gamma',
+      'branch: feat/gamma',
+      'state: ""',
+      'attachmentState: attached',
+      `worktreePath: ${attachedWorktreePath}`,
+      `lastKnownWorktreePath: ${attachedWorktreePath}`,
+    ].join('\n'),
+    'utf8'
+  );
+
+  t.after(async () => {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await withCellsService(
+    {
+      listWorktrees: async () => [{ path: attachedWorktreePath, branch: 'feat/gamma', head: 'abc123' }],
+      checkGates: async () => {
+        throw new Error('default gate checks should not run for updateCellState');
+      },
+    },
+    async ({ updateCellState }) => {
+      const updated = await updateCellState({
+        id: 'gamma',
+        rootPath: repoRoot,
+        state: 'active',
+      });
+      assert.equal(updated.id, 'gamma');
+      assert.equal(updated.state, 'active');
+    }
+  );
+});
+
 test('createCell can bind an existing branch without renaming it', async (t) => {
   const repoRoot = await createTempDir('agency-cells-existing-branch-');
   const createdWorktrees: Array<{ repoRoot: string; worktreePath: string; branch: string; baseBranch: string }> = [];
@@ -250,6 +293,233 @@ test('createCell honors an explicit base branch when creating a new branch', asy
       assert.equal(createdWorktrees.length, 1);
       assert.equal(createdWorktrees[0]?.branch, 'feat/alpha');
       assert.equal(createdWorktrees[0]?.baseBranch, 'main');
+    }
+  );
+});
+
+test('listCells keeps unmanaged worktrees untracked and exposes them via listUnmanagedWorktrees', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-unmanaged-');
+  const unmanagedWorktreePath = path.join(repoRoot, '.worktrees', 'scratch');
+  await fs.mkdir(unmanagedWorktreePath, { recursive: true });
+
+  t.after(async () => {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await withCellsService(
+    {
+      listWorktrees: async () => [{ path: unmanagedWorktreePath, branch: 'feat/scratch', head: 'abc123' }],
+    },
+    async ({ listCells, listUnmanagedWorktrees }) => {
+      const cells = await listCells({ rootPath: repoRoot });
+      assert.equal(cells.length, 0);
+
+      const unmanaged = await listUnmanagedWorktrees({ rootPath: repoRoot });
+      assert.equal(unmanaged.length, 1);
+      assert.equal(unmanaged[0].type, 'unmanaged_worktree');
+      assert.equal(unmanaged[0].worktreePath, unmanagedWorktreePath);
+      assert.equal(unmanaged[0].branch, 'feat/scratch');
+      assert.equal(unmanaged[0].tracked, false);
+    }
+  );
+});
+
+test('listUnmanagedWorktrees returns deterministic branch-based bind suggestions', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-unmanaged-suggest-');
+  const unmanagedWorktreePath = path.join(repoRoot, '.worktrees', 'incoming');
+  const detachedPath = path.join(repoRoot, '.worktrees', 'detached-beta');
+  await fs.mkdir(path.join(repoRoot, '.agency', 'cells', 'detached-beta'), { recursive: true });
+  await fs.mkdir(unmanagedWorktreePath, { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, '.agency', 'cells', 'detached-beta', 'cell.yaml'),
+    [
+      'version: 2',
+      'id: detached-beta',
+      'name: Detached Beta',
+      'branch: feat/beta',
+      'state: ""',
+      'attachmentState: detached',
+      'worktreePath: ""',
+      `lastKnownWorktreePath: ${detachedPath}`,
+    ].join('\n'),
+    'utf8'
+  );
+
+  t.after(async () => {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await withCellsService(
+    {
+      listWorktrees: async () => [{ path: unmanagedWorktreePath, branch: 'feat/beta', head: 'abc123' }],
+    },
+    async ({ listUnmanagedWorktrees }) => {
+      const unmanaged = await listUnmanagedWorktrees({ rootPath: repoRoot });
+      assert.equal(unmanaged.length, 1);
+      assert.equal(unmanaged[0].bindSuggestion?.kind, 'unique_branch_match');
+      assert.equal(unmanaged[0].bindSuggestion?.cellId, 'detached-beta');
+    }
+  );
+});
+
+test('listUnmanagedWorktrees marks ambiguous branch suggestions without auto-selection', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-unmanaged-ambiguous-');
+  const unmanagedWorktreePath = path.join(repoRoot, '.worktrees', 'incoming');
+  const detachedPaths = [
+    path.join(repoRoot, '.worktrees', 'detached-beta-a'),
+    path.join(repoRoot, '.worktrees', 'detached-beta-b'),
+  ];
+  await fs.mkdir(unmanagedWorktreePath, { recursive: true });
+  for (const id of ['detached-beta-a', 'detached-beta-b']) {
+    await fs.mkdir(path.join(repoRoot, '.agency', 'cells', id), { recursive: true });
+  }
+  await fs.writeFile(
+    path.join(repoRoot, '.agency', 'cells', 'detached-beta-a', 'cell.yaml'),
+    [
+      'version: 2',
+      'id: detached-beta-a',
+      'name: Detached Beta A',
+      'branch: feat/beta',
+      'state: ""',
+      'attachmentState: detached',
+      'worktreePath: ""',
+      `lastKnownWorktreePath: ${detachedPaths[0]}`,
+    ].join('\n'),
+    'utf8'
+  );
+  await fs.writeFile(
+    path.join(repoRoot, '.agency', 'cells', 'detached-beta-b', 'cell.yaml'),
+    [
+      'version: 2',
+      'id: detached-beta-b',
+      'name: Detached Beta B',
+      'branch: feat/beta',
+      'state: ""',
+      'attachmentState: detached',
+      'worktreePath: ""',
+      `lastKnownWorktreePath: ${detachedPaths[1]}`,
+    ].join('\n'),
+    'utf8'
+  );
+
+  t.after(async () => {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await withCellsService(
+    {
+      listWorktrees: async () => [{ path: unmanagedWorktreePath, branch: 'feat/beta', head: 'abc123' }],
+    },
+    async ({ listUnmanagedWorktrees }) => {
+      const unmanaged = await listUnmanagedWorktrees({ rootPath: repoRoot });
+      assert.equal(unmanaged.length, 1);
+      assert.equal(unmanaged[0].bindSuggestion?.kind, 'ambiguous_branch');
+      assert.deepEqual(
+        [...(unmanaged[0].bindSuggestion?.candidateCellIds || [])].sort(),
+        ['detached-beta-a', 'detached-beta-b']
+      );
+    }
+  );
+});
+
+test('ignoreUnmanagedWorktree persists user-local ignore state per repository', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-unmanaged-ignore-');
+  const storeDir = await createTempDir('agency-cells-unmanaged-store-');
+  const unmanagedWorktreePath = path.join(repoRoot, '.worktrees', 'ignored-candidate');
+  await fs.mkdir(unmanagedWorktreePath, { recursive: true });
+  const previousStoreDir = process.env.AGENCY_UNMANAGED_WORKTREE_STORE_DIR;
+  process.env.AGENCY_UNMANAGED_WORKTREE_STORE_DIR = storeDir;
+
+  t.after(async () => {
+    if (previousStoreDir === undefined) {
+      delete process.env.AGENCY_UNMANAGED_WORKTREE_STORE_DIR;
+    } else {
+      process.env.AGENCY_UNMANAGED_WORKTREE_STORE_DIR = previousStoreDir;
+    }
+    await fs.rm(repoRoot, { recursive: true, force: true });
+    await fs.rm(storeDir, { recursive: true, force: true });
+  });
+
+  await withCellsService(
+    {
+      listWorktrees: async () => [{ path: unmanagedWorktreePath, branch: 'feat/ignored', head: 'abc123' }],
+    },
+    async ({ listUnmanagedWorktrees, ignoreUnmanagedWorktree, clearIgnoredUnmanagedWorktrees }) => {
+      const beforeIgnore = await listUnmanagedWorktrees({ rootPath: repoRoot });
+      assert.equal(beforeIgnore.length, 1);
+
+      const afterIgnore = await ignoreUnmanagedWorktree({
+        rootPath: repoRoot,
+        worktreePath: unmanagedWorktreePath,
+        ignored: true,
+      });
+      assert.equal(afterIgnore.length, 1);
+      assert.equal(afterIgnore[0].ignored, true);
+
+      const defaultList = await listUnmanagedWorktrees({ rootPath: repoRoot });
+      assert.equal(defaultList.length, 0);
+
+      const includeIgnored = await listUnmanagedWorktrees({
+        rootPath: repoRoot,
+        includeIgnored: true,
+      });
+      assert.equal(includeIgnored.length, 1);
+      assert.equal(includeIgnored[0].ignored, true);
+
+      const cleared = await clearIgnoredUnmanagedWorktrees({ rootPath: repoRoot });
+      assert.equal(Array.isArray(cleared), true);
+      assert.equal(cleared.length, 0);
+
+      const afterClear = await listUnmanagedWorktrees({ rootPath: repoRoot });
+      assert.equal(afterClear.length, 1);
+      assert.equal(afterClear[0].ignored, false);
+    }
+  );
+});
+
+test('createCell can bind an unmanaged worktree to an existing detached Cell record', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-bind-unmanaged-');
+  const unmanagedWorktreePath = path.join(repoRoot, '.worktrees', 'incoming-beta');
+  const detachedPath = path.join(repoRoot, '.worktrees', 'detached-beta');
+  await fs.mkdir(path.join(repoRoot, '.agency', 'cells', 'detached-beta'), { recursive: true });
+  await fs.mkdir(unmanagedWorktreePath, { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, '.agency', 'cells', 'detached-beta', 'cell.yaml'),
+    [
+      'version: 2',
+      'id: detached-beta',
+      'name: Detached Beta',
+      'branch: feat/beta',
+      'state: ""',
+      'attachmentState: detached',
+      'worktreePath: ""',
+      `lastKnownWorktreePath: ${detachedPath}`,
+    ].join('\n'),
+    'utf8'
+  );
+
+  t.after(async () => {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await withCellsService(
+    {
+      listWorktrees: async () => [{ path: unmanagedWorktreePath, branch: 'feat/beta', head: 'abc123' }],
+    },
+    async ({ createCell, listCells }) => {
+      const rebound = await createCell({
+        rootPath: repoRoot,
+        reusePath: unmanagedWorktreePath,
+        bindToCellId: 'detached-beta',
+      });
+
+      assert.equal(rebound.id, 'detached-beta');
+      assert.equal(rebound.attachmentState, 'attached');
+      assert.equal(rebound.attachedWorktreePath, unmanagedWorktreePath);
+
+      const cells = await listCells({ rootPath: repoRoot });
+      const boundCell = cells.find((cell) => cell.id === 'detached-beta');
+      assert.equal(boundCell?.attachedWorktreePath, unmanagedWorktreePath);
     }
   );
 });

@@ -9,6 +9,11 @@ export { isAgencyAvailable, isAgencyMethodAvailable };
 
 // Cells / project / session core
 export const listCells = createOptionalInvoke('listCells');
+export const listUnmanagedWorktrees = createOptionalInvoke('listUnmanagedWorktrees', { fallback: [] });
+export const ignoreUnmanagedWorktree = createOptionalInvoke('ignoreUnmanagedWorktree', { fallback: [] });
+export const clearIgnoredUnmanagedWorktrees = createOptionalInvoke('clearIgnoredUnmanagedWorktrees', {
+  fallback: [],
+});
 export const createCell = createOptionalInvoke('createCell');
 export const listWorktrees = createOptionalInvoke('listWorktrees', { fallback: [] });
 export const listBranches = createOptionalInvoke('listBranches', { fallback: [] });

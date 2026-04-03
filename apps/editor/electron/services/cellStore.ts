@@ -13,7 +13,6 @@ const fsp = fs.promises;
 const CELL_RECORD_FILENAME = 'cell.yaml';
 const CELL_SESSIONS_FILENAME = 'sessions.yaml';
 const CELL_RECORD_VERSION = 2;
-const DEFAULT_CELL_STATE = 'draft';
 const CELL_ATTACHMENT_STATES = Object.freeze({
   attached: 'attached',
   detached: 'detached',
@@ -40,8 +39,7 @@ function normalizeAttachmentState(value) {
 }
 
 function normalizeLifecycleState(value) {
-  const normalized = normalizeText(value);
-  return normalized || DEFAULT_CELL_STATE;
+  return normalizeText(value);
 }
 
 function normalizePathValue(value) {

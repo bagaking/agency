@@ -4,7 +4,6 @@ const path = require('path');
 const yaml = require('js-yaml');
 
 const {
-  getRepoRoot,
   listWorktrees,
   resolveBaseBranch,
   createWorktree,
@@ -12,7 +11,12 @@ const {
 } = require('./git');
 const { resolveProjectRoot } = require('./projectRoot');
 const { readConfig: readWorktreeLinksConfig, applyAllLinks } = require('./worktreeLinks');
-const { checkGates } = require('./gates');
+const {
+  clearIgnoredWorktrees,
+  listIgnoredWorktreePaths,
+  pruneIgnoredWorktrees,
+  setWorktreeIgnored,
+} = require('./unmanagedWorktreeStore');
 const {
   CELL_ATTACHMENT_STATES,
   getCellRecordPath,
@@ -148,7 +152,7 @@ function buildCellComparisonKey(record) {
   });
 }
 
-function validationWarnings(repoRoot, cell) {
+function validationWarnings(_repoRoot, cell) {
   const warnings = [];
   if (cell.attachmentState === CELL_ATTACHMENT_STATES.detached) {
     warnings.push('Cell worktree attachment is detached.');
@@ -158,9 +162,6 @@ function validationWarnings(repoRoot, cell) {
   }
   if (!normalizeText(cell.branch)) {
     warnings.push('Cell branch metadata is missing.');
-  }
-  if (!fs.existsSync(path.join(repoRoot, 'openspec'))) {
-    warnings.push('OpenSpec directory not found (temporary validation).');
   }
   return warnings;
 }
@@ -177,7 +178,7 @@ function buildHydratedCell(repoRoot, record, attachedWorktree = null) {
       : lastKnownWorktreePath && fs.existsSync(lastKnownWorktreePath)
         ? CELL_ATTACHMENT_STATES.detached
         : CELL_ATTACHMENT_STATES.missing;
-  const lifecycleState = normalizeText(record.state) || 'draft';
+  const lifecycleState = normalizeText(record.state);
   return {
     id: record.id,
     name: record.name,
@@ -187,7 +188,9 @@ function buildHydratedCell(repoRoot, record, attachedWorktree = null) {
     attachedWorktreePath,
     attachmentState,
     state: lifecycleState,
+    legacyState: lifecycleState,
     lifecycleState,
+    tracked: true,
     createdAt: record.createdAt || null,
     updatedAt: record.updatedAt || null,
     avatar: record.avatar || resolveAvatarSymbol(record.id || record.name),
@@ -233,7 +236,7 @@ function buildAttachedRecord({ existing, legacy, worktree, now }) {
       id: existing?.id || legacy?.id || normalizeName(resolvedName),
       name: resolvedName,
       branch: normalizeText(worktree?.branch || legacy?.branch || existing?.branch || ''),
-      state: normalizeText(legacy?.state || existing?.state || existing?.lifecycleState || 'draft'),
+      state: normalizeText(legacy?.state || existing?.state || existing?.lifecycleState || ''),
       attachmentState: CELL_ATTACHMENT_STATES.attached,
       worktreePath,
       lastKnownWorktreePath: worktreePath,
@@ -262,6 +265,102 @@ function buildUnattachedRecord(record, now) {
   );
 }
 
+function hasLegacyLifecycleMetadata(lifecycle = {}) {
+  if (!lifecycle || typeof lifecycle !== 'object') {
+    return false;
+  }
+  return Boolean(
+    normalizeText(lifecycle.id) ||
+      normalizeText(lifecycle.name) ||
+      normalizeText(lifecycle.branch) ||
+      normalizeText(lifecycle.state) ||
+      normalizeText(lifecycle.avatar)
+  );
+}
+
+function buildUnmanagedWorktreeId(worktreePath) {
+  const base = normalizeName(path.basename(String(worktreePath || '')) || 'worktree');
+  const suffix = hashString(normalizePathValue(worktreePath)).toString(16).slice(0, 8);
+  return `unmanaged-${base}-${suffix}`;
+}
+
+function buildDetachedCellCandidate(cell) {
+  const attachmentState = normalizeText(cell?.attachmentState);
+  if (attachmentState === CELL_ATTACHMENT_STATES.attached) {
+    return null;
+  }
+  const id = normalizeText(cell?.id);
+  if (!id) {
+    return null;
+  }
+  return {
+    id,
+    name: normalizeText(cell?.name) || id,
+    branch: normalizeText(cell?.branch),
+    lastKnownWorktreePath: normalizePathValue(cell?.worktreePath || cell?.lastKnownWorktreePath),
+  };
+}
+
+function buildBindSuggestion(worktree, detachedCandidates) {
+  const normalizedPath = normalizePathValue(worktree?.path);
+  const normalizedBranch = normalizeText(worktree?.branch);
+  if (!normalizedPath || !detachedCandidates.length) {
+    return null;
+  }
+  const pathMatches = detachedCandidates.filter((candidate) =>
+    samePath(candidate.lastKnownWorktreePath, normalizedPath)
+  );
+  if (pathMatches.length === 1) {
+    return {
+      kind: 'exact_last_known_path',
+      cellId: pathMatches[0].id,
+      cellName: pathMatches[0].name,
+    };
+  }
+  if (pathMatches.length > 1) {
+    return {
+      kind: 'ambiguous_path',
+      candidateCellIds: pathMatches.map((candidate) => candidate.id),
+    };
+  }
+  if (!normalizedBranch) {
+    return null;
+  }
+  const branchMatches = detachedCandidates.filter(
+    (candidate) => normalizeText(candidate.branch) === normalizedBranch
+  );
+  if (branchMatches.length === 1) {
+    return {
+      kind: 'unique_branch_match',
+      cellId: branchMatches[0].id,
+      cellName: branchMatches[0].name,
+    };
+  }
+  if (branchMatches.length > 1) {
+    return {
+      kind: 'ambiguous_branch',
+      candidateCellIds: branchMatches.map((candidate) => candidate.id),
+    };
+  }
+  return null;
+}
+
+function buildUnmanagedWorktreeCandidate({ worktree, detachedCandidates, ignored }) {
+  const normalizedPath = normalizePathValue(worktree?.path);
+  const normalizedBranch = normalizeText(worktree?.branch);
+  return {
+    id: buildUnmanagedWorktreeId(normalizedPath),
+    type: 'unmanaged_worktree',
+    tracked: false,
+    ignored: Boolean(ignored),
+    name: path.basename(normalizedPath) || normalizedBranch || 'worktree',
+    branch: normalizedBranch,
+    head: normalizeText(worktree?.head),
+    worktreePath: normalizedPath,
+    bindSuggestion: buildBindSuggestion(worktree, detachedCandidates),
+  };
+}
+
 async function readLegacyLifecycleForWorktree(worktreePath) {
   const lifecyclePath = await findLifecycleFile(worktreePath);
   if (!lifecyclePath) {
@@ -280,21 +379,36 @@ async function readLegacyLifecycleForWorktree(worktreePath) {
   }
 }
 
-async function reconcileCells(repoRoot) {
+async function reconcileWorkspaceState(repoRoot, { includeIgnoredUnmanaged = false } = {}) {
   const now = new Date().toISOString();
   const worktrees = await listWorktrees(repoRoot);
   const storedRecords = await listCellRecords(repoRoot);
-  const records = [...storedRecords];
   const recordsById = new Map(storedRecords.map((record) => [record.id, record]));
   const attachedWorktreesByCellId = new Map();
   const orderedIds = [];
+  const unmanagedWorktrees = [];
+  const liveWorktreePaths = [];
 
   for (const worktree of worktrees) {
-    if (!normalizeText(worktree?.path)) {
+    const normalizedWorktreePath = normalizePathValue(worktree?.path);
+    if (!normalizedWorktreePath) {
       continue;
     }
+    liveWorktreePaths.push(normalizedWorktreePath);
     const { lifecycle } = await readLegacyLifecycleForWorktree(worktree.path);
-    const existing = resolveMatchingRecordForWorktree(records, lifecycle, worktree.path);
+    const existing = resolveMatchingRecordForWorktree(
+      Array.from(recordsById.values()),
+      lifecycle,
+      worktree.path
+    );
+    const shouldImportLifecycle = Boolean(existing) || hasLegacyLifecycleMetadata(lifecycle);
+    if (!shouldImportLifecycle) {
+      unmanagedWorktrees.push({
+        ...worktree,
+        path: normalizedWorktreePath,
+      });
+      continue;
+    }
     const nextRecord = buildAttachedRecord({
       existing,
       legacy: lifecycle,
@@ -307,9 +421,6 @@ async function reconcileCells(repoRoot) {
     }
     recordsById.set(nextRecord.id, nextRecord);
     attachedWorktreesByCellId.set(nextRecord.id, worktree);
-    if (!records.some((record) => record.id === nextRecord.id)) {
-      records.push(nextRecord);
-    }
     if (!orderedIds.includes(nextRecord.id)) {
       orderedIds.push(nextRecord.id);
     }
@@ -330,9 +441,32 @@ async function reconcileCells(repoRoot) {
     .filter((cellId) => !orderedIds.includes(cellId))
     .sort((left, right) => left.localeCompare(right));
 
-  return [...orderedIds, ...remainingIds].map((cellId) =>
+  const cells = [...orderedIds, ...remainingIds].map((cellId) =>
     buildHydratedCell(repoRoot, recordsById.get(cellId), attachedWorktreesByCellId.get(cellId))
   );
+  const trackedAttachedPaths = cells
+    .map((cell) => normalizePathValue(cell?.attachedWorktreePath))
+    .filter(Boolean);
+  const ignoredPaths = await pruneIgnoredWorktrees({
+    repoRoot,
+    liveWorktreePaths,
+    trackedWorktreePaths: trackedAttachedPaths,
+  });
+  const ignoredSet = new Set(ignoredPaths);
+  const detachedCandidates = cells.map(buildDetachedCellCandidate).filter(Boolean);
+  const unmanagedCandidates = unmanagedWorktrees.map((worktree) =>
+    buildUnmanagedWorktreeCandidate({
+      worktree,
+      detachedCandidates,
+      ignored: ignoredSet.has(normalizePathValue(worktree.path)),
+    })
+  );
+  return {
+    cells,
+    unmanagedWorktrees: includeIgnoredUnmanaged
+      ? unmanagedCandidates
+      : unmanagedCandidates.filter((candidate) => !candidate.ignored),
+  };
 }
 
 async function listCells({ rootPath } = {}) {
@@ -340,7 +474,48 @@ async function listCells({ rootPath } = {}) {
   if (!repoRoot) {
     return [];
   }
-  return reconcileCells(repoRoot);
+  const state = await reconcileWorkspaceState(repoRoot);
+  return state.cells;
+}
+
+async function listUnmanagedWorktrees({ rootPath, includeIgnored = false } = {}) {
+  const repoRoot = await resolveProjectRoot({ rootPath });
+  if (!repoRoot) {
+    return [];
+  }
+  const state = await reconcileWorkspaceState(repoRoot, {
+    includeIgnoredUnmanaged: Boolean(includeIgnored),
+  });
+  return state.unmanagedWorktrees;
+}
+
+async function ignoreUnmanagedWorktree({ rootPath, worktreePath, ignored = true } = {}) {
+  const repoRoot = await resolveProjectRoot({ rootPath: rootPath || worktreePath });
+  if (!repoRoot) {
+    throw new Error('Project root is not configured.');
+  }
+  const normalizedWorktreePath = normalizePathValue(worktreePath);
+  if (!normalizedWorktreePath) {
+    throw new Error('worktreePath is required.');
+  }
+  await setWorktreeIgnored({
+    repoRoot,
+    worktreePath: normalizedWorktreePath,
+    ignored: Boolean(ignored),
+  });
+  return listUnmanagedWorktrees({
+    rootPath: repoRoot,
+    includeIgnored: true,
+  });
+}
+
+async function clearIgnoredUnmanagedWorktrees({ rootPath } = {}) {
+  const repoRoot = await resolveProjectRoot({ rootPath });
+  if (!repoRoot) {
+    throw new Error('Project root is not configured.');
+  }
+  await clearIgnoredWorktrees(repoRoot);
+  return listIgnoredWorktreePaths(repoRoot);
 }
 
 async function resolveCellContext({ cellId, worktreePath, rootPath } = {}) {
@@ -403,7 +578,7 @@ async function bindExistingWorktreeCell({ repoRoot, target, explicitName = '', e
     id: existing?.id || lifecycle?.id || normalizeName(resolvedName),
     name: resolvedName,
     branch: resolvedBranch,
-    state: lifecycle?.state || existing?.state || 'draft',
+    state: lifecycle?.state || existing?.state || '',
     attachmentState: CELL_ATTACHMENT_STATES.attached,
     worktreePath: target.path,
     lastKnownWorktreePath: target.path,
@@ -413,22 +588,65 @@ async function bindExistingWorktreeCell({ repoRoot, target, explicitName = '', e
   });
   await writeCellRecord(repoRoot, nextRecord);
   await maybeAutoLinkWorktree(repoRoot, target.path);
+  await setWorktreeIgnored({
+    repoRoot,
+    worktreePath: target.path,
+    ignored: false,
+  });
   const cellsAfterCreate = await listCells({ rootPath: repoRoot });
   return cellsAfterCreate.find((cell) => cell.id === nextRecord.id) || buildHydratedCell(repoRoot, nextRecord, target);
 }
 
-async function createCell({ name, branch, baseBranch, existingBranch, reusePath, rootPath }) {
+async function createCell({ name, branch, baseBranch, existingBranch, reusePath, rootPath, bindToCellId }) {
   const repoRoot = await resolveProjectRoot({ rootPath });
   if (!repoRoot) {
     throw new Error('Project root is not configured.');
   }
   const now = new Date().toISOString();
+  const normalizedBindToCellId = normalizeText(bindToCellId);
 
   if (reusePath) {
     const worktrees = await listWorktrees(repoRoot);
     const target = worktrees.find((worktree) => samePath(worktree.path, reusePath));
     if (!target) {
       throw new Error('Selected worktree not found.');
+    }
+    if (normalizedBindToCellId) {
+      const existingRecord = await readCellRecord(repoRoot, normalizedBindToCellId);
+      if (!existingRecord) {
+        throw new Error('Target Cell not found.');
+      }
+      const cells = await listCells({ rootPath: repoRoot });
+      const conflictingCell = cells.find(
+        (cell) =>
+          normalizeText(cell.id) !== normalizedBindToCellId &&
+          samePath(cell.attachedWorktreePath, target.path)
+      );
+      if (conflictingCell) {
+        throw new Error(
+          `Worktree is already tracked by ${conflictingCell.name || conflictingCell.id}.`
+        );
+      }
+      const reboundRecord = normalizeCellRecord({
+        ...existingRecord,
+        branch: normalizeText(target.branch || existingRecord.branch),
+        attachmentState: CELL_ATTACHMENT_STATES.attached,
+        worktreePath: normalizePathValue(target.path),
+        lastKnownWorktreePath: normalizePathValue(target.path),
+        updatedAt: now,
+      });
+      await writeCellRecord(repoRoot, reboundRecord);
+      await maybeAutoLinkWorktree(repoRoot, target.path);
+      await setWorktreeIgnored({
+        repoRoot,
+        worktreePath: target.path,
+        ignored: false,
+      });
+      const cellsAfterBind = await listCells({ rootPath: repoRoot });
+      return (
+        cellsAfterBind.find((cell) => cell.id === reboundRecord.id) ||
+        buildHydratedCell(repoRoot, reboundRecord, target)
+      );
     }
     return bindExistingWorktreeCell({
       repoRoot,
@@ -472,7 +690,7 @@ async function createCell({ name, branch, baseBranch, existingBranch, reusePath,
       id: safeName,
       name: resolvedName,
       branch: resolvedExistingBranch,
-      state: 'draft',
+      state: '',
       attachmentState: CELL_ATTACHMENT_STATES.attached,
       worktreePath,
       lastKnownWorktreePath: worktreePath,
@@ -482,6 +700,11 @@ async function createCell({ name, branch, baseBranch, existingBranch, reusePath,
     });
     await writeCellRecord(repoRoot, nextRecord);
     await maybeAutoLinkWorktree(repoRoot, worktreePath);
+    await setWorktreeIgnored({
+      repoRoot,
+      worktreePath,
+      ignored: false,
+    });
     const cellsAfterCreate = await listCells({ rootPath: repoRoot });
     return cellsAfterCreate.find((cell) => cell.id === nextRecord.id) || buildHydratedCell(repoRoot, nextRecord, { path: worktreePath, branch: resolvedExistingBranch });
   }
@@ -507,7 +730,7 @@ async function createCell({ name, branch, baseBranch, existingBranch, reusePath,
     id: safeName,
     name,
     branch,
-    state: 'draft',
+    state: '',
     attachmentState: CELL_ATTACHMENT_STATES.attached,
     worktreePath,
     lastKnownWorktreePath: worktreePath,
@@ -517,6 +740,11 @@ async function createCell({ name, branch, baseBranch, existingBranch, reusePath,
   });
   await writeCellRecord(repoRoot, nextRecord);
   await maybeAutoLinkWorktree(repoRoot, worktreePath);
+  await setWorktreeIgnored({
+    repoRoot,
+    worktreePath,
+    ignored: false,
+  });
 
   const cellsAfterCreate = await listCells({ rootPath: repoRoot });
   return cellsAfterCreate.find((cell) => cell.id === nextRecord.id) || buildHydratedCell(repoRoot, nextRecord, { path: worktreePath, branch });
@@ -560,19 +788,6 @@ async function updateCellState({ id, state, worktreePath, rootPath }) {
     });
 
   const normalizedState = normalizeText(state);
-  if (['active', 'archived'].includes(normalizedState) && context.attachedWorktreePath) {
-    const gates = await checkGates({
-      worktreePath: context.attachedWorktreePath,
-      stage: normalizedState,
-      cellName: record.name || record.id,
-    });
-    const failed = gates.filter((gate) => !gate.passed);
-    if (failed.length) {
-      const labels = failed.map((gate) => gate.label).join(', ');
-      throw new Error(`Lifecycle gate blocked: ${labels}`);
-    }
-  }
-
   await writeCellRecord(context.repoRoot, {
     ...record,
     state: normalizedState || record.state,
@@ -666,11 +881,15 @@ async function deleteCell({ id, worktreePath, rootPath }) {
   return {
     ok: true,
     id: context.cell.id,
+    worktreePath: normalizePathValue(context.cell.attachedWorktreePath || context.cell.worktreePath),
   };
 }
 
 module.exports = {
   listCells,
+  listUnmanagedWorktrees,
+  ignoreUnmanagedWorktree,
+  clearIgnoredUnmanagedWorktrees,
   createCell,
   updateCellState,
   updateCellMeta,

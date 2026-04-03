@@ -2,6 +2,9 @@ const { ipcMain } = require('electron');
 const fs = require('fs');
 const {
   listCells,
+  listUnmanagedWorktrees,
+  ignoreUnmanagedWorktree,
+  clearIgnoredUnmanagedWorktrees,
   createCell,
   updateCellState,
   updateCellMeta,
@@ -17,12 +20,11 @@ function buildTestCell() {
     worktreePath: '/tmp/agency/test-cell',
     attachmentState: 'attached',
     lastKnownWorktreePath: '/tmp/agency/test-cell',
-    state: 'active',
-    gatesStage: 'active',
+    state: '',
     gates: [],
     validation: {
       temporary: true,
-      warnings: ['Spec file not found (temporary validation).'],
+      warnings: [],
     },
   };
 }
@@ -71,6 +73,27 @@ function setupCellHandlers({ getMainWindow }) {
       win.webContents.send('cells:updated', { type: 'created', cell });
     }
     return cell;
+  });
+
+  ipcMain.handle('cells:listUnmanagedWorktrees', async (_event, payload) => {
+    if (isTestMode) {
+      return [];
+    }
+    return listUnmanagedWorktrees(payload || {});
+  });
+
+  ipcMain.handle('cells:ignoreUnmanagedWorktree', async (_event, payload) => {
+    if (isTestMode) {
+      return [];
+    }
+    return ignoreUnmanagedWorktree(payload || {});
+  });
+
+  ipcMain.handle('cells:clearIgnoredUnmanagedWorktrees', async (_event, payload) => {
+    if (isTestMode) {
+      return [];
+    }
+    return clearIgnoredUnmanagedWorktrees(payload || {});
   });
 
   ipcMain.handle('cells:updateState', async (_event, payload) => {

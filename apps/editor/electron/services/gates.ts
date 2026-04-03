@@ -15,52 +15,8 @@ const {
 const STAGES = ['draft', 'active', 'archived'];
 const DEFAULT_GATES = {
   draft: [],
-  active: [
-    {
-      id: 'spec-created',
-      label: 'Spec created',
-      commands: [
-        "test -n \"$(find openspec/changes -mindepth 2 -maxdepth 2 -name proposal.md -not -path '*/archive/*' -print -quit)\"",
-        "test -n \"$(find openspec/changes -mindepth 4 -maxdepth 6 -name spec.md -not -path '*/archive/*' -print -quit)\"",
-      ],
-    },
-    {
-      id: 'checklist-complete',
-      label: 'Checklist completed',
-      commands: [
-        "test -n \"$(find openspec/changes -mindepth 2 -maxdepth 2 -name tasks.md -not -path '*/archive/*' -print -quit)\"",
-        "if grep -R \"^[[:space:]]*-[[:space:]]*\\\\[[[:space:]]\\\\]\" -n openspec/changes/*/tasks.md >/dev/null; then exit 1; fi",
-      ],
-    },
-    {
-      id: 'merge-clean',
-      label: 'No unresolved conflicts',
-      commands: ["test -z \"$(git ls-files -u)\""],
-    },
-  ],
-  archived: [
-    {
-      id: 'spec-created',
-      label: 'Spec created',
-      commands: [
-        "test -n \"$(find openspec/changes -mindepth 2 -maxdepth 2 -name proposal.md -not -path '*/archive/*' -print -quit)\"",
-        "test -n \"$(find openspec/changes -mindepth 4 -maxdepth 6 -name spec.md -not -path '*/archive/*' -print -quit)\"",
-      ],
-    },
-    {
-      id: 'checklist-complete',
-      label: 'Checklist completed',
-      commands: [
-        "test -n \"$(find openspec/changes -mindepth 2 -maxdepth 2 -name tasks.md -not -path '*/archive/*' -print -quit)\"",
-        "if grep -R \"^[[:space:]]*-[[:space:]]*\\\\[[[:space:]]\\\\]\" -n openspec/changes/*/tasks.md >/dev/null; then exit 1; fi",
-      ],
-    },
-    {
-      id: 'merge-clean',
-      label: 'No unresolved conflicts',
-      commands: ["test -z \"$(git ls-files -u)\""],
-    },
-  ],
+  active: [],
+  archived: [],
 };
 
 const PROJECT_FILENAME = 'gates.yaml';
