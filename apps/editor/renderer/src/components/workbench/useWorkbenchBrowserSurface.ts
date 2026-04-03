@@ -37,6 +37,8 @@ export function useWorkbenchBrowserSurface({
   disposeOnUnmount = true,
 }: UseWorkbenchBrowserSurfaceArgs) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const retryTimerRef = useRef<number | null>(null);
+  const retryAttemptRef = useRef(0);
   const [surfaceState, setSurfaceState] = useState<WorkbenchBrowserSurfaceEvent>({
     tabId,
     url,
@@ -82,6 +84,11 @@ export function useWorkbenchBrowserSurface({
   }, [applySurfaceState, browserSurfaceAvailable, tabId]);
 
   const hideSurface = useCallback(() => {
+    if (retryTimerRef.current !== null) {
+      window.clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+    retryAttemptRef.current = 0;
     if (!browserSurfaceAvailable) {
       return;
     }
@@ -121,12 +128,31 @@ export function useWorkbenchBrowserSurface({
     }
     const hostNode = hostRef.current;
     if (!hostNode) {
+      if (retryTimerRef.current === null) {
+        retryAttemptRef.current += 1;
+        retryTimerRef.current = window.setTimeout(() => {
+          retryTimerRef.current = null;
+          syncSurface();
+        }, 120);
+      }
       return;
     }
     const rect = hostNode.getBoundingClientRect();
     if (rect.width < 1 || rect.height < 1) {
+      if (retryTimerRef.current === null) {
+        retryAttemptRef.current += 1;
+        retryTimerRef.current = window.setTimeout(() => {
+          retryTimerRef.current = null;
+          syncSurface();
+        }, 120);
+      }
       return;
     }
+    if (retryTimerRef.current !== null) {
+      window.clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+    retryAttemptRef.current = 0;
     const syncTask = syncWorkbenchBrowserSurface({
       tabId,
       url,
@@ -184,6 +210,10 @@ export function useWorkbenchBrowserSurface({
     }
 
     return () => {
+      if (retryTimerRef.current !== null) {
+        window.clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
       if (typeof window.cancelAnimationFrame === 'function') {
         window.cancelAnimationFrame(frameId as number);
       } else {
