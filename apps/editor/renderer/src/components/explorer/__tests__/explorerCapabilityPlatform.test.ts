@@ -34,6 +34,7 @@ import {
   resolveExplorerWorkingSetOptions,
 } from '../explorerWorkingSets';
 import { buildExplorerVisibleItems } from '../explorerVisibleItems';
+import { resolveExplorerCellAttribution } from '../explorerCellAttribution';
 
 test('filter descriptor helpers preserve readable summaries and counts', () => {
   const descriptorState = getDefaultExplorerFilterDescriptorState();
@@ -184,4 +185,36 @@ test('root-level draft entries stay visible when creating a new item at reposito
   assert.equal(items[0]?.draft, true);
   assert.equal(items[0]?.path, '__d__root');
   assert.equal(items[0]?.depth, 0);
+});
+
+test('cell attribution sanitizes sparse entries before badge rendering', () => {
+  const attributions = resolveExplorerCellAttribution({
+    cellA: undefined,
+    cellB: {
+      id: 'cell-b',
+      name: 'main',
+      added: 3,
+      deleted: 1,
+    },
+    cellC: {
+      id: 'cell-c',
+      added: '2',
+      deleted: 0,
+    },
+  });
+
+  assert.deepEqual(attributions, [
+    {
+      id: 'cell-b',
+      name: 'main',
+      added: 3,
+      deleted: 1,
+    },
+    {
+      id: 'cell-c',
+      name: 'cell-c',
+      added: 2,
+      deleted: 0,
+    },
+  ]);
 });

@@ -43,6 +43,7 @@ import {
   normalizeExplorerSearchModeForSupportedModes,
 } from './explorerSearchModel';
 import { buildExplorerVisibleItems } from './explorerVisibleItems';
+import { resolveExplorerCellAttribution } from './explorerCellAttribution';
 import {
   EXPLORER_WORKING_SET_CHANGED_FILES,
   resolveExplorerWorkingSetOptions,
@@ -1323,7 +1324,7 @@ function ProjectExplorerSidebarContent({
     const isDir = node.type === 'dir';
     const entry = getScopedEntry(isDir ? folderStatusByPath[item.path] : statusByPath[item.path], isDir ? 'dir' : 'file');
     const isRenaming = renameTarget?.path === item.path;
-    const sorted = Object.values((entry?.cells || {}) as Record<string, any>).sort((a: any, b: any) => (b.added + b.deleted) - (a.added + a.deleted));
+    const sorted = resolveExplorerCellAttribution(entry?.cells);
     const cellBadges = sorted.length > 0 && (
         <div className="flex min-w-0 max-w-[5.5rem] items-center gap-1 pr-0.5 opacity-70 transition-opacity group-hover:opacity-95">
             <span
