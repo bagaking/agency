@@ -88,6 +88,7 @@ function useWorkbenchBoundedWebResearchSceneModel({
   const linkedMarkdownMode = Boolean(linkedMarkdownPath);
   const [locationDraft, setLocationDraft] = React.useState(String(url || ''));
   const [locationError, setLocationError] = React.useState('');
+  const [navigatingDraft, setNavigatingDraft] = React.useState(false);
   const [browserSurfaceSuspended, setBrowserSurfaceSuspended] = React.useState(false);
   const lastForwardedBrowserSurfaceUrlRef = React.useRef('');
   const lastResolvedPreviewTitleRef = React.useRef('');
@@ -190,7 +191,18 @@ function useWorkbenchBoundedWebResearchSceneModel({
   React.useEffect(() => {
     setLocationDraft(String(url || ''));
     setLocationError('');
+    setNavigatingDraft(false);
   }, [url]);
+
+  React.useEffect(() => {
+    if (!navigatingDraft) {
+      return;
+    }
+    const phase = browserSurface?.surfaceState.phase;
+    if (phase === 'ready' || phase === 'error' || phase === 'crashed') {
+      setNavigatingDraft(false);
+    }
+  }, [browserSurface?.surfaceState.phase, navigatingDraft]);
 
   const previewText =
     preview?.summary || preview?.excerpt || preview?.text || 'No readable preview extracted.';
@@ -247,11 +259,18 @@ function useWorkbenchBoundedWebResearchSceneModel({
         return;
       }
       setLocationError('');
+      setNavigatingDraft(true);
       setPreferredMode('live');
       const changed = normalizedUrl !== browserUrl;
       const didNavigate = onNavigateUrl?.(normalizedUrl);
       if (!changed && didNavigate !== false) {
-        void reload();
+        void reload().finally(() => {
+          setNavigatingDraft(false);
+        });
+        return;
+      }
+      if (didNavigate === false) {
+        setNavigatingDraft(false);
       }
     },
     [browserUrl, canNavigate, locationDraft, onNavigateUrl, reload, setPreferredMode]
@@ -324,6 +343,7 @@ export function WorkbenchBoundedWebResearchChrome({
     setLocationDraft,
     locationError,
     setLocationError,
+    navigatingDraft,
     preferredMode,
     setPreferredMode,
     resolvedTitle,
@@ -393,13 +413,16 @@ export function WorkbenchBoundedWebResearchChrome({
                 placeholder="Paste a public URL…"
               />
             </div>
-            <button
-              type="submit"
-              className={`rounded-full border border-cyan-400/28 bg-cyan-400/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100 transition-colors hover:border-cyan-300/45 hover:bg-cyan-400/16 ${focusRingClass}`}
-            >
-              Open
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={navigatingDraft}
+                className={`rounded-full border border-cyan-400/28 bg-cyan-400/10 px-3 py-2 text-[10px] font-medium text-cyan-100 transition-colors hover:border-cyan-300/45 hover:bg-cyan-400/16 ${focusRingClass} ${
+                  navigatingDraft ? 'cursor-wait opacity-70' : ''
+                }`}
+              >
+                {navigatingDraft ? 'Opening…' : 'Go'}
+              </button>
+            </form>
         ) : (
           <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[10px] text-white/55">
             <Globe2 size={11} className="shrink-0 text-cyan-300/60" />
