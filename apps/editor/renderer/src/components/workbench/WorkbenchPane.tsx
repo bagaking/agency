@@ -21,8 +21,14 @@ import {
 import { CodeWorkbenchView } from './CodeWorkbenchView';
 import { MediaWorkbenchView } from './MediaWorkbenchView';
 import { VectorWorkbenchView } from './VectorWorkbenchView';
+import { WorkbenchBrowserLane } from './WorkbenchBrowserLane';
 import { WorkbenchBrowserSurfaceController } from './WorkbenchBrowserSurfaceController';
-import { WorkbenchBoundedWebResearchView } from './WorkbenchBoundedWebResearchView';
+import {
+  WorkbenchBoundedWebResearchChrome,
+  WorkbenchBoundedWebResearchReaderPane,
+  WorkbenchBoundedWebResearchScene,
+  WorkbenchBoundedWebResearchStatusBanner,
+} from './WorkbenchBoundedWebResearchView';
 import { QuickOpenModal } from './QuickOpenModal';
 import { ProjectEmptyState } from '../ProjectEmptyState';
 import { Logo } from '../Logo';
@@ -808,7 +814,7 @@ function WorkbenchPaneContent({
             disposeOnUnmount={false}
           >
             {(browserSurface) => (
-              <WorkbenchBoundedWebResearchView
+              <WorkbenchBoundedWebResearchScene
                 tabId={activeTab.id}
                 rootPath={activeTab.rootPath}
                 url={activeTab.url}
@@ -826,14 +832,6 @@ function WorkbenchPaneContent({
                     rootPath: activeTab.rootPath,
                   })
                 }
-                onOpenSavedFile={(path) =>
-                  openFile({
-                    path,
-                    mode: 'pinned',
-                    rootPath: activeTab.rootPath,
-                  })
-                }
-                onRevealSavedFile={onRevealPathInExplorer}
                 onResolvedTitle={(title) => {
                   handleResearchTabTitleChange(activeTab.id, title);
                 }}
@@ -841,7 +839,40 @@ function WorkbenchPaneContent({
                 onBrowserSurfaceSuspendedChange={(value) =>
                   handleBrowserSurfaceSuspendedChange(activeTab.id, value)
                 }
-              />
+              >
+                {(scene) => (
+                  <section className="flex h-full min-h-0 flex-col bg-[#0b0d11] text-white">
+                    <WorkbenchBoundedWebResearchChrome scene={scene} />
+                    <WorkbenchBoundedWebResearchStatusBanner scene={scene} />
+                    <div className="min-h-0 flex-1 overflow-hidden">
+                      {scene.preferredMode === 'live' ? (
+                        <WorkbenchBrowserLane
+                          browserSurface={scene.browserSurface}
+                          suspended={scene.browserSurfaceSuspended}
+                          onOpenReader={() => scene.setPreferredMode('reader')}
+                          onOpenInBrowser={() => void scene.openInBrowser()}
+                          onReload={() => {
+                            scene.setPreferredMode('live');
+                            void scene.reload();
+                          }}
+                        />
+                      ) : (
+                        <WorkbenchBoundedWebResearchReaderPane
+                          scene={scene}
+                          onOpenSavedFile={(path) =>
+                            openFile({
+                              path,
+                              mode: 'pinned',
+                              rootPath: activeTab.rootPath,
+                            })
+                          }
+                          onRevealSavedFile={onRevealPathInExplorer}
+                        />
+                      )}
+                    </div>
+                  </section>
+                )}
+              </WorkbenchBoundedWebResearchScene>
             )}
           </WorkbenchBrowserSurfaceController>
         ) : activeState.kind === 'code' && activeState.researchSourceUrl ? (
@@ -886,7 +917,7 @@ function WorkbenchPaneContent({
                 disposeOnUnmount={false}
               >
                 {(browserSurface) => (
-                  <WorkbenchBoundedWebResearchView
+                  <WorkbenchBoundedWebResearchScene
                     tabId={activeTab.id}
                     rootPath={activeTab.rootPath}
                     url={activeState.researchSourceUrl}
@@ -901,12 +932,37 @@ function WorkbenchPaneContent({
                     }}
                     allowMarkdownSave={true}
                     allowMemoCapture={true}
-                    onRevealSavedFile={onRevealPathInExplorer}
                     browserSurface={browserSurface}
                     onBrowserSurfaceSuspendedChange={(value) =>
                       handleBrowserSurfaceSuspendedChange(activeTab.id, value)
                     }
-                  />
+                  >
+                    {(scene) => (
+                      <section className="flex h-full min-h-0 flex-col bg-[#0b0d11] text-white">
+                        <WorkbenchBoundedWebResearchChrome scene={scene} />
+                        <WorkbenchBoundedWebResearchStatusBanner scene={scene} />
+                        <div className="min-h-0 flex-1 overflow-hidden">
+                          {scene.preferredMode === 'live' ? (
+                            <WorkbenchBrowserLane
+                              browserSurface={scene.browserSurface}
+                              suspended={scene.browserSurfaceSuspended}
+                              onOpenReader={() => scene.setPreferredMode('reader')}
+                              onOpenInBrowser={() => void scene.openInBrowser()}
+                              onReload={() => {
+                                scene.setPreferredMode('live');
+                                void scene.reload();
+                              }}
+                            />
+                          ) : (
+                            <WorkbenchBoundedWebResearchReaderPane
+                              scene={scene}
+                              onRevealSavedFile={onRevealPathInExplorer}
+                            />
+                          )}
+                        </div>
+                      </section>
+                    )}
+                  </WorkbenchBoundedWebResearchScene>
                 )}
               </WorkbenchBrowserSurfaceController>
             </div>
