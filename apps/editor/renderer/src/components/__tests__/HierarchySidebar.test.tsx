@@ -69,37 +69,33 @@ test('HierarchySidebar renders capabilities once and routes selection through cu
           appShortcutsScope="global"
           replyQuickPromptsScope="global"
           sessionNamingScope="global"
-          gateScope="agent"
           canUseProjectScope={true}
           canUseAgentScope={false}
           actionSummary={{ projectOverrides: true, agentLabel: 'Alpha Cell' }}
           appShortcutsSummary={{}}
           replyQuickPromptsSummary={{}}
           sessionNamingSummary={{}}
-          gateSummary={{ agentOverrides: true, agentLabel: 'Alpha Cell' }}
           harnessProvidersDirty={true}
           onSelectActionsScope={(scope) => events.push(`actions:${scope}`)}
           onSelectAppShortcutsScope={(scope) => events.push(`shortcuts:${scope}`)}
           onSelectReplyQuickPromptsScope={(scope) => events.push(`prompts:${scope}`)}
           onSelectSessionNamingScope={(scope) => events.push(`naming:${scope}`)}
-          onSelectGateScope={(scope) => events.push(`gates:${scope}`)}
           onSelectHarnessProviders={() => events.push('harness')}
           onSelectSoftlinks={() => events.push('softlinks')}
         />
       );
     });
 
-    assert.equal(document.querySelectorAll('[data-testid^="hierarchy-sidebar-"]').length, 7);
+    assert.equal(document.querySelectorAll('[data-testid^="hierarchy-sidebar-"]').length, 6);
     assert.match(document.body.textContent || '', /Project scope ready/);
     assert.match(document.body.textContent || '', /Agent scope locked/);
 
     await act(async () => {
       click(document.querySelector('[data-testid="hierarchy-sidebar-actions"]'));
-      click(document.querySelector('[data-testid="hierarchy-sidebar-gates"]'));
       click(document.querySelector('[data-testid="hierarchy-sidebar-harness-providers"]'));
     });
 
-    assert.deepEqual(events, ['actions:project', 'gates:project', 'harness']);
+    assert.deepEqual(events, ['actions:project', 'harness']);
 
     await act(async () => {
       root.unmount();
@@ -123,19 +119,16 @@ test('HierarchySidebar falls back to a valid scope when remembered scope is unav
           appShortcutsScope="project"
           replyQuickPromptsScope="global"
           sessionNamingScope="global"
-          gateScope="global"
           canUseProjectScope={false}
           canUseAgentScope={false}
           actionSummary={{ agentLabel: 'Select Cell' }}
           appShortcutsSummary={{}}
           replyQuickPromptsSummary={{}}
           sessionNamingSummary={{}}
-          gateSummary={{}}
           onSelectActionsScope={(scope) => events.push(`actions:${scope}`)}
           onSelectAppShortcutsScope={(scope) => events.push(`shortcuts:${scope}`)}
           onSelectReplyQuickPromptsScope={() => undefined}
           onSelectSessionNamingScope={() => undefined}
-          onSelectGateScope={() => undefined}
           onSelectHarnessProviders={() => undefined}
           onSelectSoftlinks={() => undefined}
         />

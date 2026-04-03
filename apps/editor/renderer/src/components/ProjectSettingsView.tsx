@@ -1,8 +1,6 @@
 import React from 'react';
 import {
   FolderOpen,
-  RefreshCw,
-  ShieldCheck,
   SquareTerminal,
   Link2,
   Box,
@@ -30,7 +28,6 @@ export function ProjectSettingsView({
   onOpenHarnessProviders,
   onOpenAppShortcuts,
   onOpenReplyQuickPrompts,
-  onOpenGates,
   onOpenSoftlinks,
 }: any) {
   const hasProject = Boolean(projectRoot);
@@ -79,16 +76,6 @@ export function ProjectSettingsView({
       disabled: false,
       color: 'text-cyan-400',
       bg: 'group-hover:bg-cyan-500/10'
-    },
-    {
-      id: 'gates',
-      title: 'Lifecycle Gates',
-      description: 'Enforce compliance checks for agent state transitions.',
-      icon: ShieldCheck,
-      onClick: onOpenGates,
-      disabled: !canAccessProjectConfig,
-      color: 'text-emerald-400',
-      bg: 'group-hover:bg-emerald-500/10'
     },
     {
       id: 'softlinks',

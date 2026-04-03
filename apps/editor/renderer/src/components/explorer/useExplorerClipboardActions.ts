@@ -29,15 +29,21 @@ type UseExplorerClipboardActionsOptions = {
   renameEntry: (payload: {
     sourcePath: string;
     targetPath: string;
-  }) => Promise<{ path?: string } | null>;
+    resolveConflicts?: boolean;
+  }) => Promise<{ path?: string; conflictResolved?: boolean } | null>;
   copyEntry: (payload: {
     sourcePath: string;
     targetPath: string;
     resolveConflicts?: boolean;
-  }) => Promise<{ path?: string } | null>;
+  }) => Promise<{ path?: string; conflictResolved?: boolean } | null>;
   clearError: () => void;
   setErrorMessage: (message: string) => void;
   openEntry: (targetPath: string, mode: 'preview' | 'pinned') => Promise<boolean>;
+  notify?: (config: {
+    title: string;
+    description?: string;
+    tone?: 'info' | 'success' | 'warning' | 'danger';
+  }) => Promise<void> | void;
 };
 
 type PathListInput = string | string[];
@@ -98,6 +104,7 @@ export const useExplorerClipboardActions = ({
   clearError,
   setErrorMessage,
   openEntry,
+  notify,
 }: UseExplorerClipboardActionsOptions) => {
   const [clipboard, setClipboard] = useState<ClipboardState>(null);
   const [externalClipboardPayload, setExternalClipboardPayload] = useState<ClipboardPayloadSummary>(
@@ -151,6 +158,13 @@ export const useExplorerClipboardActions = ({
       if (!normalizedTargets.length) {
         return;
       }
+      setClipboard(
+        buildExplorerClipboardState({
+          mode,
+          selectionTargets: normalizedTargets,
+          wroteSystemClipboard: false,
+        })
+      );
       let wroteSystemClipboard = false;
       if (isAgencyMethodAvailable('writeClipboardFileReferences')) {
         try {
@@ -202,6 +216,7 @@ export const useExplorerClipboardActions = ({
           let didApply = false;
           let hadError = false;
           const pastedPaths: string[] = [];
+          const conflictResolvedPaths: string[] = [];
           for (const sourcePath of sourcePaths) {
             const baseName = explorerPathUtils.basename(sourcePath);
             const targetPath = [targetDir, baseName].filter(Boolean).join('/');
@@ -216,10 +231,17 @@ export const useExplorerClipboardActions = ({
               continue;
             }
             if (mode === 'cut') {
-              const moveResult = await renameEntry({ sourcePath, targetPath });
+              const moveResult = await renameEntry({
+                sourcePath,
+                targetPath,
+                resolveConflicts: true,
+              });
               const nextPath = explorerPathUtils.toRelativePath(moveResult?.path || targetPath);
               if (nextPath) {
                 pastedPaths.push(nextPath);
+                if (nextPath !== targetPath || moveResult?.conflictResolved) {
+                  conflictResolvedPaths.push(nextPath);
+                }
               }
             } else {
               const copyResult = await copyEntry({
@@ -230,6 +252,9 @@ export const useExplorerClipboardActions = ({
               const nextPath = explorerPathUtils.toRelativePath(copyResult?.path || targetPath);
               if (nextPath) {
                 pastedPaths.push(nextPath);
+                if (nextPath !== targetPath || copyResult?.conflictResolved) {
+                  conflictResolvedPaths.push(nextPath);
+                }
               }
             }
             didApply = true;
@@ -260,6 +285,16 @@ export const useExplorerClipboardActions = ({
             }
             if (pastedPaths.length) {
               setSelectedPaths(pastedPaths);
+            }
+            if (conflictResolvedPaths.length) {
+              void notify?.({
+                title: mode === 'cut' ? 'Moved With Suffix' : 'Copied With Suffix',
+                description:
+                  conflictResolvedPaths.length === 1
+                    ? conflictResolvedPaths[0]
+                    : `${conflictResolvedPaths.length} items used conflict-safe names.`,
+                tone: 'info',
+              });
             }
           }
           return;
@@ -292,9 +327,10 @@ export const useExplorerClipboardActions = ({
     }
 
     try {
-      let didCopy = false;
+      let didApply = false;
       let hadError = false;
       const pastedPaths: string[] = [];
+      const conflictResolvedPaths: string[] = [];
       for (const sourcePath of clipboard.paths) {
         const baseName = explorerPathUtils.basename(sourcePath);
         const targetPath = [targetDir, baseName].filter(Boolean).join('/');
@@ -303,28 +339,51 @@ export const useExplorerClipboardActions = ({
           hadError = true;
           continue;
         }
-        const result = await copyEntry({
-          sourcePath,
-          targetPath,
-          resolveConflicts: true,
-        });
+        const result =
+          clipboard.mode === 'cut'
+            ? await renameEntry({
+                sourcePath,
+                targetPath,
+                resolveConflicts: true,
+              })
+            : await copyEntry({
+                sourcePath,
+                targetPath,
+                resolveConflicts: true,
+              });
         const nextPath = explorerPathUtils.toRelativePath(result?.path || targetPath);
         if (nextPath) {
           pastedPaths.push(nextPath);
+          if (nextPath !== targetPath || result?.conflictResolved) {
+            conflictResolvedPaths.push(nextPath);
+          }
         }
-        didCopy = true;
+        didApply = true;
       }
 
       if (!hadError) {
         clearError();
       }
-      if (didCopy) {
+      if (didApply) {
         await refreshAll();
         if (targetDir) {
           await expandPath(targetDir);
         }
         if (pastedPaths.length) {
           setSelectedPaths(pastedPaths);
+        }
+        if (clipboard.mode === 'cut') {
+          setClipboard(null);
+        }
+        if (conflictResolvedPaths.length) {
+          void notify?.({
+            title: clipboard.mode === 'cut' ? 'Moved With Suffix' : 'Copied With Suffix',
+            description:
+              conflictResolvedPaths.length === 1
+                ? conflictResolvedPaths[0]
+                : `${conflictResolvedPaths.length} items used conflict-safe names.`,
+            tone: 'info',
+          });
         }
       }
     } catch {
@@ -336,6 +395,7 @@ export const useExplorerClipboardActions = ({
     copyEntry,
     expandPath,
     externalClipboardPayload,
+    notify,
     refreshAll,
     refreshExternalClipboardPayload,
     renameEntry,

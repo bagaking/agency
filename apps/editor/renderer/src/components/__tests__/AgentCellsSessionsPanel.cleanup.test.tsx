@@ -130,7 +130,7 @@ function renderPanel(props: Record<string, unknown> = {}) {
   );
 }
 
-test('AgentCellsSessionsPanel shows an explicit archived entry point alongside active and cleanup buckets', () => {
+test('AgentCellsSessionsPanel separates tracked workspaces, detached cells, and legacy archived compatibility cards', () => {
   const html = renderToStaticMarkup(
     renderPanel({
       cells: [
@@ -169,15 +169,15 @@ test('AgentCellsSessionsPanel shows an explicit archived entry point alongside a
   );
 
   assert.match(html, /data-testid="cell-item-cell-active"/);
-  assert.match(html, /Needs Cleanup/);
-  assert.match(html, /Cleanup Recommended/);
-  assert.match(html, /View Archived/);
-  assert.match(html, /detached-cell-cleanup-cell-needs-cleanup/);
-  assert.match(html, /Archive Cell/);
-  assert.doesNotMatch(html, /archived-cell-card-cell-archived/);
+  assert.match(html, /Tracked Workspaces/);
+  assert.match(html, /Detached Cells/);
+  assert.match(html, /Legacy Archived/);
+  assert.match(html, /detached-cell-card-cell-needs-cleanup/);
+  assert.match(html, /View Details/);
+  assert.doesNotMatch(html, /legacy-archived-cell-cell-archived/);
 });
 
-test('AgentCellsSessionsPanel renders detached cells as cleanup cards instead of session trees', () => {
+test('AgentCellsSessionsPanel renders detached cells as management cards instead of session trees', () => {
   const html = renderToStaticMarkup(
     renderPanel({
       cells: [
@@ -206,16 +206,14 @@ test('AgentCellsSessionsPanel renders detached cells as cleanup cards instead of
     })
   );
 
-  assert.match(html, /Needs Cleanup/);
-  assert.match(html, /Archive Cell/);
-  assert.match(html, /detached-cell-cleanup-cell-missing/);
-  assert.match(html, /Evidence retained/);
-  assert.match(html, /1 detached · 1 stale/);
-  assert.match(html, /The recorded worktree path is no longer available/);
+  assert.match(html, /Detached Cells/);
+  assert.match(html, /detached-cell-card-cell-missing/);
+  assert.match(html, /attention_routing/);
+  assert.match(html, /View Details/);
   assert.doesNotMatch(html, /data-testid="session-tab-session-stale"/);
 });
 
-test('cleanup cards distinguish missing and detached attachment copy', () => {
+test('detached management cards distinguish missing and detached attachment badges', () => {
   const html = renderToStaticMarkup(
     renderPanel({
       cells: [
@@ -237,15 +235,14 @@ test('cleanup cards distinguish missing and detached attachment copy', () => {
     })
   );
 
-  assert.match(html, /The recorded worktree path is no longer available/);
-  assert.match(html, /This Cell is detached from its worktree/);
+  assert.match(html, /Missing/);
+  assert.match(html, /Detached/);
 });
 
-test('View Archived reveals archived cards and keeps archived cells out of cleanup semantics', async () => {
+test('Legacy archived toggle reveals compatibility cards while archived cells stay out of detached management', async () => {
   const env = setupDom();
   try {
     const selections: string[] = [];
-    const archives: string[] = [];
     const root = createRoot(document.getElementById('root')!);
 
     await act(async () => {
@@ -275,31 +272,28 @@ test('View Archived reveals archived cards and keeps archived cells out of clean
             },
           ],
           onSelect: (cellId: string) => selections.push(cellId),
-          onArchiveCell: (cell: any) => archives.push(String(cell?.id || '')),
         })
       );
     });
 
-    const toggle = Array.from(document.querySelectorAll('button')).find((node) =>
-      node.textContent?.includes('View Archived')
-    ) as HTMLButtonElement | undefined;
+    const toggle = document.querySelector(
+      'button[aria-controls="legacy-archived-cell-list"]'
+    ) as HTMLButtonElement | null;
     assert.ok(toggle);
 
     await act(async () => {
       toggle.click();
     });
 
-    assert.ok(document.querySelector('[data-testid="archived-cell-list"]'));
-    assert.match(document.body.textContent || '', /Archived/);
-    assert.ok(document.querySelector('[data-testid="archived-cell-card-cell-archived"]'));
-    assert.ok(document.querySelector('[data-testid="archived-cell-card-cell-archived-attached"]'));
-    assert.equal(document.querySelector('[data-testid="detached-cell-cleanup-cell-archived"]'), null);
-    assert.match(document.body.textContent || '', /Evidence retained/);
-    assert.match(document.body.textContent || '', /No sessions/);
+    assert.ok(document.querySelector('[data-testid="legacy-archived-cell-list"]'));
+    assert.match(document.body.textContent || '', /Legacy Archived/);
+    assert.ok(document.querySelector('[data-testid="legacy-archived-cell-cell-archived"]'));
+    assert.ok(document.querySelector('[data-testid="legacy-archived-cell-cell-archived-attached"]'));
+    assert.equal(document.querySelector('[data-testid="detached-cell-card-cell-archived"]'), null);
 
-    const reviewButton = Array.from(document.querySelectorAll('button')).find((node) =>
-      node.textContent?.includes('View Details')
-    ) as HTMLButtonElement | undefined;
+    const reviewButton = document.querySelector(
+      '[data-testid="legacy-archived-cell-cell-archived"] button'
+    ) as HTMLButtonElement | null;
     assert.ok(reviewButton);
 
     await act(async () => {
@@ -307,7 +301,6 @@ test('View Archived reveals archived cards and keeps archived cells out of clean
     });
 
     assert.deepEqual(selections, ['cell-archived']);
-    assert.deepEqual(archives, []);
 
     await act(async () => {
       root.unmount();
@@ -317,11 +310,10 @@ test('View Archived reveals archived cards and keeps archived cells out of clean
   }
 });
 
-test('cleanup card archive action triggers archive handler without falling through to plain selection', async () => {
+test('detached management card details action routes selection explicitly', async () => {
   const env = setupDom();
   try {
     const selections: string[] = [];
-    const archives: string[] = [];
     const root = createRoot(document.getElementById('root')!);
 
     await act(async () => {
@@ -337,30 +329,20 @@ test('cleanup card archive action triggers archive handler without falling throu
             },
           ],
           onSelect: (cellId: string) => selections.push(cellId),
-          onArchiveCell: (cell: any) => archives.push(String(cell?.id || '')),
         })
       );
     });
 
-    const button = Array.from(document.querySelectorAll('button')).find((node) =>
-      node.textContent?.includes('Archive Cell')
-    ) as HTMLButtonElement | undefined;
+    const button = document.querySelector(
+      '[data-testid="detached-cell-card-cell-missing"] button'
+    ) as HTMLButtonElement | null;
     assert.ok(button);
 
     await act(async () => {
       button.click();
     });
 
-    assert.deepEqual(archives, ['cell-missing']);
-    assert.deepEqual(selections, []);
-
-    await act(async () => {
-      button.dispatchEvent(
-        new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
-      );
-    });
-
-    assert.deepEqual(selections, []);
+    assert.deepEqual(selections, ['cell-missing']);
 
     await act(async () => {
       root.unmount();

@@ -21,18 +21,18 @@ const branchStrategies = [
 const creationModes = [
   {
     value: 'create',
-    label: 'Create New Branch',
-    hint: 'Agency creates a new branch/worktree and naming rules apply.',
+    label: 'Create Branch Worktree',
+    hint: 'Agency creates a new branch and worktree for a new tracked Cell.',
   },
   {
     value: 'worktree',
-    label: 'Bind Existing Worktree',
-    hint: 'Reuse an existing worktree exactly as it already exists.',
+    label: 'Track Existing Worktree',
+    hint: 'Adopt a live worktree as a tracked Cell without changing branch identity.',
   },
   {
     value: 'branch',
-    label: 'Bind Existing Branch',
-    hint: 'Attach a Cell to an existing branch, reusing or creating a worktree as needed.',
+    label: 'Track Existing Branch',
+    hint: 'Track an existing branch by reusing or creating a worktree attachment.',
   },
 ] as const;
 
@@ -111,9 +111,9 @@ function ModePicker({
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
         <label className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">
-          Cell Action
+          Worktree Action
         </label>
-        <HintIcon label="Create is for Agency-generated branches. Bind is for branches/worktrees that already exist." />
+        <HintIcon label="Create makes a new branch/worktree. Track reuses an existing worktree or branch." />
       </div>
       <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
         {creationModes.map((item) => {
@@ -139,17 +139,24 @@ function ModePicker({
   );
 }
 
-export function CreateCellModal({ onClose, onCreate }: any) {
-  const [mode, setMode] = useState<CreationMode>('create');
-  const [name, setName] = useState('');
+export function CreateCellModal({
+  onClose,
+  onCreate,
+  initialMode = 'create',
+  initialName = '',
+  initialReusePath = '',
+  initialExistingBranch = '',
+  initialBindTargetCell = null,
+}: any) {
+  const [mode, setMode] = useState<CreationMode>(initialMode);
+  const [name, setName] = useState(initialName);
   const [nameTouched, setNameTouched] = useState(false);
   const [worktrees, setWorktrees] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
-  const [selectedWorktree, setSelectedWorktree] = useState('');
-  const [selectedBranch, setSelectedBranch] = useState('');
+  const [selectedWorktree, setSelectedWorktree] = useState(initialReusePath);
+  const [selectedBranch, setSelectedBranch] = useState(initialExistingBranch);
   const [branchPrefix, setBranchPrefix] = useState(branchStrategies[0].value);
   const [baseBranch, setBaseBranch] = useState('');
-  const [startTurn, setStartTurn] = useState(false);
 
   const focusRingClass = focusRing.default;
   const selectedWorktreeInfo = useMemo(
@@ -162,6 +169,8 @@ export function CreateCellModal({ onClose, onCreate }: any) {
   );
   const selectedBranchStrategy =
     branchStrategies.find((item) => item.value === branchPrefix) || branchStrategies[0];
+  const bindTargetCellId = String(initialBindTargetCell?.id || '').trim();
+  const bindTargetCellName = String(initialBindTargetCell?.name || '').trim();
   const resolvedBoundName = resolveBoundCellName({
     mode,
     typedName: name,
@@ -181,6 +190,31 @@ export function CreateCellModal({ onClose, onCreate }: any) {
       : mode === 'worktree'
         ? Boolean(selectedWorktree) && Boolean(branchPreview) && Boolean(resolvedBoundName)
         : Boolean(selectedBranch) && Boolean(branchPreview) && Boolean(resolvedBoundName);
+
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
+
+  useEffect(() => {
+    setSelectedWorktree(initialReusePath || '');
+  }, [initialReusePath]);
+
+  useEffect(() => {
+    setSelectedBranch(initialExistingBranch || '');
+  }, [initialExistingBranch]);
+
+  useEffect(() => {
+    if (nameTouched) {
+      return;
+    }
+    if (bindTargetCellId && mode === 'worktree') {
+      setName(bindTargetCellName || '');
+      return;
+    }
+    if (initialName) {
+      setName(initialName);
+    }
+  }, [bindTargetCellId, bindTargetCellName, initialName, mode, nameTouched]);
 
   useEffect(() => {
     const loadOptions = async () => {
@@ -234,17 +268,40 @@ export function CreateCellModal({ onClose, onCreate }: any) {
   const bindingSummary =
     mode === 'branch'
       ? selectedBranchInfo?.attachedWorktreePath
-        ? `Existing worktree will be reused at ${pathBaseName(selectedBranchInfo.attachedWorktreePath)}.`
-        : 'Agency will create a fresh worktree for this existing branch.'
+        ? `Tracking will reuse the existing worktree at ${pathBaseName(selectedBranchInfo.attachedWorktreePath)}.`
+        : 'Tracking will create a fresh worktree for this existing branch.'
       : selectedWorktreeInfo?.path
-        ? `Binding to ${pathBaseName(selectedWorktreeInfo.path)} without renaming its branch.`
+        ? `Tracking ${pathBaseName(selectedWorktreeInfo.path)} without renaming its branch.`
         : '';
 
-  const submitLabel = mode === 'create' ? 'Create Cell' : 'Bind Cell';
-  const resolvedSubmitName = mode === 'create' ? name : resolvedBoundName;
+  const submitLabel =
+    bindTargetCellId && mode === 'worktree'
+      ? 'Reattach Cell'
+      : mode === 'create'
+        ? 'Create Cell'
+        : mode === 'worktree'
+          ? 'Track Worktree'
+          : 'Track Branch';
+  const resolvedSubmitName =
+    bindTargetCellId && mode === 'worktree'
+      ? bindTargetCellName || resolvedBoundName
+      : mode === 'create'
+        ? name
+        : resolvedBoundName;
 
   return (
     <div className="space-y-4">
+      {bindTargetCellId ? (
+        <div className="rounded-xl border border-primary/20 bg-primary/10 px-3 py-2 text-[11px] text-foreground/85">
+          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/75">
+            Reattach Existing Cell
+          </div>
+          <div className="mt-1">
+            Track this worktree under <span className="font-semibold">{bindTargetCellName || bindTargetCellId}</span>.
+          </div>
+        </div>
+      ) : null}
+
       <ModePicker mode={mode} onChange={setMode} />
 
       {mode === 'create' ? (
@@ -345,7 +402,7 @@ export function CreateCellModal({ onClose, onCreate }: any) {
                 Existing Worktree
               </label>
               {!worktrees.length ? (
-                <HintIcon label="No reusable worktrees found yet. Create one Cell first, then bind it from this menu." />
+                <HintIcon label="No existing worktrees found yet. Create one first, then track it here." />
               ) : null}
             </div>
             <div className="relative">
@@ -357,7 +414,7 @@ export function CreateCellModal({ onClose, onCreate }: any) {
                 disabled={!worktrees.length}
               >
                 <option value="">
-                  {worktrees.length ? 'Choose worktree...' : 'No reusable worktrees available'}
+                  {worktrees.length ? 'Choose worktree...' : 'No existing worktrees available'}
                 </option>
                 {worktrees.map((item) => (
                   <option key={item.path} value={item.path}>
@@ -416,7 +473,7 @@ export function CreateCellModal({ onClose, onCreate }: any) {
         </div>
       ) : null}
 
-      {mode !== 'create' ? (
+      {mode !== 'create' && !bindTargetCellId ? (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <label
@@ -459,19 +516,6 @@ export function CreateCellModal({ onClose, onCreate }: any) {
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between rounded-xl border border-border/30 bg-background/50 px-3 py-2">
-        <label className="group flex items-center gap-2.5 text-[12px] font-medium text-foreground/85 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            className={`h-4 w-4 rounded border-border/60 bg-background text-primary ${focusRingClass}`}
-            checked={startTurn}
-            onChange={(event) => setStartTurn(event.target.checked)}
-          />
-          <span>Start Turn with Gate Create sheet</span>
-        </label>
-        <HintIcon label="Turn tooling is optional. Enable this only when you want formal Gate Create workflow scaffolding immediately after Cell attach/create." />
-      </div>
-
       <div className="mt-1 flex items-center justify-end gap-2.5">
         <button
           type="button"
@@ -491,7 +535,7 @@ export function CreateCellModal({ onClose, onCreate }: any) {
               baseBranch: mode === 'create' ? baseBranch : undefined,
               existingBranch: mode === 'branch' ? selectedBranch : undefined,
               reusePath: mode === 'worktree' ? selectedWorktree : undefined,
-              startTurnGateCreate: startTurn,
+              bindToCellId: bindTargetCellId || undefined,
             })
           }
         >

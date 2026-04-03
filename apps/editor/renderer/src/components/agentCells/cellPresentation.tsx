@@ -23,7 +23,11 @@ export type CellAttachmentMeta = {
 };
 
 export function CellStateBadge({ state }: { state?: string }) {
-  const normalized = String(state || 'draft').trim().toLowerCase();
+  const normalized = String(state || '').trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  const label = normalized === 'archived' ? 'legacy archived' : `legacy ${normalized}`;
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] ${
@@ -31,7 +35,7 @@ export function CellStateBadge({ state }: { state?: string }) {
       }`}
     >
       <Circle size={6} className={cellStateColors[normalized] || cellStateColors.draft} fill="currentColor" />
-      <span>{normalized}</span>
+      <span>{label}</span>
     </span>
   );
 }

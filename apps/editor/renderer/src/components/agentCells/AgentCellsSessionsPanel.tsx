@@ -31,14 +31,13 @@ import {
 } from '../../utils/agentCellSessionTree';
 import { buildAgentCellChildSessionOptions } from '../../utils/agentCellChildSession';
 import { useCommanderStatus } from '../../hooks/useCommanderStatus';
-import { DetachedCellCleanupCard } from './DetachedCellCleanupCard';
-import { ArchivedCellCard } from './ArchivedCellCard';
 import {
-  CellStateBadge,
-  isArchivedCell,
-  isDetachedCellCleanupCandidate,
-  resolveCellAttachmentMeta,
-} from './cellPresentation';
+  clearIgnoredUnmanagedWorktrees as agencyClearIgnoredUnmanagedWorktrees,
+  ignoreUnmanagedWorktree as agencyIgnoreUnmanagedWorktree,
+  isAgencyMethodAvailable,
+  listUnmanagedWorktrees as agencyListUnmanagedWorktrees,
+} from '../../services/agencyBridge';
+import { isArchivedCell, resolveCellAttachmentMeta } from './cellPresentation';
 
 const EMPTY_TREE: AgentCellSessionTreeProjection = {
   rows: [],
@@ -66,7 +65,9 @@ type SessionDropTarget = {
 type AgentCellsSessionsPanelProps = {
   cells?: any[];
   selectedId?: string | null;
+  projectRoot?: string;
   onSelect?: (cellId: string) => void;
+  onCreateCell?: (options?: any) => void;
   onOpenExplorer?: (cellId: string) => void;
   projectReady?: boolean;
   projectError?: string;
@@ -110,7 +111,6 @@ type AgentCellsSessionsPanelProps = {
   }) => Promise<boolean>;
   onFocusSessionInUi?: (cellId: string, sessionId: string) => void;
   onConfigureProfile?: (profile: any) => void;
-  onArchiveCell?: (cell: any) => void;
 };
 
 function SessionKindBadge({ nodeKind }: { nodeKind?: string }) {
@@ -222,38 +222,86 @@ function buildAttentionActionLabel({
 function LifecycleSectionHeader({
   label,
   count,
-  tone,
+  tone = 'default',
+  description,
   action,
 }: {
   label: string;
   count: number;
-  tone: 'cleanup' | 'archived';
+  tone?: 'default' | 'detached' | 'unmanaged' | 'legacy';
+  description?: string;
   action?: React.ReactNode;
 }) {
-  const toneClass =
-    tone === 'cleanup'
-      ? 'text-amber-100/72'
-      : 'text-slate-200/72';
-  const countClass =
-    tone === 'cleanup'
-      ? 'border-amber-300/16 bg-amber-500/[0.08] text-amber-100/72'
-      : 'border-white/8 bg-white/[0.03] text-slate-200/70';
+  const toneClassByTone = {
+    default: 'text-foreground/76',
+    detached: 'text-amber-100/76',
+    unmanaged: 'text-sky-100/76',
+    legacy: 'text-slate-200/72',
+  } as const;
+  const countClassByTone = {
+    default: 'border-white/10 bg-white/[0.04] text-foreground/78',
+    detached: 'border-amber-300/16 bg-amber-500/[0.08] text-amber-100/72',
+    unmanaged: 'border-sky-300/18 bg-sky-500/[0.09] text-sky-100/78',
+    legacy: 'border-white/8 bg-white/[0.03] text-slate-200/70',
+  } as const;
+  const toneClass = toneClassByTone[tone];
+  const countClass = countClassByTone[tone];
 
   return (
-    <div className="flex items-center justify-between gap-2 px-1">
-      <div className="flex min-w-0 items-center gap-2">
-        <span className={`truncate text-[10px] font-semibold uppercase tracking-[0.18em] ${toneClass}`}>
-          {label}
-        </span>
-        <span
-          className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[9px] font-medium ${countClass}`}
-        >
-          {count}
-        </span>
+    <div className="space-y-1 px-1">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className={`truncate text-[10px] font-semibold uppercase tracking-[0.18em] ${toneClass}`}>
+            {label}
+          </span>
+          <span
+            className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[9px] font-medium ${countClass}`}
+          >
+            {count}
+          </span>
+        </div>
+        {action}
       </div>
-      {action}
+      {description ? (
+        <p className="text-[10px] leading-4 text-muted-foreground/66">{description}</p>
+      ) : null}
     </div>
   );
+}
+
+type UnmanagedWorktree = {
+  id: string;
+  type?: string;
+  path: string;
+  branch: string;
+  ignored?: boolean;
+  bindSuggestion?: {
+    kind: string;
+    cellId?: string;
+    cellName?: string;
+    candidateCellIds?: string[];
+  } | null;
+};
+
+function normalizePath(value: string): string {
+  return String(value || '').trim().replace(/\\/g, '/');
+}
+
+function pathBaseName(value: string): string {
+  const normalized = normalizePath(value);
+  const segments = normalized.split('/').filter(Boolean);
+  return segments[segments.length - 1] || normalized;
+}
+
+function deriveCellNameFromWorktree(worktree: UnmanagedWorktree): string {
+  const branch = String(worktree?.branch || '').trim();
+  if (branch) {
+    const parts = branch.split('/').filter(Boolean);
+    if (parts.length > 0) {
+      return parts[parts.length - 1] || branch;
+    }
+  }
+  return pathBaseName(worktree?.path || '') || 'cell';
 }
 
 function SessionTreeGuides({
@@ -328,7 +376,9 @@ function OutdentHint({
 export function AgentCellsSessionsPanel({
   cells = [],
   selectedId = null,
+  projectRoot = '',
   onSelect,
+  onCreateCell,
   onOpenExplorer,
   projectReady = false,
   projectError = '',
@@ -353,7 +403,6 @@ export function AgentCellsSessionsPanel({
   onSettleTrackedHarnessRun,
   onFocusSessionInUi,
   onConfigureProfile,
-  onArchiveCell,
 }: AgentCellsSessionsPanelProps) {
   const attention = useAttentionLayer();
   const [idleNow, setIdleNow] = useState(Date.now());
@@ -368,7 +417,9 @@ export function AgentCellsSessionsPanel({
   const [pendingActiveSessionByCellId, setPendingActiveSessionByCellId] = useState<Record<string, string>>({});
   const [draggingSession, setDraggingSession] = useState<{ cellId: string; sessionId: string } | null>(null);
   const [dropTarget, setDropTarget] = useState<SessionDropTarget | null>(null);
-  const [showArchivedCells, setShowArchivedCells] = useState(false);
+  const [showLegacyArchivedCells, setShowLegacyArchivedCells] = useState(false);
+  const [unmanagedWorktrees, setUnmanagedWorktrees] = useState<UnmanagedWorktree[]>([]);
+  const [ignoredWorktreeCount, setIgnoredWorktreeCount] = useState(0);
 
   const closedMenuRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
@@ -383,23 +434,30 @@ export function AgentCellsSessionsPanel({
     [cells]
   );
 
-  const { activeCells, cleanupCells, archivedCells } = useMemo(() => {
-    const primary: any[] = [];
-    const cleanup: any[] = [];
-    const archived: any[] = [];
+  const { trackedCells, detachedCells, legacyArchivedCells } = useMemo(() => {
+    const tracked: any[] = [];
+    const detached: any[] = [];
+    const legacyArchived: any[] = [];
     (cells || []).forEach((cell: any) => {
-      if (isDetachedCellCleanupCandidate(cell)) {
-        cleanup.push(cell);
-      } else if (isArchivedCell(cell)) {
-        archived.push(cell);
+      if (isArchivedCell(cell)) {
+        legacyArchived.push(cell);
+        return;
+      }
+      if (cell?.isVirtual) {
+        tracked.push(cell);
+        return;
+      }
+      const attachmentMeta = resolveCellAttachmentMeta(cell);
+      if (attachmentMeta.attachmentState === 'attached') {
+        tracked.push(cell);
       } else {
-        primary.push(cell);
+        detached.push(cell);
       }
     });
     return {
-      activeCells: primary,
-      cleanupCells: cleanup,
-      archivedCells: archived,
+      trackedCells: tracked,
+      detachedCells: detached,
+      legacyArchivedCells: legacyArchived,
     };
   }, [cells]);
 
@@ -407,11 +465,51 @@ export function AgentCellsSessionsPanel({
     if (!selectedId) {
       return;
     }
-    const selectedArchived = archivedCells.some((cell: any) => cell?.id === selectedId);
+    const selectedArchived = legacyArchivedCells.some((cell: any) => cell?.id === selectedId);
     if (selectedArchived) {
-      setShowArchivedCells(true);
+      setShowLegacyArchivedCells(true);
     }
-  }, [archivedCells, selectedId]);
+  }, [legacyArchivedCells, selectedId]);
+
+  useEffect(() => {
+    if (!projectReady || !projectRoot || !isAgencyMethodAvailable('listUnmanagedWorktrees')) {
+      setUnmanagedWorktrees([]);
+      setIgnoredWorktreeCount(0);
+      return;
+    }
+    let disposed = false;
+    const loadUnmanagedWorktrees = async () => {
+      try {
+        const worktrees = await agencyListUnmanagedWorktrees({
+          rootPath: projectRoot,
+          includeIgnored: true,
+        });
+        if (disposed) {
+          return;
+        }
+        const normalizedItems = Array.isArray(worktrees) ? worktrees : [];
+        setUnmanagedWorktrees(normalizedItems);
+        setIgnoredWorktreeCount(
+          normalizedItems.filter((item) => Boolean(item?.ignored)).length
+        );
+      } catch (error) {
+        if (!disposed) {
+          console.error(error);
+          setUnmanagedWorktrees([]);
+          setIgnoredWorktreeCount(0);
+        }
+      }
+    };
+    void loadUnmanagedWorktrees();
+    return () => {
+      disposed = true;
+    };
+  }, [cells, projectReady, projectRoot]);
+
+  const visibleUnmanagedWorktrees = useMemo(
+    () => unmanagedWorktrees.filter((worktree) => !worktree?.ignored),
+    [unmanagedWorktrees]
+  );
 
   useEffect(() => {
     const interval = setInterval(() => setIdleNow(Date.now()), 1000);
@@ -518,7 +616,7 @@ export function AgentCellsSessionsPanel({
 
   const projectionsByCellId = useMemo(() => {
     const next: Record<string, AgentCellSessionTreeProjection> = {};
-    activeCells.forEach((cell: any) => {
+    trackedCells.forEach((cell: any) => {
       if (!cell?.id) {
         return;
       }
@@ -530,7 +628,7 @@ export function AgentCellsSessionsPanel({
       });
     });
     return next;
-  }, [activeCells, activeSessionByCellId, pendingActiveSessionByCellId, resolveCellSessions]);
+  }, [trackedCells, activeSessionByCellId, pendingActiveSessionByCellId, resolveCellSessions]);
 
   const visibleRowsByCellId = useMemo(() => {
     const next: Record<string, AgentCellSessionTreeRow[]> = {};
@@ -841,6 +939,80 @@ export function AgentCellsSessionsPanel({
     [clearDragState, onMoveSessionNode, suppressSelectionTemporarily]
   );
 
+  const refreshUnmanagedWorktrees = useCallback(async () => {
+    if (!projectReady || !projectRoot || !isAgencyMethodAvailable('listUnmanagedWorktrees')) {
+      setUnmanagedWorktrees([]);
+      setIgnoredWorktreeCount(0);
+      return;
+    }
+    const worktrees = await agencyListUnmanagedWorktrees({
+      rootPath: projectRoot,
+      includeIgnored: true,
+    });
+    const normalizedItems = Array.isArray(worktrees) ? worktrees : [];
+    setUnmanagedWorktrees(normalizedItems);
+    setIgnoredWorktreeCount(normalizedItems.filter((item) => Boolean(item?.ignored)).length);
+  }, [projectReady, projectRoot]);
+
+  const handleIgnoreUnmanagedWorktree = useCallback(
+    async (worktreePath: string) => {
+      const normalizedPath = normalizePath(worktreePath);
+      if (!normalizedPath || !projectRoot) {
+        return;
+      }
+      await agencyIgnoreUnmanagedWorktree({
+        rootPath: projectRoot,
+        worktreePath: normalizedPath,
+        ignored: true,
+      });
+      await refreshUnmanagedWorktrees();
+    },
+    [projectRoot, refreshUnmanagedWorktrees]
+  );
+
+  const handleResetIgnoredUnmanagedWorktrees = useCallback(async () => {
+    if (!projectRoot) {
+      return;
+    }
+    await agencyClearIgnoredUnmanagedWorktrees({ rootPath: projectRoot });
+    await refreshUnmanagedWorktrees();
+  }, [projectRoot, refreshUnmanagedWorktrees]);
+
+  const handleCreateCellFromWorktree = useCallback(
+    (worktree: UnmanagedWorktree) => {
+      const normalizedPath = normalizePath(worktree.path);
+      if (!normalizedPath) {
+        return;
+      }
+      onCreateCell?.({
+        mode: 'worktree',
+        reusePath: normalizedPath,
+        name: deriveCellNameFromWorktree(worktree),
+      });
+    },
+    [onCreateCell]
+  );
+
+  const handleBindSuggestedCell = useCallback(
+    (worktree: UnmanagedWorktree) => {
+      const normalizedPath = normalizePath(worktree.path);
+      const suggestedCellId = String(worktree?.bindSuggestion?.cellId || '').trim();
+      if (!normalizedPath || !suggestedCellId) {
+        return;
+      }
+      onCreateCell?.({
+        mode: 'worktree',
+        reusePath: normalizedPath,
+        initialBindTargetCell:
+          cellsById.get(suggestedCellId) || {
+            id: suggestedCellId,
+            name: worktree?.bindSuggestion?.cellName || suggestedCellId,
+          },
+      });
+    },
+    [cellsById, onCreateCell]
+  );
+
   return (
     <>
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
@@ -867,13 +1039,22 @@ export function AgentCellsSessionsPanel({
           </>
         ) : null}
 
-        {activeCells.length === 0 && cleanupCells.length === 0 && archivedCells.length === 0 ? (
-          <div className="px-4 py-8 text-center text-xs text-muted-foreground">No active cells</div>
+        {trackedCells.length === 0 &&
+        detachedCells.length === 0 &&
+        legacyArchivedCells.length === 0 &&
+        visibleUnmanagedWorktrees.length === 0 ? (
+          <div className="px-4 py-8 text-center text-xs text-muted-foreground">No tracked workspaces yet</div>
         ) : (
           <div className="space-y-4">
-            {activeCells.length > 0 ? (
-              <div className="space-y-3" data-testid="cell-list" role="tree" aria-label="Agent Cells">
-                {activeCells.map((cell: any) => {
+            {trackedCells.length > 0 ? (
+              <section className="space-y-3">
+                <LifecycleSectionHeader
+                  label="Tracked Workspaces"
+                  count={trackedCells.length}
+                  description="Cells with live worktree attachments and session trees."
+                />
+                <div className="space-y-3" data-testid="cell-list" role="tree" aria-label="Tracked workspaces">
+                  {trackedCells.map((cell: any) => {
               const attachmentMeta = resolveCellAttachmentMeta(cell);
               const isWindowHome = isWindowHomeCell(cell);
               const hasAttachment = !isWindowHome && attachmentMeta.attachmentState === 'attached';
@@ -964,9 +1145,7 @@ export function AgentCellsSessionsPanel({
                           <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-primary/80">
                             Local
                           </span>
-                        ) : (
-                          <CellStateBadge state={cell.state} />
-                        )}
+                        ) : null}
                         {!cell.isVirtual && attachmentMeta.attachmentState !== 'attached' ? (
                           <span
                             className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] ${attachmentMeta.tone}`}
@@ -1411,83 +1590,248 @@ export function AgentCellsSessionsPanel({
                   ) : null}
                     </div>
                   );
-                })}
-              </div>
-            ) : null}
-
-            {cleanupCells.length > 0 ? (
-              <section
-                className="space-y-1.5"
-                data-testid="cleanup-cell-list"
-                aria-label="Cells waiting for cleanup"
-              >
-                <LifecycleSectionHeader label="Needs Cleanup" count={cleanupCells.length} tone="cleanup" />
-                {cleanupCells.map((cell: any) => {
-                  const cellAttention = attention.byCellId[cell.id];
-                  return (
-                    <DetachedCellCleanupCard
-                      key={cell.id}
-                      cell={cell}
-                      sessions={resolveCellSessions(String(cell.id))}
-                      selected={selectedId === cell.id}
-                      attentionItem={cellAttention?.strongest || null}
-                      attentionCount={cellAttention?.count || 0}
-                      onSelect={onSelect}
-                      onArchive={onArchiveCell}
-                    />
-                  );
-                })}
+                  })}
+                </div>
               </section>
             ) : null}
 
-            {archivedCells.length > 0 ? (
+            {detachedCells.length > 0 ? (
               <section
-                className="space-y-1.5"
-                data-testid="archived-cell-shell"
-                aria-label="Archived cells"
+                className="space-y-2"
+                data-testid="detached-cell-list"
+                aria-label="Detached cells"
               >
                 <LifecycleSectionHeader
-                  label="Archived"
-                  count={archivedCells.length}
-                  tone="archived"
+                  label="Detached Cells"
+                  count={detachedCells.length}
+                  tone="detached"
+                  description="Tracked Cells with missing or detached worktree attachments."
+                />
+                <div className="space-y-2">
+                  {detachedCells.map((cell: any) => {
+                    const attachmentMeta = resolveCellAttachmentMeta(cell);
+                    const cellAttention = attention.byCellId[cell.id];
+                    return (
+                      <div
+                        key={cell.id}
+                        data-testid={`detached-cell-card-${cell.id}`}
+                        className={`rounded-xl border px-3 py-2.5 transition-colors ${
+                          selectedId === cell.id
+                            ? 'border-amber-300/26 bg-amber-500/[0.08]'
+                            : `border-border/35 bg-background/20 ${resolveAttentionCardClass(cellAttention?.strongest)}`
+                        }`}
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-amber-300/20 bg-amber-500/10 text-amber-100/82">
+                            <GitBranch size={14} strokeWidth={1.6} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => onSelect?.(cell.id)}
+                                className="truncate text-left text-[12px] font-semibold text-foreground transition-colors hover:text-primary"
+                              >
+                                {cell.name}
+                              </button>
+                              <span
+                                className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] ${attachmentMeta.tone}`}
+                              >
+                                {attachmentMeta.label}
+                              </span>
+                              {cellAttention?.strongest ? (
+                                <button
+                                  type="button"
+                                  onClick={() => attention.jumpToAttention(cellAttention.strongest)}
+                                  className="shrink-0"
+                                  aria-label={buildAttentionActionLabel({
+                                    item: cellAttention.strongest,
+                                    ownerLabel: cell.name || cell.id,
+                                    count: cellAttention.count,
+                                  })}
+                                  title={cellAttention.strongest.detail}
+                                >
+                                  <AttentionPill
+                                    item={cellAttention.strongest}
+                                    count={cellAttention.count}
+                                    className="px-1.5 py-[2px]"
+                                  />
+                                </button>
+                              ) : null}
+                            </div>
+                            <div className="mt-1 text-[10px] text-muted-foreground/72">
+                              {attachmentMeta.pathLabel || 'No attached worktree path recorded'}
+                            </div>
+                            <div className="mt-2 flex items-center justify-between gap-2">
+                              <span className="text-[10px] text-muted-foreground/70">
+                                {resolveCellSessions(String(cell.id)).length || 0} session
+                                {resolveCellSessions(String(cell.id)).length === 1 ? '' : 's'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => onSelect?.(cell.id)}
+                                className="rounded-lg border border-border/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                              >
+                                View Details
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
+
+            {visibleUnmanagedWorktrees.length > 0 ? (
+              <section
+                className="space-y-2"
+                data-testid="unmanaged-worktree-list"
+                aria-label="Unmanaged worktrees"
+              >
+                <LifecycleSectionHeader
+                  label="Unmanaged Worktrees"
+                  count={visibleUnmanagedWorktrees.length}
+                  tone="unmanaged"
+                  description="Live git worktrees that are not tracked by a Cell yet."
+                  action={
+                    ignoredWorktreeCount > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleResetIgnoredUnmanagedWorktrees()}
+                        className="inline-flex items-center rounded-full px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground"
+                      >
+                        Reset ignored
+                      </button>
+                    ) : null
+                  }
+                />
+                <div className="space-y-2">
+                  {visibleUnmanagedWorktrees.map((worktree) => {
+                    const branchLabel = String(worktree.branch || '').trim() || 'detached';
+                    const hasSuggestedBind = Boolean(worktree.bindSuggestion?.cellId);
+                    return (
+                      <div
+                        key={worktree.path}
+                        data-testid={`unmanaged-worktree-${pathBaseName(worktree.path)}`}
+                        className="rounded-xl border border-sky-300/16 bg-sky-500/[0.05] px-3 py-2.5"
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-sky-300/22 bg-sky-500/10 text-sky-100/85">
+                            <GitBranch size={14} strokeWidth={1.6} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-[12px] font-semibold text-foreground">
+                              {pathBaseName(worktree.path)}
+                            </div>
+                            <div className="mt-1 truncate text-[10px] text-muted-foreground/72">
+                              {worktree.path}
+                            </div>
+                            <div className="mt-1 text-[10px] font-mono text-sky-100/76">
+                              {branchLabel}
+                            </div>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => void handleCreateCellFromWorktree(worktree)}
+                                className="rounded-lg bg-sky-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-50 transition-colors hover:bg-sky-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Create Cell
+                              </button>
+                              {hasSuggestedBind ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleBindSuggestedCell(worktree)}
+                                  className="rounded-lg border border-sky-300/22 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-100 transition-colors hover:bg-sky-500/12"
+                                >
+                                  Reattach {worktree.bindSuggestion?.cellName || 'Cell'}
+                                </button>
+                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() => void handleIgnoreUnmanagedWorktree(worktree.path)}
+                                className="rounded-lg border border-border/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:border-primary/35 hover:text-foreground"
+                              >
+                                Ignore For Now
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
+
+            {legacyArchivedCells.length > 0 ? (
+              <section
+                className="space-y-1.5"
+                data-testid="legacy-archived-cell-shell"
+                aria-label="Legacy archived cells"
+              >
+                <LifecycleSectionHeader
+                  label="Legacy Archived"
+                  count={legacyArchivedCells.length}
+                  tone="legacy"
+                  description="Compatibility surface for older archived records."
                   action={
                     <button
                       type="button"
-                      onClick={() => setShowArchivedCells((value) => !value)}
+                      onClick={() => setShowLegacyArchivedCells((value) => !value)}
                       className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground"
-                      aria-label="Archived cells"
-                      aria-expanded={showArchivedCells}
-                      aria-controls="archived-cell-list"
+                      aria-label="Legacy archived cells"
+                      aria-expanded={showLegacyArchivedCells}
+                      aria-controls="legacy-archived-cell-list"
                     >
-                      {showArchivedCells ? (
+                      {showLegacyArchivedCells ? (
                         <ChevronDown size={12} strokeWidth={1.7} />
                       ) : (
                         <ChevronRight size={12} strokeWidth={1.7} />
                       )}
-                      <span>{showArchivedCells ? 'Hide Archived' : 'View Archived'}</span>
+                      <span>{showLegacyArchivedCells ? 'Hide' : 'View'}</span>
                     </button>
                   }
                 />
 
-                {showArchivedCells ? (
+                {showLegacyArchivedCells ? (
                   <div
-                    id="archived-cell-list"
-                    className="space-y-1.5"
-                    data-testid="archived-cell-list"
-                    aria-label="Archived cells"
+                    id="legacy-archived-cell-list"
+                    className="space-y-2"
+                    data-testid="legacy-archived-cell-list"
+                    aria-label="Legacy archived cells"
                   >
-                    {archivedCells.map((cell: any) => {
-                      const cellAttention = attention.byCellId[cell.id];
+                    {legacyArchivedCells.map((cell: any) => {
+                      const attachmentMeta = resolveCellAttachmentMeta(cell);
                       return (
-                        <ArchivedCellCard
+                        <div
                           key={cell.id}
-                          cell={cell}
-                          sessions={resolveCellSessions(String(cell.id))}
-                          selected={selectedId === cell.id}
-                          attentionItem={cellAttention?.strongest || null}
-                          attentionCount={cellAttention?.count || 0}
-                          onSelect={onSelect}
-                        />
+                          data-testid={`legacy-archived-cell-${cell.id}`}
+                          className={`rounded-xl border px-3 py-2.5 transition-colors ${
+                            selectedId === cell.id
+                              ? 'border-slate-300/24 bg-slate-500/[0.08]'
+                              : 'border-border/35 bg-background/20'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="truncate text-[12px] font-semibold text-foreground">
+                                {cell.name}
+                              </div>
+                              <div className="mt-1 truncate text-[10px] text-muted-foreground/70">
+                                {attachmentMeta.pathLabel || 'No attached worktree path recorded'}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => onSelect?.(cell.id)}
+                              className="rounded-lg border border-border/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                            >
+                              View Details
+                            </button>
+                          </div>
+                        </div>
                       );
                     })}
                   </div>

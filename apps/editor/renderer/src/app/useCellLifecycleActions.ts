@@ -81,7 +81,11 @@ export function useCellLifecycleActions({
       const freshCell = nextCells.find((cell) => cell.id === resolvedCell.id) || resolvedCell;
       const attachmentState = String(freshCell?.attachmentState || 'attached').trim().toLowerCase();
       let gates: any[] = [];
-      if (['active', 'archived'].includes(nextState) && attachmentState === 'attached') {
+      const shouldCheckGates =
+        transitionMeta.requireGates === true &&
+        ['active', 'archived'].includes(nextState) &&
+        attachmentState === 'attached';
+      if (shouldCheckGates) {
         gates = await checkGatesForCell({ cell: freshCell, stage: nextState, silent: true });
       }
       setPendingTransition({
@@ -213,9 +217,9 @@ export function useCellLifecycleActions({
   }, [loadCells, modal, projectRoot, resolveLifecycleTargetCell, selectedCell?.id, setLoading, setSelectedId]);
 
   const handleCreate = useCallback(
-    async ({ name, branch, reusePath, startTurnGateCreate }: any) => {
+    async ({ name, branch, baseBranch, existingBranch, reusePath, bindToCellId, startTurnGateCreate }: any) => {
       if (!projectReady) {
-        setProjectError('Select a project before creating a Cell.');
+        setProjectError('Select a project before creating or tracking a Cell.');
         return;
       }
       setLoading(true);
@@ -223,7 +227,10 @@ export function useCellLifecycleActions({
         const cell = await agencyCreateCell({
           name,
           branch,
+          baseBranch,
+          existingBranch,
           reusePath,
+          bindToCellId,
           rootPath: projectRoot,
         });
         if (!cell) {

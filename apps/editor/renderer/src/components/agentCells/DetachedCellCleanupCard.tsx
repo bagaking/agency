@@ -1,5 +1,5 @@
 import React from 'react';
-import { Archive, ArrowUpRight, GitBranch, Layers3, ShieldCheck } from 'lucide-react';
+import { ArrowUpRight, GitBranch, Layers3, ShieldCheck } from 'lucide-react';
 
 import type { AttentionItem } from '../../attention/attentionModel';
 import {
@@ -15,17 +15,16 @@ type DetachedCellCleanupCardProps = {
   attentionItem?: AttentionItem | null;
   attentionCount?: number;
   onSelect?: (cellId: string) => void;
-  onArchive?: (cell: any) => void;
 };
 
 function buildCleanupCopy(cell: any, sessionSummary: string[]) {
   const attachmentState = resolveCellAttachmentMeta(cell).attachmentState;
   return {
-    eyebrow: 'Cleanup Recommended',
+    eyebrow: 'Detached Workspace',
     body:
       attachmentState === 'missing'
-        ? 'The recorded worktree path is no longer available for this Cell. Archive it to remove it from the active Agent Cells flow while preserving repo-owned sessions and evidence.'
-        : 'This Cell is detached from its worktree and no longer belongs in the active Agent Cells flow. Archive it while preserving repo-owned sessions and evidence.',
+        ? 'The recorded worktree path is no longer available for this Cell. Repo-owned sessions and evidence remain available while you decide whether to reattach this work elsewhere or remove the record.'
+        : 'This Cell is detached from its previous worktree. Repo-owned sessions and evidence remain available while you reattach it or remove the record.',
     summary: sessionSummary.join(' · '),
   };
 }
@@ -37,7 +36,6 @@ export function DetachedCellCleanupCard({
   attentionItem = null,
   attentionCount = 0,
   onSelect,
-  onArchive,
 }: DetachedCellCleanupCardProps) {
   const attachmentMeta = resolveCellAttachmentMeta(cell);
   const sessionSummary = buildCellSessionSummary(sessions);
@@ -74,7 +72,7 @@ export function DetachedCellCleanupCard({
       meta={[
         {
           icon: ShieldCheck,
-          label: 'Evidence retained',
+          label: 'Sessions retained',
           tone: 'emphasis',
         },
         {
@@ -86,24 +84,16 @@ export function DetachedCellCleanupCard({
       attentionItem={attentionItem}
       attentionCount={attentionCount}
       primaryAction={{
-        label: 'Archive Cell',
-        icon: Archive,
-        onClick: (event) => {
-          event.stopPropagation();
-          onArchive?.(cell);
-        },
-        title:
-          attachmentMeta.attachmentState === 'missing'
-            ? 'Archive this missing Cell'
-            : 'Archive this detached Cell',
-      }}
-      secondaryAction={{
-        label: 'Details',
+        label: 'View Details',
         icon: ArrowUpRight,
         onClick: (event) => {
           event.stopPropagation();
           onSelect?.(cell.id);
         },
+        title:
+          attachmentMeta.attachmentState === 'missing'
+            ? 'View this missing Cell'
+            : 'View this detached Cell',
       }}
     />
   );

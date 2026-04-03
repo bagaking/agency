@@ -5,7 +5,6 @@ import {
   Command,
   MessageSquareText,
   Tag,
-  ShieldCheck,
   ServerCog,
   Link2,
 } from 'lucide-react';
@@ -27,13 +26,11 @@ type HierarchySidebarProps = {
   appShortcutsScope?: ScopeId;
   replyQuickPromptsScope?: ScopeId;
   sessionNamingScope?: ScopeId;
-  gateScope?: ScopeId;
   onSelectActionsScope?: (scope: ScopeId) => void;
   onSelectHarnessProviders?: () => void;
   onSelectAppShortcutsScope?: (scope: ScopeId) => void;
   onSelectReplyQuickPromptsScope?: (scope: ScopeId) => void;
   onSelectSessionNamingScope?: (scope: ScopeId) => void;
-  onSelectGateScope?: (scope: ScopeId) => void;
   onSelectSoftlinks?: () => void;
   canUseProjectScope?: boolean;
   canUseAgentScope?: boolean;
@@ -42,7 +39,6 @@ type HierarchySidebarProps = {
   appShortcutsSummary?: ScopeSummary;
   replyQuickPromptsSummary?: ScopeSummary;
   sessionNamingSummary?: ScopeSummary;
-  gateSummary?: ScopeSummary;
 };
 
 type CapabilityDefinition = {
@@ -92,13 +88,11 @@ export function HierarchySidebar({
   appShortcutsScope,
   replyQuickPromptsScope,
   sessionNamingScope,
-  gateScope,
   onSelectActionsScope,
   onSelectHarnessProviders,
   onSelectAppShortcutsScope,
   onSelectReplyQuickPromptsScope,
   onSelectSessionNamingScope,
-  onSelectGateScope,
   onSelectSoftlinks,
   canUseProjectScope,
   canUseAgentScope,
@@ -107,14 +101,12 @@ export function HierarchySidebar({
   appShortcutsSummary,
   replyQuickPromptsSummary,
   sessionNamingSummary,
-  gateSummary,
 }: HierarchySidebarProps) {
   const primaryAgentLabel =
     actionSummary?.agentLabel ||
     appShortcutsSummary?.agentLabel ||
     replyQuickPromptsSummary?.agentLabel ||
     sessionNamingSummary?.agentLabel ||
-    gateSummary?.agentLabel ||
     'Select Cell';
 
   const capabilityDefinitions: CapabilityDefinition[] = [
@@ -173,18 +165,6 @@ export function HierarchySidebar({
             canUseProjectScope,
             canUseAgentScope,
           })
-        ),
-    },
-    {
-      id: 'gates',
-      title: 'Compliance Gates',
-      description: 'Policy gates and approvals for sessions and commands.',
-      icon: ShieldCheck,
-      scope: gateScope,
-      summary: gateSummary,
-      onSelect: () =>
-        onSelectGateScope?.(
-          resolveAvailableHierarchyScope(gateScope, { canUseProjectScope, canUseAgentScope })
         ),
     },
     {

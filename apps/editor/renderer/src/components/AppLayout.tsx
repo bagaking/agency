@@ -56,7 +56,6 @@ export function AppLayout({
   onOpenHarnessProviders,
   onOpenAppShortcuts,
   onOpenReplyQuickPrompts,
-  onOpenGates,
   onOpenSoftlinks,
   onArchiveCell,
   actionsScope,
@@ -216,6 +215,7 @@ export function AppLayout({
       agentCellsProps={{
         cells,
         selectedId,
+        projectRoot,
         onSelect: onSelectCell,
         onCreate: onCreateCell,
         onJump: onJumpToHierarchy,
@@ -246,7 +246,6 @@ export function AppLayout({
         onSettleTrackedHarnessRun,
         onFocusSessionInUi,
         onConfigureProfile,
-        onArchiveCell,
       }}
       hierarchySidebarProps={{
         section: hierarchySection,
@@ -254,13 +253,11 @@ export function AppLayout({
         appShortcutsScope,
         replyQuickPromptsScope,
         sessionNamingScope,
-        gateScope,
         onSelectActionsScope,
         onSelectHarnessProviders: onOpenHarnessProviders,
         onSelectAppShortcutsScope,
         onSelectReplyQuickPromptsScope,
         onSelectSessionNamingScope,
-        onSelectGateScope,
         onSelectSoftlinks: () => onSelectHierarchySection('softlinks'),
         canUseProjectScope,
         canUseAgentScope,
@@ -269,7 +266,6 @@ export function AppLayout({
         appShortcutsSummary,
         replyQuickPromptsSummary,
         sessionNamingSummary,
-        gateSummary,
       }}
       actionSheetsProps={actionSheetsProps}
       memoSidebarProps={memoSidebarProps}
@@ -448,7 +444,6 @@ export function AppLayout({
             onOpenHarnessProviders,
             onOpenAppShortcuts,
             onOpenReplyQuickPrompts,
-            onOpenGates,
             onOpenSoftlinks,
           }}
         />

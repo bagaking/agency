@@ -482,9 +482,6 @@ test('buildComposedAppLayoutProps keeps hierarchy jump shortcuts wired through l
   result.onOpenAppShortcuts();
   assert.equal(fixture.refs.hierarchyJumpTarget(), 'app-shortcuts');
 
-  result.onOpenGates();
-  assert.equal(fixture.refs.hierarchyJumpTarget(), 'gates');
-
   result.onOpenSoftlinks();
   assert.equal(fixture.refs.hierarchyJumpTarget(), 'softlinks');
 });

@@ -22,13 +22,12 @@ test('DetachedCellCleanupCard uses a filled lifecycle rail shell instead of a hi
           status: 'stale',
         },
       ]}
-      onArchive={() => undefined}
       onSelect={() => undefined}
     />
   );
 
   assert.match(html, /rounded-\[22px\]/);
-  assert.match(html, /Cleanup Recommended/);
+  assert.match(html, /Detached Workspace/);
   assert.doesNotMatch(html, /ring-1 ring-amber/);
 });
 

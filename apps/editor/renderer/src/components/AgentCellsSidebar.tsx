@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, Command, Link2, Plus, ShieldCheck, SquareTerminal } from 'lucide-react';
+import { ArrowUpRight, Command, Link2, Plus, SquareTerminal } from 'lucide-react';
 
 import { AgentCellsExplorerPanel } from './agentCells/AgentCellsExplorerPanel';
 import { AgentCellsSessionsPanel } from './agentCells/AgentCellsSessionsPanel';
@@ -9,6 +9,7 @@ export function AgentCellsSidebar({
   selectedId,
   onSelect,
   onCreate,
+  projectRoot,
   onJump,
   onOpenExplorer,
   projectReady,
@@ -132,12 +133,6 @@ export function AgentCellsSidebar({
               disabled={!projectReady}
             />
             <NavItem
-              icon={ShieldCheck}
-              label="Gates"
-              onClick={() => onJump?.('gates')}
-              disabled={!projectReady}
-            />
-            <NavItem
               icon={Link2}
               label="Softlinks"
               onClick={() => onJump?.('softlinks')}
@@ -149,7 +144,9 @@ export function AgentCellsSidebar({
         <AgentCellsSessionsPanel
           cells={cells}
           selectedId={selectedId}
+          projectRoot={projectRoot}
           onSelect={onSelect}
+          onCreateCell={onCreate}
           onOpenExplorer={onOpenExplorer}
           projectReady={projectReady}
           projectError={projectError}
@@ -174,7 +171,6 @@ export function AgentCellsSidebar({
           onSettleTrackedHarnessRun={onSettleTrackedHarnessRun}
           onFocusSessionInUi={onFocusSessionInUi}
           onConfigureProfile={onConfigureProfile}
-          onArchiveCell={onArchiveCell}
         />
 
         <AgentCellsExplorerPanel

@@ -231,7 +231,6 @@ export function buildAppLayoutProps({
     onOpenHarnessProviders: () => handleHierarchyJump('harness-providers'),
     onOpenAppShortcuts: () => handleHierarchyJump('app-shortcuts'),
     onOpenReplyQuickPrompts: () => handleHierarchyJump('reply-quick-prompts'),
-    onOpenGates: () => handleHierarchyJump('gates'),
     onOpenSoftlinks: () => handleHierarchyJump('softlinks'),
     actionsScope,
     onSelectActionsScope: handleSelectActionsScope,
