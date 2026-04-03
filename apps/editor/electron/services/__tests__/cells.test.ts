@@ -189,7 +189,7 @@ test('updateCellState updates detached cells without running attached-worktree g
   );
 });
 
-test('updateCellState does not block attached cells on default gate checks', async (t) => {
+test('updateCellState allows attached cells when configured gates pass', async (t) => {
   const repoRoot = await createTempDir('agency-cells-state-attached-');
   const attachedWorktreePath = path.join(repoRoot, '.worktrees', 'gamma');
   await fs.mkdir(path.join(repoRoot, '.agency', 'cells', 'gamma'), { recursive: true });
@@ -216,9 +216,7 @@ test('updateCellState does not block attached cells on default gate checks', asy
   await withCellsService(
     {
       listWorktrees: async () => [{ path: attachedWorktreePath, branch: 'feat/gamma', head: 'abc123' }],
-      checkGates: async () => {
-        throw new Error('default gate checks should not run for updateCellState');
-      },
+      checkGates: async () => [],
     },
     async ({ updateCellState }) => {
       const updated = await updateCellState({
@@ -520,6 +518,81 @@ test('createCell can bind an unmanaged worktree to an existing detached Cell rec
       const cells = await listCells({ rootPath: repoRoot });
       const boundCell = cells.find((cell) => cell.id === 'detached-beta');
       assert.equal(boundCell?.attachedWorktreePath, unmanagedWorktreePath);
+    }
+  );
+});
+
+test('createCell rejects binding an unmanaged worktree to an already attached Cell', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-bind-attached-');
+  const unmanagedWorktreePath = path.join(repoRoot, '.worktrees', 'incoming-gamma');
+  const attachedPath = path.join(repoRoot, '.worktrees', 'attached-gamma');
+  await fs.mkdir(path.join(repoRoot, '.agency', 'cells', 'attached-gamma'), { recursive: true });
+  await fs.mkdir(unmanagedWorktreePath, { recursive: true });
+  await fs.mkdir(attachedPath, { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, '.agency', 'cells', 'attached-gamma', 'cell.yaml'),
+    [
+      'version: 2',
+      'id: attached-gamma',
+      'name: Attached Gamma',
+      'branch: feat/gamma',
+      'state: ""',
+      'attachmentState: attached',
+      `worktreePath: ${attachedPath}`,
+      `lastKnownWorktreePath: ${attachedPath}`,
+    ].join('\n'),
+    'utf8'
+  );
+
+  t.after(async () => {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await withCellsService(
+    {
+      listWorktrees: async () => [
+        { path: attachedPath, branch: 'feat/gamma', head: 'old123' },
+        { path: unmanagedWorktreePath, branch: 'feat/gamma', head: 'new123' },
+      ],
+    },
+    async ({ createCell }) => {
+      await assert.rejects(
+        () =>
+          createCell({
+            rootPath: repoRoot,
+            reusePath: unmanagedWorktreePath,
+            bindToCellId: 'attached-gamma',
+          }),
+        /detached or missing Cell/
+      );
+    }
+  );
+});
+
+test('listCells tolerates ignored-worktree store write failures during prune', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-prune-resilient-');
+  const storeDir = '/dev/null';
+  const previousStoreDir = process.env.AGENCY_UNMANAGED_WORKTREE_STORE_DIR;
+  process.env.AGENCY_UNMANAGED_WORKTREE_STORE_DIR = storeDir;
+
+  t.after(async () => {
+    if (previousStoreDir === undefined) {
+      delete process.env.AGENCY_UNMANAGED_WORKTREE_STORE_DIR;
+    } else {
+      process.env.AGENCY_UNMANAGED_WORKTREE_STORE_DIR = previousStoreDir;
+    }
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await withCellsService(
+    {
+      listWorktrees: async () => [],
+    },
+    async ({ listCells, listUnmanagedWorktrees }) => {
+      const cells = await listCells({ rootPath: repoRoot });
+      const unmanaged = await listUnmanagedWorktrees({ rootPath: repoRoot });
+      assert.deepEqual(cells, []);
+      assert.deepEqual(unmanaged, []);
     }
   );
 });

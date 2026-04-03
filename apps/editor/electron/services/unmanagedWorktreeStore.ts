@@ -158,11 +158,19 @@ async function pruneIgnoredWorktrees({ repoRoot, liveWorktreePaths = [], tracked
   const liveSet = new Set(normalizePathList(liveWorktreePaths));
   const trackedSet = new Set(normalizePathList(trackedWorktreePaths));
   const store = await readStore();
-  const nextIgnored = readRepoIgnoredPaths(store, repoKey).filter(
+  const currentIgnored = readRepoIgnoredPaths(store, repoKey);
+  const nextIgnored = currentIgnored.filter(
     (entry) => liveSet.has(entry) && !trackedSet.has(entry)
   );
+  if (nextIgnored.length === currentIgnored.length) {
+    return nextIgnored;
+  }
   const nextStore = writeRepoIgnoredPaths(store, repoKey, nextIgnored);
-  await writeStore(nextStore);
+  try {
+    await writeStore(nextStore);
+  } catch (_error) {
+    return nextIgnored;
+  }
   return nextIgnored;
 }
 

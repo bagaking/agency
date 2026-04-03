@@ -11,6 +11,7 @@ const {
 } = require('./git');
 const { resolveProjectRoot } = require('./projectRoot');
 const { readConfig: readWorktreeLinksConfig, applyAllLinks } = require('./worktreeLinks');
+const { checkGates } = require('./gates');
 const {
   clearIgnoredWorktrees,
   listIgnoredWorktreePaths,
@@ -616,6 +617,9 @@ async function createCell({ name, branch, baseBranch, existingBranch, reusePath,
       if (!existingRecord) {
         throw new Error('Target Cell not found.');
       }
+      if (normalizeText(existingRecord.attachmentState) === CELL_ATTACHMENT_STATES.attached) {
+        throw new Error('Bind target must be a detached or missing Cell.');
+      }
       const cells = await listCells({ rootPath: repoRoot });
       const conflictingCell = cells.find(
         (cell) =>
@@ -788,6 +792,18 @@ async function updateCellState({ id, state, worktreePath, rootPath }) {
     });
 
   const normalizedState = normalizeText(state);
+  if (['active', 'archived'].includes(normalizedState) && context.attachedWorktreePath) {
+    const gates = await checkGates({
+      worktreePath: context.attachedWorktreePath,
+      stage: normalizedState,
+      cellName: record.name || record.id,
+    });
+    const failed = gates.filter((gate) => !gate.passed);
+    if (failed.length) {
+      const labels = failed.map((gate) => gate.label).join(', ');
+      throw new Error(`Lifecycle gate blocked: ${labels}`);
+    }
+  }
   await writeCellRecord(context.repoRoot, {
     ...record,
     state: normalizedState || record.state,
