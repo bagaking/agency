@@ -84,6 +84,7 @@ Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeSc
 - On no-project startup, `Project Home` is the single primary work surface; do not auto-expand the right-side attention rail or HIL drawer over it.
 - `Project Home` should read as a face-first composition rather than a bordered dashboard. Prefer larger surfaces, stronger massing, and fewer outline boxes.
 - `Agent Cells`, `Explorer`, `Workbench`, `Session Map`, `Hierarchy`, `Memo`, and `Commander` are surfaces over those objects, not competing object roots.
+- Bounded web research is a Workbench-owned browser lane, not an Explorer card or a generic browser product: Explorer owns URL intake, Workbench owns a browser-first lane with basic browser controls before research actions, and full browsing still escapes to the system browser.
 - HIL storage is bounded to `comment` / `memo` / `draft`; session replies are session-owned artifacts and must not be stored or surfaced as HIL inbox items.
 - Session-source delivery must reference reply artifacts as `system=reply`; do not backdoor reply provenance through HIL refs.
 - `Memo` is the primary user-facing noun for the artifact workspace; treat `HIL` as an internal/storage term and do not surface mixed labels like “Neural Comments” / “HIL Repository” for the same artifact family.
