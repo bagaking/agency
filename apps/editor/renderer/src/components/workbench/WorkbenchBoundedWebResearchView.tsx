@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  ArrowRight,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
@@ -13,6 +14,7 @@ import {
 
 import { useModal } from '../modals/ModalSystem';
 import { focusRing } from '../ui/focusRing';
+import { IconButton } from '../ui/IconButton';
 import { WorkbenchBrowserLane } from './WorkbenchBrowserLane';
 import { normalizeWorkbenchResearchUrl } from './workbenchBoundedResearch';
 import { useWorkbenchBoundedWebResearch } from './useWorkbenchBoundedWebResearch';
@@ -363,90 +365,90 @@ export function WorkbenchBoundedWebResearchChrome({
   } = scene;
 
   return (
-    <div className="border-b border-white/[0.05] px-4 py-2.5">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <ActionButton
-            icon={ChevronLeft}
-            label="Back"
-            onClick={() => void goBackWorkbenchBrowserSurface({ tabId })}
-            disabled={!browserSurface?.surfaceState.canGoBack}
-            testId="workbench-web-research-back"
-          />
-          <ActionButton
-            icon={ChevronRight}
-            label="Forward"
-            onClick={() => void goForwardWorkbenchBrowserSurface({ tabId })}
-            disabled={!browserSurface?.surfaceState.canGoForward}
-            testId="workbench-web-research-forward"
-          />
-          <ActionButton
-            icon={RefreshCw}
-            label={fetching ? 'Reloading…' : 'Reload'}
-            onClick={() => void scene.reload()}
-            disabled={fetching}
-            testId="workbench-web-research-reload"
-          />
-        </div>
-        {canNavigate ? (
-          <form className="flex min-w-0 flex-1 items-center gap-2" onSubmit={handleLocationSubmit}>
-            <label className="sr-only" htmlFor="workbench-web-research-location">
-              Web research address
-            </label>
-            <div className="relative min-w-0 flex-1">
-              <Globe2
-                size={11}
-                className="pointer-events-none absolute left-3 top-2.5 text-cyan-300/60"
-              />
-              <input
-                id="workbench-web-research-location"
+      <div className="border-b border-white/[0.05] px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center rounded-[10px] border border-white/[0.06] bg-white/[0.03] p-0.5">
+            <ToolbarIconButton
+              icon={ChevronLeft}
+              label="Back"
+              onClick={() => void goBackWorkbenchBrowserSurface({ tabId })}
+              disabled={!browserSurface?.surfaceState.canGoBack}
+              testId="workbench-web-research-back"
+            />
+            <ToolbarIconButton
+              icon={ChevronRight}
+              label="Forward"
+              onClick={() => void goForwardWorkbenchBrowserSurface({ tabId })}
+              disabled={!browserSurface?.surfaceState.canGoForward}
+              testId="workbench-web-research-forward"
+            />
+            <ToolbarIconButton
+              icon={RefreshCw}
+              label={fetching ? 'Reloading…' : 'Reload'}
+              onClick={() => void scene.reload()}
+              disabled={fetching}
+              testId="workbench-web-research-reload"
+            />
+          </div>
+          {canNavigate ? (
+            <form className="flex min-w-0 flex-1 items-center" onSubmit={handleLocationSubmit}>
+              <label className="sr-only" htmlFor="workbench-web-research-location">
+                Web research address
+              </label>
+              <div className="relative min-w-0 flex-1 rounded-[10px] border border-white/[0.07] bg-black/20">
+                <Globe2
+                  size={11}
+                  className="pointer-events-none absolute left-3 top-2.5 text-cyan-300/60"
+                />
+                <input
+                  id="workbench-web-research-location"
                 type="url"
                 inputMode="url"
                 value={locationDraft}
                 onChange={(event) => {
                   setLocationDraft(event.target.value);
-                  if (locationError) {
-                    setLocationError('');
-                  }
-                }}
-                className={`w-full rounded-full border border-white/[0.08] bg-white/[0.03] py-2 pl-8 pr-4 text-[11px] text-white outline-none placeholder:text-white/24 focus:border-cyan-300/30 focus:ring-1 focus:ring-cyan-300/15 ${focusRingClass}`}
-                placeholder="Paste a public URL…"
-              />
-            </div>
-              <button
-                type="submit"
-                disabled={navigatingDraft}
-                className={`rounded-full border border-cyan-400/28 bg-cyan-400/10 px-3 py-2 text-[10px] font-medium text-cyan-100 transition-colors hover:border-cyan-300/45 hover:bg-cyan-400/16 ${focusRingClass} ${
-                  navigatingDraft ? 'cursor-wait opacity-70' : ''
-                }`}
-              >
-                {navigatingDraft ? 'Opening…' : 'Go'}
-              </button>
+                    if (locationError) {
+                      setLocationError('');
+                    }
+                  }}
+                  className={`w-full rounded-[10px] border-0 bg-transparent py-2 pl-8 pr-14 text-[11px] text-white outline-none placeholder:text-white/24 focus:ring-1 focus:ring-cyan-300/15 ${focusRingClass}`}
+                  placeholder="Paste a public URL…"
+                />
+                <button
+                  type="submit"
+                  disabled={navigatingDraft}
+                  aria-label="Open URL"
+                  className={`absolute right-1 top-1 inline-flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[10px] font-medium text-cyan-100 transition-colors ${
+                    navigatingDraft
+                      ? 'cursor-wait bg-cyan-400/10 opacity-70'
+                      : 'bg-cyan-400/12 hover:bg-cyan-400/18'
+                  } ${focusRingClass}`}
+                >
+                  <ArrowRight size={11} />
+                  {navigatingDraft ? 'Opening…' : 'Go'}
+                </button>
+              </div>
             </form>
-        ) : (
-          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[10px] text-white/55">
-            <Globe2 size={11} className="shrink-0 text-cyan-300/60" />
-            <span className="truncate">{url}</span>
+          ) : (
+            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-[10px] border border-white/[0.07] bg-black/20 px-3 py-2 text-[10px] text-white/55">
+              <Globe2 size={11} className="shrink-0 text-cyan-300/60" />
+              <span className="truncate">{url}</span>
+            </div>
+          )}
+          <div className="inline-flex shrink-0 items-center rounded-[10px] border border-white/[0.06] bg-white/[0.03] p-0.5">
+            <ModePill active={preferredMode === 'live'} label="View" onClick={() => setPreferredMode('live')} />
+            <ModePill active={preferredMode === 'reader'} label="Reader" onClick={() => setPreferredMode('reader')} />
           </div>
-        )}
-        <div className="inline-flex shrink-0 rounded-full border border-white/[0.08] bg-white/[0.03] p-0.5">
-          <ModePill active={preferredMode === 'live'} label="View" onClick={() => setPreferredMode('live')} />
-          <ModePill
-            active={preferredMode === 'reader'}
-            label="Reader"
-            onClick={() => setPreferredMode('reader')}
-          />
         </div>
-      </div>
 
       {locationError ? <div className="mt-1.5 text-[10px] text-amber-200">{locationError}</div> : null}
 
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.04] pt-2">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-cyan-400/18 bg-cyan-400/10 text-cyan-200">
-            <Globe2 size={13} />
-          </div>
-          <div className="min-w-0">
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.04] pt-2">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-cyan-400/10 text-cyan-200">
+              <Globe2 size={13} />
+            </div>
+            <div className="min-w-0">
             <div className="truncate text-[12px] font-semibold tracking-[0.01em] text-white/88">
               {resolvedTitle}
             </div>
@@ -455,7 +457,7 @@ export function WorkbenchBoundedWebResearchChrome({
             </div>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <ActionButton
             icon={ExternalLink}
             label="Open in Browser"
@@ -696,12 +698,45 @@ function ModePill({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-3 py-1 text-[10px] font-semibold transition-colors ${focusRingClass} ${
-        active ? 'bg-cyan-400/15 text-cyan-200' : 'text-white/48 hover:text-white/78'
+      className={`rounded-[8px] px-3 py-1 text-[10px] font-medium transition-colors ${focusRingClass} ${
+        active ? 'bg-cyan-400/15 text-cyan-200' : 'text-white/48 hover:bg-white/[0.04] hover:text-white/78'
       }`}
     >
       {label}
     </button>
+  );
+}
+
+function ToolbarIconButton({
+  icon: Icon,
+  label,
+  onClick,
+  disabled = false,
+  testId,
+}: {
+  icon: any;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  testId?: string;
+}) {
+  return (
+    <IconButton
+      label={label}
+      tooltip={label}
+      side="bottom"
+      focusRing="dark"
+      onClick={onClick}
+      disabled={disabled}
+      data-testid={testId}
+      className={`h-7 w-7 rounded-[8px] transition-colors ${
+        disabled
+          ? 'text-white/20'
+          : 'text-white/58 hover:bg-white/[0.05] hover:text-white/86'
+      }`}
+    >
+      <Icon size={13} strokeWidth={1.9} />
+    </IconButton>
   );
 }
 
@@ -722,8 +757,8 @@ function ActionButton({
 }) {
   const activeClass =
     tone === 'primary'
-      ? 'border-cyan-400/30 bg-cyan-400/10 text-cyan-100 hover:border-cyan-300/50 hover:bg-cyan-400/16'
-      : 'border-white/[0.08] text-white/72 hover:border-white/[0.16] hover:bg-white/[0.05]';
+      ? 'border-cyan-400/22 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/16'
+      : 'border-transparent text-white/62 hover:bg-white/[0.05] hover:text-white/84';
 
   return (
     <button
@@ -731,8 +766,8 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled}
       data-testid={testId}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-medium transition-colors ${focusRingClass} ${
-        disabled ? 'border-white/[0.05] text-white/25' : activeClass
+      className={`inline-flex items-center gap-1.5 rounded-[8px] border px-2.5 py-1.5 text-[10px] font-medium transition-colors ${focusRingClass} ${
+        disabled ? 'border-transparent text-white/22' : activeClass
       } disabled:cursor-not-allowed`}
     >
       <Icon size={11} strokeWidth={1.7} />
