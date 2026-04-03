@@ -14,7 +14,7 @@ import {
 import { useModal } from '../modals/ModalSystem';
 import { focusRing } from '../ui/focusRing';
 import { normalizeWorkbenchResearchUrl } from './workbenchBoundedResearch';
-import { useWorkbenchBrowserSurface } from './useWorkbenchBrowserSurface';
+import { WorkbenchBrowserLane } from './WorkbenchBrowserLane';
 import { useWorkbenchBoundedWebResearch } from './useWorkbenchBoundedWebResearch';
 import {
   goBackWorkbenchBrowserSurface,
@@ -45,6 +45,8 @@ export function WorkbenchBoundedWebResearchView({
   onRevealSavedFile,
   onResolvedTitle,
   onNavigateUrl,
+  browserSurface = null,
+  onBrowserSurfaceSuspendedChange,
 }: {
   rootPath: string;
   tabId: string;
@@ -60,6 +62,20 @@ export function WorkbenchBoundedWebResearchView({
   onRevealSavedFile?: (path: string) => void;
   onResolvedTitle?: (title: string) => void;
   onNavigateUrl?: (url: string) => boolean | void;
+  browserSurface?: {
+    hostRef: React.MutableRefObject<HTMLDivElement | null>;
+    browserSurfaceAvailable: boolean;
+    surfaceState: {
+      url?: string;
+      title?: string;
+      phase?: 'hidden' | 'loading' | 'ready' | 'error' | 'crashed' | 'disposed';
+      error?: string;
+      visible?: boolean;
+      canGoBack?: boolean;
+      canGoForward?: boolean;
+    };
+  } | null;
+  onBrowserSurfaceSuspendedChange?: (value: boolean) => void;
 }) {
   const modal = useModal();
   const linkedMarkdownMode = Boolean(linkedMarkdownPath);
@@ -146,6 +162,15 @@ export function WorkbenchBoundedWebResearchView({
   });
 
   React.useEffect(() => {
+    onBrowserSurfaceSuspendedChange?.(browserSurfaceSuspended);
+    return () => {
+      if (browserSurfaceSuspended) {
+        onBrowserSurfaceSuspendedChange?.(false);
+      }
+    };
+  }, [browserSurfaceSuspended, onBrowserSurfaceSuspendedChange]);
+
+  React.useEffect(() => {
     const nextTitle = String(preview?.title || '').trim();
     if (!nextTitle || nextTitle === lastResolvedPreviewTitleRef.current) {
       return;
@@ -171,30 +196,23 @@ export function WorkbenchBoundedWebResearchView({
     .filter(Boolean)
     .join(' · ');
   const canNavigate = !linkedMarkdownMode && typeof onNavigateUrl === 'function';
-  const browserSurface = useWorkbenchBrowserSurface({
-    tabId,
-    url: browserUrl,
-    visible: preferredMode === 'live' && !browserSurfaceSuspended,
-    navigationKey: liveFrameKey,
-    disposeOnUnmount: false,
-  });
   const liveSurfaceFailed =
-    browserSurface.surfaceState.phase === 'error' || browserSurface.surfaceState.phase === 'crashed';
+    browserSurface?.surfaceState.phase === 'error' || browserSurface?.surfaceState.phase === 'crashed';
 
   React.useEffect(() => {
-    const nativeTitle = String(browserSurface.surfaceState.title || '').trim();
+    const nativeTitle = String(browserSurface?.surfaceState.title || '').trim();
     if (!nativeTitle || nativeTitle === lastResolvedBrowserTitleRef.current) {
       return;
     }
     lastResolvedBrowserTitleRef.current = nativeTitle;
     onResolvedTitle?.(nativeTitle);
-  }, [browserSurface.surfaceState.title, onResolvedTitle]);
+  }, [browserSurface?.surfaceState.title, onResolvedTitle]);
 
   React.useEffect(() => {
     if (!canNavigate || typeof onNavigateUrl !== 'function') {
       return;
     }
-    const surfaceUrl = normalizeWorkbenchResearchUrl(browserSurface.surfaceState.url);
+    const surfaceUrl = normalizeWorkbenchResearchUrl(browserSurface?.surfaceState.url);
     if (!surfaceUrl || surfaceUrl === browserUrl) {
       lastForwardedBrowserSurfaceUrlRef.current = '';
       return;
@@ -207,7 +225,7 @@ export function WorkbenchBoundedWebResearchView({
     if (didNavigate === false) {
       lastForwardedBrowserSurfaceUrlRef.current = '';
     }
-  }, [browserSurface.surfaceState.url, browserUrl, canNavigate, onNavigateUrl]);
+  }, [browserSurface?.surfaceState.url, browserUrl, canNavigate, onNavigateUrl]);
 
   const handleLocationSubmit = React.useCallback(
     (event?: React.FormEvent) => {
@@ -240,14 +258,14 @@ export function WorkbenchBoundedWebResearchView({
               icon={ChevronLeft}
               label="Back"
               onClick={() => void goBackWorkbenchBrowserSurface({ tabId })}
-              disabled={!browserSurface.surfaceState.canGoBack}
+              disabled={!browserSurface?.surfaceState.canGoBack}
               testId="workbench-web-research-back"
             />
             <ActionButton
               icon={ChevronRight}
               label="Forward"
               onClick={() => void goForwardWorkbenchBrowserSurface({ tabId })}
-              disabled={!browserSurface.surfaceState.canGoForward}
+              disabled={!browserSurface?.surfaceState.canGoForward}
               testId="workbench-web-research-forward"
             />
             <ActionButton
@@ -384,7 +402,8 @@ export function WorkbenchBoundedWebResearchView({
         ) : null}
       </div>
 
-      {error && (preferredMode === 'reader' || liveSurfaceFailed || !browserSurface.browserSurfaceAvailable) ? (
+      {error &&
+      (preferredMode === 'reader' || liveSurfaceFailed || !browserSurface?.browserSurfaceAvailable) ? (
         <div className="border-b border-rose-500/15 bg-rose-500/8 px-4 py-2 text-[11px] text-rose-200">
           {error}
         </div>
@@ -392,97 +411,16 @@ export function WorkbenchBoundedWebResearchView({
 
       <div className="min-h-0 flex-1 overflow-hidden">
         {preferredMode === 'live' ? (
-          <div className="flex h-full flex-col">
-            {browserSurfaceSuspended ? (
-              <div className="flex h-full flex-col items-center justify-center gap-4 bg-white px-8 text-center text-slate-700">
-                <div className="max-w-lg space-y-2">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    View Paused
-                  </div>
-                  <div className="text-sm font-medium text-slate-900">
-                    Browser view is temporarily hidden while Agency finishes the current action.
-                  </div>
-                </div>
-              </div>
-            ) : !browserSurface.browserSurfaceAvailable ? (
-              <div className="flex h-full flex-col items-center justify-center gap-4 bg-white px-8 text-center text-slate-700">
-                <div className="max-w-lg space-y-2">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    Browser Surface Unavailable
-                  </div>
-                  <div className="text-sm font-medium text-slate-900">
-                    This build does not currently expose the native browser host.
-                  </div>
-                  <div className="text-sm text-slate-600">
-                    Use Reader or open the page in the system browser until the browser surface is available.
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPreferredMode('reader')}
-                    className={`rounded-full border border-slate-300 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-100 ${focusRingClass}`}
-                  >
-                    Open Reader
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void openInBrowser()}
-                    className={`rounded-full border border-slate-300 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-100 ${focusRingClass}`}
-                  >
-                    Open in Browser
-                  </button>
-                </div>
-              </div>
-            ) : liveSurfaceFailed ? (
-              <div className="flex h-full flex-col items-center justify-center gap-4 bg-white px-8 text-center text-slate-700">
-                <div className="max-w-lg space-y-2">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    View Failed
-                  </div>
-                  <div className="text-sm font-medium text-slate-900">
-                    The native browser surface could not load this page.
-                  </div>
-                  <div className="text-sm text-slate-600">
-                    {browserSurface.surfaceState.error ||
-                      'Switch to Reader, open it in the system browser, or try another URL.'}
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPreferredMode('live');
-                      void reload();
-                    }}
-                    className={`rounded-full border border-slate-300 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-100 ${focusRingClass}`}
-                  >
-                    Retry View
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void openInBrowser()}
-                    className={`rounded-full border border-slate-300 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-100 ${focusRingClass}`}
-                  >
-                    Open in Browser
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="relative min-h-0 flex-1 bg-white">
-                <div
-                  ref={browserSurface.hostRef}
-                  data-testid="workbench-browser-surface-host"
-                  className="absolute inset-0"
-                />
-                {browserSurface.surfaceState.phase === 'loading' ? (
-                  <div className="pointer-events-none absolute right-3 top-3 rounded-full border border-black/10 bg-white/88 px-2.5 py-1 text-[10px] font-medium text-slate-600 shadow-sm">
-                    Loading page
-                  </div>
-                ) : null}
-              </div>
-            )}
-          </div>
+          <WorkbenchBrowserLane
+            browserSurface={browserSurface || null}
+            suspended={browserSurfaceSuspended}
+            onOpenReader={() => setPreferredMode('reader')}
+            onOpenInBrowser={() => void openInBrowser()}
+            onReload={() => {
+              setPreferredMode('live');
+              void reload();
+            }}
+          />
         ) : (
           <div className="flex h-full min-h-0 flex-col overflow-y-auto px-4 py-4">
             <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
