@@ -925,6 +925,7 @@ The feature SHALL NOT behave as a general-purpose browser replacement.
 ### Requirement: Workbench Browser-Surface View
 The Workbench SHALL host bounded web research `View` as a true browser surface rather than a renderer iframe.
 The browser surface SHALL stay owned by the active bounded web research tab and SHALL keep the same bounded public-URL policy as Explorer intake.
+Workbench layout SHALL own the browser-lane geometry as a bounded split primitive rather than letting a tab-local content fragment act as the authoritative native-host placement source.
 
 #### Scenario: Browser-denied sites still render in View
 - **WHEN** a bounded web research tab enters `View`
@@ -935,6 +936,11 @@ The browser surface SHALL stay owned by the active bounded web research tab and 
 - **WHEN** a user clicks a link or the page redirects to another public `http/https` URL inside `View`
 - **THEN** the browser surface stays inside the same bounded research tab
 - **AND** the tab URL/title update so `Reader`, `Save Markdown`, and `Cite` still refer to the current research object
+
+#### Scenario: Browser lane respects shell and sibling layout
+- **WHEN** a bounded web research tab is visible while sidebar, attention rail, HIL drawer, or adjacent Workbench content changes layout
+- **THEN** the browser surface reuses a Workbench-owned browser lane or split slot instead of measuring an arbitrary nested tab-local host node
+- **AND** the native browser content stays aligned with the same pane economy as the rest of the shell
 
 #### Scenario: Basic browser controls stay first-class inside the bounded host
 - **WHEN** a bounded web research tab is active in `View`
