@@ -1,6 +1,7 @@
 import type { Rectangle, WebPreferences } from 'electron';
 
 import { normalizeSupportedPublicUrl } from '../../shared/publicUrl';
+import { logRuntime } from './runtimeLog';
 
 const { BrowserWindow: ElectronBrowserWindow, WebContentsView: ElectronWebContentsView } =
   require('electron') as typeof import('electron');
@@ -256,6 +257,42 @@ function createWorkbenchBrowserSurfaceService(deps: BrowserSurfaceDependencies) 
     record.listeners.length = 0;
   }
 
+  function loadBrowserSurfaceUrl(record: BrowserSurfaceRecord, nextUrl: string) {
+    record.url = nextUrl;
+    record.error = '';
+    record.phase = 'loading';
+    const loadTask = record.view.webContents.loadURL(nextUrl);
+    if (loadTask && typeof (loadTask as Promise<unknown>).catch === 'function') {
+      void (loadTask as Promise<unknown>).catch((error: any) => {
+        const message = error?.message || String(error);
+        publishRecord(record, {
+          phase: 'error',
+          error: message,
+        });
+        void logRuntime('error', 'browser surface loadURL failed', {
+          windowId: record.windowId,
+          tabId: record.tabId,
+          url: nextUrl,
+          error: message,
+        });
+      });
+      return;
+    }
+    void Promise.resolve(loadTask).catch((error: any) => {
+      const message = error?.message || String(error);
+      publishRecord(record, {
+        phase: 'error',
+        error: message,
+      });
+      void logRuntime('error', 'browser surface loadURL failed', {
+        windowId: record.windowId,
+        tabId: record.tabId,
+        url: nextUrl,
+        error: message,
+      });
+    });
+  }
+
   function detachView(record: BrowserSurfaceRecord) {
     if (record.parentView) {
       record.parentView.removeChildView(record.view);
@@ -483,11 +520,8 @@ function createWorkbenchBrowserSurfaceService(deps: BrowserSurfaceDependencies) 
     const nextUrl = normalizeBrowserSurfaceUrl(payload?.url);
     const navigationKey = normalizeBrowserSurfaceNavigationKey(payload?.navigationKey);
     if (nextUrl && (record.url !== nextUrl || record.navigationKey !== navigationKey)) {
-      record.url = nextUrl;
       record.navigationKey = navigationKey;
-      record.error = '';
-      record.phase = 'loading';
-      void record.view.webContents.loadURL(nextUrl);
+      loadBrowserSurfaceUrl(record, nextUrl);
     }
 
     return buildState(record);
@@ -571,11 +605,8 @@ function createWorkbenchBrowserSurfaceService(deps: BrowserSurfaceDependencies) 
       return buildState(record);
     }
 
-    record.url = nextUrl;
     record.navigationKey = navigationKey;
-    record.error = '';
-    record.phase = 'loading';
-    void record.view.webContents.loadURL(nextUrl);
+    loadBrowserSurfaceUrl(record, nextUrl);
     return buildState(record);
   }
 

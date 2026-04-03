@@ -289,6 +289,7 @@ function useWorkbenchBoundedWebResearchSceneModel({
     setLocationDraft,
     locationError,
     setLocationError,
+    navigatingDraft,
     browserSurfaceSuspended,
     note,
     setNote,
