@@ -173,11 +173,15 @@ Session Map 的类 RTS 游戏操作界面设计：它是一个跨界面、始终
 ## 视觉与语义
  - **Cell = 城邦 / 阵营**：以“阵营色 + 城邦卡片 + 角色头像”表示；默认色基于 `Cell.state` + 创建顺序。
 - **Session = 角色**：以圆形角色 token + 状态点表示（active/detached/closed/stale）。Session 可携带专属头像，优先展示 `session.avatar`，缺省则回退到 Cell 头像或基于 session id 计算。
-- **离线状态**：Session 为 `closed / stale / archived` 或 Cell 为 `archived / closed` 时标记为离线。
-- **Detached Cell cleanup**：当 Cell 丢失 live worktree attachment 且 lifecycle state 还不是 `archived` 时，Agent Cells sidebar 不再把它当作普通开发中 Cell + session tree 渲染，而是移动到独立的 `Needs Cleanup` 区。这个区表达的是 attachment triage，而 cleanup card 主动显式展现 `Cleanup Recommended` 的标题、副标题、evidence 提示与 session 摘要，强调 `missing`（记录中的 worktree 已不存在）与 `detached`（Cell 已与仍可辨认的 worktree 脱离绑定）文案的差异。该卡片主动作是 `Archive Cell`，负责把 Cell 从 active flow 收束出去。更高破坏性的 `Delete Cell` / attachment metadata 清理仍留在选中后的 details pane，不塞进 sidebar triage。
-- **Lifecycle rail craft**：`Needs Cleanup` 与 `Archived` 应该表现为同一条紧凑 lifecycle rail，而不是两种各自膨胀的大卡片系统。实现上优先使用单层 shell、轻量计数 header、明确主动作和低噪声 metadata；避免 card-within-card、重复 boxed chrome、以及为了“说明状态”而堆出额外空白。
-- **Lifecycle rail visual language**：lifecycle card 应优先使用面性 shell 而不是高存在感 outline。推荐做法是低对比 filled background + 轻内部分隔 + 克制的状态 chips；selected 态用整体 surface 提亮和阴影质量表达，不要再靠粗边框或彩色外描边把卡片圈出来。
-- **Archived lifecycle surface**：`Archived` 是独立 lifecycle view，而不是 cleanup 余项。当 Cell 进入 `archived` 状态后，它必须离开 `Needs Cleanup` / active buckets，并通过明确的 `View Archived` 入口进入归档区。若该 Cell 同时缺失 live worktree attachment，可以在 archived card 内表达 offline copy，但主语义仍然是 archived lifecycle；主 affordance 应偏向 `View Details`，并明确说明 evidence retained / session summary 仍可访问。
+- **离线状态**：Session 为 `closed / stale / archived` 时标记为离线；Cell 的默认 core 分组不再由 lifecycle state 决定，而由 tracking + attachment state 决定。
+- **Tracked / Detached / Unmanaged grammar**：Agent Cells 默认用三类 workspace 管理分组：
+  - `Tracked Workspaces`：有 live worktree attachment 的 Cells；
+  - `Detached Cells`：Cell 记录仍在，但 attachment 为 `detached / missing`；
+  - `Unmanaged Worktrees`：repo 中 live worktree 存在，但尚未绑定 Cell。
+- **Detached Cell surface**：当 Cell 丢失 live worktree attachment 时，默认不再进入 lifecycle cleanup rail；它应进入 `Detached Cells` 区，以 attachment-management copy 展示 `missing` vs `detached` 差异，同时保留 `View Details`、session 摘要和 evidence 访问。
+- **Unmanaged Worktree surface**：live git worktree 若未绑定 Cell，应被明确提示并支持 `Create Cell`、可用时的 `Reattach <Cell>` 建议，以及 `Ignore For Now`。ignore 是 user-local 的噪声控制，不是 repo policy。
+- **Legacy archived compatibility**：旧记录中的 `archived` 仍可作为兼容信息显示在 `Legacy Archived` 区，但它不应重新主导默认 core workspace rail。
+- **Workspace rail craft**：tracked/detached/unmanaged 区应保持同一套紧凑、面性、低噪声的 shell 语言；避免 card-within-card、重复 boxed chrome 或者为了“解释状态”堆出第二套 dashboard。
 - **Sessionless Cell**：Cell 允许零 session 存在。窗口启动、Cell 恢复、或 attached worktree 被重新看见时，都不应自动补一个 `Default` session；只有用户显式进入 runtime（例如 `Create Session` / 进入空 terminal 态后确认创建）时，才 materialize 新的 execution lane。
 - **Create vs Bind**：`Create Cell` 内部需要区分三种语义：Agency 新建 branch、绑定已有 worktree、绑定已有 branch。只有第一种受 branch strategy / naming 约束；后两种必须保留用户已有 branch identity，不把绑定流程伪装成新建流程。
 - **Hover 预览**：以“缩略图为主 + 一行毛玻璃信息条”为主视觉；缩略图按当前 session 字号与 tmux pane cols/rows 渲染，**高度随 rows 自适应**，上限固定为宽高比约 1.618；内容贴底显示，不强行裁切。hover 时淡至 85% 不透明度且可滚动查看。
@@ -240,12 +244,12 @@ cellColors:
 - `attachGcEnabled`: 是否启用 idle-based attach GC（默认 true）。
 - `attachGcIdleMinutes`: idle 到自动 detach 的分钟数（默认 30）。
 - `attachGcGraceSeconds`: attach 噪声忽略窗口（默认 60 秒）。
-- `typeColors`: 以 Cell 状态（如 `draft/active/archived`）覆盖阵营色。
+- `typeColors`: 旧状态色仍可作为兼容信息存在，但默认 core grouping 不再依赖 `draft/active/archived`。
 - `cellColors`: 以 Cell id 覆盖单个阵营色（优先级最高）。
 
 ## Manual Verification
-1. 移除或 detach 一个非 `archived` 的 Cell worktree，确认 Agent Cells 将其移到 `Needs Cleanup` 区，cleanup card 显示 `Cleanup Recommended` 题头、preserved-evidence 提示与 session 摘要，且不再按普通 session tree 渲染；`missing` 与 `detached` 的文案应有所区分。
-2. 从该 cleanup card 执行 `Archive Cell` 并完成确认，确认该 Cell 离开 `Needs Cleanup`，改为通过 `View Archived` 进入 `Archived` 区；此时主动作变为 `View Details`（而不是继续显示 `Archive Cell`），卡片同时展示 `Archived` badge，repo-owned sessions/evidence 仍可从 details 访问。
+1. 移除或 detach 一个 tracked Cell worktree，确认 Agent Cells 将其移到 `Detached Cells` 区，而不是 lifecycle cleanup rail；`missing` 与 `detached` 的 attachment 文案应有所区分。
+2. 在同一 repo 中保留一个未被 Cell 跟踪的 live worktree，确认 Agent Cells 在 `Unmanaged Worktrees` 区显示它，并提供 `Create Cell`；如果存在 deterministic detached-cell match，则同时显示 `Reattach <Cell>` 建议。
 3. 打开一个 session，记录 idle 显示时间。
 4. 切换到其他 session，再切回；若输出没有变化，idle 不应被刷新。
 5. 在当前 session 输出少量文本（低于阈值，例如 `echo ok`），idle 不应刷新。

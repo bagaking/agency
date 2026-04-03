@@ -13,7 +13,8 @@
 
 - Canonical domain objects are `App -> Window -> Project -> Cell -> Session -> Run`.
 - `Agent Cells`, `Explorer`, `Workbench`, `Session Map`, `Hierarchy`, `Memo`, and `Commander` are product surfaces over those objects, not competing object roots.
-- `Create Cell` means worktree-bound workspace creation.
+- Core workspace management is worktree-first: live repo worktrees may exist without a Cell until the user explicitly chooses to track or bind them.
+- `Create Cell` means tracking a workspace context over a new or existing worktree, not starting a lifecycle ceremony.
 - `Create Agent` means bounded child execution owned by a host run.
 - `Fork` is a specialized `Create Agent` strategy, not the baseline workspace or execution noun.
 - `Commander` is one bounded operator capability; in Session Map, `Ops` is the evidence rail and `Briefing` is the reveal panel in the same station.
@@ -23,11 +24,11 @@
 
 - The activity bar includes Explorer and Hierarchy entries; the home logo returns to Agent Cells.
 - The custom title bar shows the current project name, exposes `Open/Switch Project`, and uses the app icon as a window switcher / new-window launcher.
-- Settings provides a lightweight dashboard with project summary, recent projects, and entry cards for Actions, Gates, and Softlinks.
+- Settings provides a lightweight dashboard with project summary, recent projects, and entry cards for core runtime/configuration capabilities such as Actions, Harness Providers, App Shortcuts, Reply Quick Prompts, and Softlinks.
 - The docked sidebar supports resize/collapse and persists width state across launches; collapse/expand is owned by the shell-level Activity Bar control rather than per-surface edge handles.
-- Agent Cells focuses on Cell management and offers jump links to Actions, Gates, and Softlinks.
+- Agent Cells focuses on tracked workspaces, detached Cells, unmanaged worktrees, and jump links to core configuration.
 - Agent Cells sidebar now includes an Explorer panel (Cell/Session scope + Flat/Tree views) for quick file open/reveal navigation.
-- Hierarchy hosts capability-first configuration for Actions, App Shortcuts, Reply Quick Prompts, Session Naming, Gates, Harness Providers, and Softlinks.
+- Hierarchy hosts capability-first configuration for Actions, App Shortcuts, Reply Quick Prompts, Session Naming, Harness Providers, and Softlinks.
 - Scoped capability pages use a persistent page-level scope selector (Global / Project / Agent) so Project scope remains editable even when no Cell is selected while Agent scope stays tied to the selected Cell.
 - Each scoped capability remembers its own last selected scope when you return to that same page; scope is not shared globally across all Hierarchy capabilities.
 - Harness Providers stays global-only, and Softlinks stays repo-level without the Global / Project / Agent selector.
@@ -131,16 +132,16 @@
 - After a capture is confirmed and saved, the main Memo panel switches to the corresponding inbox section.
 - Shortcut cards include Flash, Excerpt, and Screenshot captures.
 
-## Cell Lifecycle Files
+## Cell Records
 
-- Each worktree contains `.agency/cell-<worktree-name>.yaml`.
-- The editor reads and updates lifecycle state through this file.
-- Validation is minimal (temporary) and surfaces warnings only.
+- Tracked Cells are repo-owned records under `.agency/cells/<cell-id>/cell.yaml`.
+- A Cell may keep a live worktree attachment, become detached/missing, or be rebound later without losing Cell-owned session/config artifacts.
+- The base core does not require OpenSpec/SPEC files or default lifecycle-stage transitions to track or use worktrees.
 
 ## Session Keepalive (tmux)
 
 - tmux is required; session creation is blocked if tmux is missing.
-- Each worktree stores a session registry at `.agency/sessions-<worktree-name>.yaml`.
+- Each tracked Cell stores a session registry at `.agency/cells/<cell-id>/sessions.yaml`.
 - Each Cell can have multiple sessions; stale sessions are flagged when tmux is missing or detached.
 - Sessions render as a tree under each Cell in Agent Cells; rows support reorder/reparent drag-and-drop and root-level promotion.
 - Session nodes persist topology metadata (`parentSessionId`, `order`, `nodeKind`) to prepare for future fork/sub-terminal flows.
@@ -160,6 +161,11 @@
 - `Priority Queue` stays summary-first in that shell rail; long errors and timeline payloads belong in the Session Map `Ops` evidence area instead of expanding queue rows into log cards.
 - `Unread` is reserved for meaningful post-visit output; transient blur, attach replay, or silent refresh noise should not flip a session into `Unread` immediately.
 - Agent Cells keeps attention inline on Cell and Session affordances instead of inserting a separate attention queue above the management list.
+- Agent Cells routes the default workspace view through:
+  - `Tracked Workspaces`
+  - `Detached Cells`
+  - `Unmanaged Worktrees`
+- `Legacy Archived` remains a compatibility surface for older records, not the default core workspace rail.
 - The window switcher surfaces each window's primary attention summary so multi-window urgency is visible before you manually scan that window.
 - Terminus profiles can define optional `fork` settings (`enabled`, `driver`, `launchTemplate`, and timeout knobs) so tool-specific fork behavior stays declarative at the profile layer instead of being hard-coded in renderer UI.
 - Detached sessions remain available from the overflow menu unless currently active; closed sessions can be restarted.
@@ -187,7 +193,7 @@
 
 - App Shortcuts are configured under Hierarchy -> App Shortcuts.
 - The App Shortcuts page uses the same capability-first layout and page-level scope selector (Global / Project / Agent) as other scoped Hierarchy settings.
-- The App Shortcuts page remembers its own last selected scope independently from Actions, Replies, Naming, and Gates.
+- The App Shortcuts page remembers its own last selected scope independently from other core Hierarchy capabilities.
 - Project scope edits remain available with an open project even when no Cell is selected.
 - Agent scope edits remain tied to the selected Cell and persist under `.agency/cells/<cell-id>/app-shortcuts.yaml`.
 - App shortcut definitions remain a fixed action list that users configure rather than add/remove freely.
@@ -208,24 +214,17 @@
 ## Session Naming
 
 - Session Naming is configured under Hierarchy -> Session Naming.
-- The Session Naming page follows the same scoped capability pattern (Global / Project / Agent) as Actions, App Shortcuts, Reply Quick Prompts, and Gates.
+- The Session Naming page follows the same scoped capability pattern (Global / Project / Agent) as Actions, App Shortcuts, and Reply Quick Prompts.
 - The Session Naming page remembers its own last selected scope independently from other scoped Hierarchy capabilities.
 - Project scope edits remain available with an open project even when no Cell is selected.
 - Agent scope edits remain tied to the selected Cell and persist under `.agency/cells/<cell-id>/session-naming.yaml`.
 - Naming previews continue to show the resolved output so users can inspect the merged behavior while editing one scope at a time.
 
-## Gates
+## Optional Workflow Suites
 
-- Gates are configured under Hierarchy -> Gates.
-- The Gates page follows the capability-first layout and page-level scope selector (Global / Project / Agent) so the project scope stays editable even when no Cell is selected and Agent scope remains tied to the selected Cell.
-- The Gates page remembers its own last selected scope independently from other scoped Hierarchy capabilities.
-- Gate definitions are grouped by stage: `draft`, `active`, and `archived`.
-- Global gates live in the editor user data directory as `gates.yaml`.
-- Project gates live at `.agency/gates.yaml` in the repo root.
-- Agent gates live at `.agency/cells/<cell-id>/gates.yaml`.
-- Gates resolve by scope order: Global -> Project -> Agent, matching by `id`.
-- Gate commands run line-by-line via `/bin/zsh -lc` from the repo root; empty/comment lines are skipped and failures block transitions to Active/Archived.
-- Gate commands receive context in `AGENCY_CELL_NAME`, `AGENCY_WORKTREE_PATH`, and `AGENCY_LIFECYCLE_TARGET`.
+- The base core product does not surface Gates as a mandatory default capability.
+- Gate/SPEC/workflow behavior is treated as optional advanced overlay logic rather than the default worktree/session management path.
+- Internal seams may still exist for advanced delivery and future suite integration, but repositories without OpenSpec or similar systems should still be fully usable in the base product.
 
 ## Softlinks (Local Directories)
 
@@ -428,7 +427,6 @@ make editor-package-lite-release
 - Switch away from a session and back without meaningful new output, and confirm it does not immediately become `Unread` just because of transient blur, attach replay, or silent refresh noise.
 - Trigger `Smart Fork [by commander]` or another `Create Agent` run and confirm Agent Cells keeps the list primary while exposing inline `Running`, the status bar shows `Running`, the shell right-side rail owns the queue-style triage path, and Session Map `Ops` stays focused on evidence.
 - Trigger a failed child-execution run and confirm Agent Cells inline markers, the shell right-side `Priority Queue`, and the status bar all surface the same `Failed` attention without introducing a separate Agent Cells queue card.
-- Trigger a pending lifecycle confirmation and confirm the status bar `Next` label stays `Confirm`, while its tooltip expands that same canonical state into a full sentence and explains that activation will open `Session Map`.
 - Finish a child-execution run that creates a child session, hover `Next`, and confirm the visible label stays `Review` while the tooltip expands that same canonical state and explains that activation will jump back to the child session.
 - Hover or focus `Next` for `Unread`, `Running`, `Failed`, and cross-window attention cases, and confirm the tooltip keeps the shared state vocabulary in view while also naming the real destination instead of collapsing into destination-only copy.
 - Trigger a `Running` or `Failed` item that opens evidence rather than a direct session jump, hover `Next`, and confirm the tooltip explicitly says `Open evidence in Session Map`.
@@ -437,8 +435,7 @@ make editor-package-lite-release
 - Add a quick action with both commands and verify start/resume run in the active session.
 - Switch to Project or Agent actions, confirm inherited actions are read-only, and verify Override/Reset behavior.
 - Configure reply quick prompts across multiple scopes, confirm resolved source badges in Hierarchy, and insert one from `快捷回复如何` in Session Reply composer.
-- Open Hierarchy -> Gates, add a failing gate command for Active, and confirm the Active transition is blocked until the gate passes.
-- From Agent Cells, use the jump links to open Actions, Gates, and Softlinks views.
+- From Agent Cells, use the jump links to open Actions and Softlinks views.
 - Run a start action and verify a new session is created and selected before the command runs.
 - Launch a TUI tool (e.g., `codex`), resize the window, and confirm the terminal does not switch to 1-column output.
 - Confirm a new log file appears under `logs/runtime` and resize warnings are logged when applicable.

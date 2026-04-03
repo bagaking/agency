@@ -89,6 +89,7 @@ Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeSc
 - Session-source delivery must reference reply artifacts as `system=reply`; do not backdoor reply provenance through HIL refs.
 - `Memo` is the primary user-facing noun for the artifact workspace; treat `HIL` as an internal/storage term and do not surface mixed labels like “Neural Comments” / “HIL Repository” for the same artifact family.
 - `Create Cell` is the worktree-bound workspace action.
+- Core workspace management is worktree-first: live repo worktrees may exist without a Cell, and Agency should discover/adopt/manage them explicitly instead of assuming every worktree is already Cell-owned.
 - Branch naming/prefix rules apply only when Agency creates a new branch; binding an existing branch or worktree must preserve the user-chosen branch identity instead of forcing it through create-time naming rules.
 - `Create Agent` is the bounded child-execution action owned by a run.
 - `Fork` is a specialized `Create Agent` strategy, not the default noun for workspace creation or child execution.
@@ -99,7 +100,11 @@ Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeSc
 - In Session Map, `Ops` is the persistent evidence rail for the focused session/run, not the window-level queue surface.
 - Agent Cells may only surface inline/local attention on owning Cell / Session affordances, and shell chrome stays compact.
 - A Cell may exist with zero sessions; renderer/bootstrap must not auto-materialize a `Default` session just because a Cell is selected or attached. Session creation belongs to explicit runtime entry.
-- `Needs Cleanup` is attachment-state triage, not a lifecycle state: when a non-archived Cell loses its live worktree attachment, Agent Cells sidebar must switch that Cell into cleanup-first projection instead of treating it like a normal development card, and the cleanup card should render a `Cleanup Recommended` eyebrow while still surfacing the evidence-preserving `Archive Cell` CTA.
-- Cleanup and archived lifecycle surfaces should read as a compact rail rather than stacked dashboard cards: avoid nested card-within-card scaffolding, duplicate box chrome, or oversized dead space when a single shell plus clear action grammar communicates the state.
-- `Archived` is a first-class lifecycle surface: once a Cell enters lifecycle state `archived`, it must leave active/cleanup buckets and become reachable through an explicit `View Archived` affordance; detached archived Cells may present offline copy, but archive is still a lifecycle surface rather than a cleanup afterthought. `Archive Cell` is only the cleanup-triage CTA, while archived cards bias toward `View Details`, surface an `Archived` badge, and keep `Delete Cell` plus attachment-metadata cleanup in the selected Cell details pane.
+- Default Agent Cells routing is attachment/tracking-first:
+  - tracked workspaces with live worktree attachments;
+  - detached or missing Cells whose sessions/evidence remain accessible;
+  - unmanaged live worktrees that can be adopted into Cells explicitly.
+- Detached/missing Cells are attachment-management surfaces, not default lifecycle-cleanup rails. Prefer `reattach`, `view details`, and `remove record` semantics over `archive this to finish the lifecycle`.
+- Legacy lifecycle metadata such as `archived` may be shown as compatibility information, but it must not re-take ownership of the default core workspace grammar.
+- Gate / SPEC / workflow ceremony belongs to optional suites layered over core workspace management. Do not present Gate configuration or spec-check assumptions as mandatory default product affordances in the base core path.
 - Do not model `Commander` as a window-global assistant or reuse HIL/Reply drawer semantics for it.

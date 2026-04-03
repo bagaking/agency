@@ -150,8 +150,8 @@ This keeps the “Turn” concept flexible (not locked to OpenSpec) while still 
 
 ## Implementation (Current)
 
-- Location: **Agent Cells** view header (next to the Gates status pill).
-- Create Cell modal offers a `Create a Gate Create Action Sheet (start a Turn)` option (enabled by default), so a newly created Cell can immediately enter the Gate Create loop.
+- Location: this flow should be treated as an optional workflow-suite affordance rather than a default core workspace control.
+- The base `Create Cell` modal should stay focused on worktree management; it should not default to starting Turn tooling as part of the core path.
 - **Gate Create**:
   - creates an Action Sheet template that prompts for Turn exit criteria + gate/check authoring;
   - includes pointers to project/agent gate config paths;
@@ -163,5 +163,5 @@ This keeps the “Turn” concept flexible (not locked to OpenSpec) while still 
   - opens **Action Sheets** view with the new sheet selected.
 
 Notes:
-- Lifecycle gates still remain the hard enforcement mechanism for transitions to Active/Archived.
+- If a workflow suite is enabled, lifecycle gates remain its hard enforcement mechanism for stage transitions.
 - The Action Sheet creation path always appends a completion-marker check (plan.md checkbox) so it can be completed deterministically.

@@ -13,18 +13,19 @@
 
 ## Cells
 - [ ] Create a new Cell with a branch type + name and confirm the worktree directory is created.
-- [ ] Reuse an existing worktree and confirm lifecycle file creation.
-- [ ] Change lifecycle state and confirm the `.agency` file updates.
-- [ ] Remove or detach a non-archived Cell worktree, reopen Agent Cells, and confirm that Cell moves into a `Needs Cleanup` section whose cleanup card surfaces the "Cleanup Recommended" headline instead of rendering as a normal session-tree card.
-- [ ] In `Needs Cleanup`, confirm `missing` and `detached` Cells use different explanatory copy, and the card shows both an evidence-retained hint and a session summary.
-- [ ] From the cleanup card, trigger `Archive Cell` and confirm the attachment-aware lifecycle confirmation explains that repo-owned sessions/evidence remain available.
-- [ ] Complete that archive transition and confirm the Cell leaves `Needs Cleanup`, becomes reachable through `View Archived`, surfaces the `Archived` badge, and switches from the cleanup CTA to archived `View Details` affordances while keeping repo-owned sessions/evidence accessible.
-- [ ] Archive an attached finished Cell and confirm it also appears under `View Archived` instead of remaining in the active Agent Cells list.
+- [ ] Reuse an existing worktree and confirm a repo-owned Cell record is created under `.agency/cells/<cell-id>/cell.yaml`.
+- [ ] Open Agent Cells in a repo that already has an unmanaged live worktree and confirm it appears under `Unmanaged Worktrees` instead of being auto-converted into a tracked Cell.
+- [ ] From `Unmanaged Worktrees`, choose `Create Cell` and confirm the worktree becomes a tracked workspace without renaming its branch.
+- [ ] For an unmanaged worktree with a deterministic detached-cell suggestion, confirm the row offers `Reattach <Cell Name>` and opens a reattach flow instead of forcing duplicate Cell creation.
+- [ ] Use `Ignore For Now` on an unmanaged worktree and confirm it leaves the visible unmanaged list; then use `Reset ignored` and confirm it becomes visible again.
+- [ ] Remove or detach a tracked Cell worktree, reopen Agent Cells, and confirm that Cell moves into `Detached Cells` rather than a lifecycle cleanup rail.
+- [ ] In `Detached Cells`, confirm `missing` and `detached` Cells use different attachment copy, keep session/evidence counts visible, and route the primary action to `View Details`.
+- [ ] Open a legacy archived record and confirm it appears only under `Legacy Archived`, with low-emphasis compatibility treatment rather than re-taking ownership of the default workspace rail.
 - [ ] Restart with an attached Cell whose session registry is empty and confirm the window does not auto-create a `Default` session.
 - [ ] In the empty terminal state for such a Cell, click `Create Session` and confirm a session is created only at that explicit step.
-- [ ] Open `Create Cell` and confirm `Create New Branch`, `Bind Existing Worktree`, and `Bind Existing Branch` are separate modes.
+- [ ] Open `Create Cell` and confirm `Create Branch Worktree`, `Track Existing Worktree`, and `Track Existing Branch` are separate modes.
 - [ ] In `Create New Branch`, choose `main` as the base branch even when the current/default startup branch differs, create a Cell, and confirm the new branch is based on `main`.
-- [ ] In `Bind Existing Branch`, select a user-created branch that does not follow the Agency naming prefix rules and confirm the Cell binds to that branch without renaming it.
+- [ ] In `Track Existing Branch`, select a user-created branch that does not follow the Agency naming prefix rules and confirm the Cell binds to that branch without renaming it.
 
 ## Explorer
 - [ ] Enter a public URL into Explorer search and confirm a compact `Open Web` affordance appears without forcing an immediate mode switch.
@@ -94,12 +95,12 @@
 
 ## Hierarchy
 - [ ] Open Hierarchy -> Actions and confirm the capability-first layout with a page-level scope selector (Global / Project / Agent); project scope remains editable without a selected Cell while Agent scope stays disabled until a Cell is selected.
-- [ ] Open Hierarchy -> App Shortcuts and Session Naming and confirm both pages use the same page-level scope selector contract as Actions/Replies/Gates rather than falling back to a bespoke local layout.
+- [ ] Open Hierarchy -> App Shortcuts and Session Naming and confirm both pages use the same page-level scope selector contract as Actions/Replies rather than falling back to a bespoke local layout.
 - [ ] While in Project scope, update a Terminus profile/binding on Actions or a prompt on Reply Quick Prompts and save, then verify `.agency/terminus-settings.yaml` or `.agency/reply-quick-prompts.yaml` at the repo root reflects the change even though no Cell is selected.
 - [ ] While in Project scope, update an app shortcut or session naming rule and save, then verify `.agency/app-shortcuts.yaml` or `.agency/session-naming.yaml` at the repo root reflects the change even though no Cell is selected.
 - [ ] Select a Cell, switch to Agent scope on a capability page (e.g., Actions or Reply Quick Prompts), make an edit, save, and verify the change is persisted under `.agency/cells/<cell-id>/terminus-settings.yaml` or `.agency/cells/<cell-id>/reply-quick-prompts.yaml`.
 - [ ] With a selected Cell, edit Agent-scoped App Shortcuts or Session Naming, save, then verify the change persists under `.agency/cells/<cell-id>/app-shortcuts.yaml` or `.agency/cells/<cell-id>/session-naming.yaml`.
-- [ ] Select Project scope on Actions, switch away, then return to Actions and confirm that page restores Project scope; repeat with a different scope on App Shortcuts or Gates and confirm each capability remembers its own last scope independently.
+- [ ] Select Project scope on Actions, switch away, then return to Actions and confirm that page restores Project scope; repeat with a different scope on App Shortcuts or Session Naming and confirm each capability remembers its own last scope independently.
 - [ ] With no Cell selected, attempt to choose Agent scope on a capability page and confirm the UI keeps the scope disabled and prompts to select a Cell before edits are allowed.
 - [ ] Remove or detach a Cell worktree after saving Agent-scoped Hierarchy settings, reopen Hierarchy for the same project/Cell context, and confirm Project scope still resolves from repo-root `.agency/` while Agent scope still targets `.agency/cells/<cell-id>/...` rather than disappearing with the old worktree.
 
@@ -109,11 +110,6 @@
 - [ ] Add a link for `.codex`, save, and link it into the selected Cell.
 - [ ] Enable auto-link, create a new Cell, and verify links are created in the worktree.
 
-## Gates
-- [ ] Open Hierarchy -> Gates and add a failing Active gate.
-- [ ] Attempt to switch a Cell to Active and confirm the transition is blocked until the gate passes.
-
 ## Validation
-- [ ] Remove the spec folder and confirm warnings appear (temporary validation).
-- [ ] Restore spec folder and confirm warnings clear after refresh.
+- [ ] Open a repository with no `openspec/` directory and confirm worktree discovery, Cell creation/binding, and session startup still work without core spec-missing warnings.
 - [ ] Run a pure Node smoke with `pnpm -C apps/editor run main-agent-harness:cli -- --action list --json '{"limit":5}'` and confirm the wrapper returns structured JSON without requiring an Electron renderer window.
