@@ -40,12 +40,12 @@ export function useHierarchyNavigation({
   setActionsScope,
   setAppShortcutsScope,
   setReplyQuickPromptsScope,
-  setGateScope,
+  setGateScope: _setGateScope,
   setSessionNamingScope,
   actionsScope,
   appShortcutsScope,
   replyQuickPromptsScope,
-  gateScope,
+  gateScope: _gateScope,
   sessionNamingScope,
   canUseProjectScope,
   canUseAgentScope,
@@ -53,7 +53,7 @@ export function useHierarchyNavigation({
   clearHarnessProvidersError,
   clearAppShortcutsError,
   clearReplyQuickPromptsError,
-  clearGatesError,
+  clearGatesError: _clearGatesError,
   clearSessionNamingError,
   clearWorktreeLinksError,
 }: UseHierarchyNavigationArgs) {
@@ -69,15 +69,16 @@ export function useHierarchyNavigation({
 
   const handleHierarchyJump = useCallback(
     (target: HierarchySection) => {
-      setHierarchySection(target);
+      const normalizedTarget = target === 'gates' ? 'actions' : target;
+      setHierarchySection(normalizedTarget);
       setActiveView('hierarchy');
-      if (target === 'actions') {
+      if (normalizedTarget === 'actions') {
         setActionsScope(
           resolveAvailableHierarchyScope(actionsScope, { canUseProjectScope, canUseAgentScope })
         );
         clearTerminusError();
       }
-      if (target === 'app-shortcuts') {
+      if (normalizedTarget === 'app-shortcuts') {
         setAppShortcutsScope(
           resolveAvailableHierarchyScope(appShortcutsScope, {
             canUseProjectScope,
@@ -86,10 +87,10 @@ export function useHierarchyNavigation({
         );
         clearAppShortcutsError();
       }
-      if (target === 'harness-providers') {
+      if (normalizedTarget === 'harness-providers') {
         clearHarnessProvidersError();
       }
-      if (target === 'reply-quick-prompts') {
+      if (normalizedTarget === 'reply-quick-prompts') {
         setReplyQuickPromptsScope(
           resolveAvailableHierarchyScope(replyQuickPromptsScope, {
             canUseProjectScope,
@@ -98,13 +99,7 @@ export function useHierarchyNavigation({
         );
         clearReplyQuickPromptsError();
       }
-      if (target === 'gates') {
-        setGateScope(
-          resolveAvailableHierarchyScope(gateScope, { canUseProjectScope, canUseAgentScope })
-        );
-        clearGatesError();
-      }
-      if (target === 'session-naming') {
+      if (normalizedTarget === 'session-naming') {
         setSessionNamingScope(
           resolveAvailableHierarchyScope(sessionNamingScope, {
             canUseProjectScope,
@@ -113,14 +108,13 @@ export function useHierarchyNavigation({
         );
         clearSessionNamingError();
       }
-      if (target === 'softlinks') {
+      if (normalizedTarget === 'softlinks') {
         clearWorktreeLinksError();
       }
     },
     [
       clearAppShortcutsError,
       clearHarnessProvidersError,
-      clearGatesError,
       clearReplyQuickPromptsError,
       clearSessionNamingError,
       clearTerminusError,
@@ -129,13 +123,11 @@ export function useHierarchyNavigation({
       appShortcutsScope,
       canUseAgentScope,
       canUseProjectScope,
-      gateScope,
       replyQuickPromptsScope,
       sessionNamingScope,
       setActiveView,
       setActionsScope,
       setAppShortcutsScope,
-      setGateScope,
       setHierarchySection,
       setReplyQuickPromptsScope,
       setSessionNamingScope,
@@ -200,11 +192,13 @@ export function useHierarchyNavigation({
 
   const handleSelectGateScope = useCallback(
     (scope: ScopedConfigScope) => {
-      setHierarchySection('gates');
-      setGateScope(scope);
-      clearGatesError();
+      setHierarchySection('actions');
+      setActionsScope(
+        resolveAvailableHierarchyScope(scope, { canUseProjectScope, canUseAgentScope })
+      );
+      clearTerminusError();
     },
-    [clearGatesError, setGateScope, setHierarchySection]
+    [canUseAgentScope, canUseProjectScope, clearTerminusError, setActionsScope, setHierarchySection]
   );
 
   const handleSelectSessionNamingScope = useCallback(

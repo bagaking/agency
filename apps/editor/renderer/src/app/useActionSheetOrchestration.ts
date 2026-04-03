@@ -641,7 +641,7 @@ export function useActionSheetOrchestration({
 
         const checkSummary = checks.length
           ? ['This sheet mirrors lifecycle gates:', '', ...checks.map((check: any) => `- ${check.label}`)].join(LINE_BREAK)
-          : 'No gates with commands were found for this stage. Add gates first (Hierarchy -> Gates).';
+          : 'No gates with commands were found for this stage. Add workflow-suite gate definitions before using Turn Gate Execute.';
 
         const title = `Turn Gate Execute (${resolvedStage}): ${selectedCell.name || selectedCell.id}`;
         const prompt = {

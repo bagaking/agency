@@ -37,8 +37,8 @@ export function useCellLifecycleActions({
   selectedCell,
   loadCells,
   checkGatesForCell,
-  createTurnGateCreateSheetForCell,
-  handleOpenActionSheets,
+  createTurnGateCreateSheetForCell: _createTurnGateCreateSheetForCell,
+  handleOpenActionSheets: _handleOpenActionSheets,
   handleOpenTerminal,
   setTransitionError,
   setCells,
@@ -217,7 +217,7 @@ export function useCellLifecycleActions({
   }, [loadCells, modal, projectRoot, resolveLifecycleTargetCell, selectedCell?.id, setLoading, setSelectedId]);
 
   const handleCreate = useCallback(
-    async ({ name, branch, baseBranch, existingBranch, reusePath, bindToCellId, startTurnGateCreate }: any) => {
+    async ({ name, branch, baseBranch, existingBranch, reusePath, bindToCellId }: any) => {
       if (!projectReady) {
         setProjectError('Select a project before creating or tracking a Cell.');
         return;
@@ -241,20 +241,6 @@ export function useCellLifecycleActions({
           setSelectedId(cell.id);
         }
         handleOpenTerminal();
-
-        if (startTurnGateCreate) {
-          try {
-            const stage = cell?.state === 'archived' ? 'archived' : 'active';
-            const created = await createTurnGateCreateSheetForCell({ cell, stage });
-            handleOpenActionSheets(created.id);
-          } catch (error: any) {
-            modal?.notify?.({
-              title: 'Failed to start Turn',
-              description: error?.message || 'Unable to create Gate Create sheet for this Cell.',
-              tone: 'warning',
-            });
-          }
-        }
       } catch (error) {
         console.error(error);
       } finally {
@@ -262,11 +248,8 @@ export function useCellLifecycleActions({
       }
     },
     [
-      createTurnGateCreateSheetForCell,
-      handleOpenActionSheets,
       handleOpenTerminal,
       loadCells,
-      modal,
       projectReady,
       projectRoot,
       setLoading,

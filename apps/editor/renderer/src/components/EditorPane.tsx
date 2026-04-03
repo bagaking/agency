@@ -2,15 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   MonitorPlay,
   ChevronRight,
-  CheckCircle2,
-  ClipboardCheck,
-  ShieldCheck,
-  Archive,
     RefreshCw,
     RotateCcw,
-    Layout,
-    ChevronDown,
-    ChevronUp,
   ZoomIn,
     ZoomOut,
     Clock,
@@ -18,7 +11,6 @@ import {
     Unplug,
   } from 'lucide-react';
 import { RiveAnimation } from './RiveAnimation';
-import { GateList } from './GateList';
 import { TerminalArea } from './TerminalArea';
 import { AgentAvatarBadge } from './ui/AgentAvatarBadge';
 import { AvatarPickerMenu } from './ui/AvatarPickerMenu';
@@ -67,7 +59,6 @@ export function EditorPane({
   onSelectionContext,
   onReplySelection,
 }: any) {
-  const [showGates, setShowGates] = useState(false);
   const [idleNow, setIdleNow] = useState(Date.now());
   const [avatarMenu, setAvatarMenu] = useState(null);
   const avatarButtonRef = useRef(null);
@@ -201,11 +192,6 @@ export function EditorPane({
     );
   }
 
-  const activeStage = gateDisplayStage || 'active';
-  const gates = gateResultsByStage?.[activeStage] || cell.gates || [];
-  const hasGateStatus = gates.length > 0;
-  const failedGatesCount = gates.filter((gate) => !gate.passed).length;
-  const isGateChecking = Boolean(gatesCheckingByStage?.[activeStage]);
   const idleMs = idleSince ? Math.max(0, idleNow - idleSince) : null;
   const isClosed = ['archived', 'closed'].includes(cell.state);
   const idleLabel = formatIdleClock(idleMs);
@@ -273,17 +259,6 @@ export function EditorPane({
 	            <div className="flex items-center gap-3">
                   {attachmentState !== 'attached' ? (
                     <div className="flex items-center gap-1.5">
-                      {onStateChange && cell?.state !== 'archived' ? (
-                        <button
-                          type="button"
-                          onClick={() => onStateChange('archived')}
-                          className="flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-medium text-emerald-100 transition-colors hover:bg-emerald-500/10"
-                          title="Archive this detached Cell and remove it from the active Agent Cells flow"
-                        >
-                          <Archive size={12} />
-                          <span>Archive Cell</span>
-                        </button>
-                      ) : null}
                       {onClearCellAttachment ? (
                         <button
                           type="button"
@@ -308,115 +283,8 @@ export function EditorPane({
                       ) : null}
                     </div>
                   ) : null}
-
-	                {/* Compact Lifecycle Stepper */}
-	                <div className="flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded-md border border-border/50">
-                    {['draft', 'active', 'archived'].map((step, index, arr) => {
-                        const isActive = cell.state === step || (step === 'active' && cell.state === 'paused');
-                        const isPast = arr.indexOf(cell.state) > index || (cell.state === 'paused' && step === 'active');
-                        const requiresGates = step === 'active' || step === 'archived';
-                        const stepGates = gateResultsByStage?.[step] || [];
-                        const stepFailures = stepGates.filter((gate) => !gate.passed).length;
-                        const hasGateResults = stepGates.length > 0;
-                        const blockTransition =
-                          requiresGates && hasGateResults && stepFailures > 0 && step !== cell.state;
-                        
-                        let dotColor = 'bg-muted-foreground/30';
-                        if (cell.state === step) {
-                            dotColor = step === 'active' ? 'bg-emerald-400' : step === 'paused' ? 'bg-amber-400' : 'bg-primary';
-                        } else if (isPast) {
-                            dotColor = 'bg-primary/40';
-                        }
-
-                        return (
-                            <button 
-                                key={step} 
-                                onClick={() => {
-                                    if (blockTransition) {
-                                        return;
-                                    }
-                                    onStateChange(step);
-                                }}
-                                disabled={blockTransition}
-                                className={`flex items-center gap-1 group transition-all disabled:opacity-40 disabled:cursor-not-allowed`}
-                                title={
-                                    blockTransition
-                                        ? `Resolve gates before switching to ${step}`
-                                        : `Switch to ${step}`
-                                }
-                            >
-                                <div className={`h-1.5 w-1.5 rounded-full ${dotColor} ${isActive ? 'ring-2 ring-primary/20 ring-offset-1 ring-offset-background' : ''}`} />
-                                <span className={`text-[10px] capitalize transition-colors ${isActive ? 'text-foreground font-medium' : 'text-muted-foreground/60 group-hover:text-muted-foreground'}`}>
-                                    {step === 'active' && cell.state === 'paused' ? 'paused' : step}
-                                </span>
-                                {index < arr.length - 1 && <div className="h-2 w-[1px] bg-border mx-1" />}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {onTurnGateCreate ? (
-                  <button
-                    type="button"
-                    onClick={() => onTurnGateCreate?.(activeStage)}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium transition-colors bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground"
-                    title={`Gate Create (target: ${activeStage})`}
-                  >
-                    <ClipboardCheck size={12} />
-                    <span>Gate Create</span>
-                  </button>
-                ) : null}
-
-                {onTurnGateExecute ? (
-                  <button
-                    type="button"
-                    onClick={() => onTurnGateExecute?.(activeStage)}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium transition-colors bg-primary/10 text-primary hover:bg-primary/20"
-                    title={`Gate Execute (stage: ${activeStage})`}
-                  >
-                    <ShieldCheck size={12} />
-                    <span>Gate Execute</span>
-                  </button>
-                ) : null}
-
-                <button 
-                    onClick={() => setShowGates(!showGates)}
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium transition-colors ${
-                        failedGatesCount > 0 
-                            ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' 
-                            : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'
-                    }`}
-                >
-                    <Layout size={12} />
-                    <span>
-                      {isGateChecking
-                        ? `Gates (${activeStage}: checking)`
-                        : !hasGateStatus
-                          ? `Gates (${activeStage}: not checked)`
-                          : failedGatesCount > 0
-                            ? `Gates (${activeStage}: ${failedGatesCount} failing)`
-                            : `Gates (${activeStage}: all ok)`}
-                    </span>
-                    {showGates ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-                </button>
             </div>
         </header>
-
-        {/* Collapsible Lifecycle Gates */}
-        {showGates && (
-            <div className="shrink-0 border-b border-border bg-card/30 px-6 py-4 animate-slide-down">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                        <CheckCircle2 size={12} />
-                        Compliance Checklist ({activeStage})
-                    </h3>
-                </div>
-                <GateList gates={gates} />
-                <p className="mt-3 text-[10px] text-muted-foreground italic bg-muted/20 p-2 rounded border border-border/50">
-                    * Agents must satisfy all gates before transitioning to Active or Archived states.
-                </p>
-            </div>
-        )}
 
 	        {/* Integrated Terminal Area */}
 	        <div className="flex-1 flex flex-col min-h-0 bg-black/20">

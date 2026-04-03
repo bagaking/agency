@@ -35,7 +35,6 @@ const LazySessionNamingView = lazyNamedComponent(
   () => import('../SessionNamingView'),
   'SessionNamingView'
 );
-const LazyGatesView = lazyNamedComponent(() => import('../GatesView'), 'GatesView');
 const LazyActionSheetsView = lazyNamedComponent(
   () => import('../actionSheets/ActionSheetsView'),
   'ActionSheetsView'
@@ -102,7 +101,7 @@ export function AppMainPanels({
         </div>
       ) : null}
 
-      {activeView === 'hierarchy' && hierarchySection === 'actions' ? (
+      {activeView === 'hierarchy' && ['actions', 'gates'].includes(hierarchySection) ? (
         <div className="absolute inset-0">
           <Suspense fallback={panelFallback}>
             <LazyQuickActionsView {...quickActionsViewProps} />
@@ -138,14 +137,6 @@ export function AppMainPanels({
         <div className="absolute inset-0">
           <Suspense fallback={panelFallback}>
             <LazySessionNamingView {...sessionNamingViewProps} />
-          </Suspense>
-        </div>
-      ) : null}
-
-      {activeView === 'hierarchy' && hierarchySection === 'gates' ? (
-        <div className="absolute inset-0">
-          <Suspense fallback={panelFallback}>
-            <LazyGatesView {...gatesViewProps} />
           </Suspense>
         </div>
       ) : null}
