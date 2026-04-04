@@ -373,6 +373,29 @@ test('copyEntry rejects destinations whose parent resolves outside the repositor
   });
 });
 
+test('renameEntry can resolve a conflict-safe sibling target for Explorer cut/paste', async (t) => {
+  await withExplorerService(async ({ renameEntry }) => {
+    const rootDir = await createGitRoot();
+    t.after(async () => {
+      await fs.rm(rootDir, { recursive: true, force: true });
+    });
+
+    await writeTextFile(path.join(rootDir, 'docs', 'guide.md'), 'guide');
+    await writeTextFile(path.join(rootDir, 'dest', 'guide.md'), 'existing');
+
+    const result = await renameEntry({
+      rootPath: rootDir,
+      sourcePath: 'docs/guide.md',
+      targetPath: 'dest/guide.md',
+      resolveConflicts: true,
+    });
+
+    assert.equal(result.path, 'dest/guide (1).md');
+    assert.equal(result.conflictResolved, true);
+    assert.equal(await fs.readFile(path.join(rootDir, 'dest', 'guide (1).md'), 'utf8'), 'guide');
+  });
+});
+
 test('replaceContent can apply only explicitly confirmed matches', async (t) => {
   await withExplorerService(async ({ searchContent, replaceContent }) => {
     const rootDir = await createGitRoot();

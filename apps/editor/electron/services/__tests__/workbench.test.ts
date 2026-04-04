@@ -7,6 +7,8 @@ const path = require('node:path');
 
 const { readTextFile, writeTextFile } = require('../workbench');
 
+export {};
+
 async function createGitRoot() {
   const rootDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agency-workbench-root-'));
   execFileSync('git', ['init', '-q'], { cwd: rootDir });

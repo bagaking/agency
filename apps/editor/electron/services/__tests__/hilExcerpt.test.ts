@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 
 const { normalizeExcerptUrl, detectEmbeddingBlockReason } = require('../hilExcerpt.ts');
 
+export {};
+
 test('normalizeExcerptUrl keeps research-lane inspect bounded to public http urls', () => {
   assert.equal(
     normalizeExcerptUrl('example.com/docs'),

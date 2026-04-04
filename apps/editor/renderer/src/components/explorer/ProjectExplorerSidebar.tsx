@@ -1031,6 +1031,7 @@ function ProjectExplorerSidebarContent({
     clearError,
     setErrorMessage,
     openEntry: handleOpenEntry,
+    notify: modal.notify,
   });
 
   const {

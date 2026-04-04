@@ -1272,23 +1272,42 @@ async function createEntry({ rootPath, parentPath, name, type }) {
   return { path: targetRel };
 }
 
-async function renameEntry({ rootPath, sourcePath, targetPath }) {
+async function renameEntry({ rootPath, sourcePath, targetPath, resolveConflicts = false }) {
   const resolved = await resolveExplorerRoot(rootPath);
   ensureResolvedRoot(resolved);
   const fromPath = resolveSafePath(resolved.rootPath, sourcePath);
-  const { absolutePath: toPath } = await resolveMutationTargetWithinRoot(
+  const { absolutePath: requestedTargetPath } = await resolveMutationTargetWithinRoot(
     resolved.rootPath,
     targetPath
   );
   if (!fs.existsSync(fromPath)) {
     throw new Error('Source does not exist.');
   }
-  if (fs.existsSync(toPath)) {
+  const sourceStats = await fsp.lstat(fromPath);
+  let toPath = requestedTargetPath;
+  let conflictIndex = 0;
+  if (resolveConflicts) {
+    const resolvedTarget = await resolveConflictTargetPath(
+      path.dirname(requestedTargetPath),
+      path.basename(requestedTargetPath),
+      { isDirectory: sourceStats.isDirectory() }
+    );
+    toPath = resolvedTarget.candidatePath;
+    conflictIndex = resolvedTarget.conflictIndex;
+  } else if (fs.existsSync(toPath)) {
     throw new Error('Target already exists.');
+  }
+  if (sourceStats.isDirectory() && toPath.startsWith(`${fromPath}${path.sep}`)) {
+    throw new Error('Cannot move a folder into itself.');
   }
   await fsp.mkdir(path.dirname(toPath), { recursive: true });
   await fsp.rename(fromPath, toPath);
-  return { path: normalizeRelPath(targetPath) };
+  return {
+    path: normalizeRelPath(path.relative(resolved.rootPath, toPath)),
+    requestedPath: normalizeRelPath(targetPath),
+    conflictIndex,
+    conflictResolved: conflictIndex > 0,
+  };
 }
 
 async function deleteEntry({ rootPath, targetPath }) {
