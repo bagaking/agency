@@ -7,6 +7,10 @@ const {
   normalizeWorkbenchBrowserSurfaceBounds,
   syncWorkbenchBrowserSurfaceWithService,
 } = require('../workbenchBrowserSurface');
+const {
+  mapRendererRectToNativeContentRect,
+  resolveOwnerRendererViewBounds,
+} = require('../nativeSurfaceGeometry');
 
 class FakeEventEmitter {
   handlers: Map<string, Array<(...args: any[]) => void>>;
@@ -41,6 +45,7 @@ class FakeEventEmitter {
 }
 
 class FakeWebContents extends FakeEventEmitter {
+  id: number;
   loadUrls: string[];
   focused: boolean;
   destroyed: boolean;
@@ -49,8 +54,9 @@ class FakeWebContents extends FakeEventEmitter {
   canGoForwardValue: boolean;
   goBackCalls: number;
   goForwardCalls: number;
-  constructor() {
+  constructor(id = 0) {
     super();
+    this.id = id;
     this.loadUrls = [];
     this.focused = false;
     this.destroyed = false;
@@ -87,19 +93,20 @@ class FakeWebContents extends FakeEventEmitter {
 }
 
 class FakeView {
-  children: Set<FakeView>;
+  children: FakeView[];
   bounds: { x: number; y: number; width: number; height: number };
   visible: boolean;
   constructor() {
-    this.children = new Set();
+    this.children = [];
     this.bounds = { x: 0, y: 0, width: 0, height: 0 };
     this.visible = false;
   }
   addChildView(view) {
-    this.children.add(view);
+    this.children = this.children.filter((child) => child !== view);
+    this.children.push(view);
   }
   removeChildView(view) {
-    this.children.delete(view);
+    this.children = this.children.filter((child) => child !== view);
   }
   setBounds(bounds) {
     this.bounds = bounds;
@@ -111,16 +118,18 @@ class FakeView {
 
 class FakeWebContentsView extends FakeView {
   webContents: FakeWebContents;
-  constructor() {
+  constructor(webContentsId = 0) {
     super();
-    this.webContents = new FakeWebContents();
+    this.webContents = new FakeWebContents(webContentsId);
   }
 }
 
 class FakeWindow extends FakeEventEmitter {
   id: number;
   _contentView: FakeView;
+  rendererViewBounds: { x: number; y: number; width: number; height: number } | null;
   webContents: {
+    id: number;
     send: () => void;
   };
   destroyed: boolean;
@@ -128,13 +137,18 @@ class FakeWindow extends FakeEventEmitter {
     super();
     this.id = id;
     this._contentView = new FakeView();
+    this.rendererViewBounds = null;
     this.webContents = {
+      id: 1000 + id,
       send: () => {},
     };
     this.destroyed = false;
   }
   getContentView() {
     return this._contentView;
+  }
+  getRendererViewBounds() {
+    return this.rendererViewBounds;
   }
   isDestroyed() {
     return this.destroyed;
@@ -143,6 +157,9 @@ class FakeWindow extends FakeEventEmitter {
 
 function setupService() {
   const fakeWindow = new FakeWindow(1);
+  const rendererView = new FakeWebContentsView(fakeWindow.webContents.id);
+  rendererView.setBounds({ x: 0, y: 0, width: 1200, height: 800 });
+  fakeWindow.getContentView().addChildView(rendererView);
   const statusEvents = [];
   const service = createWorkbenchBrowserSurfaceService({
     BrowserWindow: {
@@ -159,7 +176,9 @@ function setupService() {
 }
 
 function getAttachedView(window): FakeWebContentsView {
-  return Array.from(window.getContentView().children)[0] as FakeWebContentsView;
+  return Array.from(window.getContentView().children).find(
+    (view: any) => Number(view?.webContents?.id || 0) !== Number(window.webContents.id || 0)
+  ) as FakeWebContentsView;
 }
 
 function ensureSurface(service, window, tabId = 'tab-1') {
@@ -196,6 +215,32 @@ test('normalizeWorkbenchBrowserSurfaceBounds clamps and rejects empty rects', ()
       height: 100,
     }),
     null
+  );
+});
+
+test('maps renderer rects through the owner renderer view bounds', () => {
+  const fakeWindow = new FakeWindow(1);
+  fakeWindow.rendererViewBounds = { x: 0, y: 28, width: 1200, height: 800 };
+
+  assert.deepEqual(resolveOwnerRendererViewBounds(fakeWindow), {
+    x: 0,
+    y: 28,
+    width: 1200,
+    height: 800,
+  });
+  assert.deepEqual(
+    mapRendererRectToNativeContentRect(fakeWindow, {
+      x: 320,
+      y: 200,
+      width: 640,
+      height: 480,
+    }),
+    {
+      x: 320,
+      y: 228,
+      width: 640,
+      height: 480,
+    }
   );
 });
 
@@ -353,6 +398,28 @@ test('sync helper only reloads when url or navigation key changes', () => {
     },
   });
   assert.equal(view.webContents.loadUrls.length, 2);
+});
+
+test('sync helper hides the surface when mapped bounds collapse to zero', () => {
+  const { service, fakeWindow } = setupService();
+  const tabId = 'tab-hidden-on-collapse';
+  ensureSurface(service, fakeWindow, tabId);
+  service.showBrowserSurface({ windowId: fakeWindow.id, tabId });
+  fakeWindow.rendererViewBounds = { x: 0, y: 0, width: 0, height: 0 };
+
+  const state = syncWorkbenchBrowserSurfaceWithService(service, {
+    ownerWindow: fakeWindow,
+    payload: {
+      tabId,
+      url: 'https://example.com/',
+      visible: true,
+      navigationKey: 0,
+      bounds: { x: 10, y: 12, width: 320, height: 200 },
+    },
+  });
+
+  assert.equal(state.visible, false);
+  assert.equal(state.phase, 'hidden');
 });
 
 test('browser surface goBack/goForward follow webContents history affordances', () => {

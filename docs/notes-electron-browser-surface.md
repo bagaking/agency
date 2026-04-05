@@ -164,6 +164,12 @@ It should package:
 
 This is the part future embedded surfaces should reuse directly.
 
+The preferred reusable seam is:
+- window owner may expose renderer-view native bounds through `getRendererViewBounds()`;
+- renderer reports a DOM lane rect;
+- main process maps DOM-space lane geometry into native content-space geometry with `mapRendererRectToNativeContentRect()`;
+- invalid mapped geometry hides the native surface instead of preserving stale placement.
+
 ### 2. Native surface overlay coordinator
 
 This is the layer we do not fully have yet, but now clearly need.
@@ -193,6 +199,7 @@ The practical rules are short.
 - The native browser host must be anchored to a stable shell-owned rectangle.
 - Do not rely on auto-height cards or percentage-height descendants as the final host geometry contract.
 - If logs show `width > 0` and `height = 0`, treat that as a host-geometry failure, not a navigation failure.
+- Prefer a window-owned renderer-view bounds seam over feature-local `contentView.children` discovery. Best-effort discovery is acceptable as a fallback, but not as the long-term SSOT.
 
 ### Layering
 

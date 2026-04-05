@@ -1,6 +1,7 @@
 import type { Rectangle, WebPreferences } from 'electron';
 
 import { normalizeSupportedPublicUrl } from '../../shared/publicUrl';
+import { mapRendererRectToNativeContentRect } from './nativeSurfaceGeometry';
 import { logRuntime } from './runtimeLog';
 
 const { BrowserWindow: ElectronBrowserWindow, WebContentsView: ElectronWebContentsView } =
@@ -565,7 +566,7 @@ function createWorkbenchBrowserSurfaceService(deps: BrowserSurfaceDependencies) 
     if (visibleSurfaceByWindow.get(windowId) === record.key) {
       visibleSurfaceByWindow.delete(windowId);
     }
-    publishRecord(record, { visible: false }, { keepPhase: true });
+    publishRecord(record, { visible: false, phase: 'hidden' });
     return buildState(record);
   }
 
@@ -698,13 +699,30 @@ function syncWorkbenchBrowserSurfaceWithService(
     throw new Error('A public http/https URL is required.');
   }
 
-  const bounds = sanitizeBounds(payload?.bounds);
-  if (!bounds) {
+  const rendererBounds = sanitizeBounds(payload?.bounds);
+  if (!rendererBounds) {
     const existingState = service.getBrowserSurfaceState({ windowId: ownerWindow.id, tabId });
     if (existingState) {
       return existingState;
     }
     throw new Error('Valid browser-surface bounds are required.');
+  }
+  const bounds = mapRendererRectToNativeContentRect(ownerWindow as any, rendererBounds);
+  if (!bounds) {
+    service.hideBrowserSurface({ windowId: ownerWindow.id, tabId });
+    return (
+      service.getBrowserSurfaceState({ windowId: ownerWindow.id, tabId }) || {
+        windowId: ownerWindow.id,
+        tabId,
+        visible: false,
+        url,
+        title: '',
+        bounds: null,
+        phase: 'hidden',
+        error: '',
+        navigationKey: normalizeBrowserSurfaceNavigationKey(payload?.navigationKey),
+      }
+    );
   }
 
   const navigationKey = normalizeBrowserSurfaceNavigationKey(payload?.navigationKey);
@@ -799,6 +817,7 @@ module.exports = {
   ...defaultService,
   normalizeBrowserSurfaceUrl,
   normalizeWorkbenchBrowserSurfaceBounds: sanitizeBounds,
+  mapRendererRectToNativeContentRect,
   syncWorkbenchBrowserSurface,
   syncWorkbenchBrowserSurfaceWithService,
   disposeWorkbenchBrowserSurface,
