@@ -268,6 +268,7 @@
 - New windows start without a project context; use recent projects to switch.
 - On relaunch without an explicit target repository, Agency restores the last open editor window set and each window's saved geometry.
 - Window restore now persists a display anchor alongside bounds so reopened windows prefer the same prior display/work-area placement when that display is still available, while still falling back to visible clamped bounds when the display topology changes.
+- When a window was maximized or full-screen at quit time, Agency restores it onto the display where it was last visibly presented instead of reusing the pre-full-screen display anchor from its normal bounds.
 
 ## Packaging & Install (macOS)
 

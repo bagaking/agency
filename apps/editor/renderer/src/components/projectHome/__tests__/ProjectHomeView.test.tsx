@@ -60,4 +60,5 @@ test('ProjectHomeView keeps home-shell failure visible in the window scope summa
 
   assert.match(html, /Home shell failed/);
   assert.match(html, /Home shell failed to start\./);
+  assert.match(html, /Retry Home Shell/);
 });

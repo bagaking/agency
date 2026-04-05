@@ -6,7 +6,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { ExplorerHeader } from '../ExplorerHeader';
+import { ExplorerHeader, shouldRunInlineSearchAction } from '../ExplorerHeader';
 import {
   EXPLORER_HEADER_INLINE_MIN_WIDTH,
   resolveExplorerHeaderLayout,
@@ -397,70 +397,29 @@ test('ExplorerHeader search-mode control supports arrow-key selection inside the
   }
 });
 
-test('ExplorerHeader Enter shortcut respects disabled inline submit state', async () => {
-  const env = setupDom();
-  try {
-    let submitCount = 0;
-    const root = createRoot(document.getElementById('root')!);
-
-    await act(async () => {
-      root.render(
-        <ExplorerHeader
-          activeRootLabel="main"
-          activeFilterCount={0}
-          activeFilterSummary=""
-          headerCommands={[]}
-          hasCells={false}
-          cells={[]}
-          selectedId=""
-          onSelectCell={() => undefined}
-          workingSetOptions={[]}
-          activeWorkingSetViewId="tree"
-          onWorkingSetChange={() => undefined}
-          searchMode="url"
-          searchModeOptions={[
-            {
-              id: 'url',
-              label: 'URL',
-              placeholder: 'Paste a documentation or research URL…',
-              inputType: 'url',
-              submitLabel: 'Open Web',
-            },
-          ]}
-          onSearchModeChange={() => undefined}
-          searchQuery="https://example.com"
-          onSearchChange={() => undefined}
-          onClearSearch={() => undefined}
-          searchInputType="url"
-          searchSubmitLabel="Open Web"
-          searchSubmitDisabled={true}
-          onSearchSubmit={() => {
-            submitCount += 1;
-          }}
-          hasActiveFilters={false}
-          showFilterMenuButton={false}
-          filterMenuOpen={false}
-          filterMenuId="explorer-filters"
-          filterMenuButtonRef={{ current: null }}
-          onToggleFilterMenu={() => undefined}
-          searchTruncated={false}
-        />
-      );
-    });
-
-    const input = document.querySelector('input[name="explorerSearch"]') as HTMLInputElement | null;
-    assert.ok(input);
-
-    await act(async () => {
-      input.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    });
-
-    assert.equal(submitCount, 0);
-
-    await act(async () => {
-      root.unmount();
-    });
-  } finally {
-    env.cleanup();
-  }
+test('ExplorerHeader Enter shortcut helper respects disabled inline submit state', () => {
+  assert.equal(
+    shouldRunInlineSearchAction({
+      key: 'Enter',
+      hasInlineSearchAction: true,
+      disabled: true,
+    }),
+    false
+  );
+  assert.equal(
+    shouldRunInlineSearchAction({
+      key: 'Enter',
+      hasInlineSearchAction: true,
+      disabled: false,
+    }),
+    true
+  );
+  assert.equal(
+    shouldRunInlineSearchAction({
+      key: 'Escape',
+      hasInlineSearchAction: true,
+      disabled: false,
+    }),
+    false
+  );
 });

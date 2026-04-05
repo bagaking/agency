@@ -2,6 +2,7 @@ import React from 'react';
 import { FolderOpen, House, SquareTerminal } from 'lucide-react';
 
 import { RecentProjectsList } from '../RecentProjectsList';
+import { resolveHomeShellActionLabel } from './homeShellLabels';
 
 export function ProjectHomeSidebar({
   projectError,
@@ -13,17 +14,7 @@ export function ProjectHomeSidebar({
   shellSummary,
 }: any) {
   const shellVisible = Boolean(shellSummary?.visible);
-  const shellActionLabel = shellVisible
-    ? 'Close Home Shell'
-    : shellSummary?.status === 'ready'
-      ? 'Home Shell Ready'
-      : shellSummary?.status === 'error'
-        ? 'Retry Home Shell'
-      : shellSummary?.status === 'starting'
-        ? 'Starting Home Shell'
-        : shellSummary?.status === 'exited'
-          ? 'Restart Home Shell'
-          : 'Start Home Shell';
+  const shellActionLabel = resolveHomeShellActionLabel(shellSummary);
 
   return (
     <aside className="flex h-full min-h-0 w-full flex-col bg-[linear-gradient(180deg,#10151d,#0c1016)] text-sidebar-foreground">

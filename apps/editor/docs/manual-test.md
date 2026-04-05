@@ -12,6 +12,7 @@
 - [ ] Resize and move a window, relaunch the app, and confirm its geometry is restored.
 - [ ] Quit the app with multiple project windows open, relaunch it normally, and confirm the previous window set restores.
 - [ ] Quit the app with multiple project windows split across different displays/work areas, relaunch it normally, and confirm each restored window prefers its prior display placement instead of collapsing onto another window's display.
+- [ ] Quit the app with a maximized or full-screen window on a non-primary display, relaunch it normally, and confirm it restores onto that same display instead of jumping back to the pre-full-screen display.
 
 ## Cells
 - [ ] Create a new Cell with a branch type + name and confirm the worktree directory is created.

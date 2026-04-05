@@ -3,6 +3,7 @@ import { FolderOpen, History, House, MoveRight, SquareTerminal } from 'lucide-re
 
 import { formatRelativeTime } from '../RecentProjectsList';
 import { WindowHomeShellPane } from './WindowHomeShellPane';
+import { resolveHomeShellActionLabel, resolveHomeShellStatusLabel } from './homeShellLabels';
 
 function ProjectCard({
   project,
@@ -83,15 +84,8 @@ export function ProjectHomeView({
   const projects = Array.isArray(recentProjects) ? recentProjects : [];
   const featuredProject = projects[0] || null;
   const secondaryProjects = featuredProject ? projects.slice(1) : projects;
-  const shellLabel = shellSummary?.visible
-    ? 'Home shell running'
-    : shellSummary?.status === 'error'
-      ? 'Home shell failed'
-    : shellSummary?.status === 'starting'
-      ? 'Starting home shell'
-    : shellSummary?.status === 'exited'
-        ? 'Home shell stopped'
-        : 'Home shell idle';
+  const shellLabel = resolveHomeShellStatusLabel(shellSummary);
+  const shellActionLabel = resolveHomeShellActionLabel(shellSummary);
   const shellDetail = shellSummary?.cwd || homePath || 'Home directory';
 
   return (
@@ -150,9 +144,7 @@ export function ProjectHomeView({
                     <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/48">
                       Window Tool
                     </div>
-                    <div className="mt-2 text-[16px] font-semibold text-white">
-                      {shellSummary?.visible ? 'Close Home Shell' : 'Start Home Shell'}
-                    </div>
+                    <div className="mt-2 text-[16px] font-semibold text-white">{shellActionLabel}</div>
                   </div>
                   <SquareTerminal size={18} className="shrink-0 text-white/78" />
                 </button>

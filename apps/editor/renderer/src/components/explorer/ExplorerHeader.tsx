@@ -22,6 +22,18 @@ type HeaderSegmentOption = {
   label: string;
 };
 
+export function shouldRunInlineSearchAction({
+  key,
+  hasInlineSearchAction,
+  disabled,
+}: {
+  key: string;
+  hasInlineSearchAction: boolean;
+  disabled: boolean;
+}) {
+  return key === 'Enter' && hasInlineSearchAction && !disabled;
+}
+
 export function ExplorerHeader({
   activeRootLabel,
   activeFilterCount,
@@ -269,14 +281,13 @@ export function ExplorerHeader({
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key !== 'Enter') {
-                    return;
-                  }
-
-                  if (inlineSearchAction) {
-                    if (inlineSearchAction.disabled) {
-                      return;
-                    }
+                  if (
+                    shouldRunInlineSearchAction({
+                      key: event.key,
+                      hasInlineSearchAction: Boolean(inlineSearchAction),
+                      disabled: Boolean(inlineSearchAction?.disabled),
+                    })
+                  ) {
                     event.preventDefault();
                     inlineSearchAction.onClick();
                     return;

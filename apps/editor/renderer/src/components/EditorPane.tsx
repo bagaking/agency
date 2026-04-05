@@ -19,39 +19,7 @@ import { AgentAvatarBadge } from './ui/AgentAvatarBadge';
 import { AvatarPickerMenu } from './ui/AvatarPickerMenu';
 import { resolveAvatarId } from '../utils/agentAvatar';
 import { formatIdleClock } from '../utils/timeFormat';
-
-function buildSessionPath(activeSessionId: string, sessions: any[]) {
-  const normalizedSessionId = String(activeSessionId || '').trim();
-  if (!normalizedSessionId) {
-    return [];
-  }
-
-  const sessionsById = new Map(
-    (Array.isArray(sessions) ? sessions : [])
-      .filter((session) => session && session.id)
-      .map((session) => [String(session.id), session] as const)
-  );
-
-  const path = [];
-  const seen = new Set<string>();
-  let cursorId: string | null = normalizedSessionId;
-
-  while (cursorId) {
-    if (seen.has(cursorId)) {
-      break;
-    }
-    seen.add(cursorId);
-    const session = sessionsById.get(cursorId);
-    if (!session) {
-      break;
-    }
-    path.unshift(session);
-    const parentSessionId = String(session.parentSessionId || '').trim();
-    cursorId = parentSessionId || null;
-  }
-
-  return path;
-}
+import { projectAgentCellSessionTree } from '../utils/agentCellSessionTree';
 
 export function EditorPane({
   cell,
@@ -121,9 +89,25 @@ export function EditorPane({
     () => openSessions.find((session) => session.id === sessionId) || null,
     [openSessions, sessionId]
   );
-  const activeSessionPath = useMemo(
-    () => buildSessionPath(activeSession?.id || '', sessions || []),
+  const sessionProjection = useMemo(
+    () => projectAgentCellSessionTree({ sessions, activeSessionId: activeSession?.id || null }),
     [activeSession?.id, sessions]
+  );
+  const activeSessionPath = useMemo(
+    () => {
+      const activeId = String(activeSession?.id || '').trim();
+      if (!activeId) {
+        return [];
+      }
+      const activeRow = sessionProjection.rowsById[activeId];
+      if (!activeRow) {
+        return activeSession ? [activeSession] : [];
+      }
+      return [...activeRow.ancestorSessionIds, activeRow.id]
+        .map((sessionId) => sessionProjection.rowsById[sessionId]?.session)
+        .filter(Boolean);
+    },
+    [activeSession, sessionProjection]
   );
   const openAvatarMenu = (target, rect) => {
     if (!rect) {
@@ -173,6 +157,27 @@ export function EditorPane({
     });
     return () => window.cancelAnimationFrame(frame);
   }, [isRenamingSession]);
+
+  const handleStartSessionRename = useCallback(() => {
+    if (!activeSession) {
+      return;
+    }
+    setDraftSessionName(activeSession.name || activeSession.id || '');
+    setIsRenamingSession(true);
+  }, [activeSession]);
+  const handleCancelSessionRename = useCallback(() => {
+    setDraftSessionName(activeSession?.name || activeSession?.id || '');
+    setIsRenamingSession(false);
+  }, [activeSession?.id, activeSession?.name]);
+  const handleConfirmSessionRename = useCallback(() => {
+    const nextName = String(draftSessionName || '').trim();
+    if (!nextName || !activeSession?.id || !cell?.id || !onRenameSession) {
+      handleCancelSessionRename();
+      return;
+    }
+    onRenameSession(activeSession.id, nextName, cell.id);
+    setIsRenamingSession(false);
+  }, [activeSession?.id, cell?.id, draftSessionName, handleCancelSessionRename, onRenameSession]);
 
   const assetBase =
     (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '/';
@@ -273,26 +278,6 @@ export function EditorPane({
   const avatarRingClass = onUpdateCellAvatar
     ? 'bg-muted/30 hover:bg-muted/40'
     : 'bg-muted/10';
-  const handleStartSessionRename = useCallback(() => {
-    if (!activeSession) {
-      return;
-    }
-    setDraftSessionName(activeSession.name || activeSession.id || '');
-    setIsRenamingSession(true);
-  }, [activeSession]);
-  const handleCancelSessionRename = useCallback(() => {
-    setDraftSessionName(activeSession?.name || activeSession?.id || '');
-    setIsRenamingSession(false);
-  }, [activeSession?.id, activeSession?.name]);
-  const handleConfirmSessionRename = useCallback(() => {
-    const nextName = String(draftSessionName || '').trim();
-    if (!nextName || !activeSession?.id || !cell?.id || !onRenameSession) {
-      handleCancelSessionRename();
-      return;
-    }
-    onRenameSession(activeSession.id, nextName, cell.id);
-    setIsRenamingSession(false);
-  }, [activeSession?.id, cell?.id, draftSessionName, handleCancelSessionRename, onRenameSession]);
 
   return (
     <main className="flex h-full flex-1 flex-col bg-background overflow-hidden">
@@ -418,7 +403,45 @@ export function EditorPane({
           ) : null}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-background/50 px-2.5 py-1 text-[10px] font-medium text-foreground">
+            <Clock3 size={11} className="text-primary" />
+            <span className="text-muted-foreground">Idle</span>
+            <span className="tabular-nums text-foreground">{idleLabel}</span>
+          </div>
+          <div className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-background/50 px-1.5 py-1">
+            <span className="px-1 text-[10px] font-medium text-muted-foreground">Text {terminalFontSize}</span>
+            <button
+              onClick={onZoomOut}
+              className="rounded-full p-1.5 text-muted-foreground transition-all hover:bg-white/5 hover:text-foreground"
+              title="Decrease terminal text size"
+            >
+              <ZoomOut size={12} />
+            </button>
+            <button
+              onClick={onZoomIn}
+              className="rounded-full p-1.5 text-muted-foreground transition-all hover:bg-white/5 hover:text-foreground"
+              title="Increase terminal text size"
+            >
+              <ZoomIn size={12} />
+            </button>
+            <button
+              onClick={onZoomReset}
+              className="rounded-full p-1.5 text-muted-foreground transition-all hover:bg-white/5 hover:text-foreground"
+              title="Reset terminal text size"
+            >
+              <RotateCcw size={12} />
+            </button>
+          </div>
+          <button
+            onClick={onRefreshSessions}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-background/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-all hover:text-foreground"
+            data-testid="refresh-sessions"
+            title="Refresh session state"
+          >
+            <RefreshCw size={11} className={sessionLoading ? 'animate-spin' : ''} />
+            <span>Refresh</span>
+          </button>
           {attachmentState !== 'attached' ? (
             <div className="flex items-center gap-1.5">
               {onClearCellAttachment ? (
@@ -457,60 +480,6 @@ export function EditorPane({
                   ) : null}
                 </div>
               ) : null}
-             <div className="flex shrink-0 flex-col border-b border-border/60 bg-muted/10">
-                <div className="flex items-center justify-between gap-2 px-3 py-2">
-                  <div className="min-w-0 text-[10px] text-muted-foreground">
-                    {activeSession ? (
-                      <span className="truncate">
-                        Session path mirrors the left tree. Click any segment to jump within this Cell.
-                      </span>
-                    ) : (
-                      <span className="truncate">Create or select a session to start work in this tracked workspace.</span>
-                    )}
-                  </div>
-
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <div className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-background/50 px-2.5 py-1 text-[10px] font-medium text-foreground">
-                      <Clock3 size={11} className="text-primary" />
-                      <span className="text-muted-foreground">Idle</span>
-                      <span className="tabular-nums text-foreground">{idleLabel}</span>
-                    </div>
-                    <div className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-background/50 px-1.5 py-1">
-                      <span className="px-1 text-[10px] font-medium text-muted-foreground">Text {terminalFontSize}</span>
-                      <button
-                        onClick={onZoomOut}
-                        className="rounded-full p-1.5 text-muted-foreground transition-all hover:bg-white/5 hover:text-foreground"
-                        title="Decrease terminal text size"
-                      >
-                        <ZoomOut size={12} />
-                      </button>
-                      <button
-                        onClick={onZoomIn}
-                        className="rounded-full p-1.5 text-muted-foreground transition-all hover:bg-white/5 hover:text-foreground"
-                        title="Increase terminal text size"
-                      >
-                        <ZoomIn size={12} />
-                      </button>
-                      <button
-                        onClick={onZoomReset}
-                        className="rounded-full p-1.5 text-muted-foreground transition-all hover:bg-white/5 hover:text-foreground"
-                        title="Reset terminal text size"
-                      >
-                        <RotateCcw size={12} />
-                      </button>
-                    </div>
-                    <button
-                      onClick={onRefreshSessions}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-background/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-all hover:text-foreground"
-                      data-testid="refresh-sessions"
-                      title="Refresh session state"
-                    >
-                      <RefreshCw size={11} className={sessionLoading ? 'animate-spin' : ''} />
-                      <span>Refresh</span>
-                    </button>
-                  </div>
-                </div>
-             </div>
 
              <div className="flex min-h-0 flex-1">
                 <div className="flex min-w-0 flex-1">
