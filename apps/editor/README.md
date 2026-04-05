@@ -23,8 +23,8 @@
 ## Navigation
 
 - The activity bar includes Explorer and Hierarchy entries; the home logo returns to Agent Cells.
-- The custom title bar shows the current project name, exposes `Open/Switch Project`, and uses the app icon as a window switcher / new-window launcher.
-- Settings provides a lightweight dashboard with project summary, recent projects, and entry cards for core runtime/configuration capabilities such as Actions, Harness Providers, App Shortcuts, Reply Quick Prompts, and Softlinks.
+- The custom title bar uses one centered project/home context card, keeps `Open/Switch Project` as the single project action on the right, and uses the app icon cluster as the dedicated window switcher / new-window launcher on the left.
+- Settings provides a context-first dashboard with workspace summary, recent projects, and entry cards for core runtime/configuration capabilities such as Actions, Harness Providers, App Shortcuts, Reply Quick Prompts, and Softlinks.
 - The docked sidebar supports resize/collapse and persists width state across launches; collapse/expand is owned by the shell-level Activity Bar control rather than per-surface edge handles.
 - Agent Cells focuses on tracked workspaces, detached Cells, unmanaged worktrees, and jump links to core configuration.
 - Agent Cells sidebar now includes an Explorer panel (Cell/Session scope + Flat/Tree views) for quick file open/reveal navigation.
@@ -47,7 +47,7 @@
 - Explorer can paste files or screenshots from the system clipboard, applying `-1` style conflict suffixes.
 - Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
 - Explorer includes a bounded `URL` research mode that launches a Workbench-hosted web research tab for public URL inspection. That tab owns a true `View` browser surface plus `Reader`, keeps the browser content as the dominant panel with a compact two-tier toolbar (`Back`/`Forward`/`Reload`/address/mode first, research actions second), projects the native browser into a Workbench-owned browser lane instead of a tab-local overlay, routes saved Markdown through fixed source frontmatter and memo citation flows, stays limited to public `http/https`, and keeps cookies/session/tab management out of scope while preserving the explicit system-browser escape hatch.
-- Explorer and Memo sidebars keep a compact context-first header grammar, prioritizing the active root or record summary over explanatory subtitle copy.
+- Explorer and Memo sidebars keep a compact context-first header grammar, prioritizing the active root or record summary plus low-noise state chips over explanatory subtitle copy.
 - The workbench supports multi-tab previews, a path-first Quick Open launcher for open tabs and project files with optional `:line[:column]` targeting, contextual secondary review tools for diff/blame/comment actions that appear only after the active document resolves to a code editor state, media previews, active-tab disk-change auto sync (auto-reload when clean, warning + reload when dirty), project-level language rules from `.agency/workbench.yaml` / `.agency/workbench.yml`, and a window-local document language control that shows `Auto` / `Project Rule` / `Local Override`.
 
 ## Unified File Interaction Direction
@@ -251,16 +251,16 @@
 - If no project directory is configured, the editor opens Explorer in a shared `Project Home` state.
 - `Project Home` is window-owned: it is not a fake Project, Cell, or Session.
 - The no-project sidebar exposes `Open Project`, `Start Home Shell`, and recent projects as one coherent recovery surface.
-- Recent projects are the primary center-stage content in the no-project main panel.
+- Recent projects are the primary center-stage content in the no-project main panel, while a secondary window-scope panel explains the home shell boundary.
 - On no-project startup, `Project Home` remains the single primary surface; the shell right rail, `Next`, and HIL drawer should not auto-expand over it.
-- The `Project Home` visual language should stay face-first and mass-first: fewer borders, more surface grouping, and no pseudo-dashboard right column before the home shell is actually opened.
+- The `Project Home` visual language should stay face-first and mass-first: one primary repository-selection surface, one lower-noise window-scope summary, and no pseudo-dashboard right column before the home shell is actually opened.
 - The home shell starts from the user home directory and stays window-owned; it does not create repo-backed Cell/session records.
-- Use **Select Project** to choose a repository for the current window.
+- Use **Open Project** to choose a repository for the current window.
 - The app keeps one desktop instance and routes additional launches into that instance as new windows instead of relying on isolated parallel app processes.
 - Clicking the custom title-bar app icon opens a window switcher for the currently open editor windows and also exposes `New Window`.
 - On macOS, Agency stays on the native/default Dock menu path instead of replacing it with an app-defined window list.
 - On macOS, Dock activation restores a meaningful editor window; when multiple editor windows are already frontmost, repeated Dock activation advances through them in a stable order.
-- The custom title bar always shows the active window's current project name (or an empty-project label).
+- The custom title bar always shows the active window's current repository/home context and keeps project identity separate from window controls.
 - Recent projects are shown in the sidebar and Project settings when no project is open.
 - New windows start without a project context; use recent projects to switch.
 - On relaunch without an explicit target repository, Agency restores the last open editor window set and each window's saved geometry.

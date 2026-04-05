@@ -2,9 +2,9 @@
 
 ## Launch
 - [ ] Start the renderer and main process with `npm run dev`.
-- [ ] Verify the Agency window opens, renders the custom title bar, and shows the current project name or an empty-project label.
+- [ ] Verify the Agency window opens, renders the custom title bar, and keeps one centered context card for the active repository/home state instead of mixing window controls into the same text line.
 - [ ] Open a brand-new empty window and confirm no `Session Action Failed` notice appears before a project is selected.
-- [ ] Open a second window and confirm the title-bar app icon menu lists both windows and can switch focus between them.
+- [ ] Open a second window and confirm the left title-bar window switcher lists both windows, exposes `Create New Window`, and can switch focus between them without disturbing the centered project/home context card.
 - [ ] On macOS, confirm the Dock stays on the native/default menu path instead of an app-defined window list.
 - [ ] On macOS, click the Dock icon while no editor window is focused and confirm an editor window is restored/focused.
 - [ ] On macOS, with multiple editor windows already frontmost, repeatedly click the Dock icon and confirm focus advances through them in a stable order.
@@ -58,9 +58,15 @@
 - [ ] With no project selected, confirm Explorer and Agent Cells both show the same `Project Home` state instead of a fake local Cell/session row.
 - [ ] On no-project startup, confirm the right-side attention rail and HIL drawer do not auto-expand over `Project Home`.
 - [ ] On no-project startup, confirm Status Bar does not surface `Next` attention or Session Map controls that imply Project/Session context.
-- [ ] In the no-project state, click `Start Home Shell` and confirm an interactive shell opens from the user home directory.
+- [ ] In the no-project state, confirm the main Project Home surface reads as one primary repository-selection surface plus one lower-noise window-scope summary rather than a generic dashboard split.
+- [ ] In the no-project state, click `Start Home Shell` and confirm an interactive shell opens from the user home directory and the window-scope summary continues to describe it as window-owned rather than repo-backed.
 - [ ] While the no-project home shell is open, confirm no repo-backed Cell/session records are created and no Cell/session affordances appear.
 - [ ] Switch between Explorer and Agent Cells while still in the no-project state and confirm the shared `Project Home` surface stays coherent without reopening right-side shell chrome.
+
+## Chrome Grammar
+- [ ] In the title bar, confirm `Open/Switch Project` stays the single project action on the right while the left-side window cluster owns multi-window controls.
+- [ ] In Explorer, confirm the header foregrounds the active root and low-noise summary chips (`View`, `Scope`, filter state) without reintroducing redundant subtitle text.
+- [ ] In Settings, confirm the top area reads as a workspace summary first: repository identity, runtime status, and config scope are legible before the action-card grid.
 - [ ] Open a terminal session and verify output appears.
 - [ ] Start CLI and confirm Codex (or stub) launches in the embedded terminal.
 - [ ] Open Hierarchy -> Harness Providers, set `base_url`, `model`, and `OPENAI_API_KEY`, save, then restart the app process if needed and confirm the values persist.

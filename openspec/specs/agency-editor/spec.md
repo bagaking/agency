@@ -1191,11 +1191,18 @@ Only window-owned actions that do not require a project-backed Cell SHALL be ava
 ### Requirement: Project Home Surface Craft
 The no-project `Project Home` surface SHALL read as one primary work surface instead of a bordered dashboard split into independent side columns.
 The startup state SHALL prioritize larger surface groupings and restrained chrome over repeated outline boxes.
+The main Project Home composition SHALL foreground repository selection as the primary action and keep window-scope home-shell status in a distinct lower-noise companion summary rather than competing hero columns.
 
 #### Scenario: Startup uses a single primary no-project surface
 - **WHEN** a no-project window first appears
 - **THEN** the main `Project Home` composition reads as one coherent primary surface
 - **AND** it does not reserve a separately expanded right-side shell column before the home shell is opened
+
+#### Scenario: Project Home separates repository action from window scope
+- **WHEN** a no-project window renders Project Home
+- **THEN** repository selection remains the dominant primary action
+- **AND** home-shell/window-scope facts are grouped into a quieter secondary summary
+- **AND** the surface does not read like a generic multi-card dashboard
 
 ### Requirement: Packaged UI Loads Local Renderer
 Packaged builds SHALL load renderer assets from local resources without requiring a dev server.
@@ -1252,6 +1259,18 @@ New Window SHALL open a new editor window.
 - **WHEN** a user selects Switch Project from the application menu
 - **THEN** the editor prompts for a new repository and updates the active project context
 
+### Requirement: Custom Title Bar Context Grammar
+The custom title bar SHALL keep window controls, current project/home context, and the project-selection action visually distinct.
+The title bar SHALL use:
+- a dedicated window-switcher/new-window control cluster,
+- one centered project/home context summary,
+- one explicit `Open/Switch Project` action.
+
+#### Scenario: Title bar separates context from window controls
+- **WHEN** a user views the custom title bar
+- **THEN** the current repository or home-state context is readable without scanning through window-management controls
+- **AND** window-switcher / new-window actions stay grouped separately from project-selection actions
+
 ### Requirement: Cell-Owned HIL Index
 The editor SHALL store human-in-loop artifacts in a cell-owned HIL index under `.agency/cells/<cellId>/hil/index.yaml`.
 The HIL index SHALL be YAML and mergeable, and SHALL contain items of kind `comment`, `memo`, or `draft`.
@@ -1299,6 +1318,7 @@ Memo file references SHALL provide unified `open` and `reveal` entry points.
 Memo SHALL support lightweight drag routing into Explorer import flows in phase 1.
 The Memo surface SHALL present artifact navigation, capture shortcuts, and draft review as one coherent workspace.
 Explorer and Memo side-surface headers SHALL keep current context and state legible without redundant explanatory subtitle copy.
+Explorer header summary chips SHALL stay low-noise and reflect current view/scope/filter state without displacing the active root label.
 
 #### Scenario: Open Memo view
 - **WHEN** a user selects Memo in the activity bar
@@ -1309,6 +1329,11 @@ Explorer and Memo side-surface headers SHALL keep current context and state legi
 - **WHEN** a user opens Explorer or Memo
 - **THEN** the header foregrounds the active root or record summary
 - **AND** avoids redundant instructional subtitle text when current context and state can already be read directly from the controls and summary chips
+
+#### Scenario: Explorer summary chips stay secondary
+- **WHEN** a user opens Explorer with active view, scope, or filter state
+- **THEN** those states render as compact summary chips
+- **AND** the active root label remains the strongest text anchor in the header
 
 ### Requirement: Comment Surface Hierarchy
 The Comments surface SHALL keep the compose action, file context, snippet evidence, and comment list readable without collapsing into a generic dense tool card.
@@ -1461,12 +1486,18 @@ The editor SHALL treat the activity bar logo as a home shortcut that opens the A
 - **THEN** the editor switches to the Agent Cells view
 
 ### Requirement: Settings Dashboard Overview
-The editor SHALL provide a Settings dashboard that summarizes the current project context and offers navigation entry cards to Actions, Gates, and Softlinks.
+The editor SHALL provide a Settings dashboard that summarizes the current project context and offers navigation entry cards to core runtime/configuration capabilities.
 The dashboard SHALL include the current project summary and the recent projects list.
+The top area SHALL foreground workspace identity, runtime status, and config scope before the action-card grid.
 
 #### Scenario: View settings dashboard
 - **WHEN** a user opens the Settings view
 - **THEN** the editor shows project summary, recent projects, and configuration entry cards
+
+#### Scenario: Settings top area stays context-first
+- **WHEN** a user opens the Settings view
+- **THEN** the repository identity, runtime status, and config-scope readiness are readable before scanning the action cards
+- **AND** the top area does not rely on decorative chrome to explain the current workspace state
 
 ### Requirement: Explorer Clipboard Operations
 The Explorer SHALL support copy, cut, and paste operations for files and folders.

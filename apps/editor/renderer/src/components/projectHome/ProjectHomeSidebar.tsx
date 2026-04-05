@@ -60,7 +60,7 @@ export function ProjectHomeSidebar({
                 <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-cyan-100/72">
                   Primary Action
                 </div>
-                <div className="mt-1 text-[12px] font-semibold text-white">Open Repository</div>
+                <div className="mt-1 text-[12px] font-semibold text-white">Open Project</div>
               </div>
               <FolderOpen size={16} className="text-cyan-100" />
             </button>

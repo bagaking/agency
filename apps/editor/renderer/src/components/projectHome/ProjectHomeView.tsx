@@ -134,7 +134,7 @@ export function ProjectHomeView({
                     <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-cyan-50/72">
                       Primary Action
                     </div>
-                    <div className="mt-2 text-[16px] font-semibold text-white">Open Repository</div>
+                    <div className="mt-2 text-[16px] font-semibold text-white">Open Project</div>
                   </div>
                   <FolderOpen size={18} className="shrink-0 text-cyan-50" />
                 </button>
