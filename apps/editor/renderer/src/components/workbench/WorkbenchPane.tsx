@@ -844,7 +844,7 @@ function WorkbenchPaneContent({
                   <section className="flex h-full min-h-0 flex-col bg-[#0b0d11] text-white">
                     <WorkbenchBoundedWebResearchChrome scene={scene} />
                     <WorkbenchBoundedWebResearchStatusBanner scene={scene} />
-                    <div className="min-h-0 flex-1 overflow-hidden">
+                    <div className="relative min-h-0 flex-1 overflow-hidden">
                       {scene.preferredMode === 'live' ? (
                         <WorkbenchBrowserLane
                           browserSurface={scene.browserSurface}
@@ -941,7 +941,7 @@ function WorkbenchPaneContent({
                       <section className="flex h-full min-h-0 flex-col bg-[#0b0d11] text-white">
                         <WorkbenchBoundedWebResearchChrome scene={scene} />
                         <WorkbenchBoundedWebResearchStatusBanner scene={scene} />
-                        <div className="min-h-0 flex-1 overflow-hidden">
+                        <div className="relative min-h-0 flex-1 overflow-hidden">
                           {scene.preferredMode === 'live' ? (
                             <WorkbenchBrowserLane
                               browserSurface={scene.browserSurface}

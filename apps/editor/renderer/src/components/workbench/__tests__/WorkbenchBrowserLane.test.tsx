@@ -47,3 +47,23 @@ test('WorkbenchBrowserLane renders the native host slot when the browser surface
   assert.match(html, /workbench-browser-surface-host/);
   assert.doesNotMatch(html, /Browser Surface Unavailable/);
 });
+
+test('WorkbenchBrowserLane anchors the live host to the full lane bounds', () => {
+  const html = renderToStaticMarkup(
+    <WorkbenchBrowserLane
+      browserSurface={{
+        hostRef: { current: null },
+        browserSurfaceAvailable: true,
+        surfaceState: {
+          phase: 'loading',
+        },
+      }}
+      onReload={() => undefined}
+      onOpenReader={() => undefined}
+      onOpenInBrowser={() => undefined}
+    />
+  );
+
+  assert.match(html, /data-testid="workbench-browser-surface-host"/);
+  assert.match(html, /class="absolute inset-0 overflow-hidden bg-white"/);
+});

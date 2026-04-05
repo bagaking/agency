@@ -119,7 +119,7 @@ export function WorkbenchBrowserLane({
   }
 
   return (
-    <div className="relative min-h-0 flex-1 bg-white">
+    <div className="absolute inset-0 overflow-hidden bg-white">
       <div
         ref={browserSurface?.hostRef || null}
         data-testid="workbench-browser-surface-host"
