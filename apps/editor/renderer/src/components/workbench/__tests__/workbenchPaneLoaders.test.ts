@@ -67,3 +67,34 @@ test('loadWorkbenchTabState recognizes markdown linked to bounded web research',
     env.cleanup();
   }
 });
+
+test('loadWorkbenchTabState opens unknown extension files as code when content is text', async () => {
+  const env = setupDom();
+  try {
+    (window as any).agency = {
+      readWorkbenchEntry: async () => ({
+        content: 'plain text from a custom extension',
+        size: 32,
+        mtimeMs: 456,
+        binary: false,
+        truncated: false,
+      }),
+      statWorkbenchEntry: async () => ({
+        size: 32,
+        mtimeMs: 456,
+      }),
+    };
+
+    const state = await loadWorkbenchTabState({
+      rootPath: '/repo',
+      targetPath: 'notes/customext.abcxyz',
+    });
+
+    assert.equal(state.kind, 'code');
+    assert.equal(state.language, 'plaintext');
+    assert.equal(state.content, 'plain text from a custom extension');
+    assert.equal(state.binary, false);
+  } finally {
+    env.cleanup();
+  }
+});

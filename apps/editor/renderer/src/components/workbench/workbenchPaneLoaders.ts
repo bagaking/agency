@@ -96,6 +96,22 @@ const loadUnknownWorkbenchState = async ({
   rootPath,
   targetPath,
 }: WorkbenchTabTarget): Promise<WorkbenchTabLoadResult> => {
+  const result = await readWorkbenchEntry({ rootPath, targetPath });
+  if (!result?.binary) {
+    const content = result?.content || '';
+    return {
+      ...baseLoadedState,
+      content,
+      syncedContent: content,
+      size: result?.size || 0,
+      mtimeMs: result?.mtimeMs || 0,
+      binary: false,
+      truncated: Boolean(result?.truncated),
+      language: resolveWorkbenchLanguage(targetPath),
+      isDirty: false,
+      kind: 'code',
+    };
+  }
   const meta = await statWorkbenchEntry({ rootPath, targetPath });
   return {
     ...baseLoadedState,

@@ -212,6 +212,8 @@ test('ExplorerItem keeps ignored entries legible and prioritizes dirty over open
   assert.match(html, /ignored\.log/);
   assert.match(html, /data-explorer-ignored="true"/);
   assert.doesNotMatch(html, /data-explorer-status="ignored"/);
+  assert.doesNotMatch(html, /text-muted-foreground\/56/);
+  assert.match(html, /text-muted-foreground\/78/);
 });
 
 test('ExplorerItem constrains the metadata rail so status labels do not collide with file names', () => {
@@ -256,6 +258,68 @@ test('ExplorerItem constrains the metadata rail so status labels do not collide 
   assert.match(html, /data-explorer-status="modified"/);
   assert.match(html, /data-explorer-meta-rail="true"/);
   assert.match(html, /max-w-\[45%\]/);
+});
+
+test('ExplorerItem routes filename double click through the dedicated rename affordance', async () => {
+  const env = setupDom();
+  try {
+    const root = createRoot(document.getElementById('root')!);
+    const events: string[] = [];
+
+    await act(async () => {
+      root.render(
+        <ExplorerItem
+          item={{ path: 'docs/guide.md', depth: 0, type: 'file' }}
+          node={{ name: 'guide.md', type: 'file' }}
+          treeItemId="explorer-treeitem-guide"
+          isSelected={true}
+          isFocused={true}
+          isLoading={false}
+          isExpanded={false}
+          isOpen={false}
+          isDirty={false}
+          isIgnored={false}
+          status={undefined}
+          added={0}
+          deleted={0}
+          semanticTags={[]}
+          commentCount={0}
+          onJumpToComments={() => {}}
+          cellBadges={null}
+          depth={0}
+          onToggle={() => {}}
+          onClick={() => {}}
+          onDoubleClick={() => {
+            events.push('row');
+          }}
+          onNameDoubleClick={() => {
+            events.push('name');
+          }}
+          onContextMenu={() => {}}
+          onDragStart={() => {}}
+          onDragOver={() => {}}
+          onDrop={() => {}}
+          renameTarget={null}
+          handleRenameSubmit={() => {}}
+          setRenameTarget={() => {}}
+        />
+      );
+    });
+
+    const name = document.querySelector('[data-explorer-name="true"]');
+    assert.ok(name);
+    await act(async () => {
+      name?.dispatchEvent(new window.MouseEvent('dblclick', { bubbles: true }));
+    });
+
+    assert.deepEqual(events, ['name']);
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
 });
 
 test('ExplorerItem hides the expander for restricted symbolic-link directories', () => {

@@ -101,6 +101,9 @@ test('writeClipboardFileReferences publishes URI-list formats and materializeCli
     assert.equal(result.mode, 'cut');
     assert.match(clipboardMock.read('text/uri-list'), /file:\/\//);
     assert.match(clipboardMock.readText(), /guide\.md/);
+    assert.match(clipboardMock.read('text/plain'), /guide\.md/);
+    assert.match(clipboardMock.read('public.utf8-plain-text'), /guide\.md/);
+    assert.match(clipboardMock.read('public.url'), /guide\.md/);
 
     const paste = await materializeClipboard({
       rootPath: rootDir,

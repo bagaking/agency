@@ -42,6 +42,7 @@ export function ExplorerItem({
   onToggle,
   onClick,
   onDoubleClick,
+  onNameDoubleClick,
   onContextMenu,
   onDragStart,
   onDragOver,
@@ -50,6 +51,8 @@ export function ExplorerItem({
   handleRenameSubmit,
   setRenameTarget,
 }: any) {
+  const isDraftComposingRef = React.useRef(false);
+  const isRenameComposingRef = React.useRef(false);
   const isDir = item.type === 'dir';
   const isLink = item.isSymbolicLink;
   const nodeName = resolveExplorerNodeName(node, item.path);
@@ -133,7 +136,18 @@ export function ExplorerItem({
           className="flex-1 rounded border border-border bg-transparent px-1 text-xs text-foreground focus:outline-none select-text"
           placeholder={item.type === 'dir' ? 'New folder' : 'New file'}
           onBlur={item.onBlur}
-          onKeyDown={item.onKeyDown}
+          onCompositionStart={() => {
+            isDraftComposingRef.current = true;
+          }}
+          onCompositionEnd={() => {
+            isDraftComposingRef.current = false;
+          }}
+          onKeyDown={(event) => {
+            if (isDraftComposingRef.current || event.nativeEvent?.isComposing) {
+              return;
+            }
+            item.onKeyDown?.(event);
+          }}
           onChange={item.onChange}
           value={item.value}
           onMouseDown={(event) => event.stopPropagation()}
@@ -185,7 +199,7 @@ export function ExplorerItem({
         <FileIcon
           size={14}
           strokeWidth={1.5}
-          className={isIgnored ? 'text-slate-400/62 group-hover:text-slate-300/76' : iconColor}
+          className={isIgnored ? 'text-slate-300/74 group-hover:text-slate-200/88' : iconColor}
         />
         {isLink && (
           <div
@@ -205,8 +219,8 @@ export function ExplorerItem({
             aria-hidden="true"
             className={`absolute -top-1 -right-1 rounded-full p-[0.5px] ring-1 ring-white/10 ${
               isSelected || isFocused
-                ? 'bg-background/95 text-slate-300/84'
-                : 'bg-background/88 text-slate-400/68 group-hover:text-slate-300/82'
+                ? 'bg-background/95 text-slate-200/92'
+                : 'bg-background/88 text-slate-300/80 group-hover:text-slate-200/90'
             }`}
           >
             <EyeOff size={8} className="text-current" strokeWidth={2} />
@@ -223,7 +237,16 @@ export function ExplorerItem({
           value={renameTarget.value}
           onChange={(e) => setRenameTarget(prev => ({ ...prev, value: e.target.value }))}
           onBlur={handleRenameSubmit}
+          onCompositionStart={() => {
+            isRenameComposingRef.current = true;
+          }}
+          onCompositionEnd={() => {
+            isRenameComposingRef.current = false;
+          }}
           onKeyDown={(e) => {
+            if (isRenameComposingRef.current || e.nativeEvent?.isComposing) {
+              return;
+            }
             if (e.key === 'Enter') handleRenameSubmit();
             if (e.key === 'Escape') setRenameTarget(null);
           }}
@@ -233,16 +256,25 @@ export function ExplorerItem({
       ) : (
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <span
+            data-explorer-name="true"
             title={nodeName}
             className={`truncate font-medium transition-colors ${
               isIgnored
                 ? isSelected
-                  ? 'text-foreground/72'
+                  ? 'text-foreground/84'
                   : isFocused
-                    ? 'text-foreground/68'
-                    : 'text-muted-foreground/56 group-hover:text-muted-foreground/72'
+                    ? 'text-foreground/80'
+                    : 'text-muted-foreground/78 group-hover:text-muted-foreground/92'
                 : 'text-inherit'
             }`}
+            onDoubleClick={
+              onNameDoubleClick
+                ? (event) => {
+                    event.stopPropagation();
+                    onNameDoubleClick(event);
+                  }
+                : undefined
+            }
           >
             {nodeName}
           </span>

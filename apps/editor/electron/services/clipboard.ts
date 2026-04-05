@@ -171,10 +171,17 @@ async function writeClipboardFileReferences(params: any = {}) {
   const uriList = buildClipboardUriList(absolutePaths);
   const normalizedMode = mode === 'cut' ? 'cut' : 'copy';
   clipboard.clear();
-  clipboard.writeText(absolutePaths.join('\n'));
+  const plainTextPayload = absolutePaths.join('\n');
+  clipboard.writeText(plainTextPayload);
+  clipboard.writeBuffer('text/plain', Buffer.from(plainTextPayload, 'utf8'));
+  clipboard.writeBuffer('public.utf8-plain-text', Buffer.from(plainTextPayload, 'utf8'));
   clipboard.writeBuffer('text/uri-list', Buffer.from(uriList, 'utf8'));
   clipboard.writeBuffer(
     'public.file-url',
+    Buffer.from(pathToFileURL(absolutePaths[0]).toString(), 'utf8')
+  );
+  clipboard.writeBuffer(
+    'public.url',
     Buffer.from(pathToFileURL(absolutePaths[0]).toString(), 'utf8')
   );
   clipboard.writeBuffer('public/uri-list', Buffer.from(uriList, 'utf8'));

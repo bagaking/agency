@@ -39,11 +39,6 @@ type UseExplorerClipboardActionsOptions = {
   clearError: () => void;
   setErrorMessage: (message: string) => void;
   openEntry: (targetPath: string, mode: 'preview' | 'pinned') => Promise<boolean>;
-  notify?: (config: {
-    title: string;
-    description?: string;
-    tone?: 'info' | 'success' | 'warning' | 'danger';
-  }) => Promise<void> | void;
 };
 
 type PathListInput = string | string[];
@@ -104,7 +99,6 @@ export const useExplorerClipboardActions = ({
   clearError,
   setErrorMessage,
   openEntry,
-  notify,
 }: UseExplorerClipboardActionsOptions) => {
   const [clipboard, setClipboard] = useState<ClipboardState>(null);
   const [externalClipboardPayload, setExternalClipboardPayload] = useState<ClipboardPayloadSummary>(
@@ -197,11 +191,22 @@ export const useExplorerClipboardActions = ({
   const handlePasteSelection = useCallback(async () => {
     const baseRoot = rootPath || repoRoot || '';
     const targetDir = resolvePasteDirectory();
+    let nextExternalClipboardPayload = externalClipboardPayload;
+
+    if (baseRoot && isAgencyMethodAvailable('inspectClipboardPayload')) {
+      try {
+        const latestPayload = await inspectClipboardPayload();
+        nextExternalClipboardPayload = latestPayload || null;
+        setExternalClipboardPayload(nextExternalClipboardPayload);
+      } catch {
+        // Fall back to the latest cached payload state.
+      }
+    }
 
     if (
       baseRoot &&
       isAgencyMethodAvailable('materializeClipboard') &&
-      hasExplorerExternalClipboardPayload(externalClipboardPayload)
+      hasExplorerExternalClipboardPayload(nextExternalClipboardPayload)
     ) {
       try {
         const result = await materializeClipboard({
@@ -216,7 +221,6 @@ export const useExplorerClipboardActions = ({
           let didApply = false;
           let hadError = false;
           const pastedPaths: string[] = [];
-          const conflictResolvedPaths: string[] = [];
           for (const sourcePath of sourcePaths) {
             const baseName = explorerPathUtils.basename(sourcePath);
             const targetPath = [targetDir, baseName].filter(Boolean).join('/');
@@ -239,9 +243,6 @@ export const useExplorerClipboardActions = ({
               const nextPath = explorerPathUtils.toRelativePath(moveResult?.path || targetPath);
               if (nextPath) {
                 pastedPaths.push(nextPath);
-                if (nextPath !== targetPath || moveResult?.conflictResolved) {
-                  conflictResolvedPaths.push(nextPath);
-                }
               }
             } else {
               const copyResult = await copyEntry({
@@ -252,9 +253,6 @@ export const useExplorerClipboardActions = ({
               const nextPath = explorerPathUtils.toRelativePath(copyResult?.path || targetPath);
               if (nextPath) {
                 pastedPaths.push(nextPath);
-                if (nextPath !== targetPath || copyResult?.conflictResolved) {
-                  conflictResolvedPaths.push(nextPath);
-                }
               }
             }
             didApply = true;
@@ -285,16 +283,6 @@ export const useExplorerClipboardActions = ({
             }
             if (pastedPaths.length) {
               setSelectedPaths(pastedPaths);
-            }
-            if (conflictResolvedPaths.length) {
-              void notify?.({
-                title: mode === 'cut' ? 'Moved With Suffix' : 'Copied With Suffix',
-                description:
-                  conflictResolvedPaths.length === 1
-                    ? conflictResolvedPaths[0]
-                    : `${conflictResolvedPaths.length} items used conflict-safe names.`,
-                tone: 'info',
-              });
             }
           }
           return;
@@ -330,7 +318,6 @@ export const useExplorerClipboardActions = ({
       let didApply = false;
       let hadError = false;
       const pastedPaths: string[] = [];
-      const conflictResolvedPaths: string[] = [];
       for (const sourcePath of clipboard.paths) {
         const baseName = explorerPathUtils.basename(sourcePath);
         const targetPath = [targetDir, baseName].filter(Boolean).join('/');
@@ -354,9 +341,6 @@ export const useExplorerClipboardActions = ({
         const nextPath = explorerPathUtils.toRelativePath(result?.path || targetPath);
         if (nextPath) {
           pastedPaths.push(nextPath);
-          if (nextPath !== targetPath || result?.conflictResolved) {
-            conflictResolvedPaths.push(nextPath);
-          }
         }
         didApply = true;
       }
@@ -375,16 +359,6 @@ export const useExplorerClipboardActions = ({
         if (clipboard.mode === 'cut') {
           setClipboard(null);
         }
-        if (conflictResolvedPaths.length) {
-          void notify?.({
-            title: clipboard.mode === 'cut' ? 'Moved With Suffix' : 'Copied With Suffix',
-            description:
-              conflictResolvedPaths.length === 1
-                ? conflictResolvedPaths[0]
-                : `${conflictResolvedPaths.length} items used conflict-safe names.`,
-            tone: 'info',
-          });
-        }
       }
     } catch {
       setErrorMessage('Paste failed.');
@@ -395,7 +369,6 @@ export const useExplorerClipboardActions = ({
     copyEntry,
     expandPath,
     externalClipboardPayload,
-    notify,
     refreshAll,
     refreshExternalClipboardPayload,
     renameEntry,

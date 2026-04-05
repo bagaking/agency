@@ -1031,7 +1031,6 @@ function ProjectExplorerSidebarContent({
     clearError,
     setErrorMessage,
     openEntry: handleOpenEntry,
-    notify: modal.notify,
   });
 
   const {
@@ -1325,6 +1324,7 @@ function ProjectExplorerSidebarContent({
     const isDir = node.type === 'dir';
     const entry = getScopedEntry(isDir ? folderStatusByPath[item.path] : statusByPath[item.path], isDir ? 'dir' : 'file');
     const isRenaming = renameTarget?.path === item.path;
+    const isSelected = selectionSet.has(item.path);
     const sorted = resolveExplorerCellAttribution(entry?.cells);
     const cellBadges = sorted.length > 0 && (
         <div className="flex min-w-0 max-w-[5.5rem] items-center gap-1 pr-0.5 opacity-70 transition-opacity group-hover:opacity-95">
@@ -1345,7 +1345,7 @@ function ProjectExplorerSidebarContent({
         item={item}
         node={node}
         treeItemId={getExplorerTreeItemId(item.path)}
-        isSelected={selectionSet.has(item.path)}
+        isSelected={isSelected}
         isFocused={focusedPath === item.path}
         isLoading={loadingPaths.has(item.path)}
         isExpanded={expandedPaths.has(item.path) || isPathSearchActive} isOpen={!isDir && openFiles.has(item.path)}
@@ -1354,8 +1354,33 @@ function ProjectExplorerSidebarContent({
         commentCount={!isDir ? (commentCountsByPath?.[item.path] || 0) : 0}
         onJumpToComments={onJumpToComments}
         cellBadges={cellBadges} depth={item.depth} onToggle={() => togglePath(item.path)}
-        onClick={isRenaming ? undefined : (e) => { handleSelectPath(item.path, e); setFocusedPath(item.path); listRef.current?.focus(); if (!isDir && !e.metaKey && !e.ctrlKey && !e.shiftKey) { void handleOpenEntry(item.path, 'preview'); } }}
-        onDoubleClick={isRenaming ? undefined : (e) => { if (!isDir) { e.stopPropagation(); void handleOpenEntry(item.path, 'pinned'); } }}
+        onClick={isRenaming ? undefined : (e) => {
+          handleSelectPath(item.path, e);
+          setFocusedPath(item.path);
+          listRef.current?.focus();
+          const clickedName =
+            typeof (e.target as HTMLElement | null)?.closest === 'function' &&
+            Boolean((e.target as HTMLElement).closest('[data-explorer-name="true"]'));
+          if (!isDir && !clickedName && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+            void handleOpenEntry(item.path, 'preview');
+          }
+        }}
+        onDoubleClick={isRenaming ? undefined : (e) => {
+          e.stopPropagation();
+          if (!isDir) {
+            void handleOpenEntry(item.path, 'pinned');
+          }
+        }}
+        onNameDoubleClick={
+          isRenaming
+            ? undefined
+            : (e) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+                  return;
+                }
+                requestRename(item.path);
+              }
+        }
         onContextMenu={isRenaming ? undefined : (e) => { e.preventDefault(); handleSelectPath(item.path, e); setFocusedPath(item.path); setContextMenu({ x: e.clientX, y: e.clientY, path: item.path }); }}
         onDragStart={isRenaming ? undefined : (event) => {
           const payload = buildExplorerInternalDragPayload(item.path, selectionSet);
