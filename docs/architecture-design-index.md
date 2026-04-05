@@ -34,6 +34,7 @@ This is a lightweight index that points to the authoritative design sources. It 
 
 ## Supplemental notes & guidelines (supporting)
 - Notes: `docs/notes-*.md`
+- Electron native browser surface geometry, layering, and debugging: `docs/notes-electron-browser-surface.md`
 - Unified file interaction philosophy and end-state: `docs/notes-file-interaction-system.md`
 - Explorer interaction capability and external research synthesis: `docs/notes-explorer-interaction-system.md`
 - Workbench highlighting resolution and provider boundaries: `docs/notes-workbench-highlighting-system.md`

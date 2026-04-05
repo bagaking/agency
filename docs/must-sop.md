@@ -73,6 +73,12 @@ Source: `docs/notes-directives-examples.md`
 - Keep directive usage practical: only add directives that reduce mistakes or improve debuggability.
 - Regenerate `docs/must-sop.md` after SOP/frontmatter changes.
 
+### Electron Native Browser Surface
+Source: `docs/notes-electron-browser-surface.md`
+- Read this doc before changing Workbench browser lanes, native `WebContentsView` host geometry, or renderer/native overlay layering.
+- Update this doc when browser-lane ownership, host sync, or native-surface layering rules change.
+- Regenerate docs/must-sop.md after updating this doc.
+
 ### Explorer Interaction System
 Source: `docs/notes-explorer-interaction-system.md`
 - Read this doc before changing Explorer information architecture, action grammar, or sidebar role boundaries.
