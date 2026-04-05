@@ -92,20 +92,22 @@ export function mapRendererRectToNativeContentRect(
     return null;
   }
 
-  const rendererViewBounds = resolveOwnerRendererViewBounds(ownerWindow);
-  const mappedRect = rendererViewBounds
-    ? {
-        x: Math.floor(Number(rendererViewBounds.x || 0) + Number(rendererRect.x || 0)),
-        y: Math.floor(Number(rendererViewBounds.y || 0) + Number(rendererRect.y || 0)),
-        width: Math.floor(Number(rendererRect.width || 0)),
-        height: Math.floor(Number(rendererRect.height || 0)),
-      }
-    : {
-        x: Math.floor(Number(rendererRect.x || 0)),
-        y: Math.floor(Number(rendererRect.y || 0)),
-        width: Math.floor(Number(rendererRect.width || 0)),
-        height: Math.floor(Number(rendererRect.height || 0)),
-      };
+  const explicitBounds = ownerWindow?.getRendererViewBounds?.();
+  if (!explicitBounds) {
+    return {
+      x: Math.floor(Number(rendererRect.x || 0)),
+      y: Math.floor(Number(rendererRect.y || 0)),
+      width: Math.floor(Number(rendererRect.width || 0)),
+      height: Math.floor(Number(rendererRect.height || 0)),
+    };
+  }
 
-  return clampRectangleToParent(mappedRect, rendererViewBounds);
+  const mappedRect = {
+    x: Math.floor(Number(explicitBounds.x || 0) + Number(rendererRect.x || 0)),
+    y: Math.floor(Number(explicitBounds.y || 0) + Number(rendererRect.y || 0)),
+    width: Math.floor(Number(rendererRect.width || 0)),
+    height: Math.floor(Number(rendererRect.height || 0)),
+  };
+
+  return clampRectangleToParent(mappedRect, explicitBounds);
 }

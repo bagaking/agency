@@ -167,7 +167,7 @@ This is the part future embedded surfaces should reuse directly.
 The preferred reusable seam is:
 - window owner may expose renderer-view native bounds through `getRendererViewBounds()`;
 - renderer reports a DOM lane rect;
-- main process maps DOM-space lane geometry into native content-space geometry with `mapRendererRectToNativeContentRect()`;
+- main process maps DOM-space lane geometry into native content-space geometry with `mapRendererRectToNativeContentRect()`, but only applies origin translation when that shell-owned seam is explicit;
 - invalid mapped geometry hides the native surface instead of preserving stale placement.
 
 ### 2. Native surface overlay coordinator

@@ -244,6 +244,28 @@ test('maps renderer rects through the owner renderer view bounds', () => {
   );
 });
 
+test('keeps raw renderer coordinates when no authoritative renderer-view bounds seam exists', () => {
+  const fakeWindow = new FakeWindow(1);
+  const rendererView = new FakeWebContentsView(fakeWindow.webContents.id);
+  rendererView.setBounds({ x: 0, y: 28, width: 1200, height: 800 });
+  fakeWindow.getContentView().addChildView(rendererView);
+
+  assert.deepEqual(
+    mapRendererRectToNativeContentRect(fakeWindow, {
+      x: 320,
+      y: 200,
+      width: 640,
+      height: 480,
+    }),
+    {
+      x: 320,
+      y: 200,
+      width: 640,
+      height: 480,
+    }
+  );
+});
+
 test('ensures browser surface state per window + tab', () => {
   const { service, fakeWindow } = setupService();
   const payload = ensureSurface(service, fakeWindow, 'tab-ensure');
