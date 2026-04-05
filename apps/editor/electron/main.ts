@@ -54,10 +54,12 @@ const {
   createControlBusSocketServer,
 } = require('./services/controlBusSocket');
 const {
+  buildWindowDisplayAnchor,
   broadcastWindowShellUpdated,
   collectEditorWindows,
   focusEditorWindow,
   orderEditorWindowsByStateId,
+  resolveWindowBoundsFromDisplayAnchor,
   resolveActivatedEditorWindow,
   syncWindowTitle,
 } = require('./services/windowShell');
@@ -221,6 +223,8 @@ async function persistWindowShellState(win: AgencyWindow): Promise<void> {
     return;
   }
   const geometrySource = win.isMaximized() || win.isFullScreen() ? win.getNormalBounds() : win.getBounds();
+  const display = screen.getDisplayMatching(geometrySource);
+  const windowDisplayAnchor = buildWindowDisplayAnchor(geometrySource, display);
   await updateWindowUiState(windowStateId, {
     windowBounds: {
       x: geometrySource.x,
@@ -230,6 +234,7 @@ async function persistWindowShellState(win: AgencyWindow): Promise<void> {
     },
     windowMaximized: win.isMaximized(),
     windowFullScreen: win.isFullScreen(),
+    windowDisplayAnchor,
   });
 }
 
@@ -528,7 +533,16 @@ async function createWindow({
   const storedProjectRoot = shouldAllowStoredProjectRoot
     ? normalizeStoredProjectRoot(storedWindowState?.projectRoot)
     : '';
-  const restoredBounds = sanitizeWindowBounds(storedWindowState?.windowBounds);
+  const restoredBounds =
+    resolveWindowBoundsFromDisplayAnchor({
+      bounds: storedWindowState?.windowBounds,
+      anchor: storedWindowState?.windowDisplayAnchor,
+      displays: screen.getAllDisplays(),
+      minWidth: MIN_WINDOW_WIDTH,
+      minHeight: MIN_WINDOW_HEIGHT,
+      defaultWidth: DEFAULT_WINDOW_WIDTH,
+      defaultHeight: DEFAULT_WINDOW_HEIGHT,
+    }) || sanitizeWindowBounds(storedWindowState?.windowBounds);
   const shouldRestoreMaximized = Boolean(storedWindowState?.windowMaximized);
   const shouldRestoreFullScreen = Boolean(storedWindowState?.windowFullScreen);
 

@@ -25,6 +25,7 @@ const WINDOW_STATE_KEYS = [
   'explorerCapabilityStateByRootKey',
   'explorerFilterStateByRootKey',
   'windowBounds',
+  'windowDisplayAnchor',
   'windowMaximized',
   'windowFullScreen',
 ];

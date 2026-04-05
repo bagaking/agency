@@ -2,8 +2,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  buildWindowDisplayAnchor,
   focusEditorWindow,
   orderEditorWindowsByStateId,
+  resolveWindowBoundsFromDisplayAnchor,
   resolveActivatedEditorWindow,
 } = require('../windowShell.ts');
 
@@ -84,6 +86,63 @@ test('focusEditorWindow restores minimized windows before showing and focusing t
   focusEditorWindow(window);
 
   assert.deepEqual(calls, ['restore', 'show', 'focus']);
+});
+
+test('buildWindowDisplayAnchor captures relative geometry for a display work area', () => {
+  const anchor = buildWindowDisplayAnchor(
+    { x: 1000, y: 80, width: 960, height: 800 },
+    {
+      id: 'display-2',
+      workArea: { x: 960, y: 24, width: 1920, height: 1056 },
+    }
+  );
+
+  assert.equal(anchor?.displayId, 'display-2');
+  assert.equal(anchor?.relativeBounds?.x, (1000 - 960) / 1920);
+  assert.equal(anchor?.relativeBounds?.y, (80 - 24) / 1056);
+  assert.equal(anchor?.relativeBounds?.width, 960 / 1920);
+  assert.equal(anchor?.relativeBounds?.height, 800 / 1056);
+});
+
+test('resolveWindowBoundsFromDisplayAnchor restores bounds on the anchored display', () => {
+  const restored = resolveWindowBoundsFromDisplayAnchor({
+    bounds: { x: 10, y: 10, width: 1200, height: 840 },
+    anchor: {
+      displayId: 'display-2',
+      relativeBounds: {
+        x: 0.5,
+        y: 0.1,
+        width: 0.5,
+        height: 0.75,
+      },
+    },
+    displays: [
+      { id: 'display-1', workArea: { x: 0, y: 24, width: 1600, height: 876 } },
+      { id: 'display-2', workArea: { x: 1600, y: 24, width: 1600, height: 876 } },
+    ],
+    minWidth: 600,
+    minHeight: 500,
+  });
+
+  assert.deepEqual(restored, {
+    x: 2400,
+    y: 112,
+    width: 800,
+    height: 657,
+  });
+});
+
+test('resolveWindowBoundsFromDisplayAnchor returns null when anchored display is unavailable', () => {
+  const restored = resolveWindowBoundsFromDisplayAnchor({
+    bounds: { x: 100, y: 100, width: 1200, height: 820 },
+    anchor: {
+      displayId: 'display-2',
+      relativeBounds: { x: 0.4, y: 0.2, width: 0.7, height: 0.7 },
+    },
+    displays: [{ id: 'display-1', workArea: { x: 0, y: 24, width: 1728, height: 1080 } }],
+  });
+
+  assert.equal(restored, null);
 });
 
 export {};

@@ -28,6 +28,177 @@ export type EditorWindowRecord = {
   attentionSummary: any;
 };
 
+type RectangleLike = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type DisplayLike = {
+  id: string | number;
+  workArea?: RectangleLike;
+};
+
+export type WindowDisplayAnchor = {
+  displayId: string;
+  relativeBounds: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+};
+
+type RelativeBounds = WindowDisplayAnchor['relativeBounds'];
+
+const DEFAULT_WINDOW_WIDTH = 1280;
+const DEFAULT_WINDOW_HEIGHT = 820;
+const MIN_WINDOW_WIDTH = 1024;
+const MIN_WINDOW_HEIGHT = 700;
+
+function normalizeNumber(value: unknown): number {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function normalizeRectangle(raw: unknown): RectangleLike | null {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+  const value = raw as Partial<RectangleLike>;
+  const width = Math.round(normalizeNumber(value.width));
+  const height = Math.round(normalizeNumber(value.height));
+  if (width <= 0 || height <= 0) {
+    return null;
+  }
+  return {
+    x: Math.round(normalizeNumber(value.x)),
+    y: Math.round(normalizeNumber(value.y)),
+    width,
+    height,
+  };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+  if (value < min) {
+    return min;
+  }
+  if (value > max) {
+    return max;
+  }
+  return value;
+}
+
+function resolveDisplayWorkArea(display: DisplayLike | null | undefined): RectangleLike | null {
+  if (!display) {
+    return null;
+  }
+  return normalizeRectangle(display.workArea);
+}
+
+export function buildWindowDisplayAnchor(
+  bounds: unknown,
+  display: DisplayLike | null | undefined
+): WindowDisplayAnchor | null {
+  const normalizedBounds = normalizeRectangle(bounds);
+  const workArea = resolveDisplayWorkArea(display);
+  const displayId = String(display?.id || '').trim();
+  if (!normalizedBounds || !workArea || !displayId) {
+    return null;
+  }
+  if (workArea.width <= 0 || workArea.height <= 0) {
+    return null;
+  }
+
+  const relativeBounds = {
+    x: (normalizedBounds.x - workArea.x) / workArea.width,
+    y: (normalizedBounds.y - workArea.y) / workArea.height,
+    width: normalizedBounds.width / workArea.width,
+    height: normalizedBounds.height / workArea.height,
+  };
+
+  return {
+    displayId,
+    relativeBounds,
+  };
+}
+
+export function resolveWindowBoundsFromDisplayAnchor({
+  bounds,
+  anchor,
+  displays,
+  minWidth = MIN_WINDOW_WIDTH,
+  minHeight = MIN_WINDOW_HEIGHT,
+  defaultWidth = DEFAULT_WINDOW_WIDTH,
+  defaultHeight = DEFAULT_WINDOW_HEIGHT,
+}: {
+  bounds: unknown;
+  anchor: unknown;
+  displays: DisplayLike[];
+  minWidth?: number;
+  minHeight?: number;
+  defaultWidth?: number;
+  defaultHeight?: number;
+}): RectangleLike | null {
+  if (!anchor || typeof anchor !== 'object' || !Array.isArray(displays) || displays.length === 0) {
+    return null;
+  }
+  const normalizedBounds = normalizeRectangle(bounds);
+  const parsed = anchor as Partial<WindowDisplayAnchor>;
+  const displayId = String(parsed.displayId || '').trim();
+  const relativeBounds = (parsed.relativeBounds || {}) as Partial<RelativeBounds>;
+  const targetDisplay = displays.find((entry) => String(entry?.id || '').trim() === displayId);
+  const workArea = resolveDisplayWorkArea(targetDisplay);
+  if (!displayId || !workArea) {
+    return null;
+  }
+
+  const widthRatio = normalizeNumber(relativeBounds.width);
+  const heightRatio = normalizeNumber(relativeBounds.height);
+  const xRatio = normalizeNumber(relativeBounds.x);
+  const yRatio = normalizeNumber(relativeBounds.y);
+
+  const desiredWidth = Number.isFinite(widthRatio) && widthRatio > 0
+    ? Math.round(workArea.width * widthRatio)
+    : normalizedBounds?.width || defaultWidth;
+  const desiredHeight = Number.isFinite(heightRatio) && heightRatio > 0
+    ? Math.round(workArea.height * heightRatio)
+    : normalizedBounds?.height || defaultHeight;
+
+  const nextWidth = clamp(
+    Math.max(minWidth, desiredWidth),
+    Math.min(minWidth, workArea.width),
+    workArea.width
+  );
+  const nextHeight = clamp(
+    Math.max(minHeight, desiredHeight),
+    Math.min(minHeight, workArea.height),
+    workArea.height
+  );
+
+  const maxX = workArea.x + Math.max(0, workArea.width - nextWidth);
+  const maxY = workArea.y + Math.max(0, workArea.height - nextHeight);
+  const centeredX = workArea.x + Math.max(0, Math.round((workArea.width - nextWidth) / 2));
+  const centeredY = workArea.y + Math.max(0, Math.round((workArea.height - nextHeight) / 2));
+  const desiredX = Number.isFinite(xRatio)
+    ? Math.round(workArea.x + xRatio * workArea.width)
+    : centeredX;
+  const desiredY = Number.isFinite(yRatio)
+    ? Math.round(workArea.y + yRatio * workArea.height)
+    : centeredY;
+
+  return {
+    x: clamp(desiredX, workArea.x, maxX),
+    y: clamp(desiredY, workArea.y, maxY),
+    width: nextWidth,
+    height: nextHeight,
+  };
+}
+
 export function getProjectDisplayName(projectRoot: string): string {
   const normalized = String(projectRoot || '').trim();
   if (!normalized) {

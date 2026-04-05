@@ -119,6 +119,15 @@ test('keeps window snapshots isolated while sharing app-global state', async () 
         width: 1200,
         height: 800,
       },
+      windowDisplayAnchor: {
+        displayId: '69733248',
+        relativeBounds: {
+          x: 0.03,
+          y: 0.05,
+          width: 0.62,
+          height: 0.74,
+        },
+      },
     });
     await uiState.updateWindowUiState('window-b', {
       projectRoot: '/tmp/repo-b',
@@ -154,6 +163,15 @@ test('keeps window snapshots isolated while sharing app-global state', async () 
       y: 50,
       width: 1200,
       height: 800,
+    });
+    assert.deepEqual(windowA.windowDisplayAnchor, {
+      displayId: '69733248',
+      relativeBounds: {
+        x: 0.03,
+        y: 0.05,
+        width: 0.62,
+        height: 0.74,
+      },
     });
     assert.equal(windowB.projectRoot, '/tmp/repo-b');
     assert.equal(windowB.selectedId, 'cell-b');
