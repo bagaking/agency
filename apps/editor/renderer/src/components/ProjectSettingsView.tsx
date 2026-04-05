@@ -34,7 +34,37 @@ export function ProjectSettingsView({
   const projectName = hasProject ? basename(projectRoot) : 'No project selected';
   const tmuxLabel = tmuxStatus?.available ? tmuxStatus.version || 'tmux active' : 'tmux missing';
   const canAccessProjectConfig = Boolean(projectReady);
-  const projectActionLabel = hasProject ? 'Initialize' : 'Select Project';
+  const projectActionLabel = hasProject ? 'Switch Project' : 'Open Project';
+  const workspaceHeadline = hasProject ? projectName : 'Workspace Settings';
+  const workspaceSummary = hasProject
+    ? 'Adjust repo-scoped runtime behavior, providers, and shared workspace controls.'
+    : 'Open a repository to unlock repo-backed settings, worktree tools, and session configuration.';
+  const workspaceModeLabel = hasProject ? 'Repository linked' : 'Project home only';
+  const systemFacts = [
+    {
+      id: 'root',
+      label: 'Repository Root',
+      value: projectRoot || 'No repository selected',
+      tone: 'text-foreground',
+      muted: true,
+    },
+    {
+      id: 'runtime',
+      label: 'Runtime',
+      value: tmuxLabel,
+      tone: tmuxStatus?.available ? 'text-emerald-400' : 'text-amber-300',
+      muted: false,
+    },
+    {
+      id: 'scope',
+      label: 'Config Scope',
+      value: canAccessProjectConfig
+        ? 'Project settings are writable in this window'
+        : 'Select a repository to enable project-scoped controls',
+      tone: canAccessProjectConfig ? 'text-blue-300' : 'text-muted-foreground',
+      muted: false,
+    },
+  ];
 
   const configCards = [
     {
@@ -91,17 +121,29 @@ export function ProjectSettingsView({
 
   return (
     <main className="flex h-full flex-1 flex-col bg-background overflow-hidden select-none">
-      {/* Tightened Header */}
-      <header className="flex h-20 shrink-0 items-center justify-between px-10 border-b border-border/10">
-        <div className="flex flex-col">
-          <h2 className="text-[9px] font-black uppercase tracking-[0.4em] text-primary/40 mb-1">System Console</h2>
-          <div className="text-2xl font-bold text-foreground tracking-tighter italic leading-none">Settings_</div>
+      <header className="flex min-h-[92px] shrink-0 items-center justify-between gap-6 border-b border-border/15 px-10 py-6">
+        <div className="min-w-0 flex-1">
+          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/58">
+            Workspace Settings
+          </div>
+          <div className="mt-2 flex min-w-0 items-center gap-2">
+            <h1 className="truncate text-[28px] font-semibold tracking-[-0.05em] text-foreground">
+              {workspaceHeadline}
+            </h1>
+            <span className="rounded-full border border-border/30 bg-muted/10 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground/78">
+              {workspaceModeLabel}
+            </span>
+          </div>
+          <p className="mt-2 max-w-[44rem] text-[13px] leading-6 text-muted-foreground">
+            {workspaceSummary}
+          </p>
         </div>
-        <div className="flex items-center gap-3">
+
+        <div className="flex shrink-0 items-center gap-3">
           <button
             type="button"
             onClick={onOpenProject}
-            className="group flex items-center gap-2 rounded-full bg-foreground text-background px-4 py-1.5 text-[10px] font-black uppercase tracking-wider transition-all hover:bg-primary hover:text-white active:scale-95 shadow-xl"
+            className="group flex items-center gap-2 rounded-full border border-border/30 bg-foreground px-4 py-2 text-[10px] font-bold uppercase tracking-[0.16em] text-background transition-colors hover:bg-primary hover:text-white active:scale-95"
           >
             <FolderOpen size={12} strokeWidth={3} />
             {projectActionLabel}
@@ -110,53 +152,83 @@ export function ProjectSettingsView({
       </header>
 
       <div className="flex-1 overflow-y-auto px-10 py-8 space-y-8 custom-scrollbar">
-        {/* Compact Hero Section */}
-        <section className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 via-transparent to-transparent rounded-2xl blur-lg opacity-50" />
-            <div className="relative z-10 bg-card/40 backdrop-blur-xl rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 overflow-hidden border border-border/30 shadow-sm">
-                <Box size={160} className="absolute -right-12 -bottom-12 text-foreground/[0.02] -rotate-12 pointer-events-none" />
-                
-                <div className="flex items-center gap-6">
-                    <div className="relative">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted/10 text-primary shadow-xl ring-1 ring-border/10">
-                            <Box size={28} strokeWidth={1.5} />
-                        </div>
-                        {projectReady && <div className="absolute -top-0.5 -right-1.5 h-3 w-3 bg-emerald-500 rounded-full border-[3px] border-background animate-pulse" />}
-                    </div>
-                    
-                    <div className="flex flex-col min-w-0">
-                        <h3 className="text-xl font-black tracking-tighter text-foreground mb-1 truncate uppercase">{projectName}</h3>
-                        {!hasProject ? (
-                          <div className="mb-2 text-[11px] font-medium text-muted-foreground/70">
-                            No project selected
-                          </div>
-                        ) : null}
-                        <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground bg-muted/10 px-2 py-0.5 rounded-md border border-border/10">
-                                <HardDrive size={10} className="text-muted-foreground/50" />
-                                <span className="truncate max-w-[200px]">{projectRoot || 'Root Unmapped'}</span>
-                            </div>
-                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-widest bg-muted/10 border border-border/10 ${tmuxStatus?.available ? 'text-emerald-500/80' : 'text-amber-500/80'}`}>
-                                <Cpu size={10} />
-                                {tmuxLabel}
-                            </div>
-                        </div>
-                    </div>
+        <section className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.85fr)]">
+          <div className="rounded-3xl border border-border/20 bg-card/35 p-6 shadow-[0_18px_40px_-28px_rgba(0,0,0,0.55)]">
+            <div className="flex items-start gap-4">
+              <div className="relative shrink-0">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border/20 bg-muted/10 text-primary">
+                  <Box size={26} strokeWidth={1.5} />
                 </div>
+                {projectReady ? (
+                  <div className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-[3px] border-background bg-emerald-500" />
+                ) : null}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <h2 className="truncate text-[22px] font-semibold tracking-[-0.04em] text-foreground">
+                    {projectName}
+                  </h2>
+                  <span className="rounded-full border border-border/25 bg-muted/10 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground/76">
+                    {workspaceModeLabel}
+                  </span>
+                </div>
+
+                <p className="mt-2 max-w-[46rem] text-[13px] leading-6 text-muted-foreground">
+                  {hasProject
+                    ? 'This window is attached to one repository. Core runtime and workspace controls stay project-scoped here.'
+                    : 'Pick a repository first. Once selected, the same window exposes repo-backed configuration and worktree management.'}
+                </p>
+
+                <div className="mt-5 rounded-2xl border border-border/20 bg-muted/10 px-4 py-3">
+                  <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/56">
+                    <HardDrive size={11} />
+                    Repository Root
+                  </div>
+                  <div className="mt-2 truncate font-mono text-[12px] text-foreground/88">
+                    {projectRoot || 'No repository selected'}
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {projectError && (
-                <div className="mt-2 mx-4 flex items-center gap-2 text-rose-400 text-[10px] font-medium bg-rose-500/10 p-2 rounded-lg border border-rose-500/20 animate-slide-down">
-                    <AlertCircle size={12} />
-                    {projectError}
+            {projectError ? (
+              <div className="mt-4 flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-100">
+                <AlertCircle size={13} />
+                <span>{projectError}</span>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="rounded-3xl border border-border/20 bg-card/35 p-5 shadow-[0_18px_40px_-28px_rgba(0,0,0,0.55)]">
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/58">
+              System Status
+            </div>
+            <div className="mt-4 space-y-3">
+              {systemFacts.map((fact) => (
+                <div
+                  key={fact.id}
+                  className="rounded-2xl border border-border/15 bg-muted/10 px-4 py-3"
+                >
+                  <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/56">
+                    {fact.label}
+                  </div>
+                  <div
+                    className={`mt-1 text-[12px] leading-5 ${
+                      fact.muted ? 'font-mono text-foreground/82' : `font-medium ${fact.tone}`
+                    }`}
+                  >
+                    {fact.value}
+                  </div>
                 </div>
-            )}
+              ))}
+            </div>
+          </div>
         </section>
 
-        {/* Action Grid: More Dense */}
         <section>
           <div className="flex items-center gap-3 mb-4 px-1">
-            <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground/30 whitespace-nowrap">Core Automations</h4>
+            <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground/30 whitespace-nowrap">Core Controls</h4>
             <div className="h-[1px] flex-1 bg-gradient-to-r from-border/20 to-transparent" />
           </div>
           

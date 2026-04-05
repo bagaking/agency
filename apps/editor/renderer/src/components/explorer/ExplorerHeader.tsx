@@ -65,6 +65,17 @@ export function ExplorerHeader({
   const contextBits = showFilterMenuButton ? [activeFilterSummary || ''].filter(Boolean) : [];
   const workingSets = Array.isArray(workingSetOptions) ? workingSetOptions : [];
   const searchModeDescriptors = Array.isArray(searchModeOptions) ? searchModeOptions : [];
+  const activeWorkingSetLabel =
+    workingSets.find((option) => option.id === activeWorkingSetViewId)?.label || '';
+  const selectedCellName =
+    Array.isArray(cells) && selectedId
+      ? cells.find((cell: any) => cell.id === selectedId)?.name || ''
+      : '';
+  const headerBadges = [
+    activeWorkingSetLabel ? `View: ${activeWorkingSetLabel}` : '',
+    selectedCellName ? `Scope: ${selectedCellName}` : '',
+    ...contextBits,
+  ].filter(Boolean);
   const activeSearchModeDescriptor =
     searchModeDescriptors.find((option) => option.id === searchMode) || searchModeDescriptors[0];
   const searchPlaceholder = activeSearchModeDescriptor?.placeholder || 'Search files…';
@@ -142,19 +153,26 @@ export function ExplorerHeader({
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <div className="min-w-0 flex-1">
-              <div className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">
+              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/52">
                 Explorer
               </div>
-              <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
-                <span className="truncate text-[13px] font-semibold text-foreground">
+              <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                <span className="truncate text-[14px] font-semibold tracking-[-0.02em] text-foreground">
                   {activeRootLabel}
                 </span>
-                {contextBits.length ? (
+                {headerBadges.length ? (
                   <>
                     <div className="h-1 w-1 rounded-full bg-primary/70" />
-                    <span className="truncate text-[9px] font-medium uppercase tracking-[0.16em] text-muted-foreground/[0.55]">
-                      {contextBits.join(' · ')}
-                    </span>
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                      {headerBadges.map((bit) => (
+                        <span
+                          key={bit}
+                          className="truncate rounded-full border border-border/35 bg-muted/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/76"
+                        >
+                          {bit}
+                        </span>
+                      ))}
+                    </div>
                   </>
                 ) : null}
               </div>
@@ -196,9 +214,9 @@ export function ExplorerHeader({
 
         {layoutMode === 'stacked' && (workingSets.length > 1 || hasCells) ? (
           <div
-            data-testid="explorer-secondary-rail"
-            className="flex min-w-0 flex-wrap items-center gap-2"
-          >
+          data-testid="explorer-secondary-rail"
+          className="flex min-w-0 flex-wrap items-center gap-2"
+        >
             {workingSets.length > 1 ? (
               <CompactSegmentedControl
                 ariaLabel="Explorer view"

@@ -27,12 +27,12 @@ export function RecentProjectsList({
   return (
     <div className="space-y-4" data-testid="recent-projects">
       <div className="flex items-center gap-3 px-1">
-        <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground/20 whitespace-nowrap">{title}</h4>
+        <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground/28 whitespace-nowrap">{title}</h4>
         <div className="h-[1px] flex-1 bg-gradient-to-r from-white/5 to-transparent" />
       </div>
       
       {items.length === 0 ? (
-        <div className="py-8 flex flex-col items-center justify-center text-muted-foreground/10">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-white/[0.04] bg-white/[0.02] py-8 text-muted-foreground/30">
             <p className="text-[9px] uppercase font-bold tracking-widest">{emptyLabel}</p>
         </div>
       ) : (
@@ -49,13 +49,13 @@ export function RecentProjectsList({
                 type="button"
                 disabled={missing}
                 onClick={() => !missing && path && onOpen?.(path)}
-                className={`group flex items-center gap-4 px-4 py-2.5 transition-all duration-300 rounded-xl text-left ${
+                className={`group flex items-center gap-4 rounded-xl border border-transparent px-4 py-2.5 text-left transition-all duration-300 ${
                   missing
                     ? 'opacity-20 grayscale cursor-not-allowed'
-                    : 'hover:bg-white/[0.02]'
+                    : 'hover:border-white/[0.05] hover:bg-white/[0.03]'
                 }`}
               >
-                <div className="text-[9px] font-mono text-muted-foreground/10 w-4 font-bold tracking-tighter shrink-0">
+                <div className="w-4 shrink-0 text-[9px] font-mono font-bold tracking-tighter text-muted-foreground/16">
                     {String(index + 1).padStart(2, '0')}
                 </div>
 
@@ -67,21 +67,21 @@ export function RecentProjectsList({
                 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold tracking-tight text-white/80 truncate group-hover:text-white transition-colors">
+                    <span className="truncate text-xs font-bold tracking-tight text-white/84 transition-colors group-hover:text-white">
                       {name}
                     </span>
                     {lastOpened && !missing && (
-                      <span className="text-[8px] font-bold text-muted-foreground/20 uppercase tracking-tighter shrink-0">{lastOpened}</span>
+                      <span className="shrink-0 text-[8px] font-bold uppercase tracking-tighter text-muted-foreground/28">{lastOpened}</span>
                     )}
                   </div>
-                  <div className="mt-0.5 truncate text-[9px] text-muted-foreground/30 font-mono italic">{path}</div>
+                  <div className="mt-0.5 truncate font-mono text-[9px] italic text-muted-foreground/36">{path}</div>
                 </div>
 
                 <div className="flex items-center gap-3">
                     {missing && (
-                        <div className="text-[8px] font-bold uppercase text-rose-500/40">Offline</div>
+                        <div className="text-[8px] font-bold uppercase text-rose-500/44">Offline</div>
                     )}
-                    <ChevronRight size={12} className="text-white/5 group-hover:text-primary transition-all shrink-0" />
+                    <ChevronRight size={12} className="shrink-0 text-white/10 transition-all group-hover:text-primary" />
                 </div>
               </button>
             );

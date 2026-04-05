@@ -68,13 +68,24 @@ export function WindowTitleBar({
   const projectName = useMemo(() => {
     const normalized = String(projectRoot || '').trim();
     if (!normalized) {
-      return 'No Project';
+      return 'Project Home';
     }
     const parts = normalized.split('/').filter(Boolean);
     return parts[parts.length - 1] || normalized;
   }, [projectRoot]);
 
-  const projectSubtitle = projectRoot || projectError || 'Open a repository to start an Agency workspace.';
+  const hasProject = Boolean(String(projectRoot || '').trim());
+  const projectEyebrow = projectError
+    ? 'Project Needs Attention'
+    : hasProject
+      ? 'Repository'
+      : 'Project Home';
+  const projectSubtitle = projectError
+    ? projectError
+    : hasProject
+      ? projectRoot
+      : 'Open a repository or keep this window in its window-owned home shell.';
+  const projectBadge = projectError ? 'Check' : hasProject ? '' : 'Window-owned';
   const filteredWindows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) {
@@ -123,7 +134,7 @@ export function WindowTitleBar({
   return (
     <header
       data-testid="window-titlebar"
-      className={`relative z-40 flex h-10 shrink-0 items-center gap-2 border-b border-border/60 bg-[#171b22] text-foreground shadow-[inset_0_-1px_0_rgba(255,255,255,0.03)] ${
+      className={`relative z-40 flex h-11 shrink-0 items-center gap-2.5 border-b border-border/60 bg-[#171b22] text-foreground shadow-[inset_0_-1px_0_rgba(255,255,255,0.03)] ${
         isMac ? 'pl-[78px]' : 'pl-2.5'
       } pr-2.5`}
     >
@@ -135,14 +146,14 @@ export function WindowTitleBar({
       <div ref={menuRef} className="app-no-drag relative flex items-center">
         <button
           type="button"
-          aria-label="Find window"
+          aria-label="Open window switcher"
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((value) => !value)}
           data-testid="window-titlebar-menu-button"
-          className={`inline-flex h-7 items-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.04] px-2 text-[10px] font-medium text-foreground/90 transition-colors hover:bg-white/[0.08] hover:text-foreground ${focusRingClass}`}
+          className={`inline-flex h-8 items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2.5 text-[10px] font-medium text-foreground/90 transition-colors hover:bg-white/[0.08] hover:text-foreground ${focusRingClass}`}
         >
           <Logo size={14} className="shrink-0" />
-          <Search size={11} className="text-muted-foreground" />
+          <span className="font-semibold tracking-[0.01em] text-foreground/92">Windows</span>
           <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-1 py-[1px] text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             {windows.length}
           </span>
@@ -155,6 +166,17 @@ export function WindowTitleBar({
           <ChevronDown size={11} className={`text-muted-foreground transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
         </button>
 
+        <button
+          type="button"
+          aria-label="Open new window"
+          onClick={() => {
+            void onCreateWindow();
+          }}
+          className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-foreground/88 transition-colors hover:bg-white/[0.08] hover:text-foreground ${focusRingClass}`}
+        >
+          <Plus size={14} className="text-primary" />
+        </button>
+
         {menuOpen ? (
           <div
             data-testid="window-titlebar-menu"
@@ -163,9 +185,9 @@ export function WindowTitleBar({
             <div className="border-b border-border/60 px-3 py-2.5">
               <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 <Rows3 size={11} />
-                <span>Find Window</span>
+                <span>Window Switcher</span>
               </div>
-              <div className="mt-1 text-[11px] text-foreground/85">Current window is marked below.</div>
+              <div className="mt-1 text-[11px] text-foreground/85">Search, focus, or create another Agency window.</div>
             </div>
 
             <div className="border-b border-border/60 p-2">
@@ -219,7 +241,7 @@ export function WindowTitleBar({
                 className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[11px] text-foreground/90 transition-colors hover:bg-white/[0.06] ${focusRingClass}`}
               >
                 <Plus size={14} className="text-primary" />
-                <span className="font-medium">New Window</span>
+                <span className="font-medium">Create New Window</span>
               </button>
             </div>
 
@@ -332,21 +354,58 @@ export function WindowTitleBar({
         ) : null}
       </div>
 
-      <div className="pointer-events-none relative z-10 min-w-0 flex flex-1 select-none items-center gap-2 overflow-hidden">
-        <div className="truncate text-[11px] font-semibold tracking-[0.01em] text-foreground">
-          <span data-testid="window-titlebar-project-name">{projectName}</span>
+      <div className="pointer-events-none relative z-10 min-w-0 flex flex-1 select-none items-center overflow-hidden px-2">
+        <div className="mx-auto min-w-0 max-w-[48rem] flex-1">
+          <div
+            className={`min-w-0 rounded-xl border px-3 py-1.5 ${
+              projectError
+                ? 'border-rose-400/20 bg-rose-500/[0.06]'
+                : 'border-white/[0.06] bg-white/[0.03]'
+            }`}
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground/58">
+                {projectEyebrow}
+              </div>
+              {projectBadge ? (
+                <span
+                  className={`rounded-full border px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-[0.16em] ${
+                    projectError
+                      ? 'border-rose-400/20 bg-rose-500/10 text-rose-200/90'
+                      : 'border-white/[0.08] bg-white/[0.04] text-muted-foreground/82'
+                  }`}
+                >
+                  {projectBadge}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-0.5 flex min-w-0 items-center gap-2">
+              <div className="truncate text-[12px] font-semibold tracking-[0.01em] text-foreground">
+                <span data-testid="window-titlebar-project-name">{projectName}</span>
+              </div>
+              <div className="h-1 w-1 shrink-0 rounded-full bg-white/18" />
+              <div
+                className={`truncate text-[10px] ${
+                  projectError ? 'text-rose-100/86' : 'text-muted-foreground'
+                }`}
+                title={projectSubtitle}
+              >
+                {projectSubtitle}
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="truncate text-[10px] text-muted-foreground">{projectSubtitle}</div>
       </div>
 
       <div className="app-no-drag flex items-center gap-2">
         <button
           type="button"
           onClick={() => onSelectProject()}
-          className={`inline-flex h-7 items-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.04] px-2.5 text-[10px] font-medium text-foreground/90 transition-colors hover:bg-white/[0.08] hover:text-foreground ${focusRingClass}`}
+          className={`inline-flex h-8 items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 text-[10px] font-semibold text-foreground/90 transition-colors hover:bg-white/[0.08] hover:text-foreground ${focusRingClass}`}
         >
           <FolderOpen size={13} className="text-primary" />
-          <span>{projectRoot ? 'Switch Project' : 'Open Project'}</span>
+          <span>{hasProject ? 'Switch Project' : 'Open Project'}</span>
         </button>
       </div>
     </header>
