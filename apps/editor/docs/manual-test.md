@@ -11,6 +11,7 @@
 - [ ] On macOS, with multiple editor windows already frontmost, repeatedly click the Dock icon and confirm focus advances through them in a stable order.
 - [ ] Resize and move a window, relaunch the app, and confirm its geometry is restored.
 - [ ] Quit the app with multiple project windows open, relaunch it normally, and confirm the previous window set restores.
+- [ ] Quit the app with multiple project windows split across different displays/work areas, relaunch it normally, and confirm each restored window prefers its prior display placement instead of collapsing onto another window's display.
 
 ## Cells
 - [ ] Create a new Cell with a branch type + name and confirm the worktree directory is created.
@@ -33,6 +34,10 @@
 - [ ] In Explorer, copy a file with `Cmd/Ctrl+C`, switch to another Finder-like destination or app that accepts file references, and confirm the clipboard now carries the copied file as a file reference rather than only an internal Explorer state.
 - [ ] In Explorer, copy a file with `Cmd/Ctrl+C`, keep an unrelated file/image in the OS clipboard from earlier, then paste back into the same Explorer root and confirm Explorer pastes the just-copied Explorer selection rather than importing the stale external clipboard.
 - [ ] In Explorer, cut a file with `Cmd/Ctrl+X`, paste within the same root, and confirm the file moves; then copy a file from another app and paste into Explorer to confirm external clipboard import still behaves as copy/import instead of move.
+- [ ] In Explorer, copy or paste files with and without conflict-safe suffixing and confirm the tree/selection update quietly without a success popup.
+- [ ] In Explorer, double-click the filename label of a row and confirm inline rename starts; double-click the rest of a file row and confirm the file still opens pinned.
+- [ ] While creating or renaming a file/folder with a Chinese IME active, confirm pressing `Enter` during composition does not prematurely submit the half-finished text.
+- [ ] Open a file with an unknown but textual extension (for example `notes/customext.abcxyz`) and confirm Workbench opens it as a text/code tab with plaintext fallback instead of the unknown-object blocker.
 - [ ] Switch Explorer search mode to `URL`, launch a public URL, and confirm Workbench opens a bounded web research tab instead of Explorer replacing its primary panel.
 - [ ] Switch Explorer to the `Changed` working-set view, then use `URL` mode and confirm the working-set surface stays visible while Workbench owns the bounded web tab.
 - [ ] In the bounded web tab, confirm `View` / `Reader` host modes, browser controls (`Back`, `Forward`, `Reload`), and research actions (`Open in Browser`, `Save Markdown`, `Cite`) are visible and the surface reads as the true bounded browser view for that URL rather than a sidebar preview.

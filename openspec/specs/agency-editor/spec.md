@@ -748,6 +748,8 @@ Explorer SHALL also act as the canonical interaction hub for cross-surface file 
 The explorer SHALL support create, rename, delete, move, and copy operations for files and folders.
 The explorer SHALL support multi-select, drag-and-drop reordering, and copying paths.
 The explorer SHALL allow revealing the selected path in the system file manager.
+The explorer SHALL allow direct rename initiation from the filename label in the tree in addition to keyboard (`F2`) and context-menu flows.
+Create and rename inputs SHALL respect IME composition and SHALL NOT submit while composition is still active.
 Explorer SHALL execute file intents from other surfaces using the same path safety, conflict handling, and result/error model used by direct Explorer operations.
 
 #### Scenario: Rename file
@@ -757,6 +759,15 @@ Explorer SHALL execute file intents from other surfaces using the same path safe
 #### Scenario: Move file via drag
 - **WHEN** a user drags a file onto another folder
 - **THEN** the editor moves the file and updates the explorer view
+
+#### Scenario: Directly rename from the filename label
+- **WHEN** a user double-clicks the filename label in an Explorer row
+- **THEN** the row enters rename mode without requiring a context-menu round trip
+
+#### Scenario: IME composition does not submit early
+- **WHEN** a user is composing text with an IME while creating or renaming an Explorer entry
+- **THEN** pressing `Enter` during the active composition does not prematurely submit the value
+- **AND** the input waits until composition has completed
 
 #### Scenario: Cross-surface import consistency
 - **WHEN** Explorer receives an `import_copy` intent routed from another surface
@@ -987,10 +998,16 @@ Workbench tabs SHALL persist per Cell and restore on relaunch.
 The workbench SHALL render text files with line numbers, syntax highlighting, and in-file search.
 The editor SHALL show line/column status and indicate dirty files that have unsaved changes.
 The editor SHALL prompt to reload when a file changes on disk while open.
+Non-binary files whose extensions are not in the known text-extension list SHALL still open in the code editor using plaintext fallback instead of falling straight into an opaque unknown-object blocker.
 
 #### Scenario: Edit and save a file
 - **WHEN** a user edits a file and saves it
 - **THEN** the dirty indicator clears and the file contents are written to disk
+
+#### Scenario: Unknown extension still opens as text when content is textual
+- **WHEN** a user opens a file whose extension is unknown to the Workbench classifier
+- **AND** the file content is not binary
+- **THEN** the Workbench opens it in the code editor with plaintext language fallback
 
 ### Requirement: Diff Decorations
 The workbench SHALL display git diff decorations for added, modified, and deleted lines in the active file.
@@ -1526,6 +1543,7 @@ Ordinary Explorer copy SHALL write file references into the system clipboard whe
 Explorer cut MAY also write a system clipboard file-reference payload, but move semantics remain Explorer-owned rather than delegated to other apps.
 When Explorer paste sees both an Explorer-owned clipboard payload and generic OS clipboard file/image payloads, the Explorer-owned payload for the current root SHALL take precedence.
 If a target name conflicts during copy, cut, or duplicate, the editor SHALL append a numeric `-1` suffix until a free name is found.
+Ordinary successful copy/paste flows SHALL update selection, focus, and tree state without a transient success popup.
 
 #### Scenario: Copy and paste a file
 - **WHEN** a user copies a file and pastes into another folder
@@ -1549,6 +1567,11 @@ If a target name conflicts during copy, cut, or duplicate, the editor SHALL appe
 - **THEN** Explorer interprets the Explorer-owned payload first
 - **AND** copy continues to duplicate while cut continues to move within Explorer semantics
 
+#### Scenario: Successful clipboard operations do not celebrate with popups
+- **WHEN** a file or folder copy, cut, or paste succeeds in Explorer
+- **THEN** the tree refreshes and selection/focus move to the resulting entries
+- **AND** the editor does not emit a transient success notice for that ordinary completion path
+
 #### Scenario: Foreign-root Explorer clipboard payload falls back to generic import
 - **WHEN** the clipboard carries Explorer-owned file metadata from a different project root plus generic file-reference formats
 - **THEN** the current Explorer ignores the foreign Explorer-owned metadata
@@ -1566,6 +1589,21 @@ Switching projects in one window SHALL NOT change the project context of other w
 #### Scenario: Switch project in one window
 - **WHEN** a user switches the project in one window
 - **THEN** only that window refreshes its Agent Cells and Explorer scopes
+
+### Requirement: Window Relaunch Geometry
+When the application relaunches without an explicit target repository, the editor SHALL restore the last open editor window set.
+Each restored window SHALL keep its own saved geometry and SHALL prefer the prior display anchor when that display is still available.
+If the display topology has changed, the editor SHALL keep the restored window visible by clamping it into an available work area instead of reusing another window's geometry or reopening off-screen.
+
+#### Scenario: Relaunch restores a window on its prior display
+- **WHEN** a user quits the app with multiple editor windows open on different displays
+- **AND** the same displays are still available on the next relaunch
+- **THEN** each restored window reopens on its prior display using the saved display anchor and geometry
+
+#### Scenario: Relaunch remains visible after display layout changes
+- **WHEN** a user relaunches the app after the display layout changed or one display is no longer available
+- **THEN** each restored window remains visible on an available display
+- **AND** the editor does not claim exact macOS Spaces restoration beyond the supported display/work-area geometry
 
 ### Requirement: Explorer System Clipboard Import
 The Explorer SHALL allow pasting files or screenshots from the system clipboard into the selected folder.

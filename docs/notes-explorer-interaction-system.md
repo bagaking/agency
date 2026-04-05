@@ -103,6 +103,7 @@ The user should get deterministic results:
 - same-root Explorer clipboard payload wins for Explorer paste;
 - external file/image clipboard payloads import/copy into Explorer;
 - path-text copy remains text-only and should not masquerade as file copy support.
+- successful copy/cut/paste should stay quiet unless the user needs to resolve an error or destructive confirmation; selection + tree refresh are the normal success feedback.
 
 ## External Research
 
@@ -225,6 +226,11 @@ A great Explorer has a consistent action grammar:
 - what actions belong in the context menu;
 - what actions belong in the header;
 - what actions belong in a separate rail.
+
+Current Agency rule:
+- row double click still belongs to file opening/pinning;
+- filename double click belongs to inline rename;
+- rename/create inputs must ignore Enter while IME composition is active, so CJK input does not accidentally submit half-finished names.
 
 This is not just about implementation.
 

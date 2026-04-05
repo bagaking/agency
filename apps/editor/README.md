@@ -45,6 +45,9 @@
 - Ordinary Explorer file copy writes file references into the system clipboard when the host supports that capability; same-root Explorer paste still prefers Explorer-owned copy/cut semantics before falling back to generic OS clipboard import.
 - Explorer cut keeps move semantics Explorer-owned inside the same project root, even when the host also publishes file references into the system clipboard for cross-app interoperability.
 - Explorer can paste files or screenshots from the system clipboard, applying `-1` style conflict suffixes.
+- Successful Explorer copy/cut/paste resolves through selection + tree refresh, not success popups.
+- Double-clicking the filename region enters inline rename, and create/rename inputs stay IME-safe by deferring Enter submission until composition ends.
+- Unknown non-binary files open as text/code tabs with plaintext fallback instead of dead-ending in the unknown-object guard state.
 - Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
 - Explorer includes a bounded `URL` research mode that launches a Workbench-hosted web research tab for public URL inspection. That tab owns a true `View` browser surface plus `Reader`, keeps the browser content as the dominant panel with a compact two-tier toolbar (`Back`/`Forward`/`Reload`/address/mode first, research actions second), projects the native browser into a Workbench-owned browser lane instead of a tab-local overlay, routes saved Markdown through fixed source frontmatter and memo citation flows, stays limited to public `http/https`, and keeps cookies/session/tab management out of scope while preserving the explicit system-browser escape hatch.
 - Explorer and Memo sidebars keep a compact context-first header grammar, prioritizing the active root or record summary plus low-noise state chips over explanatory subtitle copy.
@@ -264,6 +267,7 @@
 - Recent projects are shown in the sidebar and Project settings when no project is open.
 - New windows start without a project context; use recent projects to switch.
 - On relaunch without an explicit target repository, Agency restores the last open editor window set and each window's saved geometry.
+- Window restore now persists a display anchor alongside bounds so reopened windows prefer the same prior display/work-area placement when that display is still available, while still falling back to visible clamped bounds when the display topology changes.
 
 ## Packaging & Install (macOS)
 
@@ -388,12 +392,18 @@ make editor-package-lite-release
 - Toggle Explorer filters (hidden/ignored/status) and confirm the tree updates accordingly.
 - Toggle semantic filters and confirm only matching files (plus required ancestors) remain visible.
 - Use arrow keys + Enter/F2 in Explorer to navigate, open files, and rename entries.
+- Double-click a filename label in Explorer and confirm it enters inline rename, while double-clicking the broader row still pins the file open in Workbench.
+- Rename or create an Explorer entry with a CJK IME and confirm Enter does not submit while composition is still active.
 - Create, rename, delete, and drag/drop a file or folder from the Explorer view.
+- Copy a file in Explorer, paste it into another Agency window, and confirm the target window materializes the copy without a success popup.
+- Copy a file or folder in Explorer and paste it into Finder / another tool that accepts pasted file references; confirm the clipboard payload is treated as file references instead of plain text only.
 - Select a file in Explorer and confirm it opens in a workbench tab with line numbers and syntax highlighting.
+- Open a non-binary file with an unknown extension and confirm Workbench still opens it as a plaintext code tab instead of the unknown-object blocker.
 - Click each segment in the workbench breadcrumb and confirm Explorer expands ancestors and focuses the matching node (no Finder popup).
 - Enter a public URL into Explorer search and confirm a compact `Open Web` affordance appears without needing to switch modes first.
 - Switch Explorer search mode to `URL`, launch a public URL, and confirm Workbench opens the bounded browser surface (`View`/`Reader`, browser controls such as `Back`/`Forward`/`Reload`, and research actions such as `Open in Browser`, `Save Markdown`, `Cite`) instead of Explorer replacing its primary panel.
 - Save a research capture as Markdown and confirm the file stays inside the project, the saved file includes fixed `agency_source_*` frontmatter, and Workbench focuses that Markdown file.
+- Relaunch the app with multiple windows on different displays and confirm each restored window prefers its prior display/work-area placement while remaining visible if the display topology changed.
 - Reopen a Markdown file carrying bounded-web source frontmatter and confirm Workbench enters markdown + preview mode with `Overwrite Markdown` available on the preview side.
 - Create a memo citation from the same research capture and confirm it enters the existing HIL/Memo flow rather than a research-only dispatch path.
 - Try a localhost/private URL and confirm the bounded browser surface rejects it while the explicit `Open in Browser` escape hatch remains visible and accessible.

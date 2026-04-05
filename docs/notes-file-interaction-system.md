@@ -74,8 +74,10 @@ Symlink handling sharpens the meaning of "safe by default":
 
 Clipboard routing follows the same rule:
 - ordinary Explorer file copy should publish real file references into the system clipboard when the host supports that capability;
+- the host should publish the broadest truthful clipboard flavors it can support (file-reference formats first, plain-text path flavors second) so other Agency windows and external tools have the best chance of interoperating without Agency inventing a parallel transport;
 - Explorer may keep Explorer-owned clipboard metadata so same-root paste can preserve copy/cut intent instead of degrading into a generic import;
 - same-root Explorer clipboard metadata gets first refusal on paste, then generic system clipboard file/image import, then any local fallback state.
+- successful copy/paste should resolve through tree refresh + selection updates rather than celebratory success popups; only failures or destructive confirmations should claim modal attention.
 
 ## Current Program of Work
 - Authoritative change:
@@ -139,6 +141,8 @@ Clipboard routing follows the same rule:
    - generic OS file/image clipboard payloads for import/copy semantics;
    - text-only clipboard utilities such as `Copy Path`.
    The product should prefer the Explorer-owned payload when it belongs to the current root, fall back to OS import semantics otherwise, and only keep an internal fallback clipboard when system file-reference writing is unavailable or fails.
+21. Explorer rename/open ergonomics now preserve stronger desktop expectations:
+   double-clicking the filename region enters inline rename, create/rename inputs defer Enter while IME composition is active, and unknown-but-text files open as text editors instead of falling straight into an unknown-object dead end.
 
 ## Process-Boundary Compatibility Plan (Locked)
 - Keep `FileIntentPayload`/`FileIntentResult` as the stable wire format across renderer, tool, CLI, and future helper process callers.
