@@ -31,6 +31,26 @@ function buildWindowAttentionItem(window: WindowShellItem): AttentionItem | null
   };
 }
 
+function resolveWindowProjectLabel(window: WindowShellItem | null | undefined): string {
+  if (!window) {
+    return 'Project Home';
+  }
+  const projectName = String(window.projectName || '').trim();
+  const projectRoot = String(window.projectRoot || '').trim();
+  if (!projectRoot) {
+    return 'Project Home';
+  }
+  return projectName || 'Repository';
+}
+
+function resolveWindowProjectDetail(window: WindowShellItem | null | undefined): string {
+  if (!window) {
+    return 'Window-owned home state';
+  }
+  const projectRoot = String(window.projectRoot || '').trim();
+  return projectRoot || 'Window-owned home state';
+}
+
 export function WindowTitleBar({
   projectRoot,
   projectError = '',
@@ -269,7 +289,7 @@ export function WindowTitleBar({
                         <div className="min-w-0 flex-1">
                           <div className="flex min-w-0 items-center gap-2">
                             <div className="truncate text-[11px] font-medium text-foreground">
-                              {currentWindow.projectName}
+                              {resolveWindowProjectLabel(currentWindow)}
                             </div>
                             {buildWindowAttentionItem(currentWindow) ? (
                               <AttentionPill
@@ -280,7 +300,7 @@ export function WindowTitleBar({
                             ) : null}
                           </div>
                           <div className="truncate text-[10px] text-muted-foreground">
-                            {currentWindow.projectRoot || 'Empty project window'}
+                            {resolveWindowProjectDetail(currentWindow)}
                           </div>
                           {currentWindow.attentionSummary?.primary?.detail ? (
                             <div className="mt-1 truncate text-[10px] text-foreground/60">
@@ -319,7 +339,7 @@ export function WindowTitleBar({
                             <div className="min-w-0 flex-1">
                               <div className="flex min-w-0 items-center gap-2">
                                 <div className="truncate text-[11px] font-medium text-foreground">
-                                  {window.projectName}
+                                  {resolveWindowProjectLabel(window)}
                                 </div>
                                 {buildWindowAttentionItem(window) ? (
                                   <AttentionPill
@@ -330,7 +350,7 @@ export function WindowTitleBar({
                                 ) : null}
                               </div>
                               <div className="truncate text-[10px] text-muted-foreground">
-                                {window.projectRoot || 'Empty project window'}
+                                {resolveWindowProjectDetail(window)}
                               </div>
                               {window.attentionSummary?.primary?.detail ? (
                                 <div className="mt-1 truncate text-[10px] text-foreground/60">
@@ -355,44 +375,34 @@ export function WindowTitleBar({
       </div>
 
       <div className="pointer-events-none relative z-10 min-w-0 flex flex-1 select-none items-center overflow-hidden px-2">
-        <div className="mx-auto min-w-0 max-w-[48rem] flex-1">
-          <div
-            className={`min-w-0 rounded-xl border px-3 py-1.5 ${
-              projectError
-                ? 'border-rose-400/20 bg-rose-500/[0.06]'
-                : 'border-white/[0.06] bg-white/[0.03]'
-            }`}
-          >
-            <div className="flex min-w-0 items-center gap-2">
-              <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground/58">
-                {projectEyebrow}
-              </div>
-              {projectBadge ? (
-                <span
-                  className={`rounded-full border px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-[0.16em] ${
-                    projectError
-                      ? 'border-rose-400/20 bg-rose-500/10 text-rose-200/90'
-                      : 'border-white/[0.08] bg-white/[0.04] text-muted-foreground/82'
-                  }`}
-                >
-                  {projectBadge}
-                </span>
-              ) : null}
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground/58">
+              {projectEyebrow}
             </div>
-
-            <div className="mt-0.5 flex min-w-0 items-center gap-2">
-              <div className="truncate text-[12px] font-semibold tracking-[0.01em] text-foreground">
-                <span data-testid="window-titlebar-project-name">{projectName}</span>
-              </div>
-              <div className="h-1 w-1 shrink-0 rounded-full bg-white/18" />
-              <div
-                className={`truncate text-[10px] ${
-                  projectError ? 'text-rose-100/86' : 'text-muted-foreground'
+            {projectBadge ? (
+              <span
+                className={`rounded-full border px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-[0.16em] ${
+                  projectError
+                    ? 'border-rose-400/20 bg-rose-500/10 text-rose-200/90'
+                    : 'border-white/[0.08] bg-white/[0.04] text-muted-foreground/82'
                 }`}
-                title={projectSubtitle}
               >
-                {projectSubtitle}
-              </div>
+                {projectBadge}
+              </span>
+            ) : null}
+            <div className="h-1 w-1 shrink-0 rounded-full bg-white/18" />
+            <div className="truncate text-[12px] font-semibold tracking-[0.01em] text-foreground">
+              <span data-testid="window-titlebar-project-name">{projectName}</span>
+            </div>
+            <div className="h-1 w-1 shrink-0 rounded-full bg-white/18" />
+            <div
+              className={`truncate text-[10px] ${
+                projectError ? 'text-rose-100/86' : 'text-muted-foreground'
+              }`}
+              title={projectSubtitle}
+            >
+              {projectSubtitle}
             </div>
           </div>
         </div>

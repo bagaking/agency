@@ -1263,13 +1263,33 @@ New Window SHALL open a new editor window.
 The custom title bar SHALL keep window controls, current project/home context, and the project-selection action visually distinct.
 The title bar SHALL use:
 - a dedicated window-switcher/new-window control cluster,
-- one centered project/home context summary,
+- one left-aligned project/home context summary rail,
 - one explicit `Open/Switch Project` action.
 
 #### Scenario: Title bar separates context from window controls
 - **WHEN** a user views the custom title bar
 - **THEN** the current repository or home-state context is readable without scanning through window-management controls
 - **AND** window-switcher / new-window actions stay grouped separately from project-selection actions
+
+### Requirement: Terminal Workspace Chrome
+The active terminal workspace SHALL show its tracked Cell identity and active session path directly above the terminal.
+That chrome SHALL keep:
+- the tracked Cell label,
+- a clickable active-session breadcrumb path based on the session tree,
+- the idle state,
+- terminal text-size controls,
+- a refresh action
+
+in one compact strip instead of splitting identity and controls across unrelated rows.
+
+#### Scenario: Session path stays navigable from terminal chrome
+- **WHEN** a user is working inside a nested session
+- **THEN** the terminal chrome shows the session path derived from the session tree
+- **AND** clicking a path segment jumps to that session
+
+#### Scenario: Terminal controls stay legible
+- **WHEN** a user looks at the terminal chrome
+- **THEN** idle state and text-size controls are readable without relying on icon-only affordances
 
 ### Requirement: Cell-Owned HIL Index
 The editor SHALL store human-in-loop artifacts in a cell-owned HIL index under `.agency/cells/<cellId>/hil/index.yaml`.

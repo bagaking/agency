@@ -274,6 +274,9 @@ export function ExplorerHeader({
                   }
 
                   if (inlineSearchAction) {
+                    if (inlineSearchAction.disabled) {
+                      return;
+                    }
                     event.preventDefault();
                     inlineSearchAction.onClick();
                     return;

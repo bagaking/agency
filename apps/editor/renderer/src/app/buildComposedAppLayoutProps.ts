@@ -51,6 +51,7 @@ export function buildComposedAppLayoutProps({
     onZoomIn: sessionsState.zoomIn,
     onZoomOut: sessionsState.zoomOut,
     onZoomReset: sessionsState.zoomReset,
+    onRenameSession: sessionsState.renameSession,
     onSelectProject: navigationHandlers.handleSelectProjectRoot,
     pendingCommand: sessionsState.pendingCommand,
     onCommandSent: sessionsState.acknowledgeCommandSent,

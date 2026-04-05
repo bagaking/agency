@@ -17,6 +17,8 @@ export function ProjectHomeSidebar({
     ? 'Close Home Shell'
     : shellSummary?.status === 'ready'
       ? 'Home Shell Ready'
+      : shellSummary?.status === 'error'
+        ? 'Retry Home Shell'
       : shellSummary?.status === 'starting'
         ? 'Starting Home Shell'
         : shellSummary?.status === 'exited'
@@ -85,6 +87,11 @@ export function ProjectHomeSidebar({
             Window Scope
           </div>
           <div className="mt-2 text-[11px] text-white/82">{shellSummary?.cwd || 'Home directory'}</div>
+          {shellSummary?.error ? (
+            <div className="mt-2 rounded-xl border border-rose-300/20 bg-rose-500/10 px-3 py-2 text-[10px] leading-5 text-rose-100">
+              {shellSummary.error}
+            </div>
+          ) : null}
           <div className="mt-1 text-[10px] text-white/44">
             Window-owned shell. Not attached to any Project, Cell, or Session.
           </div>

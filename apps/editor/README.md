@@ -23,7 +23,7 @@
 ## Navigation
 
 - The activity bar includes Explorer and Hierarchy entries; the home logo returns to Agent Cells.
-- The custom title bar uses one centered project/home context card, keeps `Open/Switch Project` as the single project action on the right, and uses the app icon cluster as the dedicated window switcher / new-window launcher on the left.
+- The custom title bar keeps one left-aligned repository/home summary rail between the window cluster and the project action, so window controls, current window identity, and `Open/Switch Project` remain visually distinct.
 - Settings provides a context-first dashboard with workspace summary, runtime/system status, recent projects, and entry cards for core runtime/configuration capabilities such as Actions, Harness Providers, App Shortcuts, Reply Quick Prompts, and Softlinks.
 - The docked sidebar supports resize/collapse and persists width state across launches; collapse/expand is owned by the shell-level Activity Bar control rather than per-surface edge handles.
 - Agent Cells focuses on tracked workspaces, detached Cells, unmanaged worktrees, and jump links to core configuration.
@@ -171,7 +171,7 @@
 - Detached sessions remain available from the overflow menu unless currently active; closed sessions can be restarted.
 - Sessions can be renamed from the session context menu.
 - On relaunch, the editor restores the last selected Cell and active session.
-- The terminal toolbar includes zoom controls and an idle timer.
+- The terminal workspace chrome keeps the tracked Cell label, active session path, idle state, text-size controls, and refresh action in one compact strip above the terminal.
 - Explorer surfaces session activity and idle duration for the selected Cell.
 - Pasting into the terminal saves clipboard files/images into `.agency/tmp` and inserts their relative paths.
 - Workbench actions allow submitting line comments with optional TODO flags, stored per worktree.

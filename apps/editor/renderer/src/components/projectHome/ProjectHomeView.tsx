@@ -85,9 +85,11 @@ export function ProjectHomeView({
   const secondaryProjects = featuredProject ? projects.slice(1) : projects;
   const shellLabel = shellSummary?.visible
     ? 'Home shell running'
+    : shellSummary?.status === 'error'
+      ? 'Home shell failed'
     : shellSummary?.status === 'starting'
       ? 'Starting home shell'
-      : shellSummary?.status === 'exited'
+    : shellSummary?.status === 'exited'
         ? 'Home shell stopped'
         : 'Home shell idle';
   const shellDetail = shellSummary?.cwd || homePath || 'Home directory';
@@ -167,6 +169,9 @@ export function ProjectHomeView({
                     Mode
                   </div>
                   <div className="mt-1 text-[14px] font-semibold text-white">{shellLabel}</div>
+                  {shellSummary?.error ? (
+                    <div className="mt-2 text-[11px] leading-5 text-rose-200/88">{shellSummary.error}</div>
+                  ) : null}
                 </div>
                 <div className="rounded-[22px] border border-white/[0.06] bg-white/[0.035] px-4 py-3">
                   <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/44">

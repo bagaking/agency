@@ -1,11 +1,11 @@
 # Manual Test Checklist
 
 ## Launch
-- [ ] Start the renderer and main process with `npm run dev`.
-- [ ] Verify the Agency window opens, renders the custom title bar, and keeps one centered context card for the active repository/home state instead of mixing window controls into the same text line.
-- [ ] With no project selected, confirm the centered title-bar card reads as `Project Home` / window-owned context rather than pretending a repository is already attached.
+- [ ] Start the renderer and main process with `pnpm run dev`.
+- [ ] Verify the Agency window opens, renders the custom title bar, and keeps one left-aligned repository/home summary rail instead of merging window controls, context, and project actions into one text strip.
+- [ ] With no project selected, confirm the title-bar summary rail reads as `Project Home` / window-owned context rather than pretending a repository is already attached.
 - [ ] Open a brand-new empty window and confirm no `Session Action Failed` notice appears before a project is selected.
-- [ ] Open a second window and confirm the left title-bar window switcher lists both windows, exposes `Create New Window`, and can switch focus between them without disturbing the centered project/home context card.
+- [ ] Open a second window and confirm the left title-bar window switcher lists both windows, exposes `Create New Window`, and can switch focus between them without disturbing the repository/home summary rail.
 - [ ] On macOS, confirm the Dock stays on the native/default menu path instead of an app-defined window list.
 - [ ] On macOS, click the Dock icon while no editor window is focused and confirm an editor window is restored/focused.
 - [ ] On macOS, with multiple editor windows already frontmost, repeatedly click the Dock icon and confirm focus advances through them in a stable order.
@@ -69,6 +69,7 @@
 - [ ] In Explorer, confirm the header foregrounds the active root and low-noise summary chips (`View`, `Scope`, filter state) without reintroducing redundant subtitle text.
 - [ ] In Settings, confirm the top area reads as a workspace summary first: repository identity, runtime status, and config scope are legible before the action-card grid.
 - [ ] In Settings with no project selected, confirm the top area still reads cleanly as window-owned workspace state instead of projecting a fake attached repository.
+- [ ] In the main terminal surface, confirm the top chrome shows the tracked Cell label, clickable session path, stronger idle state, explicit text-size controls, and refresh action in one compact strip.
 - [ ] Open a terminal session and verify output appears.
 - [ ] Start CLI and confirm Codex (or stub) launches in the embedded terminal.
 - [ ] Open Hierarchy -> Harness Providers, set `base_url`, `model`, and `OPENAI_API_KEY`, save, then restart the app process if needed and confirm the values persist.

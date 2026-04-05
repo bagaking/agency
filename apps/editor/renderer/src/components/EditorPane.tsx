@@ -2,20 +2,56 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   MonitorPlay,
   ChevronRight,
-    RefreshCw,
-    RotateCcw,
+  RefreshCw,
+  RotateCcw,
   ZoomIn,
-    ZoomOut,
-    Clock,
-    Trash2,
-    Unplug,
-  } from 'lucide-react';
+  ZoomOut,
+  Clock3,
+  Trash2,
+  Unplug,
+  PencilLine,
+  Check,
+  X,
+} from 'lucide-react';
 import { RiveAnimation } from './RiveAnimation';
 import { TerminalArea } from './TerminalArea';
 import { AgentAvatarBadge } from './ui/AgentAvatarBadge';
 import { AvatarPickerMenu } from './ui/AvatarPickerMenu';
 import { resolveAvatarId } from '../utils/agentAvatar';
 import { formatIdleClock } from '../utils/timeFormat';
+
+function buildSessionPath(activeSessionId: string, sessions: any[]) {
+  const normalizedSessionId = String(activeSessionId || '').trim();
+  if (!normalizedSessionId) {
+    return [];
+  }
+
+  const sessionsById = new Map(
+    (Array.isArray(sessions) ? sessions : [])
+      .filter((session) => session && session.id)
+      .map((session) => [String(session.id), session] as const)
+  );
+
+  const path = [];
+  const seen = new Set<string>();
+  let cursorId: string | null = normalizedSessionId;
+
+  while (cursorId) {
+    if (seen.has(cursorId)) {
+      break;
+    }
+    seen.add(cursorId);
+    const session = sessionsById.get(cursorId);
+    if (!session) {
+      break;
+    }
+    path.unshift(session);
+    const parentSessionId = String(session.parentSessionId || '').trim();
+    cursorId = parentSessionId || null;
+  }
+
+  return path;
+}
 
 export function EditorPane({
   cell,
@@ -53,6 +89,7 @@ export function EditorPane({
   onSendSessionText,
   onSelectProject,
   onUpdateCellAvatar,
+  onRenameSession,
   onOpenWorkbenchFile,
   onJumpToSession,
   activityDiffThreshold,
@@ -61,8 +98,11 @@ export function EditorPane({
 }: any) {
   const [idleNow, setIdleNow] = useState(Date.now());
   const [avatarMenu, setAvatarMenu] = useState(null);
+  const [isRenamingSession, setIsRenamingSession] = useState(false);
+  const [draftSessionName, setDraftSessionName] = useState('');
   const avatarButtonRef = useRef(null);
   const avatarMenuRef = useRef(null);
+  const sessionNameInputRef = useRef<HTMLInputElement | null>(null);
   const avatarId = resolveAvatarId(cell);
   const openSessions = useMemo(
     () =>
@@ -80,6 +120,10 @@ export function EditorPane({
   const activeSession = useMemo(
     () => openSessions.find((session) => session.id === sessionId) || null,
     [openSessions, sessionId]
+  );
+  const activeSessionPath = useMemo(
+    () => buildSessionPath(activeSession?.id || '', sessions || []),
+    [activeSession?.id, sessions]
   );
   const openAvatarMenu = (target, rect) => {
     if (!rect) {
@@ -114,7 +158,24 @@ export function EditorPane({
     return () => clearInterval(interval);
   }, [isVisible]);
 
-  const assetBase = import.meta.env.BASE_URL || '/';
+  useEffect(() => {
+    setIsRenamingSession(false);
+    setDraftSessionName(activeSession?.name || activeSession?.id || '');
+  }, [activeSession?.id, activeSession?.name]);
+
+  useEffect(() => {
+    if (!isRenamingSession) {
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      sessionNameInputRef.current?.focus();
+      sessionNameInputRef.current?.select();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isRenamingSession]);
+
+  const assetBase =
+    (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '/';
 
   if (!cell) {
     return (
@@ -212,82 +273,182 @@ export function EditorPane({
   const avatarRingClass = onUpdateCellAvatar
     ? 'bg-muted/30 hover:bg-muted/40'
     : 'bg-muted/10';
+  const handleStartSessionRename = useCallback(() => {
+    if (!activeSession) {
+      return;
+    }
+    setDraftSessionName(activeSession.name || activeSession.id || '');
+    setIsRenamingSession(true);
+  }, [activeSession]);
+  const handleCancelSessionRename = useCallback(() => {
+    setDraftSessionName(activeSession?.name || activeSession?.id || '');
+    setIsRenamingSession(false);
+  }, [activeSession?.id, activeSession?.name]);
+  const handleConfirmSessionRename = useCallback(() => {
+    const nextName = String(draftSessionName || '').trim();
+    if (!nextName || !activeSession?.id || !cell?.id || !onRenameSession) {
+      handleCancelSessionRename();
+      return;
+    }
+    onRenameSession(activeSession.id, nextName, cell.id);
+    setIsRenamingSession(false);
+  }, [activeSession?.id, cell?.id, draftSessionName, handleCancelSessionRename, onRenameSession]);
 
   return (
     <main className="flex h-full flex-1 flex-col bg-background overflow-hidden">
-        {/* Header */}
-        <header className="flex h-10 shrink-0 items-center justify-between border-b border-border bg-background px-4">
-            <div className="flex items-center gap-2 text-xs text-foreground">
+      <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-4">
+        <div className="flex min-w-0 items-center gap-2.5 text-xs text-foreground">
+          <button
+            type="button"
+            ref={avatarButtonRef}
+            onClick={() => {
+              if (!onUpdateCellAvatar) {
+                return;
+              }
+              const rect = avatarButtonRef.current?.getBoundingClientRect();
+              openAvatarMenu({ type: 'cell' }, rect);
+            }}
+            className="flex h-7 w-7 items-center justify-center rounded-full cursor-pointer"
+            title={onUpdateCellAvatar ? 'Edit avatar' : 'Avatar'}
+            data-avatar-picker-anchor="true"
+          >
+            <AgentAvatarBadge
+              avatarId={cell}
+              size={18}
+              ringSize={28}
+              idleMs={idleMs}
+              isClosed={isClosed}
+              className={avatarRingClass}
+            />
+          </button>
+
+          <div className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border/50 bg-muted/10 px-2.5 py-1 text-[10px] font-semibold text-foreground">
+            <span>{cell.name}</span>
+            {cell.branch ? (
+              <>
+                <span className="text-muted-foreground/40">•</span>
+                <span className="font-mono text-[9px] text-muted-foreground">{cell.branch}</span>
+              </>
+            ) : null}
+          </div>
+
+          <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+            {activeSessionPath.length ? (
+              activeSessionPath.map((session, index) => {
+                const isActivePathItem = session.id === activeSession?.id;
+                return (
+                  <React.Fragment key={session.id}>
+                    {index > 0 ? (
+                      <ChevronRight size={12} className="shrink-0 text-muted-foreground/40" />
+                    ) : null}
                     <button
-                        type="button"
-                        ref={avatarButtonRef}
-                        onClick={() => {
-                          if (!onUpdateCellAvatar) {
-                            return;
-                          }
-                          const rect = avatarButtonRef.current?.getBoundingClientRect();
-                          openAvatarMenu({ type: 'cell' }, rect);
-                        }}
-                        className="flex h-7 w-7 items-center justify-center rounded-full cursor-pointer"
-                        title={onUpdateCellAvatar ? 'Edit avatar' : 'Avatar'}
-                        data-avatar-picker-anchor="true"
+                      type="button"
+                      onClick={() => onJumpToSession?.(cell.id, session.id)}
+                      className={`min-w-0 rounded-full px-2 py-1 text-[10px] transition-colors ${
+                        isActivePathItem
+                          ? 'bg-primary/12 text-primary'
+                          : 'text-muted-foreground hover:bg-muted/10 hover:text-foreground'
+                      }`}
+                      title={session.name || session.id}
                     >
-                    <AgentAvatarBadge
-                      avatarId={cell}
-                      size={18}
-                      ringSize={28}
-                      idleMs={idleMs}
-                      isClosed={isClosed}
-                      className={avatarRingClass}
-                    />
+                      <span className="truncate">{session.name || session.id}</span>
+                    </button>
+                  </React.Fragment>
+                );
+              })
+            ) : (
+              <span className="text-[10px] text-muted-foreground">No active session</span>
+            )}
+            {activeSession && onRenameSession ? (
+              isRenamingSession ? (
+                <div className="flex items-center gap-1 rounded-full border border-border/50 bg-muted/10 px-1.5 py-1">
+                  <input
+                    ref={sessionNameInputRef}
+                    value={draftSessionName}
+                    onChange={(event) => setDraftSessionName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        handleConfirmSessionRename();
+                      }
+                      if (event.key === 'Escape') {
+                        event.preventDefault();
+                        handleCancelSessionRename();
+                      }
+                    }}
+                    className="w-32 border-0 bg-transparent px-1 text-[10px] text-foreground outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleConfirmSessionRename}
+                    className="rounded p-1 text-emerald-300 transition-colors hover:bg-emerald-500/10 hover:text-emerald-200"
+                    title="Save session name"
+                  >
+                    <Check size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelSessionRename}
+                    className="rounded p-1 text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
+                    title="Cancel rename"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleStartSessionRename}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/10 hover:text-foreground"
+                  title="Rename active session"
+                >
+                  <PencilLine size={12} />
                 </button>
-                <span className="text-primary font-bold tracking-tight">AGENCY</span>
-                <ChevronRight size={12} className="text-muted-foreground/50" />
-	                <span className="font-semibold">{cell.name}</span>
-	                <span className="text-muted-foreground/30 mx-1">/</span>
-	                <span className="font-mono text-[10px] text-muted-foreground opacity-70">{cell.branch}</span>
-                  {attachmentState !== 'attached' ? (
-                    <span
-                      className={`ml-2 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] ${attachmentTone}`}
-                      title={attachmentPath || attachmentLabel}
-                    >
-                      <span>{attachmentLabel}</span>
-                    </span>
-                  ) : null}
-	            </div>
+              )
+            ) : null}
+          </div>
 
-	            <div className="flex items-center gap-3">
-                  {attachmentState !== 'attached' ? (
-                    <div className="flex items-center gap-1.5">
-                      {onClearCellAttachment ? (
-                        <button
-                          type="button"
-                          onClick={onClearCellAttachment}
-                          className="flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-medium text-amber-100 transition-colors hover:bg-amber-500/10"
-                          title="Clear stale attachment metadata from this Cell record"
-                        >
-                          <Unplug size={12} />
-                          <span>Clear Attachment</span>
-                        </button>
-                      ) : null}
-                      {onDeleteCell ? (
-                        <button
-                          type="button"
-                          onClick={onDeleteCell}
-                          className="flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-medium text-rose-200 transition-colors hover:bg-rose-500/10"
-                          title="Delete this detached Cell"
-                        >
-                          <Trash2 size={12} />
-                          <span>Delete Cell</span>
-                        </button>
-                      ) : null}
-                    </div>
-                  ) : null}
+          {attachmentState !== 'attached' ? (
+            <span
+              className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] ${attachmentTone}`}
+              title={attachmentPath || attachmentLabel}
+            >
+              <span>{attachmentLabel}</span>
+            </span>
+          ) : null}
+        </div>
+
+        <div className="flex items-center gap-3">
+          {attachmentState !== 'attached' ? (
+            <div className="flex items-center gap-1.5">
+              {onClearCellAttachment ? (
+                <button
+                  type="button"
+                  onClick={onClearCellAttachment}
+                  className="flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-medium text-amber-100 transition-colors hover:bg-amber-500/10"
+                  title="Clear stale attachment metadata from this Cell record"
+                >
+                  <Unplug size={12} />
+                  <span>Clear Attachment</span>
+                </button>
+              ) : null}
+              {onDeleteCell ? (
+                <button
+                  type="button"
+                  onClick={onDeleteCell}
+                  className="flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-medium text-rose-200 transition-colors hover:bg-rose-500/10"
+                  title="Delete this detached Cell"
+                >
+                  <Trash2 size={12} />
+                  <span>Delete Cell</span>
+                </button>
+              ) : null}
             </div>
-        </header>
+          ) : null}
+        </div>
+      </header>
 
-	        {/* Integrated Terminal Area */}
-	        <div className="flex-1 flex flex-col min-h-0 bg-black/20">
+      <div className="flex-1 flex flex-col min-h-0 bg-black/20">
              {attachmentState !== 'attached' ? (
                 <div className="mx-3 mt-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] text-muted-foreground">
                   Worktree-bound actions are limited because this Cell is <span className="font-semibold text-foreground">{attachmentLabel.toLowerCase()}</span>.
@@ -296,47 +457,58 @@ export function EditorPane({
                   ) : null}
                 </div>
               ) : null}
-	             {/* Toolbar */}
              <div className="flex shrink-0 flex-col border-b border-border/60 bg-muted/10">
-                <div className="flex items-center justify-end gap-1.5 px-2 py-2">
-                    <div className="flex items-center gap-1 border-r border-border/50 pr-2 mr-1 text-[10px] text-muted-foreground">
-                        <Clock size={10} />
-                        <span className="tabular-nums">Idle {idleLabel}</span>
+                <div className="flex items-center justify-between gap-2 px-3 py-2">
+                  <div className="min-w-0 text-[10px] text-muted-foreground">
+                    {activeSession ? (
+                      <span className="truncate">
+                        Session path mirrors the left tree. Click any segment to jump within this Cell.
+                      </span>
+                    ) : (
+                      <span className="truncate">Create or select a session to start work in this tracked workspace.</span>
+                    )}
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <div className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-background/50 px-2.5 py-1 text-[10px] font-medium text-foreground">
+                      <Clock3 size={11} className="text-primary" />
+                      <span className="text-muted-foreground">Idle</span>
+                      <span className="tabular-nums text-foreground">{idleLabel}</span>
                     </div>
-                    <div className="flex items-center gap-1 border-l border-border/50 pl-2 ml-1">
-                        <button
-                            onClick={onZoomOut}
-                            className="p-1.5 text-muted-foreground hover:text-foreground transition-all"
-                            title="Zoom out"
-                        >
-                            <ZoomOut size={12} />
-                        </button>
-                        <span className="text-[10px] text-muted-foreground tabular-nums min-w-[20px] text-center">
-                            {terminalFontSize}
-                        </span>
-                        <button
-                            onClick={onZoomIn}
-                            className="p-1.5 text-muted-foreground hover:text-foreground transition-all"
-                            title="Zoom in"
-                        >
-                            <ZoomIn size={12} />
-                        </button>
-                        <button
-                            onClick={onZoomReset}
-                            className="p-1.5 text-muted-foreground hover:text-foreground transition-all"
-                            title="Reset zoom"
-                        >
-                            <RotateCcw size={12} />
-                        </button>
+                    <div className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-background/50 px-1.5 py-1">
+                      <span className="px-1 text-[10px] font-medium text-muted-foreground">Text {terminalFontSize}</span>
+                      <button
+                        onClick={onZoomOut}
+                        className="rounded-full p-1.5 text-muted-foreground transition-all hover:bg-white/5 hover:text-foreground"
+                        title="Decrease terminal text size"
+                      >
+                        <ZoomOut size={12} />
+                      </button>
+                      <button
+                        onClick={onZoomIn}
+                        className="rounded-full p-1.5 text-muted-foreground transition-all hover:bg-white/5 hover:text-foreground"
+                        title="Increase terminal text size"
+                      >
+                        <ZoomIn size={12} />
+                      </button>
+                      <button
+                        onClick={onZoomReset}
+                        className="rounded-full p-1.5 text-muted-foreground transition-all hover:bg-white/5 hover:text-foreground"
+                        title="Reset terminal text size"
+                      >
+                        <RotateCcw size={12} />
+                      </button>
                     </div>
                     <button
-                        onClick={onRefreshSessions}
-                        className="p-1.5 text-muted-foreground hover:text-foreground transition-all active:rotate-180 duration-500"
-                        data-testid="refresh-sessions"
-                        title="Refresh sessions"
+                      onClick={onRefreshSessions}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-background/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-all hover:text-foreground"
+                      data-testid="refresh-sessions"
+                      title="Refresh session state"
                     >
-                        <RefreshCw size={12} className={sessionLoading ? 'animate-spin' : ''} />
+                      <RefreshCw size={11} className={sessionLoading ? 'animate-spin' : ''} />
+                      <span>Refresh</span>
                     </button>
+                  </div>
                 </div>
              </div>
 
