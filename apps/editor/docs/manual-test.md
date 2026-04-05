@@ -3,6 +3,7 @@
 ## Launch
 - [ ] Start the renderer and main process with `npm run dev`.
 - [ ] Verify the Agency window opens, renders the custom title bar, and keeps one centered context card for the active repository/home state instead of mixing window controls into the same text line.
+- [ ] With no project selected, confirm the centered title-bar card reads as `Project Home` / window-owned context rather than pretending a repository is already attached.
 - [ ] Open a brand-new empty window and confirm no `Session Action Failed` notice appears before a project is selected.
 - [ ] Open a second window and confirm the left title-bar window switcher lists both windows, exposes `Create New Window`, and can switch focus between them without disturbing the centered project/home context card.
 - [ ] On macOS, confirm the Dock stays on the native/default menu path instead of an app-defined window list.
@@ -67,6 +68,7 @@
 - [ ] In the title bar, confirm `Open/Switch Project` stays the single project action on the right while the left-side window cluster owns multi-window controls.
 - [ ] In Explorer, confirm the header foregrounds the active root and low-noise summary chips (`View`, `Scope`, filter state) without reintroducing redundant subtitle text.
 - [ ] In Settings, confirm the top area reads as a workspace summary first: repository identity, runtime status, and config scope are legible before the action-card grid.
+- [ ] In Settings with no project selected, confirm the top area still reads cleanly as window-owned workspace state instead of projecting a fake attached repository.
 - [ ] Open a terminal session and verify output appears.
 - [ ] Start CLI and confirm Codex (or stub) launches in the embedded terminal.
 - [ ] Open Hierarchy -> Harness Providers, set `base_url`, `model`, and `OPENAI_API_KEY`, save, then restart the app process if needed and confirm the values persist.

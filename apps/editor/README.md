@@ -24,7 +24,7 @@
 
 - The activity bar includes Explorer and Hierarchy entries; the home logo returns to Agent Cells.
 - The custom title bar uses one centered project/home context card, keeps `Open/Switch Project` as the single project action on the right, and uses the app icon cluster as the dedicated window switcher / new-window launcher on the left.
-- Settings provides a context-first dashboard with workspace summary, recent projects, and entry cards for core runtime/configuration capabilities such as Actions, Harness Providers, App Shortcuts, Reply Quick Prompts, and Softlinks.
+- Settings provides a context-first dashboard with workspace summary, runtime/system status, recent projects, and entry cards for core runtime/configuration capabilities such as Actions, Harness Providers, App Shortcuts, Reply Quick Prompts, and Softlinks.
 - The docked sidebar supports resize/collapse and persists width state across launches; collapse/expand is owned by the shell-level Activity Bar control rather than per-surface edge handles.
 - Agent Cells focuses on tracked workspaces, detached Cells, unmanaged worktrees, and jump links to core configuration.
 - Agent Cells sidebar now includes an Explorer panel (Cell/Session scope + Flat/Tree views) for quick file open/reveal navigation.
