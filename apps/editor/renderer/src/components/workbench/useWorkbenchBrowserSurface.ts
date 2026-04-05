@@ -3,6 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import {
   disposeWorkbenchBrowserSurface,
   isAgencyMethodAvailable,
+  logRuntime,
   onWorkbenchBrowserSurfaceEvent,
   syncWorkbenchBrowserSurface,
 } from '../../services/agencyBridge';
@@ -28,6 +29,17 @@ type UseWorkbenchBrowserSurfaceArgs = {
 
 const requestAnimationFrameFallback = (callback: FrameRequestCallback) =>
   window.setTimeout(() => callback(performance.now()), 0);
+
+const logBrowserSurfaceRenderer = (message: string, meta: Record<string, unknown>) => {
+  logRuntime?.({
+    level: 'info',
+    message,
+    meta: {
+      scope: 'workbenchBrowserSurface',
+      ...meta,
+    },
+  });
+};
 
 export function useWorkbenchBrowserSurface({
   tabId,
@@ -73,6 +85,10 @@ export function useWorkbenchBrowserSurface({
 
   useEffect(() => {
     if (!browserSurfaceAvailable) {
+      logBrowserSurfaceRenderer('browser surface bridge unavailable', {
+        tabId,
+        url,
+      });
       return undefined;
     }
     return onWorkbenchBrowserSurfaceEvent?.((payload: WorkbenchBrowserSurfaceEvent) => {
@@ -92,6 +108,11 @@ export function useWorkbenchBrowserSurface({
     if (!browserSurfaceAvailable) {
       return;
     }
+    logBrowserSurfaceRenderer('browser surface hide requested', {
+      tabId,
+      url,
+      navigationKey,
+    });
     const syncTask = syncWorkbenchBrowserSurface({
       tabId,
       url,
@@ -103,9 +124,17 @@ export function useWorkbenchBrowserSurface({
     }
     void syncTask
       .then((payload) => {
+        logBrowserSurfaceRenderer('browser surface hide acknowledged', {
+          tabId,
+          phase: (payload as WorkbenchBrowserSurfaceEvent)?.phase || 'hidden',
+        });
         applySurfaceState(payload as WorkbenchBrowserSurfaceEvent);
       })
       .catch((error: any) => {
+        logBrowserSurfaceRenderer('browser surface hide failed', {
+          tabId,
+          error: error?.message || String(error),
+        });
         applySurfaceState({
           tabId,
           url,
@@ -128,6 +157,12 @@ export function useWorkbenchBrowserSurface({
     }
     const hostNode = hostRef.current;
     if (!hostNode) {
+      logBrowserSurfaceRenderer('browser surface host missing', {
+        tabId,
+        url,
+        navigationKey,
+        retryAttempt: retryAttemptRef.current,
+      });
       if (retryTimerRef.current === null) {
         retryAttemptRef.current += 1;
         retryTimerRef.current = window.setTimeout(() => {
@@ -139,6 +174,16 @@ export function useWorkbenchBrowserSurface({
     }
     const rect = hostNode.getBoundingClientRect();
     if (rect.width < 1 || rect.height < 1) {
+      logBrowserSurfaceRenderer('browser surface host rect unavailable', {
+        tabId,
+        url,
+        navigationKey,
+        x: Math.round(rect.left),
+        y: Math.round(rect.top),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+        retryAttempt: retryAttemptRef.current,
+      });
       if (retryTimerRef.current === null) {
         retryAttemptRef.current += 1;
         retryTimerRef.current = window.setTimeout(() => {
@@ -153,6 +198,15 @@ export function useWorkbenchBrowserSurface({
       retryTimerRef.current = null;
     }
     retryAttemptRef.current = 0;
+    logBrowserSurfaceRenderer('browser surface sync requested', {
+      tabId,
+      url,
+      navigationKey,
+      x: Math.round(rect.left),
+      y: Math.round(rect.top),
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+    });
     const syncTask = syncWorkbenchBrowserSurface({
       tabId,
       url,
@@ -170,9 +224,18 @@ export function useWorkbenchBrowserSurface({
     }
     void syncTask
       .then((payload) => {
+        logBrowserSurfaceRenderer('browser surface sync acknowledged', {
+          tabId,
+          phase: (payload as WorkbenchBrowserSurfaceEvent)?.phase || 'unknown',
+          visible: (payload as WorkbenchBrowserSurfaceEvent)?.visible !== false,
+        });
         applySurfaceState(payload as WorkbenchBrowserSurfaceEvent);
       })
       .catch((error: any) => {
+        logBrowserSurfaceRenderer('browser surface sync failed', {
+          tabId,
+          error: error?.message || String(error),
+        });
         applySurfaceState({
           tabId,
           url,
