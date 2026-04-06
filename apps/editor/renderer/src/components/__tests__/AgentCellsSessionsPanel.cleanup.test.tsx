@@ -133,7 +133,7 @@ function renderPanel(props: Record<string, unknown> = {}) {
   );
 }
 
-test('AgentCellsSessionsPanel separates tracked workspaces, detached cells, and legacy archived compatibility cards', () => {
+test('AgentCellsSessionsPanel separates tracked cells, detached cells, and legacy archived compatibility cards', () => {
   const html = renderToStaticMarkup(
     renderPanel({
       cells: [
@@ -172,7 +172,7 @@ test('AgentCellsSessionsPanel separates tracked workspaces, detached cells, and 
   );
 
   assert.match(html, /data-testid="cell-item-cell-active"/);
-  assert.match(html, /Tracked Workspaces/);
+  assert.match(html, /Tracked Cells/);
   assert.match(html, /Detached Cells/);
   assert.match(html, /Legacy Archived/);
   assert.match(html, /detached-cell-card-cell-needs-cleanup/);
@@ -180,7 +180,7 @@ test('AgentCellsSessionsPanel separates tracked workspaces, detached cells, and 
   assert.doesNotMatch(html, /legacy-archived-cell-cell-archived/);
 });
 
-test('AgentCellsSessionsPanel renders branch-only cells in a dedicated branch-only section', () => {
+test('AgentCellsSessionsPanel renders project-root cells in the main tracked section with full session-first affordances', () => {
   const html = renderToStaticMarkup(
     renderPanel({
       cells: [
@@ -189,17 +189,37 @@ test('AgentCellsSessionsPanel renders branch-only cells in a dedicated branch-on
           name: 'mainline-review',
           branch: 'main',
           state: 'draft',
-          attachmentState: 'branch_only',
+          attachmentState: 'project_root',
         },
       ],
+      sessionsByCellId: {
+        'cell-branch': [
+          {
+            id: 'session-main',
+            name: 'CLI',
+            status: 'active',
+          },
+          {
+            id: 'session-sub',
+            name: 'Review',
+            status: 'active',
+          },
+        ],
+      },
+      activeSessionByCellId: {
+        'cell-branch': 'session-sub',
+      },
     })
   );
 
-  assert.match(html, /Branch-only Cells/);
-  assert.match(html, /branch-only-cell-card-cell-branch/);
+  assert.match(html, /Tracked Cells/);
+  assert.match(html, /data-testid="cell-item-cell-branch"/);
+  assert.match(html, /Project Root/);
+  assert.match(html, /session-tab-session-main/);
+  assert.match(html, /session-tab-session-sub/);
   assert.match(html, /Create Worktree Attachment/);
   assert.match(html, /mainline-review/);
-  assert.match(html, />main</);
+  assert.match(html, /Project root · main/);
 });
 
 test('AgentCellsSessionsPanel renders detached cells as management cards instead of session trees', () => {
@@ -305,9 +325,9 @@ test('deriveUnmanagedWorktreeDisplay prioritizes deterministic reattach over cre
   assert.match(display.secondaryCreateLabel, /Create New Cell/);
 });
 
-test('deriveUnmanagedWorktreeDisplay uses Bind for branch-only cell suggestions', () => {
+test('deriveUnmanagedWorktreeDisplay uses Bind for project-root cell suggestions', () => {
   const display = deriveUnmanagedWorktreeDisplay({
-    id: 'unmanaged-bind-branch-only',
+    id: 'unmanaged-bind-project-root',
     path: '/repo/.worktrees/main',
     branch: 'main',
     head: 'abc1234',
@@ -318,7 +338,7 @@ test('deriveUnmanagedWorktreeDisplay uses Bind for branch-only cell suggestions'
       kind: 'unique_branch_match',
       cellId: 'cell-main',
       cellName: 'main',
-      cellAttachmentState: 'branch_only',
+      cellAttachmentState: 'project_root',
     },
   });
 
@@ -326,7 +346,7 @@ test('deriveUnmanagedWorktreeDisplay uses Bind for branch-only cell suggestions'
   assert.match(display.primaryLabel, /^Bind main$/);
 });
 
-test('branch-only unmanaged bind suggestions route to branch mode instead of worktree reattach mode', async () => {
+test('project-root unmanaged bind suggestions route to branch bind mode instead of worktree reattach mode', async () => {
   const env = setupDom();
   try {
     const launches: any[] = [];
@@ -344,7 +364,7 @@ test('branch-only unmanaged bind suggestions route to branch mode instead of wor
             kind: 'unique_branch_match',
             cellId: 'cell-main',
             cellName: 'main',
-            cellAttachmentState: 'branch_only',
+            cellAttachmentState: 'project_root',
           },
         },
       ],
@@ -379,7 +399,7 @@ test('branch-only unmanaged bind suggestions route to branch mode instead of wor
         mode: 'branch',
         existingBranch: 'main',
         name: 'main',
-        initialBindTargetCell: {
+        initialBindBranchTargetCell: {
           id: 'cell-main',
           name: 'main',
           branch: 'main',

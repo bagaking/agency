@@ -24,17 +24,21 @@ export function useCreateCellModalLauncher({
     }
 
     const modalId = 'create-cell-modal';
-    const initialMode = initialOptions?.mode || 'create';
+    const initialMode = initialOptions?.mode || 'project';
     const title =
       initialOptions?.initialBindTargetCell && initialMode === 'worktree'
         ? 'Reattach Worktree'
         : initialOptions?.initialBindTargetCell && initialMode === 'branch'
           ? 'Create Worktree Attachment'
+        : initialOptions?.initialBindBranchTargetCell && initialMode === 'branch'
+          ? 'Bind Branch'
         : initialMode === 'worktree'
           ? 'Track Existing Worktree'
-          : initialMode === 'branch'
+        : initialMode === 'branch'
             ? 'Bind Existing Branch'
-            : 'Create New Cell';
+            : initialMode === 'create'
+              ? 'Create Branch Worktree'
+              : 'Create Cell';
     modal.openModal({
       id: modalId,
       title,
@@ -49,6 +53,7 @@ export function useCreateCellModalLauncher({
           initialReusePath={initialOptions?.reusePath || ''}
           initialExistingBranch={initialOptions?.existingBranch || ''}
           initialBindTargetCell={initialOptions?.initialBindTargetCell || null}
+          initialBindBranchTargetCell={initialOptions?.initialBindBranchTargetCell || null}
           onClose={() => modal.closeModal(modalId, false)}
           onCreate={async (payload) => {
             await handleCreate(payload);

@@ -294,9 +294,38 @@ test('createCell can bind an existing branch without renaming it', async (t) => 
 
       assert.equal(created.branch, 'main');
       assert.equal(created.name, 'mainline-review');
-      assert.equal(created.attachmentState, 'branch_only');
+      assert.equal(created.attachmentState, 'project_root');
       assert.equal(created.attachedWorktreePath, '');
       assert.equal(created.worktreePath, '');
+      assert.equal(createdWorktrees.length, 0);
+    }
+  );
+});
+
+test('createCell can create a project-root cell without branch or worktree materialization', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-project-root-');
+  const createdWorktrees: Array<unknown> = [];
+
+  t.after(async () => {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await withCellsService(
+    {
+      createWorktree: async (...args: unknown[]) => {
+        createdWorktrees.push(args);
+      },
+    },
+    async ({ createCell }) => {
+      const created = await createCell({
+        name: 'research-desk',
+        rootPath: repoRoot,
+      });
+
+      assert.equal(created.name, 'research-desk');
+      assert.equal(created.branch, '');
+      assert.equal(created.attachmentState, 'project_root');
+      assert.equal(created.attachedWorktreePath, '');
       assert.equal(createdWorktrees.length, 0);
     }
   );
@@ -335,7 +364,7 @@ test('createCell binds an existing branch to its live workspace without creating
   );
 });
 
-test('createCell can explicitly materialize a worktree attachment for an existing branch-only cell', async (t) => {
+test('createCell can explicitly materialize a worktree attachment for an existing project-root cell', async (t) => {
   const repoRoot = await createTempDir('agency-cells-branch-only-attachment-');
   const createdWorktrees: Array<{ repoRoot: string; worktreePath: string; branch: string; baseBranch: string }> = [];
   await fs.mkdir(path.join(repoRoot, '.agency', 'cells', 'mainline-review'), { recursive: true });
@@ -347,7 +376,7 @@ test('createCell can explicitly materialize a worktree attachment for an existin
       'name: mainline-review',
       'branch: main',
       'state: ""',
-      'attachmentState: branch_only',
+      'attachmentState: project_root',
       'worktreePath: ""',
       'lastKnownWorktreePath: ""',
     ].join('\n'),
@@ -382,6 +411,112 @@ test('createCell can explicitly materialize a worktree attachment for an existin
       assert.equal(createdWorktrees[0]?.baseBranch, 'main');
     }
   );
+});
+
+test('createCell can bind a branch onto an existing project-root cell without materializing a worktree', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-project-root-bind-branch-');
+  const createdWorktrees: Array<unknown> = [];
+  await fs.mkdir(path.join(repoRoot, '.agency', 'cells', 'research-desk'), { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, '.agency', 'cells', 'research-desk', 'cell.yaml'),
+    [
+      'version: 2',
+      'id: research-desk',
+      'name: research-desk',
+      'branch: ""',
+      'state: ""',
+      'attachmentState: project_root',
+      'worktreePath: ""',
+      'lastKnownWorktreePath: ""',
+    ].join('\n'),
+    'utf8'
+  );
+
+  t.after(async () => {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await withCellsService(
+    {
+      branchExists: async (_repoRoot: string, branch: string) => branch === 'main',
+      createWorktree: async (...args: unknown[]) => {
+        createdWorktrees.push(args);
+      },
+    },
+    async ({ createCell }) => {
+      const updated = await createCell({
+        existingBranch: 'main',
+        bindBranchToCellId: 'research-desk',
+        rootPath: repoRoot,
+      });
+
+      assert.equal(updated.id, 'research-desk');
+      assert.equal(updated.branch, 'main');
+      assert.equal(updated.attachmentState, 'project_root');
+      assert.equal(updated.attachedWorktreePath, '');
+      assert.equal(createdWorktrees.length, 0);
+    }
+  );
+});
+
+test('createCell keeps project-root cells distinct instead of silently reusing the same branch-bound record', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-distinct-project-root-');
+
+  t.after(async () => {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await withCellsService(
+    {
+      branchExists: async (_repoRoot: string, branch: string) => branch === 'main',
+    },
+    async ({ createCell, listCells }) => {
+      const first = await createCell({
+        name: 'mainline-review',
+        existingBranch: 'main',
+        rootPath: repoRoot,
+      });
+      const second = await createCell({
+        name: 'mainline-review',
+        existingBranch: 'main',
+        rootPath: repoRoot,
+      });
+
+      assert.equal(first.id, 'mainline-review');
+      assert.equal(second.id, 'mainline-review-2');
+      assert.equal(first.attachmentState, 'project_root');
+      assert.equal(second.attachmentState, 'project_root');
+
+      const cells = await listCells({ rootPath: repoRoot });
+      const projectRootCells = cells.filter((cell) => cell.attachmentState === 'project_root');
+      assert.equal(projectRootCells.length, 2);
+    }
+  );
+});
+
+test('createCell creates distinct project-root cells with duplicate names instead of overwriting the existing record', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-distinct-name-');
+
+  t.after(async () => {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await withCellsService({}, async ({ createCell, listCells }) => {
+    const first = await createCell({
+      name: 'research-desk',
+      rootPath: repoRoot,
+    });
+    const second = await createCell({
+      name: 'research-desk',
+      rootPath: repoRoot,
+    });
+
+    assert.equal(first.id, 'research-desk');
+    assert.equal(second.id, 'research-desk-2');
+
+    const cells = await listCells({ rootPath: repoRoot });
+    assert.equal(cells.filter((cell) => cell.attachmentState === 'project_root').length, 2);
+  });
 });
 
 test('createCell honors an explicit base branch when creating a new branch', async (t) => {

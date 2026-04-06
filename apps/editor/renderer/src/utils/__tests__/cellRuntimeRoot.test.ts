@@ -14,10 +14,10 @@ test('resolveCellRuntimeRootPath prefers attached worktree paths', () => {
   );
 });
 
-test('resolveCellRuntimeRootPath falls back to project root for branch-only cells', () => {
+test('resolveCellRuntimeRootPath falls back to project root for project-root cells', () => {
   assert.equal(
     resolveCellRuntimeRootPath({
-      attachmentState: 'branch_only',
+      attachmentState: 'project_root',
       attachedWorktreePath: '',
       projectRoot: '/repo',
     }),
@@ -25,7 +25,7 @@ test('resolveCellRuntimeRootPath falls back to project root for branch-only cell
   );
   assert.equal(
     canCellStartRuntime({
-      attachmentState: 'branch_only',
+      attachmentState: 'project_root',
       projectRoot: '/repo',
     }),
     true

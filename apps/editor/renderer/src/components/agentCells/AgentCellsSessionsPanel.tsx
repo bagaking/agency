@@ -410,9 +410,8 @@ export function AgentCellsSessionsPanel({
     [cells]
   );
 
-  const { trackedCells, branchOnlyCells, detachedCells, legacyArchivedCells } = useMemo(() => {
+  const { trackedCells, detachedCells, legacyArchivedCells } = useMemo(() => {
     const tracked: any[] = [];
-    const branchOnly: any[] = [];
     const detached: any[] = [];
     const legacyArchived: any[] = [];
     (cells || []).forEach((cell: any) => {
@@ -425,17 +424,14 @@ export function AgentCellsSessionsPanel({
         return;
       }
       const attachmentMeta = resolveCellAttachmentMeta(cell);
-      if (attachmentMeta.attachmentState === 'attached') {
+      if (['attached', 'project_root'].includes(attachmentMeta.attachmentState)) {
         tracked.push(cell);
-      } else if (attachmentMeta.attachmentState === 'branch_only') {
-        branchOnly.push(cell);
       } else {
         detached.push(cell);
       }
     });
     return {
       trackedCells: tracked,
-      branchOnlyCells: branchOnly,
       detachedCells: detached,
       legacyArchivedCells: legacyArchived,
     };
@@ -983,12 +979,12 @@ export function AgentCellsSessionsPanel({
       const suggestedAttachmentState = String(
         worktree?.bindSuggestion?.cellAttachmentState || ''
       ).trim().toLowerCase();
-      if (suggestedAttachmentState === 'branch_only') {
+      if (suggestedAttachmentState === 'project_root') {
         onCreateCell?.({
           mode: 'branch',
           existingBranch: worktree.branch,
           name: worktree?.bindSuggestion?.cellName || deriveCellNameFromWorktree(worktree),
-          initialBindTargetCell:
+          initialBindBranchTargetCell:
             cellsById.get(suggestedCellId) || {
               id: suggestedCellId,
               name: worktree?.bindSuggestion?.cellName || suggestedCellId,
@@ -1012,12 +1008,12 @@ export function AgentCellsSessionsPanel({
 
   const handleCreateAttachmentForCell = useCallback(
     (cell: any) => {
-      if (!cell?.id || !cell?.branch) {
+      if (!cell?.id) {
         return;
       }
       onCreateAttachmentCell?.({
         mode: 'branch',
-        existingBranch: cell.branch,
+        existingBranch: cell.branch || '',
         name: cell.name,
         initialBindTargetCell: cell,
       });
@@ -1052,26 +1048,28 @@ export function AgentCellsSessionsPanel({
         ) : null}
 
         {trackedCells.length === 0 &&
-        branchOnlyCells.length === 0 &&
         detachedCells.length === 0 &&
         legacyArchivedCells.length === 0 &&
         visibleUnmanagedWorktrees.length === 0 ? (
-          <div className="px-4 py-8 text-center text-xs text-muted-foreground">No tracked workspaces yet</div>
+          <div className="px-4 py-8 text-center text-xs text-muted-foreground">No tracked cells yet</div>
         ) : (
           <div className="space-y-4">
             {trackedCells.length > 0 ? (
               <section className="space-y-3">
                 <LifecycleSectionHeader
-                  label="Tracked Workspaces"
+                  label="Tracked Cells"
                   count={trackedCells.length}
-                  description="Cells with live worktree attachments and session trees."
+                  description="Session-first Cells running either on a live worktree attachment or on the project root."
                 />
-                <div className="space-y-3" data-testid="cell-list" role="tree" aria-label="Tracked workspaces">
+                <div className="space-y-3" data-testid="cell-list" role="tree" aria-label="Tracked cells">
                   {trackedCells.map((cell: any) => {
                     const attachmentMeta = resolveCellAttachmentMeta(cell);
                     const branchMeta = resolveCellBranchMeta(cell);
                     const isWindowHome = isWindowHomeCell(cell);
-                    const hasAttachment = !isWindowHome && attachmentMeta.attachmentState === 'attached';
+                    const isProjectRootRuntime = attachmentMeta.attachmentState === 'project_root';
+                    const hasRunnableRuntimeRoot =
+                      !isWindowHome &&
+                      ['attached', 'project_root'].includes(attachmentMeta.attachmentState);
                     const projection = projectionsByCellId[cell.id] || EMPTY_TREE;
                     const visibleRows = visibleRowsByCellId[cell.id] || [];
                     const activeSessionId =
@@ -1206,7 +1204,9 @@ export function AgentCellsSessionsPanel({
                             ? cell.worktreePath || 'Local shell'
                             : attachmentMeta.attachmentState === 'attached'
                               ? branchMeta.label || attachmentMeta.pathLabel || 'Attached worktree'
-                              : attachmentMeta.pathLabel || `${attachmentMeta.label} worktree`}
+                              : branchMeta.label
+                                ? `Project root · ${branchMeta.label}`
+                                : 'Project root runtime'}
                         </span>
                       </div>
                     </div>
@@ -1229,15 +1229,17 @@ export function AgentCellsSessionsPanel({
                         <IconButton
                           label="New Session"
                           focusRing="sidebar"
-                          disabled={!hasAttachment}
+                          disabled={!hasRunnableRuntimeRoot}
                           className="h-7 w-7 rounded-md text-primary transition-colors hover:bg-primary/12 hover:text-primary disabled:text-muted-foreground/40 disabled:hover:bg-transparent"
                           title={
-                            hasAttachment
-                              ? 'Create a session inside the attached worktree.'
-                              : 'Attach a worktree before creating sessions.'
+                            hasRunnableRuntimeRoot
+                              ? isProjectRootRuntime
+                                ? 'Create a session on the project root.'
+                                : 'Create a session inside the attached worktree.'
+                              : 'This Cell cannot start sessions until it has a valid runtime root.'
                           }
                           onClick={(event) => {
-                            if (!hasAttachment) {
+                            if (!hasRunnableRuntimeRoot) {
                               return;
                             }
                             event.stopPropagation();
@@ -1253,6 +1255,24 @@ export function AgentCellsSessionsPanel({
                           }}
                         >
                           <Plus size={14} strokeWidth={1.8} aria-hidden="true" />
+                        </IconButton>
+                      ) : null}
+                      {isProjectRootRuntime ? (
+                        <IconButton
+                          label="Create Worktree Attachment"
+                          focusRing="sidebar"
+                          className="h-7 w-7 rounded-md text-sky-100/78 transition-colors hover:bg-sky-500/12 hover:text-sky-50"
+                          title={
+                            cell?.branch
+                              ? 'Materialize a live worktree attachment for this Cell.'
+                              : 'Choose a branch and materialize a live worktree attachment for this Cell.'
+                          }
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleCreateAttachmentForCell(cell);
+                          }}
+                        >
+                          <ArrowUpLeft size={13} strokeWidth={1.7} aria-hidden="true" />
                         </IconButton>
                       ) : null}
                       {hasOverflow ? (
@@ -1608,114 +1628,6 @@ export function AgentCellsSessionsPanel({
                   ) : null}
                     </div>
                   );
-                  })}
-                </div>
-              </section>
-            ) : null}
-
-            {branchOnlyCells.length > 0 ? (
-              <section
-                className="space-y-2"
-                data-testid="branch-only-cell-list"
-                aria-label="Branch-only cells"
-              >
-                <LifecycleSectionHeader
-                  label="Branch-only Cells"
-                  count={branchOnlyCells.length}
-                  tone="unmanaged"
-                  description="Tracked Cells bound to a branch without a live worktree attachment."
-                />
-                <div className="space-y-2">
-                  {branchOnlyCells.map((cell: any) => {
-                    const branchMeta = resolveCellBranchMeta(cell);
-                    const cellAttention = attention.byCellId[cell.id];
-                    const sessionCount = resolveCellSessions(String(cell.id)).length || 0;
-                    return (
-                      <div
-                        key={cell.id}
-                        data-testid={`branch-only-cell-card-${cell.id}`}
-                        className={`rounded-xl border px-3 py-2.5 transition-colors ${
-                          selectedId === cell.id
-                            ? 'border-sky-300/26 bg-sky-500/[0.08]'
-                            : `border-border/35 bg-background/20 ${resolveAttentionCardClass(cellAttention?.strongest)}`
-                        }`}
-                      >
-                        <div className="flex items-start gap-2.5">
-                          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-sky-300/22 bg-sky-500/10 text-sky-100/85">
-                            <GitBranch size={14} strokeWidth={1.6} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex min-w-0 items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => onSelect?.(cell.id)}
-                                className="truncate text-left text-[12px] font-semibold text-foreground transition-colors hover:text-primary"
-                              >
-                                {cell.name}
-                              </button>
-                              <span className="inline-flex items-center rounded-full border border-sky-300/24 bg-sky-500/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-sky-100">
-                                Branch-only
-                              </span>
-                              {cellAttention?.strongest ? (
-                                <button
-                                  type="button"
-                                  onClick={() => attention.jumpToAttention(cellAttention.strongest)}
-                                  className="shrink-0"
-                                  aria-label={buildAttentionActionLabel({
-                                    item: cellAttention.strongest,
-                                    ownerLabel: cell.name || cell.id,
-                                    count: cellAttention.count,
-                                  })}
-                                  title={cellAttention.strongest.detail}
-                                >
-                                  <AttentionPill
-                                    item={cellAttention.strongest}
-                                    count={cellAttention.count}
-                                    className="px-1.5 py-[2px]"
-                                  />
-                                </button>
-                              ) : null}
-                            </div>
-                            <div className="mt-1 text-[10px] font-mono text-sky-100/78">
-                              {branchMeta.label || cell.branch || 'No branch recorded'}
-                            </div>
-                            <div className="mt-1 text-[10px] leading-4 text-muted-foreground/72">
-                              This Cell is tracked against an existing branch. Sessions run on the project root until you explicitly create a worktree attachment.
-                            </div>
-                            <div className="mt-2 flex items-center justify-between gap-2">
-                              <span className="text-[10px] text-muted-foreground/70">
-                                {sessionCount} session{sessionCount === 1 ? '' : 's'}
-                              </span>
-                              <div className="flex items-center gap-2">
-                                {onCreateSession ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => void onCreateSession(cell)}
-                                    className="rounded-lg bg-sky-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-50 transition-colors hover:bg-sky-500/30"
-                                  >
-                                    Create Session
-                                  </button>
-                                ) : null}
-                                <button
-                                  type="button"
-                                  onClick={() => handleCreateAttachmentForCell(cell)}
-                                  className="rounded-lg border border-sky-300/22 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-100 transition-colors hover:bg-sky-500/12"
-                                >
-                                  Create Worktree Attachment
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => onSelect?.(cell.id)}
-                                  className="rounded-lg border border-border/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-                                >
-                                  View Details
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
                   })}
                 </div>
               </section>

@@ -16,7 +16,7 @@ const cellStateBadgeTone: Record<string, string> = {
 };
 
 export type CellAttachmentMeta = {
-  attachmentState: 'attached' | 'branch_only' | 'detached' | 'missing';
+  attachmentState: 'attached' | 'project_root' | 'detached' | 'missing';
   label: string;
   tone: string;
   pathLabel: string;
@@ -51,12 +51,12 @@ export function resolveCellAttachmentMeta(cell: any): CellAttachmentMeta {
   const attachedPath = String(cell?.attachedWorktreePath || '').trim();
   const fallbackPath = String(cell?.lastKnownWorktreePath || cell?.worktreePath || '').trim();
   const pathLabelBase = attachedPath || fallbackPath;
-  if (attachmentState === 'branch_only') {
+  if (attachmentState === 'project_root') {
     return {
-      attachmentState: 'branch_only',
-      label: 'Branch-only',
+      attachmentState: 'project_root',
+      label: 'Project Root',
       tone: 'border-sky-300/24 bg-sky-500/10 text-sky-100',
-      pathLabel: String(cell?.branch || '').trim(),
+      pathLabel: String(cell?.projectRoot || cell?.repoRoot || '').trim(),
     };
   }
   if (attachmentState === 'missing') {

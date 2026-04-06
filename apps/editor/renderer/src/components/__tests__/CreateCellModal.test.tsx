@@ -183,6 +183,7 @@ test('CreateCellModal allows detached-head reattach when an existing Cell bindin
       existingBranch: undefined,
       reusePath: '/repo/.worktrees/detached-head',
       bindToCellId: 'cell-demo',
+      bindBranchToCellId: undefined,
     });
 
     await act(async () => {
@@ -193,7 +194,7 @@ test('CreateCellModal allows detached-head reattach when an existing Cell bindin
   }
 });
 
-test('CreateCellModal keeps existing branch binding as branch-only until attachment creation is explicit', async () => {
+test('CreateCellModal keeps existing branch binding as a project-root Cell until attachment creation is explicit', async () => {
   const env = setupDom();
   try {
     let createdPayload: any = null;
@@ -245,6 +246,7 @@ test('CreateCellModal keeps existing branch binding as branch-only until attachm
       existingBranch: 'main',
       reusePath: undefined,
       bindToCellId: undefined,
+      bindBranchToCellId: undefined,
     });
 
     await act(async () => {
@@ -255,7 +257,7 @@ test('CreateCellModal keeps existing branch binding as branch-only until attachm
   }
 });
 
-test('CreateCellModal can explicitly create a worktree attachment for a branch-only cell', async () => {
+test('CreateCellModal can explicitly create a worktree attachment for a project-root cell', async () => {
   const env = setupDom();
   try {
     let createdPayload: any = null;
@@ -293,7 +295,7 @@ test('CreateCellModal can explicitly create a worktree attachment for a branch-o
     await flushEffects();
 
     const submitButton = Array.from(document.querySelectorAll('button')).find((button) =>
-      /Create Attachment/.test(button.textContent || '')
+      /Create Worktree Attachment/.test(button.textContent || '')
     ) as HTMLButtonElement | undefined;
 
     assert.ok(submitButton);
@@ -311,6 +313,129 @@ test('CreateCellModal can explicitly create a worktree attachment for a branch-o
       existingBranch: 'main',
       reusePath: undefined,
       bindToCellId: 'mainline-review',
+      bindBranchToCellId: undefined,
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});
+
+test('CreateCellModal can bind a branch onto an existing project-root cell without materializing a worktree', async () => {
+  const env = setupDom();
+  try {
+    let createdPayload: any = null;
+    (window as any).agency = {
+      listWorktrees: async () => [],
+      listBranches: async () => [
+        {
+          name: 'main',
+          current: true,
+          isDefault: true,
+          attachedWorktreePath: '',
+        },
+      ],
+    };
+    const root = createRoot(document.getElementById('root')!);
+
+    await act(async () => {
+      root.render(
+        <CreateCellModal
+          projectRoot="/repo"
+          initialMode="branch"
+          initialExistingBranch="main"
+          initialBindBranchTargetCell={{
+            id: 'research-desk',
+            name: 'Research Desk',
+            branch: '',
+          }}
+          onClose={() => undefined}
+          onCreate={(payload: any) => {
+            createdPayload = payload;
+          }}
+        />
+      );
+    });
+    await flushEffects();
+
+    const submitButton = Array.from(document.querySelectorAll('button')).find((button) =>
+      /Bind Branch/.test(button.textContent || '')
+    ) as HTMLButtonElement | undefined;
+
+    assert.ok(submitButton);
+    assert.equal(submitButton.disabled, false);
+    assert.match(document.body.textContent || '', /keeping session runtime on the project root/);
+
+    await act(async () => {
+      submitButton.click();
+    });
+
+    assert.deepEqual(createdPayload, {
+      name: 'Research Desk',
+      branch: undefined,
+      baseBranch: undefined,
+      existingBranch: 'main',
+      reusePath: undefined,
+      bindToCellId: undefined,
+      bindBranchToCellId: 'research-desk',
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});
+
+test('CreateCellModal defaults to a project-root creation flow', async () => {
+  const env = setupDom();
+  try {
+    let createdPayload: any = null;
+    (window as any).agency = {
+      listWorktrees: async () => [],
+      listBranches: async () => [],
+    };
+    const root = createRoot(document.getElementById('root')!);
+
+    await act(async () => {
+      root.render(
+        <CreateCellModal
+          projectRoot="/repo"
+          initialMode="project"
+          initialName="research-desk"
+          onClose={() => undefined}
+          onCreate={(payload: any) => {
+            createdPayload = payload;
+          }}
+        />
+      );
+    });
+    await flushEffects();
+
+    const submitButton = Array.from(document.querySelectorAll('button')).find((button) =>
+      /Create Cell/.test(button.textContent || '')
+    ) as HTMLButtonElement | undefined;
+
+    assert.ok(submitButton);
+    assert.equal(submitButton.disabled, false);
+    assert.match(document.body.textContent || '', /Sessions will start on the project root/);
+
+    await act(async () => {
+      submitButton.click();
+    });
+
+    assert.deepEqual(createdPayload, {
+      name: 'research-desk',
+      branch: undefined,
+      baseBranch: undefined,
+      existingBranch: undefined,
+      reusePath: undefined,
+      bindToCellId: undefined,
+      bindBranchToCellId: undefined,
     });
 
     await act(async () => {

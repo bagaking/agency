@@ -20,6 +20,11 @@ const branchStrategies = [
 
 const creationModes = [
   {
+    value: 'project',
+    label: 'Create Project-root Cell',
+    hint: 'Create a session-first Cell on the project root. Bind branches or materialize worktrees later.',
+  },
+  {
     value: 'create',
     label: 'Create Branch Worktree',
     hint: 'Agency creates a new branch and worktree for a new tracked Cell.',
@@ -115,6 +120,9 @@ function resolveBoundCellName({
   if (mode === 'branch') {
     return deriveCellNameFromBranch(selectedBranchInfo?.name || '');
   }
+  if (mode === 'project') {
+    return '';
+  }
   return '';
 }
 
@@ -129,9 +137,9 @@ function ModePicker({
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
         <label className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">
-          Worktree Action
+          Cell Strategy
         </label>
-        <HintIcon label="Create makes a new branch/worktree. Track reuses an existing worktree or branch." />
+        <HintIcon label="Choose whether this Cell starts on the project root, creates a new branch worktree, tracks an existing worktree, or binds an existing branch." />
       </div>
       <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
         {creationModes.map((item) => {
@@ -166,6 +174,7 @@ export function CreateCellModal({
   initialReusePath = '',
   initialExistingBranch = '',
   initialBindTargetCell = null,
+  initialBindBranchTargetCell = null,
 }: any) {
   const [mode, setMode] = useState<CreationMode>(initialMode);
   const [name, setName] = useState(initialName);
@@ -191,28 +200,34 @@ export function CreateCellModal({
   const bindTargetCellId = String(initialBindTargetCell?.id || '').trim();
   const bindTargetCellName = String(initialBindTargetCell?.name || '').trim();
   const bindTargetCellBranch = String(initialBindTargetCell?.branch || '').trim();
+  const bindBranchTargetCellId = String(initialBindBranchTargetCell?.id || '').trim();
+  const bindBranchTargetCellName = String(initialBindBranchTargetCell?.name || '').trim();
   const resolvedBoundName = resolveBoundCellName({
     mode,
     typedName: name,
     selectedWorktreeInfo,
     selectedBranchInfo,
-    bindTargetCellName,
+    bindTargetCellName: bindBranchTargetCellName || bindTargetCellName,
   });
   const generatedBranch = name ? `${branchPrefix}/${toBranchSlug(name)}` : '';
   const branchPreview =
-    mode === 'create'
+    mode === 'project'
+      ? ''
+      : mode === 'create'
       ? generatedBranch
       : mode === 'worktree'
         ? resolveWorktreeStatusLabel(selectedWorktreeInfo)
         : String(selectedBranchInfo?.name || '').trim();
   const canSubmit =
-    mode === 'create'
+    mode === 'project'
+      ? Boolean(String(name || '').trim())
+      : mode === 'create'
       ? Boolean(generatedBranch) && Boolean(baseBranch)
       : mode === 'worktree'
         ? Boolean(selectedWorktree) &&
           Boolean(resolvedBoundName) &&
           (bindTargetCellId ? true : Boolean(String(selectedWorktreeInfo?.branch || '').trim()))
-        : Boolean(selectedBranch) && Boolean(resolvedBoundName);
+        : Boolean(selectedBranch) && Boolean(bindBranchTargetCellId || resolvedBoundName);
 
   useEffect(() => {
     setMode(initialMode);
@@ -230,6 +245,10 @@ export function CreateCellModal({
     if (nameTouched) {
       return;
     }
+    if (bindBranchTargetCellId && mode === 'branch') {
+      setName(bindBranchTargetCellName || '');
+      return;
+    }
     if (bindTargetCellId && mode === 'worktree') {
       setName(bindTargetCellName || '');
       return;
@@ -237,7 +256,7 @@ export function CreateCellModal({
     if (initialName) {
       setName(initialName);
     }
-  }, [bindTargetCellId, bindTargetCellName, initialName, mode, nameTouched]);
+  }, [bindBranchTargetCellId, bindBranchTargetCellName, bindTargetCellId, bindTargetCellName, initialName, mode, nameTouched]);
 
   useEffect(() => {
     const loadOptions = async () => {
@@ -298,9 +317,11 @@ export function CreateCellModal({
         ? selectedBranchInfo?.attachedWorktreePath
           ? `This action will bind ${bindTargetCellName || bindTargetCellId} to the live workspace at ${pathBaseName(selectedBranchInfo.attachedWorktreePath)}.`
           : 'This action will create a new worktree attachment for the selected branch. The Cell already exists; only the attachment will be materialized.'
+        : bindBranchTargetCellId
+          ? `This action will bind ${bindBranchTargetCellName || bindBranchTargetCellId} to the selected branch while keeping runtime on the project root. No worktree will be created.`
         : selectedBranchInfo?.attachedWorktreePath
         ? `Tracking will reuse the existing worktree at ${pathBaseName(selectedBranchInfo.attachedWorktreePath)}.`
-        : 'Binding keeps this as a branch-only Cell. No worktree will be created until you explicitly create an attachment later.'
+        : 'Binding keeps this as a project-root Cell. No worktree will be created until you explicitly create an attachment later.'
       : bindTargetCellId && selectedWorktreeInfo?.path && !String(selectedWorktreeInfo?.branch || '').trim()
         ? `Reattaching ${pathBaseName(selectedWorktreeInfo.path)} under ${bindTargetCellName || bindTargetCellId} while the live worktree is on detached HEAD. Agency will keep the existing Cell record and preserve its stored branch metadata until the worktree is attached to a branch again.`
       : selectedWorktreeInfo?.path
@@ -311,7 +332,11 @@ export function CreateCellModal({
     bindTargetCellId && mode === 'worktree'
       ? 'Reattach Cell'
       : bindTargetCellId && mode === 'branch'
-        ? 'Create Attachment'
+        ? 'Create Worktree Attachment'
+      : bindBranchTargetCellId && mode === 'branch'
+        ? 'Bind Branch'
+      : mode === 'project'
+        ? 'Create Cell'
       : mode === 'create'
         ? 'Create Cell'
         : mode === 'worktree'
@@ -320,21 +345,33 @@ export function CreateCellModal({
   const resolvedSubmitName =
     bindTargetCellId && mode === 'worktree'
       ? bindTargetCellName || resolvedBoundName
+      : bindBranchTargetCellId && mode === 'branch'
+        ? bindBranchTargetCellName || resolvedBoundName
+      : mode === 'project'
+        ? name
       : mode === 'create'
         ? name
         : resolvedBoundName;
 
   return (
     <div className="space-y-4">
-      {bindTargetCellId ? (
+      {bindTargetCellId || bindBranchTargetCellId ? (
         <div className="rounded-xl border border-primary/20 bg-primary/10 px-3 py-2 text-[11px] text-foreground/85">
           <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/75">
-            {mode === 'branch' ? 'Create Worktree Attachment' : 'Reattach Existing Cell'}
+            {bindTargetCellId && mode === 'branch'
+              ? 'Create Worktree Attachment'
+              : bindBranchTargetCellId && mode === 'branch'
+                ? 'Bind Branch on Existing Cell'
+                : 'Reattach Existing Cell'}
           </div>
           <div className="mt-1">
-            {mode === 'branch' ? (
+            {bindTargetCellId && mode === 'branch' ? (
               <>
                 Materialize a worktree attachment for <span className="font-semibold">{bindTargetCellName || bindTargetCellId}</span>.
+              </>
+            ) : bindBranchTargetCellId && mode === 'branch' ? (
+              <>
+                Update <span className="font-semibold">{bindBranchTargetCellName || bindBranchTargetCellId}</span> to track an existing branch while keeping session runtime on the project root.
               </>
             ) : (
               <>
@@ -346,6 +383,33 @@ export function CreateCellModal({
       ) : null}
 
       <ModePicker mode={mode} onChange={setMode} />
+
+      {mode === 'project' ? (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <label
+              className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70"
+              htmlFor="cell-name"
+            >
+              Cell Name
+            </label>
+            <HintIcon label="Create a project-root Cell first, then bind a branch or materialize a worktree only when the work actually needs that structure." />
+          </div>
+          <input
+            id="cell-name"
+            className={`w-full rounded-xl border border-border/40 bg-background/70 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/35 shadow-sm transition-colors hover:border-primary/35 focus:border-primary/45 ${focusRingClass}`}
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value);
+              setNameTouched(true);
+            }}
+            placeholder="e.g. research-desk"
+          />
+          <div className="rounded-xl border border-border/30 bg-background/50 px-3 py-2 text-[10px] leading-4 text-muted-foreground/80">
+            Sessions will start on the project root. Branch binding and worktree attachment stay explicit later actions.
+          </div>
+        </div>
+      ) : null}
 
       {mode === 'create' ? (
         <div className="space-y-1.5">
@@ -516,7 +580,7 @@ export function CreateCellModal({
         </div>
       ) : null}
 
-      {mode !== 'create' && !bindTargetCellId ? (
+      {mode !== 'create' && mode !== 'project' && !bindTargetCellId && !bindBranchTargetCellId ? (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <label
@@ -528,7 +592,9 @@ export function CreateCellModal({
             <HintIcon
               label={
                 mode === 'branch'
-                  ? 'Branch binding keeps the existing branch intact. The Cell name is only the durable workspace label.'
+                  ? bindBranchTargetCellId
+                    ? 'Branch binding updates the selected Cell metadata only. It does not create or adopt a worktree.'
+                    : 'Branch binding keeps the existing branch intact. The Cell name is only the durable workspace label.'
                   : 'Binding keeps the existing branch/worktree intact. The Cell name is only the workspace label.'
               }
             />
@@ -547,7 +613,10 @@ export function CreateCellModal({
             <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground/75">
               <GitBranch size={11} className="shrink-0 text-primary/80" aria-hidden="true" />
               <span className="font-mono text-[11px] text-primary/90 truncate">
-                {branchPreview || (bindTargetCellId ? bindTargetCellBranch || '...' : '...')}
+                {branchPreview ||
+                  (bindTargetCellId || bindBranchTargetCellId
+                    ? bindTargetCellBranch || initialBindBranchTargetCell?.branch || '...'
+                    : '...')}
               </span>
             </div>
             {mode === 'worktree' && selectedWorktreeInfo?.path ? (
@@ -582,11 +651,12 @@ export function CreateCellModal({
           onClick={() =>
             onCreate({
               name: resolvedSubmitName,
-              branch: mode === 'create' ? generatedBranch : undefined,
+              branch: mode === 'project' ? undefined : mode === 'create' ? generatedBranch : undefined,
               baseBranch: mode === 'create' ? baseBranch : undefined,
               existingBranch: mode === 'branch' ? selectedBranch : undefined,
               reusePath: mode === 'worktree' ? selectedWorktree : undefined,
               bindToCellId: bindTargetCellId || undefined,
+              bindBranchToCellId: bindBranchTargetCellId || undefined,
             })
           }
         >

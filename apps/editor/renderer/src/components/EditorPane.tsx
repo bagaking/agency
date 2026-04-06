@@ -48,6 +48,7 @@ export function EditorPane({
   onTurnGateExecute,
   onOpenTerminal,
   onArchiveCell,
+  onBindBranchCell,
   onCreateAttachmentCell,
   onClearCellAttachment,
   onDeleteCell,
@@ -267,7 +268,7 @@ export function EditorPane({
   const idleLabel = formatIdleClock(idleMs);
   const attachmentState = String(cell?.attachmentState || 'attached').trim().toLowerCase();
   const attachmentTone =
-    attachmentState === 'branch_only'
+    attachmentState === 'project_root'
       ? 'border-sky-300/25 bg-sky-500/10 text-sky-100'
       : attachmentState === 'missing'
       ? 'border-rose-400/30 bg-rose-500/10 text-rose-200'
@@ -275,8 +276,10 @@ export function EditorPane({
         ? 'border-amber-300/25 bg-amber-500/10 text-amber-100'
         : 'border-emerald-400/20 bg-emerald-500/10 text-emerald-200';
   const attachmentLabel =
-    attachmentState === 'branch_only'
-      ? 'Branch-only Cell'
+    attachmentState === 'project_root'
+      ? cell?.branch
+        ? 'Project-root Cell'
+        : 'Project-root Cell'
       : attachmentState === 'missing'
       ? 'Missing worktree'
       : attachmentState === 'detached'
@@ -460,7 +463,28 @@ export function EditorPane({
           </button>
           {attachmentState !== 'attached' ? (
             <div className="flex items-center gap-1.5">
-              {attachmentState === 'branch_only' && onCreateAttachmentCell ? (
+              {attachmentState === 'project_root' && onBindBranchCell ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onBindBranchCell?.({
+                      mode: 'branch',
+                      existingBranch: cell.branch || '',
+                      initialBindBranchTargetCell: cell,
+                    })
+                  }
+                  className="flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-medium text-sky-100 transition-colors hover:bg-sky-500/10"
+                  title={
+                    cell?.branch
+                      ? 'Change the branch metadata for this project-root Cell without creating a worktree.'
+                      : 'Bind this project-root Cell to an existing branch without creating a worktree.'
+                  }
+                >
+                  <GitBranch size={12} />
+                  <span>{cell?.branch ? 'Change Branch' : 'Bind Branch'}</span>
+                </button>
+              ) : null}
+              {attachmentState === 'project_root' && onCreateAttachmentCell ? (
                 <button
                   type="button"
                   onClick={() =>
@@ -478,7 +502,7 @@ export function EditorPane({
                   <span>Create Worktree Attachment</span>
                 </button>
               ) : null}
-              {attachmentState !== 'branch_only' && onClearCellAttachment ? (
+              {attachmentState !== 'project_root' && onClearCellAttachment ? (
                 <button
                   type="button"
                   onClick={onClearCellAttachment}
@@ -494,7 +518,7 @@ export function EditorPane({
                   type="button"
                   onClick={onDeleteCell}
                   className="flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-medium text-rose-200 transition-colors hover:bg-rose-500/10"
-                  title={attachmentState === 'branch_only' ? 'Delete this branch-only Cell' : 'Delete this detached Cell'}
+                  title={attachmentState === 'project_root' ? 'Delete this project-root Cell' : 'Delete this detached Cell'}
                 >
                   <Trash2 size={12} />
                   <span>Delete Cell</span>
@@ -506,19 +530,22 @@ export function EditorPane({
       </header>
 
       <div className="flex-1 flex flex-col min-h-0 bg-black/20">
-        {attachmentState === 'branch_only' ? (
+        {attachmentState === 'project_root' ? (
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="mx-4 mt-4 rounded-2xl border border-sky-300/16 bg-[linear-gradient(180deg,rgba(18,30,46,0.9),rgba(10,16,26,0.96))] px-4 py-3 shadow-[0_18px_44px_-24px_rgba(15,23,42,0.65)]">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-sky-100/72">
-                    Branch-only Cell
+                    {cell?.branch ? 'Project-root Cell' : 'Project-root Cell'}
                   </div>
                   <div className="mt-1 text-[13px] font-semibold text-foreground">
                     Sessions run on the project root until you explicitly create a worktree attachment.
                   </div>
                   <div className="mt-1 text-[11px] leading-5 text-muted-foreground/78">
-                    Branch: <span className="font-mono text-sky-100/82">{branchMeta.label || cell.branch || 'No branch recorded'}</span>
+                    Branch:{' '}
+                    <span className="font-mono text-sky-100/82">
+                      {branchMeta.label || cell.branch || 'No branch bound'}
+                    </span>
                   </div>
                 </div>
                 <span

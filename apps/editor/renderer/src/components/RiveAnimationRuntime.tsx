@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useRive, Layout, Fit, Alignment } from '@rive-app/react-canvas';
 
+function canRenderRiveCanvas() {
+  return (
+    typeof window !== 'undefined' &&
+    typeof HTMLCanvasElement !== 'undefined' &&
+    typeof window.requestAnimationFrame === 'function'
+  );
+}
+
 function RivePlayer({
   src,
   artboard,
@@ -44,5 +52,8 @@ function RivePlayer({
 }
 
 export default function RiveAnimationRuntime(props: any) {
+  if (!canRenderRiveCanvas()) {
+    return props?.fallback || <div className={`bg-muted/20 ${props?.className || ''}`} />;
+  }
   return <RivePlayer {...props} />;
 }

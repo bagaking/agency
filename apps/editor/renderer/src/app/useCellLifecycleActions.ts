@@ -217,7 +217,7 @@ export function useCellLifecycleActions({
   }, [loadCells, modal, projectRoot, resolveLifecycleTargetCell, selectedCell?.id, setLoading, setSelectedId]);
 
   const handleCreate = useCallback(
-    async ({ name, branch, baseBranch, existingBranch, reusePath, bindToCellId }: any) => {
+    async ({ name, branch, baseBranch, existingBranch, reusePath, bindToCellId, bindBranchToCellId }: any) => {
       if (!projectReady) {
         setProjectError('Select a project before creating or tracking a Cell.');
         return;
@@ -231,6 +231,7 @@ export function useCellLifecycleActions({
           existingBranch,
           reusePath,
           bindToCellId,
+          bindBranchToCellId,
           rootPath: projectRoot,
         });
         if (!cell) {
@@ -240,15 +241,8 @@ export function useCellLifecycleActions({
         if (cell?.id) {
           setSelectedId(cell.id);
         }
-        if (String(cell?.attachmentState || '').trim().toLowerCase() === 'attached') {
+        if (['attached', 'project_root'].includes(String(cell?.attachmentState || '').trim().toLowerCase())) {
           handleOpenTerminal();
-        } else if (String(cell?.attachmentState || '').trim().toLowerCase() === 'branch_only') {
-          modal?.notify?.({
-            title: 'Branch-only Cell created',
-            description:
-              'This Cell is bound to the selected branch without a live worktree attachment. Create an attachment explicitly when you want to start runtime work.',
-            tone: 'info',
-          });
         }
       } catch (error) {
         console.error(error);

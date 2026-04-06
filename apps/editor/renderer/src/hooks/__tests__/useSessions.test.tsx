@@ -179,7 +179,7 @@ test('useSessions resolves the latest hydrated cell before loading or creating s
   }
 });
 
-test('useSessions creates sessions for branch-only cells on project root runtime', async () => {
+test('useSessions creates sessions for project-root cells on project root runtime', async () => {
   const env = setupDom();
   try {
     const createCalls: any[] = [];
@@ -188,7 +188,7 @@ test('useSessions creates sessions for branch-only cells on project root runtime
       createSession: async (payload: any) => {
         createCalls.push(payload);
         return {
-          id: 'session-branch-only',
+          id: 'session-project-root',
           name: payload?.name || 'CLI',
           status: 'active',
         };
@@ -203,7 +203,7 @@ test('useSessions creates sessions for branch-only cells on project root runtime
             id: 'mainline-review',
             name: 'mainline-review',
             branch: 'main',
-            attachmentState: 'branch_only',
+            attachmentState: 'project_root',
             attachedWorktreePath: '',
             projectRoot: '/repo',
           }}
@@ -212,7 +212,7 @@ test('useSessions creates sessions for branch-only cells on project root runtime
               id: 'mainline-review',
               name: 'mainline-review',
               branch: 'main',
-              attachmentState: 'branch_only',
+              attachmentState: 'project_root',
               attachedWorktreePath: '',
               projectRoot: '/repo',
             },

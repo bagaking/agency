@@ -109,6 +109,7 @@ function buildEditorPaneProps(overrides: Record<string, unknown> = {}) {
     onTurnGateExecute: () => undefined,
     onOpenTerminal: () => undefined,
     onArchiveCell: () => undefined,
+    onBindBranchCell: () => undefined,
     onCreateAttachmentCell: () => undefined,
     onClearCellAttachment: () => undefined,
     onDeleteCell: () => undefined,
@@ -233,15 +234,15 @@ test('EditorPane renders a detached-cell detail state instead of the generic ter
   assert.doesNotMatch(html, /No active terminal session/);
 });
 
-test('EditorPane renders a branch-only detail state with explicit attachment creation actions', () => {
+test('EditorPane renders a project-root detail state with explicit branch and attachment actions', () => {
   const html = renderToStaticMarkup(
     <EditorPane
       {...buildEditorPaneProps({
         cell: {
-          id: 'cell-branch-only',
+          id: 'cell-project-root',
           name: 'mainline-review',
           branch: 'main',
-          attachmentState: 'branch_only',
+          attachmentState: 'project_root',
           state: 'draft',
         },
         sessions: [],
@@ -249,8 +250,9 @@ test('EditorPane renders a branch-only detail state with explicit attachment cre
     />
   );
 
-  assert.match(html, /Branch-only Cell/);
+  assert.match(html, /Project-root Cell/);
+  assert.match(html, /Change Branch/);
   assert.match(html, /Create Worktree Attachment/);
-  assert.match(html, /This Cell is intentionally bound to an existing branch without a live worktree attachment/);
+  assert.match(html, /Sessions run on the project root until you explicitly create a worktree attachment/);
   assert.doesNotMatch(html, /Detached Workspace/);
 });

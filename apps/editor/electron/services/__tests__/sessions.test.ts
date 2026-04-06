@@ -50,7 +50,7 @@ async function withSessionsService(options, run) {
             id: 'cell-main',
             name: 'main',
             branch: 'main',
-            attachmentState: 'branch_only',
+            attachmentState: 'project_root',
           },
           worktreePath: '',
           attachedWorktreePath: '',
@@ -135,7 +135,7 @@ async function withSessionsService(options, run) {
   }
 }
 
-test('createNewSession uses project root as runtime root for branch-only cells', async () => {
+test('createNewSession uses project root as runtime root for project-root cells', async () => {
   await withSessionsService({}, async ({ createNewSession }, state, repoRoot) => {
     const created = await createNewSession({
       cellId: 'cell-main',
