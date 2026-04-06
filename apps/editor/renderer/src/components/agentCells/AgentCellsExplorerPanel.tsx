@@ -60,8 +60,9 @@ export function AgentCellsExplorerPanel({
   const [fileDashboardHeight, setFileDashboardHeight] = useState<number | null>(null);
   const [fileDashboardDragging, setFileDashboardDragging] = useState(false);
 
-  const attachedWorktreePath = selectedCell?.attachedWorktreePath || '';
-  const canUseFileFeatures = Boolean(selectedCell?.id && attachedWorktreePath);
+  const explorerRootPath =
+    selectedCell?.attachedWorktreePath || selectedCell?.projectRoot || selectedCell?.worktreePath || '';
+  const canUseFileFeatures = Boolean(selectedCell?.id && explorerRootPath);
 
   const fileDashboardDragRef = useRef<{
     startY: number;
@@ -76,7 +77,7 @@ export function AgentCellsExplorerPanel({
 
   const loadFileDashboardPreview = useCallback(
     async (shortcut: AgentCellFileChangeEntry) => {
-      if (!shortcut?.relativePath || !attachedWorktreePath) {
+      if (!shortcut?.relativePath || !explorerRootPath) {
         clearFileSnippetPreview();
         return;
       }
@@ -89,14 +90,14 @@ export function AgentCellsExplorerPanel({
 
       const line = Number.isFinite(shortcut.line) ? Math.max(1, Math.floor(Number(shortcut.line))) : null;
       await loadFileSnippetPreview({
-        rootPath: attachedWorktreePath,
+        rootPath: explorerRootPath,
         targetPath: relativePath,
         relativePath,
         line,
         context: 2,
       });
     },
-    [clearFileSnippetPreview, loadFileSnippetPreview, attachedWorktreePath]
+    [clearFileSnippetPreview, loadFileSnippetPreview, explorerRootPath]
   );
 
   const clearFileDashboardPreview = useCallback(() => {
@@ -104,7 +105,7 @@ export function AgentCellsExplorerPanel({
   }, [clearFileSnippetPreview]);
 
   const canDropIntoFileDashboard = Boolean(
-    selectedCell?.id && attachedWorktreePath && onImportFileReferences
+    selectedCell?.id && explorerRootPath && onImportFileReferences
   );
 
   const computeFileDashboardMaxHeight = useCallback(() => {
@@ -267,18 +268,18 @@ export function AgentCellsExplorerPanel({
   useEffect(() => {
     setFileDashboardAllPaths([]);
     setFileDashboardAllTruncated(false);
-  }, [selectedCell?.id, attachedWorktreePath]);
+  }, [selectedCell?.id, explorerRootPath]);
 
   const handleFileDashboardOpen = useCallback(
     (shortcut: AgentCellFileChangeEntry, options: { focusView?: boolean; mode?: 'preview' | 'pinned' } = {}) => {
-      if (!shortcut?.relativePath || !selectedCell?.id || !attachedWorktreePath) {
+      if (!shortcut?.relativePath || !selectedCell?.id || !explorerRootPath) {
         return;
       }
       const focusView = options.focusView !== false;
       const mode = options.mode === 'preview' ? 'preview' : 'pinned';
       onOpenFileReference?.({
         cellId: selectedCell.id,
-        rootPath: attachedWorktreePath,
+        rootPath: explorerRootPath,
         path: shortcut.relativePath,
         line: shortcut.line || undefined,
         column: shortcut.column || undefined,
@@ -286,21 +287,21 @@ export function AgentCellsExplorerPanel({
         mode,
       });
     },
-    [onOpenFileReference, selectedCell?.id, attachedWorktreePath]
+    [onOpenFileReference, selectedCell?.id, explorerRootPath]
   );
 
   const handleFileDashboardReveal = useCallback(
     (shortcut: AgentCellFileChangeEntry) => {
-      if (!shortcut?.relativePath || !selectedCell?.id || !attachedWorktreePath) {
+      if (!shortcut?.relativePath || !selectedCell?.id || !explorerRootPath) {
         return;
       }
       onRevealFileReference?.({
         cellId: selectedCell.id,
-        rootPath: attachedWorktreePath,
+        rootPath: explorerRootPath,
         path: shortcut.relativePath,
       });
     },
-    [onRevealFileReference, selectedCell?.id, attachedWorktreePath]
+    [onRevealFileReference, selectedCell?.id, explorerRootPath]
   );
 
   const handleFileDashboardPreview = useCallback(
@@ -333,7 +334,7 @@ export function AgentCellsExplorerPanel({
 
   const refreshFileDashboard = useCallback(
     async ({ showBusy = false, forceAllPaths = false }: { showBusy?: boolean; forceAllPaths?: boolean } = {}) => {
-      if (!fileDashboardOpen || !selectedCell?.id || !attachedWorktreePath) {
+      if (!fileDashboardOpen || !selectedCell?.id || !explorerRootPath) {
         setFileDashboardEntries([]);
         setFileDashboardLoading(false);
         setFileDashboardUpdatedAt(0);
@@ -344,10 +345,10 @@ export function AgentCellsExplorerPanel({
       }
       try {
         const status = await getExplorerStatus({
-          rootPath: attachedWorktreePath,
+          rootPath: explorerRootPath,
         });
         const statusFiles = status?.files || {};
-        const baseRoot = String(attachedWorktreePath || '').replace(/\/+$/, '');
+        const baseRoot = String(explorerRootPath || '').replace(/\/+$/, '');
 
         if (fileDashboardCellFilter === 'all') {
           let allPaths = fileDashboardAllPaths;
@@ -355,7 +356,7 @@ export function AgentCellsExplorerPanel({
 
           if (!allPaths.length || forceAllPaths) {
             const result = await searchExplorerFiles({
-              rootPath: attachedWorktreePath,
+              rootPath: explorerRootPath,
               query: '',
               includeAll: true,
               limit: FILE_DASHBOARD_ALL_LIMIT,
@@ -420,13 +421,13 @@ export function AgentCellsExplorerPanel({
       fileDashboardAllPaths,
       fileDashboardAllTruncated,
       selectedCell?.id,
-      attachedWorktreePath,
+      explorerRootPath,
     ]
   );
 
   const handleFileDashboardImport = useCallback(
     async (sourcePaths: string[]) => {
-      if (!sourcePaths?.length || !selectedCell?.id || !attachedWorktreePath) {
+      if (!sourcePaths?.length || !selectedCell?.id || !explorerRootPath) {
         return;
       }
       if (!onImportFileReferences) {
@@ -437,7 +438,7 @@ export function AgentCellsExplorerPanel({
       try {
         const report = await onImportFileReferences({
           cellId: selectedCell.id,
-          rootPath: attachedWorktreePath,
+          rootPath: explorerRootPath,
           sourcePaths,
         });
         if (!report) {
@@ -477,7 +478,7 @@ export function AgentCellsExplorerPanel({
         setFileDashboardNotice(error?.message || 'Import failed.');
       }
     },
-    [onImportFileReferences, refreshFileDashboard, selectedCell?.id, selectedCell?.name, attachedWorktreePath]
+    [onImportFileReferences, refreshFileDashboard, selectedCell?.id, selectedCell?.name, explorerRootPath]
   );
 
   const handleFileDashboardDragOver = useCallback(
@@ -573,7 +574,7 @@ export function AgentCellsExplorerPanel({
           <button
             type="button"
             onClick={() => setFileDashboardOpen((current) => !current)}
-            disabled={!projectReady || !attachedWorktreePath}
+            disabled={!projectReady || !explorerRootPath}
             data-testid="agent-cells-file-dashboard-toggle"
             className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors ${
               fileDashboardOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
@@ -586,7 +587,7 @@ export function AgentCellsExplorerPanel({
       </div>
 
       {fileDashboardOpen ? (
-        attachedWorktreePath ? (
+        explorerRootPath ? (
         <div
           className={`flex h-full flex-col ${fileDashboardDragging ? 'select-none' : ''}`}
           style={{
