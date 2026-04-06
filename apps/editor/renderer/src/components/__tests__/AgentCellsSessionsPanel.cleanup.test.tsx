@@ -215,6 +215,7 @@ test('AgentCellsSessionsPanel renders project-root cells in the main tracked sec
   assert.match(html, /Tracked Cells/);
   assert.match(html, /data-testid="cell-item-cell-branch"/);
   assert.match(html, /Project Root/);
+  assert.match(html, /Bind Branch/);
   assert.match(html, /session-tab-session-main/);
   assert.match(html, /session-tab-session-sub/);
   assert.match(html, /Create Worktree Attachment/);

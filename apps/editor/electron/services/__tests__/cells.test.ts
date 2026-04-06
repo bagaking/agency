@@ -327,6 +327,11 @@ test('createCell can create a project-root cell without branch or worktree mater
       assert.equal(created.attachmentState, 'project_root');
       assert.equal(created.attachedWorktreePath, '');
       assert.equal(createdWorktrees.length, 0);
+      const stored = await fs.readFile(
+        path.join(repoRoot, '.agency', 'cells', 'research-desk', 'cell.yaml'),
+        'utf8'
+      );
+      assert.match(stored, /preferredRuntimeRoot: project_root/);
     }
   );
 });
@@ -409,6 +414,11 @@ test('createCell can explicitly materialize a worktree attachment for an existin
       assert.equal(createdWorktrees.length, 1);
       assert.equal(createdWorktrees[0]?.branch, 'main');
       assert.equal(createdWorktrees[0]?.baseBranch, 'main');
+      const stored = await fs.readFile(
+        path.join(repoRoot, '.agency', 'cells', 'mainline-review', 'cell.yaml'),
+        'utf8'
+      );
+      assert.match(stored, /preferredRuntimeRoot: project_root/);
     }
   );
 });
@@ -452,6 +462,7 @@ test('createCell can bind a branch onto an existing project-root cell without ma
 
       assert.equal(updated.id, 'research-desk');
       assert.equal(updated.branch, 'main');
+      assert.equal(updated.hasBranch, true);
       assert.equal(updated.attachmentState, 'project_root');
       assert.equal(updated.attachedWorktreePath, '');
       assert.equal(createdWorktrees.length, 0);
@@ -497,8 +508,58 @@ test('createCell keeps explicit branch binding on a project-root Cell separate f
 
       assert.equal(updated.id, 'research-desk');
       assert.equal(updated.branch, 'main');
+      assert.equal(updated.hasBranch, true);
       assert.equal(updated.attachmentState, 'project_root');
       assert.equal(updated.attachedWorktreePath, '');
+    }
+  );
+});
+
+test('createCell attaches the requested project-root Cell when bindToCellId meets an already-live branch worktree', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-bind-live-worktree-to-target-');
+  const liveWorktreePath = path.join(repoRoot, '.worktrees', 'main');
+  await fs.mkdir(path.join(repoRoot, '.agency', 'cells', 'research-desk'), { recursive: true });
+  await fs.mkdir(liveWorktreePath, { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, '.agency', 'cells', 'research-desk', 'cell.yaml'),
+    [
+      'version: 2',
+      'id: research-desk',
+      'name: research-desk',
+      'branch: main',
+      'state: ""',
+      'attachmentState: project_root',
+      'preferredRuntimeRoot: project_root',
+      'worktreePath: ""',
+      'lastKnownWorktreePath: ""',
+    ].join('\n'),
+    'utf8'
+  );
+
+  t.after(async () => {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await withCellsService(
+    {
+      branchExists: async (_repoRoot: string, branch: string) => branch === 'main',
+      listWorktrees: async () => [{ path: liveWorktreePath, branch: 'main', head: 'abc123' }],
+    },
+    async ({ createCell }) => {
+      const attached = await createCell({
+        existingBranch: 'main',
+        bindToCellId: 'research-desk',
+        rootPath: repoRoot,
+      });
+
+      assert.equal(attached.id, 'research-desk');
+      assert.equal(attached.attachmentState, 'attached');
+      assert.equal(attached.attachedWorktreePath, liveWorktreePath);
+      const stored = await fs.readFile(
+        path.join(repoRoot, '.agency', 'cells', 'research-desk', 'cell.yaml'),
+        'utf8'
+      );
+      assert.match(stored, /worktreePath: .*\.worktrees\/main/);
     }
   );
 });
@@ -863,7 +924,7 @@ test('createCell rejects binding an unmanaged worktree to an already attached Ce
             reusePath: unmanagedWorktreePath,
             bindToCellId: 'attached-gamma',
           }),
-        /detached or missing Cell/
+        /must not already have a live attached worktree/
       );
     }
   );

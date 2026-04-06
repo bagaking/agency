@@ -251,7 +251,7 @@ test('EditorPane renders a project-root detail state with explicit branch and at
   );
 
   assert.match(html, /Project-root Cell/);
-  assert.match(html, /Change Branch/);
+  assert.match(html, /Bind Branch/);
   assert.match(html, /Create Worktree Attachment/);
   assert.match(html, /Sessions run on the project root until you explicitly create a worktree attachment/);
   assert.doesNotMatch(html, /Detached Workspace/);

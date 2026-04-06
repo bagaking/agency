@@ -19,6 +19,10 @@ const CELL_ATTACHMENT_STATES = Object.freeze({
   detached: 'detached',
   missing: 'missing',
 });
+const CELL_RUNTIME_ROOT_PREFERENCES = Object.freeze({
+  worktree: 'worktree',
+  project_root: 'project_root',
+});
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -40,6 +44,13 @@ function normalizeAttachmentState(value) {
     return CELL_ATTACHMENT_STATES.missing;
   }
   return CELL_ATTACHMENT_STATES.attached;
+}
+
+function normalizeRuntimeRootPreference(value) {
+  if (value === CELL_RUNTIME_ROOT_PREFERENCES.project_root || value === 'branch_only') {
+    return CELL_RUNTIME_ROOT_PREFERENCES.project_root;
+  }
+  return CELL_RUNTIME_ROOT_PREFERENCES.worktree;
 }
 
 function normalizeLifecycleState(value) {
@@ -65,6 +76,9 @@ function normalizeCellRecord(raw: any = {}, fallback: any = {}) {
       fallback.worktreePath
   );
   const explicitAttachmentState = normalizeText(raw.attachmentState || fallback.attachmentState);
+  const explicitRuntimeRootPreference = normalizeText(
+    raw.preferredRuntimeRoot || fallback.preferredRuntimeRoot
+  );
   return {
     version: CELL_RECORD_VERSION,
     id,
@@ -80,6 +94,15 @@ function normalizeCellRecord(raw: any = {}, fallback: any = {}) {
         : lastKnownWorktreePath
           ? CELL_ATTACHMENT_STATES.detached
           : CELL_ATTACHMENT_STATES.detached,
+    preferredRuntimeRoot: explicitRuntimeRootPreference
+      ? normalizeRuntimeRootPreference(explicitRuntimeRootPreference)
+      : explicitAttachmentState
+        ? normalizeAttachmentState(explicitAttachmentState) === CELL_ATTACHMENT_STATES.project_root
+          ? CELL_RUNTIME_ROOT_PREFERENCES.project_root
+          : CELL_RUNTIME_ROOT_PREFERENCES.worktree
+        : !lastKnownWorktreePath && !worktreePath
+          ? CELL_RUNTIME_ROOT_PREFERENCES.project_root
+          : CELL_RUNTIME_ROOT_PREFERENCES.worktree,
     worktreePath,
     lastKnownWorktreePath,
     createdAt:
@@ -186,6 +209,7 @@ async function resolveCellStoreContext(params = {}) {
 
 module.exports = {
   CELL_ATTACHMENT_STATES,
+  CELL_RUNTIME_ROOT_PREFERENCES,
   CELL_RECORD_FILENAME,
   CELL_SESSIONS_FILENAME,
   CELL_RECORD_VERSION,

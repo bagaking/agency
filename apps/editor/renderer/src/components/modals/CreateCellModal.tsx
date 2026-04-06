@@ -382,7 +382,7 @@ export function CreateCellModal({
         </div>
       ) : null}
 
-      <ModePicker mode={mode} onChange={setMode} />
+      {!bindTargetCellId && !bindBranchTargetCellId ? <ModePicker mode={mode} onChange={setMode} /> : null}
 
       {mode === 'project' ? (
         <div className="space-y-1.5">
@@ -655,8 +655,8 @@ export function CreateCellModal({
               baseBranch: mode === 'create' ? baseBranch : undefined,
               existingBranch: mode === 'branch' ? selectedBranch : undefined,
               reusePath: mode === 'worktree' ? selectedWorktree : undefined,
-              bindToCellId: bindTargetCellId || undefined,
-              bindBranchToCellId: bindBranchTargetCellId || undefined,
+              bindToCellId: mode !== 'project' ? bindTargetCellId || undefined : undefined,
+              bindBranchToCellId: mode === 'branch' ? bindBranchTargetCellId || undefined : undefined,
             })
           }
         >

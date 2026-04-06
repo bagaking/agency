@@ -1021,6 +1021,21 @@ export function AgentCellsSessionsPanel({
     [onCreateAttachmentCell]
   );
 
+  const handleBindBranchForCell = useCallback(
+    (cell: any) => {
+      if (!cell?.id) {
+        return;
+      }
+      onCreateCell?.({
+        mode: 'branch',
+        existingBranch: cell.branch || '',
+        name: cell.name,
+        initialBindBranchTargetCell: cell,
+      });
+    },
+    [onCreateCell]
+  );
+
   return (
     <>
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
@@ -1255,6 +1270,24 @@ export function AgentCellsSessionsPanel({
                           }}
                         >
                           <Plus size={14} strokeWidth={1.8} aria-hidden="true" />
+                        </IconButton>
+                      ) : null}
+                      {isProjectRootRuntime ? (
+                        <IconButton
+                          label="Bind Branch"
+                          focusRing="sidebar"
+                          className="h-7 w-7 rounded-md text-sky-100/78 transition-colors hover:bg-sky-500/12 hover:text-sky-50"
+                          title={
+                            cell?.branch
+                              ? 'Update the branch metadata for this Cell without creating a worktree.'
+                              : 'Bind this Cell to an existing branch without creating a worktree.'
+                          }
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleBindBranchForCell(cell);
+                          }}
+                        >
+                          <GitBranch size={13} strokeWidth={1.7} aria-hidden="true" />
                         </IconButton>
                       ) : null}
                       {isProjectRootRuntime ? (

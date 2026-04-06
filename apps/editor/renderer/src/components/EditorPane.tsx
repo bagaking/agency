@@ -476,12 +476,12 @@ export function EditorPane({
                   className="flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-medium text-sky-100 transition-colors hover:bg-sky-500/10"
                   title={
                     cell?.branch
-                      ? 'Change the branch metadata for this project-root Cell without creating a worktree.'
+                      ? 'Update the branch metadata for this project-root Cell without creating a worktree.'
                       : 'Bind this project-root Cell to an existing branch without creating a worktree.'
                   }
                 >
                   <GitBranch size={12} />
-                  <span>{cell?.branch ? 'Change Branch' : 'Bind Branch'}</span>
+                  <span>Bind Branch</span>
                 </button>
               ) : null}
               {attachmentState === 'project_root' && onCreateAttachmentCell ? (

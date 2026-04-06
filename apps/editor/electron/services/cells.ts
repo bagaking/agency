@@ -20,6 +20,7 @@ const {
 } = require('./unmanagedWorktreeStore');
 const {
   CELL_ATTACHMENT_STATES,
+  CELL_RUNTIME_ROOT_PREFERENCES,
   getCellRecordPath,
   readCellRecord,
   writeCellRecord,
@@ -147,6 +148,7 @@ function buildCellComparisonKey(record) {
     branch: normalizeText(record.branch),
     state: normalizeText(record.state),
     attachmentState: normalizeText(record.attachmentState),
+    preferredRuntimeRoot: normalizeText(record.preferredRuntimeRoot),
     worktreePath: normalizePathValue(record.worktreePath),
     lastKnownWorktreePath: normalizePathValue(record.lastKnownWorktreePath),
     avatar: normalizeText(record.avatar),
@@ -174,6 +176,7 @@ function buildHydratedCell(repoRoot, record, attachedWorktree = null) {
   const attachedWorktreePath = normalizePathValue(attachedWorktree?.path);
   const attachedBranch = attachedWorktree ? normalizeText(attachedWorktree?.branch) : '';
   const attachedHead = attachedWorktree ? normalizeText(attachedWorktree?.head) : '';
+  const resolvedBranch = attachedWorktree ? attachedBranch : normalizeText(record.branch || '');
   const lastKnownWorktreePath = normalizePathValue(
     attachedWorktreePath || record.lastKnownWorktreePath || record.worktreePath
   );
@@ -191,9 +194,9 @@ function buildHydratedCell(repoRoot, record, attachedWorktree = null) {
     id: record.id,
     name: record.name,
     projectRoot: repoRoot,
-    branch: attachedWorktree ? attachedBranch : normalizeText(record.branch || ''),
+    branch: resolvedBranch,
     head: attachedHead,
-    hasBranch: Boolean(attachedBranch),
+    hasBranch: Boolean(resolvedBranch),
     isDetachedHead: Boolean(attachedWorktreePath && !attachedBranch && attachedHead),
     worktreePath: lastKnownWorktreePath,
     attachedWorktreePath,
@@ -249,6 +252,9 @@ function buildAttachedRecord({ existing, legacy, worktree, now }) {
       branch: normalizeText(worktree?.branch || legacy?.branch || existing?.branch || ''),
       state: normalizeText(legacy?.state || existing?.state || existing?.lifecycleState || ''),
       attachmentState: CELL_ATTACHMENT_STATES.attached,
+      preferredRuntimeRoot:
+        normalizeText(existing?.preferredRuntimeRoot || legacy?.preferredRuntimeRoot) ||
+        CELL_RUNTIME_ROOT_PREFERENCES.worktree,
       worktreePath,
       lastKnownWorktreePath: worktreePath,
       avatar: normalizeText(legacy?.avatar || existing?.avatar || ''),
@@ -350,6 +356,7 @@ function buildProjectRootCellRecord({
       branch: normalizedBranch,
       state: normalizeText(existing?.state || ''),
       attachmentState: CELL_ATTACHMENT_STATES.project_root,
+      preferredRuntimeRoot: CELL_RUNTIME_ROOT_PREFERENCES.project_root,
       worktreePath: '',
       lastKnownWorktreePath: '',
       avatar:
@@ -409,6 +416,8 @@ async function materializeBranchAttachmentForCell({
     name: resolvedName,
     branch: normalizedBranch,
     attachmentState: CELL_ATTACHMENT_STATES.attached,
+    preferredRuntimeRoot:
+      normalizeText(existingRecord.preferredRuntimeRoot) || CELL_RUNTIME_ROOT_PREFERENCES.project_root,
     worktreePath,
     lastKnownWorktreePath: worktreePath,
     updatedAt: now,
@@ -732,6 +741,7 @@ function deriveCellNameFromBranch(branch) {
 async function bindExistingWorktreeCell({ repoRoot, target, explicitName = '', explicitBranch = '', now }) {
   const { lifecycle } = await readLegacyLifecycleForWorktree(target.path);
   const cells = await listCells({ rootPath: repoRoot });
+  const storedRecords = await listCellRecords(repoRoot);
   const existing =
     cells.find((cell) => samePath(cell.attachedWorktreePath, target.path) || samePath(cell.worktreePath, target.path)) ||
     null;
@@ -747,15 +757,28 @@ async function bindExistingWorktreeCell({ repoRoot, target, explicitName = '', e
         deriveCellNameFromBranch(resolvedBranch) ||
         path.basename(target.path)
     ) || path.basename(target.path);
+  const resolvedIdentity =
+    existing || lifecycle?.id
+      ? {
+          id: existing?.id || lifecycle?.id,
+          name: existing?.name || lifecycle?.name || resolvedName,
+        }
+      : resolveUniqueCellIdentity(storedRecords, resolvedName, resolvedName);
   const nextRecord = normalizeCellRecord({
-    id: existing?.id || lifecycle?.id || normalizeName(resolvedName),
-    name: resolvedName,
+    id: resolvedIdentity.id,
+    name: resolvedIdentity.name,
     branch: resolvedBranch,
     state: lifecycle?.state || existing?.state || '',
     attachmentState: CELL_ATTACHMENT_STATES.attached,
+    preferredRuntimeRoot:
+      normalizeText(existing?.preferredRuntimeRoot || lifecycle?.preferredRuntimeRoot) ||
+      CELL_RUNTIME_ROOT_PREFERENCES.worktree,
     worktreePath: target.path,
     lastKnownWorktreePath: target.path,
-    avatar: lifecycle?.avatar || existing?.avatar || resolveAvatarSymbol(existing?.id || resolvedName),
+    avatar:
+      lifecycle?.avatar ||
+      existing?.avatar ||
+      resolveAvatarSymbol(resolvedIdentity.id || resolvedIdentity.name),
     createdAt: existing?.createdAt || lifecycle?.createdAt || now,
     updatedAt: now,
   });
@@ -772,6 +795,51 @@ async function bindExistingWorktreeCell({ repoRoot, target, explicitName = '', e
     cellId: nextRecord.id,
     expectedAttachedPath: normalizePathValue(target.path),
     fallbackCell: buildHydratedCell(repoRoot, nextRecord, target),
+  });
+}
+
+async function bindWorktreeToExistingCell({
+  repoRoot,
+  existingRecord,
+  target,
+  now,
+}) {
+  if (!existingRecord) {
+    throw new Error('Target Cell not found.');
+  }
+  if (normalizeText(existingRecord.attachmentState) === CELL_ATTACHMENT_STATES.attached) {
+    throw new Error('Bind target must not already have a live attached worktree.');
+  }
+  const cells = await listCells({ rootPath: repoRoot });
+  const conflictingCell = cells.find(
+    (cell) =>
+      normalizeText(cell.id) !== normalizeText(existingRecord.id) &&
+      samePath(cell.attachedWorktreePath, target.path)
+  );
+  if (conflictingCell) {
+    throw new Error(`Worktree is already tracked by ${conflictingCell.name || conflictingCell.id}.`);
+  }
+  const reboundRecord = normalizeCellRecord({
+    ...existingRecord,
+    branch: normalizeText(target.branch || existingRecord.branch),
+    attachmentState: CELL_ATTACHMENT_STATES.attached,
+    worktreePath: normalizePathValue(target.path),
+    lastKnownWorktreePath: normalizePathValue(target.path),
+    updatedAt: now,
+  });
+  await writeCellRecord(repoRoot, reboundRecord);
+  await maybeAutoLinkWorktree(repoRoot, target.path);
+  await setWorktreeIgnored({
+    repoRoot,
+    worktreePath: target.path,
+    ignored: false,
+  });
+  const cellsAfterBind = await listCells({ rootPath: repoRoot });
+  return resolveCreatedCellResult({
+    cellsAfterCreate: cellsAfterBind,
+    cellId: reboundRecord.id,
+    expectedAttachedPath: normalizePathValue(target.path),
+    fallbackCell: buildHydratedCell(repoRoot, reboundRecord, target),
   });
 }
 
@@ -804,45 +872,11 @@ async function createCell({
       throw new Error('Selected worktree not found.');
     }
     if (normalizedBindToCellId) {
-      const existingRecord = await readCellRecord(repoRoot, normalizedBindToCellId);
-      if (!existingRecord) {
-        throw new Error('Target Cell not found.');
-      }
-      if (normalizeText(existingRecord.attachmentState) === CELL_ATTACHMENT_STATES.attached) {
-        throw new Error('Bind target must be a detached or missing Cell.');
-      }
-      const cells = await listCells({ rootPath: repoRoot });
-      const conflictingCell = cells.find(
-        (cell) =>
-          normalizeText(cell.id) !== normalizedBindToCellId &&
-          samePath(cell.attachedWorktreePath, target.path)
-      );
-      if (conflictingCell) {
-        throw new Error(
-          `Worktree is already tracked by ${conflictingCell.name || conflictingCell.id}.`
-        );
-      }
-      const reboundRecord = normalizeCellRecord({
-        ...existingRecord,
-        branch: normalizeText(target.branch || existingRecord.branch),
-        attachmentState: CELL_ATTACHMENT_STATES.attached,
-        worktreePath: normalizePathValue(target.path),
-        lastKnownWorktreePath: normalizePathValue(target.path),
-        updatedAt: now,
-      });
-      await writeCellRecord(repoRoot, reboundRecord);
-      await maybeAutoLinkWorktree(repoRoot, target.path);
-      await setWorktreeIgnored({
+      return bindWorktreeToExistingCell({
         repoRoot,
-        worktreePath: target.path,
-        ignored: false,
-      });
-      const cellsAfterBind = await listCells({ rootPath: repoRoot });
-      return resolveCreatedCellResult({
-        cellsAfterCreate: cellsAfterBind,
-        cellId: reboundRecord.id,
-        expectedAttachedPath: normalizePathValue(target.path),
-        fallbackCell: buildHydratedCell(repoRoot, reboundRecord, target),
+        existingRecord: await readCellRecord(repoRoot, normalizedBindToCellId),
+        target,
+        now,
       });
     }
     return bindExistingWorktreeCell({
@@ -888,10 +922,12 @@ async function createCell({
     const attachedTarget = worktrees.find((worktree) => normalizeText(worktree.branch) === resolvedExistingBranch);
     if (attachedTarget) {
       if (normalizedBindToCellId) {
-        const existingRecord = await readCellRecord(repoRoot, normalizedBindToCellId);
-        if (!existingRecord) {
-          throw new Error('Target Cell not found.');
-        }
+        return bindWorktreeToExistingCell({
+          repoRoot,
+          existingRecord: await readCellRecord(repoRoot, normalizedBindToCellId),
+          target: attachedTarget,
+          now,
+        });
       }
       return bindExistingWorktreeCell({
         repoRoot,
@@ -948,7 +984,9 @@ async function createCell({
     throw new Error('Cell name is required.');
   }
   const worktreeDir = await ensureWorktreeDir(repoRoot);
-  const safeName = normalizeName(name);
+  const storedRecords = await listCellRecords(repoRoot);
+  const resolvedIdentity = resolveUniqueCellIdentity(storedRecords, name, name || 'cell');
+  const safeName = normalizeName(resolvedIdentity.id);
   const worktreePath = path.join(worktreeDir, safeName);
 
   if (fs.existsSync(worktreePath)) {
@@ -963,10 +1001,11 @@ async function createCell({
 
   const nextRecord = normalizeCellRecord({
     id: safeName,
-    name,
+    name: resolvedIdentity.name,
     branch,
     state: '',
     attachmentState: CELL_ATTACHMENT_STATES.attached,
+    preferredRuntimeRoot: CELL_RUNTIME_ROOT_PREFERENCES.worktree,
     worktreePath,
     lastKnownWorktreePath: worktreePath,
     avatar: resolveAvatarSymbol(safeName),
@@ -1106,11 +1145,16 @@ async function clearCellAttachment({ id, worktreePath, rootPath }) {
   await writeCellRecord(context.repoRoot, {
     ...record,
     attachmentState:
-      context.worktreePath && fs.existsSync(context.worktreePath)
-        ? CELL_ATTACHMENT_STATES.detached
-        : CELL_ATTACHMENT_STATES.missing,
+      normalizeText(record.preferredRuntimeRoot) === CELL_RUNTIME_ROOT_PREFERENCES.project_root
+        ? CELL_ATTACHMENT_STATES.project_root
+        : context.worktreePath && fs.existsSync(context.worktreePath)
+          ? CELL_ATTACHMENT_STATES.detached
+          : CELL_ATTACHMENT_STATES.missing,
     worktreePath: '',
-    lastKnownWorktreePath: context.worktreePath || record.lastKnownWorktreePath,
+    lastKnownWorktreePath:
+      normalizeText(record.preferredRuntimeRoot) === CELL_RUNTIME_ROOT_PREFERENCES.project_root
+        ? ''
+        : context.worktreePath || record.lastKnownWorktreePath,
     updatedAt: new Date().toISOString(),
   });
   const cells = await listCells({ rootPath: context.repoRoot });
