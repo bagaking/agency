@@ -102,6 +102,8 @@ function ProjectExplorerSidebarContent({
   revealRequest,
   onRevealHandled,
   onLaunchWebResearchUrl,
+  onExplorerEntryRelocated,
+  onExplorerEntryRemoved,
 }: any) {
   const modal = useModal();
   const sidebarRef = useRef<HTMLElement | null>(null);
@@ -1031,6 +1033,7 @@ function ProjectExplorerSidebarContent({
     clearError,
     setErrorMessage,
     openEntry: handleOpenEntry,
+    onEntryRelocated: onExplorerEntryRelocated,
   });
 
   const {
@@ -1059,6 +1062,8 @@ function ProjectExplorerSidebarContent({
     clearError,
     setErrorMessage,
     setSelectedPaths,
+    onEntryRelocated: onExplorerEntryRelocated,
+    onEntryRemoved: onExplorerEntryRemoved,
   });
 
   const handleExternalImport = useExplorerExternalImport({
@@ -1358,10 +1363,7 @@ function ProjectExplorerSidebarContent({
           handleSelectPath(item.path, e);
           setFocusedPath(item.path);
           listRef.current?.focus();
-          const clickedName =
-            typeof (e.target as HTMLElement | null)?.closest === 'function' &&
-            Boolean((e.target as HTMLElement).closest('[data-explorer-name="true"]'));
-          if (!isDir && !clickedName && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+          if (!isDir && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
             void handleOpenEntry(item.path, 'preview');
           }
         }}
@@ -1654,6 +1656,7 @@ export function ProjectExplorerSidebar({
   sessions, activeSessionId, sessionActivityByKey, onOpenFile, onJumpToAgents, workbenchMeta,
   onDispatchFeed, explorerDeliverySummary, onOpenDeliveryTimeline, onAddComment, commentCountsByPath, onJumpToComments, onToggleSessionMap, sessionMapOpen,
   onLaunchWebResearchUrl,
+  onExplorerEntryRelocated, onExplorerEntryRemoved,
   revealRequest, onRevealHandled,
   projectReady, projectError, onSelectProject, recentProjects, onOpenRecentProject,
 }: any) {
@@ -1697,6 +1700,8 @@ export function ProjectExplorerSidebar({
       onToggleSessionMap={onToggleSessionMap}
       sessionMapOpen={sessionMapOpen}
       onLaunchWebResearchUrl={onLaunchWebResearchUrl}
+      onExplorerEntryRelocated={onExplorerEntryRelocated}
+      onExplorerEntryRemoved={onExplorerEntryRemoved}
       revealRequest={revealRequest}
       onRevealHandled={onRevealHandled}
     />

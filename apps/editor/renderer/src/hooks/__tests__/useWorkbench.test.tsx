@@ -148,6 +148,44 @@ function WorkbenchHarness({
       >
         open-web-research
       </button>
+      <button
+        id="remap-guide"
+        type="button"
+        onClick={() =>
+          workbench.remapFilePath({
+            rootPath: '/repo',
+            sourcePath: 'docs/guide.md',
+            targetPath: 'docs/guide-renamed.md',
+          })
+        }
+      >
+        remap-guide
+      </button>
+      <button
+        id="remap-docs-folder"
+        type="button"
+        onClick={() =>
+          workbench.remapFilePath({
+            rootPath: '/repo',
+            sourcePath: 'docs',
+            targetPath: 'notes/docs',
+          })
+        }
+      >
+        remap-docs-folder
+      </button>
+      <button
+        id="close-docs-folder"
+        type="button"
+        onClick={() =>
+          workbench.closeFilePath({
+            rootPath: '/repo',
+            targetPath: 'docs',
+          })
+        }
+      >
+        close-docs-folder
+      </button>
       <output id="tabs">
         {JSON.stringify(
           workbench.tabs.map((tab: any) => ({
@@ -189,6 +227,127 @@ test('useWorkbench.openFile follows shared file kind detection for svg tabs', as
         kind: 'vector',
         isPreview: true,
         title: 'icon.svg',
+      },
+    ]);
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});
+
+test('useWorkbench remaps an open file tab when the file is renamed', async () => {
+  const env = setupDom();
+  try {
+    const root = createRoot(document.getElementById('root')!);
+
+    await act(async () => {
+      root.render(
+        <WorkbenchHarness
+          initialTabsByCellId={{
+            'cell-1': [{ path: 'docs/guide.md', rootPath: '/repo', isPreview: false }],
+          }}
+        />
+      );
+    });
+
+    await act(async () => {
+      (document.getElementById('remap-guide') as HTMLButtonElement).click();
+    });
+
+    assert.deepEqual(readTabs(), [
+      {
+        path: 'docs/guide-renamed.md',
+        kind: 'code',
+        isPreview: false,
+        title: 'guide-renamed.md',
+      },
+    ]);
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});
+
+test('useWorkbench remaps nested open tabs when a parent folder moves', async () => {
+  const env = setupDom();
+  try {
+    const root = createRoot(document.getElementById('root')!);
+
+    await act(async () => {
+      root.render(
+        <WorkbenchHarness
+          initialTabsByCellId={{
+            'cell-1': [
+              { path: 'docs/guide.md', rootPath: '/repo', isPreview: false },
+              { path: 'docs/api/reference.md', rootPath: '/repo', isPreview: true },
+            ],
+          }}
+        />
+      );
+    });
+
+    await act(async () => {
+      (document.getElementById('remap-docs-folder') as HTMLButtonElement).click();
+    });
+
+    assert.deepEqual(readTabs(), [
+      {
+        path: 'notes/docs/guide.md',
+        kind: 'code',
+        isPreview: false,
+        title: 'guide.md',
+      },
+      {
+        path: 'notes/docs/api/reference.md',
+        kind: 'code',
+        isPreview: true,
+        title: 'reference.md',
+      },
+    ]);
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});
+
+test('useWorkbench closes nested open tabs when a path subtree is deleted', async () => {
+  const env = setupDom();
+  try {
+    const root = createRoot(document.getElementById('root')!);
+
+    await act(async () => {
+      root.render(
+        <WorkbenchHarness
+          initialTabsByCellId={{
+            'cell-1': [
+              { path: 'docs/guide.md', rootPath: '/repo', isPreview: false },
+              { path: 'docs/api/reference.md', rootPath: '/repo', isPreview: true },
+              { path: 'src/app.ts', rootPath: '/repo', isPreview: false },
+            ],
+          }}
+        />
+      );
+    });
+
+    await act(async () => {
+      (document.getElementById('close-docs-folder') as HTMLButtonElement).click();
+    });
+
+    assert.deepEqual(readTabs(), [
+      {
+        path: 'src/app.ts',
+        kind: 'code',
+        isPreview: false,
+        title: 'app.ts',
       },
     ]);
 

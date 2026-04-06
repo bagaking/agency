@@ -39,6 +39,7 @@ type UseExplorerClipboardActionsOptions = {
   clearError: () => void;
   setErrorMessage: (message: string) => void;
   openEntry: (targetPath: string, mode: 'preview' | 'pinned') => Promise<boolean>;
+  onEntryRelocated?: (payload: { sourcePath: string; targetPath: string }) => void;
 };
 
 type PathListInput = string | string[];
@@ -99,6 +100,7 @@ export const useExplorerClipboardActions = ({
   clearError,
   setErrorMessage,
   openEntry,
+  onEntryRelocated,
 }: UseExplorerClipboardActionsOptions) => {
   const [clipboard, setClipboard] = useState<ClipboardState>(null);
   const [externalClipboardPayload, setExternalClipboardPayload] = useState<ClipboardPayloadSummary>(
@@ -243,6 +245,10 @@ export const useExplorerClipboardActions = ({
               const nextPath = explorerPathUtils.toRelativePath(moveResult?.path || targetPath);
               if (nextPath) {
                 pastedPaths.push(nextPath);
+                onEntryRelocated?.({
+                  sourcePath,
+                  targetPath: nextPath,
+                });
               }
             } else {
               const copyResult = await copyEntry({
@@ -341,6 +347,12 @@ export const useExplorerClipboardActions = ({
         const nextPath = explorerPathUtils.toRelativePath(result?.path || targetPath);
         if (nextPath) {
           pastedPaths.push(nextPath);
+          if (clipboard.mode === 'cut') {
+            onEntryRelocated?.({
+              sourcePath,
+              targetPath: nextPath,
+            });
+          }
         }
         didApply = true;
       }
@@ -377,6 +389,7 @@ export const useExplorerClipboardActions = ({
     rootPath,
     setErrorMessage,
     setSelectedPaths,
+    onEntryRelocated,
   ]);
 
   const handlePasteMarkdown = useCallback(async () => {

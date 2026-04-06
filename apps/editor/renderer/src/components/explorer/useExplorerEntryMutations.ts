@@ -33,6 +33,8 @@ type UseExplorerEntryMutationsArgs = {
   clearError: () => void;
   setErrorMessage: (message: string) => void;
   setSelectedPaths: (value: any) => void;
+  onEntryRelocated?: (payload: { sourcePath: string; targetPath: string }) => void;
+  onEntryRemoved?: (payload: { targetPath: string }) => void;
 };
 
 export function useExplorerEntryMutations({
@@ -52,6 +54,8 @@ export function useExplorerEntryMutations({
   clearError,
   setErrorMessage,
   setSelectedPaths,
+  onEntryRelocated,
+  onEntryRemoved,
 }: UseExplorerEntryMutationsArgs) {
   const startDraft = useCallback(
     (type: 'file' | 'dir') => {
@@ -93,13 +97,23 @@ export function useExplorerEntryMutations({
       return;
     }
     try {
-      await renameEntry({ sourcePath: renameTarget.path, targetPath: nextPath });
+      const result = (await renameEntry({
+        sourcePath: renameTarget.path,
+        targetPath: nextPath,
+      })) as { path?: string } | null;
+      const resolvedPath = explorerPathUtils.toRelativePath(result?.path || nextPath);
+      if (resolvedPath) {
+        onEntryRelocated?.({
+          sourcePath: renameTarget.path,
+          targetPath: resolvedPath,
+        });
+      }
       clearError();
     } catch (_err) {
       setErrorMessage('Rename failed.');
     }
     setRenameTarget(null);
-  }, [clearError, renameEntry, renameTarget, setErrorMessage, setRenameTarget]);
+  }, [clearError, onEntryRelocated, renameEntry, renameTarget, setErrorMessage, setRenameTarget]);
 
   const handleDelete = useCallback(
     async (targets: string[] | string) => {
@@ -120,6 +134,7 @@ export function useExplorerEntryMutations({
         for (const targetPath of list) {
           // eslint-disable-next-line no-await-in-loop
           await deleteEntry({ targetPath });
+          onEntryRemoved?.({ targetPath });
         }
         setSelectedPaths((current: string[]) => current.filter((item) => !list.includes(item)));
         clearError();
@@ -127,7 +142,7 @@ export function useExplorerEntryMutations({
         setErrorMessage('Delete failed.');
       }
     },
-    [clearError, deleteEntry, modal, setErrorMessage, setSelectedPaths]
+    [clearError, deleteEntry, modal, onEntryRemoved, setErrorMessage, setSelectedPaths]
   );
 
   const handleDuplicate = useCallback(
@@ -198,7 +213,17 @@ export function useExplorerEntryMutations({
             continue;
           }
           // eslint-disable-next-line no-await-in-loop
-          await renameEntry({ sourcePath, targetPath: nextPath });
+          const result = (await renameEntry({
+            sourcePath,
+            targetPath: nextPath,
+          })) as { path?: string } | null;
+          const resolvedPath = explorerPathUtils.toRelativePath(result?.path || nextPath);
+          if (resolvedPath) {
+            onEntryRelocated?.({
+              sourcePath,
+              targetPath: resolvedPath,
+            });
+          }
           didMove = true;
         }
         if (didMove) {
@@ -208,7 +233,7 @@ export function useExplorerEntryMutations({
         setErrorMessage('Move failed.');
       }
     },
-    [refreshAll, renameEntry, setErrorMessage]
+    [onEntryRelocated, refreshAll, renameEntry, setErrorMessage]
   );
 
   const requestRename = useCallback(

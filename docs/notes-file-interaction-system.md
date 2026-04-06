@@ -143,6 +143,8 @@ Clipboard routing follows the same rule:
    The product should prefer the Explorer-owned payload when it belongs to the current root, fall back to OS import semantics otherwise, and only keep an internal fallback clipboard when system file-reference writing is unavailable or fails.
 21. Explorer rename/open ergonomics now preserve stronger desktop expectations:
    double-clicking the filename region enters inline rename, create/rename inputs defer Enter while IME composition is active, and unknown-but-text files open as text editors instead of falling straight into an unknown-object dead end.
+22. File-surface path mutations now preserve open-document continuity:
+   when Explorer renames, moves, or deletes files/folders, Workbench tabs in the same root update or close against the new path truth instead of silently pointing at stale file paths.
 
 ## Process-Boundary Compatibility Plan (Locked)
 - Keep `FileIntentPayload`/`FileIntentResult` as the stable wire format across renderer, tool, CLI, and future helper process callers.

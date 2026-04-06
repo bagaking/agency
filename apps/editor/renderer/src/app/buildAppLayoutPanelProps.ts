@@ -309,6 +309,25 @@ export function buildAppLayoutPanelProps({
         cellId: selectedCell?.id || undefined,
       });
     },
+    onExplorerEntryRelocated: ({
+      sourcePath,
+      targetPath,
+    }: {
+      sourcePath: string;
+      targetPath: string;
+    }) => {
+      workbench.remapFilePath({
+        rootPath: explorerRootPath,
+        sourcePath,
+        targetPath,
+      });
+    },
+    onExplorerEntryRemoved: ({ targetPath }: { targetPath: string }) => {
+      workbench.closeFilePath({
+        rootPath: explorerRootPath,
+        targetPath,
+      });
+    },
     onLaunchWebResearchUrl: async ({
       url,
       allowMarkdownSave,

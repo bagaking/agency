@@ -11,6 +11,17 @@ import {
 const buildTabId = (cellId, rootPath, filePath) => `${cellId}::${rootPath}::${filePath}`;
 
 const basename = (value) => value.split('/').filter(Boolean).pop() || value;
+const normalizePath = (value) => String(value || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+const isSameOrNestedPath = (path, candidate) => candidate === path || candidate.startsWith(`${path}/`);
+const remapNestedPath = (sourcePath, targetPath, currentPath) => {
+  if (!isSameOrNestedPath(sourcePath, currentPath)) {
+    return currentPath;
+  }
+  if (currentPath === sourcePath) {
+    return targetPath;
+  }
+  return `${targetPath}/${currentPath.slice(sourcePath.length + 1)}`;
+};
 
 const serializeTabs = (tabsByCellId: Record<string, any[]>) => {
   const next = {};
@@ -394,6 +405,123 @@ export function useWorkbench({
     [cellKey]
   );
 
+  const remapFilePath = useCallback(
+    ({ rootPath, sourcePath, targetPath }) => {
+      const normalizedRootPath = String(rootPath || '').trim();
+      const normalizedSourcePath = normalizePath(sourcePath);
+      const normalizedTargetPath = normalizePath(targetPath);
+      if (!normalizedRootPath || !normalizedSourcePath || !normalizedTargetPath) {
+        return;
+      }
+
+      const activeIdRemaps = new Map<string, string>();
+      setTabsByCellId((current) => {
+        let didChange = false;
+        const next = {};
+        Object.entries(current || {}).forEach(([ownerCellId, tabs]) => {
+          const currentTabs = Array.isArray(tabs) ? tabs : [];
+          const nextTabs = currentTabs.map((tab) => {
+            if (
+              !tab ||
+              tab.kind === WORKBENCH_TAB_KIND_BOUNDED_WEB_RESEARCH ||
+              String(tab.rootPath || '').trim() !== normalizedRootPath
+            ) {
+              return tab;
+            }
+            const currentPath = normalizePath(tab.path);
+            if (!isSameOrNestedPath(normalizedSourcePath, currentPath)) {
+              return tab;
+            }
+            const nextPath = remapNestedPath(normalizedSourcePath, normalizedTargetPath, currentPath);
+            const nextId = buildTabId(ownerCellId, normalizedRootPath, nextPath);
+            activeIdRemaps.set(tab.id, nextId);
+            didChange = true;
+            return {
+              ...tab,
+              id: nextId,
+              path: nextPath,
+              title: basename(nextPath),
+              kind: detectWorkbenchSecureKind(nextPath),
+            };
+          });
+          next[ownerCellId] = nextTabs;
+        });
+        return didChange ? next : current;
+      });
+
+      if (activeIdRemaps.size) {
+        setActiveTabByCellId((current) => {
+          let didChange = false;
+          const next = { ...current };
+          Object.entries(current || {}).forEach(([ownerCellId, activeId]) => {
+            const nextId = activeIdRemaps.get(String(activeId || ''));
+            if (nextId && next[ownerCellId] !== nextId) {
+              next[ownerCellId] = nextId;
+              didChange = true;
+            }
+          });
+          return didChange ? next : current;
+        });
+      }
+    },
+    []
+  );
+
+  const closeFilePath = useCallback(
+    ({ rootPath, targetPath }) => {
+      const normalizedRootPath = String(rootPath || '').trim();
+      const normalizedTargetPath = normalizePath(targetPath);
+      if (!normalizedRootPath || !normalizedTargetPath) {
+        return;
+      }
+      const removedIdsByCellId = new Map<string, Set<string>>();
+      setTabsByCellId((current) => {
+        let didChange = false;
+        const next = {};
+        Object.entries(current || {}).forEach(([ownerCellId, tabs]) => {
+          const currentTabs = Array.isArray(tabs) ? tabs : [];
+          const removedIds = new Set<string>();
+          const nextTabs = currentTabs.filter((tab) => {
+            if (
+              !tab ||
+              tab.kind === WORKBENCH_TAB_KIND_BOUNDED_WEB_RESEARCH ||
+              String(tab.rootPath || '').trim() !== normalizedRootPath
+            ) {
+              return true;
+            }
+            const currentPath = normalizePath(tab.path);
+            if (!isSameOrNestedPath(normalizedTargetPath, currentPath)) {
+              return true;
+            }
+            removedIds.add(String(tab.id || ''));
+            didChange = true;
+            return false;
+          });
+          if (removedIds.size) {
+            removedIdsByCellId.set(ownerCellId, removedIds);
+          }
+          next[ownerCellId] = nextTabs;
+        });
+        return didChange ? next : current;
+      });
+
+      if (removedIdsByCellId.size) {
+        setActiveTabByCellId((current) => {
+          let didChange = false;
+          const next = { ...current };
+          removedIdsByCellId.forEach((removedIds, ownerCellId) => {
+            if (removedIds.has(String(current?.[ownerCellId] || ''))) {
+              next[ownerCellId] = null;
+              didChange = true;
+            }
+          });
+          return didChange ? next : current;
+        });
+      }
+    },
+    []
+  );
+
   const resetTabs = useCallback(() => {
     setTabsByCellId({});
     setActiveTabByCellId({});
@@ -412,6 +540,8 @@ export function useWorkbench({
     reorderTabs,
     setActiveTab,
     updateTab,
+    remapFilePath,
+    closeFilePath,
     tabsByCellId,
     activeTabByCellId,
     serializeTabs,
