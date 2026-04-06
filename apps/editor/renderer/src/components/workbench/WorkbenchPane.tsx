@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ChevronRight,
   FileText,
@@ -22,7 +22,6 @@ import { CodeWorkbenchView } from './CodeWorkbenchView';
 import { MediaWorkbenchView } from './MediaWorkbenchView';
 import { VectorWorkbenchView } from './VectorWorkbenchView';
 import { WorkbenchBrowserLane } from './WorkbenchBrowserLane';
-import { WorkbenchBrowserSurfaceController } from './WorkbenchBrowserSurfaceController';
 import {
   WorkbenchBoundedWebResearchChrome,
   WorkbenchBoundedWebResearchReaderPane,
@@ -66,6 +65,8 @@ export function WorkbenchPane({
   activeRootPath,
   activeRootLabel,
   onTabMetaChange,
+  browserLaneMeta,
+  onBrowserLaneMetaChange,
   cellId,
   projectReady,
   projectError,
@@ -94,6 +95,8 @@ export function WorkbenchPane({
       activeRootPath={activeRootPath}
       activeRootLabel={activeRootLabel}
       onTabMetaChange={onTabMetaChange}
+      browserLaneMeta={browserLaneMeta}
+      onBrowserLaneMetaChange={onBrowserLaneMetaChange}
       cellId={cellId}
       commentLines={commentLines}
       onOpenComment={onOpenComment}
@@ -111,6 +114,8 @@ function WorkbenchPaneContent({
   activeRootPath,
   activeRootLabel,
   onTabMetaChange,
+  browserLaneMeta,
+  onBrowserLaneMetaChange,
   cellId,
   commentLines,
   onOpenComment,
@@ -140,6 +145,7 @@ function WorkbenchPaneContent({
   const [editorToken, setEditorToken] = useState(0);
   const [browserSurfaceSuspendedByTabId, setBrowserSurfaceSuspendedByTabId] = useState<Record<string, boolean>>({});
   const activeEditorRef = useRef(null);
+  const browserLaneSlotRef = useRef<HTMLDivElement | null>(null);
   const tabElementByIdRef = useRef<Record<string, HTMLDivElement | null>>({});
   const tabStateByIdRef = useRef({});
   const loadRequestByTabRef = useRef({});
@@ -158,6 +164,22 @@ function WorkbenchPaneContent({
   const activeBrowserSurfaceSuspended = Boolean(
     activeTab?.id && browserSurfaceSuspendedByTabId[activeTab.id]
   );
+  const activeShellBrowserLaneMeta =
+    browserLaneMeta && activeTab?.id && browserLaneMeta.tabId === activeTab.id ? browserLaneMeta : null;
+  const activeShellBrowserSurface =
+    activeShellBrowserLaneMeta
+      ? {
+          browserSurfaceAvailable:
+            activeShellBrowserLaneMeta.browserSurfaceAvailable !== false &&
+            isAgencyMethodAvailable('syncWorkbenchBrowserSurface'),
+          surfaceState: activeShellBrowserLaneMeta.surfaceState || {
+            phase: activeShellBrowserLaneMeta.visible ? 'loading' : 'hidden',
+            visible: activeShellBrowserLaneMeta.visible,
+            canGoBack: false,
+            canGoForward: false,
+          },
+        }
+      : null;
   const resolvedCommentLines = Array.isArray(commentLines) ? commentLines : [];
   const isCodeTab = activeState.kind === 'code';
   const canComment = Boolean(activeTab && isCodeTab);
@@ -457,6 +479,79 @@ function WorkbenchPaneContent({
   useEffect(() => {
     onSelectionChange?.(null);
   }, [activeTab?.id, onSelectionChange]);
+
+  useLayoutEffect(() => {
+    if (!onBrowserLaneMetaChange) {
+      return undefined;
+    }
+    const publishMeta = () => {
+      const isBrowserLaneOwner =
+        Boolean(activeTab?.id) &&
+        ((activeState.kind === 'bounded-web-research' ||
+          (activeState.kind === 'code' && activeState.researchSourceUrl)) &&
+          activeResearchPreferredMode === 'live');
+      if (!isBrowserLaneOwner || !browserLaneSlotRef.current) {
+        onBrowserLaneMetaChange(cellId || 'repo', null);
+        return;
+      }
+      const rect = browserLaneSlotRef.current.getBoundingClientRect();
+      onBrowserLaneMetaChange(cellId || 'repo', {
+        cellId: cellId || 'repo',
+        tabId: activeTab.id,
+        url: activeState.kind === 'bounded-web-research' ? activeTab.url : activeState.researchSourceUrl,
+        navigationKey: activeResearchNavigationKey,
+        visible: true,
+        suspended: activeBrowserSurfaceSuspended,
+        rect: {
+          x: Math.round(rect.left),
+          y: Math.round(rect.top),
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+        },
+        surfaceState: activeShellBrowserLaneMeta?.surfaceState || null,
+        browserSurfaceAvailable: activeShellBrowserLaneMeta?.browserSurfaceAvailable ?? null,
+      });
+    };
+    publishMeta();
+    const observedNodes = [
+      browserLaneSlotRef.current,
+      document.querySelector('[data-shell-main-panels]'),
+      document.querySelector('[data-shell-attention-rail]'),
+      document.querySelector('[data-shell-hil-drawer]'),
+    ].filter(Boolean) as HTMLElement[];
+    const handleWindowChange = () => publishMeta();
+    const handleTransitionEnd = () => publishMeta();
+    window.addEventListener('resize', handleWindowChange);
+    window.addEventListener('scroll', handleWindowChange, true);
+    observedNodes.forEach((node) => {
+      node.addEventListener('transitionend', handleTransitionEnd);
+    });
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && observedNodes.length) {
+      observer = new ResizeObserver(() => publishMeta());
+      observedNodes.forEach((node) => observer?.observe(node));
+    }
+    return () => {
+      window.removeEventListener('resize', handleWindowChange);
+      window.removeEventListener('scroll', handleWindowChange, true);
+      observedNodes.forEach((node) => {
+        node.removeEventListener('transitionend', handleTransitionEnd);
+      });
+      observer?.disconnect();
+    };
+  }, [
+    activeBrowserSurfaceSuspended,
+    activeResearchNavigationKey,
+    activeResearchPreferredMode,
+    activeShellBrowserLaneMeta?.browserSurfaceAvailable,
+    activeShellBrowserLaneMeta?.surfaceState,
+    activeState.kind,
+    activeState.researchSourceUrl,
+    activeTab?.id,
+    activeTab?.url,
+    cellId,
+    onBrowserLaneMetaChange,
+  ]);
 
   useEffect(() => {
     if (!pendingJump || !activeTab) {
@@ -805,76 +900,66 @@ function WorkbenchPaneContent({
             </div>
           </div>
         ) : activeState.kind === 'bounded-web-research' ? (
-          <WorkbenchBrowserSurfaceController
-            key={`bounded-web-research:${activeTab.id}`}
+          <WorkbenchBoundedWebResearchScene
             tabId={activeTab.id}
+            rootPath={activeTab.rootPath}
             url={activeTab.url}
-            visible={activeResearchPreferredMode === 'live' && !activeBrowserSurfaceSuspended}
-            navigationKey={activeResearchNavigationKey}
-            disposeOnUnmount={false}
+            allowMarkdownSave={activeTab.allowMarkdownSave !== false}
+            allowMemoCapture={activeTab.allowMemoCapture !== false}
+            initialState={activeResearchState}
+            onNavigateUrl={(nextUrl) => handleResearchTabNavigate(activeTab.id, nextUrl)}
+            onStateChange={(nextState) => {
+              handleResearchTabStateChange(activeTab.id, { researchState: nextState });
+            }}
+            onMarkdownSaved={(savedPath) =>
+              openFile({
+                path: savedPath,
+                mode: 'pinned',
+                rootPath: activeTab.rootPath,
+              })
+            }
+            onResolvedTitle={(title) => {
+              handleResearchTabTitleChange(activeTab.id, title);
+            }}
+            browserSurface={activeShellBrowserSurface}
+            onBrowserSurfaceSuspendedChange={(value) =>
+              handleBrowserSurfaceSuspendedChange(activeTab.id, value)
+            }
           >
-            {(browserSurface) => (
-              <WorkbenchBoundedWebResearchScene
-                tabId={activeTab.id}
-                rootPath={activeTab.rootPath}
-                url={activeTab.url}
-                allowMarkdownSave={activeTab.allowMarkdownSave !== false}
-                allowMemoCapture={activeTab.allowMemoCapture !== false}
-                initialState={activeResearchState}
-                onNavigateUrl={(nextUrl) => handleResearchTabNavigate(activeTab.id, nextUrl)}
-                onStateChange={(nextState) => {
-                  handleResearchTabStateChange(activeTab.id, { researchState: nextState });
-                }}
-                onMarkdownSaved={(savedPath) =>
-                  openFile({
-                    path: savedPath,
-                    mode: 'pinned',
-                    rootPath: activeTab.rootPath,
-                  })
-                }
-                onResolvedTitle={(title) => {
-                  handleResearchTabTitleChange(activeTab.id, title);
-                }}
-                browserSurface={browserSurface}
-                onBrowserSurfaceSuspendedChange={(value) =>
-                  handleBrowserSurfaceSuspendedChange(activeTab.id, value)
-                }
-              >
-                {(scene) => (
-                  <section className="flex h-full min-h-0 flex-col bg-[#0b0d11] text-white">
-                    <WorkbenchBoundedWebResearchChrome scene={scene} />
-                    <WorkbenchBoundedWebResearchStatusBanner scene={scene} />
-                    <div className="relative min-h-0 flex-1 overflow-hidden">
-                      {scene.preferredMode === 'live' ? (
-                        <WorkbenchBrowserLane
-                          browserSurface={scene.browserSurface}
-                          suspended={scene.browserSurfaceSuspended}
-                          onOpenReader={() => scene.setPreferredMode('reader')}
-                          onOpenInBrowser={() => void scene.openInBrowser()}
-                          onReload={() => {
-                            scene.setPreferredMode('live');
-                            void scene.reload();
-                          }}
-                        />
-                      ) : (
-                        <WorkbenchBoundedWebResearchReaderPane
-                          scene={scene}
-                          onOpenSavedFile={(path) =>
-                            openFile({
-                              path,
-                              mode: 'pinned',
-                              rootPath: activeTab.rootPath,
-                            })
-                          }
-                          onRevealSavedFile={onRevealPathInExplorer}
-                        />
-                      )}
-                    </div>
-                  </section>
-                )}
-              </WorkbenchBoundedWebResearchScene>
+            {(scene) => (
+              <section className="flex h-full min-h-0 flex-col bg-[#0b0d11] text-white">
+                <WorkbenchBoundedWebResearchChrome scene={scene} />
+                <WorkbenchBoundedWebResearchStatusBanner scene={scene} />
+                <div className="relative min-h-0 flex-1 overflow-hidden">
+                  {scene.preferredMode === 'live' ? (
+                    <WorkbenchBrowserLane
+                      browserSurface={scene.browserSurface}
+                      slotRef={browserLaneSlotRef}
+                      suspended={scene.browserSurfaceSuspended}
+                      onOpenReader={() => scene.setPreferredMode('reader')}
+                      onOpenInBrowser={() => void scene.openInBrowser()}
+                      onReload={() => {
+                        scene.setPreferredMode('live');
+                        void scene.reload();
+                      }}
+                    />
+                  ) : (
+                    <WorkbenchBoundedWebResearchReaderPane
+                      scene={scene}
+                      onOpenSavedFile={(path) =>
+                        openFile({
+                          path,
+                          mode: 'pinned',
+                          rootPath: activeTab.rootPath,
+                        })
+                      }
+                      onRevealSavedFile={onRevealPathInExplorer}
+                    />
+                  )}
+                </div>
+              </section>
             )}
-          </WorkbenchBrowserSurfaceController>
+          </WorkbenchBoundedWebResearchScene>
         ) : activeState.kind === 'code' && activeState.researchSourceUrl ? (
           <div className="flex h-full min-h-0 bg-[#0b0d11]">
             <div className="min-w-0 flex-[1.08] border-r border-white/[0.05]">
@@ -908,63 +993,53 @@ function WorkbenchPaneContent({
               />
             </div>
             <div className="min-w-0 flex-1">
-              <WorkbenchBrowserSurfaceController
-                key={`linked-research:${activeTab.id}`}
+              <WorkbenchBoundedWebResearchScene
                 tabId={activeTab.id}
+                rootPath={activeTab.rootPath}
                 url={activeState.researchSourceUrl}
-                visible={activeResearchPreferredMode === 'live' && !activeBrowserSurfaceSuspended}
-                navigationKey={activeResearchNavigationKey}
-                disposeOnUnmount={false}
+                linkedMarkdownPath={activeTab.path}
+                linkedMarkdownDirty={Boolean(activeState.isDirty)}
+                initialState={activeResearchState}
+                onStateChange={(nextState) => {
+                  handleResearchTabStateChange(activeTab.id, { researchState: nextState });
+                }}
+                onMarkdownSaved={() => {
+                  void loadTab(activeTab);
+                }}
+                allowMarkdownSave={true}
+                allowMemoCapture={true}
+                browserSurface={activeShellBrowserSurface}
+                onBrowserSurfaceSuspendedChange={(value) =>
+                  handleBrowserSurfaceSuspendedChange(activeTab.id, value)
+                }
               >
-                {(browserSurface) => (
-                  <WorkbenchBoundedWebResearchScene
-                    tabId={activeTab.id}
-                    rootPath={activeTab.rootPath}
-                    url={activeState.researchSourceUrl}
-                    linkedMarkdownPath={activeTab.path}
-                    linkedMarkdownDirty={Boolean(activeState.isDirty)}
-                    initialState={activeResearchState}
-                    onStateChange={(nextState) => {
-                      handleResearchTabStateChange(activeTab.id, { researchState: nextState });
-                    }}
-                    onMarkdownSaved={() => {
-                      void loadTab(activeTab);
-                    }}
-                    allowMarkdownSave={true}
-                    allowMemoCapture={true}
-                    browserSurface={browserSurface}
-                    onBrowserSurfaceSuspendedChange={(value) =>
-                      handleBrowserSurfaceSuspendedChange(activeTab.id, value)
-                    }
-                  >
-                    {(scene) => (
-                      <section className="flex h-full min-h-0 flex-col bg-[#0b0d11] text-white">
-                        <WorkbenchBoundedWebResearchChrome scene={scene} />
-                        <WorkbenchBoundedWebResearchStatusBanner scene={scene} />
-                        <div className="relative min-h-0 flex-1 overflow-hidden">
-                          {scene.preferredMode === 'live' ? (
-                            <WorkbenchBrowserLane
-                              browserSurface={scene.browserSurface}
-                              suspended={scene.browserSurfaceSuspended}
-                              onOpenReader={() => scene.setPreferredMode('reader')}
-                              onOpenInBrowser={() => void scene.openInBrowser()}
-                              onReload={() => {
-                                scene.setPreferredMode('live');
-                                void scene.reload();
-                              }}
-                            />
-                          ) : (
-                            <WorkbenchBoundedWebResearchReaderPane
-                              scene={scene}
-                              onRevealSavedFile={onRevealPathInExplorer}
-                            />
-                          )}
-                        </div>
-                      </section>
-                    )}
-                  </WorkbenchBoundedWebResearchScene>
+                {(scene) => (
+                  <section className="flex h-full min-h-0 flex-col bg-[#0b0d11] text-white">
+                    <WorkbenchBoundedWebResearchChrome scene={scene} />
+                    <WorkbenchBoundedWebResearchStatusBanner scene={scene} />
+                    <div className="relative min-h-0 flex-1 overflow-hidden">
+                      {scene.preferredMode === 'live' ? (
+                        <WorkbenchBrowserLane
+                          browserSurface={scene.browserSurface}
+                          slotRef={browserLaneSlotRef}
+                          suspended={scene.browserSurfaceSuspended}
+                          onOpenReader={() => scene.setPreferredMode('reader')}
+                          onOpenInBrowser={() => void scene.openInBrowser()}
+                          onReload={() => {
+                            scene.setPreferredMode('live');
+                            void scene.reload();
+                          }}
+                        />
+                      ) : (
+                        <WorkbenchBoundedWebResearchReaderPane
+                          scene={scene}
+                          onRevealSavedFile={onRevealPathInExplorer}
+                        />
+                      )}
+                    </div>
+                  </section>
                 )}
-              </WorkbenchBrowserSurfaceController>
+              </WorkbenchBoundedWebResearchScene>
             </div>
           </div>
         ) : activeState.kind === 'vector' ? (

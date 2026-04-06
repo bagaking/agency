@@ -301,6 +301,8 @@ export type ActionHandlers = UnknownRecord & {
   handleJumpToComments?: FlexibleHandler;
   handleWorkbenchMetaChange?: FlexibleHandler;
   handleWorkbenchSelectionChange?: FlexibleHandler;
+  handleBrowserLaneMetaChange?: FlexibleHandler;
+  handleBrowserLaneSurfaceStateChange?: FlexibleHandler;
   setPendingWorkbenchJump?: FlexibleHandler;
   handleRevealPathInExplorerFromWorkbench?: FlexibleHandler;
   handleOpenCreateCellModal?: FlexibleHandler;
@@ -453,6 +455,7 @@ export interface AppLayoutCompositionInput {
     cursorPosition?: unknown;
     workbench?: unknown;
     setCursorPosition?: FlexibleHandler;
+    activeBrowserLane?: unknown;
   };
   selectionState: SelectionState;
   memoState: MemoState;

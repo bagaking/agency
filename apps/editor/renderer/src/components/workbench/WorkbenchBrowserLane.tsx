@@ -9,13 +9,13 @@ type BrowserSurfaceState = {
 };
 
 type BrowserSurfaceHandle = {
-  hostRef: React.MutableRefObject<HTMLDivElement | null>;
   browserSurfaceAvailable: boolean;
   surfaceState: BrowserSurfaceState;
 } | null;
 
 type WorkbenchBrowserLaneProps = {
   browserSurface: BrowserSurfaceHandle;
+  slotRef?: React.MutableRefObject<HTMLDivElement | null>;
   suspended?: boolean;
   onReload: () => void;
   onOpenReader: () => void;
@@ -26,6 +26,7 @@ const focusRingClass = focusRing.dark;
 
 export function WorkbenchBrowserLane({
   browserSurface,
+  slotRef,
   suspended = false,
   onReload,
   onOpenReader,
@@ -119,9 +120,8 @@ export function WorkbenchBrowserLane({
   }
 
   return (
-    <div className="absolute inset-0 overflow-hidden bg-white">
+    <div ref={slotRef || null} className="absolute inset-0 overflow-hidden bg-white">
       <div
-        ref={browserSurface?.hostRef || null}
         data-testid="workbench-browser-surface-host"
         className="absolute inset-0"
       />
