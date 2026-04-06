@@ -932,17 +932,18 @@ function WorkbenchPaneContent({
                 <WorkbenchBoundedWebResearchStatusBanner scene={scene} />
                 <div className="relative min-h-0 flex-1 overflow-hidden">
                   {scene.preferredMode === 'live' ? (
-                    <WorkbenchBrowserLane
-                      browserSurface={scene.browserSurface}
-                      slotRef={browserLaneSlotRef}
-                      suspended={scene.browserSurfaceSuspended}
-                      onOpenReader={() => scene.setPreferredMode('reader')}
-                      onOpenInBrowser={() => void scene.openInBrowser()}
-                      onReload={() => {
-                        scene.setPreferredMode('live');
-                        void scene.reload();
-                      }}
-                    />
+                    <div ref={browserLaneSlotRef} className="absolute inset-0">
+                      <WorkbenchBrowserLane
+                        browserSurface={scene.browserSurface}
+                        suspended={scene.browserSurfaceSuspended}
+                        onOpenReader={() => scene.setPreferredMode('reader')}
+                        onOpenInBrowser={() => void scene.openInBrowser()}
+                        onReload={() => {
+                          scene.setPreferredMode('live');
+                          void scene.reload();
+                        }}
+                      />
+                    </div>
                   ) : (
                     <WorkbenchBoundedWebResearchReaderPane
                       scene={scene}
@@ -1019,17 +1020,18 @@ function WorkbenchPaneContent({
                     <WorkbenchBoundedWebResearchStatusBanner scene={scene} />
                     <div className="relative min-h-0 flex-1 overflow-hidden">
                       {scene.preferredMode === 'live' ? (
-                        <WorkbenchBrowserLane
-                          browserSurface={scene.browserSurface}
-                          slotRef={browserLaneSlotRef}
-                          suspended={scene.browserSurfaceSuspended}
-                          onOpenReader={() => scene.setPreferredMode('reader')}
-                          onOpenInBrowser={() => void scene.openInBrowser()}
-                          onReload={() => {
-                            scene.setPreferredMode('live');
-                            void scene.reload();
-                          }}
-                        />
+                        <div ref={browserLaneSlotRef} className="absolute inset-0">
+                          <WorkbenchBrowserLane
+                            browserSurface={scene.browserSurface}
+                            suspended={scene.browserSurfaceSuspended}
+                            onOpenReader={() => scene.setPreferredMode('reader')}
+                            onOpenInBrowser={() => void scene.openInBrowser()}
+                            onReload={() => {
+                              scene.setPreferredMode('live');
+                              void scene.reload();
+                            }}
+                          />
+                        </div>
                       ) : (
                         <WorkbenchBoundedWebResearchReaderPane
                           scene={scene}
