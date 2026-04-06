@@ -15,6 +15,7 @@ const CELL_SESSIONS_FILENAME = 'sessions.yaml';
 const CELL_RECORD_VERSION = 2;
 const CELL_ATTACHMENT_STATES = Object.freeze({
   attached: 'attached',
+  branch_only: 'branch_only',
   detached: 'detached',
   missing: 'missing',
 });
@@ -29,6 +30,9 @@ function normalizeTimestamp(value) {
 }
 
 function normalizeAttachmentState(value) {
+  if (value === CELL_ATTACHMENT_STATES.branch_only) {
+    return CELL_ATTACHMENT_STATES.branch_only;
+  }
   if (value === CELL_ATTACHMENT_STATES.detached) {
     return CELL_ATTACHMENT_STATES.detached;
   }
@@ -52,6 +56,7 @@ function normalizeCellRecord(raw: any = {}, fallback: any = {}) {
   if (!id) {
     throw new Error('Cell record id is required.');
   }
+  const branch = normalizeText(raw.branch || fallback.branch || '');
   const worktreePath = normalizePathValue(raw.worktreePath || fallback.worktreePath);
   const lastKnownWorktreePath = normalizePathValue(
     raw.lastKnownWorktreePath ||
@@ -64,12 +69,14 @@ function normalizeCellRecord(raw: any = {}, fallback: any = {}) {
     version: CELL_RECORD_VERSION,
     id,
     name: normalizeText(raw.name || fallback.name || id) || id,
-    branch: normalizeText(raw.branch || fallback.branch || ''),
+    branch,
     state: normalizeLifecycleState(raw.state || fallback.state),
     attachmentState: explicitAttachmentState
       ? normalizeAttachmentState(explicitAttachmentState)
       : worktreePath
         ? CELL_ATTACHMENT_STATES.attached
+        : branch
+          ? CELL_ATTACHMENT_STATES.branch_only
         : lastKnownWorktreePath
           ? CELL_ATTACHMENT_STATES.detached
           : CELL_ATTACHMENT_STATES.detached,

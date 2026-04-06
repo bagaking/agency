@@ -155,6 +155,9 @@ function buildCellComparisonKey(record) {
 
 function validationWarnings(_repoRoot, cell) {
   const warnings = [];
+  if (cell.attachmentState === CELL_ATTACHMENT_STATES.branch_only) {
+    return warnings;
+  }
   if (cell.attachmentState === CELL_ATTACHMENT_STATES.detached) {
     warnings.push('Cell worktree attachment is detached.');
   }
@@ -176,6 +179,8 @@ function buildHydratedCell(repoRoot, record, attachedWorktree = null) {
   );
   const attachmentState = attachedWorktreePath
     ? CELL_ATTACHMENT_STATES.attached
+    : normalizeText(record.attachmentState) === CELL_ATTACHMENT_STATES.branch_only
+      ? CELL_ATTACHMENT_STATES.branch_only
     : normalizeText(record.attachmentState) === CELL_ATTACHMENT_STATES.missing
       ? CELL_ATTACHMENT_STATES.missing
       : lastKnownWorktreePath && fs.existsSync(lastKnownWorktreePath)
@@ -255,20 +260,139 @@ function buildAttachedRecord({ existing, legacy, worktree, now }) {
 }
 
 function buildUnattachedRecord(record, now) {
+  const isBranchOnly = normalizeText(record.attachmentState) === CELL_ATTACHMENT_STATES.branch_only;
   const lastKnownWorktreePath = normalizePathValue(record.lastKnownWorktreePath || record.worktreePath);
   return normalizeCellRecord(
     {
       ...record,
       attachmentState:
+        isBranchOnly
+          ? CELL_ATTACHMENT_STATES.branch_only
+        :
         lastKnownWorktreePath && fs.existsSync(lastKnownWorktreePath)
           ? CELL_ATTACHMENT_STATES.detached
           : CELL_ATTACHMENT_STATES.missing,
       worktreePath: '',
-      lastKnownWorktreePath,
+      lastKnownWorktreePath:
+        isBranchOnly
+          ? ''
+          : lastKnownWorktreePath,
       updatedAt: now,
     },
     record
   );
+}
+
+function resolveMatchingRecordForBranch(records, branch) {
+  const normalizedBranch = normalizeText(branch);
+  if (!normalizedBranch) {
+    return null;
+  }
+  const matches = (records || []).filter(
+    (record) => normalizeText(record?.branch) === normalizedBranch
+  );
+  if (matches.length === 1) {
+    return matches[0];
+  }
+  return null;
+}
+
+function buildBranchOnlyRecord({
+  existing = null,
+  explicitName = '',
+  branch = '',
+  now,
+}) {
+  const normalizedBranch = normalizeText(branch);
+  const derivedName = deriveCellNameFromBranch(normalizedBranch) || normalizedBranch || 'cell';
+  const resolvedName = normalizeText(explicitName || existing?.name || derivedName) || derivedName;
+  const resolvedId = existing?.id || normalizeName(resolvedName);
+  return normalizeCellRecord(
+    {
+      ...(existing || {}),
+      id: resolvedId,
+      name: resolvedName,
+      branch: normalizedBranch,
+      state: normalizeText(existing?.state || ''),
+      attachmentState: CELL_ATTACHMENT_STATES.branch_only,
+      worktreePath: '',
+      lastKnownWorktreePath: '',
+      avatar: normalizeText(existing?.avatar || '') || resolveAvatarSymbol(resolvedId || resolvedName),
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+    },
+    existing || {}
+  );
+}
+
+function resolveCreatedCellResult({
+  cellsAfterCreate = [],
+  cellId = '',
+  expectedAttachedPath = '',
+  fallbackCell,
+}) {
+  const normalizedCellId = normalizeText(cellId);
+  const matched =
+    (cellsAfterCreate || []).find((cell) => normalizeText(cell?.id) === normalizedCellId) || null;
+  if (
+    matched &&
+    (!expectedAttachedPath || samePath(matched?.attachedWorktreePath, expectedAttachedPath))
+  ) {
+    return matched;
+  }
+  return fallbackCell;
+}
+
+async function materializeBranchAttachmentForCell({
+  repoRoot,
+  existingRecord,
+  branch,
+  explicitName = '',
+  now,
+}) {
+  const normalizedBranch = normalizeText(branch);
+  if (!existingRecord) {
+    throw new Error('Target Cell not found.');
+  }
+  if (!normalizedBranch) {
+    throw new Error('Existing branch is required.');
+  }
+  const worktreeDir = await ensureWorktreeDir(repoRoot);
+  const resolvedName =
+    normalizeText(existingRecord.name || explicitName || deriveCellNameFromBranch(normalizedBranch) || normalizedBranch) ||
+    normalizedBranch;
+  const safeName = normalizeName(existingRecord.id || resolvedName);
+  const worktreePath = path.join(worktreeDir, safeName);
+  if (fs.existsSync(worktreePath)) {
+    throw new Error(`Worktree already exists at ${worktreePath}`);
+  }
+  await createWorktree(repoRoot, worktreePath, normalizedBranch, normalizedBranch);
+  const nextRecord = normalizeCellRecord({
+    ...existingRecord,
+    name: resolvedName,
+    branch: normalizedBranch,
+    attachmentState: CELL_ATTACHMENT_STATES.attached,
+    worktreePath,
+    lastKnownWorktreePath: worktreePath,
+    updatedAt: now,
+  });
+  await writeCellRecord(repoRoot, nextRecord);
+  await maybeAutoLinkWorktree(repoRoot, worktreePath);
+  await setWorktreeIgnored({
+    repoRoot,
+    worktreePath,
+    ignored: false,
+  });
+  const cellsAfterCreate = await listCells({ rootPath: repoRoot });
+  return resolveCreatedCellResult({
+    cellsAfterCreate,
+    cellId: nextRecord.id,
+    expectedAttachedPath: worktreePath,
+    fallbackCell: buildHydratedCell(repoRoot, nextRecord, {
+      path: worktreePath,
+      branch: normalizedBranch,
+    }),
+  });
 }
 
 function hasLegacyLifecycleMetadata(lifecycle = {}) {
@@ -603,7 +727,12 @@ async function bindExistingWorktreeCell({ repoRoot, target, explicitName = '', e
     ignored: false,
   });
   const cellsAfterCreate = await listCells({ rootPath: repoRoot });
-  return cellsAfterCreate.find((cell) => cell.id === nextRecord.id) || buildHydratedCell(repoRoot, nextRecord, target);
+  return resolveCreatedCellResult({
+    cellsAfterCreate,
+    cellId: nextRecord.id,
+    expectedAttachedPath: normalizePathValue(target.path),
+    fallbackCell: buildHydratedCell(repoRoot, nextRecord, target),
+  });
 }
 
 async function createCell({ name, branch, baseBranch, existingBranch, reusePath, rootPath, bindToCellId }) {
@@ -655,10 +784,12 @@ async function createCell({ name, branch, baseBranch, existingBranch, reusePath,
         ignored: false,
       });
       const cellsAfterBind = await listCells({ rootPath: repoRoot });
-      return (
-        cellsAfterBind.find((cell) => cell.id === reboundRecord.id) ||
-        buildHydratedCell(repoRoot, reboundRecord, target)
-      );
+      return resolveCreatedCellResult({
+        cellsAfterCreate: cellsAfterBind,
+        cellId: reboundRecord.id,
+        expectedAttachedPath: normalizePathValue(target.path),
+        fallbackCell: buildHydratedCell(repoRoot, reboundRecord, target),
+      });
     }
     return bindExistingWorktreeCell({
       repoRoot,
@@ -680,6 +811,12 @@ async function createCell({ name, branch, baseBranch, existingBranch, reusePath,
     const worktrees = await listWorktrees(repoRoot);
     const attachedTarget = worktrees.find((worktree) => normalizeText(worktree.branch) === resolvedExistingBranch);
     if (attachedTarget) {
+      if (normalizedBindToCellId) {
+        const existingRecord = await readCellRecord(repoRoot, normalizedBindToCellId);
+        if (!existingRecord) {
+          throw new Error('Target Cell not found.');
+        }
+      }
       return bindExistingWorktreeCell({
         repoRoot,
         target: attachedTarget,
@@ -688,37 +825,31 @@ async function createCell({ name, branch, baseBranch, existingBranch, reusePath,
         now,
       });
     }
-
-    const worktreeDir = await ensureWorktreeDir(repoRoot);
-    const resolvedName = normalizeText(name || deriveCellNameFromBranch(resolvedExistingBranch) || resolvedExistingBranch);
-    const safeName = normalizeName(resolvedName);
-    const worktreePath = path.join(worktreeDir, safeName);
-    if (fs.existsSync(worktreePath)) {
-      throw new Error(`Worktree already exists at ${worktreePath}`);
+    if (normalizedBindToCellId) {
+      const existingRecord = await readCellRecord(repoRoot, normalizedBindToCellId);
+      return materializeBranchAttachmentForCell({
+        repoRoot,
+        existingRecord,
+        branch: resolvedExistingBranch,
+        explicitName: name,
+        now,
+      });
     }
-
-    await createWorktree(repoRoot, worktreePath, resolvedExistingBranch, resolvedExistingBranch);
-    const nextRecord = normalizeCellRecord({
-      id: safeName,
-      name: resolvedName,
+    const storedRecords = await listCellRecords(repoRoot);
+    const existingRecord = resolveMatchingRecordForBranch(storedRecords, resolvedExistingBranch);
+    const nextRecord = buildBranchOnlyRecord({
+      existing: existingRecord,
+      explicitName: name,
       branch: resolvedExistingBranch,
-      state: '',
-      attachmentState: CELL_ATTACHMENT_STATES.attached,
-      worktreePath,
-      lastKnownWorktreePath: worktreePath,
-      avatar: resolveAvatarSymbol(safeName),
-      createdAt: now,
-      updatedAt: now,
+      now,
     });
     await writeCellRecord(repoRoot, nextRecord);
-    await maybeAutoLinkWorktree(repoRoot, worktreePath);
-    await setWorktreeIgnored({
-      repoRoot,
-      worktreePath,
-      ignored: false,
-    });
     const cellsAfterCreate = await listCells({ rootPath: repoRoot });
-    return cellsAfterCreate.find((cell) => cell.id === nextRecord.id) || buildHydratedCell(repoRoot, nextRecord, { path: worktreePath, branch: resolvedExistingBranch });
+    return resolveCreatedCellResult({
+      cellsAfterCreate,
+      cellId: nextRecord.id,
+      fallbackCell: buildHydratedCell(repoRoot, nextRecord, null),
+    });
   }
 
   if (!name || !branch) {
@@ -759,7 +890,12 @@ async function createCell({ name, branch, baseBranch, existingBranch, reusePath,
   });
 
   const cellsAfterCreate = await listCells({ rootPath: repoRoot });
-  return cellsAfterCreate.find((cell) => cell.id === nextRecord.id) || buildHydratedCell(repoRoot, nextRecord, { path: worktreePath, branch });
+  return resolveCreatedCellResult({
+    cellsAfterCreate,
+    cellId: nextRecord.id,
+    expectedAttachedPath: worktreePath,
+    fallbackCell: buildHydratedCell(repoRoot, nextRecord, { path: worktreePath, branch }),
+  });
 }
 
 async function maybeAutoLinkWorktree(repoRoot, worktreePath) {

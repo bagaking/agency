@@ -294,7 +294,89 @@ test('createCell can bind an existing branch without renaming it', async (t) => 
 
       assert.equal(created.branch, 'main');
       assert.equal(created.name, 'mainline-review');
-      assert.match(created.worktreePath, /\.worktrees\/mainline-review$/);
+      assert.equal(created.attachmentState, 'branch_only');
+      assert.equal(created.attachedWorktreePath, '');
+      assert.equal(created.worktreePath, '');
+      assert.equal(createdWorktrees.length, 0);
+    }
+  );
+});
+
+test('createCell binds an existing branch to its live workspace without creating a duplicate worktree', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-existing-branch-attached-');
+  const attachedWorktreePath = path.join(repoRoot, 'repo-root');
+  const createdWorktrees: Array<{ repoRoot: string; worktreePath: string; branch: string; baseBranch: string }> = [];
+  await fs.mkdir(attachedWorktreePath, { recursive: true });
+
+  t.after(async () => {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await withCellsService(
+    {
+      branchExists: async (_repoRoot: string, branch: string) => branch === 'main',
+      listWorktrees: async () => [{ path: attachedWorktreePath, branch: 'main', head: 'abc123' }],
+      createWorktree: async (root: string, worktreePath: string, branch: string, baseBranch: string) => {
+        createdWorktrees.push({ repoRoot: root, worktreePath, branch, baseBranch });
+      },
+    },
+    async ({ createCell }) => {
+      const created = await createCell({
+        name: 'mainline-review',
+        existingBranch: 'main',
+        rootPath: repoRoot,
+      });
+
+      assert.equal(created.branch, 'main');
+      assert.equal(created.attachmentState, 'attached');
+      assert.equal(created.attachedWorktreePath, attachedWorktreePath);
+      assert.equal(createdWorktrees.length, 0);
+    }
+  );
+});
+
+test('createCell can explicitly materialize a worktree attachment for an existing branch-only cell', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-branch-only-attachment-');
+  const createdWorktrees: Array<{ repoRoot: string; worktreePath: string; branch: string; baseBranch: string }> = [];
+  await fs.mkdir(path.join(repoRoot, '.agency', 'cells', 'mainline-review'), { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, '.agency', 'cells', 'mainline-review', 'cell.yaml'),
+    [
+      'version: 2',
+      'id: mainline-review',
+      'name: mainline-review',
+      'branch: main',
+      'state: ""',
+      'attachmentState: branch_only',
+      'worktreePath: ""',
+      'lastKnownWorktreePath: ""',
+    ].join('\n'),
+    'utf8'
+  );
+
+  t.after(async () => {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await withCellsService(
+    {
+      branchExists: async (_repoRoot: string, branch: string) => branch === 'main',
+      createWorktree: async (root: string, worktreePath: string, branch: string, baseBranch: string) => {
+        createdWorktrees.push({ repoRoot: root, worktreePath, branch, baseBranch });
+        await fs.mkdir(worktreePath, { recursive: true });
+      },
+    },
+    async ({ createCell }) => {
+      const created = await createCell({
+        existingBranch: 'main',
+        bindToCellId: 'mainline-review',
+        rootPath: repoRoot,
+      });
+
+      assert.equal(created.id, 'mainline-review');
+      assert.equal(created.branch, 'main');
+      assert.equal(created.attachmentState, 'attached');
+      assert.match(created.attachedWorktreePath, /\.worktrees\/mainline-review$/);
       assert.equal(createdWorktrees.length, 1);
       assert.equal(createdWorktrees[0]?.branch, 'main');
       assert.equal(createdWorktrees[0]?.baseBranch, 'main');

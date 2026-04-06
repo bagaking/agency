@@ -192,3 +192,131 @@ test('CreateCellModal allows detached-head reattach when an existing Cell bindin
     env.cleanup();
   }
 });
+
+test('CreateCellModal keeps existing branch binding as branch-only until attachment creation is explicit', async () => {
+  const env = setupDom();
+  try {
+    let createdPayload: any = null;
+    (window as any).agency = {
+      listWorktrees: async () => [],
+      listBranches: async () => [
+        {
+          name: 'main',
+          current: true,
+          isDefault: true,
+          attachedWorktreePath: '',
+        },
+      ],
+    };
+    const root = createRoot(document.getElementById('root')!);
+
+    await act(async () => {
+      root.render(
+        <CreateCellModal
+          projectRoot="/repo"
+          initialMode="branch"
+          initialExistingBranch="main"
+          initialName="mainline-review"
+          onClose={() => undefined}
+          onCreate={(payload: any) => {
+            createdPayload = payload;
+          }}
+        />
+      );
+    });
+    await flushEffects();
+
+    const submitButton = Array.from(document.querySelectorAll('button')).find((button) =>
+      /Bind Branch/.test(button.textContent || '')
+    ) as HTMLButtonElement | undefined;
+
+    assert.ok(submitButton);
+    assert.equal(submitButton.disabled, false);
+    assert.match(document.body.textContent || '', /No worktree will be created until you explicitly create an attachment later/);
+
+    await act(async () => {
+      submitButton.click();
+    });
+
+    assert.deepEqual(createdPayload, {
+      name: 'mainline-review',
+      branch: undefined,
+      baseBranch: undefined,
+      existingBranch: 'main',
+      reusePath: undefined,
+      bindToCellId: undefined,
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});
+
+test('CreateCellModal can explicitly create a worktree attachment for a branch-only cell', async () => {
+  const env = setupDom();
+  try {
+    let createdPayload: any = null;
+    (window as any).agency = {
+      listWorktrees: async () => [],
+      listBranches: async () => [
+        {
+          name: 'main',
+          current: true,
+          isDefault: true,
+          attachedWorktreePath: '',
+        },
+      ],
+    };
+    const root = createRoot(document.getElementById('root')!);
+
+    await act(async () => {
+      root.render(
+        <CreateCellModal
+          projectRoot="/repo"
+          initialMode="branch"
+          initialExistingBranch="main"
+          initialBindTargetCell={{
+            id: 'mainline-review',
+            name: 'Mainline Review',
+            branch: 'main',
+          }}
+          onClose={() => undefined}
+          onCreate={(payload: any) => {
+            createdPayload = payload;
+          }}
+        />
+      );
+    });
+    await flushEffects();
+
+    const submitButton = Array.from(document.querySelectorAll('button')).find((button) =>
+      /Create Attachment/.test(button.textContent || '')
+    ) as HTMLButtonElement | undefined;
+
+    assert.ok(submitButton);
+    assert.equal(submitButton.disabled, false);
+    assert.match(document.body.textContent || '', /Materialize a worktree attachment for Mainline Review/);
+
+    await act(async () => {
+      submitButton.click();
+    });
+
+    assert.deepEqual(createdPayload, {
+      name: 'Mainline Review',
+      branch: undefined,
+      baseBranch: undefined,
+      existingBranch: 'main',
+      reusePath: undefined,
+      bindToCellId: 'mainline-review',
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});
