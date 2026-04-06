@@ -7,6 +7,7 @@
 - [ ] 2.1 Introduce a renderer-side shell/workbench browser-lane geometry model owned outside tab-local browser fragments.
 - [ ] 2.2 Define browser-lane visibility/occlusion state for attention rail, HIL drawer, and modal/popover families.
 - [ ] 2.3 Stop using nested tab-local DOM measurement as the authoritative native placement source.
+- [ ] 2.4 Delete or fully demote the projected-host fallback path once the shell-owned model is live.
 
 ## 3. Native Browser Host Integration
 - [ ] 3.1 Make the Electron browser-surface service consume shell-owned browser-lane geometry.
