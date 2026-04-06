@@ -49,7 +49,7 @@ export function deriveUnmanagedWorktreeDisplay(worktree: UnmanagedWorktree) {
     ? `Detached HEAD${worktree.head ? ` · ${String(worktree.head).slice(0, 7)}` : ''}`
     : '';
   const suggestedAttachmentState = String(worktree.bindSuggestion?.cellAttachmentState || '').trim().toLowerCase();
-  const bindVerb = suggestedAttachmentState === 'branch_only' ? 'Bind' : 'Reattach';
+  const bindVerb = suggestedAttachmentState === 'project_root' ? 'Bind' : 'Reattach';
   const helperText = hasSuggestedBind
     ? `Agency found a deterministic match with ${suggestedCellName || 'an existing tracked Cell'}. ${bindVerb} it first to avoid duplicate workspace records.`
     : worktree.isDetachedHead
