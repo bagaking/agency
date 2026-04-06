@@ -93,11 +93,17 @@ export function SessionMapOverlay({
   }, [model]);
 
   const hudTokens = useMemo(() => {
-    if (!model?.clusters?.length) {
+    const sourceClusters =
+      Array.isArray(model?.clusters) && model.clusters.length
+        ? model.clusters
+        : Array.isArray(model?.ghostClusters)
+          ? model.ghostClusters
+          : [];
+    if (!sourceClusters.length) {
       return [];
     }
     const tokens = [];
-    model.clusters.forEach((cluster) => {
+    sourceClusters.forEach((cluster) => {
       cluster.sessions.forEach((session) => {
         tokens.push({
           cell: cluster.cell,

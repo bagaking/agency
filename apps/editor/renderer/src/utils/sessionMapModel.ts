@@ -149,7 +149,7 @@ export function buildSessionMapModel({
       };
     });
     const activeSessions = sessions.filter((session) => !session.isOffline);
-    const isGhost = isCellOffline(cell) || activeSessions.length === 0;
+    const isGhost = isCellOffline(cell) || (activeSessions.length === 0 && sessions.length === 0);
     if (isGhost) {
       stats.ghostCells += 1;
     } else {

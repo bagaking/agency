@@ -248,7 +248,11 @@ export function SessionMapDockLayout({
                       setHoveredCellId(point.id);
                     }
                   }}
-                  aria-label={`Locate ${point.id || 'cell'} in command center`}
+                  aria-label={
+                    point.isGhost
+                      ? `Inspect ghost sector ${point.cell?.name || point.id || 'cell'}`
+                      : `Locate ${point.id || 'cell'} in command center`
+                  }
                 />
               );
             })}
