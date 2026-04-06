@@ -36,6 +36,7 @@ export function HilDrawer({
 
   return (
     <aside
+      data-shell-hil-drawer
       className={`relative flex h-full flex-shrink-0 flex-col ${
         drawerOpen || collapsedWidth > 0 ? 'border-l border-border/20' : 'border-l-0'
       } bg-[linear-gradient(180deg,rgba(20,24,31,0.96),rgba(12,15,20,0.98))] backdrop-blur-2xl transition-[width] duration-300 ${drawerOpen ? 'w-[376px]' : ''}`}

@@ -51,6 +51,9 @@ type BrowserSurfaceParentView = {
 type BrowserSurfaceWindow = {
   id: number;
   isDestroyed?: () => boolean;
+  getBounds?: () => Rectangle;
+  getContentBounds?: () => Rectangle;
+  getRendererViewBounds?: () => Rectangle | null;
   getContentView?: () => BrowserSurfaceParentView | null | undefined;
   contentView?: BrowserSurfaceParentView | null | undefined;
   once: (event: 'closed', handler: () => void) => unknown;
@@ -707,8 +710,17 @@ function syncWorkbenchBrowserSurfaceWithService(
     }
     throw new Error('Valid browser-surface bounds are required.');
   }
+  const rendererViewBounds = ownerWindow.getRendererViewBounds?.() || null;
   const bounds = mapRendererRectToNativeContentRect(ownerWindow as any, rendererBounds);
   if (!bounds) {
+    void logRuntime('warn', 'browser surface mapped bounds unavailable', {
+      windowId: ownerWindow.id,
+      tabId,
+      rendererBounds,
+      rendererViewBounds,
+      windowBounds: ownerWindow.getBounds?.() || null,
+      contentBounds: ownerWindow.getContentBounds?.() || null,
+    });
     service.hideBrowserSurface({ windowId: ownerWindow.id, tabId });
     return (
       service.getBrowserSurfaceState({ windowId: ownerWindow.id, tabId }) || {
@@ -724,6 +736,16 @@ function syncWorkbenchBrowserSurfaceWithService(
       }
     );
   }
+  void logRuntime('info', 'browser surface resolved bounds', {
+    windowId: ownerWindow.id,
+    tabId,
+    rendererBounds,
+    rendererViewBounds,
+    mappedBounds: bounds,
+    windowBounds: ownerWindow.getBounds?.() || null,
+    contentBounds: ownerWindow.getContentBounds?.() || null,
+    explicitRendererViewBounds: Boolean(rendererViewBounds),
+  });
 
   const navigationKey = normalizeBrowserSurfaceNavigationKey(payload?.navigationKey);
   service.ensureBrowserSurface({

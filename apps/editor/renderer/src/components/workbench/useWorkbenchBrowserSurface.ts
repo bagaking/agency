@@ -41,6 +41,27 @@ const logBrowserSurfaceRenderer = (message: string, meta: Record<string, unknown
   });
 };
 
+const readElementRect = (selector: string) => {
+  const node = document.querySelector(selector) as HTMLElement | null;
+  if (!node) {
+    return null;
+  }
+  const rect = node.getBoundingClientRect();
+  return {
+    x: Math.round(rect.left),
+    y: Math.round(rect.top),
+    width: Math.round(rect.width),
+    height: Math.round(rect.height),
+  };
+};
+
+const readShellNodes = () =>
+  [
+    document.querySelector('[data-shell-main-panels]'),
+    document.querySelector('[data-shell-attention-rail]'),
+    document.querySelector('[data-shell-hil-drawer]'),
+  ].filter(Boolean) as HTMLElement[];
+
 export function useWorkbenchBrowserSurface({
   tabId,
   url,
@@ -206,6 +227,11 @@ export function useWorkbenchBrowserSurface({
       y: Math.round(rect.top),
       width: Math.round(rect.width),
       height: Math.round(rect.height),
+      devicePixelRatio:
+        typeof window.devicePixelRatio === 'number' ? Number(window.devicePixelRatio.toFixed(3)) : 1,
+      mainPanelsRect: readElementRect('[data-shell-main-panels]'),
+      attentionRailRect: readElementRect('[data-shell-attention-rail]'),
+      hilDrawerRect: readElementRect('[data-shell-hil-drawer]'),
     });
     const syncTask = syncWorkbenchBrowserSurface({
       tabId,
@@ -266,10 +292,16 @@ export function useWorkbenchBrowserSurface({
     window.addEventListener('resize', handleWindowChange);
     window.addEventListener('scroll', handleWindowChange, true);
 
+    const observedNodes = [hostRef.current, ...readShellNodes()].filter(Boolean) as HTMLElement[];
+    const handleTransitionEnd = () => syncSurface();
+    observedNodes.forEach((node) => {
+      node.addEventListener('transitionend', handleTransitionEnd);
+    });
+
     let observer: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== 'undefined' && hostRef.current) {
+    if (typeof ResizeObserver !== 'undefined' && observedNodes.length) {
       observer = new ResizeObserver(() => syncSurface());
-      observer.observe(hostRef.current);
+      observedNodes.forEach((node) => observer?.observe(node));
     }
 
     return () => {
@@ -284,6 +316,9 @@ export function useWorkbenchBrowserSurface({
       }
       window.removeEventListener('resize', handleWindowChange);
       window.removeEventListener('scroll', handleWindowChange, true);
+      observedNodes.forEach((node) => {
+        node.removeEventListener('transitionend', handleTransitionEnd);
+      });
       observer?.disconnect();
     };
   }, [browserSurfaceAvailable, syncSurface]);
