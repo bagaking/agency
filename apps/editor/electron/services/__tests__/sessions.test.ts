@@ -5,6 +5,8 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 
+export {};
+
 const serviceModulePath = require.resolve('../sessions.ts');
 
 async function withSessionsService(options, run) {
@@ -69,7 +71,9 @@ async function withSessionsService(options, run) {
     }
     if (request === './projectRoot') {
       return {
-        resolveProjectRoot: async ({ rootPath } = {}) => rootPath || repoRoot,
+        resolveProjectRoot: async (
+          { rootPath }: { rootPath?: string } = {}
+        ) => rootPath || repoRoot,
       };
     }
     if (request === './sessionNaming') {
