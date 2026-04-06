@@ -38,6 +38,13 @@ import {
   listUnmanagedWorktrees as agencyListUnmanagedWorktrees,
 } from '../../services/agencyBridge';
 import { isArchivedCell, resolveCellAttachmentMeta } from './cellPresentation';
+import {
+  deriveCellNameFromWorktree,
+  deriveUnmanagedWorktreeDisplay,
+  normalizeWorktreePath,
+  pathBaseName,
+  type UnmanagedWorktree,
+} from './unmanagedWorktreePresentation';
 
 const EMPTY_TREE: AgentCellSessionTreeProjection = {
   rows: [],
@@ -111,6 +118,7 @@ type AgentCellsSessionsPanelProps = {
   }) => Promise<boolean>;
   onFocusSessionInUi?: (cellId: string, sessionId: string) => void;
   onConfigureProfile?: (profile: any) => void;
+  onArchiveCell?: (cell?: any | null) => void;
 };
 
 function SessionKindBadge({ nodeKind }: { nodeKind?: string }) {
@@ -269,41 +277,6 @@ function LifecycleSectionHeader({
   );
 }
 
-type UnmanagedWorktree = {
-  id: string;
-  type?: string;
-  path: string;
-  branch: string;
-  ignored?: boolean;
-  bindSuggestion?: {
-    kind: string;
-    cellId?: string;
-    cellName?: string;
-    candidateCellIds?: string[];
-  } | null;
-};
-
-function normalizePath(value: string): string {
-  return String(value || '').trim().replace(/\\/g, '/');
-}
-
-function pathBaseName(value: string): string {
-  const normalized = normalizePath(value);
-  const segments = normalized.split('/').filter(Boolean);
-  return segments[segments.length - 1] || normalized;
-}
-
-function deriveCellNameFromWorktree(worktree: UnmanagedWorktree): string {
-  const branch = String(worktree?.branch || '').trim();
-  if (branch) {
-    const parts = branch.split('/').filter(Boolean);
-    if (parts.length > 0) {
-      return parts[parts.length - 1] || branch;
-    }
-  }
-  return pathBaseName(worktree?.path || '') || 'cell';
-}
-
 function SessionTreeGuides({
   depth,
   rowPaddingLeft,
@@ -403,6 +376,7 @@ export function AgentCellsSessionsPanel({
   onSettleTrackedHarnessRun,
   onFocusSessionInUi,
   onConfigureProfile,
+  onArchiveCell,
 }: AgentCellsSessionsPanelProps) {
   const attention = useAttentionLayer();
   const [idleNow, setIdleNow] = useState(Date.now());
@@ -956,7 +930,7 @@ export function AgentCellsSessionsPanel({
 
   const handleIgnoreUnmanagedWorktree = useCallback(
     async (worktreePath: string) => {
-      const normalizedPath = normalizePath(worktreePath);
+      const normalizedPath = normalizeWorktreePath(worktreePath);
       if (!normalizedPath || !projectRoot) {
         return;
       }
@@ -980,7 +954,7 @@ export function AgentCellsSessionsPanel({
 
   const handleCreateCellFromWorktree = useCallback(
     (worktree: UnmanagedWorktree) => {
-      const normalizedPath = normalizePath(worktree.path);
+      const normalizedPath = normalizeWorktreePath(worktree.path);
       if (!normalizedPath) {
         return;
       }
@@ -995,7 +969,7 @@ export function AgentCellsSessionsPanel({
 
   const handleBindSuggestedCell = useCallback(
     (worktree: UnmanagedWorktree) => {
-      const normalizedPath = normalizePath(worktree.path);
+      const normalizedPath = normalizeWorktreePath(worktree.path);
       const suggestedCellId = String(worktree?.bindSuggestion?.cellId || '').trim();
       if (!normalizedPath || !suggestedCellId) {
         return;
@@ -1667,13 +1641,24 @@ export function AgentCellsSessionsPanel({
                                 {resolveCellSessions(String(cell.id)).length || 0} session
                                 {resolveCellSessions(String(cell.id)).length === 1 ? '' : 's'}
                               </span>
-                              <button
-                                type="button"
-                                onClick={() => onSelect?.(cell.id)}
-                                className="rounded-lg border border-border/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-                              >
-                                View Details
-                              </button>
+                              <div className="flex items-center gap-2">
+                                {onArchiveCell ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => onArchiveCell(cell)}
+                                    className="rounded-lg border border-amber-300/24 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-amber-100 transition-colors hover:bg-amber-500/10"
+                                  >
+                                    Archive Cell
+                                  </button>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  onClick={() => onSelect?.(cell.id)}
+                                  className="rounded-lg border border-border/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                                >
+                                  View Details
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1709,8 +1694,7 @@ export function AgentCellsSessionsPanel({
                 />
                 <div className="space-y-2">
                   {visibleUnmanagedWorktrees.map((worktree) => {
-                    const branchLabel = String(worktree.branch || '').trim() || 'detached';
-                    const hasSuggestedBind = Boolean(worktree.bindSuggestion?.cellId);
+                    const display = deriveUnmanagedWorktreeDisplay(worktree);
                     return (
                       <div
                         key={worktree.path}
@@ -1722,31 +1706,60 @@ export function AgentCellsSessionsPanel({
                             <GitBranch size={14} strokeWidth={1.6} />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="truncate text-[12px] font-semibold text-foreground">
-                              {pathBaseName(worktree.path)}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="truncate text-[12px] font-semibold text-foreground">
+                                {display.title}
+                              </div>
+                              <span
+                                className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] ${
+                                  display.detachedHeadLabel
+                                    ? 'border-amber-300/20 bg-amber-500/10 text-amber-100'
+                                    : 'border-sky-300/20 bg-sky-500/10 text-sky-100'
+                                }`}
+                              >
+                                {display.detachedHeadLabel || display.branchLabel}
+                              </span>
                             </div>
-                            <div className="mt-1 truncate text-[10px] text-muted-foreground/72">
+                            <div className="mt-1 truncate font-mono text-[10px] text-muted-foreground/72">
                               {worktree.path}
                             </div>
-                            <div className="mt-1 text-[10px] font-mono text-sky-100/76">
-                              {branchLabel}
-                            </div>
+                            {display.helperText ? (
+                              <div className="mt-1 text-[10px] leading-4 text-muted-foreground/72">
+                                {display.helperText}
+                              </div>
+                            ) : null}
                             <div className="mt-2 flex flex-wrap items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => void handleCreateCellFromWorktree(worktree)}
-                                className="rounded-lg bg-sky-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-50 transition-colors hover:bg-sky-500/30 disabled:cursor-not-allowed disabled:opacity-60"
-                              >
-                                Create Cell
-                              </button>
-                              {hasSuggestedBind ? (
+                              {display.primaryAction === 'bind' ? (
                                 <button
                                   type="button"
                                   onClick={() => handleBindSuggestedCell(worktree)}
+                                  className="rounded-lg bg-sky-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-50 transition-colors hover:bg-sky-500/30"
+                                >
+                                  {display.primaryLabel}
+                                </button>
+                              ) : null}
+                              {display.primaryAction === 'create' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleCreateCellFromWorktree(worktree)}
+                                  className="rounded-lg bg-sky-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-50 transition-colors hover:bg-sky-500/30"
+                                >
+                                  {display.primaryLabel}
+                                </button>
+                              ) : null}
+                              {display.secondaryCreateLabel ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleCreateCellFromWorktree(worktree)}
                                   className="rounded-lg border border-sky-300/22 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-100 transition-colors hover:bg-sky-500/12"
                                 >
-                                  Reattach {worktree.bindSuggestion?.cellName || 'Cell'}
+                                  {display.secondaryCreateLabel}
                                 </button>
+                              ) : null}
+                              {display.availabilityLabel ? (
+                                <span className="inline-flex items-center rounded-lg border border-amber-300/18 bg-amber-500/[0.08] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-amber-100/88">
+                                  {display.availabilityLabel}
+                                </span>
                               ) : null}
                               <button
                                 type="button"

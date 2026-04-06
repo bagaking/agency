@@ -227,6 +227,29 @@ Binding an existing worktree or branch SHALL preserve the existing branch identi
 - **THEN** the new worktree branches from that explicit base branch
 - **AND** the chosen base branch is not silently replaced by the repository default branch
 
+### Requirement: Workspace Tracking Rails
+The editor SHALL distinguish tracked workspaces, detached Cells, and unmanaged worktrees in Agent Cells.
+Detached Cells SHALL route to attachment-management details instead of generic terminal empty states.
+Unmanaged worktrees with deterministic detached-Cell matches SHALL prioritize reattach over creating duplicate Cell records.
+Unmanaged worktrees in detached HEAD state SHALL not present `Create Cell` as an active default action until the worktree is attached to a branch.
+
+#### Scenario: Detached Cell opens attachment-management details
+- **WHEN** a user opens `View Details` for a detached or missing Cell
+- **THEN** the main pane shows attachment record and retained session details
+- **AND** the pane offers attachment-management actions such as `Archive Cell`, `Clear Attachment`, or `Delete Cell`
+- **AND** the pane does not fall back to a generic empty terminal placeholder
+
+#### Scenario: Deterministic unmanaged match prefers reattach
+- **WHEN** an unmanaged worktree has a deterministic match to an existing detached Cell
+- **THEN** the unmanaged card presents `Reattach <Cell>` as the primary action
+- **AND** any `Create New Cell` action remains explicitly secondary
+
+#### Scenario: Detached HEAD worktree blocks premature Cell creation
+- **WHEN** an unmanaged worktree is in detached HEAD state
+- **THEN** the card labels that state explicitly
+- **AND** the card does not present `Create Cell` as an active default action
+- **AND** the UI explains that the worktree must first be attached to a branch before tracking it as a new Cell
+
 ### Requirement: Embedded Terminal and CLI Management
 The editor SHALL provide an embedded terminal and manage CLI processes (e.g., Codex) per Cell.
 

@@ -46,6 +46,7 @@ export function buildComposedAppLayoutProps({
     onTurnGateCreate: actionHandlers.handleTurnGateCreateSheet,
     onTurnGateExecute: actionHandlers.handleTurnGateExecuteSheet,
     onOpenTerminal: actionHandlers.handleOpenTerminal,
+    onArchiveCell: actionHandlers.handleArchiveCell,
     onClearCellAttachment: actionHandlers.handleClearAttachment,
     onDeleteCell: actionHandlers.handleDelete,
     onZoomIn: sessionsState.zoomIn,

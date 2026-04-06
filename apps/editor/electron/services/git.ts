@@ -25,8 +25,8 @@ async function listWorktrees(repoRoot) {
         entry.path = line.replace('worktree ', '').trim();
       } else if (line.startsWith('branch ')) {
         entry.branch = line.replace('branch ', '').trim();
-      } else if (line.startsWith('head ')) {
-        entry.head = line.replace('head ', '').trim();
+      } else if (line.startsWith('HEAD ')) {
+        entry.head = line.replace('HEAD ', '').trim();
       }
     });
     if (entry.branch && entry.branch.startsWith('refs/heads/')) {

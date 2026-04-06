@@ -19,10 +19,12 @@
 - [ ] Reuse an existing worktree and confirm a repo-owned Cell record is created under `.agency/cells/<cell-id>/cell.yaml`.
 - [ ] Open Agent Cells in a repo that already has an unmanaged live worktree and confirm it appears under `Unmanaged Worktrees` instead of being auto-converted into a tracked Cell.
 - [ ] From `Unmanaged Worktrees`, choose `Create Cell` and confirm the worktree becomes a tracked workspace without renaming its branch.
-- [ ] For an unmanaged worktree with a deterministic detached-cell suggestion, confirm the row offers `Reattach <Cell Name>` and opens a reattach flow instead of forcing duplicate Cell creation.
+- [ ] For an unmanaged worktree with a deterministic detached-cell suggestion, confirm the row offers `Reattach <Cell Name>` as the primary action and keeps `Create New Cell` secondary instead of forcing duplicate Cell creation.
+- [ ] For an unmanaged worktree in detached HEAD state, confirm the row labels that state explicitly, hides any active `Create Cell` CTA, and shows branch-required guidance instead.
 - [ ] Use `Ignore For Now` on an unmanaged worktree and confirm it leaves the visible unmanaged list; then use `Reset ignored` and confirm it becomes visible again.
 - [ ] Remove or detach a tracked Cell worktree, reopen Agent Cells, and confirm that Cell moves into `Detached Cells` rather than a lifecycle cleanup rail.
 - [ ] In `Detached Cells`, confirm `missing` and `detached` Cells use different attachment copy, keep session/evidence counts visible, and route the primary action to `View Details`.
+- [ ] Open a detached Cell from `View Details` and confirm the main pane shows attachment-management details plus `Archive Cell`, `Clear Attachment`, and `Delete Cell` instead of the generic terminal empty animation.
 - [ ] Open a legacy archived record and confirm it appears only under `Legacy Archived`, with low-emphasis compatibility treatment rather than re-taking ownership of the default workspace rail.
 - [ ] Restart with an attached Cell whose session registry is empty and confirm the window does not auto-create a `Default` session.
 - [ ] In the empty terminal state for such a Cell, click `Create Session` and confirm a session is created only at that explicit step.

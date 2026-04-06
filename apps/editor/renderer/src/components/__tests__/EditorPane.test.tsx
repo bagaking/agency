@@ -108,6 +108,7 @@ function buildEditorPaneProps(overrides: Record<string, unknown> = {}) {
     onTurnGateCreate: () => undefined,
     onTurnGateExecute: () => undefined,
     onOpenTerminal: () => undefined,
+    onArchiveCell: () => undefined,
     onClearCellAttachment: () => undefined,
     onDeleteCell: () => undefined,
     onZoomIn: () => undefined,
@@ -184,4 +185,27 @@ test('EditorPane keeps hook order stable when the selected cell appears after an
   } finally {
     env.cleanup();
   }
+});
+
+test('EditorPane renders a detached-cell detail state instead of the generic terminal empty animation', () => {
+  const html = renderToStaticMarkup(
+    <EditorPane
+      {...buildEditorPaneProps({
+        cell: {
+          id: 'cell-detached',
+          name: 'detached-cell',
+          branch: 'feat/detached',
+          attachmentState: 'missing',
+          state: 'draft',
+          lastKnownWorktreePath: '/repo/.worktrees/detached-cell',
+        },
+        sessions: [{ id: 'session-stale', name: 'Default', status: 'stale' }],
+      })}
+    />
+  );
+
+  assert.match(html, /Detached Workspace/);
+  assert.match(html, /Archive Cell/);
+  assert.match(html, /Retained sessions/);
+  assert.doesNotMatch(html, /No active terminal session/);
 });

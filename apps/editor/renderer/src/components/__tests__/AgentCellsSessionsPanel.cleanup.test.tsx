@@ -8,6 +8,7 @@ import { JSDOM } from 'jsdom';
 
 import { AttentionLayerProvider } from '../../attention/AttentionLayerContext';
 import { AgentCellsSessionsPanel } from '../agentCells/AgentCellsSessionsPanel';
+import { deriveUnmanagedWorktreeDisplay } from '../agentCells/unmanagedWorktreePresentation';
 import { ModalProvider } from '../modals/ModalSystem';
 
 const emptyAttentionValue = {
@@ -123,6 +124,7 @@ function renderPanel(props: Record<string, unknown> = {}) {
           onSettleTrackedHarnessRun={async () => false}
           onFocusSessionInUi={() => undefined}
           onConfigureProfile={() => undefined}
+          onArchiveCell={() => undefined}
           {...props}
         />
       </AttentionLayerProvider>
@@ -209,6 +211,7 @@ test('AgentCellsSessionsPanel renders detached cells as management cards instead
   assert.match(html, /Detached Cells/);
   assert.match(html, /detached-cell-card-cell-missing/);
   assert.match(html, /attention_routing/);
+  assert.match(html, /Archive Cell/);
   assert.match(html, /View Details/);
   assert.doesNotMatch(html, /data-testid="session-tab-session-stale"/);
 });
@@ -237,6 +240,46 @@ test('detached management cards distinguish missing and detached attachment badg
 
   assert.match(html, /Missing/);
   assert.match(html, /Detached/);
+});
+
+test('deriveUnmanagedWorktreeDisplay marks detached-head worktrees as non-creatable', () => {
+  const display = deriveUnmanagedWorktreeDisplay({
+    id: 'unmanaged-detached',
+    path: '/repo/.worktrees/detached',
+    branch: '',
+    head: 'abc1234',
+    hasBranch: false,
+    isDetachedHead: true,
+    ignored: false,
+    bindSuggestion: null,
+  });
+
+  assert.equal(display.canCreateCell, false);
+  assert.equal(display.primaryAction, 'none');
+  assert.match(display.detachedHeadLabel, /Detached HEAD/);
+  assert.match(display.helperText, /cannot track this worktree as a Cell/);
+  assert.match(display.availabilityLabel, /Branch Required/);
+});
+
+test('deriveUnmanagedWorktreeDisplay prioritizes deterministic reattach over creating a duplicate cell', () => {
+  const display = deriveUnmanagedWorktreeDisplay({
+    id: 'unmanaged-bindable',
+    path: '/repo/.worktrees/feature',
+    branch: 'feat/feature',
+    head: 'abc1234',
+    hasBranch: true,
+    isDetachedHead: false,
+    ignored: false,
+    bindSuggestion: {
+      kind: 'unique_branch_match',
+      cellId: 'cell-feature',
+      cellName: 'feature',
+    },
+  });
+
+  assert.equal(display.primaryAction, 'bind');
+  assert.match(display.primaryLabel, /Reattach feature/);
+  assert.match(display.secondaryCreateLabel, /Create New Cell/);
 });
 
 test('Legacy archived toggle reveals compatibility cards while archived cells stay out of detached management', async () => {

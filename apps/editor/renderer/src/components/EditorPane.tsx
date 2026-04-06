@@ -45,6 +45,7 @@ export function EditorPane({
   onTurnGateCreate,
   onTurnGateExecute,
   onOpenTerminal,
+  onArchiveCell,
   onClearCellAttachment,
   onDeleteCell,
   onZoomIn,
@@ -472,43 +473,134 @@ export function EditorPane({
       </header>
 
       <div className="flex-1 flex flex-col min-h-0 bg-black/20">
-             {attachmentState !== 'attached' ? (
-                <div className="mx-3 mt-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] text-muted-foreground">
-                  Worktree-bound actions are limited because this Cell is <span className="font-semibold text-foreground">{attachmentLabel.toLowerCase()}</span>.
-                  {attachmentPath ? (
-                    <span className="ml-1 font-mono text-[10px] text-foreground/70">{attachmentPath}</span>
-                  ) : null}
+        {attachmentState !== 'attached' ? (
+          <div className="flex min-h-0 flex-1 items-start justify-center overflow-y-auto px-6 py-6">
+            <div className="w-full max-w-[960px] rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(24,28,36,0.92),rgba(12,15,20,0.97))] p-6 shadow-[0_28px_64px_-28px_rgba(0,0,0,0.72)]">
+              <div className="flex items-start justify-between gap-6">
+                <div className="min-w-0">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-100/62">
+                    Detached Workspace
+                  </div>
+                  <div className="mt-2 text-[24px] font-semibold tracking-[-0.04em] text-foreground">
+                    {cell.name}
+                  </div>
+                  <div className="mt-3 max-w-[64ch] text-[13px] leading-6 text-muted-foreground">
+                    This Cell remains tracked even though its worktree is {attachmentLabel.toLowerCase()}.
+                    Runtime evidence and session history stay available here while you decide whether to archive the Cell, clear stale attachment metadata, or remove the record.
+                  </div>
                 </div>
-              ) : null}
+                <span
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] ${attachmentTone}`}
+                  title={attachmentPath || attachmentLabel}
+                >
+                  <span>{attachmentLabel}</span>
+                </span>
+              </div>
 
-             <div className="flex min-h-0 flex-1">
-                <div className="flex min-w-0 flex-1">
-                  <TerminalArea
-                    cell={cell}
-                    sessions={openSessions}
-                    activeSessionId={sessionId}
-                    sessionTargets={sessionTargets}
-                    terminalOpen={terminalOpen}
-                    terminalMode={terminalMode}
-                    pendingCommand={pendingCommand}
-                    onCommandSent={onCommandSent}
-                    onSessionActivity={onSessionActivity}
-                    onSendSessionText={onSendSessionText}
-                    onOpenWorkbenchFile={onOpenWorkbenchFile}
-                    onSelectionContext={onSelectionContext}
-                    onReplySelection={onReplySelection}
-                    activityDiffThreshold={activityDiffThreshold}
-                    terminalFontSize={terminalFontSize}
-                    onSessionAttached={onSessionAttached}
-                    isVisible={isVisible}
-                    sessionLoading={sessionLoading}
-                    sessionError={sessionError}
-                    onOpenTerminal={onOpenTerminal}
-                    onCreateSession={onCreateSession}
-                    shortcutBindings={terminusBindings}
-                  />
+              <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)]">
+                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+                  <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground/58">
+                    Attachment Record
+                  </div>
+                  <div className="mt-3 text-[12px] text-foreground/86">
+                    <div className="font-medium text-foreground">Last known path</div>
+                    <div className="mt-1 break-all font-mono text-[11px] text-muted-foreground/78">
+                      {attachmentPath || 'No worktree path recorded'}
+                    </div>
+                  </div>
+                  <div className="mt-4 text-[12px] text-foreground/86">
+                    <div className="font-medium text-foreground">Retained sessions</div>
+                    <div className="mt-2 space-y-2">
+                      {Array.isArray(sessions) && sessions.length > 0 ? (
+                        sessions.map((session: any) => (
+                          <div
+                            key={session.id}
+                            className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-black/18 px-3 py-2"
+                          >
+                            <span className="truncate text-[11px] font-medium text-foreground">
+                              {session.name || session.id}
+                            </span>
+                            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/68">
+                              {session.status || 'unknown'}
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-white/[0.08] bg-black/12 px-3 py-3 text-[11px] text-muted-foreground">
+                          No retained sessions recorded for this Cell.
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-             </div>
+
+                <div className="rounded-2xl border border-white/[0.08] bg-black/18 p-4">
+                  <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground/58">
+                    Workspace Actions
+                  </div>
+                  <div className="mt-3 flex flex-col gap-2">
+                    {onArchiveCell ? (
+                      <button
+                        type="button"
+                        onClick={() => onArchiveCell?.(cell)}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300/24 bg-amber-500/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100 transition-colors hover:bg-amber-500/16"
+                      >
+                        Archive Cell
+                      </button>
+                    ) : null}
+                    {onClearCellAttachment ? (
+                      <button
+                        type="button"
+                        onClick={() => onClearCellAttachment?.(cell)}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground transition-colors hover:bg-white/[0.06]"
+                      >
+                        Clear Attachment
+                      </button>
+                    ) : null}
+                    {onDeleteCell ? (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteCell?.(cell)}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-300/20 bg-rose-500/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-100 transition-colors hover:bg-rose-500/16"
+                      >
+                        Delete Cell
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex min-h-0 flex-1">
+            <div className="flex min-w-0 flex-1">
+              <TerminalArea
+                cell={cell}
+                sessions={openSessions}
+                activeSessionId={sessionId}
+                sessionTargets={sessionTargets}
+                terminalOpen={terminalOpen}
+                terminalMode={terminalMode}
+                pendingCommand={pendingCommand}
+                onCommandSent={onCommandSent}
+                onSessionActivity={onSessionActivity}
+                onSendSessionText={onSendSessionText}
+                onOpenWorkbenchFile={onOpenWorkbenchFile}
+                onSelectionContext={onSelectionContext}
+                onReplySelection={onReplySelection}
+                activityDiffThreshold={activityDiffThreshold}
+                terminalFontSize={terminalFontSize}
+                onSessionAttached={onSessionAttached}
+                isVisible={isVisible}
+                sessionLoading={sessionLoading}
+                sessionError={sessionError}
+                onOpenTerminal={onOpenTerminal}
+                onCreateSession={onCreateSession}
+                shortcutBindings={terminusBindings}
+              />
+            </div>
+          </div>
+        )}
 
              {avatarMenu ? (
                 <AvatarPickerMenu

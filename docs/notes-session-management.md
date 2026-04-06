@@ -179,7 +179,8 @@ Session Map 的类 RTS 游戏操作界面设计：它是一个跨界面、始终
   - `Detached Cells`：Cell 记录仍在，但 attachment 为 `detached / missing`；
   - `Unmanaged Worktrees`：repo 中 live worktree 存在，但尚未绑定 Cell。
 - **Detached Cell surface**：当 Cell 丢失 live worktree attachment 时，默认不再进入 lifecycle cleanup rail；它应进入 `Detached Cells` 区，以 attachment-management copy 展示 `missing` vs `detached` 差异，同时保留 `View Details`、session 摘要和 evidence 访问。
-- **Unmanaged Worktree surface**：live git worktree 若未绑定 Cell，应被明确提示并支持 `Create Cell`、可用时的 `Reattach <Cell>` 建议，以及 `Ignore For Now`。ignore 是 user-local 的噪声控制，不是 repo policy。
+- **Detached Cell details**：从 `Detached Cells` 进入主 pane 时，应显示 attachment record、retained sessions 与 `Archive Cell / Clear Attachment / Delete Cell` 管理动作，而不是 generic terminal empty state。
+- **Unmanaged Worktree surface**：live git worktree 若未绑定 Cell，应被明确提示并支持 `Create Cell`、可用时的 `Reattach <Cell>` 建议，以及 `Ignore For Now`。当存在 deterministic detached-cell match 时，`Reattach` 应优先于 `Create`；当 worktree 处于 detached HEAD 时，不应展示误导性的 `Create Cell` CTA，而应显式说明需要先附着到 branch。ignore 是 user-local 的噪声控制，不是 repo policy。
 - **Legacy archived compatibility**：旧记录中的 `archived` 仍可作为兼容信息显示在 `Legacy Archived` 区，但它不应重新主导默认 core workspace rail。
 - **Workspace rail craft**：tracked/detached/unmanaged 区应保持同一套紧凑、面性、低噪声的 shell 语言；避免 card-within-card、重复 boxed chrome 或者为了“解释状态”堆出第二套 dashboard。
 - **Sessionless Cell**：Cell 允许零 session 存在。窗口启动、Cell 恢复、或 attached worktree 被重新看见时，都不应自动补一个 `Default` session；只有用户显式进入 runtime（例如 `Create Session` / 进入空 terminal 态后确认创建）时，才 materialize 新的 execution lane。
@@ -251,17 +252,18 @@ cellColors:
 
 ## Manual Verification
 1. 移除或 detach 一个 tracked Cell worktree，确认 Agent Cells 将其移到 `Detached Cells` 区，而不是 lifecycle cleanup rail；`missing` 与 `detached` 的 attachment 文案应有所区分。
-2. 在同一 repo 中保留一个未被 Cell 跟踪的 live worktree，确认 Agent Cells 在 `Unmanaged Worktrees` 区显示它，并提供 `Create Cell`；如果存在 deterministic detached-cell match，则同时显示 `Reattach <Cell>` 建议。
-3. 打开一个 session，记录 idle 显示时间。
-4. 切换到其他 session，再切回；若输出没有变化，idle 不应被刷新。
-5. 在当前 session 输出少量文本（低于阈值，例如 `echo ok`），idle 不应刷新。
-6. 输出超过阈值的文本（例如 `python - <<'PY'\nprint('x'*50)\nPY`），idle 应刷新。
-7. 仅因临时失焦、attach replay 或 silent refresh 回到当前 window / surface 时，session 不应立刻被标成 `Unread`。
-8. 在一个后台 session 产生新输出后，确认 Agent Cells 的 cell/session 内联 attention、app-shell 右侧 `Priority Queue`、Status Bar 主 attention 使用同一套 `Unread` 语义，并且点击任一入口会回到对应 session。
-9. 触发一个 `Create Agent` 运行中的 child execution，确认 Agent Cells 的 inline marker、Status Bar `Next`、app-shell 右侧 `Priority Queue` 都显示 `Running`，且点击后会打开对应 session/run 上下文而不是把 run 埋在背景里；`Session Map Ops` 只承载 evidence。
-10. 制造一次失败 run，确认 Status Bar、Agent Cells inline marker、app-shell 右侧 `Priority Queue` 都显示同一条 `Failed` attention；它不会像 toast 一样自动消失，并且点击后能回到相关对象；完整错误仍在 `Session Map Ops` evidence 区。
-11. 在另一个窗口制造更高优先级的 attention，确认当前窗口的 window switcher 能显示该窗口的 primary attention，并可直接聚焦过去。
-12. 制造 `Confirm` 和 `Review` 两类 attention，确认 Status Bar `Next` 的可见 label 仍然保持共享词汇（`Confirm` / `Review`），而 tooltip 会补足真实跳转目标。
+2. 在同一 repo 中保留一个未被 Cell 跟踪的 live worktree，确认 Agent Cells 在 `Unmanaged Worktrees` 区显示它，并提供 `Create Cell`；如果存在 deterministic detached-cell match，则 `Reattach <Cell>` 应成为主动作。
+3. 将某个 unmanaged worktree 切到 detached HEAD，确认卡片显式显示 `Detached HEAD`，不再提供活跃的 `Create Cell` 按钮，而是给出 branch-required 提示。
+4. 打开一个 session，记录 idle 显示时间。
+5. 切换到其他 session，再切回；若输出没有变化，idle 不应被刷新。
+6. 在当前 session 输出少量文本（低于阈值，例如 `echo ok`），idle 不应刷新。
+7. 输出超过阈值的文本（例如 `python - <<'PY'\nprint('x'*50)\nPY`），idle 应刷新。
+8. 仅因临时失焦、attach replay 或 silent refresh 回到当前 window / surface 时，session 不应立刻被标成 `Unread`。
+9. 在一个后台 session 产生新输出后，确认 Agent Cells 的 cell/session 内联 attention、app-shell 右侧 `Priority Queue`、Status Bar 主 attention 使用同一套 `Unread` 语义，并且点击任一入口会回到对应 session。
+10. 触发一个 `Create Agent` 运行中的 child execution，确认 Agent Cells 的 inline marker、Status Bar `Next`、app-shell 右侧 `Priority Queue` 都显示 `Running`，且点击后会打开对应 session/run 上下文而不是把 run 埋在背景里；`Session Map Ops` 只承载 evidence。
+11. 制造一次失败 run，确认 Status Bar、Agent Cells inline marker、app-shell 右侧 `Priority Queue` 都显示同一条 `Failed` attention；它不会像 toast 一样自动消失，并且点击后能回到相关对象；完整错误仍在 `Session Map Ops` evidence 区。
+12. 在另一个窗口制造更高优先级的 attention，确认当前窗口的 window switcher 能显示该窗口的 primary attention，并可直接聚焦过去。
+13. 制造 `Confirm` 和 `Review` 两类 attention，确认 Status Bar `Next` 的可见 label 仍然保持共享词汇（`Confirm` / `Review`），而 tooltip 会补足真实跳转目标。
 13. 在 Agent Cells 中打开/关闭 `Session Reply Relay`，确认入口位于共享 right-edge launcher rail 的底部；`Reply` 打开时不会改写 `Attention` / `Commander` 的语义，也不会重新引入第二条右侧 launcher。
 
 ## 实现提示

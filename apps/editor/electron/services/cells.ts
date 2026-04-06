@@ -349,6 +349,7 @@ function buildBindSuggestion(worktree, detachedCandidates) {
 function buildUnmanagedWorktreeCandidate({ worktree, detachedCandidates, ignored }) {
   const normalizedPath = normalizePathValue(worktree?.path);
   const normalizedBranch = normalizeText(worktree?.branch);
+  const normalizedHead = normalizeText(worktree?.head);
   return {
     id: buildUnmanagedWorktreeId(normalizedPath),
     type: 'unmanaged_worktree',
@@ -356,7 +357,9 @@ function buildUnmanagedWorktreeCandidate({ worktree, detachedCandidates, ignored
     ignored: Boolean(ignored),
     name: path.basename(normalizedPath) || normalizedBranch || 'worktree',
     branch: normalizedBranch,
-    head: normalizeText(worktree?.head),
+    head: normalizedHead,
+    hasBranch: Boolean(normalizedBranch),
+    isDetachedHead: !normalizedBranch && Boolean(normalizedHead),
     worktreePath: normalizedPath,
     bindSuggestion: buildBindSuggestion(worktree, detachedCandidates),
   };
