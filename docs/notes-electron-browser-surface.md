@@ -232,6 +232,8 @@ These shortcuts are attractive and wrong:
 ## Current References
 
 - Runtime host + navigation owner: `apps/editor/electron/services/workbenchBrowserSurface.ts`
+- Shell lane state owner: `apps/editor/renderer/src/app/useWorkbenchShellBrowserLaneState.ts`
+- Shell overlay host: `apps/editor/renderer/src/components/layout/AppMainPanels.tsx`
 - Renderer host sync: `apps/editor/renderer/src/components/workbench/useWorkbenchBrowserSurface.ts`
 - Browser lane view shell: `apps/editor/renderer/src/components/workbench/WorkbenchBrowserLane.tsx`
 - Bounded web scene + chrome: `apps/editor/renderer/src/components/workbench/WorkbenchBoundedWebResearchView.tsx`
