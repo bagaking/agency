@@ -229,6 +229,11 @@ Binding an existing branch SHALL NOT implicitly create a new worktree unless the
 - **THEN** the editor creates or binds a live worktree attachment for that Cell
 - **AND** that materialization happens only because the user invoked the explicit attachment action
 
+#### Scenario: Branch-only Cell remains session-runnable
+- **WHEN** a user starts a session on a branch-only Cell that has no live worktree attachment yet
+- **THEN** the editor allows the session to start on the project root runtime
+- **AND** worktree attachment creation remains an explicit later action for branch-isolated filesystem work
+
 #### Scenario: Create from explicit base branch
 - **WHEN** a user creates a new branch-backed Cell and selects an explicit base branch such as `main`
 - **THEN** the new worktree branches from that explicit base branch
@@ -243,7 +248,7 @@ Unmanaged worktrees in detached HEAD state SHALL not present `Create Cell` as an
 #### Scenario: Branch-only Cells are first-class workspace records
 - **WHEN** a tracked Cell is bound to a branch but has no live worktree attachment
 - **THEN** the editor surfaces it through a dedicated branch-only management surface
-- **AND** the primary action focuses on explicit worktree attachment creation rather than cleanup or failure recovery
+- **AND** the surface keeps session-first runtime legible while also offering explicit worktree attachment creation
 
 #### Scenario: Detached Cell opens attachment-management details
 - **WHEN** a user opens `View Details` for a detached or missing Cell
@@ -3239,8 +3244,8 @@ The editor SHALL allow a branch-only tracked Cell to exist with no live worktree
 
 #### Scenario: Select a branch-only Cell
 - **WHEN** a user selects a tracked Cell that is bound to a branch but has no live worktree attachment yet
-- **THEN** the editor shows branch-only management details instead of detached/missing failure copy
-- **AND** the editor offers explicit worktree attachment creation rather than auto-materializing runtime
+- **THEN** the editor keeps terminal/session runtime available on the project root
+- **AND** the editor still offers explicit worktree attachment creation rather than auto-materializing a branch-isolated workspace
 
 ### Requirement: Detached Cell Management And Legacy Archived Surfaces
 The editor SHALL allow users to archive or delete a Cell after its worktree attachment has been removed.

@@ -16,6 +16,7 @@
 - Core workspace management is worktree-first: live repo worktrees may exist without a Cell until the user explicitly chooses to track or bind them.
 - `Create Cell` means tracking a workspace context over a new or existing worktree, not starting a lifecycle ceremony.
 - Binding an existing branch does not materialize a worktree implicitly. If the branch already has a live worktree, Agency binds it; otherwise Agency creates a branch-only Cell and leaves attachment creation explicit.
+- Branch-only Cells remain usable immediately: sessions and terminal runtime fall back to the project root until you explicitly create a worktree attachment for branch-isolated filesystem work.
 - `Create Agent` means bounded child execution owned by a host run.
 - `Fork` is a specialized `Create Agent` strategy, not the baseline workspace or execution noun.
 - `Commander` is one bounded operator capability; in Session Map, `Ops` is the evidence rail and `Briefing` is the reveal panel in the same station.
@@ -175,6 +176,7 @@
   - `Detached Cells`
   - `Unmanaged Worktrees`
 - `Branch-only Cells` are tracked Cells bound to an existing branch without a live worktree yet. They expose explicit `Create Worktree Attachment` actions and do not pretend the missing worktree is a failure state.
+- Branch-only Cells still support session-first runtime. The explicit attachment action is for materializing a branch-isolated workspace, not for unlocking basic terminal work.
 - `Detached Cells` are attachment-management records: their cards keep session counts visible, allow `View Details`, and detached detail view offers `Archive Cell`, `Clear Attachment`, and `Delete Cell` instead of falling back to a generic empty terminal state.
 - `Unmanaged Worktrees` prioritize deterministic `Bind/Reattach <Cell>` suggestions over creating duplicate Cells.
 - An unmanaged worktree in detached HEAD state is shown explicitly as `Detached HEAD` and does not surface `Create Cell` as an active action until it is attached to a branch.

@@ -227,6 +227,8 @@ The creation flow should remain one bounded modal or command family, but its gra
 
 `Bind Existing Branch` is not a hidden `create worktree` shortcut. It first analyzes whether the branch already has a live workspace, including the repo-root primary worktree. If yes, the flow binds that existing workspace. If no, the flow creates a branch-only Cell. Any later worktree materialization must happen through an explicit `Create Worktree Attachment` action.
 
+Branch-only does not mean runtime-disabled. The core product remains session-first: until a worktree attachment exists, session runtime falls back to the project root while preserving the Cell's bound branch identity as metadata. `Create Worktree Attachment` upgrades that Cell into a branch-isolated filesystem workspace; it does not unlock basic session existence.
+
 The modal must avoid suggesting that the user is starting a workflow template or lifecycle journey.
 
 ### Settings / Hierarchy

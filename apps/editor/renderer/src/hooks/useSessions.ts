@@ -38,6 +38,7 @@ import {
   isTrackedHarnessEventRelevant,
   resolveTrackedHarnessTerminalOutcome,
 } from '../utils/commanderHarnessTracking';
+import { resolveCellRuntimeRootPath } from '../utils/cellRuntimeRoot';
 import { isProjectBackedCell } from '../utils/windowHomeCell';
 
 const isDevBuild = Boolean(import.meta.env?.DEV);
@@ -207,7 +208,7 @@ export function useSessions(options: any = {}) {
         }
         return;
       }
-      const attachedWorktreePath = targetCell.attachedWorktreePath || '';
+      const runtimeRootPath = resolveCellRuntimeRootPath(targetCell);
       const selectionVersion = selectionVersionRef.current;
       if (!silent) {
         setSessionLoading(true);
@@ -215,7 +216,7 @@ export function useSessions(options: any = {}) {
       }
       try {
         let nextSessions = await listSessionsBridge({
-          worktreePath: attachedWorktreePath,
+          worktreePath: runtimeRootPath,
           cellId: targetCell.id,
           projectRoot: targetCell.projectRoot || targetCell.repoRoot || '',
         });
@@ -693,8 +694,8 @@ export function useSessions(options: any = {}) {
         setSessionError('Select a project before creating sessions.');
         return null;
       }
-      const attachedWorktreePath = targetCell.attachedWorktreePath || '';
-      if (!attachedWorktreePath) {
+      const runtimeRootPath = resolveCellRuntimeRootPath(targetCell);
+      if (!runtimeRootPath) {
         setSessionError(resolveAttachmentRuntimeMessage(targetCell));
         return null;
       }
@@ -722,7 +723,7 @@ export function useSessions(options: any = {}) {
           avatar || pickSessionAvatarId(sessionsByCellId[targetCell.id] || []);
         const created = await createSessionBridge({
           cellId: targetCell.id,
-          worktreePath: attachedWorktreePath,
+          worktreePath: runtimeRootPath,
           name: name || undefined,
           sessionId: sessionId || undefined,
           profileId: profileId || BASELINE_PROFILE_ID,
@@ -777,7 +778,7 @@ export function useSessions(options: any = {}) {
       if (!targetCell) {
         return null;
       }
-      if (!targetCell.attachedWorktreePath) {
+      if (!resolveCellRuntimeRootPath(targetCell)) {
         setSessionError(resolveAttachmentRuntimeMessage(targetCell));
         return null;
       }
@@ -1000,13 +1001,13 @@ export function useSessions(options: any = {}) {
         setSessionError('');
         try {
           const preferredAvatar = pickSessionAvatarId(sessionsByCellId[targetCell.id] || []);
-          const attachedWorktreePath = worktreePath || targetCell.attachedWorktreePath || '';
-          if (!attachedWorktreePath) {
+          const runtimeRootPath = worktreePath || resolveCellRuntimeRootPath(targetCell);
+          if (!runtimeRootPath) {
             throw new Error(resolveAttachmentRuntimeMessage(targetCell));
           }
           const created = await createSessionBridge({
             cellId: targetCell.id,
-            worktreePath: attachedWorktreePath,
+            worktreePath: runtimeRootPath,
             projectRoot: targetCell.projectRoot || targetCell.repoRoot || '',
             name: label ? `CLI - ${label}` : 'CLI',
             profileId: profileId || BASELINE_PROFILE_ID,

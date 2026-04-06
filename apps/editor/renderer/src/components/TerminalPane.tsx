@@ -42,6 +42,7 @@ import {
   RESIZE_ACTIVITY_SUPPRESS_MS,
 } from './terminal/terminalResizeController';
 import { buildTerminalStartPayload } from './terminal/terminalStartPayload';
+import { resolveCellRuntimeRootPath } from '../utils/cellRuntimeRoot';
 
 function TerminalPane({
   cell,
@@ -116,7 +117,7 @@ function TerminalPane({
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const cellId = cell?.id;
   const projectRoot = cell?.projectRoot || '';
-  const worktreePath = cell?.attachedWorktreePath || cell?.worktreePath;
+  const worktreePath = resolveCellRuntimeRootPath(cell);
   const sendTargets = useMemo(() => {
     const list = Array.isArray(sessionTargets) ? sessionTargets : [];
     return list

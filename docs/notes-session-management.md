@@ -180,6 +180,7 @@ Session Map 的类 RTS 游戏操作界面设计：它是一个跨界面、始终
   - `Detached Cells`：Cell 记录仍在，但 attachment 为 `detached / missing`；
   - `Unmanaged Worktrees`：repo 中 live worktree 存在，但尚未绑定 Cell。
 - **Branch-only Cell surface**：branch-only 不是错误态，也不是 detached cleanup。它代表 “Cell identity 已存在，但 live workspace 尚未显式 materialize”。主动作应是 `Create Worktree Attachment`，而不是把它伪装成 missing worktree failure。
+- **Branch-only runtime**：branch-only Cell 仍应是 session-first 的一等对象。默认 session/terminal runtime 可以落在 project root；`Create Worktree Attachment` 是为了显式 materialize branch-isolated filesystem，而不是 basic runtime 的解锁条件。
 - **Detached Cell surface**：当 Cell 丢失 live worktree attachment 时，默认不再进入 lifecycle cleanup rail；它应进入 `Detached Cells` 区，以 attachment-management copy 展示 `missing` vs `detached` 差异，同时保留 `View Details`、session 摘要和 evidence 访问。
 - **Detached Cell details**：从 `Detached Cells` 进入主 pane 时，应显示 attachment record、retained sessions 与 `Archive Cell / Clear Attachment / Delete Cell` 管理动作，而不是 generic terminal empty state。
 - **Unmanaged Worktree surface**：live git worktree 若未绑定 Cell，应被明确提示并支持 `Create Cell`、可用时的 `Bind/Reattach <Cell>` 建议，以及 `Ignore For Now`。当 suggestion 指向 branch-only Cell 时，verb 应是 `Bind`；当 suggestion 指向 detached Cell 时，verb 应是 `Reattach`；当 worktree 处于 detached HEAD 时，不应展示误导性的 `Create Cell` CTA，而应显式说明需要先附着到 branch。ignore 是 user-local 的噪声控制，不是 repo policy。

@@ -42,6 +42,10 @@ const SESSION_STATUSES = {
   detached: 'detached',
   closed: 'closed',
 };
+const SESSION_RUNTIME_ROOT_KINDS = {
+  worktree: 'worktree',
+  project: 'project',
+};
 const DEFAULT_PROFILE_ID = 'shell';
 const ATTACH_ACTIVITY_GRACE_MS = 60 * 1000;
 const PREVIEW_DIFF_LINES = 90;
@@ -269,6 +273,7 @@ async function resolveSessionServiceContext(params = {}) {
     cellId: resolvedCellId,
     worktreePath: context.worktreePath || String(worktreePath || '').trim(),
     attachedWorktreePath: context.attachedWorktreePath || '',
+    attachmentState: String(context?.cell?.attachmentState || '').trim().toLowerCase(),
     registryContext: {
       projectRoot: context.repoRoot,
       cellId: resolvedCellId,
@@ -283,6 +288,38 @@ function ensureAttachedWorktreePath(context, message = 'Cell worktree attachment
     throw new Error(message);
   }
   return path.resolve(attachedWorktreePath);
+}
+
+function resolveOptionalSessionRuntimeRoot(context) {
+  const attachedWorktreePath = String(context?.attachedWorktreePath || '').trim();
+  if (attachedWorktreePath && fs.existsSync(attachedWorktreePath)) {
+    return {
+      path: path.resolve(attachedWorktreePath),
+      kind: SESSION_RUNTIME_ROOT_KINDS.worktree,
+    };
+  }
+  const attachmentState = String(context?.attachmentState || context?.cell?.attachmentState || '')
+    .trim()
+    .toLowerCase();
+  const projectRoot = String(context?.repoRoot || '').trim();
+  if (attachmentState === 'branch_only' && projectRoot && fs.existsSync(projectRoot)) {
+    return {
+      path: path.resolve(projectRoot),
+      kind: SESSION_RUNTIME_ROOT_KINDS.project,
+    };
+  }
+  return {
+    path: '',
+    kind: '',
+  };
+}
+
+function ensureSessionRuntimeRoot(context, message = 'Cell runtime root is missing.') {
+  const runtimeRoot = resolveOptionalSessionRuntimeRoot(context);
+  if (!runtimeRoot.path) {
+    throw new Error(message);
+  }
+  return runtimeRoot;
 }
 
 function normalizeOfflineSessionStatus(status) {
@@ -396,6 +433,7 @@ function resolveSessionCellName(session) {
 
 async function syncSessionTmuxMetadata({
   worktreePath,
+  runtimeRootKind,
   session,
   status,
   projectMetadata,
@@ -413,6 +451,8 @@ async function syncSessionTmuxMetadata({
     projectRoot: project?.projectRoot || '',
     projectName: project?.projectName || '',
     worktreePath,
+    runtimeRootPath: worktreePath,
+    runtimeRootKind: runtimeRootKind || SESSION_RUNTIME_ROOT_KINDS.worktree,
     cellId,
     cellName,
     sessionId: session?.id || '',
@@ -453,13 +493,13 @@ async function listSessions({ worktreePath, cellId, projectRoot }) {
     worktreePath,
     projectRoot,
   });
-  const attachedWorktreePath = String(context.attachedWorktreePath || '').trim();
+  const runtimeRoot = resolveOptionalSessionRuntimeRoot(context);
   const registry = await readRegistry(context.registryContext);
   const projectMetadata = await resolveProjectMetadata({
-    worktreePath: attachedWorktreePath || context.worktreePath,
+    worktreePath: runtimeRoot.path || context.worktreePath || context.repoRoot,
     projectRoot: context.repoRoot,
   });
-  if (!attachedWorktreePath || !fs.existsSync(attachedWorktreePath)) {
+  if (!runtimeRoot.path) {
     const sessions = (registry.sessions || []).map((session, index) => {
       let resolved = ensureSessionName(session, index);
       const resolvedCellId = resolveSessionCellId(resolved) || context.cellId;
@@ -491,7 +531,7 @@ async function listSessions({ worktreePath, cellId, projectRoot }) {
     }
     return sessions;
   }
-  ensureWorktreePath(attachedWorktreePath);
+  ensureWorktreePath(runtimeRoot.path);
   await ensureTmuxAvailable();
   let changed = false;
 
@@ -554,7 +594,7 @@ async function listSessions({ worktreePath, cellId, projectRoot }) {
             })
           ) {
             const shouldUpdate = await shouldRecordActivity({
-              worktreePath: attachedWorktreePath,
+              worktreePath: runtimeRoot.path,
               session: resolved,
             });
             if (shouldUpdate) {
@@ -580,7 +620,8 @@ async function listSessions({ worktreePath, cellId, projectRoot }) {
       if (isAlive && metadataSyncNeeded) {
         const metadataSyncedAt = new Date().toISOString();
         await syncSessionTmuxMetadata({
-          worktreePath: attachedWorktreePath,
+          worktreePath: runtimeRoot.path,
+          runtimeRootKind: runtimeRoot.kind,
           projectMetadata,
           session: named,
           status: named.status,
@@ -624,10 +665,10 @@ async function createNewSession({
     rootPath,
     projectRoot,
   });
-  const attachedWorktreePath = ensureAttachedWorktreePath(context);
+  const runtimeRoot = ensureSessionRuntimeRoot(context, 'Cell runtime root is missing.');
   await ensureTmuxAvailable();
   const projectMetadata = await resolveProjectMetadata({
-    worktreePath: attachedWorktreePath,
+    worktreePath: runtimeRoot.path,
     projectRoot: context.repoRoot,
   });
   const registry = await readRegistry(context.registryContext);
@@ -649,7 +690,7 @@ async function createNewSession({
           cellName: cellName || context.cell?.name,
           cellBranch: cellBranch || context.cell?.branch,
           profileId,
-          worktreePath: attachedWorktreePath,
+          worktreePath: runtimeRoot.path,
         })
       );
     } catch (_error) {
@@ -692,7 +733,8 @@ async function createNewSession({
       ...topology,
     };
     await syncSessionTmuxMetadata({
-      worktreePath: attachedWorktreePath,
+      worktreePath: runtimeRoot.path,
+      runtimeRootKind: runtimeRoot.kind,
       projectMetadata,
       session,
       status: SESSION_STATUSES.active,
@@ -702,7 +744,7 @@ async function createNewSession({
     return session;
   }
 
-  await createSession(tmuxSession, attachedWorktreePath);
+  await createSession(tmuxSession, runtimeRoot.path);
   await setMouse(tmuxSession, true);
   await setExtendedKeys(tmuxSession, true);
   const resolvedCellName = String(cellName || context.cell?.name || '').trim() || resolvedCellId;
@@ -725,7 +767,8 @@ async function createNewSession({
   };
 
   await syncSessionTmuxMetadata({
-    worktreePath: attachedWorktreePath,
+    worktreePath: runtimeRoot.path,
+    runtimeRootKind: runtimeRoot.kind,
     projectMetadata,
     session,
     status: SESSION_STATUSES.active,
@@ -748,9 +791,10 @@ async function ensureDefaultSession({ cellId, worktreePath, rootPath, projectRoo
   if (existing) {
     return existing;
   }
+  const runtimeRoot = resolveOptionalSessionRuntimeRoot(context);
   return createNewSession({
     cellId: context.cellId,
-    worktreePath: context.attachedWorktreePath || context.worktreePath,
+    worktreePath: runtimeRoot.path || context.worktreePath,
     projectRoot: context.repoRoot,
     name: 'Default',
     sessionId: 'default',
@@ -765,7 +809,7 @@ async function recreateSession({ cellId, worktreePath, sessionId, rootPath, proj
     rootPath,
     projectRoot,
   });
-  const attachedWorktreePath = ensureAttachedWorktreePath(context);
+  const runtimeRoot = ensureSessionRuntimeRoot(context, 'Cell runtime root is missing.');
   await ensureTmuxAvailable();
   const registry = await readRegistry(context.registryContext);
   const existing = registry.sessions.find((session) => session.id === sessionId);
@@ -774,7 +818,7 @@ async function recreateSession({ cellId, worktreePath, sessionId, rootPath, proj
   await writeRegistry(context.registryContext, nextRegistry);
   return createNewSession({
     cellId: context.cellId,
-    worktreePath: attachedWorktreePath,
+    worktreePath: runtimeRoot.path,
     projectRoot: context.repoRoot,
     name: existing?.name,
     sessionId,
@@ -825,10 +869,10 @@ async function detachSessionById({ worktreePath, sessionId, cellId, projectRoot 
     worktreePath,
     projectRoot,
   });
-  const attachedWorktreePath = ensureAttachedWorktreePath(context);
+  const runtimeRoot = ensureSessionRuntimeRoot(context, 'Cell runtime root is missing.');
   await ensureTmuxAvailable();
   const projectMetadata = await resolveProjectMetadata({
-    worktreePath: attachedWorktreePath,
+    worktreePath: runtimeRoot.path,
     projectRoot: context.repoRoot,
   });
   const registry = await readRegistry(context.registryContext);
@@ -849,7 +893,8 @@ async function detachSessionById({ worktreePath, sessionId, cellId, projectRoot 
   };
   const nextRegistry = upsertSession(registry, nextSession);
   await syncSessionTmuxMetadata({
-    worktreePath: attachedWorktreePath,
+    worktreePath: runtimeRoot.path,
+    runtimeRootKind: runtimeRoot.kind,
     projectMetadata,
     session: nextSession,
     status: SESSION_STATUSES.detached,
@@ -969,8 +1014,8 @@ async function setSessionMouse({ worktreePath, sessionId, enabled = true, cellId
     worktreePath,
     projectRoot,
   });
-  const attachedWorktreePath = ensureAttachedWorktreePath(context);
-  ensureWorktreePath(attachedWorktreePath);
+  const runtimeRoot = ensureSessionRuntimeRoot(context, 'Cell runtime root is missing.');
+  ensureWorktreePath(runtimeRoot.path);
   await ensureTmuxAvailable();
   const registry = await readRegistry(context.registryContext);
   const existing = registry.sessions.find((session) => session.id === sessionId);
@@ -987,11 +1032,11 @@ async function resolveSessionForAttach({ worktreePath, sessionId, cellId, projec
     worktreePath,
     projectRoot,
   });
-  const attachedWorktreePath = ensureAttachedWorktreePath(context);
-  ensureWorktreePath(attachedWorktreePath);
+  const runtimeRoot = ensureSessionRuntimeRoot(context, 'Cell runtime root is missing.');
+  ensureWorktreePath(runtimeRoot.path);
   await ensureTmuxAvailable();
   const projectMetadata = await resolveProjectMetadata({
-    worktreePath: attachedWorktreePath,
+    worktreePath: runtimeRoot.path,
     projectRoot: context.repoRoot,
   });
   const registry = await readRegistry(context.registryContext);
@@ -1022,7 +1067,8 @@ async function resolveSessionForAttach({ worktreePath, sessionId, cellId, projec
   await setExtendedKeys(existing.tmuxSession, true);
   const resolved = nextRegistry.sessions.find((session) => session.id === sessionId);
   await syncSessionTmuxMetadata({
-    worktreePath: attachedWorktreePath,
+    worktreePath: runtimeRoot.path,
+    runtimeRootKind: runtimeRoot.kind,
     projectMetadata,
     session: resolved,
     status: SESSION_STATUSES.active,
@@ -1036,8 +1082,8 @@ async function resolveSessionForPreview({ worktreePath, sessionId, cellId, proje
     worktreePath,
     projectRoot,
   });
-  const attachedWorktreePath = ensureAttachedWorktreePath(context);
-  ensureWorktreePath(attachedWorktreePath);
+  const runtimeRoot = ensureSessionRuntimeRoot(context, 'Cell runtime root is missing.');
+  ensureWorktreePath(runtimeRoot.path);
   await ensureTmuxAvailable();
   const registry = await readRegistry(context.registryContext);
   const existing = registry.sessions.find((session) => session.id === sessionId);
@@ -1065,6 +1111,9 @@ export {
   updateSessionMeta,
   moveSessionNodeById,
   setSessionMouse,
+  resolveSessionServiceContext,
+  resolveOptionalSessionRuntimeRoot,
+  ensureSessionRuntimeRoot,
   resolveSessionForAttach,
   resolveSessionForPreview,
   buildTmuxSessionName,

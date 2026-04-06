@@ -1680,17 +1680,26 @@ export function AgentCellsSessionsPanel({
                               {branchMeta.label || cell.branch || 'No branch recorded'}
                             </div>
                             <div className="mt-1 text-[10px] leading-4 text-muted-foreground/72">
-                              This Cell is tracked against an existing branch. Create a worktree attachment explicitly when you want runtime work.
+                              This Cell is tracked against an existing branch. Sessions run on the project root until you explicitly create a worktree attachment.
                             </div>
                             <div className="mt-2 flex items-center justify-between gap-2">
                               <span className="text-[10px] text-muted-foreground/70">
                                 {sessionCount} session{sessionCount === 1 ? '' : 's'}
                               </span>
                               <div className="flex items-center gap-2">
+                                {onCreateSession ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => void onCreateSession(cell)}
+                                    className="rounded-lg bg-sky-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-50 transition-colors hover:bg-sky-500/30"
+                                  >
+                                    Create Session
+                                  </button>
+                                ) : null}
                                 <button
                                   type="button"
                                   onClick={() => handleCreateAttachmentForCell(cell)}
-                                  className="rounded-lg bg-sky-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-50 transition-colors hover:bg-sky-500/30"
+                                  className="rounded-lg border border-sky-300/22 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-100 transition-colors hover:bg-sky-500/12"
                                 >
                                   Create Worktree Attachment
                                 </button>

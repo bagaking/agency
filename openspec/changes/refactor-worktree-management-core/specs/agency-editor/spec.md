@@ -70,6 +70,11 @@ Binding an existing branch SHALL NOT implicitly create a new worktree unless the
 - **THEN** the editor creates or binds a live worktree attachment for that Cell
 - **AND** the worktree is materialized only because the user chose the explicit attachment action
 
+#### Scenario: Branch-only Cell remains session-runnable
+- **WHEN** a user starts a session on a branch-only Cell before any worktree attachment exists
+- **THEN** the editor starts that session on the project root runtime
+- **AND** the Cell remains branch-only until the user explicitly creates a worktree attachment
+
 ### Requirement: Hierarchy Configuration Navigation
 The editor SHALL provide a Hierarchy entry in the activity bar for configuration of Actions, App Shortcuts, Reply Quick Prompts, Session Naming, Harness Providers, and Softlinks.
 The core Hierarchy view SHALL NOT require a default Gates capability page.
@@ -266,4 +271,4 @@ Optional workflow suites MAY add explicit spec validation when installed and ena
 #### Scenario: Branch-only tracked Cell remains distinct from detached cleanup
 - **WHEN** the Agent Cells surface contains a tracked Cell with branch identity but no live worktree attachment
 - **THEN** the editor surfaces that Cell in a dedicated branch-only section
-- **AND** the primary action focuses on explicit attachment creation rather than cleanup or failure recovery
+- **AND** the section keeps session-first runtime available while also offering explicit attachment creation

@@ -9,10 +9,11 @@ const {
 const { logRuntime } = require('../../services/runtimeLog');
 const {
   ensureDefaultSession,
+  ensureSessionRuntimeRoot,
+  resolveSessionServiceContext,
   resolveSessionForAttach,
   recreateSession,
 } = require('../../services/sessions');
-const { resolveCellContext } = require('../../services/cells');
 const {
   ensureInteractiveAttach,
   markInteractive,
@@ -46,14 +47,16 @@ function setupTerminalHandlers({ getMainWindow }) {
       logRuntime('error', 'terminal start failed (missing context)', { cellId, worktreePath });
       throw new Error('cellId is required.');
     }
-    const cellContext = await resolveCellContext({
+    const sessionContext = await resolveSessionServiceContext({
       cellId,
       worktreePath,
-      rootPath: projectRoot || worktreePath,
+      projectRoot,
     });
-    const resolvedWorktreePath = String(
-      cellContext?.attachedWorktreePath || worktreePath || ''
-    ).trim();
+    const runtimeRoot = ensureSessionRuntimeRoot(
+      sessionContext,
+      'Cell runtime root is missing.'
+    );
+    const resolvedWorktreePath = String(runtimeRoot.path || worktreePath || '').trim();
     if (!resolvedWorktreePath || !require('fs').existsSync(resolvedWorktreePath)) {
       logRuntime('error', 'terminal start failed (missing worktree)', {
         cellId,
