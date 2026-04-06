@@ -15,8 +15,10 @@
 - `Agent Cells`, `Explorer`, `Workbench`, `Session Map`, `Hierarchy`, `Memo`, and `Commander` are product surfaces over those objects, not competing object roots.
 - Core workspace management is worktree-first: live repo worktrees may exist without a Cell until the user explicitly chooses to track or bind them.
 - `Create Cell` means tracking a workspace context over a new or existing worktree, not starting a lifecycle ceremony.
-- Binding an existing branch does not materialize a worktree implicitly. If the branch already has a live worktree, Agency binds it; otherwise Agency creates a branch-only Cell and leaves attachment creation explicit.
-- Branch-only Cells remain usable immediately: sessions and terminal runtime fall back to the project root until you explicitly create a worktree attachment for branch-isolated filesystem work.
+- `Create Cell` defaults to a project-root Cell: a session-first Cell that can exist with no branch and no live worktree yet.
+- Binding an existing branch does not materialize a worktree implicitly. If the branch already has a live worktree, Agency binds it; otherwise Agency creates a new project-root Cell with that branch recorded as metadata.
+- Project-root Cells remain usable immediately: sessions and terminal runtime fall back to the project root until you explicitly create a worktree attachment for branch-isolated filesystem work.
+- Binding or changing a branch on an existing project-root Cell updates metadata only; it does not implicitly create or adopt a worktree.
 - `Create Agent` means bounded child execution owned by a host run.
 - `Fork` is a specialized `Create Agent` strategy, not the baseline workspace or execution noun.
 - `Commander` is one bounded operator capability; in Session Map, `Ops` is the evidence rail and `Briefing` is the reveal panel in the same station.
@@ -28,7 +30,7 @@
 - The custom title bar keeps one left-aligned repository/home summary rail between the window switcher and the project action, so window controls, current window identity, and `Open/Switch Project` remain visually distinct.
 - Settings provides a context-first dashboard with workspace summary, runtime/system status, recent projects, and entry cards for core runtime/configuration capabilities such as Actions, Harness Providers, App Shortcuts, Reply Quick Prompts, and Softlinks.
 - The docked sidebar supports resize/collapse and persists width state across launches; collapse/expand is owned by the shell-level Activity Bar control rather than per-surface edge handles.
-- Agent Cells focuses on tracked workspaces, detached Cells, unmanaged worktrees, and jump links to core configuration.
+- Agent Cells focuses on tracked Cells, detached Cells, unmanaged worktrees, and jump links to core configuration.
 - Agent Cells sidebar now includes an Explorer panel (Cell/Session scope + Flat/Tree views) for quick file open/reveal navigation.
 - Hierarchy hosts capability-first configuration for Actions, App Shortcuts, Reply Quick Prompts, Session Naming, Harness Providers, and Softlinks.
 - Scoped capability pages use a persistent page-level scope selector (Global / Project / Agent) so Project scope remains editable even when no Cell is selected while Agent scope stays tied to the selected Cell.
@@ -171,14 +173,14 @@
 - `Unread` is reserved for meaningful post-visit output; transient blur, attach replay, or silent refresh noise should not flip a session into `Unread` immediately.
 - Agent Cells keeps attention inline on Cell and Session affordances instead of inserting a separate attention queue above the management list.
 - Agent Cells routes the default workspace view through:
-  - `Tracked Workspaces`
-  - `Branch-only Cells`
+  - `Tracked Cells`
   - `Detached Cells`
   - `Unmanaged Worktrees`
-- `Branch-only Cells` are tracked Cells bound to an existing branch without a live worktree yet. They expose explicit `Create Worktree Attachment` actions and do not pretend the missing worktree is a failure state.
-- Branch-only Cells still support session-first runtime. The explicit attachment action is for materializing a branch-isolated workspace, not for unlocking basic terminal work.
+- `Tracked Cells` cover both live attached workspaces and project-root Cells that have not materialized a worktree. Both keep the same primary session-tree grammar; attachment state is visible through compact badges and explicit branch/attachment actions instead of a second-class rail.
+- `Project-root Cells` may be unbound or branch-bound. They still support session-first runtime. The explicit attachment action is for materializing a branch-isolated workspace, not for unlocking basic terminal work.
+- The Agent Cells Explorer surface follows the selected Cell runtime root. For attached Cells it scopes to the live worktree; for project-root Cells it scopes to the project root instead of degrading into a dead affordance.
 - `Detached Cells` are attachment-management records: their cards keep session counts visible, allow `View Details`, and detached detail view offers `Archive Cell`, `Clear Attachment`, and `Delete Cell` instead of falling back to a generic empty terminal state.
-- `Unmanaged Worktrees` prioritize deterministic `Bind/Reattach <Cell>` suggestions over creating duplicate Cells.
+- `Unmanaged Worktrees` prioritize deterministic `Bind/Reattach <Cell>` suggestions over creating duplicate Cells. Suggestions that target a project-root Cell keep branch-binding wording instead of pretending the flow is a detached-worktree recovery.
 - An unmanaged worktree in detached HEAD state is shown explicitly as `Detached HEAD` and does not surface `Create Cell` as an active action until it is attached to a branch.
 - A tracked Cell whose live attachment is on detached HEAD keeps the attachment but surfaces `Detached HEAD` metadata instead of reviving stale branch text from the stored Cell record.
 - `Legacy Archived` remains a compatibility surface for older records, not the default core workspace rail.

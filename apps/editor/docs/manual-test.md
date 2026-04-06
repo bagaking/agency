@@ -19,12 +19,16 @@
 - [ ] Reuse an existing worktree and confirm a repo-owned Cell record is created under `.agency/cells/<cell-id>/cell.yaml`.
 - [ ] Open Agent Cells in a repo that already has an unmanaged live worktree and confirm it appears under `Unmanaged Worktrees` instead of being auto-converted into a tracked Cell.
 - [ ] From `Unmanaged Worktrees`, choose `Create Cell` and confirm the worktree becomes a tracked workspace without renaming its branch.
-- [ ] In `Bind Existing Branch`, choose a branch with no live worktree and confirm Agency creates a `Branch-only Cell` instead of implicitly creating `.worktrees/<name>`.
+- [ ] In `Create Cell`, leave branch/worktree unbound and confirm Agency creates a selectable `Project-root Cell` with no live worktree attachment.
+- [ ] In `Bind Existing Branch`, choose a branch with no live worktree and confirm Agency creates a new `Project-root Cell` instead of implicitly creating `.worktrees/<name>`.
 - [ ] In `Bind Existing Branch`, choose a branch whose live workspace is already attached at repo root (for example `main`) and confirm Agency binds that live workspace instead of creating a duplicate worktree.
-- [ ] Select a `Branch-only Cell`, click `Create Session`, and confirm the terminal/session starts successfully on the project root without requiring a worktree attachment first.
-- [ ] From a `Branch-only Cell`, use `Create Worktree Attachment` and confirm Agency materializes a worktree only at that explicit step.
+- [ ] Select a `Project-root Cell`, click `Create Session`, and confirm the terminal/session starts successfully on the project root without requiring a worktree attachment first.
+- [ ] Create a second session on the same `Project-root Cell` and confirm the Cell stays in the normal tracked section with both sessions visible in the same session tree grammar.
+- [ ] Open the Agent Cells Explorer panel for a `Project-root Cell` and confirm file status/search/navigation scope to the project root rather than requiring an attached worktree.
+- [ ] From a `Project-root Cell`, use `Bind Branch` and confirm Agency updates branch metadata without creating or adopting a worktree.
+- [ ] From a `Project-root Cell`, use `Create Worktree Attachment` and confirm Agency materializes a worktree only at that explicit step.
 - [ ] For an unmanaged worktree with a deterministic detached-cell suggestion, confirm the row offers `Reattach <Cell Name>` as the primary action and keeps `Create New Cell` secondary instead of forcing duplicate Cell creation.
-- [ ] For an unmanaged worktree with a deterministic branch-only Cell suggestion, confirm the row offers `Bind <Cell Name>` rather than `Reattach`.
+- [ ] For an unmanaged worktree with a deterministic project-root Cell suggestion, confirm the row offers `Bind <Cell Name>` rather than `Reattach`.
 - [ ] For an unmanaged worktree in detached HEAD state, confirm the row labels that state explicitly, hides any active `Create Cell` CTA, and shows branch-required guidance instead.
 - [ ] Use `Ignore For Now` on an unmanaged worktree and confirm it leaves the visible unmanaged list; then use `Reset ignored` and confirm it becomes visible again.
 - [ ] Remove or detach a tracked Cell worktree, reopen Agent Cells, and confirm that Cell moves into `Detached Cells` rather than a lifecycle cleanup rail.
@@ -33,7 +37,7 @@
 - [ ] Open a legacy archived record and confirm it appears only under `Legacy Archived`, with low-emphasis compatibility treatment rather than re-taking ownership of the default workspace rail.
 - [ ] Restart with an attached Cell whose session registry is empty and confirm the window does not auto-create a `Default` session.
 - [ ] In the empty terminal state for such a Cell, click `Create Session` and confirm a session is created only at that explicit step.
-- [ ] Open `Create Cell` and confirm `Create Branch Worktree`, `Track Existing Worktree`, and `Bind Existing Branch` are separate modes.
+- [ ] Open `Create Cell` and confirm `Create Project-root Cell`, `Create Branch Worktree`, `Track Existing Worktree`, and `Bind Existing Branch` are separate modes.
 - [ ] In `Create New Branch`, choose `main` as the base branch even when the current/default startup branch differs, create a Cell, and confirm the new branch is based on `main`.
 - [ ] In `Bind Existing Branch`, select a user-created branch that does not follow the Agency naming prefix rules and confirm the Cell binds to that branch without renaming it.
 

@@ -59,21 +59,36 @@ Binding an existing branch SHALL NOT implicitly create a new worktree unless the
 - **THEN** the editor creates a repo-owned Cell record for that worktree
 - **AND** preserves the existing branch and path identity of the worktree
 
+#### Scenario: Create project-root Cell
+- **WHEN** a user creates a new Cell without binding a branch or worktree yet
+- **THEN** the editor creates a durable Cell record that runs on the project root
+- **AND** no branch or worktree is materialized implicitly
+
+#### Scenario: Create another project-root Cell without silently reusing the prior one
+- **WHEN** a user creates a new project-root Cell while another project-root Cell already exists
+- **THEN** the editor creates a distinct Cell record instead of silently reusing the older one
+- **AND** any branch binding remains optional metadata rather than a uniqueness key for project-root Cells
+
 #### Scenario: Bind existing branch
 - **WHEN** a user selects an existing branch for a new Cell
-- **THEN** the editor creates or reuses the durable Cell record without renaming the existing branch
+- **THEN** the editor creates a durable Cell record without renaming the existing branch
 - **AND** if the branch already has a live worktree, the editor binds that live workspace instead of creating a duplicate one
-- **AND** otherwise the editor creates a branch-only Cell and leaves worktree materialization explicit
+- **AND** otherwise the editor creates a project-root Cell and leaves worktree materialization explicit
 
-#### Scenario: Create explicit attachment for branch-only Cell
-- **WHEN** a user explicitly chooses `Create Worktree Attachment` for a branch-only Cell
+#### Scenario: Bind branch metadata on an existing project-root Cell
+- **WHEN** a user explicitly binds an existing branch onto a project-root Cell
+- **THEN** the editor updates that Cell's branch metadata without creating or adopting a worktree
+- **AND** session runtime remains on the project root until the user separately chooses `Create Worktree Attachment`
+
+#### Scenario: Create explicit attachment for project-root Cell
+- **WHEN** a user explicitly chooses `Create Worktree Attachment` for a project-root Cell
 - **THEN** the editor creates or binds a live worktree attachment for that Cell
 - **AND** the worktree is materialized only because the user chose the explicit attachment action
 
-#### Scenario: Branch-only Cell remains session-runnable
-- **WHEN** a user starts a session on a branch-only Cell before any worktree attachment exists
+#### Scenario: Project-root Cell remains session-runnable
+- **WHEN** a user starts a session on a project-root Cell before any worktree attachment exists
 - **THEN** the editor starts that session on the project root runtime
-- **AND** the Cell remains branch-only until the user explicitly creates a worktree attachment
+- **AND** the Cell remains project-root until the user explicitly creates a worktree attachment
 
 ### Requirement: Hierarchy Configuration Navigation
 The editor SHALL provide a Hierarchy entry in the activity bar for configuration of Actions, App Shortcuts, Reply Quick Prompts, Session Naming, Harness Providers, and Softlinks.
@@ -176,8 +191,8 @@ The editor SHALL persist ignored unmanaged-worktree state in a user-local per-re
 - **THEN** the editor reattaches that Cell to the selected worktree
 - **AND** preserves the Cell's existing sessions, replies, runs, and agent-scoped configuration
 
-#### Scenario: Bind unmanaged worktree to an existing branch-only Cell
-- **WHEN** a user selects an unmanaged worktree and chooses to bind it to a branch-only tracked Cell
+#### Scenario: Bind unmanaged worktree to an existing project-root Cell
+- **WHEN** a user selects an unmanaged worktree and chooses to bind it to a project-root tracked Cell
 - **THEN** the editor binds that Cell to the selected live worktree without switching to detached-reattach wording
 - **AND** preserves the Cell's existing identity and branch metadata
 
@@ -200,8 +215,7 @@ The editor SHALL persist ignored unmanaged-worktree state in a user-local per-re
 
 ### Requirement: Detached Cell And Unmanaged Worktree Management
 The editor SHALL provide compact management surfaces for:
-- tracked Cells with live worktree attachments
-- tracked Cells that are branch-only
+- tracked Cells with live worktree attachments or project-root runtime
 - tracked Cells whose attachments are detached or missing
 - live unmanaged worktrees
 
@@ -268,7 +282,7 @@ Optional workflow suites MAY add explicit spec validation when installed and ena
 ### Requirement: Detached Cell Cleanup And Archived Lifecycle Surfaces
 **Reason**: The base product no longer frames detached/missing tracked Cells through lifecycle cleanup/archive states.
 **Migration**: Replace lifecycle cleanup/archive surfaces with attachment/tracking management surfaces for detached Cells and unmanaged worktrees.
-#### Scenario: Branch-only tracked Cell remains distinct from detached cleanup
-- **WHEN** the Agent Cells surface contains a tracked Cell with branch identity but no live worktree attachment
-- **THEN** the editor surfaces that Cell in a dedicated branch-only section
-- **AND** the section keeps session-first runtime available while also offering explicit attachment creation
+#### Scenario: Project-root tracked Cell remains distinct from detached cleanup
+- **WHEN** the Agent Cells surface contains a tracked Cell with project-root runtime but no live worktree attachment
+- **THEN** the editor keeps that Cell in the main tracked section instead of detached cleanup
+- **AND** the section keeps session-first runtime available while also offering explicit branch-binding and attachment creation

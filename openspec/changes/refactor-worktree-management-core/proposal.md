@@ -24,8 +24,9 @@ We need to simplify the core:
 - Reframe the core workspace model as worktree-first:
   - live worktrees may exist without a Cell;
   - unmanaged worktrees are surfaced explicitly and can be adopted with quick `Create Cell` / `Bind Cell` actions.
-- Add an explicit `branch-only Cell` state for existing-branch binds that have no live worktree yet, so binding and worktree materialization stop being conflated.
-- Keep `branch-only Cell` session-first: session runtime falls back to the project root until the user explicitly materializes a worktree attachment.
+- Add an explicit `project-root Cell` runtime state for Cells that do not yet have a live worktree attachment, so session runtime can remain first-class without forcing branch/worktree materialization.
+- Keep `project-root Cell` session-first: session runtime falls back to the project root until the user explicitly materializes a worktree attachment.
+- Allow branch metadata to remain optional on `project-root Cells`, and make branch binding on an existing `project-root Cell` a metadata-only action instead of a hidden worktree operation.
 - Simplify the core Cell record:
   - keep repo-owned identity, attachment metadata, timestamps, avatar, and Cell-owned session/config anchors;
   - remove the default `draft / active / archived` lifecycle state machine from the core Cell contract.

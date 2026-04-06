@@ -41,7 +41,8 @@ Agency Editor 是面向 agentic 并行开发的上下文管理桌面应用，核
 - The unified local control bus is the canonical external automation surface; it dispatches to capability owners such as Window Shell, File Intent, Session Runtime, and Main Agent Harness instead of replacing them.
 - Cell 是 repo-owned durable object；branch/worktree 是它可选的 binding/attachment，而不是共享生命周期的对象。
 - 绑定现存 branch/worktree 的流程不得隐式创建新 worktree；只有显式 `Create Branch Worktree` 或 `Create Worktree Attachment` 才能 materialize 新 worktree。
-- branch-only Cell 仍然是 session-first 的一等对象：在未 materialize worktree 时，session runtime 默认落在 project root；创建 worktree attachment 是隔离/显式 workspace 的增强动作。
+- project-root Cell 仍然是 session-first 的一等对象：它可以无 branch、无 worktree 而先存在；在未 materialize worktree 时，session runtime 默认落在 project root；创建 worktree attachment 是隔离/显式 workspace 的增强动作。
+- 绑定或修改 existing branch 到 project-root Cell 只是 metadata 更新，不应隐式创建或接管 worktree。
 - `.agency` 目录是本地状态与配置的权威来源（YAML/Markdown 为主）。
 - Gates / Actions / Softlinks 均遵守 Global -> Project -> Agent 解析顺序。
 - 终端会话以 tmux 为依赖，Session Registry 持久化存储。

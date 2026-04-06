@@ -127,8 +127,8 @@ If step 3 is reached:
 
 The default worktree-management sections should be driven by attachment/tracking status:
 
-1. `Tracked Workspaces`
-- Cells with live attached worktrees.
+1. `Tracked Cells`
+- Cells with live attached worktrees or project-root runtime.
 
 2. `Detached Or Missing Cells`
 - repo-owned Cell records whose last known worktree is missing or intentionally detached;
@@ -197,8 +197,8 @@ A safer rollout is:
 
 Agent Cells becomes the default workspace management surface with three explicit sections:
 
-1. `Tracked Workspaces`
-- normal Cells with live worktrees and session trees.
+1. `Tracked Cells`
+- normal Cells with either live worktrees or project-root runtime and session trees.
 
 2. `Detached Cells`
 - Cells with missing or detached attachments;
@@ -219,15 +219,19 @@ Agent Cells becomes the default workspace management surface with three explicit
 
 ### Create Cell / Add Worktree Modal
 
-The creation flow should remain one bounded modal or command family, but its grammar becomes explicitly worktree-first:
+The creation flow should remain one bounded modal or command family, but its grammar becomes explicitly workspace-first:
+- create project-root Cell;
 - create new branch + worktree;
 - track existing worktree;
 - bind existing branch;
+- bind an existing branch onto an existing project-root Cell;
 - reattach detached Cell to a discovered worktree.
 
-`Bind Existing Branch` is not a hidden `create worktree` shortcut. It first analyzes whether the branch already has a live workspace, including the repo-root primary worktree. If yes, the flow binds that existing workspace. If no, the flow creates a branch-only Cell. Any later worktree materialization must happen through an explicit `Create Worktree Attachment` action.
+`Bind Existing Branch` is not a hidden `create worktree` shortcut. It first analyzes whether the branch already has a live workspace, including the repo-root primary worktree. If yes, the flow binds that existing workspace. If no, the flow creates a project-root Cell. Any later worktree materialization must happen through an explicit `Create Worktree Attachment` action.
 
-Branch-only does not mean runtime-disabled. The core product remains session-first: until a worktree attachment exists, session runtime falls back to the project root while preserving the Cell's bound branch identity as metadata. `Create Worktree Attachment` upgrades that Cell into a branch-isolated filesystem workspace; it does not unlock basic session existence.
+Project-root does not mean runtime-disabled. The core product remains session-first: until a worktree attachment exists, session runtime falls back to the project root while preserving branch identity only as optional metadata. `Bind Branch` on an existing project-root Cell updates metadata without creating or adopting a worktree. `Create Worktree Attachment` upgrades that Cell into a branch-isolated filesystem workspace; it does not unlock basic session existence.
+
+Creating a new project-root Cell must stay explicit as well: the product must not silently reuse an older project-root Cell just because a suggested branch or display name matches. Project-root Cells are durable work contexts, not a unique cache keyed by branch.
 
 The modal must avoid suggesting that the user is starting a workflow template or lifecycle journey.
 
@@ -255,7 +259,7 @@ If a future workflow suite is enabled, it can register additional entries such a
 - add user-local ignored-unmanaged-worktree persistence.
 
 ### Phase 3: Renderer surface shift
-- replace lifecycle-first cleanup/archive sections with tracked/branch-only/detached/unmanaged sections;
+- replace lifecycle-first cleanup/archive sections with tracked/detached/unmanaged sections, with project-root Cells living in the same tracked rail as attached Cells;
 - remove lifecycle-stepper primary UI from Agent Cells;
 - tighten Create Cell copy around worktree management.
 
