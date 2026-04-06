@@ -104,6 +104,8 @@ export function buildSessionMapModel({
     sessions: 0,
     online: 0,
     offline: 0,
+    visibleCells: 0,
+    ghostCells: 0,
   };
   const typeIndexByKey = new Map();
 
@@ -146,15 +148,29 @@ export function buildSessionMapModel({
           : '',
       };
     });
+    const activeSessions = sessions.filter((session) => !session.isOffline);
+    const isGhost = isCellOffline(cell) || activeSessions.length === 0;
+    if (isGhost) {
+      stats.ghostCells += 1;
+    } else {
+      stats.visibleCells += 1;
+    }
+
     return {
       cell,
       typeKey,
       typeLabel: resolveDisplayLabel(cell?.state),
       color,
       isOffline: isCellOffline(cell),
+      isGhost,
       sessions,
+      activeSessions,
     };
   });
 
-  return { clusters, stats };
+  return {
+    clusters: clusters.filter((cluster) => !cluster.isGhost),
+    ghostClusters: clusters.filter((cluster) => cluster.isGhost),
+    stats,
+  };
 }

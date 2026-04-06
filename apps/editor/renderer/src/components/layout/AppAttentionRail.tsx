@@ -86,13 +86,14 @@ export function AppAttentionRail({
 
   return (
     <aside
+      data-shell-attention-rail
       className={`relative flex h-full shrink-0 flex-col border-l border-border/20 bg-[linear-gradient(180deg,rgba(18,23,31,0.98),rgba(10,13,19,0.98))] backdrop-blur-2xl transition-[width] duration-300 ${
-        open ? 'w-[320px]' : 'w-11'
+        open ? 'w-[336px]' : 'w-12'
       }`}
       data-attention-rail={open ? 'open' : 'closed'}
     >
       {!open ? (
-        <div className="flex h-full flex-col items-center gap-2 px-1.5 py-2">
+        <div className="flex h-full flex-col items-center gap-2.5 px-1.5 py-2.5">
           <button
             type="button"
             onClick={() => {
@@ -100,7 +101,7 @@ export function AppAttentionRail({
               setOpen(true);
             }}
             aria-label="Open attention queue"
-            className={`relative flex h-8 w-8 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] text-white/72 transition-colors hover:bg-white/[0.08] hover:text-white ${focusRingClass}`}
+            className={`relative flex h-9 w-9 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-white/72 transition-colors hover:bg-white/[0.08] hover:text-white ${focusRingClass}`}
           >
             <BellDot size={14} />
             {queueCount ? (
@@ -120,12 +121,12 @@ export function AppAttentionRail({
             }}
             aria-label="Open commander briefing"
             title={commanderDirective}
-            className={`flex h-8 w-8 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] text-white/72 transition-colors hover:bg-white/[0.08] hover:text-white ${focusRingClass}`}
+            className={`flex h-9 w-9 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-white/72 transition-colors hover:bg-white/[0.08] hover:text-white ${focusRingClass}`}
           >
             <SessionMapCommanderAvatar
               busy={Boolean(activeCommanderRun)}
-              size={16}
-              ringSize={20}
+              size={18}
+              ringSize={24}
             />
           </button>
           {replyEnabled ? (
@@ -137,7 +138,7 @@ export function AppAttentionRail({
                 onToggleReply?.(!replyOpen);
               }}
               aria-label={replyOpen ? 'Collapse session reply relay' : 'Expand session reply relay'}
-              className={`mt-auto flex h-8 w-8 items-center justify-center rounded-full border border-white/[0.08] transition-colors ${focusRingClass} ${
+              className={`mt-auto flex h-9 w-9 items-center justify-center rounded-2xl border border-white/[0.08] transition-colors ${focusRingClass} ${
                 replyOpen
                   ? 'bg-cyan-400/14 text-cyan-100'
                   : 'bg-white/[0.04] text-white/72 hover:bg-white/[0.08] hover:text-white'
@@ -149,7 +150,7 @@ export function AppAttentionRail({
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex items-center gap-2 border-b border-white/[0.06] px-2 py-2">
+          <div className="flex items-center gap-2 border-b border-white/[0.06] px-3 py-3">
             <button
               type="button"
               onClick={() => {
@@ -157,14 +158,14 @@ export function AppAttentionRail({
                 setOpen(false);
               }}
               aria-label="Collapse attention rail"
-              className={`flex h-6 w-6 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white ${focusRingClass}`}
+              className={`flex h-7 w-7 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white ${focusRingClass}`}
             >
               <ChevronRight size={12} />
             </button>
             <button
               type="button"
               onClick={() => setMode('attention')}
-              className={`rounded-full px-2 py-1 text-[8px] font-semibold uppercase tracking-[0.14em] transition-colors ${focusRingClass} ${
+              className={`rounded-full px-2.5 py-1.5 text-[8px] font-semibold uppercase tracking-[0.14em] transition-colors ${focusRingClass} ${
                 mode === 'attention'
                   ? 'bg-cyan-400/14 text-cyan-100'
                   : 'text-white/44 hover:bg-white/[0.06] hover:text-white/72'
@@ -181,7 +182,7 @@ export function AppAttentionRail({
                 setMode('briefing');
               }}
               title={commanderDirective}
-              className={`ml-auto inline-flex items-center gap-2 rounded-full px-2 py-1 text-[8px] font-semibold uppercase tracking-[0.14em] transition-colors ${focusRingClass} ${
+              className={`ml-auto inline-flex items-center gap-2.5 rounded-full px-2.5 py-1.5 text-[8px] font-semibold uppercase tracking-[0.14em] transition-colors ${focusRingClass} ${
                 mode === 'briefing'
                   ? 'bg-cyan-400/14 text-cyan-100'
                   : 'text-white/44 hover:bg-white/[0.06] hover:text-white/72'
@@ -189,8 +190,8 @@ export function AppAttentionRail({
             >
               <SessionMapCommanderAvatar
                 busy={Boolean(activeCommanderRun)}
-                size={16}
-                ringSize={20}
+                size={18}
+                ringSize={24}
               />
               <span>{commanderProvider}</span>
             </button>

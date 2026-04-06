@@ -69,21 +69,21 @@ function CommanderTurnCard({
 
   return (
     <div
-      className={`rounded-2xl border px-3 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] ${resolvedTone.border} ${resolvedTone.bg}`}
+      className={`rounded-2xl border px-3.5 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] ${resolvedTone.border} ${resolvedTone.bg}`}
     >
       {label ? (
-        <div className="text-[7px] font-bold uppercase tracking-[0.14em] text-white/34">
+        <div className="text-[7px] font-bold uppercase tracking-[0.16em] text-white/34">
           {label}
         </div>
       ) : null}
-      <div className={`mt-1 text-[7px] font-bold uppercase tracking-[0.14em] ${resolvedTone.label}`}>
+      <div className={`mt-1 text-[7px] font-bold uppercase tracking-[0.16em] ${resolvedTone.label}`}>
         {title}
       </div>
-      <div className="mt-1 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-white/84">
+      <div className="mt-2 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-white/86">
         {body}
       </div>
       {Array.isArray(actions) && actions.length ? (
-        <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="mt-3 flex flex-wrap gap-1.5">
           {actions.map((action: CommanderAction) => {
             const isPending = pendingActionId === action.id;
             return (
@@ -234,14 +234,14 @@ export function SessionMapCommanderBriefing({
       id="session-map-commander-briefing"
       role="region"
       aria-labelledby="session-map-commander-briefing-title"
-      className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cyan-300/12 bg-[linear-gradient(180deg,rgba(14,20,29,0.992),rgba(7,10,16,0.99))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03),0_16px_36px_rgba(0,0,0,0.28)]"
+      className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-[26px] border border-cyan-300/12 bg-[linear-gradient(180deg,rgba(14,20,29,0.992),rgba(7,10,16,0.99))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03),0_16px_36px_rgba(0,0,0,0.28)]"
     >
       <div className="flex items-start justify-between gap-3 border-b border-white/6 px-4 py-4">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-3">
           <SessionMapCommanderAvatar
             busy={Boolean(activeCommanderRun)}
-            size={30}
-            ringSize={36}
+            size={32}
+            ringSize={40}
             className="shrink-0"
           />
           <div className="min-w-0">
@@ -293,95 +293,84 @@ export function SessionMapCommanderBriefing({
       </div>
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 pr-3">
-        <div className="rounded-2xl border border-white/8 bg-[linear-gradient(180deg,rgba(16,22,31,0.96),rgba(8,11,17,0.98))] px-3.5 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
-          <div className="flex items-start gap-3">
-            <SessionMapCommanderAvatar
-              busy={Boolean(activeCommanderRun)}
-              size={34}
-              ringSize={40}
-              className="mt-1 shrink-0"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="text-[7px] font-bold uppercase tracking-[0.14em] text-white/34">
-                Current Briefing
-              </div>
-              <div className="mt-2">
-                <CommanderTurnCard
-                  title={briefing.title}
-                  body={briefing.body}
-                  tone={briefing.tone}
-                  actions={briefing.actions}
-                  pendingActionId={pendingActionId}
-                  onAction={handleAction}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        <CommanderTurnCard
+          label="Current Briefing"
+          title={briefing.title}
+          body={briefing.body}
+          tone={briefing.tone}
+          actions={briefing.actions}
+          pendingActionId={pendingActionId}
+          onAction={handleAction}
+        />
 
         {latestResponse ? (
-          <div className="pl-10">
-            <CommanderTurnCard
-              label={latestPrompt ? `Latest Response · ${latestPrompt}` : 'Latest Response'}
-              title={latestResponse.title}
-              body={latestResponse.body}
-              tone={latestResponse.tone}
-              actions={latestResponse.actions}
-              pendingActionId={pendingActionId}
-              onAction={handleAction}
-            />
-          </div>
+          <CommanderTurnCard
+            label={latestPrompt ? `Latest Response · ${latestPrompt}` : 'Latest Response'}
+            title={latestResponse.title}
+            body={latestResponse.body}
+            tone={latestResponse.tone}
+            actions={latestResponse.actions}
+            pendingActionId={pendingActionId}
+            onAction={handleAction}
+          />
         ) : (
-          <div className="rounded-2xl border border-dashed border-white/8 bg-white/[0.03] px-3.5 py-3 text-[8px] uppercase tracking-[0.14em] text-white/28">
+          <div className="rounded-2xl border border-dashed border-white/8 bg-white/[0.03] px-3.5 py-3 text-[8px] uppercase tracking-[0.14em] text-white/32">
             Use a quick prompt or ask one focused question. This briefing stays bound to the current session and run context instead of accumulating chat history.
           </div>
         )}
       </div>
 
       <div className="border-t border-white/6 px-4 py-4">
-        <div className="mb-2.5 flex flex-wrap gap-1.5">
+        <div className="mb-3 flex flex-wrap gap-1.5">
           {quickPrompts.map((prompt) => (
             <button
               key={prompt.id}
               type="button"
               onClick={() => handleSubmitPrompt(prompt.prompt)}
-              className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[7px] font-bold uppercase tracking-[0.12em] text-white/62 transition-colors hover:border-cyan-300/25 hover:bg-cyan-500/[0.08] hover:text-cyan-100"
+              className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[7px] font-bold uppercase tracking-[0.12em] text-white/66 transition-colors hover:border-cyan-300/25 hover:bg-cyan-500/[0.08] hover:text-cyan-100"
             >
               {prompt.label}
             </button>
           ))}
         </div>
-        <div className="flex items-end gap-2">
-          <div className="relative flex-1">
-            <MessageSquareText size={12} className="pointer-events-none absolute left-2.5 top-2.5 text-white/24" />
-            <textarea
-              ref={inputRef}
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              aria-label="Ask commander about current session or run"
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                  event.preventDefault();
-                  handleSubmitPrompt(draft);
-                }
-              }}
-              rows={2}
-              placeholder="Ask the commander about the current session or run"
-              className="w-full resize-none rounded-2xl border border-white/10 bg-black/28 py-2 pl-7 pr-3 text-[12px] leading-relaxed text-white/86 outline-none transition-colors placeholder:text-white/24 focus:border-cyan-300/28 focus:bg-black/34"
-            />
+        <div className="rounded-[22px] border border-white/8 bg-black/20 px-3 py-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)]">
+          <div className="mb-2 flex items-center gap-2 text-[7px] font-bold uppercase tracking-[0.14em] text-white/34">
+            <MessageSquareText size={10} />
+            Ask About Current Context
           </div>
-          <button
-            type="button"
-            onClick={() => handleSubmitPrompt(draft)}
-            disabled={!draft.trim()}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-300/18 bg-cyan-500/[0.12] text-cyan-100 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] transition-colors hover:bg-cyan-500/[0.18] disabled:cursor-not-allowed disabled:opacity-45"
-            aria-label="Send commander prompt"
-          >
-            <Send size={13} />
-          </button>
-        </div>
-        <div className="mt-2 text-[7px] uppercase tracking-[0.12em] text-white/30">
-          Rebinding to a different session or run resets prior replies so the briefing stays scoped to current Session Map evidence.
+          <div className="flex items-end gap-2">
+            <div className="relative flex-1">
+              <MessageSquareText size={12} className="pointer-events-none absolute left-2.5 top-2.5 text-white/24" />
+              <textarea
+                ref={inputRef}
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                aria-label="Ask commander about current session or run"
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    handleSubmitPrompt(draft);
+                  }
+                }}
+                rows={2}
+                placeholder="Ask the commander about the current session or run"
+                className="w-full resize-none rounded-2xl border border-white/10 bg-black/28 py-2 pl-7 pr-3 text-[12px] leading-relaxed text-white/86 outline-none transition-colors placeholder:text-white/24 focus:border-cyan-300/28 focus:bg-black/34"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => handleSubmitPrompt(draft)}
+              disabled={!draft.trim()}
+              className="inline-flex h-10 min-w-[3rem] items-center justify-center gap-1 rounded-2xl border border-cyan-300/18 bg-cyan-500/[0.12] px-3 text-[8px] font-bold uppercase tracking-[0.12em] text-cyan-100 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] transition-colors hover:bg-cyan-500/[0.18] disabled:cursor-not-allowed disabled:opacity-45"
+              aria-label="Send commander prompt"
+            >
+              <Send size={12} />
+              Ask
+            </button>
+          </div>
+          <div className="mt-2 text-[7px] uppercase tracking-[0.12em] text-white/30">
+            Rebinding to a different session or run resets prior replies so the briefing stays scoped to current Session Map evidence.
+          </div>
         </div>
       </div>
     </div>

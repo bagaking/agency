@@ -5,6 +5,8 @@ import { resolveSessionAvatarId } from '../../utils/agentAvatar';
 import { TacticalFrame } from './SessionMapFrames';
 import { SessionMapOperationsRail } from './SessionMapOperationsRail';
 
+const radarGridAsset = new URL('../../assets/session-map-radar-grid.svg', import.meta.url).href;
+
 const CELL_CARD_MIN_WIDTH = 248;
 const CELL_CARD_MAX_WIDTH = 396;
 
@@ -133,7 +135,59 @@ export function SessionMapDockLayout({
   cellAttentionById,
   sessionAttentionByKey,
 }: any) {
-  const dockGridTemplateColumns = '92px minmax(0,1.58fr) minmax(400px,1.02fr)';
+  const dockGridTemplateColumns = '268px minmax(0,1.48fr) minmax(392px,0.98fr)';
+  const [intelPanelId, setIntelPanelId] = React.useState('hover-target');
+  const [hoveredIntelId, setHoveredIntelId] = React.useState('');
+  const hoveredRadarPoint = radarPoints.find((point: any) => point.id === hoveredCellId) || null;
+  const infoCards = [
+    {
+      id: 'focus-cell',
+      title: 'Cell',
+      value: focusData?.cell?.name || 'No focus',
+      detail: focusData?.cell?.id || 'No focused Cell selected',
+      panelTitle: 'Focused Cell',
+      panelBody: focusData?.cell?.id
+        ? `Current tactical focus is Cell ${focusData.cell.name || focusData.cell.id}. Use the command center to jump into one of its live session lanes.`
+        : 'No focused Cell is currently bound to the Session Interface.',
+    },
+    {
+      id: 'focus-session',
+      title: 'Session',
+      value: focusData?.session?.name || 'No focus',
+      detail: focusData?.session?.status || 'No focused session selected',
+      panelTitle: 'Focused Session',
+      panelBody: focusData?.session?.id
+        ? `Focused session ${focusData.session.name || focusData.session.id} is the active tactical lane for hover previews, Ops evidence, and Commander context.`
+        : 'No focused session is currently active in the tactical interface.',
+    },
+    {
+      id: 'hover-target',
+      title: 'Hover',
+      value: hoveredRadarPoint?.cell?.name || 'Radar idle',
+      detail: hoveredRadarPoint
+        ? hoveredRadarPoint.isGhost
+          ? `Ghost · ${hoveredRadarPoint.sessionCount} session${hoveredRadarPoint.sessionCount === 1 ? '' : 's'}`
+          : `Live · ${hoveredRadarPoint.activeSessionCount} online`
+        : 'Hover a sector for details',
+      panelTitle: hoveredRadarPoint?.isGhost ? 'Ghost Sector' : 'Hovered Sector',
+      panelBody: hoveredRadarPoint
+        ? hoveredRadarPoint.isGhost
+          ? `${hoveredRadarPoint.cell?.name || hoveredRadarPoint.id} is preserved only as radar residue. It stays out of the Cells command center while still exposing retained session evidence in radar intel.`
+          : `${hoveredRadarPoint.cell?.name || hoveredRadarPoint.id} is live in the command center with ${hoveredRadarPoint.activeSessionCount} active lane(s). Click the radar point to locate the cluster.`
+        : 'Hover any radar point to preview whether that sector is live or ghosted.',
+    },
+    {
+      id: 'ops',
+      title: 'Ops',
+      value: focusData?.session?.name || 'No evidence',
+      detail: focusedRunId ? `Focused run ${focusedRunId}` : 'Follow the focused session or evidence rail',
+      panelTitle: 'Ops Evidence',
+      panelBody: focusedRunId
+        ? `Ops is pinned to run ${focusedRunId}. Use the right station for evidence, failure review, and bounded follow-up actions.`
+        : 'Ops evidence follows the focused session when no specific run is pinned.',
+    },
+  ];
+  const activeIntelCard = infoCards.find((card) => card.id === (hoveredIntelId || intelPanelId)) || infoCards[0];
 
   return (
     <div
@@ -144,53 +198,104 @@ export function SessionMapDockLayout({
     >
       {/* Radar Section */}
       <div
-        className="group flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(14,20,28,0.9),rgba(8,12,17,0.94))] px-2.5 py-2 shadow-[inset_0_0_0_1px_rgba(125,211,252,0.05),0_8px_18px_rgba(0,0,0,0.18)] transition-colors hover:bg-[linear-gradient(180deg,rgba(18,25,34,0.94),rgba(8,12,17,0.96))]"
+        className="group flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[linear-gradient(180deg,rgba(14,20,28,0.9),rgba(8,12,17,0.94))] px-3 py-3 shadow-[inset_0_0_0_1px_rgba(125,211,252,0.05),0_8px_18px_rgba(0,0,0,0.18)] transition-colors hover:bg-[linear-gradient(180deg,rgba(18,25,34,0.94),rgba(8,12,17,0.96))]"
         onMouseLeave={() => setHoveredCellId(null)}
       >
         <div className="flex items-center justify-between font-mono text-[7px] font-bold uppercase tracking-[0.2em] text-cyan-100/54">
           <span>Radar</span>
         </div>
-        <div className="relative mt-1.5 aspect-square flex-1 overflow-hidden rounded-[22px] bg-[radial-gradient(circle_at_50%_45%,rgba(12,20,28,0.86),rgba(4,7,10,0.98))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04),inset_0_0_40px_rgba(34,211,238,0.06)]">
-          {/* Radar Grid */}
-          <div className="absolute inset-0 opacity-30" style={{
-            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px), repeating-radial-gradient(circle, transparent 0, transparent 20px, rgba(125,211,252,0.08) 20px, rgba(125,211,252,0.08) 21px)',
-            backgroundSize: '10px 10px, 100% 100%',
-          }} />
-          {/* Radar Sweep */}
-          <div className="absolute inset-0 animate-spin-slow opacity-[0.18]" style={{
-            background: 'conic-gradient(from 0deg, transparent 0%, rgba(56,189,248,0.28) 100%)',
-          }} />
-          {/* Radar Crosshair */}
-          <div className="absolute left-1/2 top-3 bottom-3 w-px -translate-x-1/2 bg-cyan-100/8" />
-          <div className="absolute left-3 right-3 top-1/2 h-px -translate-y-1/2 bg-cyan-100/8" />
+        <div className="mt-2 grid min-h-0 flex-1 grid-cols-[152px_minmax(0,1fr)] gap-3">
+          <div className="relative aspect-square overflow-hidden rounded-[24px] bg-[radial-gradient(circle_at_50%_45%,rgba(12,20,28,0.86),rgba(4,7,10,0.98))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04),inset_0_0_40px_rgba(34,211,238,0.06)]">
+            <img
+              src={radarGridAsset}
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-55"
+            />
+            <div
+              className="absolute inset-0 animate-spin-slow opacity-[0.18]"
+              style={{
+                background: 'conic-gradient(from 0deg, transparent 0%, rgba(56,189,248,0.28) 100%)',
+              }}
+            />
 
-          {radarPoints.map((point) => {
-            const isHovered = hoveredCellId === point.id;
-            return (
-              <button
-                key={point.id}
-                type="button"
-                className={`absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full transition-all duration-300 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
-                  isHovered ? 'z-20 scale-150' : 'z-10'
-                }`}
-                style={{
-                  left: `${point.x}%`,
-                  top: `${point.y}%`,
-                  backgroundColor: point.color,
-                  boxShadow: isHovered ? `0 0 8px ${point.color}` : `0 0 3px ${point.color}`,
-                  border: '1.5px solid rgba(255,255,255,0.18)',
-                }}
-                onMouseEnter={() => setHoveredCellId(point.id)}
-                onMouseLeave={() => setHoveredCellId(null)}
-                onClick={() => focusClusterCard(point.id)}
-                aria-label={`Locate ${point.id || 'cell'} in command center`}
-              />
-            );
-          })}
-        </div>
-        <div className="mt-1.5 flex justify-between font-mono text-[6px] font-bold uppercase text-cyan-100/28">
-          <span>Focus</span>
-          <span>Locate</span>
+            {radarPoints.map((point: any) => {
+              const isHovered = hoveredCellId === point.id;
+              const pointSize = point.isGhost ? 7 : 10;
+              return (
+                <button
+                  key={point.id}
+                  type="button"
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full transition-all duration-300 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
+                    isHovered ? 'z-20 scale-150' : 'z-10'
+                  }`}
+                  style={{
+                    left: `${point.x}%`,
+                    top: `${point.y}%`,
+                    width: `${pointSize}px`,
+                    height: `${pointSize}px`,
+                    backgroundColor: point.color,
+                    opacity: point.isGhost ? 0.4 : 1,
+                    boxShadow: isHovered ? `0 0 8px ${point.color}` : `0 0 3px ${point.color}`,
+                    border: point.isGhost ? '1px solid rgba(255,255,255,0.12)' : '1.5px solid rgba(255,255,255,0.18)',
+                  }}
+                  onMouseEnter={() => setHoveredCellId(point.id)}
+                  onMouseLeave={() => setHoveredCellId(null)}
+                  onClick={() => {
+                    if (!point.isGhost) {
+                      focusClusterCard(point.id);
+                    } else {
+                      setHoveredCellId(point.id);
+                    }
+                  }}
+                  aria-label={`Locate ${point.id || 'cell'} in command center`}
+                />
+              );
+            })}
+          </div>
+
+          <div className="flex min-h-0 flex-col gap-2">
+            <div className="grid grid-cols-2 gap-2">
+              {infoCards.map((card) => (
+                <button
+                  key={card.id}
+                  type="button"
+                  onMouseEnter={() => setHoveredIntelId(card.id)}
+                  onMouseLeave={() => setHoveredIntelId('')}
+                  onClick={() => {
+                    setIntelPanelId(card.id);
+                    if (card.id === 'hover-target' && hoveredRadarPoint && !hoveredRadarPoint.isGhost) {
+                      focusClusterCard(hoveredRadarPoint.id);
+                    }
+                  }}
+                  className={`flex aspect-square min-h-[68px] flex-col justify-between rounded-2xl border p-3 text-left transition-colors hover:border-cyan-300/20 hover:bg-cyan-500/[0.05] ${
+                    intelPanelId === card.id
+                      ? 'border-cyan-300/22 bg-cyan-500/[0.07]'
+                      : 'border-white/[0.08] bg-white/[0.035]'
+                  }`}
+                >
+                  <span className="text-[7px] font-bold uppercase tracking-[0.14em] text-cyan-100/54">
+                    {card.title}
+                  </span>
+                  <span className="line-clamp-2 text-[11px] font-semibold leading-snug text-white/88">
+                    {card.value}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-white/[0.08] bg-black/18 p-3">
+              <div className="text-[7px] font-bold uppercase tracking-[0.14em] text-white/34">
+                {activeIntelCard.panelTitle}
+              </div>
+              <div className="mt-2 text-[12px] font-semibold tracking-[0.01em] text-white/88">
+                {activeIntelCard.value}
+              </div>
+              <div className="mt-1 text-[10px] leading-5 text-white/56">
+                {activeIntelCard.panelBody}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -286,8 +391,8 @@ export function SessionMapDockLayout({
               );
             })
           ) : (
-            <div className="flex h-full items-center justify-center font-mono text-[10px] text-white/20 font-black tracking-[0.2em] py-24">
-              [ SCANNING_FOR_ACTIVE_SECTORS... ]
+            <div className="flex h-full items-center justify-center py-24 text-center font-mono text-[10px] font-black tracking-[0.18em] text-white/24">
+              {model.ghostClusters?.length ? '[ LIVE COMMAND CENTER CLEAR | RADAR GHOSTS RETAINED ]' : '[ SCANNING_FOR_ACTIVE_SECTORS... ]'}
             </div>
           )}
         </div>

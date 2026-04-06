@@ -11,13 +11,17 @@ export function SessionMapCommanderAvatar({
   ringSize,
   className = '',
 }: any) {
+  const resolvedRingSize = Number.isFinite(ringSize) ? ringSize : size + 6;
   return (
-    <div className={`relative inline-flex items-center justify-center ${className}`.trim()}>
+    <div
+      className={`relative inline-flex shrink-0 items-center justify-center ${className}`.trim()}
+      style={{ width: resolvedRingSize, height: resolvedRingSize }}
+    >
       <div className="absolute inset-0 rounded-full bg-cyan-500/18 blur-2xl" />
       <AgentAvatarBadge
         avatarId={COMMANDER_AVATAR_ID}
         size={size}
-        ringSize={ringSize}
+        ringSize={resolvedRingSize}
         showRing={false}
         className="relative rounded-full bg-black/55 p-1"
       />

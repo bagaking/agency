@@ -123,10 +123,14 @@ export function SessionMapOverlay({
   }, [hudTokens]);
 
   const radarPoints = useMemo(() => {
-    if (!model?.clusters?.length) {
+    const radarClusters = [
+      ...(Array.isArray(model?.clusters) ? model.clusters : []),
+      ...(Array.isArray(model?.ghostClusters) ? model.ghostClusters : []),
+    ];
+    if (!radarClusters.length) {
       return [];
     }
-    return model.clusters.map((cluster, index) => {
+    return radarClusters.map((cluster, index) => {
       const seed = hashSeed(cluster.cell?.id || cluster.cell?.name || index);
       const angle = (seed % 360) * (Math.PI / 180);
       const radius = 10 + (seed % 38);
@@ -137,6 +141,10 @@ export function SessionMapOverlay({
         x,
         y,
         color: cluster.color,
+        isGhost: Boolean(cluster.isGhost),
+        cell: cluster.cell,
+        sessionCount: Array.isArray(cluster.sessions) ? cluster.sessions.length : 0,
+        activeSessionCount: Array.isArray(cluster.activeSessions) ? cluster.activeSessions.length : 0,
       };
     });
   }, [model]);
@@ -653,7 +661,8 @@ export function SessionMapOverlay({
             <span className="font-bold text-emerald-300/90">ONLINE:{model.stats.online}</span>
             <span className="text-white/60">OFFLINE:{model.stats.offline}</span>
             <span className="text-white/20">|</span>
-            <span>CELLS:{model.stats.cells}</span>
+            <span>CELLS:{model.stats.visibleCells ?? model.stats.cells}</span>
+            <span className="text-white/44">GHOSTS:{model.stats.ghostCells ?? 0}</span>
             <span>SESSIONS:{model.stats.sessions}</span>
           </div>
           <div className="flex items-center gap-2">
