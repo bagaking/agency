@@ -197,7 +197,7 @@ test('AgentCellsSessionsPanel renders branch-only cells in a dedicated branch-on
 
   assert.match(html, /Branch-only Cells/);
   assert.match(html, /branch-only-cell-card-cell-branch/);
-  assert.match(html, /Create Attachment/);
+  assert.match(html, /Create Worktree Attachment/);
   assert.match(html, /mainline-review/);
   assert.match(html, />main</);
 });
@@ -324,6 +324,76 @@ test('deriveUnmanagedWorktreeDisplay uses Bind for branch-only cell suggestions'
 
   assert.equal(display.primaryAction, 'bind');
   assert.match(display.primaryLabel, /^Bind main$/);
+});
+
+test('branch-only unmanaged bind suggestions route to branch mode instead of worktree reattach mode', async () => {
+  const env = setupDom();
+  try {
+    const launches: any[] = [];
+    (window as any).agency = {
+      listUnmanagedWorktrees: async () => [
+        {
+          id: 'unmanaged-main',
+          path: '/repo',
+          branch: 'main',
+          head: 'abc1234',
+          hasBranch: true,
+          isDetachedHead: false,
+          ignored: false,
+          bindSuggestion: {
+            kind: 'unique_branch_match',
+            cellId: 'cell-main',
+            cellName: 'main',
+            cellAttachmentState: 'branch_only',
+          },
+        },
+      ],
+    };
+    const root = createRoot(document.getElementById('root')!);
+
+    await act(async () => {
+      root.render(
+        renderPanel({
+          projectRoot: '/repo',
+          onCreateCell: (payload: any) => launches.push(payload),
+        })
+      );
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const bindButton = Array.from(document.querySelectorAll('button')).find((button) =>
+      /Bind main/.test(button.textContent || '')
+    ) as HTMLButtonElement | undefined;
+    assert.ok(bindButton);
+
+    await act(async () => {
+      bindButton.click();
+    });
+
+    assert.deepEqual(launches, [
+      {
+        mode: 'branch',
+        existingBranch: 'main',
+        name: 'main',
+        initialBindTargetCell: {
+          id: 'cell-main',
+          name: 'main',
+          branch: 'main',
+        },
+      },
+    ]);
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    delete (window as any).agency;
+    env.cleanup();
+  }
 });
 
 test('Legacy archived toggle reveals compatibility cards while archived cells stay out of detached management', async () => {

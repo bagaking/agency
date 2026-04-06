@@ -171,6 +171,11 @@ The editor SHALL persist ignored unmanaged-worktree state in a user-local per-re
 - **THEN** the editor reattaches that Cell to the selected worktree
 - **AND** preserves the Cell's existing sessions, replies, runs, and agent-scoped configuration
 
+#### Scenario: Bind unmanaged worktree to an existing branch-only Cell
+- **WHEN** a user selects an unmanaged worktree and chooses to bind it to a branch-only tracked Cell
+- **THEN** the editor binds that Cell to the selected live worktree without switching to detached-reattach wording
+- **AND** preserves the Cell's existing identity and branch metadata
+
 #### Scenario: Automatic bind suggestion uses deterministic compatibility
 - **WHEN** the editor suggests a detached Cell for an unmanaged worktree
 - **THEN** it matches by exact last-known worktree path first

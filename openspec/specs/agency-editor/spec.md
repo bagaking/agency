@@ -256,6 +256,11 @@ Unmanaged worktrees in detached HEAD state SHALL not present `Create Cell` as an
 - **THEN** the unmanaged card presents `Reattach <Cell>` as the primary action
 - **AND** any `Create New Cell` action remains explicitly secondary
 
+#### Scenario: Deterministic unmanaged match prefers bind for branch-only Cells
+- **WHEN** an unmanaged worktree has a deterministic match to an existing branch-only Cell
+- **THEN** the unmanaged card presents `Bind <Cell>` as the primary action
+- **AND** the follow-on flow keeps branch-binding semantics instead of falling through a detached-worktree reattach flow
+
 #### Scenario: Detached HEAD worktree blocks premature Cell creation
 - **WHEN** an unmanaged worktree is in detached HEAD state
 - **THEN** the card labels that state explicitly

@@ -174,7 +174,7 @@
   - `Branch-only Cells`
   - `Detached Cells`
   - `Unmanaged Worktrees`
-- `Branch-only Cells` are tracked Cells bound to an existing branch without a live worktree yet. They expose explicit `Create Attachment` actions and do not pretend the missing worktree is a failure state.
+- `Branch-only Cells` are tracked Cells bound to an existing branch without a live worktree yet. They expose explicit `Create Worktree Attachment` actions and do not pretend the missing worktree is a failure state.
 - `Detached Cells` are attachment-management records: their cards keep session counts visible, allow `View Details`, and detached detail view offers `Archive Cell`, `Clear Attachment`, and `Delete Cell` instead of falling back to a generic empty terminal state.
 - `Unmanaged Worktrees` prioritize deterministic `Bind/Reattach <Cell>` suggestions over creating duplicate Cells.
 - An unmanaged worktree in detached HEAD state is shown explicitly as `Detached HEAD` and does not surface `Create Cell` as an active action until it is attached to a branch.

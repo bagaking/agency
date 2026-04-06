@@ -475,7 +475,7 @@ export function EditorPane({
                   title="Create a live worktree attachment for this branch-bound Cell"
                 >
                   <GitBranch size={12} />
-                  <span>Create Attachment</span>
+                  <span>Create Worktree Attachment</span>
                 </button>
               ) : null}
               {attachmentState !== 'branch_only' && onClearCellAttachment ? (
@@ -494,7 +494,7 @@ export function EditorPane({
                   type="button"
                   onClick={onDeleteCell}
                   className="flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-medium text-rose-200 transition-colors hover:bg-rose-500/10"
-                  title="Delete this detached Cell"
+                  title={attachmentState === 'branch_only' ? 'Delete this branch-only Cell' : 'Delete this detached Cell'}
                 >
                   <Trash2 size={12} />
                   <span>Delete Cell</span>

@@ -21,7 +21,7 @@
 - [ ] From `Unmanaged Worktrees`, choose `Create Cell` and confirm the worktree becomes a tracked workspace without renaming its branch.
 - [ ] In `Bind Existing Branch`, choose a branch with no live worktree and confirm Agency creates a `Branch-only Cell` instead of implicitly creating `.worktrees/<name>`.
 - [ ] In `Bind Existing Branch`, choose a branch whose live workspace is already attached at repo root (for example `main`) and confirm Agency binds that live workspace instead of creating a duplicate worktree.
-- [ ] From a `Branch-only Cell`, use `Create Attachment` and confirm Agency materializes a worktree only at that explicit step.
+- [ ] From a `Branch-only Cell`, use `Create Worktree Attachment` and confirm Agency materializes a worktree only at that explicit step.
 - [ ] For an unmanaged worktree with a deterministic detached-cell suggestion, confirm the row offers `Reattach <Cell Name>` as the primary action and keeps `Create New Cell` secondary instead of forcing duplicate Cell creation.
 - [ ] For an unmanaged worktree with a deterministic branch-only Cell suggestion, confirm the row offers `Bind <Cell Name>` rather than `Reattach`.
 - [ ] For an unmanaged worktree in detached HEAD state, confirm the row labels that state explicitly, hides any active `Create Cell` CTA, and shows branch-required guidance instead.

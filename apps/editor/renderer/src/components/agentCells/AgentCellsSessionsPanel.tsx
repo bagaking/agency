@@ -980,6 +980,23 @@ export function AgentCellsSessionsPanel({
       if (!normalizedPath || !suggestedCellId) {
         return;
       }
+      const suggestedAttachmentState = String(
+        worktree?.bindSuggestion?.cellAttachmentState || ''
+      ).trim().toLowerCase();
+      if (suggestedAttachmentState === 'branch_only') {
+        onCreateCell?.({
+          mode: 'branch',
+          existingBranch: worktree.branch,
+          name: worktree?.bindSuggestion?.cellName || deriveCellNameFromWorktree(worktree),
+          initialBindTargetCell:
+            cellsById.get(suggestedCellId) || {
+              id: suggestedCellId,
+              name: worktree?.bindSuggestion?.cellName || suggestedCellId,
+              branch: worktree.branch,
+            },
+        });
+        return;
+      }
       onCreateCell?.({
         mode: 'worktree',
         reusePath: normalizedPath,
@@ -1675,7 +1692,7 @@ export function AgentCellsSessionsPanel({
                                   onClick={() => handleCreateAttachmentForCell(cell)}
                                   className="rounded-lg bg-sky-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-50 transition-colors hover:bg-sky-500/30"
                                 >
-                                  Create Attachment
+                                  Create Worktree Attachment
                                 </button>
                                 <button
                                   type="button"
