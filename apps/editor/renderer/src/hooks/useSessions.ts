@@ -81,14 +81,21 @@ export function useSessions(options: any = {}) {
     return new Map(list.filter(Boolean).map((cell) => [cell.id, cell]));
   }, [cells]);
   const resolveCell = useCallback(
-    (cellId) => {
-      if (!cellId) {
-        return selectedCell || null;
+    (cellInput) => {
+      const objectInput =
+        cellInput && typeof cellInput === 'object' ? cellInput : null;
+      const normalizedCellId = String(
+        objectInput?.id || cellInput || selectedCell?.id || ''
+      ).trim();
+      if (!normalizedCellId) {
+        return objectInput || selectedCell || null;
       }
-      if (selectedCell?.id === cellId) {
-        return selectedCell;
-      }
-      return cellsById.get(cellId) || null;
+      return (
+        cellsById.get(normalizedCellId) ||
+        (selectedCell?.id === normalizedCellId ? selectedCell : null) ||
+        objectInput ||
+        null
+      );
     },
     [cellsById, selectedCell]
   );
@@ -159,29 +166,32 @@ export function useSessions(options: any = {}) {
 
   const loadSessionsForCell = useCallback(
     async (cell, { silent = false } = {}) => {
-      if (!cell || !isAgencyMethodAvailable('listSessions')) {
+      const targetCell = resolveCell(cell);
+      if (!targetCell || !isAgencyMethodAvailable('listSessions')) {
         return;
       }
-      if (!isProjectBackedCell(cell)) {
+      if (!isProjectBackedCell(targetCell)) {
         setSessionsByCellId((current) => {
-          if (!current[cell.id]?.length) {
+          if (!current[targetCell.id]?.length) {
             return current;
           }
           return {
             ...current,
-            [cell.id]: [],
+            [targetCell.id]: [],
           };
         });
         setActiveSessionByCellId((current) => {
-          if (!current[cell.id]) {
+          if (!current[targetCell.id]) {
             return current;
           }
           const next = { ...current };
-          delete next[cell.id];
+          delete next[targetCell.id];
           return next;
         });
         activeSessionByCellIdRef.current = Object.fromEntries(
-          Object.entries(activeSessionByCellIdRef.current).filter(([currentCellId]) => currentCellId !== cell.id)
+          Object.entries(activeSessionByCellIdRef.current).filter(
+            ([currentCellId]) => currentCellId !== targetCell.id
+          )
         );
         if (!silent) {
           setSessionError('');
@@ -189,7 +199,7 @@ export function useSessions(options: any = {}) {
         }
         return;
       }
-      const attachedWorktreePath = cell.attachedWorktreePath || '';
+      const attachedWorktreePath = targetCell.attachedWorktreePath || '';
       const selectionVersion = selectionVersionRef.current;
       if (!silent) {
         setSessionLoading(true);
@@ -198,26 +208,26 @@ export function useSessions(options: any = {}) {
       try {
         let nextSessions = await listSessionsBridge({
           worktreePath: attachedWorktreePath,
-          cellId: cell.id,
-          projectRoot: cell.projectRoot || cell.repoRoot || '',
+          cellId: targetCell.id,
+          projectRoot: targetCell.projectRoot || targetCell.repoRoot || '',
         });
         if (!Array.isArray(nextSessions)) {
           nextSessions = [];
         }
-        setSessionsByCellId((current) => ({ ...current, [cell.id]: nextSessions }));
+        setSessionsByCellId((current) => ({ ...current, [targetCell.id]: nextSessions }));
         mergeSessionActivityFromSessions({
-          cellId: cell.id,
+          cellId: targetCell.id,
           sessions: nextSessions,
         });
 
-        const preferred = activeSessionByCellIdRef.current[cell.id];
+        const preferred = activeSessionByCellIdRef.current[targetCell.id];
         const open = filterOpenSessions(nextSessions, preferred);
         const active = resolveActiveSession({ openSessions: open, preferredSessionId: preferred });
         if (selectionVersionRef.current !== selectionVersion) {
           if (isDevBuild) {
             console.debug('[SessionTrace] skip stale session load result', {
               source: 'loadSessionsForCell',
-              cellId: cell.id,
+              cellId: targetCell.id,
               preferredSessionId: preferred || '',
               resolvedSessionId: active?.id || '',
               selectionVersionAtRequest: selectionVersion,
@@ -229,7 +239,7 @@ export function useSessions(options: any = {}) {
         if (active?.id && active.id !== preferred) {
           const meta = {
             source: 'loadSessionsForCell-resolve',
-            cellId: cell.id,
+            cellId: targetCell.id,
             preferredSessionId: preferred || '',
             resolvedSessionId: active.id,
             selectedCellId: selectedCell?.id || '',
@@ -245,35 +255,35 @@ export function useSessions(options: any = {}) {
           }
           activeSessionByCellIdRef.current = {
             ...activeSessionByCellIdRef.current,
-            [cell.id]: active.id,
+            [targetCell.id]: active.id,
           };
         }
         setActiveSessionByCellId((current) => {
           const nextId = active?.id;
           if (!nextId) {
-            if (!current[cell.id]) {
+            if (!current[targetCell.id]) {
               return current;
             }
             const next = { ...current };
-            delete next[cell.id];
+            delete next[targetCell.id];
             return next;
           }
-          if (current[cell.id] === nextId) {
+          if (current[targetCell.id] === nextId) {
             return current;
           }
           return {
             ...current,
-            [cell.id]: nextId,
+            [targetCell.id]: nextId,
           };
         });
       } catch (error) {
         if (!silent) {
           setSessionError(error?.message || 'Failed to load sessions.');
         }
-        setSessionsByCellId((current) => ({ ...current, [cell.id]: [] }));
+        setSessionsByCellId((current) => ({ ...current, [targetCell.id]: [] }));
         setActiveSessionByCellId((current) => {
           const next = { ...current };
-          delete next[cell.id];
+          delete next[targetCell.id];
           return next;
         });
       } finally {
@@ -667,8 +677,7 @@ export function useSessions(options: any = {}) {
 
   const createSessionForCell = useCallback(
     async (cellInput, options: any = {}) => {
-      const targetCell =
-        cellInput && typeof cellInput === 'object' ? cellInput : resolveCell(cellInput);
+      const targetCell = resolveCell(cellInput);
       if (!targetCell || !isAgencyMethodAvailable('createSession')) {
         return null;
       }
@@ -712,6 +721,7 @@ export function useSessions(options: any = {}) {
           avatar: preferredAvatar,
           cellName: targetCell.name,
           cellBranch: targetCell.branch,
+          projectRoot: targetCell.projectRoot || targetCell.repoRoot || '',
           parentSessionId: parentSessionId || null,
           nodeKind: nodeKind || undefined,
           sourceSessionId: sourceSessionId || null,
@@ -755,27 +765,29 @@ export function useSessions(options: any = {}) {
 
   const createSession = useCallback(
     async (options = {}) => {
-      if (!selectedCell) {
+      const targetCell = resolveCell(selectedCell);
+      if (!targetCell) {
         return null;
       }
-      if (!selectedCell.attachedWorktreePath) {
+      if (!targetCell.attachedWorktreePath) {
         setSessionError('This Cell does not have an attached worktree. Reattach or create a new attachment before creating sessions.');
         return null;
       }
-      return createSessionForCell(selectedCell, options);
+      return createSessionForCell(targetCell.id, options);
     },
-    [createSessionForCell, selectedCell]
+    [createSessionForCell, resolveCell, selectedCell]
   );
 
   const refreshSessions = useCallback(() => {
-    if (selectedCell) {
-      loadSessionsForCell(selectedCell);
+    const targetCell = resolveCell(selectedCell);
+    if (targetCell) {
+      loadSessionsForCell(targetCell);
     }
-  }, [loadSessionsForCell, selectedCell]);
+  }, [loadSessionsForCell, resolveCell, selectedCell]);
 
   const closeSession = useCallback(
     async (sessionId, cellIdOverride) => {
-      const targetCell = resolveCell(cellIdOverride) || selectedCell;
+      const targetCell = resolveCell(cellIdOverride || selectedCell);
       if (!targetCell || !isAgencyMethodAvailable('closeSession')) {
         return;
       }
@@ -802,7 +814,7 @@ export function useSessions(options: any = {}) {
 
   const detachSession = useCallback(
     async (sessionId, cellIdOverride) => {
-      const targetCell = resolveCell(cellIdOverride) || selectedCell;
+      const targetCell = resolveCell(cellIdOverride || selectedCell);
       if (!targetCell || !isAgencyMethodAvailable('detachSession')) {
         return;
       }
@@ -829,7 +841,7 @@ export function useSessions(options: any = {}) {
 
   const renameSession = useCallback(
     async (sessionId, name, cellIdOverride) => {
-      const targetCell = resolveCell(cellIdOverride) || selectedCell;
+      const targetCell = resolveCell(cellIdOverride || selectedCell);
       if (!targetCell || !isAgencyMethodAvailable('renameSession')) {
         return;
       }
@@ -855,7 +867,7 @@ export function useSessions(options: any = {}) {
 
   const updateSessionAvatar = useCallback(
     async (sessionId, avatar, cellIdOverride) => {
-      const targetCell = resolveCell(cellIdOverride) || selectedCell;
+      const targetCell = resolveCell(cellIdOverride || selectedCell);
       if (!targetCell || !isAgencyMethodAvailable('updateSessionMeta')) {
         return;
       }
@@ -890,7 +902,7 @@ export function useSessions(options: any = {}) {
 
   const moveSessionNode = useCallback(
     async (sessionId, { parentSessionId = null, beforeSessionId = null } = {}, cellIdOverride) => {
-      const targetCell = resolveCell(cellIdOverride) || selectedCell;
+      const targetCell = resolveCell(cellIdOverride || selectedCell);
       if (!targetCell || !sessionId || !isAgencyMethodAvailable('moveSessionNode')) {
         return null;
       }
@@ -919,7 +931,7 @@ export function useSessions(options: any = {}) {
 
   const prepareSessionContinueOnMobile = useCallback(
     async (sessionId, cellIdOverride, mode = 'direct') => {
-      const targetCell = resolveCell(cellIdOverride) || selectedCell;
+      const targetCell = resolveCell(cellIdOverride || selectedCell);
       if (!targetCell || !isAgencyMethodAvailable('prepareSessionContinueOnMobile')) {
         return null;
       }
@@ -987,6 +999,7 @@ export function useSessions(options: any = {}) {
           const created = await createSessionBridge({
             cellId: targetCell.id,
             worktreePath: attachedWorktreePath,
+            projectRoot: targetCell.projectRoot || targetCell.repoRoot || '',
             name: label ? `CLI - ${label}` : 'CLI',
             profileId: profileId || BASELINE_PROFILE_ID,
             avatar: preferredAvatar,
@@ -1043,11 +1056,12 @@ export function useSessions(options: any = {}) {
   const handleSessionAttached = useCallback(
     ({ cellId, sessionId }: any = {}) => {
       markSessionAttached({ cellId, sessionId });
-      if (selectedCell) {
-        loadSessionsForCell(selectedCell, { silent: true });
+      const targetCell = resolveCell(selectedCell);
+      if (targetCell) {
+        loadSessionsForCell(targetCell, { silent: true });
       }
     },
-    [loadSessionsForCell, markSessionAttached, selectedCell]
+    [loadSessionsForCell, markSessionAttached, resolveCell, selectedCell]
   );
 
   const clearSessionError = useCallback(() => setSessionError(''), []);
