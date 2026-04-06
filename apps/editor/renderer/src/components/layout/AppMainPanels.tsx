@@ -229,21 +229,22 @@ function ShellBrowserLaneSurface({
     onSurfaceStateChange,
   ]);
 
-  if (!relativeRect) {
-    return null;
-  }
-
   return (
     <div
+      data-shell-browser-lane-surface
       className="pointer-events-none absolute"
-      style={{
-        left: `${relativeRect.left}px`,
-        top: `${relativeRect.top}px`,
-        width: `${relativeRect.width}px`,
-        height: `${relativeRect.height}px`,
-      }}
+      style={
+        relativeRect
+          ? {
+              left: `${relativeRect.left}px`,
+              top: `${relativeRect.top}px`,
+              width: `${relativeRect.width}px`,
+              height: `${relativeRect.height}px`,
+            }
+          : undefined
+      }
     >
-      <div ref={browserSurface.hostRef} className="absolute inset-0" />
+      {relativeRect ? <div ref={browserSurface.hostRef} className="absolute inset-0" /> : null}
     </div>
   );
 }

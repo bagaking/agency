@@ -26,7 +26,6 @@ import {
 const focusRingClass = focusRing.dark;
 
 export type WorkbenchBrowserSurfaceHandle = {
-  hostRef: React.MutableRefObject<HTMLDivElement | null>;
   browserSurfaceAvailable: boolean;
   surfaceState: {
     url?: string;

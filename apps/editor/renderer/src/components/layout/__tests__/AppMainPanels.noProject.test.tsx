@@ -51,3 +51,41 @@ test('AppMainPanels renders the shared Project Home surface for no-project explo
   assert.match(html, /No Recent Projects/);
   assert.doesNotMatch(html, /Select a project to begin/);
 });
+
+test('AppMainPanels exposes a shell-owned browser lane surface when explorer pane supplies browser lane meta', () => {
+  const html = renderToStaticMarkup(
+    <AppMainPanels
+      activeView="explorer"
+      projectHomeVisible={false}
+      projectHomeViewProps={{}}
+      hierarchySection="actions"
+      editorPaneProps={{}}
+      explorerPaneProps={{
+        browserLaneMeta: {
+          tabId: 'web-tab',
+          cellId: 'cell-main',
+          url: 'https://example.com/docs',
+          navigationKey: 0,
+          rect: { x: 100, y: 120, width: 800, height: 600 },
+          visible: true,
+          suspended: false,
+          surfaceState: { phase: 'loading' },
+          browserSurfaceAvailable: true,
+        },
+      }}
+      memoPaneProps={{}}
+      actionSheetsProps={{}}
+      quickActionsViewProps={{}}
+      harnessProviderSettingsViewProps={{}}
+      appShortcutsViewProps={{}}
+      replyQuickPromptsViewProps={{}}
+      sessionNamingViewProps={{}}
+      gatesViewProps={{}}
+      worktreeLinksViewProps={{}}
+      projectSettingsViewProps={{}}
+    />
+  );
+
+  assert.match(html, /data-shell-main-panels/);
+  assert.match(html, /data-shell-browser-lane-surface/);
+});
