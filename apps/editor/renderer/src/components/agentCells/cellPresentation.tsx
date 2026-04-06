@@ -22,6 +22,12 @@ export type CellAttachmentMeta = {
   pathLabel: string;
 };
 
+export type CellBranchMeta = {
+  label: string;
+  title: string;
+  isDetachedHead: boolean;
+};
+
 export function CellStateBadge({ state }: { state?: string }) {
   const normalized = String(state || '').trim().toLowerCase();
   if (!normalized) {
@@ -66,6 +72,25 @@ export function resolveCellAttachmentMeta(cell: any): CellAttachmentMeta {
     label: 'Attached',
     tone: 'border-emerald-300/20 bg-emerald-500/10 text-emerald-100',
     pathLabel: String(cell?.branch || pathLabelBase || '').trim(),
+  };
+}
+
+export function resolveCellBranchMeta(cell: any): CellBranchMeta {
+  const branch = String(cell?.branch || '').trim();
+  const head = String(cell?.head || '').trim();
+  const isDetachedHead = Boolean(cell?.isDetachedHead) || (!branch && Boolean(head));
+  if (isDetachedHead) {
+    const shortHead = head ? head.slice(0, 7) : '';
+    return {
+      label: shortHead ? `Detached HEAD · ${shortHead}` : 'Detached HEAD',
+      title: head ? `Detached HEAD at ${head}` : 'Detached HEAD',
+      isDetachedHead: true,
+    };
+  }
+  return {
+    label: branch,
+    title: branch,
+    isDetachedHead: false,
   };
 }
 

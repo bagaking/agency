@@ -4,6 +4,7 @@ import { CreateCellModal } from '../components/modals/CreateCellModal';
 
 type UseCreateCellModalLauncherArgs = {
   projectReady: boolean;
+  projectRoot: string;
   handleSelectProjectRoot: () => void;
   modal: any;
   handleCreate: (payload: any) => Promise<void>;
@@ -11,6 +12,7 @@ type UseCreateCellModalLauncherArgs = {
 
 export function useCreateCellModalLauncher({
   projectReady,
+  projectRoot,
   handleSelectProjectRoot,
   modal,
   handleCreate,
@@ -39,6 +41,7 @@ export function useCreateCellModalLauncher({
       dismissOnOverlay: true,
       content: (
         <CreateCellModal
+          projectRoot={projectRoot}
           initialMode={initialMode}
           initialName={initialOptions?.name || ''}
           initialReusePath={initialOptions?.reusePath || ''}

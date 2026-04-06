@@ -181,6 +181,7 @@ Session Map 的类 RTS 游戏操作界面设计：它是一个跨界面、始终
 - **Detached Cell surface**：当 Cell 丢失 live worktree attachment 时，默认不再进入 lifecycle cleanup rail；它应进入 `Detached Cells` 区，以 attachment-management copy 展示 `missing` vs `detached` 差异，同时保留 `View Details`、session 摘要和 evidence 访问。
 - **Detached Cell details**：从 `Detached Cells` 进入主 pane 时，应显示 attachment record、retained sessions 与 `Archive Cell / Clear Attachment / Delete Cell` 管理动作，而不是 generic terminal empty state。
 - **Unmanaged Worktree surface**：live git worktree 若未绑定 Cell，应被明确提示并支持 `Create Cell`、可用时的 `Reattach <Cell>` 建议，以及 `Ignore For Now`。当存在 deterministic detached-cell match 时，`Reattach` 应优先于 `Create`；当 worktree 处于 detached HEAD 时，不应展示误导性的 `Create Cell` CTA，而应显式说明需要先附着到 branch。ignore 是 user-local 的噪声控制，不是 repo policy。
+- **Tracked detached-head attachment**：若一个已跟踪 Cell 的 live worktree 处于 detached HEAD，Cell 仍保持 attached，但 UI 必须显式展示 `Detached HEAD`，而不是把旧 record 里的 branch 文本当作当前真相继续显示。
 - **Legacy archived compatibility**：旧记录中的 `archived` 仍可作为兼容信息显示在 `Legacy Archived` 区，但它不应重新主导默认 core workspace rail。
 - **Workspace rail craft**：tracked/detached/unmanaged 区应保持同一套紧凑、面性、低噪声的 shell 语言；避免 card-within-card、重复 boxed chrome 或者为了“解释状态”堆出第二套 dashboard。
 - **Sessionless Cell**：Cell 允许零 session 存在。窗口启动、Cell 恢复、或 attached worktree 被重新看见时，都不应自动补一个 `Default` session；只有用户显式进入 runtime（例如 `Create Session` / 进入空 terminal 态后确认创建）时，才 materialize 新的 execution lane。

@@ -58,6 +58,18 @@ const deriveCellNameFromBranch = (value: string) => {
   return segments[segments.length - 1] || normalized;
 };
 
+const resolveWorktreeStatusLabel = (worktree: any) => {
+  if (!worktree) {
+    return '';
+  }
+  const branch = String(worktree?.branch || '').trim();
+  if (branch) {
+    return branch;
+  }
+  const head = String(worktree?.head || '').trim();
+  return head ? `Detached HEAD · ${head.slice(0, 7)}` : 'Detached HEAD';
+};
+
 function HintIcon({ label }: any) {
   const focusRingClass = focusRing.default;
   return (
@@ -142,6 +154,7 @@ function ModePicker({
 export function CreateCellModal({
   onClose,
   onCreate,
+  projectRoot = '',
   initialMode = 'create',
   initialName = '',
   initialReusePath = '',
@@ -171,6 +184,7 @@ export function CreateCellModal({
     branchStrategies.find((item) => item.value === branchPrefix) || branchStrategies[0];
   const bindTargetCellId = String(initialBindTargetCell?.id || '').trim();
   const bindTargetCellName = String(initialBindTargetCell?.name || '').trim();
+  const bindTargetCellBranch = String(initialBindTargetCell?.branch || '').trim();
   const resolvedBoundName = resolveBoundCellName({
     mode,
     typedName: name,
@@ -182,13 +196,15 @@ export function CreateCellModal({
     mode === 'create'
       ? generatedBranch
       : mode === 'worktree'
-        ? String(selectedWorktreeInfo?.branch || '').trim()
+        ? resolveWorktreeStatusLabel(selectedWorktreeInfo)
         : String(selectedBranchInfo?.name || '').trim();
   const canSubmit =
     mode === 'create'
       ? Boolean(generatedBranch) && Boolean(baseBranch)
       : mode === 'worktree'
-        ? Boolean(selectedWorktree) && Boolean(branchPreview) && Boolean(resolvedBoundName)
+        ? Boolean(selectedWorktree) &&
+          Boolean(resolvedBoundName) &&
+          (bindTargetCellId ? true : Boolean(String(selectedWorktreeInfo?.branch || '').trim()))
         : Boolean(selectedBranch) && Boolean(branchPreview) && Boolean(resolvedBoundName);
 
   useEffect(() => {
@@ -220,8 +236,12 @@ export function CreateCellModal({
     const loadOptions = async () => {
       try {
         const [worktreeItems, branchItems] = await Promise.all([
-          isAgencyMethodAvailable('listWorktrees') ? listWorktrees() : Promise.resolve([]),
-          isAgencyMethodAvailable('listBranches') ? listBranches() : Promise.resolve([]),
+          isAgencyMethodAvailable('listWorktrees')
+            ? listWorktrees({ rootPath: projectRoot })
+            : Promise.resolve([]),
+          isAgencyMethodAvailable('listBranches')
+            ? listBranches({ rootPath: projectRoot })
+            : Promise.resolve([]),
         ]);
         setWorktrees(Array.isArray(worktreeItems) ? worktreeItems : []);
         setBranches(Array.isArray(branchItems) ? branchItems : []);
@@ -230,7 +250,7 @@ export function CreateCellModal({
       }
     };
     loadOptions();
-  }, []);
+  }, [projectRoot]);
 
   useEffect(() => {
     if (!branches.length || baseBranch) {
@@ -270,6 +290,8 @@ export function CreateCellModal({
       ? selectedBranchInfo?.attachedWorktreePath
         ? `Tracking will reuse the existing worktree at ${pathBaseName(selectedBranchInfo.attachedWorktreePath)}.`
         : 'Tracking will create a fresh worktree for this existing branch.'
+      : bindTargetCellId && selectedWorktreeInfo?.path && !String(selectedWorktreeInfo?.branch || '').trim()
+        ? `Reattaching ${pathBaseName(selectedWorktreeInfo.path)} under ${bindTargetCellName || bindTargetCellId} while the live worktree is on detached HEAD. Agency will keep the existing Cell record and preserve its stored branch metadata until the worktree is attached to a branch again.`
       : selectedWorktreeInfo?.path
         ? `Tracking ${pathBaseName(selectedWorktreeInfo.path)} without renaming its branch.`
         : '';
@@ -418,7 +440,7 @@ export function CreateCellModal({
                 </option>
                 {worktrees.map((item) => (
                   <option key={item.path} value={item.path}>
-                    {item.branch || 'detached'} - {item.path}
+                    {resolveWorktreeStatusLabel(item)} - {item.path}
                   </option>
                 ))}
               </select>
@@ -497,7 +519,9 @@ export function CreateCellModal({
           <div className="flex items-center justify-between gap-2 text-[10px]">
             <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground/75">
               <GitBranch size={11} className="shrink-0 text-primary/80" aria-hidden="true" />
-              <span className="font-mono text-[11px] text-primary/90 truncate">{branchPreview || '...'}</span>
+              <span className="font-mono text-[11px] text-primary/90 truncate">
+                {branchPreview || (bindTargetCellId ? bindTargetCellBranch || '...' : '...')}
+              </span>
             </div>
             {mode === 'worktree' && selectedWorktreeInfo?.path ? (
               <Tooltip label={selectedWorktreeInfo.path}>

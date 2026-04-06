@@ -37,7 +37,7 @@ import {
   isAgencyMethodAvailable,
   listUnmanagedWorktrees as agencyListUnmanagedWorktrees,
 } from '../../services/agencyBridge';
-import { isArchivedCell, resolveCellAttachmentMeta } from './cellPresentation';
+import { isArchivedCell, resolveCellAttachmentMeta, resolveCellBranchMeta } from './cellPresentation';
 import {
   deriveCellNameFromWorktree,
   deriveUnmanagedWorktreeDisplay,
@@ -1029,20 +1029,21 @@ export function AgentCellsSessionsPanel({
                 />
                 <div className="space-y-3" data-testid="cell-list" role="tree" aria-label="Tracked workspaces">
                   {trackedCells.map((cell: any) => {
-              const attachmentMeta = resolveCellAttachmentMeta(cell);
-              const isWindowHome = isWindowHomeCell(cell);
-              const hasAttachment = !isWindowHome && attachmentMeta.attachmentState === 'attached';
-              const projection = projectionsByCellId[cell.id] || EMPTY_TREE;
-              const visibleRows = visibleRowsByCellId[cell.id] || [];
-              const activeSessionId =
-                pendingActiveSessionByCellId[cell.id] || activeSessionByCellId?.[cell.id] || null;
-              const cellAttention = attention.byCellId[cell.id];
-              const isSelectedCell = selectedId === cell.id;
-              const isCollapsed = collapsedCells.has(cell.id);
-              const hasOverflow =
-                projection.overflowDetachedSessions.length > 0 ||
-                projection.overflowClosedSessions.length > 0;
-              const showRootDropZone = draggingSession?.cellId === cell.id && Boolean(onMoveSessionNode);
+                    const attachmentMeta = resolveCellAttachmentMeta(cell);
+                    const branchMeta = resolveCellBranchMeta(cell);
+                    const isWindowHome = isWindowHomeCell(cell);
+                    const hasAttachment = !isWindowHome && attachmentMeta.attachmentState === 'attached';
+                    const projection = projectionsByCellId[cell.id] || EMPTY_TREE;
+                    const visibleRows = visibleRowsByCellId[cell.id] || [];
+                    const activeSessionId =
+                      pendingActiveSessionByCellId[cell.id] || activeSessionByCellId?.[cell.id] || null;
+                    const cellAttention = attention.byCellId[cell.id];
+                    const isSelectedCell = selectedId === cell.id;
+                    const isCollapsed = collapsedCells.has(cell.id);
+                    const hasOverflow =
+                      projection.overflowDetachedSessions.length > 0 ||
+                      projection.overflowClosedSessions.length > 0;
+                    const showRootDropZone = draggingSession?.cellId === cell.id && Boolean(onMoveSessionNode);
 
                   return (
                     <div
@@ -1151,17 +1152,21 @@ export function AgentCellsSessionsPanel({
                           </button>
                         ) : null}
                       </div>
-                      <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[9px] text-muted-foreground/72">
+                      <div
+                        className={`mt-1 flex min-w-0 items-center gap-1.5 text-[9px] ${
+                          branchMeta.isDetachedHead ? 'text-amber-100/78' : 'text-muted-foreground/72'
+                        }`}
+                      >
                         {cell.isVirtual ? (
                           <SquareTerminal size={10} strokeWidth={1.7} className="shrink-0" />
                         ) : (
                           <GitBranch size={10} strokeWidth={1.7} className="shrink-0" />
                         )}
-                        <span className="truncate">
+                        <span className="truncate" title={branchMeta.title || undefined}>
                           {cell.isVirtual
                             ? cell.worktreePath || 'Local shell'
                             : attachmentMeta.attachmentState === 'attached'
-                              ? cell.branch || attachmentMeta.pathLabel || 'Attached worktree'
+                              ? branchMeta.label || attachmentMeta.pathLabel || 'Attached worktree'
                               : attachmentMeta.pathLabel || `${attachmentMeta.label} worktree`}
                         </span>
                       </div>

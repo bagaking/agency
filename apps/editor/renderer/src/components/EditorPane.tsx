@@ -20,6 +20,7 @@ import { AvatarPickerMenu } from './ui/AvatarPickerMenu';
 import { resolveAvatarId } from '../utils/agentAvatar';
 import { formatIdleClock } from '../utils/timeFormat';
 import { projectAgentCellSessionTree } from '../utils/agentCellSessionTree';
+import { resolveCellBranchMeta } from './agentCells/cellPresentation';
 
 export function EditorPane({
   cell,
@@ -276,6 +277,7 @@ export function EditorPane({
         ? 'Detached worktree'
         : 'Attached worktree';
   const attachmentPath = cell?.lastKnownWorktreePath || cell?.worktreePath || '';
+  const branchMeta = resolveCellBranchMeta(cell);
   const avatarRingClass = onUpdateCellAvatar
     ? 'bg-muted/30 hover:bg-muted/40'
     : 'bg-muted/10';
@@ -310,10 +312,17 @@ export function EditorPane({
 
           <div className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border/50 bg-muted/10 px-2.5 py-1 text-[10px] font-semibold text-foreground">
             <span>{cell.name}</span>
-            {cell.branch ? (
+            {branchMeta.label ? (
               <>
                 <span className="text-muted-foreground/40">•</span>
-                <span className="font-mono text-[9px] text-muted-foreground">{cell.branch}</span>
+                <span
+                  className={`font-mono text-[9px] ${
+                    branchMeta.isDetachedHead ? 'text-amber-100/82' : 'text-muted-foreground'
+                  }`}
+                  title={branchMeta.title || undefined}
+                >
+                  {branchMeta.label}
+                </span>
               </>
             ) : null}
           </div>
@@ -517,12 +526,23 @@ export function EditorPane({
                             key={session.id}
                             className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-black/18 px-3 py-2"
                           >
-                            <span className="truncate text-[11px] font-medium text-foreground">
-                              {session.name || session.id}
-                            </span>
-                            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/68">
-                              {session.status || 'unknown'}
-                            </span>
+                            <div className="min-w-0">
+                              <div className="truncate text-[11px] font-medium text-foreground">
+                                {session.name || session.id}
+                              </div>
+                              <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/68">
+                                {session.status || 'unknown'}
+                              </div>
+                            </div>
+                            {onJumpToSession ? (
+                              <button
+                                type="button"
+                                onClick={() => onJumpToSession?.(cell.id, session.id)}
+                                className="shrink-0 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-foreground transition-colors hover:bg-white/[0.06]"
+                              >
+                                Inspect
+                              </button>
+                            ) : null}
                           </div>
                         ))
                       ) : (
@@ -532,6 +552,11 @@ export function EditorPane({
                       )}
                     </div>
                   </div>
+                  {onJumpToSession ? (
+                    <div className="mt-4 rounded-xl border border-white/[0.06] bg-black/12 px-3 py-2 text-[10px] leading-5 text-muted-foreground/72">
+                      Select a retained session to inspect reply and run evidence from the existing shell-side surfaces.
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="rounded-2xl border border-white/[0.08] bg-black/18 p-4">

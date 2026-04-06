@@ -141,6 +141,45 @@ test('listCells keeps repo-owned cells visible when the attachment is detached o
   });
 });
 
+test('listCells surfaces attached detached-head worktrees without reviving stale branch metadata', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-detached-head-');
+  const attachedWorktreePath = path.join(repoRoot, '.worktrees', 'detached-head');
+  await fs.mkdir(path.join(repoRoot, '.agency', 'cells', 'detached-head'), { recursive: true });
+  await fs.mkdir(attachedWorktreePath, { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, '.agency', 'cells', 'detached-head', 'cell.yaml'),
+    [
+      'version: 2',
+      'id: detached-head',
+      'name: Detached Head',
+      'branch: feat/original-branch',
+      'state: active',
+      'attachmentState: attached',
+      `worktreePath: ${attachedWorktreePath}`,
+      `lastKnownWorktreePath: ${attachedWorktreePath}`,
+    ].join('\n'),
+    'utf8'
+  );
+
+  t.after(async () => {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await withCellsService(
+    {
+      listWorktrees: async () => [{ path: attachedWorktreePath, branch: '', head: 'abcdef1234567890' }],
+    },
+    async ({ listCells }) => {
+      const cells = await listCells({ rootPath: repoRoot });
+      const detachedHeadCell = cells.find((cell) => cell.id === 'detached-head');
+      assert.equal(detachedHeadCell?.attachmentState, 'attached');
+      assert.equal(detachedHeadCell?.branch, '');
+      assert.equal(detachedHeadCell?.head, 'abcdef1234567890');
+      assert.equal(detachedHeadCell?.isDetachedHead, true);
+    }
+  );
+});
+
 test('updateCellState updates detached cells without running attached-worktree gates', async (t) => {
   const repoRoot = await createTempDir('agency-cells-state-');
   const detachedWorktreePath = path.join(repoRoot, '.worktrees', 'beta');

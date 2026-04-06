@@ -169,6 +169,8 @@ function validationWarnings(_repoRoot, cell) {
 
 function buildHydratedCell(repoRoot, record, attachedWorktree = null) {
   const attachedWorktreePath = normalizePathValue(attachedWorktree?.path);
+  const attachedBranch = attachedWorktree ? normalizeText(attachedWorktree?.branch) : '';
+  const attachedHead = attachedWorktree ? normalizeText(attachedWorktree?.head) : '';
   const lastKnownWorktreePath = normalizePathValue(
     attachedWorktreePath || record.lastKnownWorktreePath || record.worktreePath
   );
@@ -184,7 +186,10 @@ function buildHydratedCell(repoRoot, record, attachedWorktree = null) {
     id: record.id,
     name: record.name,
     projectRoot: repoRoot,
-    branch: normalizeText(attachedWorktree?.branch || record.branch || ''),
+    branch: attachedWorktree ? attachedBranch : normalizeText(record.branch || ''),
+    head: attachedHead,
+    hasBranch: Boolean(attachedBranch),
+    isDetachedHead: Boolean(attachedWorktreePath && !attachedBranch && attachedHead),
     worktreePath: lastKnownWorktreePath,
     attachedWorktreePath,
     attachmentState,
@@ -202,7 +207,7 @@ function buildHydratedCell(repoRoot, record, attachedWorktree = null) {
       warnings: validationWarnings(repoRoot, {
         ...record,
         attachmentState,
-        branch: attachedWorktree?.branch || record.branch,
+        branch: attachedWorktree ? attachedBranch : record.branch,
       }),
     },
   };

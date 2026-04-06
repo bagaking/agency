@@ -785,6 +785,7 @@ function AppShell() {
   );
   const handleOpenCreateCellModal = useCreateCellModalLauncher({
     projectReady,
+    projectRoot,
     handleSelectProjectRoot,
     modal,
     handleCreate,

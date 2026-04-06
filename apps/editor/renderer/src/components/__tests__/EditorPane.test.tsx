@@ -164,6 +164,27 @@ test('EditorPane breadcrumb follows the visible session-tree projection when a d
   assert.doesNotMatch(html, />detached-parent</);
 });
 
+test('EditorPane shows detached-head metadata instead of reviving stale branch text', () => {
+  const html = renderToStaticMarkup(
+    <EditorPane
+      {...buildEditorPaneProps({
+        cell: {
+          id: 'cell-main',
+          name: 'main',
+          branch: '',
+          head: 'abcdef1234567890',
+          isDetachedHead: true,
+          attachmentState: 'attached',
+          state: 'active',
+        },
+      })}
+    />
+  );
+
+  assert.match(html, /Detached HEAD/);
+  assert.doesNotMatch(html, /feat\/top-chrome/);
+});
+
 test('EditorPane keeps hook order stable when the selected cell appears after an empty render', async () => {
   const env = setupDom();
   try {
@@ -207,5 +228,6 @@ test('EditorPane renders a detached-cell detail state instead of the generic ter
   assert.match(html, /Detached Workspace/);
   assert.match(html, /Archive Cell/);
   assert.match(html, /Retained sessions/);
+  assert.match(html, /Inspect/);
   assert.doesNotMatch(html, /No active terminal session/);
 });

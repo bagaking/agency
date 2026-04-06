@@ -250,6 +250,11 @@ Unmanaged worktrees in detached HEAD state SHALL not present `Create Cell` as an
 - **AND** the card does not present `Create Cell` as an active default action
 - **AND** the UI explains that the worktree must first be attached to a branch before tracking it as a new Cell
 
+#### Scenario: Tracked Cell does not revive stale branch metadata on detached HEAD
+- **WHEN** a live tracked Cell reappears with an attached worktree that Git reports as detached HEAD
+- **THEN** the Cell remains attached
+- **AND** the UI surfaces `Detached HEAD` metadata instead of reviving stale branch text from stored Cell metadata
+
 ### Requirement: Embedded Terminal and CLI Management
 The editor SHALL provide an embedded terminal and manage CLI processes (e.g., Codex) per Cell.
 
@@ -3214,36 +3219,36 @@ The editor SHALL surface attachment state distinctly from lifecycle state.
 - **THEN** worktree-bound surfaces show an attachment-aware empty state or repository fallback as appropriate
 - **AND** non-worktree artifacts such as sessions, replies, runs, and lifecycle metadata remain accessible
 
-### Requirement: Detached Cell Cleanup And Archived Lifecycle Surfaces
+### Requirement: Detached Cell Management And Legacy Archived Surfaces
 The editor SHALL allow users to archive or delete a Cell after its worktree attachment has been removed.
 The editor SHALL allow users to clear stale attachment metadata without recreating the old worktree first.
-The Agent Cells sidebar SHALL project missing/detached non-archived Cells into a cleanup-first section rather than rendering them as ordinary session-tree cards.
-The cleanup-first section SHALL represent attachment triage rather than lifecycle completion and SHALL render each entry with a `Cleanup Recommended` eyebrow that pairs evidence-preserving microcopy with early CTA visibility.
-Cells whose lifecycle state is already `archived` SHALL leave the cleanup queue and active development buckets and become reachable through an explicit archived-view affordance.
-Cleanup and archived lifecycle surfaces SHALL stay visually compact, avoid nested card-within-card scaffolding, and rely on a single-shell action grammar rather than duplicated bordered wells.
+The Agent Cells sidebar SHALL project missing/detached non-archived Cells into a dedicated `Detached Cells` section rather than rendering them as ordinary session-tree cards.
+The detached section SHALL use attachment-management copy, keep `View Details` as the primary CTA, and may expose archive as a direct secondary action.
+Cells whose lifecycle state is already `archived` SHALL leave the detached section and active development buckets and become reachable through the explicit `Legacy Archived` compatibility surface.
+Detached and archived compatibility surfaces SHALL stay visually compact, avoid nested card-within-card scaffolding, and rely on a single-shell action grammar rather than duplicated bordered wells.
 
 #### Scenario: Archive a detached Cell
 - **WHEN** a user archives a Cell whose worktree attachment has already been removed or marked detached
 - **THEN** the editor allows the archive transition through an attachment-aware confirmation flow
 - **AND** does not require the missing worktree path to be rediscovered first
 
-#### Scenario: Cleanup section in Agent Cells
+#### Scenario: Detached Cells section in Agent Cells
 - **WHEN** the Agent Cells sidebar contains Cells whose worktree attachment is missing or detached and whose lifecycle state is not `archived`
-- **THEN** those Cells appear in a dedicated `Needs Cleanup` section with preserved-evidence copy and session summary
-- **AND** each cleanup Cell exposes a direct archive action
-- **AND** the cleanup card surfaces a `Cleanup Recommended` eyebrow to keep the attachment triage tone consistent while distinguishing `missing` vs `detached` copy
-- **AND** cleanup copy distinguishes `missing` attachment from intentionally `detached` attachment
+- **THEN** those Cells appear in a dedicated `Detached Cells` section with preserved-evidence copy and session summary
+- **AND** each detached Cell keeps `View Details` as the primary CTA
+- **AND** the card may expose a direct archive action without reintroducing lifecycle cleanup rails
+- **AND** the copy distinguishes `missing` attachment from intentionally `detached` attachment
 - **AND** the sidebar does not render their session tree inline as though they were still attached development Cells
 
 #### Scenario: View archived Cells
 - **WHEN** the Agent Cells sidebar contains one or more Cells whose lifecycle state is `archived`
-- **THEN** the sidebar exposes an explicit `View Archived` affordance
+- **THEN** the sidebar exposes an explicit `Legacy Archived` affordance
 - **AND** archived Cells render through an archived-history surface with `View Details`, preserved-evidence copy, and session summary rather than cleanup triage
 - **AND** each archived card visible in that surface displays an `Archived` badge while keeping `View Details` as the primary CTA
 
 #### Scenario: Archived detached Cell uses archived surface
 - **WHEN** the Agent Cells sidebar contains a Cell whose worktree attachment is missing or detached and whose lifecycle state is `archived`
-- **THEN** that Cell appears only through the archived-view surface instead of `Needs Cleanup`
+- **THEN** that Cell appears only through the archived-history surface instead of `Detached Cells`
 - **AND** the card may communicate offline attachment state without reclassifying the Cell as needing cleanup
 
 #### Scenario: Delete a detached Cell

@@ -175,6 +175,7 @@
 - `Detached Cells` are attachment-management records: their cards keep session counts visible, allow `View Details`, and detached detail view offers `Archive Cell`, `Clear Attachment`, and `Delete Cell` instead of falling back to a generic empty terminal state.
 - `Unmanaged Worktrees` prioritize deterministic `Reattach <Cell>` suggestions over creating duplicate Cells.
 - An unmanaged worktree in detached HEAD state is shown explicitly as `Detached HEAD` and does not surface `Create Cell` as an active action until it is attached to a branch.
+- A tracked Cell whose live attachment is on detached HEAD keeps the attachment but surfaces `Detached HEAD` metadata instead of reviving stale branch text from the stored Cell record.
 - `Legacy Archived` remains a compatibility surface for older records, not the default core workspace rail.
 - The window switcher surfaces each window's primary attention summary so multi-window urgency is visible before you manually scan that window.
 - Terminus profiles can define optional `fork` settings (`enabled`, `driver`, `launchTemplate`, and timeout knobs) so tool-specific fork behavior stays declarative at the profile layer instead of being hard-coded in renderer UI.
