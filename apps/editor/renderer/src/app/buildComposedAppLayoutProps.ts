@@ -367,6 +367,10 @@ export function buildComposedAppLayoutProps({
     hilReplyProps,
     memoDrawerProps,
     attentionRailProps: {
+      open: (layoutState as any).attentionRailOpen,
+      mode: (layoutState as any).attentionRailMode,
+      onOpenChange: (layoutState as any).setAttentionRailOpen,
+      onModeChange: (layoutState as any).setAttentionRailMode,
       focusData: {
         cell: layoutState.selectedCell,
         session:

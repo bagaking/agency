@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import type {
   ActiveView,
+  AttentionRailMode,
   GateStage,
   HilDrawerPanel,
   HierarchySection,
@@ -26,6 +27,8 @@ export function useAppShellLayoutState() {
   const [activeView, setActiveView] = useState<ActiveView>('agent-cells');
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [attentionRailOpen, setAttentionRailOpen] = useState(false);
+  const [attentionRailMode, setAttentionRailMode] = useState<AttentionRailMode>('attention');
   const [hilDrawerOpen, setHilDrawerOpen] = useState(false);
   const [hilDrawerPanel, setHilDrawerPanel] = useState<HilDrawerPanel>('comments');
   const [hilDrawerPanelByView, setHilDrawerPanelByView] = useState<Record<string, HilDrawerPanel>>(
@@ -138,6 +141,10 @@ export function useAppShellLayoutState() {
     setSidebarWidth,
     sidebarCollapsed,
     setSidebarCollapsed,
+    attentionRailOpen,
+    setAttentionRailOpen,
+    attentionRailMode,
+    setAttentionRailMode,
     hilDrawerOpen,
     setHilDrawerOpen,
     hilDrawerPanel,

@@ -28,6 +28,9 @@ export type GateStage = (typeof GATE_STAGES)[number];
 export const HIL_DRAWER_PANELS = ['comments', 'drafts', 'reply'] as const;
 export type HilDrawerPanel = (typeof HIL_DRAWER_PANELS)[number];
 
+export const ATTENTION_RAIL_MODES = ['attention', 'briefing'] as const;
+export type AttentionRailMode = (typeof ATTENTION_RAIL_MODES)[number];
+
 export type UnknownRecord = Record<string, unknown>;
 export type UnknownList = unknown[];
 export type FlexibleHandler<Args extends unknown[] = never[], Result = unknown> = (
@@ -132,6 +135,10 @@ export interface LayoutState {
   selectedCell: AppCell | null;
   sidebarWidth: number;
   sidebarCollapsed: boolean;
+  attentionRailOpen: boolean;
+  attentionRailMode: AttentionRailMode;
+  setAttentionRailOpen?: FlexibleHandler<[boolean]>;
+  setAttentionRailMode?: FlexibleHandler<[AttentionRailMode]>;
   hilDrawerOpen: boolean;
   hilDrawerPanel: HilDrawerPanel;
   terminalMode: string;

@@ -29,6 +29,10 @@ function summarizeAttentionDetail(detail: unknown): string {
 }
 
 export function AppAttentionRail({
+  open: controlledOpen,
+  mode: controlledMode,
+  onOpenChange,
+  onModeChange,
   focusData,
   harnessRuns,
   sessionError,
@@ -41,10 +45,24 @@ export function AppAttentionRail({
   onToggleReply,
 }: any) {
   const attention = useAttentionLayer();
-  const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<RailMode>('attention');
+  const [internalOpen, setInternalOpen] = useState(false);
+  const [internalMode, setInternalMode] = useState<RailMode>('attention');
+  const open = controlledOpen ?? internalOpen;
+  const mode = controlledMode ?? internalMode;
   const autoOpenedKeyRef = useRef('');
   const focusRingClass = focusRing.default;
+  const setOpen = (nextOpen: boolean) => {
+    onOpenChange?.(nextOpen);
+    if (controlledOpen === undefined) {
+      setInternalOpen(nextOpen);
+    }
+  };
+  const setMode = (nextMode: RailMode) => {
+    onModeChange?.(nextMode);
+    if (controlledMode === undefined) {
+      setInternalMode(nextMode);
+    }
+  };
   const runList = Array.isArray(harnessRuns) ? harnessRuns : [];
   const activeCommanderRun = useMemo(
     () => resolveActiveCommanderRun(runList),
