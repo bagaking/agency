@@ -23,7 +23,7 @@
 ## Navigation
 
 - The activity bar includes Explorer and Hierarchy entries; the home logo returns to Agent Cells.
-- The custom title bar keeps one left-aligned repository/home summary rail between the window cluster and the project action, so window controls, current window identity, and `Open/Switch Project` remain visually distinct.
+- The custom title bar keeps one left-aligned repository/home summary rail between the window switcher and the project action, so window controls, current window identity, and `Open/Switch Project` remain visually distinct.
 - Settings provides a context-first dashboard with workspace summary, runtime/system status, recent projects, and entry cards for core runtime/configuration capabilities such as Actions, Harness Providers, App Shortcuts, Reply Quick Prompts, and Softlinks.
 - The docked sidebar supports resize/collapse and persists width state across launches; collapse/expand is owned by the shell-level Activity Bar control rather than per-surface edge handles.
 - Agent Cells focuses on tracked workspaces, detached Cells, unmanaged worktrees, and jump links to core configuration.
@@ -48,6 +48,7 @@
 - Successful Explorer copy/cut/paste resolves through selection + tree refresh, not success popups.
 - Double-clicking the filename region enters inline rename, and create/rename inputs stay IME-safe by deferring Enter submission until composition ends.
 - Unknown non-binary files open as text/code tabs with plaintext fallback instead of dead-ending in the unknown-object guard state.
+- When Explorer renames, moves, or deletes a file that is already open, Workbench tabs follow that mutation instead of keeping stale paths.
 - Explorer supports Paste as Markdown, capturing clipboard content into `.agency/tmp/clipboard`.
 - Explorer includes a bounded `URL` research mode that launches a Workbench-hosted web research tab for public URL inspection. That tab owns a true `View` browser surface plus `Reader`, keeps the browser content as the dominant panel with a compact two-tier toolbar (`Back`/`Forward`/`Reload`/address/mode first, research actions second), projects the native browser into a Workbench-owned browser lane instead of a tab-local overlay, routes saved Markdown through fixed source frontmatter and memo citation flows, stays limited to public `http/https`, and keeps cookies/session/tab management out of scope while preserving the explicit system-browser escape hatch.
 - Explorer and Memo sidebars keep a compact context-first header grammar, prioritizing the active root or record summary plus low-noise state chips over explanatory subtitle copy.
@@ -156,6 +157,9 @@
   - choose `create_child` + `dispatch_input` to start a fresh child agent when true fork semantics are unavailable.
 - The docked Session Map treats its right side as one `Right Station`: `Ops` is the default mode, and `Commander` opens a bounded `Briefing` mode for backend-facing explanation, recommendation, and approved actions.
 - Session action failures no longer rely only on transient notices; `Command Ops` keeps the latest error visible until explicitly dismissed and supports copying the full text.
+- In the docked tactical interface, the `Cells` command center only shows live tracked workspace clusters; detached or legacy-archived records stay out of that primary panel and remain visible only as dim radar ghosts.
+- The tactical `Radar` uses a larger left-side scan field plus a right-side fixed intel button grid; hover provides low-commitment preview, and click pins a focused intel panel without reopening the main command-center layout.
+- `Commander Briefing` now uses one cleaner bounded station card hierarchy instead of nested chrome shells, keeping the focused briefing, latest response, and composer readable at dock scale.
 - Attention now uses one vocabulary across shell chrome, Agent Cells, and Session Map: `Running`, `Failed`, `Confirm`, `Unread`, and `Review`.
 - The status bar shows the current top-priority attention item for the active Agency context and can jump directly to its owning object.
 - The status bar `Next` tooltip expands that shared attention label into a short destination-aware sentence so hover/focus explains where activation will go (`Jump to session`, `Open Session Map`, `Open evidence in Session Map`, or `Focus window`).

@@ -989,10 +989,20 @@ The shell SHALL own docked-sidebar collapse and expand through one shared activi
 ### Requirement: Workbench Tabs
 The editor SHALL provide a workbench with multiple tabs, supporting preview vs pinned tabs, reordering, and closing.
 Workbench tabs SHALL persist per Cell and restore on relaunch.
+If an open file is renamed, moved, or deleted through Explorer operations in the same root, the affected Workbench tabs SHALL follow that path mutation instead of silently pointing at a stale path.
 
 #### Scenario: Preview vs pinned tabs
 - **WHEN** a user single-clicks a file and then double-clicks another file
 - **THEN** the first opens as a preview tab and the second opens as a pinned tab
+
+#### Scenario: Rename or move keeps the open tab attached to the file
+- **WHEN** a file or one of its ancestor folders is renamed or moved from Explorer while that file is already open in Workbench
+- **THEN** the open tab updates to the new path and title
+- **AND** the active-tab selection remains attached to that file
+
+#### Scenario: Delete closes stale open tabs
+- **WHEN** a file or one of its ancestor folders is deleted from Explorer while descendant files are open in Workbench
+- **THEN** the affected tabs close instead of remaining attached to stale paths
 
 ### Requirement: Code Editor View
 The workbench SHALL render text files with line numbers, syntax highlighting, and in-file search.
@@ -1279,7 +1289,7 @@ New Window SHALL open a new editor window.
 ### Requirement: Custom Title Bar Context Grammar
 The custom title bar SHALL keep window controls, current project/home context, and the project-selection action visually distinct.
 The title bar SHALL use:
-- a dedicated window-switcher/new-window control cluster,
+- a dedicated window-switcher control that may expose `New Window` within the same menu surface,
 - one left-aligned project/home context summary rail,
 - one explicit `Open/Switch Project` action.
 
@@ -2153,10 +2163,17 @@ The editor SHALL provide a global map overlay that is available across all main 
 
 ### Requirement: Cell and Session Map Representation
 The editor SHALL render Cells as faction clusters and Sessions as role tokens, including offline states for archived/closed/stale sessions.
+The docked tactical command-center area SHALL show only live tracked workspace clusters.
+Detached, missing, or legacy-archived records MAY remain visible as radar ghosts, but SHALL NOT continue occupying empty primary cluster cards in the command center.
 
 #### Scenario: Offline session visibility
 - **WHEN** a session is archived, closed, or stale
 - **THEN** the map displays it as an offline state distinct from active sessions
+
+#### Scenario: Ghost sectors stay out of command center cards
+- **WHEN** a Cell or retained session record is no longer part of the live tracked workspace set
+- **THEN** the docked tactical `Cells` area omits it from primary cluster cards
+- **AND** the Radar may still show it as a low-emphasis ghost sector for continuity
 
 ### Requirement: Session Navigation from Map
 The editor SHALL allow users to jump to a session by clicking its token in the map, without leaving the current screen.

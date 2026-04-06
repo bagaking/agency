@@ -5,7 +5,7 @@
 - [ ] Verify the Agency window opens, renders the custom title bar, and keeps one left-aligned repository/home summary rail instead of merging window controls, context, and project actions into one text strip.
 - [ ] With no project selected, confirm the title-bar summary rail reads as `Project Home` / window-owned context rather than pretending a repository is already attached.
 - [ ] Open a brand-new empty window and confirm no `Session Action Failed` notice appears before a project is selected.
-- [ ] Open a second window and confirm the left title-bar window switcher lists both windows, exposes `Create New Window`, and can switch focus between them without disturbing the repository/home summary rail.
+- [ ] Open a second window and confirm the left title-bar window switcher lists both windows, exposes `Create New Window` inside its menu, and can switch focus between them without disturbing the repository/home summary rail.
 - [ ] On macOS, confirm the Dock stays on the native/default menu path instead of an app-defined window list.
 - [ ] On macOS, click the Dock icon while no editor window is focused and confirm an editor window is restored/focused.
 - [ ] On macOS, with multiple editor windows already frontmost, repeatedly click the Dock icon and confirm focus advances through them in a stable order.
@@ -39,6 +39,8 @@
 - [ ] In Explorer, double-click the filename label of a row and confirm inline rename starts; double-click the rest of a file row and confirm the file still opens pinned.
 - [ ] While creating or renaming a file/folder with a Chinese IME active, confirm pressing `Enter` during composition does not prematurely submit the half-finished text.
 - [ ] Open a file with an unknown but textual extension (for example `notes/customext.abcxyz`) and confirm Workbench opens it as a text/code tab with plaintext fallback instead of the unknown-object blocker.
+- [ ] Open a file in Workbench, then rename or move that file (and then one of its ancestor folders) from Explorer; confirm the open tab updates to the new path/title instead of keeping a stale path.
+- [ ] Open files under a folder in Workbench, delete that folder from Explorer, and confirm the affected tabs close instead of remaining attached to deleted paths.
 - [ ] Switch Explorer search mode to `URL`, launch a public URL, and confirm Workbench opens a bounded web research tab instead of Explorer replacing its primary panel.
 - [ ] Switch Explorer to the `Changed` working-set view, then use `URL` mode and confirm the working-set surface stays visible while Workbench owns the bounded web tab.
 - [ ] In the bounded web tab, confirm `View` / `Reader` host modes, browser controls (`Back`, `Forward`, `Reload`), and research actions (`Open in Browser`, `Save Markdown`, `Cite`) are visible and the surface reads as the true bounded browser view for that URL rather than a sidebar preview.
@@ -90,7 +92,11 @@
 - [ ] Trigger `Smart Fork [by commander]` and confirm a `Commander Task` sheet opens immediately, shows live timeline/activity while the run is in progress, and finishes with an explicit created-session result instead of silently succeeding in the background.
 - [ ] Trigger `Smart Name [by commander]` and confirm it uses the same `Commander Task` sheet family as `Smart Fork`, with task-specific result content rather than a bespoke modal flow.
 - [ ] In the Session Map dock, confirm the right side behaves as one station: the default mode is `Ops`, the commander affordance is visible in that station, and clicking it switches the same station into `Briefing` mode.
+- [ ] In the docked tactical interface, confirm `Cells` only shows live tracked clusters; detached or legacy archived records should disappear from the primary command-center area instead of leaving empty groups behind.
+- [ ] Confirm those detached/legacy records still appear as dim radar ghosts, and hovering a ghost updates the radar intel panel with preserved-evidence copy rather than pretending the ghost is a live cluster card.
+- [ ] In the radar section, confirm the larger scan field sits beside a fixed square intel-button grid; hovering changes the preview, clicking pins the corresponding intel panel, and live radar points can still locate the real cluster card.
 - [ ] In `Briefing`, confirm the panel is bound to the current focus session/run, quick prompts work, typed questions return evidence-backed explanations, and `Cancel` / `Retry` / `Dismiss` actions route through the existing Harness/error flows.
+- [ ] In `Briefing`, confirm the commander avatar is not visually compressed in the rail, the current briefing and latest response read as one bounded stack rather than card-within-card nesting, and the composer reads as a dedicated operator tool rather than a generic textarea footer.
 - [ ] Close `Briefing` and confirm the same right-side station returns to `Ops` with its prior evidence state intact; a running run can still be cancelled, a failed/cancelled run can still be retried, and run details remain copyable.
 - [ ] Produce output in a background session and confirm Agent Cells uses inline Cell / Session attention markers instead of a queue card above the list, while the shell right-side `Priority Queue` owns the window-level attention flow and Status Bar `Next` remains clickable.
 - [ ] Switch away from a session and back without meaningful new output, and confirm attach replay or silent refresh does not immediately mark it as `Unread`.
