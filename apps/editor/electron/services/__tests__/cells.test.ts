@@ -459,6 +459,50 @@ test('createCell can bind a branch onto an existing project-root cell without ma
   );
 });
 
+test('createCell keeps explicit branch binding on a project-root Cell separate from adopting an already-live worktree', async (t) => {
+  const repoRoot = await createTempDir('agency-cells-project-root-bind-branch-live-worktree-');
+  const liveWorktreePath = path.join(repoRoot, '.worktrees', 'main');
+  await fs.mkdir(path.join(repoRoot, '.agency', 'cells', 'research-desk'), { recursive: true });
+  await fs.mkdir(liveWorktreePath, { recursive: true });
+  await fs.writeFile(
+    path.join(repoRoot, '.agency', 'cells', 'research-desk', 'cell.yaml'),
+    [
+      'version: 2',
+      'id: research-desk',
+      'name: research-desk',
+      'branch: ""',
+      'state: ""',
+      'attachmentState: project_root',
+      'worktreePath: ""',
+      'lastKnownWorktreePath: ""',
+    ].join('\n'),
+    'utf8'
+  );
+
+  t.after(async () => {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  });
+
+  await withCellsService(
+    {
+      branchExists: async (_repoRoot: string, branch: string) => branch === 'main',
+      listWorktrees: async () => [{ path: liveWorktreePath, branch: 'main', head: 'abc123' }],
+    },
+    async ({ createCell }) => {
+      const updated = await createCell({
+        existingBranch: 'main',
+        bindBranchToCellId: 'research-desk',
+        rootPath: repoRoot,
+      });
+
+      assert.equal(updated.id, 'research-desk');
+      assert.equal(updated.branch, 'main');
+      assert.equal(updated.attachmentState, 'project_root');
+      assert.equal(updated.attachedWorktreePath, '');
+    }
+  );
+});
+
 test('createCell keeps project-root cells distinct instead of silently reusing the same branch-bound record', async (t) => {
   const repoRoot = await createTempDir('agency-cells-distinct-project-root-');
 

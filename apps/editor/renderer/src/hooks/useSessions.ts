@@ -45,8 +45,8 @@ const isDevBuild = Boolean(import.meta.env?.DEV);
 
 function resolveAttachmentRuntimeMessage(cell: any) {
   const attachmentState = String(cell?.attachmentState || '').trim().toLowerCase();
-  if (attachmentState === 'branch_only') {
-    return 'This Cell is branch-only. Create a worktree attachment before starting sessions or runtime commands.';
+  if (attachmentState === 'project_root') {
+    return 'This Cell is running on the project root. Bind a branch or create a worktree attachment only when you need a more isolated workspace.';
   }
   return 'This Cell does not have an attached worktree. Reattach or create a new attachment before creating sessions.';
 }

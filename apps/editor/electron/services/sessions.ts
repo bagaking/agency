@@ -302,7 +302,7 @@ function resolveOptionalSessionRuntimeRoot(context) {
     .trim()
     .toLowerCase();
   const projectRoot = String(context?.repoRoot || '').trim();
-  if (attachmentState === 'branch_only' && projectRoot && fs.existsSync(projectRoot)) {
+  if (attachmentState === 'project_root' && projectRoot && fs.existsSync(projectRoot)) {
     return {
       path: path.resolve(projectRoot),
       kind: SESSION_RUNTIME_ROOT_KINDS.project,
@@ -721,7 +721,7 @@ async function createNewSession({
       tmuxSession,
       cellId: resolvedCellId || undefined,
       cellName: resolvedCellName || undefined,
-      cellBranch: String(cellBranch || '').trim() || undefined,
+      cellBranch: String(cellBranch || context.cell?.branch || '').trim() || undefined,
       projectRoot: projectMetadata.projectRoot || undefined,
       status: SESSION_STATUSES.active,
       profileId: profileId || DEFAULT_PROFILE_ID,
@@ -755,7 +755,7 @@ async function createNewSession({
     tmuxSession,
     cellId: resolvedCellId || undefined,
     cellName: resolvedCellName || undefined,
-    cellBranch: String(cellBranch || '').trim() || undefined,
+    cellBranch: String(cellBranch || context.cell?.branch || '').trim() || undefined,
     projectRoot: projectMetadata.projectRoot || undefined,
     status: SESSION_STATUSES.active,
     profileId: profileId || DEFAULT_PROFILE_ID,

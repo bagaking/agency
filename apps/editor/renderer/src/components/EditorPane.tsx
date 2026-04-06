@@ -490,13 +490,17 @@ export function EditorPane({
                   onClick={() =>
                     onCreateAttachmentCell?.({
                       mode: 'branch',
-                      existingBranch: cell.branch,
+                      existingBranch: cell.branch || '',
                       name: cell.name,
                       initialBindTargetCell: cell,
                     })
                   }
                   className="flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-medium text-sky-100 transition-colors hover:bg-sky-500/10"
-                  title="Create a live worktree attachment for this branch-bound Cell"
+                  title={
+                    cell?.branch
+                      ? 'Create a live worktree attachment for this branch-bound Cell.'
+                      : 'Choose a branch and create a live worktree attachment for this project-root Cell.'
+                  }
                 >
                   <GitBranch size={12} />
                   <span>Create Worktree Attachment</span>

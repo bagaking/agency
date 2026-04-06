@@ -15,7 +15,7 @@ const CELL_SESSIONS_FILENAME = 'sessions.yaml';
 const CELL_RECORD_VERSION = 2;
 const CELL_ATTACHMENT_STATES = Object.freeze({
   attached: 'attached',
-  branch_only: 'branch_only',
+  project_root: 'project_root',
   detached: 'detached',
   missing: 'missing',
 });
@@ -30,8 +30,8 @@ function normalizeTimestamp(value) {
 }
 
 function normalizeAttachmentState(value) {
-  if (value === CELL_ATTACHMENT_STATES.branch_only) {
-    return CELL_ATTACHMENT_STATES.branch_only;
+  if (value === CELL_ATTACHMENT_STATES.project_root || value === 'branch_only') {
+    return CELL_ATTACHMENT_STATES.project_root;
   }
   if (value === CELL_ATTACHMENT_STATES.detached) {
     return CELL_ATTACHMENT_STATES.detached;
@@ -75,8 +75,8 @@ function normalizeCellRecord(raw: any = {}, fallback: any = {}) {
       ? normalizeAttachmentState(explicitAttachmentState)
       : worktreePath
         ? CELL_ATTACHMENT_STATES.attached
-        : branch
-          ? CELL_ATTACHMENT_STATES.branch_only
+        : !lastKnownWorktreePath
+          ? CELL_ATTACHMENT_STATES.project_root
         : lastKnownWorktreePath
           ? CELL_ATTACHMENT_STATES.detached
           : CELL_ATTACHMENT_STATES.detached,

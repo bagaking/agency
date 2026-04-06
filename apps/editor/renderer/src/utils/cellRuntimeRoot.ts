@@ -7,7 +7,7 @@ export function resolveCellRuntimeRootPath(cell: any): string {
     return attachedWorktreePath;
   }
   const attachmentState = String(cell?.attachmentState || '').trim().toLowerCase();
-  if (attachmentState === 'branch_only') {
+  if (attachmentState === 'project_root') {
     return String(cell?.projectRoot || cell?.repoRoot || '').trim();
   }
   return String(cell?.worktreePath || '').trim();

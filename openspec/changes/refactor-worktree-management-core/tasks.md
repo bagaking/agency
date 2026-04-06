@@ -21,7 +21,7 @@
 - [x] 3.2 Keep existing advanced gated delivery flows optional and non-blocking while removing default Gate/lifecycle assumptions from the base workspace-management path.
 
 ## 4. Renderer And UX
-- [x] 4.1 Reframe Agent Cells around tracked workspaces, detached Cells, and unmanaged worktrees.
+- [x] 4.1 Reframe Agent Cells around tracked Cells, detached Cells, and unmanaged worktrees.
 - [x] 4.2 Remove lifecycle-stepper-first UI and replace it with attachment/worktree management actions.
 - [x] 4.3 Update the Create Cell flow so the copy and summaries read as worktree management rather than lifecycle ceremony.
 - [x] 4.4 Remove Gates from default core navigation and default dashboard cards.

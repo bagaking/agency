@@ -145,6 +145,7 @@ test('createNewSession uses project root as runtime root for project-root cells'
     });
 
     assert.equal(created.cellId, 'cell-main');
+    assert.equal(created.cellBranch, 'main');
     assert.equal(state.createCalls.length, 1);
     assert.equal(state.createCalls[0].cwd, repoRoot);
     assert.equal(state.syncCalls[0].runtimeRootKind, 'project');
