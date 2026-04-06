@@ -178,3 +178,57 @@ test('useSessions resolves the latest hydrated cell before loading or creating s
     env.cleanup();
   }
 });
+
+test('useSessions explains branch-only cells instead of treating them as generic missing attachments', async () => {
+  const env = setupDom();
+  try {
+    (window as any).agency = {
+      listSessions: async () => [],
+      createSession: async () => {
+        throw new Error('should not be called');
+      },
+    };
+
+    const root = createRoot(document.getElementById('root')!);
+    await act(async () => {
+      root.render(
+        <SessionsHarness
+          selectedCell={{
+            id: 'mainline-review',
+            name: 'mainline-review',
+            branch: 'main',
+            attachmentState: 'branch_only',
+            attachedWorktreePath: '',
+            projectRoot: '/repo',
+          }}
+          cells={[
+            {
+              id: 'mainline-review',
+              name: 'mainline-review',
+              branch: 'main',
+              attachmentState: 'branch_only',
+              attachedWorktreePath: '',
+              projectRoot: '/repo',
+            },
+          ]}
+        />
+      );
+    });
+    await flushEffects();
+
+    await act(async () => {
+      (document.getElementById('create-session') as HTMLButtonElement).click();
+    });
+
+    assert.match(
+      document.getElementById('session-error')?.textContent || '',
+      /Create a worktree attachment before starting sessions or runtime commands/
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
+});

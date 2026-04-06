@@ -222,8 +222,10 @@ Agent Cells becomes the default workspace management surface with three explicit
 The creation flow should remain one bounded modal or command family, but its grammar becomes explicitly worktree-first:
 - create new branch + worktree;
 - track existing worktree;
-- track existing branch;
+- bind existing branch;
 - reattach detached Cell to a discovered worktree.
+
+`Bind Existing Branch` is not a hidden `create worktree` shortcut. It first analyzes whether the branch already has a live workspace, including the repo-root primary worktree. If yes, the flow binds that existing workspace. If no, the flow creates a branch-only Cell. Any later worktree materialization must happen through an explicit `Create Worktree Attachment` action.
 
 The modal must avoid suggesting that the user is starting a workflow template or lifecycle journey.
 
@@ -251,7 +253,7 @@ If a future workflow suite is enabled, it can register additional entries such a
 - add user-local ignored-unmanaged-worktree persistence.
 
 ### Phase 3: Renderer surface shift
-- replace lifecycle-first cleanup/archive sections with tracked/detached/unmanaged sections;
+- replace lifecycle-first cleanup/archive sections with tracked/branch-only/detached/unmanaged sections;
 - remove lifecycle-stepper primary UI from Agent Cells;
 - tighten Create Cell copy around worktree management.
 

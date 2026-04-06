@@ -2,6 +2,7 @@ export type UnmanagedWorktreeBindSuggestion = {
   kind: string;
   cellId?: string;
   cellName?: string;
+  cellAttachmentState?: string;
   candidateCellIds?: string[];
 } | null;
 
@@ -47,8 +48,10 @@ export function deriveUnmanagedWorktreeDisplay(worktree: UnmanagedWorktree) {
   const detachedHeadLabel = worktree.isDetachedHead
     ? `Detached HEAD${worktree.head ? ` · ${String(worktree.head).slice(0, 7)}` : ''}`
     : '';
+  const suggestedAttachmentState = String(worktree.bindSuggestion?.cellAttachmentState || '').trim().toLowerCase();
+  const bindVerb = suggestedAttachmentState === 'branch_only' ? 'Bind' : 'Reattach';
   const helperText = hasSuggestedBind
-    ? `Agency found a deterministic match with ${suggestedCellName || 'an existing detached Cell'}. Reattach it first to avoid duplicate workspace records.`
+    ? `Agency found a deterministic match with ${suggestedCellName || 'an existing tracked Cell'}. ${bindVerb} it first to avoid duplicate workspace records.`
     : worktree.isDetachedHead
       ? 'Agency cannot track this worktree as a Cell until it is attached to a branch.'
       : '';
@@ -61,7 +64,7 @@ export function deriveUnmanagedWorktreeDisplay(worktree: UnmanagedWorktree) {
     helperText,
     primaryAction: hasSuggestedBind ? 'bind' : canCreateCell ? 'create' : 'none',
     primaryLabel: hasSuggestedBind
-      ? `Reattach ${suggestedCellName || 'Cell'}`
+      ? `${bindVerb} ${suggestedCellName || 'Cell'}`
       : canCreateCell
         ? 'Create Cell'
         : '',

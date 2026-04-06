@@ -174,18 +174,20 @@ Session Map 的类 RTS 游戏操作界面设计：它是一个跨界面、始终
  - **Cell = 城邦 / 阵营**：以“阵营色 + 城邦卡片 + 角色头像”表示；默认色基于 `Cell.state` + 创建顺序。
 - **Session = 角色**：以圆形角色 token + 状态点表示（active/detached/closed/stale）。Session 可携带专属头像，优先展示 `session.avatar`，缺省则回退到 Cell 头像或基于 session id 计算。
 - **离线状态**：Session 为 `closed / stale / archived` 时标记为离线；Cell 的默认 core 分组不再由 lifecycle state 决定，而由 tracking + attachment state 决定。
-- **Tracked / Detached / Unmanaged grammar**：Agent Cells 默认用三类 workspace 管理分组：
+- **Tracked / Branch-only / Detached / Unmanaged grammar**：Agent Cells 默认用四类 workspace 管理分组：
   - `Tracked Workspaces`：有 live worktree attachment 的 Cells；
+  - `Branch-only Cells`：Cell 已绑定 branch identity，但尚未 materialize live worktree；
   - `Detached Cells`：Cell 记录仍在，但 attachment 为 `detached / missing`；
   - `Unmanaged Worktrees`：repo 中 live worktree 存在，但尚未绑定 Cell。
+- **Branch-only Cell surface**：branch-only 不是错误态，也不是 detached cleanup。它代表 “Cell identity 已存在，但 live workspace 尚未显式 materialize”。主动作应是 `Create Attachment`，而不是把它伪装成 missing worktree failure。
 - **Detached Cell surface**：当 Cell 丢失 live worktree attachment 时，默认不再进入 lifecycle cleanup rail；它应进入 `Detached Cells` 区，以 attachment-management copy 展示 `missing` vs `detached` 差异，同时保留 `View Details`、session 摘要和 evidence 访问。
 - **Detached Cell details**：从 `Detached Cells` 进入主 pane 时，应显示 attachment record、retained sessions 与 `Archive Cell / Clear Attachment / Delete Cell` 管理动作，而不是 generic terminal empty state。
-- **Unmanaged Worktree surface**：live git worktree 若未绑定 Cell，应被明确提示并支持 `Create Cell`、可用时的 `Reattach <Cell>` 建议，以及 `Ignore For Now`。当存在 deterministic detached-cell match 时，`Reattach` 应优先于 `Create`；当 worktree 处于 detached HEAD 时，不应展示误导性的 `Create Cell` CTA，而应显式说明需要先附着到 branch。ignore 是 user-local 的噪声控制，不是 repo policy。
+- **Unmanaged Worktree surface**：live git worktree 若未绑定 Cell，应被明确提示并支持 `Create Cell`、可用时的 `Bind/Reattach <Cell>` 建议，以及 `Ignore For Now`。当 suggestion 指向 branch-only Cell 时，verb 应是 `Bind`；当 suggestion 指向 detached Cell 时，verb 应是 `Reattach`；当 worktree 处于 detached HEAD 时，不应展示误导性的 `Create Cell` CTA，而应显式说明需要先附着到 branch。ignore 是 user-local 的噪声控制，不是 repo policy。
 - **Tracked detached-head attachment**：若一个已跟踪 Cell 的 live worktree 处于 detached HEAD，Cell 仍保持 attached，但 UI 必须显式展示 `Detached HEAD`，而不是把旧 record 里的 branch 文本当作当前真相继续显示。
 - **Legacy archived compatibility**：旧记录中的 `archived` 仍可作为兼容信息显示在 `Legacy Archived` 区，但它不应重新主导默认 core workspace rail。
-- **Workspace rail craft**：tracked/detached/unmanaged 区应保持同一套紧凑、面性、低噪声的 shell 语言；避免 card-within-card、重复 boxed chrome 或者为了“解释状态”堆出第二套 dashboard。
+- **Workspace rail craft**：tracked/branch-only/detached/unmanaged 区应保持同一套紧凑、面性、低噪声的 shell 语言；避免 card-within-card、重复 boxed chrome 或者为了“解释状态”堆出第二套 dashboard。
 - **Sessionless Cell**：Cell 允许零 session 存在。窗口启动、Cell 恢复、或 attached worktree 被重新看见时，都不应自动补一个 `Default` session；只有用户显式进入 runtime（例如 `Create Session` / 进入空 terminal 态后确认创建）时，才 materialize 新的 execution lane。
-- **Create vs Bind**：`Create Cell` 内部需要区分三种语义：Agency 新建 branch、绑定已有 worktree、绑定已有 branch。只有第一种受 branch strategy / naming 约束；后两种必须保留用户已有 branch identity，不把绑定流程伪装成新建流程。
+- **Create vs Bind**：`Create Cell` 内部需要区分三种语义：Agency 新建 branch/worktree、绑定已有 worktree、绑定已有 branch。只有第一种受 branch strategy / naming 约束；后两种必须保留用户已有 branch identity，不把绑定流程伪装成新建流程。`Bind Existing Branch` 若找不到 live worktree，应只创建 branch-only Cell；只有显式 `Create Worktree Attachment` 才能 materialize 新 worktree。
 - **Hover 预览**：以“缩略图为主 + 一行毛玻璃信息条”为主视觉；缩略图按当前 session 字号与 tmux pane cols/rows 渲染，**高度随 rows 自适应**，上限固定为宽高比约 1.618；内容贴底显示，不强行裁切。hover 时淡至 85% 不透明度且可滚动查看。
 - **预览首帧策略**：首帧未 ready 前仅显示底部信息条（最小高度），首帧 ready 后向上展开缩略图，避免“先高后低”的位置跳动。
 - **加载态表现**：预览未 ready 时以推荐高度显示并覆盖 Loading，完成后内容淡入；若高度需变化，仅顶边在 0.2s 内平滑过渡。

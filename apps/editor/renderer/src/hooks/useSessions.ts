@@ -42,6 +42,14 @@ import { isProjectBackedCell } from '../utils/windowHomeCell';
 
 const isDevBuild = Boolean(import.meta.env?.DEV);
 
+function resolveAttachmentRuntimeMessage(cell: any) {
+  const attachmentState = String(cell?.attachmentState || '').trim().toLowerCase();
+  if (attachmentState === 'branch_only') {
+    return 'This Cell is branch-only. Create a worktree attachment before starting sessions or runtime commands.';
+  }
+  return 'This Cell does not have an attached worktree. Reattach or create a new attachment before creating sessions.';
+}
+
 export function useSessions(options: any = {}) {
   const {
     selectedCell,
@@ -687,7 +695,7 @@ export function useSessions(options: any = {}) {
       }
       const attachedWorktreePath = targetCell.attachedWorktreePath || '';
       if (!attachedWorktreePath) {
-        setSessionError('This Cell does not have an attached worktree. Reattach or create a new attachment before creating sessions.');
+        setSessionError(resolveAttachmentRuntimeMessage(targetCell));
         return null;
       }
       const shouldOpenTerminal = targetCell.id === selectedCell?.id;
@@ -770,7 +778,7 @@ export function useSessions(options: any = {}) {
         return null;
       }
       if (!targetCell.attachedWorktreePath) {
-        setSessionError('This Cell does not have an attached worktree. Reattach or create a new attachment before creating sessions.');
+        setSessionError(resolveAttachmentRuntimeMessage(targetCell));
         return null;
       }
       return createSessionForCell(targetCell.id, options);
@@ -994,7 +1002,7 @@ export function useSessions(options: any = {}) {
           const preferredAvatar = pickSessionAvatarId(sessionsByCellId[targetCell.id] || []);
           const attachedWorktreePath = worktreePath || targetCell.attachedWorktreePath || '';
           if (!attachedWorktreePath) {
-            throw new Error('This Cell does not have an attached worktree. Reattach or create a new attachment before creating sessions.');
+            throw new Error(resolveAttachmentRuntimeMessage(targetCell));
           }
           const created = await createSessionBridge({
             cellId: targetCell.id,

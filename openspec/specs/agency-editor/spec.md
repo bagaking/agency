@@ -1,7 +1,7 @@
 # agency-editor Specification
 
 ## Purpose
-Define the requirements for the Agency Editor desktop app that manages Cells, terminals, and lifecycle state for agentic development.
+Define the requirements for the Agency Editor desktop app that manages Cells, worktree attachments, terminals, and bounded runtime for agentic development.
 ## Requirements
 ### Requirement: Canonical Object Hierarchy
 The editor SHALL define one canonical Agency object hierarchy and use it consistently across product language, runtime contracts, and cross-surface ownership.
@@ -9,7 +9,7 @@ The canonical hierarchy SHALL distinguish at least:
 - `App`: the desktop application instance
 - `Window`: one top-level editor shell with window-local project context
 - `Project`: the repository context selected inside a window
-- `Cell`: the worktree-bound workspace object
+- `Cell`: the repo-owned durable workspace record that may bind a live worktree attachment
 - `Session`: an execution lane inside exactly one Cell
 - `Run`: a host-owned bounded orchestration record that may inspect, create, or target sessions through approved capabilities
 
@@ -202,10 +202,11 @@ The architecture MUST keep a path open for future Windows/Linux support.
 
 ### Requirement: Create Cell
 The editor SHALL create a new Cell as a durable project-owned workspace object.
-The editor SHALL allow Cell creation to attach a new git worktree, reuse an existing git worktree, or bind an existing branch by creating or reusing an attachment worktree, but Cell identity SHALL remain valid if the attachment later changes or disappears.
+The editor SHALL allow Cell creation to attach a new git worktree, reuse an existing git worktree, or bind an existing branch without requiring immediate worktree materialization, but Cell identity SHALL remain valid if the attachment later changes or disappears.
 The editor SHALL treat Cell creation as workspace/context creation rather than as child execution or run orchestration.
 Branch strategy and naming constraints SHALL apply only when the editor creates a new branch itself.
 Binding an existing worktree or branch SHALL preserve the existing branch identity rather than forcing it through create-time naming rules.
+Binding an existing branch SHALL NOT implicitly create a new worktree unless the user explicitly chooses a worktree-materialization action.
 
 #### Scenario: Create new Cell
 - **WHEN** a user creates a new Cell with a new branch
@@ -219,8 +220,14 @@ Binding an existing worktree or branch SHALL preserve the existing branch identi
 
 #### Scenario: Bind existing branch
 - **WHEN** a user selects an existing branch for a new Cell
-- **THEN** the editor creates or reuses a worktree attachment for that branch
-- **AND** creates or reuses the durable Cell record without renaming the existing branch
+- **THEN** the editor creates or reuses the durable Cell record without renaming the existing branch
+- **AND** if that branch already has a live worktree, the editor binds that live worktree instead of creating a duplicate one
+- **AND** otherwise the editor creates a branch-only Cell and leaves worktree materialization explicit
+
+#### Scenario: Create worktree attachment for an existing branch-only Cell
+- **WHEN** a user explicitly requests worktree materialization for a branch-only Cell
+- **THEN** the editor creates or binds a live worktree attachment for that Cell
+- **AND** that materialization happens only because the user invoked the explicit attachment action
 
 #### Scenario: Create from explicit base branch
 - **WHEN** a user creates a new branch-backed Cell and selects an explicit base branch such as `main`
@@ -228,10 +235,15 @@ Binding an existing worktree or branch SHALL preserve the existing branch identi
 - **AND** the chosen base branch is not silently replaced by the repository default branch
 
 ### Requirement: Workspace Tracking Rails
-The editor SHALL distinguish tracked workspaces, detached Cells, and unmanaged worktrees in Agent Cells.
+The editor SHALL distinguish tracked workspaces, branch-only Cells, detached Cells, and unmanaged worktrees in Agent Cells.
 Detached Cells SHALL route to attachment-management details instead of generic terminal empty states.
 Unmanaged worktrees with deterministic detached-Cell matches SHALL prioritize reattach over creating duplicate Cell records.
 Unmanaged worktrees in detached HEAD state SHALL not present `Create Cell` as an active default action until the worktree is attached to a branch.
+
+#### Scenario: Branch-only Cells are first-class workspace records
+- **WHEN** a tracked Cell is bound to a branch but has no live worktree attachment
+- **THEN** the editor surfaces it through a dedicated branch-only management surface
+- **AND** the primary action focuses on explicit worktree attachment creation rather than cleanup or failure recovery
 
 #### Scenario: Detached Cell opens attachment-management details
 - **WHEN** a user opens `View Details` for a detached or missing Cell
@@ -3207,6 +3219,7 @@ Renderer view components SHALL access preload-exposed privileged APIs through re
 The editor SHALL model worktree attachment separately from Cell lifecycle state.
 A Cell SHALL remain selectable and inspectable when its worktree attachment is missing, removed, or intentionally detached.
 The editor SHALL surface attachment state distinctly from lifecycle state.
+The editor SHALL allow a branch-only tracked Cell to exist with no live worktree attachment and without treating that state as detached or missing.
 
 #### Scenario: Worktree removed outside the editor
 - **WHEN** a Cell's recorded worktree is no longer present on disk or in the repository worktree list
@@ -3218,6 +3231,11 @@ The editor SHALL surface attachment state distinctly from lifecycle state.
 - **WHEN** a user selects a Cell whose worktree attachment is missing or detached
 - **THEN** worktree-bound surfaces show an attachment-aware empty state or repository fallback as appropriate
 - **AND** non-worktree artifacts such as sessions, replies, runs, and lifecycle metadata remain accessible
+
+#### Scenario: Select a branch-only Cell
+- **WHEN** a user selects a tracked Cell that is bound to a branch but has no live worktree attachment yet
+- **THEN** the editor shows branch-only management details instead of detached/missing failure copy
+- **AND** the editor offers explicit worktree attachment creation rather than auto-materializing runtime
 
 ### Requirement: Detached Cell Management And Legacy Archived Surfaces
 The editor SHALL allow users to archive or delete a Cell after its worktree attachment has been removed.

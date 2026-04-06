@@ -28,10 +28,12 @@ export function useCreateCellModalLauncher({
     const title =
       initialOptions?.initialBindTargetCell && initialMode === 'worktree'
         ? 'Reattach Worktree'
+        : initialOptions?.initialBindTargetCell && initialMode === 'branch'
+          ? 'Create Worktree Attachment'
         : initialMode === 'worktree'
           ? 'Track Existing Worktree'
           : initialMode === 'branch'
-            ? 'Track Existing Branch'
+            ? 'Bind Existing Branch'
             : 'Create New Cell';
     modal.openModal({
       id: modalId,

@@ -37,6 +37,7 @@ export function buildAppLayoutProps({
   focusSessionInUi,
   handleContinueSessionOnMobile,
   handleArchiveCell,
+  handleCreateAttachmentCell,
   projectReady,
   projectError,
   projectRoot,
@@ -216,6 +217,7 @@ export function buildAppLayoutProps({
     onContinueSessionOnMobile:
       handleContinueSessionOnMobile || prepareSessionContinueOnMobile,
     onArchiveCell: handleArchiveCell,
+    onCreateAttachmentCell: handleCreateAttachmentCell,
     onTrackPendingHarnessRun: trackPendingHarnessRun,
     onClearTrackedHarnessRun: clearTrackedHarnessRun,
     onSettleTrackedHarnessRun: settleTrackedHarnessRun,

@@ -36,10 +36,11 @@ Agency Editor 是面向 agentic 并行开发的上下文管理桌面应用，核
 ### Architecture Patterns
 - Canonical product objects are `App -> Window -> Project -> Cell -> Session -> Run`.
 - `Agent Cells`, `Session Map`, `Hierarchy`, `Memo`, and `Commander` are surfaces over those objects instead of competing object roots.
-- `Create Cell` is the workspace/worktree action; `Create Agent` is bounded child execution owned by a run; `Fork` is a specialized `Create Agent` strategy.
+- `Create Cell` is the workspace-tracking action; `Create Agent` is bounded child execution owned by a run; `Fork` is a specialized `Create Agent` strategy.
 - `Commander` remains a bounded operator station: `Ops` is the persistent evidence rail, `Briefing` is the reveal panel, and neither should drift into a window-global assistant or HIL-style drawer.
 - The unified local control bus is the canonical external automation surface; it dispatches to capability owners such as Window Shell, File Intent, Session Runtime, and Main Agent Harness instead of replacing them.
-- Cell 与 branch/worktree 严格 1:1。
+- Cell 是 repo-owned durable object；branch/worktree 是它可选的 binding/attachment，而不是共享生命周期的对象。
+- 绑定现存 branch/worktree 的流程不得隐式创建新 worktree；只有显式 `Create Branch Worktree` 或 `Create Worktree Attachment` 才能 materialize 新 worktree。
 - `.agency` 目录是本地状态与配置的权威来源（YAML/Markdown 为主）。
 - Gates / Actions / Softlinks 均遵守 Global -> Project -> Agent 解析顺序。
 - 终端会话以 tmux 为依赖，Session Registry 持久化存储。

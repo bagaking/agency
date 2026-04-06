@@ -12,6 +12,7 @@ import {
   PencilLine,
   Check,
   X,
+  GitBranch,
 } from 'lucide-react';
 import { RiveAnimation } from './RiveAnimation';
 import { TerminalArea } from './TerminalArea';
@@ -47,6 +48,7 @@ export function EditorPane({
   onTurnGateExecute,
   onOpenTerminal,
   onArchiveCell,
+  onCreateAttachmentCell,
   onClearCellAttachment,
   onDeleteCell,
   onZoomIn,
@@ -265,13 +267,17 @@ export function EditorPane({
   const idleLabel = formatIdleClock(idleMs);
   const attachmentState = String(cell?.attachmentState || 'attached').trim().toLowerCase();
   const attachmentTone =
-    attachmentState === 'missing'
+    attachmentState === 'branch_only'
+      ? 'border-sky-300/25 bg-sky-500/10 text-sky-100'
+      : attachmentState === 'missing'
       ? 'border-rose-400/30 bg-rose-500/10 text-rose-200'
       : attachmentState === 'detached'
         ? 'border-amber-300/25 bg-amber-500/10 text-amber-100'
         : 'border-emerald-400/20 bg-emerald-500/10 text-emerald-200';
   const attachmentLabel =
-    attachmentState === 'missing'
+    attachmentState === 'branch_only'
+      ? 'Branch-only Cell'
+      : attachmentState === 'missing'
       ? 'Missing worktree'
       : attachmentState === 'detached'
         ? 'Detached worktree'
@@ -454,7 +460,25 @@ export function EditorPane({
           </button>
           {attachmentState !== 'attached' ? (
             <div className="flex items-center gap-1.5">
-              {onClearCellAttachment ? (
+              {attachmentState === 'branch_only' && onCreateAttachmentCell ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onCreateAttachmentCell?.({
+                      mode: 'branch',
+                      existingBranch: cell.branch,
+                      name: cell.name,
+                      initialBindTargetCell: cell,
+                    })
+                  }
+                  className="flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-medium text-sky-100 transition-colors hover:bg-sky-500/10"
+                  title="Create a live worktree attachment for this branch-bound Cell"
+                >
+                  <GitBranch size={12} />
+                  <span>Create Attachment</span>
+                </button>
+              ) : null}
+              {attachmentState !== 'branch_only' && onClearCellAttachment ? (
                 <button
                   type="button"
                   onClick={onClearCellAttachment}
@@ -482,7 +506,84 @@ export function EditorPane({
       </header>
 
       <div className="flex-1 flex flex-col min-h-0 bg-black/20">
-        {attachmentState !== 'attached' ? (
+        {attachmentState === 'branch_only' ? (
+          <div className="flex min-h-0 flex-1 items-start justify-center overflow-y-auto px-6 py-6">
+            <div className="w-full max-w-[960px] rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(18,30,46,0.92),rgba(10,16,26,0.97))] p-6 shadow-[0_28px_64px_-28px_rgba(0,0,0,0.72)]">
+              <div className="flex items-start justify-between gap-6">
+                <div className="min-w-0">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-100/72">
+                    Branch-only Cell
+                  </div>
+                  <div className="mt-2 text-[24px] font-semibold tracking-[-0.04em] text-foreground">
+                    {cell.name}
+                  </div>
+                  <div className="mt-3 max-w-[64ch] text-[13px] leading-6 text-muted-foreground">
+                    This Cell is intentionally bound to an existing branch without a live worktree attachment. Nothing is broken here. Create a worktree attachment explicitly when you want terminal runtime, file operations, or a materialized workspace.
+                  </div>
+                </div>
+                <span
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] ${attachmentTone}`}
+                  title={branchMeta.title || attachmentLabel}
+                >
+                  <span>{attachmentLabel}</span>
+                </span>
+              </div>
+
+              <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)]">
+                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+                  <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground/58">
+                    Branch Binding
+                  </div>
+                  <div className="mt-3 text-[12px] text-foreground/86">
+                    <div className="font-medium text-foreground">Tracked branch</div>
+                    <div className="mt-1 break-all font-mono text-[11px] text-sky-100/82">
+                      {branchMeta.label || cell.branch || 'No branch recorded'}
+                    </div>
+                  </div>
+                  <div className="mt-4 text-[12px] text-foreground/86">
+                    <div className="font-medium text-foreground">Runtime readiness</div>
+                    <div className="mt-2 rounded-xl border border-dashed border-sky-300/20 bg-sky-500/[0.05] px-3 py-3 text-[11px] leading-5 text-muted-foreground">
+                      This Cell does not own a live worktree yet. Session runtime stays unavailable until you explicitly create or bind a worktree attachment.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/[0.08] bg-black/18 p-4">
+                  <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground/58">
+                    Workspace Actions
+                  </div>
+                  <div className="mt-3 flex flex-col gap-2">
+                    {onCreateAttachmentCell ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onCreateAttachmentCell?.({
+                            mode: 'branch',
+                            existingBranch: cell.branch,
+                            name: cell.name,
+                            initialBindTargetCell: cell,
+                          })
+                        }
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-300/24 bg-sky-500/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-sky-50 transition-colors hover:bg-sky-500/16"
+                      >
+                        Create Worktree Attachment
+                      </button>
+                    ) : null}
+                    {onDeleteCell ? (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteCell?.(cell)}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-300/20 bg-rose-500/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-100 transition-colors hover:bg-rose-500/16"
+                      >
+                        Delete Cell
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : attachmentState !== 'attached' ? (
           <div className="flex min-h-0 flex-1 items-start justify-center overflow-y-auto px-6 py-6">
             <div className="w-full max-w-[960px] rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(24,28,36,0.92),rgba(12,15,20,0.97))] p-6 shadow-[0_28px_64px_-28px_rgba(0,0,0,0.72)]">
               <div className="flex items-start justify-between gap-6">

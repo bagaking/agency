@@ -41,6 +41,7 @@ import {
   markSyntheticActivityWindow,
   RESIZE_ACTIVITY_SUPPRESS_MS,
 } from './terminal/terminalResizeController';
+import { buildTerminalStartPayload } from './terminal/terminalStartPayload';
 
 function TerminalPane({
   cell,
@@ -451,12 +452,12 @@ function TerminalPane({
     let canceled = false;
     ensureStarted({
       entry: entryRef.current,
-      payload: {
-        cellId,
+      payload: buildTerminalStartPayload({
+        cell,
         sessionId,
         worktreePath,
         mode,
-      },
+      }),
     })
       .then((result) => {
         if (canceled) {

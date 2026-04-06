@@ -36,6 +36,7 @@ export function AgentCellsSidebar({
   onFocusSessionInUi,
   onConfigureProfile,
   onArchiveCell,
+  onCreateAttachmentCell,
   onOpenFileReference,
   onRevealFileReference,
   onImportFileReferences,
@@ -172,6 +173,7 @@ export function AgentCellsSidebar({
           onFocusSessionInUi={onFocusSessionInUi}
           onConfigureProfile={onConfigureProfile}
           onArchiveCell={onArchiveCell}
+          onCreateAttachmentCell={onCreateAttachmentCell}
         />
 
         <AgentCellsExplorerPanel

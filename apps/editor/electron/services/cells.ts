@@ -427,6 +427,7 @@ function buildDetachedCellCandidate(cell) {
     id,
     name: normalizeText(cell?.name) || id,
     branch: normalizeText(cell?.branch),
+    attachmentState,
     lastKnownWorktreePath: normalizePathValue(cell?.worktreePath || cell?.lastKnownWorktreePath),
   };
 }
@@ -445,6 +446,7 @@ function buildBindSuggestion(worktree, detachedCandidates) {
       kind: 'exact_last_known_path',
       cellId: pathMatches[0].id,
       cellName: pathMatches[0].name,
+      cellAttachmentState: pathMatches[0].attachmentState,
     };
   }
   if (pathMatches.length > 1) {
@@ -464,6 +466,7 @@ function buildBindSuggestion(worktree, detachedCandidates) {
       kind: 'unique_branch_match',
       cellId: branchMatches[0].id,
       cellName: branchMatches[0].name,
+      cellAttachmentState: branchMatches[0].attachmentState,
     };
   }
   if (branchMatches.length > 1) {

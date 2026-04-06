@@ -15,6 +15,7 @@
 - `Agent Cells`, `Explorer`, `Workbench`, `Session Map`, `Hierarchy`, `Memo`, and `Commander` are product surfaces over those objects, not competing object roots.
 - Core workspace management is worktree-first: live repo worktrees may exist without a Cell until the user explicitly chooses to track or bind them.
 - `Create Cell` means tracking a workspace context over a new or existing worktree, not starting a lifecycle ceremony.
+- Binding an existing branch does not materialize a worktree implicitly. If the branch already has a live worktree, Agency binds it; otherwise Agency creates a branch-only Cell and leaves attachment creation explicit.
 - `Create Agent` means bounded child execution owned by a host run.
 - `Fork` is a specialized `Create Agent` strategy, not the baseline workspace or execution noun.
 - `Commander` is one bounded operator capability; in Session Map, `Ops` is the evidence rail and `Briefing` is the reveal panel in the same station.
@@ -170,10 +171,12 @@
 - Agent Cells keeps attention inline on Cell and Session affordances instead of inserting a separate attention queue above the management list.
 - Agent Cells routes the default workspace view through:
   - `Tracked Workspaces`
+  - `Branch-only Cells`
   - `Detached Cells`
   - `Unmanaged Worktrees`
+- `Branch-only Cells` are tracked Cells bound to an existing branch without a live worktree yet. They expose explicit `Create Attachment` actions and do not pretend the missing worktree is a failure state.
 - `Detached Cells` are attachment-management records: their cards keep session counts visible, allow `View Details`, and detached detail view offers `Archive Cell`, `Clear Attachment`, and `Delete Cell` instead of falling back to a generic empty terminal state.
-- `Unmanaged Worktrees` prioritize deterministic `Reattach <Cell>` suggestions over creating duplicate Cells.
+- `Unmanaged Worktrees` prioritize deterministic `Bind/Reattach <Cell>` suggestions over creating duplicate Cells.
 - An unmanaged worktree in detached HEAD state is shown explicitly as `Detached HEAD` and does not surface `Create Cell` as an active action until it is attached to a branch.
 - A tracked Cell whose live attachment is on detached HEAD keeps the attachment but surfaces `Detached HEAD` metadata instead of reviving stale branch text from the stored Cell record.
 - `Legacy Archived` remains a compatibility surface for older records, not the default core workspace rail.

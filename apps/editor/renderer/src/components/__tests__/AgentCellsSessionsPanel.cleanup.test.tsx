@@ -125,6 +125,7 @@ function renderPanel(props: Record<string, unknown> = {}) {
           onFocusSessionInUi={() => undefined}
           onConfigureProfile={() => undefined}
           onArchiveCell={() => undefined}
+          onCreateAttachmentCell={() => undefined}
           {...props}
         />
       </AttentionLayerProvider>
@@ -177,6 +178,28 @@ test('AgentCellsSessionsPanel separates tracked workspaces, detached cells, and 
   assert.match(html, /detached-cell-card-cell-needs-cleanup/);
   assert.match(html, /View Details/);
   assert.doesNotMatch(html, /legacy-archived-cell-cell-archived/);
+});
+
+test('AgentCellsSessionsPanel renders branch-only cells in a dedicated branch-only section', () => {
+  const html = renderToStaticMarkup(
+    renderPanel({
+      cells: [
+        {
+          id: 'cell-branch',
+          name: 'mainline-review',
+          branch: 'main',
+          state: 'draft',
+          attachmentState: 'branch_only',
+        },
+      ],
+    })
+  );
+
+  assert.match(html, /Branch-only Cells/);
+  assert.match(html, /branch-only-cell-card-cell-branch/);
+  assert.match(html, /Create Attachment/);
+  assert.match(html, /mainline-review/);
+  assert.match(html, />main</);
 });
 
 test('AgentCellsSessionsPanel renders detached cells as management cards instead of session trees', () => {
@@ -280,6 +303,27 @@ test('deriveUnmanagedWorktreeDisplay prioritizes deterministic reattach over cre
   assert.equal(display.primaryAction, 'bind');
   assert.match(display.primaryLabel, /Reattach feature/);
   assert.match(display.secondaryCreateLabel, /Create New Cell/);
+});
+
+test('deriveUnmanagedWorktreeDisplay uses Bind for branch-only cell suggestions', () => {
+  const display = deriveUnmanagedWorktreeDisplay({
+    id: 'unmanaged-bind-branch-only',
+    path: '/repo/.worktrees/main',
+    branch: 'main',
+    head: 'abc1234',
+    hasBranch: true,
+    isDetachedHead: false,
+    ignored: false,
+    bindSuggestion: {
+      kind: 'unique_branch_match',
+      cellId: 'cell-main',
+      cellName: 'main',
+      cellAttachmentState: 'branch_only',
+    },
+  });
+
+  assert.equal(display.primaryAction, 'bind');
+  assert.match(display.primaryLabel, /^Bind main$/);
 });
 
 test('Legacy archived toggle reveals compatibility cards while archived cells stay out of detached management', async () => {

@@ -19,7 +19,11 @@
 - [ ] Reuse an existing worktree and confirm a repo-owned Cell record is created under `.agency/cells/<cell-id>/cell.yaml`.
 - [ ] Open Agent Cells in a repo that already has an unmanaged live worktree and confirm it appears under `Unmanaged Worktrees` instead of being auto-converted into a tracked Cell.
 - [ ] From `Unmanaged Worktrees`, choose `Create Cell` and confirm the worktree becomes a tracked workspace without renaming its branch.
+- [ ] In `Bind Existing Branch`, choose a branch with no live worktree and confirm Agency creates a `Branch-only Cell` instead of implicitly creating `.worktrees/<name>`.
+- [ ] In `Bind Existing Branch`, choose a branch whose live workspace is already attached at repo root (for example `main`) and confirm Agency binds that live workspace instead of creating a duplicate worktree.
+- [ ] From a `Branch-only Cell`, use `Create Attachment` and confirm Agency materializes a worktree only at that explicit step.
 - [ ] For an unmanaged worktree with a deterministic detached-cell suggestion, confirm the row offers `Reattach <Cell Name>` as the primary action and keeps `Create New Cell` secondary instead of forcing duplicate Cell creation.
+- [ ] For an unmanaged worktree with a deterministic branch-only Cell suggestion, confirm the row offers `Bind <Cell Name>` rather than `Reattach`.
 - [ ] For an unmanaged worktree in detached HEAD state, confirm the row labels that state explicitly, hides any active `Create Cell` CTA, and shows branch-required guidance instead.
 - [ ] Use `Ignore For Now` on an unmanaged worktree and confirm it leaves the visible unmanaged list; then use `Reset ignored` and confirm it becomes visible again.
 - [ ] Remove or detach a tracked Cell worktree, reopen Agent Cells, and confirm that Cell moves into `Detached Cells` rather than a lifecycle cleanup rail.
@@ -28,9 +32,9 @@
 - [ ] Open a legacy archived record and confirm it appears only under `Legacy Archived`, with low-emphasis compatibility treatment rather than re-taking ownership of the default workspace rail.
 - [ ] Restart with an attached Cell whose session registry is empty and confirm the window does not auto-create a `Default` session.
 - [ ] In the empty terminal state for such a Cell, click `Create Session` and confirm a session is created only at that explicit step.
-- [ ] Open `Create Cell` and confirm `Create Branch Worktree`, `Track Existing Worktree`, and `Track Existing Branch` are separate modes.
+- [ ] Open `Create Cell` and confirm `Create Branch Worktree`, `Track Existing Worktree`, and `Bind Existing Branch` are separate modes.
 - [ ] In `Create New Branch`, choose `main` as the base branch even when the current/default startup branch differs, create a Cell, and confirm the new branch is based on `main`.
-- [ ] In `Track Existing Branch`, select a user-created branch that does not follow the Agency naming prefix rules and confirm the Cell binds to that branch without renaming it.
+- [ ] In `Bind Existing Branch`, select a user-created branch that does not follow the Agency naming prefix rules and confirm the Cell binds to that branch without renaming it.
 
 ## Explorer
 - [ ] Enter a public URL into Explorer search and confirm a compact `Open Web` affordance appears without forcing an immediate mode switch.

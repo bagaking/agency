@@ -240,7 +240,16 @@ export function useCellLifecycleActions({
         if (cell?.id) {
           setSelectedId(cell.id);
         }
-        handleOpenTerminal();
+        if (String(cell?.attachmentState || '').trim().toLowerCase() === 'attached') {
+          handleOpenTerminal();
+        } else if (String(cell?.attachmentState || '').trim().toLowerCase() === 'branch_only') {
+          modal?.notify?.({
+            title: 'Branch-only Cell created',
+            description:
+              'This Cell is bound to the selected branch without a live worktree attachment. Create an attachment explicitly when you want to start runtime work.',
+            tone: 'info',
+          });
+        }
       } catch (error) {
         console.error(error);
       } finally {
@@ -253,6 +262,7 @@ export function useCellLifecycleActions({
       projectReady,
       projectRoot,
       setLoading,
+      modal,
       setProjectError,
       setSelectedId,
     ]

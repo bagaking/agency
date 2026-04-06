@@ -90,8 +90,10 @@ Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeSc
 - HIL storage is bounded to `comment` / `memo` / `draft`; session replies are session-owned artifacts and must not be stored or surfaced as HIL inbox items.
 - Session-source delivery must reference reply artifacts as `system=reply`; do not backdoor reply provenance through HIL refs.
 - `Memo` is the primary user-facing noun for the artifact workspace; treat `HIL` as an internal/storage term and do not surface mixed labels like “Neural Comments” / “HIL Repository” for the same artifact family.
-- `Create Cell` is the worktree-bound workspace action.
+- `Create Cell` is the workspace-tracking action, not a guarantee that a live worktree will be materialized immediately.
 - Core workspace management is worktree-first: live repo worktrees may exist without a Cell, and Agency should discover/adopt/manage them explicitly instead of assuming every worktree is already Cell-owned.
+- A tracked Cell may be `attached`, `branch-only`, or `detached/missing`; those are attachment states, not lifecycle stages.
+- Binding existing branches or worktrees must not implicitly create new worktrees. Worktree materialization is always an explicit user action.
 - Branch naming/prefix rules apply only when Agency creates a new branch; binding an existing branch or worktree must preserve the user-chosen branch identity instead of forcing it through create-time naming rules.
 - `Create Agent` is the bounded child-execution action owned by a run.
 - `Fork` is a specialized `Create Agent` strategy, not the default noun for workspace creation or child execution.
@@ -104,6 +106,7 @@ Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeSc
 - A Cell may exist with zero sessions; renderer/bootstrap must not auto-materialize a `Default` session just because a Cell is selected or attached. Session creation belongs to explicit runtime entry.
 - Default Agent Cells routing is attachment/tracking-first:
   - tracked workspaces with live worktree attachments;
+  - branch-only Cells bound to an existing branch with no live worktree yet;
   - detached or missing Cells whose sessions/evidence remain accessible;
   - unmanaged live worktrees that can be adopted into Cells explicitly.
 - Detached/missing Cells are attachment-management surfaces, not default lifecycle-cleanup rails. Prefer `reattach`, `view details`, and `remove record` semantics over `archive this to finish the lifecycle`.

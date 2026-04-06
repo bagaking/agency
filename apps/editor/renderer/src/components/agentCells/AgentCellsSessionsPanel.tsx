@@ -119,6 +119,7 @@ type AgentCellsSessionsPanelProps = {
   onFocusSessionInUi?: (cellId: string, sessionId: string) => void;
   onConfigureProfile?: (profile: any) => void;
   onArchiveCell?: (cell?: any | null) => void;
+  onCreateAttachmentCell?: (options?: any) => void;
 };
 
 function SessionKindBadge({ nodeKind }: { nodeKind?: string }) {
@@ -377,6 +378,7 @@ export function AgentCellsSessionsPanel({
   onFocusSessionInUi,
   onConfigureProfile,
   onArchiveCell,
+  onCreateAttachmentCell,
 }: AgentCellsSessionsPanelProps) {
   const attention = useAttentionLayer();
   const [idleNow, setIdleNow] = useState(Date.now());
@@ -408,8 +410,9 @@ export function AgentCellsSessionsPanel({
     [cells]
   );
 
-  const { trackedCells, detachedCells, legacyArchivedCells } = useMemo(() => {
+  const { trackedCells, branchOnlyCells, detachedCells, legacyArchivedCells } = useMemo(() => {
     const tracked: any[] = [];
+    const branchOnly: any[] = [];
     const detached: any[] = [];
     const legacyArchived: any[] = [];
     (cells || []).forEach((cell: any) => {
@@ -424,12 +427,15 @@ export function AgentCellsSessionsPanel({
       const attachmentMeta = resolveCellAttachmentMeta(cell);
       if (attachmentMeta.attachmentState === 'attached') {
         tracked.push(cell);
+      } else if (attachmentMeta.attachmentState === 'branch_only') {
+        branchOnly.push(cell);
       } else {
         detached.push(cell);
       }
     });
     return {
       trackedCells: tracked,
+      branchOnlyCells: branchOnly,
       detachedCells: detached,
       legacyArchivedCells: legacyArchived,
     };
@@ -987,6 +993,21 @@ export function AgentCellsSessionsPanel({
     [cellsById, onCreateCell]
   );
 
+  const handleCreateAttachmentForCell = useCallback(
+    (cell: any) => {
+      if (!cell?.id || !cell?.branch) {
+        return;
+      }
+      onCreateAttachmentCell?.({
+        mode: 'branch',
+        existingBranch: cell.branch,
+        name: cell.name,
+        initialBindTargetCell: cell,
+      });
+    },
+    [onCreateAttachmentCell]
+  );
+
   return (
     <>
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
@@ -1014,6 +1035,7 @@ export function AgentCellsSessionsPanel({
         ) : null}
 
         {trackedCells.length === 0 &&
+        branchOnlyCells.length === 0 &&
         detachedCells.length === 0 &&
         legacyArchivedCells.length === 0 &&
         visibleUnmanagedWorktrees.length === 0 ? (
@@ -1569,6 +1591,105 @@ export function AgentCellsSessionsPanel({
                   ) : null}
                     </div>
                   );
+                  })}
+                </div>
+              </section>
+            ) : null}
+
+            {branchOnlyCells.length > 0 ? (
+              <section
+                className="space-y-2"
+                data-testid="branch-only-cell-list"
+                aria-label="Branch-only cells"
+              >
+                <LifecycleSectionHeader
+                  label="Branch-only Cells"
+                  count={branchOnlyCells.length}
+                  tone="unmanaged"
+                  description="Tracked Cells bound to a branch without a live worktree attachment."
+                />
+                <div className="space-y-2">
+                  {branchOnlyCells.map((cell: any) => {
+                    const branchMeta = resolveCellBranchMeta(cell);
+                    const cellAttention = attention.byCellId[cell.id];
+                    const sessionCount = resolveCellSessions(String(cell.id)).length || 0;
+                    return (
+                      <div
+                        key={cell.id}
+                        data-testid={`branch-only-cell-card-${cell.id}`}
+                        className={`rounded-xl border px-3 py-2.5 transition-colors ${
+                          selectedId === cell.id
+                            ? 'border-sky-300/26 bg-sky-500/[0.08]'
+                            : `border-border/35 bg-background/20 ${resolveAttentionCardClass(cellAttention?.strongest)}`
+                        }`}
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-sky-300/22 bg-sky-500/10 text-sky-100/85">
+                            <GitBranch size={14} strokeWidth={1.6} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => onSelect?.(cell.id)}
+                                className="truncate text-left text-[12px] font-semibold text-foreground transition-colors hover:text-primary"
+                              >
+                                {cell.name}
+                              </button>
+                              <span className="inline-flex items-center rounded-full border border-sky-300/24 bg-sky-500/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-sky-100">
+                                Branch-only
+                              </span>
+                              {cellAttention?.strongest ? (
+                                <button
+                                  type="button"
+                                  onClick={() => attention.jumpToAttention(cellAttention.strongest)}
+                                  className="shrink-0"
+                                  aria-label={buildAttentionActionLabel({
+                                    item: cellAttention.strongest,
+                                    ownerLabel: cell.name || cell.id,
+                                    count: cellAttention.count,
+                                  })}
+                                  title={cellAttention.strongest.detail}
+                                >
+                                  <AttentionPill
+                                    item={cellAttention.strongest}
+                                    count={cellAttention.count}
+                                    className="px-1.5 py-[2px]"
+                                  />
+                                </button>
+                              ) : null}
+                            </div>
+                            <div className="mt-1 text-[10px] font-mono text-sky-100/78">
+                              {branchMeta.label || cell.branch || 'No branch recorded'}
+                            </div>
+                            <div className="mt-1 text-[10px] leading-4 text-muted-foreground/72">
+                              This Cell is tracked against an existing branch. Create a worktree attachment explicitly when you want runtime work.
+                            </div>
+                            <div className="mt-2 flex items-center justify-between gap-2">
+                              <span className="text-[10px] text-muted-foreground/70">
+                                {sessionCount} session{sessionCount === 1 ? '' : 's'}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleCreateAttachmentForCell(cell)}
+                                  className="rounded-lg bg-sky-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-50 transition-colors hover:bg-sky-500/30"
+                                >
+                                  Create Attachment
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => onSelect?.(cell.id)}
+                                  className="rounded-lg border border-border/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                                >
+                                  View Details
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
                   })}
                 </div>
               </section>

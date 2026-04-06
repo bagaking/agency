@@ -41,12 +41,13 @@ At minimum:
 The editor SHALL allow users to create a tracked Cell from:
 - a new branch-backed worktree created by Agency
 - an existing live worktree
-- an existing branch by creating or reusing an attachment worktree
+- an existing branch without requiring immediate worktree materialization
 
 The editor SHALL NOT require every live worktree to already have a Cell.
 The editor SHALL allow a live unmanaged worktree to remain unmanaged until the user explicitly chooses to track it.
 Branch strategy and naming constraints SHALL apply only when the editor creates a new branch itself.
 Binding an existing worktree or branch SHALL preserve the existing branch identity rather than forcing it through create-time naming rules.
+Binding an existing branch SHALL NOT implicitly create a new worktree unless the user explicitly chooses an attachment-creation action.
 
 #### Scenario: Create new Cell
 - **WHEN** a user creates a new Cell with a new branch
@@ -60,8 +61,14 @@ Binding an existing worktree or branch SHALL preserve the existing branch identi
 
 #### Scenario: Bind existing branch
 - **WHEN** a user selects an existing branch for a new Cell
-- **THEN** the editor creates or reuses a worktree attachment for that branch
-- **AND** creates or reuses the durable Cell record without renaming the existing branch
+- **THEN** the editor creates or reuses the durable Cell record without renaming the existing branch
+- **AND** if the branch already has a live worktree, the editor binds that live workspace instead of creating a duplicate one
+- **AND** otherwise the editor creates a branch-only Cell and leaves worktree materialization explicit
+
+#### Scenario: Create explicit attachment for branch-only Cell
+- **WHEN** a user explicitly chooses `Create Worktree Attachment` for a branch-only Cell
+- **THEN** the editor creates or binds a live worktree attachment for that Cell
+- **AND** the worktree is materialized only because the user chose the explicit attachment action
 
 ### Requirement: Hierarchy Configuration Navigation
 The editor SHALL provide a Hierarchy entry in the activity bar for configuration of Actions, App Shortcuts, Reply Quick Prompts, Session Naming, Harness Providers, and Softlinks.
@@ -184,6 +191,7 @@ The editor SHALL persist ignored unmanaged-worktree state in a user-local per-re
 ### Requirement: Detached Cell And Unmanaged Worktree Management
 The editor SHALL provide compact management surfaces for:
 - tracked Cells with live worktree attachments
+- tracked Cells that are branch-only
 - tracked Cells whose attachments are detached or missing
 - live unmanaged worktrees
 
@@ -250,3 +258,7 @@ Optional workflow suites MAY add explicit spec validation when installed and ena
 ### Requirement: Detached Cell Cleanup And Archived Lifecycle Surfaces
 **Reason**: The base product no longer frames detached/missing tracked Cells through lifecycle cleanup/archive states.
 **Migration**: Replace lifecycle cleanup/archive surfaces with attachment/tracking management surfaces for detached Cells and unmanaged worktrees.
+#### Scenario: Branch-only tracked Cell remains distinct from detached cleanup
+- **WHEN** the Agent Cells surface contains a tracked Cell with branch identity but no live worktree attachment
+- **THEN** the editor surfaces that Cell in a dedicated branch-only section
+- **AND** the primary action focuses on explicit attachment creation rather than cleanup or failure recovery

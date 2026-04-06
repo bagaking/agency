@@ -109,6 +109,7 @@ function buildEditorPaneProps(overrides: Record<string, unknown> = {}) {
     onTurnGateExecute: () => undefined,
     onOpenTerminal: () => undefined,
     onArchiveCell: () => undefined,
+    onCreateAttachmentCell: () => undefined,
     onClearCellAttachment: () => undefined,
     onDeleteCell: () => undefined,
     onZoomIn: () => undefined,
@@ -230,4 +231,26 @@ test('EditorPane renders a detached-cell detail state instead of the generic ter
   assert.match(html, /Retained sessions/);
   assert.match(html, /Inspect/);
   assert.doesNotMatch(html, /No active terminal session/);
+});
+
+test('EditorPane renders a branch-only detail state with explicit attachment creation actions', () => {
+  const html = renderToStaticMarkup(
+    <EditorPane
+      {...buildEditorPaneProps({
+        cell: {
+          id: 'cell-branch-only',
+          name: 'mainline-review',
+          branch: 'main',
+          attachmentState: 'branch_only',
+          state: 'draft',
+        },
+        sessions: [],
+      })}
+    />
+  );
+
+  assert.match(html, /Branch-only Cell/);
+  assert.match(html, /Create Worktree Attachment/);
+  assert.match(html, /This Cell is intentionally bound to an existing branch without a live worktree attachment/);
+  assert.doesNotMatch(html, /Detached Workspace/);
 });

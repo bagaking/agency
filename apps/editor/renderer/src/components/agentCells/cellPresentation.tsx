@@ -16,7 +16,7 @@ const cellStateBadgeTone: Record<string, string> = {
 };
 
 export type CellAttachmentMeta = {
-  attachmentState: 'attached' | 'detached' | 'missing';
+  attachmentState: 'attached' | 'branch_only' | 'detached' | 'missing';
   label: string;
   tone: string;
   pathLabel: string;
@@ -51,6 +51,14 @@ export function resolveCellAttachmentMeta(cell: any): CellAttachmentMeta {
   const attachedPath = String(cell?.attachedWorktreePath || '').trim();
   const fallbackPath = String(cell?.lastKnownWorktreePath || cell?.worktreePath || '').trim();
   const pathLabelBase = attachedPath || fallbackPath;
+  if (attachmentState === 'branch_only') {
+    return {
+      attachmentState: 'branch_only',
+      label: 'Branch-only',
+      tone: 'border-sky-300/24 bg-sky-500/10 text-sky-100',
+      pathLabel: String(cell?.branch || '').trim(),
+    };
+  }
   if (attachmentState === 'missing') {
     return {
       attachmentState: 'missing',
@@ -106,7 +114,7 @@ export function isDetachedCellCleanupCandidate(cell: any): boolean {
     return false;
   }
   const attachmentState = resolveCellAttachmentMeta(cell).attachmentState;
-  return attachmentState !== 'attached' && !isArchivedCell(cell);
+  return ['detached', 'missing'].includes(attachmentState) && !isArchivedCell(cell);
 }
 
 export function buildCellSessionSummary(sessions: any[] = []): string[] {
