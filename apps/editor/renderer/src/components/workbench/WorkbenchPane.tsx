@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ChevronRight,
   FileText,
@@ -57,6 +57,7 @@ import { resolveWorkbenchLanguageDecision } from './workbenchLanguageDecision';
 import { useWorkbenchProjectPolicy } from './useWorkbenchProjectPolicy';
 import { useWorkbenchLanguageOverrides } from './useWorkbenchLanguageOverrides';
 import { WorkbenchLanguageControl } from './WorkbenchLanguageControl';
+import { useWorkbenchBrowserSurface } from './useWorkbenchBrowserSurface';
 import { getWorkbenchLanguageLabel } from '../../../../shared/workbenchLanguageCore';
 
 
@@ -65,9 +66,6 @@ export function WorkbenchPane({
   activeRootPath,
   activeRootLabel,
   onTabMetaChange,
-  browserLaneMeta,
-  onBrowserLaneMetaChange,
-  cellId,
   projectReady,
   projectError,
   onSelectProject,
@@ -95,9 +93,6 @@ export function WorkbenchPane({
       activeRootPath={activeRootPath}
       activeRootLabel={activeRootLabel}
       onTabMetaChange={onTabMetaChange}
-      browserLaneMeta={browserLaneMeta}
-      onBrowserLaneMetaChange={onBrowserLaneMetaChange}
-      cellId={cellId}
       commentLines={commentLines}
       onOpenComment={onOpenComment}
       onCursorPositionChange={onCursorPositionChange}
@@ -114,9 +109,6 @@ function WorkbenchPaneContent({
   activeRootPath,
   activeRootLabel,
   onTabMetaChange,
-  browserLaneMeta,
-  onBrowserLaneMetaChange,
-  cellId,
   commentLines,
   onOpenComment,
   onCursorPositionChange,
@@ -145,7 +137,6 @@ function WorkbenchPaneContent({
   const [editorToken, setEditorToken] = useState(0);
   const [browserSurfaceSuspendedByTabId, setBrowserSurfaceSuspendedByTabId] = useState<Record<string, boolean>>({});
   const activeEditorRef = useRef(null);
-  const browserLaneSlotRef = useRef<HTMLDivElement | null>(null);
   const tabElementByIdRef = useRef<Record<string, HTMLDivElement | null>>({});
   const tabStateByIdRef = useRef({});
   const loadRequestByTabRef = useRef({});
@@ -164,22 +155,23 @@ function WorkbenchPaneContent({
   const activeBrowserSurfaceSuspended = Boolean(
     activeTab?.id && browserSurfaceSuspendedByTabId[activeTab.id]
   );
-  const activeShellBrowserLaneMeta =
-    browserLaneMeta && activeTab?.id && browserLaneMeta.tabId === activeTab.id ? browserLaneMeta : null;
-  const activeShellBrowserSurface =
-    activeShellBrowserLaneMeta
-      ? {
-          browserSurfaceAvailable:
-            activeShellBrowserLaneMeta.browserSurfaceAvailable !== false &&
-            isAgencyMethodAvailable('syncWorkbenchBrowserSurface'),
-          surfaceState: activeShellBrowserLaneMeta.surfaceState || {
-            phase: activeShellBrowserLaneMeta.visible ? 'loading' : 'hidden',
-            visible: activeShellBrowserLaneMeta.visible,
-            canGoBack: false,
-            canGoForward: false,
-          },
-        }
-      : null;
+  const activeBrowserLaneOwner =
+    Boolean(activeTab?.id) &&
+    ((activeState.kind === 'bounded-web-research' ||
+      (activeState.kind === 'code' && activeState.researchSourceUrl)) &&
+      activeResearchPreferredMode === 'live');
+  const activeBrowserLaneTabId = activeBrowserLaneOwner && activeTab?.id ? activeTab.id : '';
+  const activeBrowserLaneUrl =
+    activeState.kind === 'bounded-web-research'
+      ? String(activeTab?.url || '')
+      : String(activeState.researchSourceUrl || '');
+  const activeWorkbenchBrowserSurface = useWorkbenchBrowserSurface({
+    tabId: activeBrowserLaneTabId,
+    url: activeBrowserLaneUrl,
+    visible: Boolean(activeBrowserLaneOwner) && !activeBrowserSurfaceSuspended,
+    navigationKey: activeResearchNavigationKey,
+    disposeOnUnmount: false,
+  });
   const resolvedCommentLines = Array.isArray(commentLines) ? commentLines : [];
   const isCodeTab = activeState.kind === 'code';
   const canComment = Boolean(activeTab && isCodeTab);
@@ -479,79 +471,6 @@ function WorkbenchPaneContent({
   useEffect(() => {
     onSelectionChange?.(null);
   }, [activeTab?.id, onSelectionChange]);
-
-  useLayoutEffect(() => {
-    if (!onBrowserLaneMetaChange) {
-      return undefined;
-    }
-    const publishMeta = () => {
-      const isBrowserLaneOwner =
-        Boolean(activeTab?.id) &&
-        ((activeState.kind === 'bounded-web-research' ||
-          (activeState.kind === 'code' && activeState.researchSourceUrl)) &&
-          activeResearchPreferredMode === 'live');
-      if (!isBrowserLaneOwner || !browserLaneSlotRef.current) {
-        onBrowserLaneMetaChange(cellId || 'repo', null);
-        return;
-      }
-      const rect = browserLaneSlotRef.current.getBoundingClientRect();
-      onBrowserLaneMetaChange(cellId || 'repo', {
-        cellId: cellId || 'repo',
-        tabId: activeTab.id,
-        url: activeState.kind === 'bounded-web-research' ? activeTab.url : activeState.researchSourceUrl,
-        navigationKey: activeResearchNavigationKey,
-        visible: true,
-        suspended: activeBrowserSurfaceSuspended,
-        rect: {
-          x: Math.round(rect.left),
-          y: Math.round(rect.top),
-          width: Math.round(rect.width),
-          height: Math.round(rect.height),
-        },
-        surfaceState: activeShellBrowserLaneMeta?.surfaceState || null,
-        browserSurfaceAvailable: activeShellBrowserLaneMeta?.browserSurfaceAvailable ?? null,
-      });
-    };
-    publishMeta();
-    const observedNodes = [
-      browserLaneSlotRef.current,
-      document.querySelector('[data-shell-main-panels]'),
-      document.querySelector('[data-shell-attention-rail]'),
-      document.querySelector('[data-shell-hil-drawer]'),
-    ].filter(Boolean) as HTMLElement[];
-    const handleWindowChange = () => publishMeta();
-    const handleTransitionEnd = () => publishMeta();
-    window.addEventListener('resize', handleWindowChange);
-    window.addEventListener('scroll', handleWindowChange, true);
-    observedNodes.forEach((node) => {
-      node.addEventListener('transitionend', handleTransitionEnd);
-    });
-    let observer: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== 'undefined' && observedNodes.length) {
-      observer = new ResizeObserver(() => publishMeta());
-      observedNodes.forEach((node) => observer?.observe(node));
-    }
-    return () => {
-      window.removeEventListener('resize', handleWindowChange);
-      window.removeEventListener('scroll', handleWindowChange, true);
-      observedNodes.forEach((node) => {
-        node.removeEventListener('transitionend', handleTransitionEnd);
-      });
-      observer?.disconnect();
-    };
-  }, [
-    activeBrowserSurfaceSuspended,
-    activeResearchNavigationKey,
-    activeResearchPreferredMode,
-    activeShellBrowserLaneMeta?.browserSurfaceAvailable,
-    activeShellBrowserLaneMeta?.surfaceState,
-    activeState.kind,
-    activeState.researchSourceUrl,
-    activeTab?.id,
-    activeTab?.url,
-    cellId,
-    onBrowserLaneMetaChange,
-  ]);
 
   useEffect(() => {
     if (!pendingJump || !activeTab) {
@@ -921,7 +840,7 @@ function WorkbenchPaneContent({
             onResolvedTitle={(title) => {
               handleResearchTabTitleChange(activeTab.id, title);
             }}
-            browserSurface={activeShellBrowserSurface}
+            browserSurface={activeWorkbenchBrowserSurface}
             onBrowserSurfaceSuspendedChange={(value) =>
               handleBrowserSurfaceSuspendedChange(activeTab.id, value)
             }
@@ -932,18 +851,17 @@ function WorkbenchPaneContent({
                 <WorkbenchBoundedWebResearchStatusBanner scene={scene} />
                 <div className="relative min-h-0 flex-1 overflow-hidden">
                   {scene.preferredMode === 'live' ? (
-                    <div ref={browserLaneSlotRef} className="absolute inset-0">
-                      <WorkbenchBrowserLane
-                        browserSurface={scene.browserSurface}
-                        suspended={scene.browserSurfaceSuspended}
-                        onOpenReader={() => scene.setPreferredMode('reader')}
-                        onOpenInBrowser={() => void scene.openInBrowser()}
-                        onReload={() => {
-                          scene.setPreferredMode('live');
-                          void scene.reload();
-                        }}
-                      />
-                    </div>
+                    <WorkbenchBrowserLane
+                      hostRef={activeWorkbenchBrowserSurface.hostRef}
+                      browserSurface={scene.browserSurface}
+                      suspended={scene.browserSurfaceSuspended}
+                      onOpenReader={() => scene.setPreferredMode('reader')}
+                      onOpenInBrowser={() => void scene.openInBrowser()}
+                      onReload={() => {
+                        scene.setPreferredMode('live');
+                        void scene.reload();
+                      }}
+                    />
                   ) : (
                     <WorkbenchBoundedWebResearchReaderPane
                       scene={scene}
@@ -1009,7 +927,7 @@ function WorkbenchPaneContent({
                 }}
                 allowMarkdownSave={true}
                 allowMemoCapture={true}
-                browserSurface={activeShellBrowserSurface}
+                browserSurface={activeWorkbenchBrowserSurface}
                 onBrowserSurfaceSuspendedChange={(value) =>
                   handleBrowserSurfaceSuspendedChange(activeTab.id, value)
                 }
@@ -1020,18 +938,17 @@ function WorkbenchPaneContent({
                     <WorkbenchBoundedWebResearchStatusBanner scene={scene} />
                     <div className="relative min-h-0 flex-1 overflow-hidden">
                       {scene.preferredMode === 'live' ? (
-                        <div ref={browserLaneSlotRef} className="absolute inset-0">
-                          <WorkbenchBrowserLane
-                            browserSurface={scene.browserSurface}
-                            suspended={scene.browserSurfaceSuspended}
-                            onOpenReader={() => scene.setPreferredMode('reader')}
-                            onOpenInBrowser={() => void scene.openInBrowser()}
-                            onReload={() => {
-                              scene.setPreferredMode('live');
-                              void scene.reload();
-                            }}
-                          />
-                        </div>
+                        <WorkbenchBrowserLane
+                          hostRef={activeWorkbenchBrowserSurface.hostRef}
+                          browserSurface={scene.browserSurface}
+                          suspended={scene.browserSurfaceSuspended}
+                          onOpenReader={() => scene.setPreferredMode('reader')}
+                          onOpenInBrowser={() => void scene.openInBrowser()}
+                          onReload={() => {
+                            scene.setPreferredMode('live');
+                            void scene.reload();
+                          }}
+                        />
                       ) : (
                         <WorkbenchBoundedWebResearchReaderPane
                           scene={scene}

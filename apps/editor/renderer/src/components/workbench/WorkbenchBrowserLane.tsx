@@ -15,6 +15,7 @@ type BrowserSurfaceHandle = {
 
 type WorkbenchBrowserLaneProps = {
   browserSurface: BrowserSurfaceHandle;
+  hostRef?: React.Ref<HTMLDivElement>;
   suspended?: boolean;
   onReload: () => void;
   onOpenReader: () => void;
@@ -25,6 +26,7 @@ const focusRingClass = focusRing.dark;
 
 export function WorkbenchBrowserLane({
   browserSurface,
+  hostRef,
   suspended = false,
   onReload,
   onOpenReader,
@@ -121,6 +123,7 @@ export function WorkbenchBrowserLane({
     <div className="absolute inset-0 overflow-hidden bg-white">
       <div
         data-testid="workbench-browser-surface-host"
+        ref={hostRef}
         className="absolute inset-0"
       />
       {surface.phase === 'loading' ? (

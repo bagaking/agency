@@ -32,7 +32,6 @@ import { useExplorerCommentRouting } from './app/useExplorerCommentRouting';
 import { useWorkbenchReplySelectionState } from './app/useWorkbenchReplySelectionState';
 import { useAppShellLayoutState } from './app/useAppShellLayoutState';
 import { useWindowShellState } from './app/useWindowShellState';
-import { useWorkbenchShellBrowserLaneState } from './app/useWorkbenchShellBrowserLaneState';
 import { AttentionLayerProvider } from './attention/AttentionLayerContext';
 import { useAttentionState } from './attention/useAttentionState';
 import { AppShellChrome } from './app/AppShellChrome';
@@ -465,13 +464,6 @@ function AppShell() {
     setHilDrawerOpen,
     setHilDrawerPanel: setHilDrawerPanelCompat,
     setHilDrawerPanelByView: setHilDrawerPanelByViewCompat,
-  });
-  const {
-    activeBrowserLane,
-    handleBrowserLaneMetaChange,
-    handleBrowserLaneSurfaceStateChange,
-  } = useWorkbenchShellBrowserLaneState({
-    selectedCellId: selectedCell?.id || '',
   });
   const { openHilDrawer, handleSelectHilDrawerPanel } = useHilDrawerController({
     activeView,
@@ -930,7 +922,6 @@ function AppShell() {
       cursorPosition,
       workbench,
       setCursorPosition,
-      activeBrowserLane,
     },
     selectionState: {
       replyFocusToken,
@@ -1015,8 +1006,6 @@ function AppShell() {
       handleJumpToComments,
       handleWorkbenchMetaChange,
       handleWorkbenchSelectionChange,
-      handleBrowserLaneMetaChange,
-      handleBrowserLaneSurfaceStateChange,
       setPendingWorkbenchJump,
       handleRevealPathInExplorerFromWorkbench,
       handleOpenCreateCellModal,

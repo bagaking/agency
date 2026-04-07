@@ -111,6 +111,9 @@ class FakeView {
   setBounds(bounds) {
     this.bounds = bounds;
   }
+  getBounds() {
+    return this.bounds;
+  }
   setVisible(value) {
     this.visible = value;
   }
@@ -244,12 +247,18 @@ test('maps renderer rects through the owner renderer view bounds', () => {
   );
 });
 
-test('keeps raw renderer coordinates when no authoritative renderer-view bounds seam exists', () => {
+test('resolves renderer-view bounds from the owner renderer child view when explicit seam is absent', () => {
   const fakeWindow = new FakeWindow(1);
   const rendererView = new FakeWebContentsView(fakeWindow.webContents.id);
   rendererView.setBounds({ x: 0, y: 28, width: 1200, height: 800 });
   fakeWindow.getContentView().addChildView(rendererView);
 
+  assert.deepEqual(resolveOwnerRendererViewBounds(fakeWindow), {
+    x: 0,
+    y: 28,
+    width: 1200,
+    height: 800,
+  });
   assert.deepEqual(
     mapRendererRectToNativeContentRect(fakeWindow, {
       x: 320,
@@ -259,10 +268,23 @@ test('keeps raw renderer coordinates when no authoritative renderer-view bounds 
     }),
     {
       x: 320,
-      y: 200,
+      y: 228,
       width: 640,
       height: 480,
     }
+  );
+});
+
+test('fails closed when no authoritative renderer-view bounds seam exists', () => {
+  const fakeWindow = new FakeWindow(1);
+  assert.equal(
+    mapRendererRectToNativeContentRect(fakeWindow, {
+      x: 320,
+      y: 200,
+      width: 640,
+      height: 480,
+    }),
+    null
   );
 });
 

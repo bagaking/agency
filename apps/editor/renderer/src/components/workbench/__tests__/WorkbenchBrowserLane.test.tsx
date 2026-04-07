@@ -9,7 +9,6 @@ test('WorkbenchBrowserLane keeps unavailable fallback inside the lane primitive'
   const html = renderToStaticMarkup(
     <WorkbenchBrowserLane
       browserSurface={{
-        hostRef: { current: null },
         browserSurfaceAvailable: false,
         surfaceState: {
           phase: 'hidden',
@@ -31,7 +30,6 @@ test('WorkbenchBrowserLane renders the native host slot when the browser surface
   const html = renderToStaticMarkup(
     <WorkbenchBrowserLane
       browserSurface={{
-        hostRef: { current: null },
         browserSurfaceAvailable: true,
         surfaceState: {
           phase: 'ready',
@@ -52,7 +50,6 @@ test('WorkbenchBrowserLane anchors the live host to the full lane bounds', () =>
   const html = renderToStaticMarkup(
     <WorkbenchBrowserLane
       browserSurface={{
-        hostRef: { current: null },
         browserSurfaceAvailable: true,
         surfaceState: {
           phase: 'loading',

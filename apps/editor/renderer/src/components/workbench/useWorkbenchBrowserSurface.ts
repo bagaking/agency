@@ -41,27 +41,6 @@ const logBrowserSurfaceRenderer = (message: string, meta: Record<string, unknown
   });
 };
 
-const readElementRect = (selector: string) => {
-  const node = document.querySelector(selector) as HTMLElement | null;
-  if (!node) {
-    return null;
-  }
-  const rect = node.getBoundingClientRect();
-  return {
-    x: Math.round(rect.left),
-    y: Math.round(rect.top),
-    width: Math.round(rect.width),
-    height: Math.round(rect.height),
-  };
-};
-
-const readShellNodes = () =>
-  [
-    document.querySelector('[data-shell-main-panels]'),
-    document.querySelector('[data-shell-attention-rail]'),
-    document.querySelector('[data-shell-hil-drawer]'),
-  ].filter(Boolean) as HTMLElement[];
-
 export function useWorkbenchBrowserSurface({
   tabId,
   url,
@@ -69,6 +48,7 @@ export function useWorkbenchBrowserSurface({
   navigationKey,
   disposeOnUnmount = true,
 }: UseWorkbenchBrowserSurfaceArgs) {
+  const normalizedTabId = String(tabId || '').trim();
   const hostRef = useRef<HTMLDivElement | null>(null);
   const retryTimerRef = useRef<number | null>(null);
   const retryAttemptRef = useRef(0);
@@ -105,6 +85,9 @@ export function useWorkbenchBrowserSurface({
   );
 
   useEffect(() => {
+    if (!normalizedTabId) {
+      return undefined;
+    }
     if (!browserSurfaceAvailable) {
       logBrowserSurfaceRenderer('browser surface bridge unavailable', {
         tabId,
@@ -113,12 +96,12 @@ export function useWorkbenchBrowserSurface({
       return undefined;
     }
     return onWorkbenchBrowserSurfaceEvent?.((payload: WorkbenchBrowserSurfaceEvent) => {
-      if (String(payload?.tabId || '') !== tabId) {
+      if (String(payload?.tabId || '') !== normalizedTabId) {
         return;
       }
       applySurfaceState(payload);
     });
-  }, [applySurfaceState, browserSurfaceAvailable, tabId]);
+  }, [applySurfaceState, browserSurfaceAvailable, normalizedTabId, tabId, url]);
 
   const hideSurface = useCallback(() => {
     if (retryTimerRef.current !== null) {
@@ -126,7 +109,7 @@ export function useWorkbenchBrowserSurface({
       retryTimerRef.current = null;
     }
     retryAttemptRef.current = 0;
-    if (!browserSurfaceAvailable) {
+    if (!browserSurfaceAvailable || !normalizedTabId) {
       return;
     }
     logBrowserSurfaceRenderer('browser surface hide requested', {
@@ -135,7 +118,7 @@ export function useWorkbenchBrowserSurface({
       navigationKey,
     });
     const syncTask = syncWorkbenchBrowserSurface({
-      tabId,
+      tabId: normalizedTabId,
       url,
       visible: false,
       navigationKey,
@@ -146,18 +129,18 @@ export function useWorkbenchBrowserSurface({
     void syncTask
       .then((payload) => {
         logBrowserSurfaceRenderer('browser surface hide acknowledged', {
-          tabId,
+          tabId: normalizedTabId,
           phase: (payload as WorkbenchBrowserSurfaceEvent)?.phase || 'hidden',
         });
         applySurfaceState(payload as WorkbenchBrowserSurfaceEvent);
       })
       .catch((error: any) => {
         logBrowserSurfaceRenderer('browser surface hide failed', {
-          tabId,
+          tabId: normalizedTabId,
           error: error?.message || String(error),
         });
         applySurfaceState({
-          tabId,
+          tabId: normalizedTabId,
           url,
           phase: 'hidden',
           visible: false,
@@ -166,10 +149,10 @@ export function useWorkbenchBrowserSurface({
           canGoForward: false,
         });
       });
-  }, [applySurfaceState, browserSurfaceAvailable, navigationKey, tabId, url]);
+  }, [applySurfaceState, browserSurfaceAvailable, navigationKey, normalizedTabId, tabId, url]);
 
   const syncSurface = useCallback(() => {
-    if (!browserSurfaceAvailable) {
+    if (!browserSurfaceAvailable || !normalizedTabId) {
       return;
     }
     if (!visible) {
@@ -229,12 +212,9 @@ export function useWorkbenchBrowserSurface({
       height: Math.round(rect.height),
       devicePixelRatio:
         typeof window.devicePixelRatio === 'number' ? Number(window.devicePixelRatio.toFixed(3)) : 1,
-      mainPanelsRect: readElementRect('[data-shell-main-panels]'),
-      attentionRailRect: readElementRect('[data-shell-attention-rail]'),
-      hilDrawerRect: readElementRect('[data-shell-hil-drawer]'),
     });
     const syncTask = syncWorkbenchBrowserSurface({
-      tabId,
+      tabId: normalizedTabId,
       url,
       visible: true,
       navigationKey,
@@ -251,7 +231,7 @@ export function useWorkbenchBrowserSurface({
     void syncTask
       .then((payload) => {
         logBrowserSurfaceRenderer('browser surface sync acknowledged', {
-          tabId,
+          tabId: normalizedTabId,
           phase: (payload as WorkbenchBrowserSurfaceEvent)?.phase || 'unknown',
           visible: (payload as WorkbenchBrowserSurfaceEvent)?.visible !== false,
         });
@@ -259,11 +239,11 @@ export function useWorkbenchBrowserSurface({
       })
       .catch((error: any) => {
         logBrowserSurfaceRenderer('browser surface sync failed', {
-          tabId,
+          tabId: normalizedTabId,
           error: error?.message || String(error),
         });
         applySurfaceState({
-          tabId,
+          tabId: normalizedTabId,
           url,
           phase: 'error',
           visible: false,
@@ -272,10 +252,19 @@ export function useWorkbenchBrowserSurface({
           canGoForward: false,
         });
       });
-  }, [applySurfaceState, browserSurfaceAvailable, hideSurface, navigationKey, tabId, url, visible]);
+  }, [
+    applySurfaceState,
+    browserSurfaceAvailable,
+    hideSurface,
+    navigationKey,
+    normalizedTabId,
+    tabId,
+    url,
+    visible,
+  ]);
 
   useLayoutEffect(() => {
-    if (!browserSurfaceAvailable) {
+    if (!browserSurfaceAvailable || !normalizedTabId) {
       return undefined;
     }
 
@@ -292,7 +281,7 @@ export function useWorkbenchBrowserSurface({
     window.addEventListener('resize', handleWindowChange);
     window.addEventListener('scroll', handleWindowChange, true);
 
-    const observedNodes = [hostRef.current, ...readShellNodes()].filter(Boolean) as HTMLElement[];
+    const observedNodes = [hostRef.current].filter(Boolean) as HTMLElement[];
     const handleTransitionEnd = () => syncSurface();
     observedNodes.forEach((node) => {
       node.addEventListener('transitionend', handleTransitionEnd);
@@ -321,10 +310,10 @@ export function useWorkbenchBrowserSurface({
       });
       observer?.disconnect();
     };
-  }, [browserSurfaceAvailable, syncSurface]);
+  }, [browserSurfaceAvailable, normalizedTabId, syncSurface]);
 
   useEffect(() => {
-    if (!browserSurfaceAvailable) {
+    if (!browserSurfaceAvailable || !normalizedTabId) {
       return undefined;
     }
     if (visible) {
@@ -332,10 +321,10 @@ export function useWorkbenchBrowserSurface({
     }
     hideSurface();
     return undefined;
-  }, [browserSurfaceAvailable, hideSurface, visible]);
+  }, [browserSurfaceAvailable, hideSurface, normalizedTabId, visible]);
 
   useEffect(() => {
-    if (!browserSurfaceAvailable) {
+    if (!browserSurfaceAvailable || !normalizedTabId) {
       return undefined;
     }
     return () => {
@@ -343,9 +332,9 @@ export function useWorkbenchBrowserSurface({
         hideSurface();
         return;
       }
-      void disposeWorkbenchBrowserSurface({ tabId });
+      void disposeWorkbenchBrowserSurface({ tabId: normalizedTabId });
     };
-  }, [browserSurfaceAvailable, disposeOnUnmount, hideSurface, tabId]);
+  }, [browserSurfaceAvailable, disposeOnUnmount, hideSurface, normalizedTabId]);
 
   return {
     hostRef,

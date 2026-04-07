@@ -52,7 +52,7 @@ test('AppMainPanels renders the shared Project Home surface for no-project explo
   assert.doesNotMatch(html, /Select a project to begin/);
 });
 
-test('AppMainPanels exposes a shell-owned browser lane surface when explorer pane supplies browser lane meta', () => {
+test('AppMainPanels keeps explorer workbench content inside the shell main-panels container', () => {
   const html = renderToStaticMarkup(
     <AppMainPanels
       activeView="explorer"
@@ -60,19 +60,7 @@ test('AppMainPanels exposes a shell-owned browser lane surface when explorer pan
       projectHomeViewProps={{}}
       hierarchySection="actions"
       editorPaneProps={{}}
-      explorerPaneProps={{
-        browserLaneMeta: {
-          tabId: 'web-tab',
-          cellId: 'cell-main',
-          url: 'https://example.com/docs',
-          navigationKey: 0,
-          rect: { x: 100, y: 120, width: 800, height: 600 },
-          visible: true,
-          suspended: false,
-          surfaceState: { phase: 'loading' },
-          browserSurfaceAvailable: true,
-        },
-      }}
+      explorerPaneProps={{}}
       memoPaneProps={{}}
       actionSheetsProps={{}}
       quickActionsViewProps={{}}
@@ -87,5 +75,5 @@ test('AppMainPanels exposes a shell-owned browser lane surface when explorer pan
   );
 
   assert.match(html, /data-shell-main-panels/);
-  assert.match(html, /data-shell-browser-lane-surface/);
+  assert.doesNotMatch(html, /data-shell-browser-lane-surface/);
 });
