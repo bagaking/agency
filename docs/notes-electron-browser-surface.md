@@ -96,7 +96,7 @@ The durable debugging rule is:
 
 ## Canonical Host Model
 
-The correct mental model is shell-owned native geometry with renderer-owned intent, not renderer-owned layout with native paint grafted into it.
+The correct mental model in Agency is a workbench-owned viewport host plus an explicit renderer-view native seam, not renderer-owned layout with native paint grafted into it.
 
 ```mermaid
 flowchart TD
@@ -113,17 +113,17 @@ The responsibilities are:
 
 ### Workbench shell
 
-The shell owns:
+The shell/workbench layout owns:
 - which tab currently owns the native surface;
 - whether the lane is visible;
-- the authoritative rectangle for the lane;
+- one authoritative viewport host for the lane;
 - whether another surface temporarily suspends or occludes the lane.
 
 ### Renderer lane host
 
 The renderer host owns:
-- one stable DOM anchor for measurement;
-- reporting geometry changes to the main process;
+- one stable viewport host rendered by the Workbench layout owner;
+- reporting viewport geometry changes to the main process;
 - exposing state to browser chrome and research controls;
 - never pretending that CSS alone is the source of truth for native layering.
 
@@ -133,7 +133,8 @@ The main process owns:
 - native surface creation and disposal;
 - `setBounds`, `show`, `hide`, and navigation lifecycle;
 - browser history affordances;
-- protection against external top-level navigation and invalid URLs.
+- protection against external top-level navigation and invalid URLs;
+- rejecting browser placement when the renderer-view seam is unavailable instead of trusting raw renderer coordinates.
 
 ### Research UI
 
@@ -156,19 +157,34 @@ The reusable abstraction should have two layers.
 This is the reusable geometry and lifecycle primitive.
 
 It should package:
-- stable renderer anchor;
-- authoritative lane-rect measurement;
+- one workbench-owned viewport host;
 - sync throttling / retries / logging;
 - main-process attach/show/hide/update/dispose;
-- explicit visible vs suspended semantics.
+- explicit visible vs suspended semantics;
+- fail-closed mapping when the renderer-view seam is unavailable.
 
 This is the part future embedded surfaces should reuse directly.
 
 The preferred reusable seam is:
-- window owner may expose renderer-view native bounds through `getRendererViewBounds()`;
-- renderer reports a DOM lane rect;
-- main process maps DOM-space lane geometry into native content-space geometry with `mapRendererRectToNativeContentRect()`, but only applies origin translation when that shell-owned seam is explicit;
-- invalid mapped geometry hides the native surface instead of preserving stale placement.
+- Workbench layout renders one authoritative viewport host for the native lane;
+- renderer reports that viewport host rect exactly once, instead of relaying measurements through nested browser fragments or shell proxy hosts;
+- main process resolves renderer-view native bounds through `getRendererViewBounds()` or the owner renderer child view;
+- main process maps viewport geometry into native content-space geometry with `mapRendererRectToNativeContentRect()`;
+- invalid or unresolved mapped geometry hides the native surface instead of preserving stale placement or trusting raw renderer coordinates.
+
+### Why This Is Not cmux
+
+`cmux` appears to avoid much of this pain because its browser panel is part of a native pane system.
+
+Agency is different today:
+- the application shell and Workbench chrome still live in the renderer DOM;
+- the browser lane is a native `WebContentsView`;
+- therefore one renderer/native seam is unavoidable unless the entire shell moves to a native pane tree.
+
+The right goal in Agency is not "no DOM measurement ever." The right goal is:
+- one authoritative Workbench-owned viewport host;
+- one explicit renderer-view native seam;
+- zero projected relays through nested browser fragments or raw renderer-bounds fallbacks.
 
 ### 2. Native surface overlay coordinator
 
@@ -196,10 +212,10 @@ The practical rules are short.
 
 ### Geometry
 
-- The native browser host must be anchored to a stable shell-owned rectangle.
-- Do not rely on auto-height cards or percentage-height descendants as the final host geometry contract.
+- The native browser host must be anchored to one stable Workbench-owned viewport host.
+- Do not relay geometry through nested browser fragments, shell proxy hosts, or percentage-height descendants.
 - If logs show `width > 0` and `height = 0`, treat that as a host-geometry failure, not a navigation failure.
-- Prefer a window-owned renderer-view bounds seam over feature-local `contentView.children` discovery. Best-effort discovery is acceptable as a fallback, but not as the long-term SSOT.
+- Prefer an explicit renderer-view bounds seam; if discovery cannot resolve renderer-view bounds, fail closed instead of trusting raw renderer coordinates.
 
 ### Layering
 
@@ -232,8 +248,8 @@ These shortcuts are attractive and wrong:
 ## Current References
 
 - Runtime host + navigation owner: `apps/editor/electron/services/workbenchBrowserSurface.ts`
-- Shell lane state owner: `apps/editor/renderer/src/app/useWorkbenchShellBrowserLaneState.ts`
-- Shell overlay host: `apps/editor/renderer/src/components/layout/AppMainPanels.tsx`
+- Workbench lane owner: `apps/editor/renderer/src/components/workbench/WorkbenchPane.tsx`
+- Shell main-panels container: `apps/editor/renderer/src/components/layout/AppMainPanels.tsx`
 - Renderer host sync: `apps/editor/renderer/src/components/workbench/useWorkbenchBrowserSurface.ts`
 - Browser lane view shell: `apps/editor/renderer/src/components/workbench/WorkbenchBrowserLane.tsx`
 - Bounded web scene + chrome: `apps/editor/renderer/src/components/workbench/WorkbenchBoundedWebResearchView.tsx`

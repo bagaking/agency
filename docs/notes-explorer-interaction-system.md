@@ -170,7 +170,7 @@ But Agency should borrow the workflow principle, not the entire product posture.
 The implementation consequence is important:
 - the bounded browser should feel like a real split-lane primitive in Workbench, not a tab-local overlay that happens to project a native host into the window;
 - Workbench tabs still own the research object and bounded actions;
-- Workbench layout owns the browser lane geometry so shell chrome and sibling panes remain authoritative.
+- Workbench layout owns the browser lane geometry through one authoritative viewport host and renderer-view seam so shell chrome and sibling panes remain authoritative.
 
 ## Capability Model for an Excellent Editor Explorer
 

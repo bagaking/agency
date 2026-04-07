@@ -21,10 +21,12 @@ What is still wrong is the ownership model for placement. A tab-local renderer f
 ## Decisions
 - Decision: introduce one shell-owned browser lane rect contract.
   - Why: the shell already owns sidebar width, attention rail, HIL drawer, title bar, and main panel massing. Browser lane geometry must be derived at the same layer.
-- Decision: shell-owned geometry means an explicit layout model, not “measure a different DOM node.”
-  - Why: simply moving `getBoundingClientRect()` one level upward would preserve the same projected-host fragility under a new name.
+- Decision: in Agency's hybrid renderer/native shell, shell-owned geometry means one Workbench-owned viewport host plus one explicit renderer-view seam, not “measure a different DOM node.”
+  - Why: Agency is not a full-native pane tree like cmux. One renderer viewport host is unavoidable today, but projected relays through nested browser fragments or shell proxy hosts still preserve the same fragility under a new name.
 - Decision: tab-local browser hosts may remain as fallback anchors or debug affordances, but they are not the authoritative native placement owner.
   - Why: a nested host is useful for renderer-local state and testing, but it is not the correct owner for a native pane.
+- Decision: main-side geometry must fail closed when renderer-view bounds cannot be resolved.
+  - Why: trusting raw renderer coordinates recreates the same coordinate-space drift under a stricter name.
 - Decision: native browser visibility must include an explicit occlusion state.
   - Why: shell overlays do not naturally compose with `WebContentsView`; "still visible but visually wrong" is worse than bounded hide/suspend behavior.
   - Participating shell surfaces:
@@ -54,7 +56,7 @@ flowchart TD
 ### Shell geometry model
 - Produced by the shell/workbench layout owner.
 - Defines:
-  - lane rect;
+  - one authoritative browser viewport host;
   - active owner tab id;
   - visibility / suspended / occluded state;
   - sibling shell context relevant to the lane.
@@ -69,7 +71,7 @@ flowchart TD
 
 ### Renderer workbench
 - Continues to own browser chrome, Reader, save/cite, and research object state.
-- Stops acting as the native geometry truth source.
+- Owns one authoritative browser viewport host and stops relaying geometry through nested browser fragments or shell proxy hosts.
 
 ## Risks / Trade-offs
 - Shell-owned geometry increases coupling between layout and browser host.

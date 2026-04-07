@@ -9,7 +9,7 @@ Agency's bounded web `View` already moved from iframe to native `WebContentsView
 The current implementation can be made incrementally less wrong, but it still violates the first-principles ownership model that an embedded native browser surface needs. If Agency wants the bounded browser lane to render correctly and stay correct, the shell must own its rectangle and overlay behavior directly.
 
 ## What Changes
-- Introduce a shell-owned browser-lane geometry contract that is produced by Workbench/App shell rather than by tab-local DOM measurement.
+- Introduce a shell-owned browser-lane geometry contract that is produced by one Workbench-owned viewport host plus an explicit renderer-view seam rather than by tab-local DOM relay measurement.
 - Move native browser lane placement to that shell contract and stop treating a nested DOM host as the authoritative native pane owner.
 - Define explicit browser-lane occlusion behavior for shell siblings such as the attention rail, HIL drawer, and modal/popover families.
 - Keep bounded web research as a Workbench-owned research object rather than a window-global browser product.

@@ -1,20 +1,20 @@
 ## 1. Specification And Documentation
-- [ ] 1.1 Update the `agency-editor` spec to require shell-owned browser-lane geometry and explicit occlusion behavior.
-- [ ] 1.2 Update browser-surface notes and reusable-items docs to describe the shell-owned pane contract.
-- [ ] 1.3 Update README/manual verification once the shell-owned model lands.
+- [x] 1.1 Update the `agency-editor` spec to require a Workbench-owned browser viewport host, an explicit renderer-view seam, and fail-closed native placement.
+- [x] 1.2 Update browser-surface notes, AGENTS, and reusable-items docs to describe the authoritative viewport-host contract.
+- [x] 1.3 Update README/manual verification once the new viewport-host model lands.
 
 ## 2. Shell Geometry Contract
-- [ ] 2.1 Introduce a renderer-side shell/workbench browser-lane geometry model owned outside tab-local browser fragments.
-- [ ] 2.2 Define browser-lane visibility/occlusion state for attention rail, HIL drawer, and modal/popover families.
-- [ ] 2.3 Stop using nested tab-local DOM measurement as the authoritative native placement source.
-- [ ] 2.4 Delete or fully demote the projected-host fallback path once the shell-owned model is live.
+- [x] 2.1 Introduce a Workbench-owned browser viewport host owned outside tab-local browser fragments and shell relay hosts.
+- [x] 2.2 Define explicit lane visibility behavior: browser-owned blocking flows suspend the lane, shell siblings resize the authoritative viewport host, and invalid native mapping hides the lane.
+- [x] 2.3 Stop using nested tab-local DOM relay measurement as the authoritative native placement source.
+- [x] 2.4 Delete or fully demote the projected-host fallback path once the viewport-host model is live.
 
 ## 3. Native Browser Host Integration
-- [ ] 3.1 Make the Electron browser-surface service consume shell-owned browser-lane geometry.
-- [ ] 3.2 Fail closed on invalid geometry or occluded states instead of preserving stale placement.
-- [ ] 3.3 Keep navigation/history bounded while preserving Workbench tab metadata as SSOT for the research object.
+- [x] 3.1 Make the Electron browser-surface service consume the authoritative Workbench viewport host geometry.
+- [x] 3.2 Fail closed on invalid geometry or missing renderer-view seam instead of preserving stale placement.
+- [x] 3.3 Keep navigation/history bounded while preserving Workbench tab metadata as SSOT for the research object.
 
 ## 4. Validation
-- [ ] 4.1 Add unit coverage for shell geometry ownership and invalidation/hide behavior.
-- [ ] 4.2 Add regression coverage for attention rail / HIL drawer / browser lane coexistence.
-- [ ] 4.3 Run targeted tests and packaged verification with shell-geometry logging.
+- [x] 4.1 Add unit coverage for viewport-host ownership and invalidation/hide behavior.
+- [x] 4.2 Add regression coverage for removal of the shell relay path and fail-closed native geometry mapping.
+- [x] 4.3 Run targeted tests and attempt packaged verification; document environment blockers when packaging preflight cannot complete.

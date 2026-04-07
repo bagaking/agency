@@ -57,6 +57,7 @@
 - [ ] In the bounded web tab, confirm `View` / `Reader` host modes, browser controls (`Back`, `Forward`, `Reload`), and research actions (`Open in Browser`, `Save Markdown`, `Cite`) are visible and the surface reads as the true bounded browser view for that URL rather than a sidebar preview.
 - [ ] Confirm the toolbar stays compact and visually layered: basic browser controls belong to the primary row, research actions belong to a quieter secondary row, and the remote page stays visually dominant.
 - [ ] Open the bounded web tab with Explorer sidebar, Attention rail, and Comments drawer visible, then resize/toggle those rails and confirm the browser stays aligned inside the same Workbench browser lane instead of drifting under sibling shell chrome.
+- [ ] Force a browser-lane sync while comments drawer / attention rail are open, then confirm the browser still hides if the renderer-view seam cannot be resolved instead of preserving stale placement.
 - [ ] Open a site that rejects iframe embedding (for example GitHub) and confirm `View` still renders it inside Agency instead of failing with an embed error.
 - [ ] While staying in `View`, click an in-page link or redirect to another public URL and confirm the bounded research tab updates its address/title instead of drifting away from Workbench state.
 - [ ] Click `Open in Browser` from the bounded web tab and confirm the system browser opens the same URL, proving the explicit escape path works instead of adding general browser tabs inside Workbench.

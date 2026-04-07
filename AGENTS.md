@@ -85,7 +85,7 @@ Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeSc
 - `Project Home` should read as a face-first composition rather than a bordered dashboard. Prefer larger surfaces, stronger massing, and fewer outline boxes.
 - `Agent Cells`, `Explorer`, `Workbench`, `Session Map`, `Hierarchy`, `Memo`, and `Commander` are surfaces over those objects, not competing object roots.
 - Bounded web research is a Workbench-owned browser lane, not an Explorer card or a generic browser product: Explorer owns URL intake, Workbench owns a browser-first lane with basic browser controls before research actions, and full browsing still escapes to the system browser.
-- A native browser lane host must be a stable shell-owned rectangle. Do not rely on auto-height cards, percentage-height descendants, or DOM-projected “content inside a card” layouts for the authoritative browser host geometry.
+- A native browser lane host must be a stable Workbench-owned viewport host plus an explicit renderer-view seam. Do not relay geometry through nested browser fragments, shell proxy hosts, auto-height cards, percentage-height descendants, or raw renderer-bounds fallbacks.
 - Native browser lanes also need an explicit overlay/occlusion contract. Do not assume renderer popovers, modals, or drawers will naturally out-layer a `WebContentsView`; either route them through one shared layer owner or suspend/occlude the native lane deliberately.
 - HIL storage is bounded to `comment` / `memo` / `draft`; session replies are session-owned artifacts and must not be stored or surfaced as HIL inbox items.
 - Session-source delivery must reference reply artifacts as `system=reply`; do not backdoor reply provenance through HIL refs.

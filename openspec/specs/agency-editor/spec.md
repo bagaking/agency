@@ -1001,7 +1001,7 @@ The feature SHALL NOT behave as a general-purpose browser replacement.
 ### Requirement: Workbench Browser-Surface View
 The Workbench SHALL host bounded web research `View` as a true browser surface rather than a renderer iframe.
 The browser surface SHALL stay owned by the active bounded web research tab and SHALL keep the same bounded public-URL policy as Explorer intake.
-Workbench layout SHALL own the browser-lane geometry as a bounded split primitive rather than letting a tab-local content fragment act as the authoritative native-host placement source.
+Workbench layout SHALL own the browser-lane geometry through one authoritative browser viewport host plus an explicit renderer-view seam rather than letting a tab-local content fragment, shell relay host, or raw renderer-bounds fallback act as the authoritative native-host placement source.
 
 #### Scenario: Browser-denied sites still render in View
 - **WHEN** a bounded web research tab enters `View`
@@ -1015,8 +1015,13 @@ Workbench layout SHALL own the browser-lane geometry as a bounded split primitiv
 
 #### Scenario: Browser lane respects shell and sibling layout
 - **WHEN** a bounded web research tab is visible while sidebar, attention rail, HIL drawer, or adjacent Workbench content changes layout
-- **THEN** the browser surface reuses a Workbench-owned browser lane or split slot instead of measuring an arbitrary nested tab-local host node
+- **THEN** the browser surface reuses a Workbench-owned browser viewport host or split slot instead of measuring an arbitrary nested tab-local host node or shell proxy host
 - **AND** the native browser content stays aligned with the same pane economy as the rest of the shell
+
+#### Scenario: Missing renderer-view seam fails closed
+- **WHEN** the main process cannot resolve renderer-view native bounds for the browser lane
+- **THEN** the browser surface hides or suspends instead of trusting raw renderer coordinates
+- **AND** Agency does not preserve stale browser placement
 
 #### Scenario: Basic browser controls stay first-class inside the bounded host
 - **WHEN** a bounded web research tab is active in `View`
