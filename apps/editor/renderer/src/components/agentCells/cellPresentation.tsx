@@ -9,10 +9,10 @@ const cellStateColors: Record<string, string> = {
 };
 
 const cellStateBadgeTone: Record<string, string> = {
-  draft: 'border-white/[0.06] bg-white/[0.025] text-white/60',
-  active: 'border-emerald-400/18 bg-emerald-500/[0.08] text-emerald-200/88',
-  paused: 'border-amber-300/18 bg-amber-500/[0.08] text-amber-100/88',
-  archived: 'border-slate-500/14 bg-slate-500/[0.08] text-slate-300/72',
+  draft: 'border-black/24 bg-black/12 text-white/58',
+  active: 'border-[rgba(31,78,54,0.92)] bg-emerald-500/[0.075] text-emerald-200/86',
+  paused: 'border-[rgba(74,57,35,0.92)] bg-amber-500/[0.075] text-amber-100/86',
+  archived: 'border-black/22 bg-black/12 text-slate-300/70',
 };
 
 export type CellAttachmentMeta = {
@@ -36,7 +36,7 @@ export function CellStateBadge({ state }: { state?: string }) {
   const label = normalized === 'archived' ? 'legacy archived' : `legacy ${normalized}`;
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-[3px] text-[8px] font-semibold uppercase tracking-[0.14em] ${
+      className={`inline-flex items-center gap-1 rounded-[7px] border px-1.5 py-[3px] text-[8px] font-semibold uppercase tracking-[0.14em] ${
         cellStateBadgeTone[normalized] || cellStateBadgeTone.draft
       }`}
     >
@@ -55,7 +55,7 @@ export function resolveCellAttachmentMeta(cell: any): CellAttachmentMeta {
     return {
       attachmentState: 'project_root',
       label: 'Project Root',
-      tone: 'border-sky-300/16 bg-sky-500/[0.09] text-sky-100/82',
+      tone: 'border-[rgba(34,54,72,0.92)] bg-sky-500/[0.075] text-sky-100/80',
       pathLabel: String(cell?.projectRoot || cell?.repoRoot || '').trim(),
     };
   }
@@ -63,7 +63,7 @@ export function resolveCellAttachmentMeta(cell: any): CellAttachmentMeta {
     return {
       attachmentState: 'missing',
       label: 'Missing',
-      tone: 'border-rose-300/16 bg-rose-500/[0.09] text-rose-100/82',
+      tone: 'border-[rgba(82,46,52,0.92)] bg-rose-500/[0.075] text-rose-100/82',
       pathLabel: pathLabelBase,
     };
   }
@@ -71,14 +71,14 @@ export function resolveCellAttachmentMeta(cell: any): CellAttachmentMeta {
     return {
       attachmentState: 'detached',
       label: 'Detached',
-      tone: 'border-amber-300/16 bg-amber-500/[0.09] text-amber-100/82',
+      tone: 'border-[rgba(74,57,35,0.92)] bg-amber-500/[0.075] text-amber-100/82',
       pathLabel: pathLabelBase,
     };
   }
   return {
     attachmentState: 'attached',
     label: 'Attached',
-    tone: 'border-emerald-300/16 bg-emerald-500/[0.08] text-emerald-100/82',
+    tone: 'border-[rgba(31,78,54,0.92)] bg-emerald-500/[0.072] text-emerald-100/82',
     pathLabel: String(cell?.branch || pathLabelBase || '').trim(),
   };
 }

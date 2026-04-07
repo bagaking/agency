@@ -60,9 +60,9 @@ const OUTDENT_DROP_ZONE_WIDTH = 52;
 const buildSessionKey = (cellId: string, sessionId: string) => `${cellId}:${sessionId}`;
 const buildTreeNodeKey = (cellId: string, sessionId: string) => `${cellId}:${sessionId}`;
 const SECTION_BADGE_BASE =
-  'inline-flex items-center rounded-md border px-1.5 py-[3px] text-[8px] font-semibold uppercase tracking-[0.14em]';
+  'inline-flex items-center rounded-[7px] border px-1.5 py-[3px] text-[8px] font-semibold uppercase tracking-[0.14em]';
 const SURFACE_PANEL_BASE =
-  'overflow-hidden rounded-[18px] border shadow-[0_18px_42px_-34px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.03)]';
+  'overflow-hidden rounded-[18px] border shadow-[0_18px_42px_-34px_rgba(0,0,0,0.72)]';
 
 type SessionDropTarget = {
   cellId: string;
@@ -252,10 +252,10 @@ function LifecycleSectionHeader({
     legacy: 'text-slate-200/72',
   } as const;
   const countClassByTone = {
-    default: 'border-white/[0.06] bg-white/[0.025] text-foreground/70',
-    detached: 'border-amber-300/14 bg-amber-500/[0.075] text-amber-100/74',
-    unmanaged: 'border-sky-300/14 bg-sky-500/[0.075] text-sky-100/76',
-    legacy: 'border-white/[0.05] bg-white/[0.02] text-slate-200/68',
+    default: 'border-black/25 bg-black/14 text-foreground/68',
+    detached: 'border-[rgba(74,57,35,0.92)] bg-amber-500/[0.07] text-amber-100/74',
+    unmanaged: 'border-[rgba(34,54,72,0.92)] bg-sky-500/[0.07] text-sky-100/76',
+    legacy: 'border-black/22 bg-black/12 text-slate-200/66',
   } as const;
   const toneClass = toneClassByTone[tone];
   const countClass = countClassByTone[tone];
@@ -293,16 +293,16 @@ function buildWorkspacePanelClass({
 }) {
   const baseByTone = {
     tracked:
-      'border-white/[0.045] bg-[linear-gradient(180deg,rgba(21,24,31,0.96),rgba(15,18,24,0.985))]',
+      'border-[rgba(35,42,53,0.94)] bg-[linear-gradient(180deg,rgba(21,24,31,0.965),rgba(15,18,24,0.99))]',
     detached:
-      'border-amber-300/14 bg-[linear-gradient(180deg,rgba(37,29,21,0.96),rgba(21,17,13,0.99))]',
+      'border-[rgba(74,57,35,0.94)] bg-[linear-gradient(180deg,rgba(37,29,21,0.965),rgba(21,17,13,0.99))]',
     unmanaged:
-      'border-sky-300/14 bg-[linear-gradient(180deg,rgba(19,28,37,0.96),rgba(12,18,25,0.99))]',
+      'border-[rgba(34,54,72,0.94)] bg-[linear-gradient(180deg,rgba(19,28,37,0.965),rgba(12,18,25,0.99))]',
   } as const;
   const selectedByTone = {
-    tracked: 'border-primary/22 bg-primary/[0.055] shadow-[0_20px_44px_-32px_rgba(59,130,246,0.38)]',
-    detached: 'border-amber-300/24 bg-amber-500/[0.08] shadow-[0_20px_44px_-32px_rgba(245,158,11,0.32)]',
-    unmanaged: 'border-sky-300/22 bg-sky-500/[0.075] shadow-[0_20px_44px_-32px_rgba(56,189,248,0.3)]',
+    tracked: 'border-primary/18 bg-primary/[0.05] shadow-[0_20px_44px_-32px_rgba(59,130,246,0.32)]',
+    detached: 'border-amber-300/20 bg-amber-500/[0.075] shadow-[0_20px_44px_-32px_rgba(245,158,11,0.28)]',
+    unmanaged: 'border-sky-300/18 bg-sky-500/[0.07] shadow-[0_20px_44px_-32px_rgba(56,189,248,0.26)]',
   } as const;
   if (selected) {
     return `${SURFACE_PANEL_BASE} ${selectedByTone[tone]}`;
@@ -326,12 +326,12 @@ function SessionTreeGuides({
       {Array.from({ length: depth }).map((_, index) => (
         <div
           key={index}
-          className="absolute bottom-0 top-0 w-px bg-white/[0.05]"
+          className="absolute bottom-0 top-0 w-px bg-black/18"
           style={{ left: `${18 + index * SESSION_TREE_INDENT_PX}px` }}
         />
       ))}
       <div
-        className="absolute top-1/2 h-px -translate-y-1/2 bg-white/[0.08]"
+        className="absolute top-1/2 h-px -translate-y-1/2 bg-black/22"
         style={{
           left: `${Math.max(18, rowPaddingLeft - 10)}px`,
           width: '12px',
@@ -1184,8 +1184,8 @@ export function AgentCellsSessionsPanel({
                     <div
                       className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border ${
                         cell.isVirtual
-                          ? 'border-primary/18 bg-primary/[0.1] text-primary/82 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]'
-                          : 'border-white/[0.05] bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))] text-foreground/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'
+                          ? 'border-primary/16 bg-primary/[0.09] text-primary/82'
+                          : 'border-black/24 bg-[linear-gradient(180deg,rgba(0,0,0,0.14),rgba(0,0,0,0.24))] text-foreground/72'
                       }`}
                     >
                       {cell.isVirtual ? (
@@ -1362,7 +1362,7 @@ export function AgentCellsSessionsPanel({
                   </div>
 
                   {!isCollapsed ? (
-                    <div className="space-y-1 border-t border-white/[0.06] px-2 pb-1.5 pt-1.5" role="group">
+                    <div className="space-y-1 border-t border-black/18 px-2 pb-1.5 pt-1.5" role="group">
                       {visibleRows.map((row) => {
                         const session = row.session;
                         const sessionAttention =
@@ -1536,7 +1536,7 @@ export function AgentCellsSessionsPanel({
                                   )}
                                 </button>
                               ) : (
-                                <div className="absolute left-[7px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border border-white/[0.09] bg-background/70 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]" />
+                                <div className="absolute left-[7px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border border-black/22 bg-background/80" />
                               )}
 
                               <div className="relative flex shrink-0 items-center justify-center">
@@ -1725,7 +1725,7 @@ export function AgentCellsSessionsPanel({
                         })} px-3 py-2.5 transition-colors`}
                       >
                         <div className="flex items-start gap-2.5">
-                          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border border-amber-300/16 bg-amber-500/[0.09] text-amber-100/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+                          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border border-[rgba(74,57,35,0.94)] bg-amber-500/[0.08] text-amber-100/80">
                             <GitBranch size={14} strokeWidth={1.6} />
                           </div>
                           <div className="min-w-0 flex-1">
@@ -1814,7 +1814,7 @@ export function AgentCellsSessionsPanel({
                       <button
                         type="button"
                         onClick={() => void handleResetIgnoredUnmanagedWorktrees()}
-                        className="inline-flex items-center rounded-md border border-white/[0.05] bg-white/[0.02] px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-white/[0.08] hover:text-foreground"
+                        className="inline-flex items-center rounded-[7px] border border-black/22 bg-black/12 px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-black/30 hover:text-foreground"
                       >
                         Reset ignored
                       </button>
@@ -1834,7 +1834,7 @@ export function AgentCellsSessionsPanel({
                         })} px-3 py-2.5`}
                       >
                         <div className="flex items-start gap-2.5">
-                          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border border-sky-300/16 bg-sky-500/[0.09] text-sky-100/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+                          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border border-[rgba(34,54,72,0.94)] bg-sky-500/[0.08] text-sky-100/80">
                             <GitBranch size={14} strokeWidth={1.6} />
                           </div>
                           <div className="min-w-0 flex-1">
@@ -1925,7 +1925,7 @@ export function AgentCellsSessionsPanel({
                     <button
                       type="button"
                       onClick={() => setShowLegacyArchivedCells((value) => !value)}
-                      className="inline-flex items-center gap-1 rounded-md border border-white/[0.05] bg-white/[0.02] px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-white/[0.08] hover:text-foreground"
+                      className="inline-flex items-center gap-1 rounded-[7px] border border-black/22 bg-black/12 px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-black/30 hover:text-foreground"
                       aria-label="Legacy archived cells"
                       aria-expanded={showLegacyArchivedCells}
                       aria-controls="legacy-archived-cell-list"
