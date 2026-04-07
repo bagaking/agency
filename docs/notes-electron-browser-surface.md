@@ -172,6 +172,13 @@ The preferred reusable seam is:
 - main process maps viewport geometry into native content-space geometry with `mapRendererRectToNativeContentRect()`;
 - invalid or unresolved mapped geometry hides the native surface instead of preserving stale placement or trusting raw renderer coordinates.
 
+In the current BrowserWindow-based shell, the seam resolves in this order:
+- an explicit `getRendererViewBounds()` owner seam when one exists;
+- the owner renderer child view if Electron exposes it through `contentView.children`;
+- the BrowserWindow content-area local rectangle `{ x: 0, y: 0, width: contentWidth, height: contentHeight }` as the deterministic BrowserWindow fallback.
+
+The important rule is not which of those three wins; it is that the browser service no longer guesses by trusting raw renderer coordinates.
+
 ### Why This Is Not cmux
 
 `cmux` appears to avoid much of this pain because its browser panel is part of a native pane system.

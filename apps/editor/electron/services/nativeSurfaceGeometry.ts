@@ -13,6 +13,7 @@ type BrowserWindowLike = {
     id?: number;
   };
   getContentView?: () => ViewLike | null | undefined;
+  getContentBounds?: () => Rectangle | null | undefined;
   contentView?: ViewLike | null | undefined;
   getRendererViewBounds?: () => Rectangle | null | undefined;
 };
@@ -79,7 +80,18 @@ export function resolveOwnerRendererViewBounds(ownerWindow: BrowserWindowLike | 
     (childView) => Number(childView?.webContents?.id || 0) === ownerWebContentsId
   );
   if (!candidate?.getBounds) {
-    return null;
+    const contentBounds = ownerWindow?.getContentBounds?.();
+    const width = Math.max(0, Math.floor(Number(contentBounds?.width || 0)));
+    const height = Math.max(0, Math.floor(Number(contentBounds?.height || 0)));
+    if (!width || !height) {
+      return null;
+    }
+    return {
+      x: 0,
+      y: 0,
+      width,
+      height,
+    };
   }
   return candidate.getBounds() || null;
 }
