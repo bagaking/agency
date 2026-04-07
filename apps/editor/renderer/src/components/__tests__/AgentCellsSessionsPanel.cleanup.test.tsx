@@ -255,7 +255,8 @@ test('AgentCellsSessionsPanel renders detached cells as management cards instead
   assert.match(html, /Detached Cells/);
   assert.match(html, /detached-cell-card-cell-missing/);
   assert.match(html, /attention_routing/);
-  assert.match(html, /Archive Cell/);
+  assert.match(html, /Detached Workspace/);
+  assert.match(html, /Sessions retained/);
   assert.match(html, /View Details/);
   assert.doesNotMatch(html, /data-testid="session-tab-session-stale"/);
 });

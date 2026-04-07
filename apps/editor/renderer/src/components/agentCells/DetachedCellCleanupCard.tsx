@@ -15,6 +15,8 @@ type DetachedCellCleanupCardProps = {
   attentionItem?: AttentionItem | null;
   attentionCount?: number;
   onSelect?: (cellId: string) => void;
+  testId?: string;
+  shellClassName?: string;
 };
 
 function buildCleanupCopy(cell: any, sessionSummary: string[]) {
@@ -36,6 +38,8 @@ export function DetachedCellCleanupCard({
   attentionItem = null,
   attentionCount = 0,
   onSelect,
+  testId,
+  shellClassName = '',
 }: DetachedCellCleanupCardProps) {
   const attachmentMeta = resolveCellAttachmentMeta(cell);
   const sessionSummary = buildCellSessionSummary(sessions);
@@ -60,7 +64,8 @@ export function DetachedCellCleanupCard({
 
   return (
     <LifecycleCellRailCard
-      testId={`detached-cell-cleanup-${cell?.id || 'unknown'}`}
+      testId={testId || `detached-cell-cleanup-${cell?.id || 'unknown'}`}
+      shellClassName={shellClassName}
       tone="cleanup"
       selected={selected}
       title={cell?.name || 'Detached Cell'}

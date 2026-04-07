@@ -16,6 +16,8 @@ type ArchivedCellCardProps = {
   attentionItem?: AttentionItem | null;
   attentionCount?: number;
   onSelect?: (cellId: string) => void;
+  testId?: string;
+  shellClassName?: string;
 };
 
 export function ArchivedCellCard({
@@ -25,6 +27,8 @@ export function ArchivedCellCard({
   attentionItem = null,
   attentionCount = 0,
   onSelect,
+  testId,
+  shellClassName = '',
 }: ArchivedCellCardProps) {
   const attachmentMeta = resolveCellAttachmentMeta(cell);
   const sessionSummary = buildCellSessionSummary(sessions);
@@ -53,8 +57,9 @@ export function ArchivedCellCard({
 
   return (
     <LifecycleCellRailCard
-      data-testid={`archived-cell-card-${cell?.id || 'unknown'}`}
-      testId={`archived-cell-card-${cell?.id || 'unknown'}`}
+      data-testid={testId || `archived-cell-card-${cell?.id || 'unknown'}`}
+      testId={testId || `archived-cell-card-${cell?.id || 'unknown'}`}
+      shellClassName={shellClassName}
       tone="archived"
       selected={selected}
       title={cell?.name || 'Archived Cell'}

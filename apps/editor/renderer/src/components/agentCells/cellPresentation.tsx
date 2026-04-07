@@ -1,5 +1,6 @@
 import React from 'react';
 import { Circle } from 'lucide-react';
+import { AGENT_CELLS_SECTION_BADGE_BASE } from './surfaceTokens';
 
 const cellStateColors: Record<string, string> = {
   draft: 'text-muted-foreground',
@@ -36,7 +37,7 @@ export function CellStateBadge({ state }: { state?: string }) {
   const label = normalized === 'archived' ? 'legacy archived' : `legacy ${normalized}`;
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-[7px] border px-1.5 py-[3px] text-[8px] font-semibold uppercase tracking-[0.14em] ${
+      className={`${AGENT_CELLS_SECTION_BADGE_BASE} gap-1 ${
         cellStateBadgeTone[normalized] || cellStateBadgeTone.draft
       }`}
     >

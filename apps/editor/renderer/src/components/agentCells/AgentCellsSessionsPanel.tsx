@@ -38,6 +38,8 @@ import {
   listUnmanagedWorktrees as agencyListUnmanagedWorktrees,
 } from '../../services/agencyBridge';
 import { isArchivedCell, resolveCellAttachmentMeta, resolveCellBranchMeta } from './cellPresentation';
+import { DetachedCellCleanupCard } from './DetachedCellCleanupCard';
+import { ArchivedCellCard } from './ArchivedCellCard';
 import {
   deriveCellNameFromWorktree,
   deriveUnmanagedWorktreeDisplay,
@@ -45,6 +47,11 @@ import {
   pathBaseName,
   type UnmanagedWorktree,
 } from './unmanagedWorktreePresentation';
+import {
+  AGENT_CELLS_SECTION_BADGE_BASE,
+  buildAgentCellsInlineControlClass,
+  buildAgentCellsWorkspacePanelClass,
+} from './surfaceTokens';
 
 const EMPTY_TREE: AgentCellSessionTreeProjection = {
   rows: [],
@@ -59,10 +66,6 @@ const DRAG_EDGE_RATIO = 0.26;
 const OUTDENT_DROP_ZONE_WIDTH = 52;
 const buildSessionKey = (cellId: string, sessionId: string) => `${cellId}:${sessionId}`;
 const buildTreeNodeKey = (cellId: string, sessionId: string) => `${cellId}:${sessionId}`;
-const SECTION_BADGE_BASE =
-  'inline-flex items-center rounded-[7px] border px-1.5 py-[3px] text-[8px] font-semibold uppercase tracking-[0.14em]';
-const SURFACE_PANEL_BASE =
-  'overflow-hidden rounded-[18px] border shadow-[0_18px_42px_-34px_rgba(0,0,0,0.72)]';
 
 type SessionDropTarget = {
   cellId: string;
@@ -179,15 +182,15 @@ function SessionStatusMeta({
 function resolveAttentionCardClass(item: AttentionItem | null | undefined): string {
   switch (item?.kind) {
     case 'failed':
-      return 'border-rose-300/26 bg-rose-500/[0.06] hover:border-rose-300/34';
+      return 'border-[rgba(82,46,52,0.94)] bg-rose-500/[0.055] hover:bg-rose-500/[0.07]';
     case 'pending_confirmation':
-      return 'border-amber-300/24 bg-amber-500/[0.055] hover:border-amber-300/32';
+      return 'border-[rgba(74,57,35,0.94)] bg-amber-500/[0.055] hover:bg-amber-500/[0.07]';
     case 'return_required':
-      return 'border-cyan-300/24 bg-cyan-500/[0.05] hover:border-cyan-300/34';
+      return 'border-[rgba(34,54,72,0.94)] bg-cyan-500/[0.048] hover:bg-cyan-500/[0.064]';
     case 'running':
-      return 'border-sky-300/22 bg-sky-500/[0.045] hover:border-sky-300/30';
+      return 'border-[rgba(34,54,72,0.94)] bg-sky-500/[0.045] hover:bg-sky-500/[0.06]';
     case 'unread':
-      return 'border-white/[0.09] bg-white/[0.03] hover:border-white/[0.12]';
+      return 'border-[rgba(45,50,60,0.94)] bg-white/[0.02] hover:bg-white/[0.035]';
     default:
       return '';
   }
@@ -196,15 +199,15 @@ function resolveAttentionCardClass(item: AttentionItem | null | undefined): stri
 function resolveAttentionRowClass(item: AttentionItem | null | undefined): string {
   switch (item?.kind) {
     case 'failed':
-      return 'border-rose-300/20 bg-rose-500/[0.055] hover:bg-rose-500/[0.08]';
+      return 'border-[rgba(82,46,52,0.86)] bg-rose-500/[0.05] hover:bg-rose-500/[0.07]';
     case 'pending_confirmation':
-      return 'border-amber-300/18 bg-amber-500/[0.05] hover:bg-amber-500/[0.07]';
+      return 'border-[rgba(74,57,35,0.86)] bg-amber-500/[0.048] hover:bg-amber-500/[0.066]';
     case 'return_required':
-      return 'border-cyan-300/18 bg-cyan-500/[0.045] hover:bg-cyan-500/[0.07]';
+      return 'border-[rgba(34,54,72,0.86)] bg-cyan-500/[0.042] hover:bg-cyan-500/[0.062]';
     case 'running':
-      return 'border-sky-300/18 bg-sky-500/[0.04] hover:bg-sky-500/[0.06]';
+      return 'border-[rgba(34,54,72,0.86)] bg-sky-500/[0.038] hover:bg-sky-500/[0.055]';
     case 'unread':
-      return 'border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.045]';
+      return 'border-[rgba(45,50,60,0.86)] bg-white/[0.018] hover:bg-white/[0.034]';
     default:
       return '';
   }
@@ -268,7 +271,7 @@ function LifecycleSectionHeader({
             {label}
           </span>
           <span
-            className={`${SECTION_BADGE_BASE} ${countClass}`}
+            className={`${AGENT_CELLS_SECTION_BADGE_BASE} ${countClass}`}
           >
             {count}
           </span>
@@ -280,34 +283,6 @@ function LifecycleSectionHeader({
       ) : null}
     </div>
   );
-}
-
-function buildWorkspacePanelClass({
-  selected,
-  tone,
-  attentionClass = '',
-}: {
-  selected: boolean;
-  tone: 'tracked' | 'detached' | 'unmanaged';
-  attentionClass?: string;
-}) {
-  const baseByTone = {
-    tracked:
-      'border-[rgba(35,42,53,0.94)] bg-[linear-gradient(180deg,rgba(21,24,31,0.965),rgba(15,18,24,0.99))]',
-    detached:
-      'border-[rgba(74,57,35,0.94)] bg-[linear-gradient(180deg,rgba(37,29,21,0.965),rgba(21,17,13,0.99))]',
-    unmanaged:
-      'border-[rgba(34,54,72,0.94)] bg-[linear-gradient(180deg,rgba(19,28,37,0.965),rgba(12,18,25,0.99))]',
-  } as const;
-  const selectedByTone = {
-    tracked: 'border-primary/18 bg-primary/[0.05] shadow-[0_20px_44px_-32px_rgba(59,130,246,0.32)]',
-    detached: 'border-amber-300/20 bg-amber-500/[0.075] shadow-[0_20px_44px_-32px_rgba(245,158,11,0.28)]',
-    unmanaged: 'border-sky-300/18 bg-sky-500/[0.07] shadow-[0_20px_44px_-32px_rgba(56,189,248,0.26)]',
-  } as const;
-  if (selected) {
-    return `${SURFACE_PANEL_BASE} ${selectedByTone[tone]}`;
-  }
-  return `${SURFACE_PANEL_BASE} ${baseByTone[tone]} ${attentionClass}`.trim();
 }
 
 function SessionTreeGuides({
@@ -1132,7 +1107,7 @@ export function AgentCellsSessionsPanel({
                   return (
                     <div
                       key={cell.id}
-                      className={`${buildWorkspacePanelClass({
+                      className={`${buildAgentCellsWorkspacePanelClass({
                         selected: isSelectedCell,
                         tone: 'tracked',
                         attentionClass: resolveAttentionCardClass(cellAttention?.strongest),
@@ -1201,13 +1176,13 @@ export function AgentCellsSessionsPanel({
                           {cell.name}
                         </span>
                         {cell.isVirtual ? (
-                          <span className={`${SECTION_BADGE_BASE} border-primary/18 bg-primary/[0.1] text-primary/78`}>
+                          <span className={`${AGENT_CELLS_SECTION_BADGE_BASE} border-primary/18 bg-primary/[0.1] text-primary/78`}>
                             Local
                           </span>
                         ) : null}
                         {!cell.isVirtual && attachmentMeta.attachmentState !== 'attached' ? (
                           <span
-                            className={`${SECTION_BADGE_BASE} ${attachmentMeta.tone}`}
+                            className={`${AGENT_CELLS_SECTION_BADGE_BASE} ${attachmentMeta.tone}`}
                             title={attachmentMeta.pathLabel || attachmentMeta.label}
                           >
                             {attachmentMeta.label}
@@ -1712,86 +1687,21 @@ export function AgentCellsSessionsPanel({
                 />
                 <div className="space-y-2">
                   {detachedCells.map((cell: any) => {
-                    const attachmentMeta = resolveCellAttachmentMeta(cell);
                     const cellAttention = attention.byCellId[cell.id];
                     return (
-                      <div
+                      <DetachedCellCleanupCard
                         key={cell.id}
-                        data-testid={`detached-cell-card-${cell.id}`}
-                        className={`${buildWorkspacePanelClass({
-                          selected: selectedId === cell.id,
-                          tone: 'detached',
-                          attentionClass: resolveAttentionCardClass(cellAttention?.strongest),
-                        })} px-3 py-2.5 transition-colors`}
-                      >
-                        <div className="flex items-start gap-2.5">
-                          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border border-[rgba(74,57,35,0.94)] bg-amber-500/[0.08] text-amber-100/80">
-                            <GitBranch size={14} strokeWidth={1.6} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex min-w-0 items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => onSelect?.(cell.id)}
-                                className="truncate text-left text-[12px] font-semibold text-foreground transition-colors hover:text-primary"
-                              >
-                                {cell.name}
-                              </button>
-                              <span
-                                className={`${SECTION_BADGE_BASE} ${attachmentMeta.tone}`}
-                              >
-                                {attachmentMeta.label}
-                              </span>
-                              {cellAttention?.strongest ? (
-                                <button
-                                  type="button"
-                                  onClick={() => attention.jumpToAttention(cellAttention.strongest)}
-                                  className="shrink-0"
-                                  aria-label={buildAttentionActionLabel({
-                                    item: cellAttention.strongest,
-                                    ownerLabel: cell.name || cell.id,
-                                    count: cellAttention.count,
-                                  })}
-                                  title={cellAttention.strongest.detail}
-                                >
-                                  <AttentionPill
-                                    item={cellAttention.strongest}
-                                    count={cellAttention.count}
-                                    className="px-1.5 py-[2px]"
-                                  />
-                                </button>
-                              ) : null}
-                            </div>
-                            <div className="mt-1 text-[10px] text-muted-foreground/72">
-                              {attachmentMeta.pathLabel || 'No attached worktree path recorded'}
-                            </div>
-                            <div className="mt-2 flex items-center justify-between gap-2">
-                              <span className="text-[10px] text-muted-foreground/70">
-                                {resolveCellSessions(String(cell.id)).length || 0} session
-                                {resolveCellSessions(String(cell.id)).length === 1 ? '' : 's'}
-                              </span>
-                              <div className="flex items-center gap-2">
-                                {onArchiveCell ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => onArchiveCell(cell)}
-                                    className="rounded-lg border border-amber-300/24 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-amber-100 transition-colors hover:bg-amber-500/10"
-                                  >
-                                    Archive Cell
-                                  </button>
-                                ) : null}
-                                <button
-                                  type="button"
-                                  onClick={() => onSelect?.(cell.id)}
-                                  className="rounded-lg border border-border/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-                                >
-                                  View Details
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                        cell={cell}
+                        sessions={resolveCellSessions(String(cell.id))}
+                        selected={selectedId === cell.id}
+                        attentionItem={cellAttention?.strongest || null}
+                        attentionCount={cellAttention?.count || 0}
+                        onSelect={onSelect}
+                        testId={`detached-cell-card-${cell.id}`}
+                        shellClassName={
+                          selectedId === cell.id ? '' : resolveAttentionCardClass(cellAttention?.strongest)
+                        }
+                      />
                     );
                   })}
                 </div>
@@ -1814,7 +1724,7 @@ export function AgentCellsSessionsPanel({
                       <button
                         type="button"
                         onClick={() => void handleResetIgnoredUnmanagedWorktrees()}
-                        className="inline-flex items-center rounded-[7px] border border-black/22 bg-black/12 px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-black/30 hover:text-foreground"
+                        className={buildAgentCellsInlineControlClass()}
                       >
                         Reset ignored
                       </button>
@@ -1828,7 +1738,7 @@ export function AgentCellsSessionsPanel({
                       <div
                         key={worktree.path}
                         data-testid={`unmanaged-worktree-${pathBaseName(worktree.path)}`}
-                        className={`${buildWorkspacePanelClass({
+                        className={`${buildAgentCellsWorkspacePanelClass({
                           selected: false,
                           tone: 'unmanaged',
                         })} px-3 py-2.5`}
@@ -1843,7 +1753,7 @@ export function AgentCellsSessionsPanel({
                                 {display.title}
                               </div>
                               <span
-                                className={`${SECTION_BADGE_BASE} ${
+                                className={`${AGENT_CELLS_SECTION_BADGE_BASE} ${
                                   display.detachedHeadLabel
                                     ? 'border-amber-300/16 bg-amber-500/[0.09] text-amber-100/82'
                                     : 'border-sky-300/16 bg-sky-500/[0.09] text-sky-100/82'
@@ -1925,7 +1835,7 @@ export function AgentCellsSessionsPanel({
                     <button
                       type="button"
                       onClick={() => setShowLegacyArchivedCells((value) => !value)}
-                      className="inline-flex items-center gap-1 rounded-[7px] border border-black/22 bg-black/12 px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-black/30 hover:text-foreground"
+                      className={`${buildAgentCellsInlineControlClass()} gap-1`}
                       aria-label="Legacy archived cells"
                       aria-expanded={showLegacyArchivedCells}
                       aria-controls="legacy-archived-cell-list"
@@ -1948,35 +1858,15 @@ export function AgentCellsSessionsPanel({
                     aria-label="Legacy archived cells"
                   >
                     {legacyArchivedCells.map((cell: any) => {
-                      const attachmentMeta = resolveCellAttachmentMeta(cell);
                       return (
-                        <div
+                        <ArchivedCellCard
                           key={cell.id}
-                          data-testid={`legacy-archived-cell-${cell.id}`}
-                          className={`rounded-xl border px-3 py-2.5 transition-colors ${
-                            selectedId === cell.id
-                              ? 'border-slate-300/24 bg-slate-500/[0.08]'
-                              : 'border-border/35 bg-background/20'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <div className="truncate text-[12px] font-semibold text-foreground">
-                                {cell.name}
-                              </div>
-                              <div className="mt-1 truncate text-[10px] text-muted-foreground/70">
-                                {attachmentMeta.pathLabel || 'No attached worktree path recorded'}
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => onSelect?.(cell.id)}
-                              className="rounded-lg border border-border/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-                            >
-                              View Details
-                            </button>
-                          </div>
-                        </div>
+                          cell={cell}
+                          sessions={resolveCellSessions(String(cell.id))}
+                          selected={selectedId === cell.id}
+                          onSelect={onSelect}
+                          testId={`legacy-archived-cell-${cell.id}`}
+                        />
                       );
                     })}
                   </div>

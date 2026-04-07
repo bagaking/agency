@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react';
 import { AttentionPill } from '../attention/AttentionPill';
 import type { AttentionItem } from '../../attention/attentionModel';
 import { focusRing } from '../ui/focusRing';
+import { buildAgentCellsWorkspacePanelClass } from './surfaceTokens';
 
 type LifecycleMetaItem = {
   icon: LucideIcon;
@@ -42,28 +43,25 @@ type LifecycleCellRailCardProps = {
   primaryAction?: LifecycleAction | null;
   secondaryAction?: LifecycleAction | null;
   testId?: string;
+  shellClassName?: string;
 };
 
 const focusRingClass = focusRing.dark;
 
 const toneClassByKind = {
   cleanup: {
-    shell:
-      'border-white/[0.04] bg-[linear-gradient(180deg,rgba(34,31,27,0.98),rgba(20,18,16,0.99))] shadow-[0_24px_44px_-34px_rgba(0,0,0,0.78)]',
-    shellSelected:
-      'border-white/[0.06] bg-[linear-gradient(180deg,rgba(41,36,29,0.99),rgba(22,19,16,1))] shadow-[0_28px_52px_-34px_rgba(251,191,36,0.16)]',
-    inset: 'bg-[linear-gradient(180deg,rgba(255,245,220,0.02),rgba(255,255,255,0.008))]',
+    shell: buildAgentCellsWorkspacePanelClass({ selected: false, tone: 'detached' }),
+    shellSelected: buildAgentCellsWorkspacePanelClass({ selected: true, tone: 'detached' }),
+    inset: 'bg-[linear-gradient(180deg,rgba(255,245,220,0.012),rgba(255,255,255,0.004))]',
     eyebrow: 'text-amber-100/72',
     path: 'text-stone-300/54',
     primary:
       'bg-[linear-gradient(180deg,rgba(246,210,126,0.2),rgba(202,138,4,0.18))] text-amber-50 hover:bg-[linear-gradient(180deg,rgba(250,220,150,0.26),rgba(217,148,8,0.24))] shadow-[0_10px_24px_-18px_rgba(251,191,36,0.45)]',
   },
   archived: {
-    shell:
-      'border-white/[0.04] bg-[linear-gradient(180deg,rgba(29,33,39,0.98),rgba(17,19,23,0.99))] shadow-[0_22px_42px_-34px_rgba(0,0,0,0.72)]',
-    shellSelected:
-      'border-white/[0.06] bg-[linear-gradient(180deg,rgba(35,40,47,0.99),rgba(18,21,26,1))] shadow-[0_24px_46px_-34px_rgba(148,163,184,0.14)]',
-    inset: 'bg-[linear-gradient(180deg,rgba(255,255,255,0.024),rgba(255,255,255,0.01))]',
+    shell: buildAgentCellsWorkspacePanelClass({ selected: false, tone: 'legacy' }),
+    shellSelected: buildAgentCellsWorkspacePanelClass({ selected: true, tone: 'legacy' }),
+    inset: 'bg-[linear-gradient(180deg,rgba(255,255,255,0.018),rgba(255,255,255,0.006))]',
     eyebrow: 'text-slate-100/66',
     path: 'text-slate-300/52',
     primary:
@@ -92,13 +90,14 @@ export function LifecycleCellRailCard({
   primaryAction = null,
   secondaryAction = null,
   testId,
+  shellClassName = '',
 }: LifecycleCellRailCardProps) {
   const toneClass = toneClassByKind[tone];
 
   return (
     <div
       data-testid={testId}
-      className={`overflow-hidden rounded-[22px] border ${selected ? toneClass.shellSelected : toneClass.shell}`}
+      className={`${selected ? toneClass.shellSelected : toneClass.shell} ${shellClassName}`.trim()}
     >
       <div className={`px-4 py-3.5 ${toneClass.inset}`}>
         <div className="flex items-start justify-between gap-3">
@@ -134,7 +133,7 @@ export function LifecycleCellRailCard({
         </div>
       </div>
 
-      <div className="border-t border-white/[0.06] bg-black/16 px-4 py-3">
+      <div className="border-t border-black/18 bg-black/16 px-4 py-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <span className={`text-[9px] font-semibold uppercase tracking-[0.22em] ${toneClass.eyebrow}`}>
             {eyebrow}
