@@ -179,6 +179,21 @@ In the current BrowserWindow-based shell, the seam resolves in this order:
 
 The important rule is not which of those three wins; it is that the browser service no longer guesses by trusting raw renderer coordinates.
 
+### The One Correct Integration Pattern
+
+For Agency's current hybrid renderer/native shell, the only correct integration pattern is:
+1. Workbench owns one authoritative viewport host for the browser lane.
+2. The renderer reports that viewport host rect directly, exactly once.
+3. The main process resolves renderer-view native bounds through the explicit seam (owner seam, renderer child view, or BrowserWindow content-area fallback).
+4. The main process maps the viewport host rect into native content-space bounds.
+5. If that seam or mapped geometry is invalid, the native surface hides or suspends instead of preserving stale placement.
+
+Anything else is the wrong shape and should be rejected, including:
+- measuring a nested browser fragment and relaying that rect upward;
+- measuring one DOM host, then projecting it into another shell proxy host, then measuring again;
+- trusting raw renderer coordinates without a renderer-view seam;
+- preserving stale native bounds when shell geometry or seam resolution becomes invalid.
+
 ### Why This Is Not cmux
 
 `cmux` appears to avoid much of this pain because its browser panel is part of a native pane system.
