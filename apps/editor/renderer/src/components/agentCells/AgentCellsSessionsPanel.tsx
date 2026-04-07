@@ -59,6 +59,10 @@ const DRAG_EDGE_RATIO = 0.26;
 const OUTDENT_DROP_ZONE_WIDTH = 52;
 const buildSessionKey = (cellId: string, sessionId: string) => `${cellId}:${sessionId}`;
 const buildTreeNodeKey = (cellId: string, sessionId: string) => `${cellId}:${sessionId}`;
+const SECTION_BADGE_BASE =
+  'inline-flex items-center rounded-md border px-1.5 py-[3px] text-[8px] font-semibold uppercase tracking-[0.14em]';
+const SURFACE_PANEL_BASE =
+  'overflow-hidden rounded-[18px] border shadow-[0_18px_42px_-34px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.03)]';
 
 type SessionDropTarget = {
   cellId: string;
@@ -248,10 +252,10 @@ function LifecycleSectionHeader({
     legacy: 'text-slate-200/72',
   } as const;
   const countClassByTone = {
-    default: 'border-white/10 bg-white/[0.04] text-foreground/78',
-    detached: 'border-amber-300/16 bg-amber-500/[0.08] text-amber-100/72',
-    unmanaged: 'border-sky-300/18 bg-sky-500/[0.09] text-sky-100/78',
-    legacy: 'border-white/8 bg-white/[0.03] text-slate-200/70',
+    default: 'border-white/[0.06] bg-white/[0.025] text-foreground/70',
+    detached: 'border-amber-300/14 bg-amber-500/[0.075] text-amber-100/74',
+    unmanaged: 'border-sky-300/14 bg-sky-500/[0.075] text-sky-100/76',
+    legacy: 'border-white/[0.05] bg-white/[0.02] text-slate-200/68',
   } as const;
   const toneClass = toneClassByTone[tone];
   const countClass = countClassByTone[tone];
@@ -264,7 +268,7 @@ function LifecycleSectionHeader({
             {label}
           </span>
           <span
-            className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[9px] font-medium ${countClass}`}
+            className={`${SECTION_BADGE_BASE} ${countClass}`}
           >
             {count}
           </span>
@@ -276,6 +280,34 @@ function LifecycleSectionHeader({
       ) : null}
     </div>
   );
+}
+
+function buildWorkspacePanelClass({
+  selected,
+  tone,
+  attentionClass = '',
+}: {
+  selected: boolean;
+  tone: 'tracked' | 'detached' | 'unmanaged';
+  attentionClass?: string;
+}) {
+  const baseByTone = {
+    tracked:
+      'border-white/[0.045] bg-[linear-gradient(180deg,rgba(21,24,31,0.96),rgba(15,18,24,0.985))]',
+    detached:
+      'border-amber-300/14 bg-[linear-gradient(180deg,rgba(37,29,21,0.96),rgba(21,17,13,0.99))]',
+    unmanaged:
+      'border-sky-300/14 bg-[linear-gradient(180deg,rgba(19,28,37,0.96),rgba(12,18,25,0.99))]',
+  } as const;
+  const selectedByTone = {
+    tracked: 'border-primary/22 bg-primary/[0.055] shadow-[0_20px_44px_-32px_rgba(59,130,246,0.38)]',
+    detached: 'border-amber-300/24 bg-amber-500/[0.08] shadow-[0_20px_44px_-32px_rgba(245,158,11,0.32)]',
+    unmanaged: 'border-sky-300/22 bg-sky-500/[0.075] shadow-[0_20px_44px_-32px_rgba(56,189,248,0.3)]',
+  } as const;
+  if (selected) {
+    return `${SURFACE_PANEL_BASE} ${selectedByTone[tone]}`;
+  }
+  return `${SURFACE_PANEL_BASE} ${baseByTone[tone]} ${attentionClass}`.trim();
 }
 
 function SessionTreeGuides({
@@ -1100,11 +1132,11 @@ export function AgentCellsSessionsPanel({
                   return (
                     <div
                       key={cell.id}
-                      className={`overflow-hidden rounded-xl border transition-colors ${
-                        isSelectedCell
-                          ? 'border-primary/25 bg-primary/[0.045] shadow-[0_8px_24px_-18px_rgba(59,130,246,0.55)]'
-                          : `border-border/40 bg-background/20 ${resolveAttentionCardClass(cellAttention?.strongest)}`
-                      }`}
+                      className={`${buildWorkspacePanelClass({
+                        selected: isSelectedCell,
+                        tone: 'tracked',
+                        attentionClass: resolveAttentionCardClass(cellAttention?.strongest),
+                      })} transition-colors`}
                     >
                   <div
                     role="treeitem"
@@ -1150,10 +1182,10 @@ export function AgentCellsSessionsPanel({
                       )}
                     </button>
                     <div
-                      className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border ${
+                      className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border ${
                         cell.isVirtual
-                          ? 'border-primary/20 bg-primary/10 text-primary/85'
-                          : 'border-white/[0.08] bg-white/[0.04] text-foreground/75'
+                          ? 'border-primary/18 bg-primary/[0.1] text-primary/82 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]'
+                          : 'border-white/[0.05] bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))] text-foreground/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]'
                       }`}
                     >
                       {cell.isVirtual ? (
@@ -1169,13 +1201,13 @@ export function AgentCellsSessionsPanel({
                           {cell.name}
                         </span>
                         {cell.isVirtual ? (
-                          <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-primary/80">
+                          <span className={`${SECTION_BADGE_BASE} border-primary/18 bg-primary/[0.1] text-primary/78`}>
                             Local
                           </span>
                         ) : null}
                         {!cell.isVirtual && attachmentMeta.attachmentState !== 'attached' ? (
                           <span
-                            className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] ${attachmentMeta.tone}`}
+                            className={`${SECTION_BADGE_BASE} ${attachmentMeta.tone}`}
                             title={attachmentMeta.pathLabel || attachmentMeta.label}
                           >
                             {attachmentMeta.label}
@@ -1686,14 +1718,14 @@ export function AgentCellsSessionsPanel({
                       <div
                         key={cell.id}
                         data-testid={`detached-cell-card-${cell.id}`}
-                        className={`rounded-xl border px-3 py-2.5 transition-colors ${
-                          selectedId === cell.id
-                            ? 'border-amber-300/26 bg-amber-500/[0.08]'
-                            : `border-border/35 bg-background/20 ${resolveAttentionCardClass(cellAttention?.strongest)}`
-                        }`}
+                        className={`${buildWorkspacePanelClass({
+                          selected: selectedId === cell.id,
+                          tone: 'detached',
+                          attentionClass: resolveAttentionCardClass(cellAttention?.strongest),
+                        })} px-3 py-2.5 transition-colors`}
                       >
                         <div className="flex items-start gap-2.5">
-                          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-amber-300/20 bg-amber-500/10 text-amber-100/82">
+                          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border border-amber-300/16 bg-amber-500/[0.09] text-amber-100/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
                             <GitBranch size={14} strokeWidth={1.6} />
                           </div>
                           <div className="min-w-0 flex-1">
@@ -1706,7 +1738,7 @@ export function AgentCellsSessionsPanel({
                                 {cell.name}
                               </button>
                               <span
-                                className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] ${attachmentMeta.tone}`}
+                                className={`${SECTION_BADGE_BASE} ${attachmentMeta.tone}`}
                               >
                                 {attachmentMeta.label}
                               </span>
@@ -1782,7 +1814,7 @@ export function AgentCellsSessionsPanel({
                       <button
                         type="button"
                         onClick={() => void handleResetIgnoredUnmanagedWorktrees()}
-                        className="inline-flex items-center rounded-full px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground"
+                        className="inline-flex items-center rounded-md border border-white/[0.05] bg-white/[0.02] px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-white/[0.08] hover:text-foreground"
                       >
                         Reset ignored
                       </button>
@@ -1796,10 +1828,13 @@ export function AgentCellsSessionsPanel({
                       <div
                         key={worktree.path}
                         data-testid={`unmanaged-worktree-${pathBaseName(worktree.path)}`}
-                        className="rounded-xl border border-sky-300/16 bg-sky-500/[0.05] px-3 py-2.5"
+                        className={`${buildWorkspacePanelClass({
+                          selected: false,
+                          tone: 'unmanaged',
+                        })} px-3 py-2.5`}
                       >
                         <div className="flex items-start gap-2.5">
-                          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-sky-300/22 bg-sky-500/10 text-sky-100/85">
+                          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border border-sky-300/16 bg-sky-500/[0.09] text-sky-100/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
                             <GitBranch size={14} strokeWidth={1.6} />
                           </div>
                           <div className="min-w-0 flex-1">
@@ -1808,10 +1843,10 @@ export function AgentCellsSessionsPanel({
                                 {display.title}
                               </div>
                               <span
-                                className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] ${
+                                className={`${SECTION_BADGE_BASE} ${
                                   display.detachedHeadLabel
-                                    ? 'border-amber-300/20 bg-amber-500/10 text-amber-100'
-                                    : 'border-sky-300/20 bg-sky-500/10 text-sky-100'
+                                    ? 'border-amber-300/16 bg-amber-500/[0.09] text-amber-100/82'
+                                    : 'border-sky-300/16 bg-sky-500/[0.09] text-sky-100/82'
                                 }`}
                               >
                                 {display.detachedHeadLabel || display.branchLabel}
@@ -1854,7 +1889,7 @@ export function AgentCellsSessionsPanel({
                                 </button>
                               ) : null}
                               {display.availabilityLabel ? (
-                                <span className="inline-flex items-center rounded-lg border border-amber-300/18 bg-amber-500/[0.08] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-amber-100/88">
+                                <span className="inline-flex items-center rounded-md border border-amber-300/16 bg-amber-500/[0.08] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-100/84">
                                   {display.availabilityLabel}
                                 </span>
                               ) : null}
@@ -1890,7 +1925,7 @@ export function AgentCellsSessionsPanel({
                     <button
                       type="button"
                       onClick={() => setShowLegacyArchivedCells((value) => !value)}
-                      className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground"
+                      className="inline-flex items-center gap-1 rounded-md border border-white/[0.05] bg-white/[0.02] px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-white/[0.08] hover:text-foreground"
                       aria-label="Legacy archived cells"
                       aria-expanded={showLegacyArchivedCells}
                       aria-controls="legacy-archived-cell-list"

@@ -9,10 +9,10 @@ const cellStateColors: Record<string, string> = {
 };
 
 const cellStateBadgeTone: Record<string, string> = {
-  draft: 'border-white/10 bg-white/[0.04] text-white/65',
-  active: 'border-emerald-400/25 bg-emerald-500/10 text-emerald-200',
-  paused: 'border-amber-300/25 bg-amber-500/10 text-amber-100',
-  archived: 'border-slate-500/20 bg-slate-500/10 text-slate-300/75',
+  draft: 'border-white/[0.06] bg-white/[0.025] text-white/60',
+  active: 'border-emerald-400/18 bg-emerald-500/[0.08] text-emerald-200/88',
+  paused: 'border-amber-300/18 bg-amber-500/[0.08] text-amber-100/88',
+  archived: 'border-slate-500/14 bg-slate-500/[0.08] text-slate-300/72',
 };
 
 export type CellAttachmentMeta = {
@@ -36,7 +36,7 @@ export function CellStateBadge({ state }: { state?: string }) {
   const label = normalized === 'archived' ? 'legacy archived' : `legacy ${normalized}`;
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] ${
+      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-[3px] text-[8px] font-semibold uppercase tracking-[0.14em] ${
         cellStateBadgeTone[normalized] || cellStateBadgeTone.draft
       }`}
     >
@@ -55,7 +55,7 @@ export function resolveCellAttachmentMeta(cell: any): CellAttachmentMeta {
     return {
       attachmentState: 'project_root',
       label: 'Project Root',
-      tone: 'border-sky-300/24 bg-sky-500/10 text-sky-100',
+      tone: 'border-sky-300/16 bg-sky-500/[0.09] text-sky-100/82',
       pathLabel: String(cell?.projectRoot || cell?.repoRoot || '').trim(),
     };
   }
@@ -63,7 +63,7 @@ export function resolveCellAttachmentMeta(cell: any): CellAttachmentMeta {
     return {
       attachmentState: 'missing',
       label: 'Missing',
-      tone: 'border-rose-300/24 bg-rose-500/10 text-rose-100',
+      tone: 'border-rose-300/16 bg-rose-500/[0.09] text-rose-100/82',
       pathLabel: pathLabelBase,
     };
   }
@@ -71,14 +71,14 @@ export function resolveCellAttachmentMeta(cell: any): CellAttachmentMeta {
     return {
       attachmentState: 'detached',
       label: 'Detached',
-      tone: 'border-amber-300/24 bg-amber-500/10 text-amber-100',
+      tone: 'border-amber-300/16 bg-amber-500/[0.09] text-amber-100/82',
       pathLabel: pathLabelBase,
     };
   }
   return {
     attachmentState: 'attached',
     label: 'Attached',
-    tone: 'border-emerald-300/20 bg-emerald-500/10 text-emerald-100',
+    tone: 'border-emerald-300/16 bg-emerald-500/[0.08] text-emerald-100/82',
     pathLabel: String(cell?.branch || pathLabelBase || '').trim(),
   };
 }
