@@ -265,11 +265,21 @@ Unmanaged worktrees in detached HEAD state SHALL not present `Create Cell` as an
 - **THEN** the editor surfaces it through the main tracked Cell rail instead of a second-class management section
 - **AND** the rail keeps session-first runtime legible while also offering explicit branch-binding and worktree-attachment actions
 
+#### Scenario: Window-owned placeholders stay out of the Cell rail
+- **WHEN** the window is in no-project `Project Home` state or the home shell is the only live context
+- **THEN** Agent Cells does not surface synthetic tracked Cells such as `Local Terminal`
+- **AND** the window-owned placeholder stays outside the project-backed Cell/session rail entirely
+
 #### Scenario: Detached Cell opens attachment-management details
 - **WHEN** a user opens `View Details` for a detached or missing Cell
 - **THEN** the main pane shows attachment record and retained session details
 - **AND** the pane offers attachment-management actions such as `Archive Cell`, `Clear Attachment`, or `Delete Cell`
 - **AND** the pane does not fall back to a generic empty terminal placeholder
+
+#### Scenario: Agent Cells rail uses one coherent control grammar
+- **WHEN** tracked, detached, unmanaged, and legacy compatibility surfaces render together in Agent Cells
+- **THEN** they share one cohesive rail-card grammar with consistent badge, attention, and action treatment
+- **AND** the surface does not regress into section-specific bright pills, white outline boxes, or mismatched button families
 
 #### Scenario: Deterministic unmanaged match prefers reattach
 - **WHEN** an unmanaged worktree has a deterministic match to an existing detached Cell

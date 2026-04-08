@@ -110,6 +110,8 @@ Keep repo-authored source in governed roots (`apps/`, `pkg/`, `scripts/`) TypeSc
   - tracked Cells that run either on a live worktree attachment or on the project root;
   - detached or missing Cells whose sessions/evidence remain accessible;
   - unmanaged live worktrees that can be adopted into Cells explicitly.
+- Agent Cells must not surface window-owned `Project Home` / `Home Shell` placeholders as synthetic tracked Cells. Window-owned no-project context stays outside the Cell rail entirely.
+- Agent Cells rail craft must use one shared tactical card grammar across tracked, detached, unmanaged, and legacy compatibility surfaces. Do not let bright rounded pills, white outline boxes, or per-section ad-hoc button families drift back in.
 - `Create Worktree Attachment` is an explicit enhancement for filesystem isolation/materialization, not a precondition for basic session runtime on project-root Cells.
 - Detached/missing Cells are attachment-management surfaces, not default lifecycle-cleanup rails. Prefer `reattach`, `view details`, and `remove record` semantics over `archive this to finish the lifecycle`.
 - Legacy lifecycle metadata such as `archived` may be shown as compatibility information, but it must not re-take ownership of the default core workspace grammar.

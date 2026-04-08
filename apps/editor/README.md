@@ -177,6 +177,7 @@
   - `Detached Cells`
   - `Unmanaged Worktrees`
 - `Tracked Cells` cover both live attached workspaces and project-root Cells that have not materialized a worktree. Both keep the same primary session-tree grammar; attachment state is visible through compact badges and explicit branch/attachment actions instead of a second-class rail.
+- Agent Cells uses one shared tactical rail-card grammar across tracked, detached, unmanaged, and legacy compatibility surfaces. The surface should not drift back to bright rounded pills, white outline boxes, or per-section control families that read like stock dashboard cards.
 - `Project-root Cells` may be unbound or branch-bound. They still support session-first runtime. The explicit attachment action is for materializing a branch-isolated workspace, not for unlocking basic terminal work.
 - The Agent Cells Explorer surface follows the selected Cell runtime root. For attached Cells it scopes to the live worktree; for project-root Cells it scopes to the project root instead of degrading into a dead affordance.
 - `Detached Cells` are attachment-management records: their cards keep session counts visible, allow `View Details`, and detached detail view offers `Archive Cell`, `Clear Attachment`, and `Delete Cell` instead of falling back to a generic empty terminal state.
@@ -268,6 +269,7 @@
 
 - If no project directory is configured, the editor opens Explorer in a shared `Project Home` state.
 - `Project Home` is window-owned: it is not a fake Project, Cell, or Session.
+- `Agent Cells` must not render window-owned placeholders such as the home shell or local terminal as synthetic tracked Cells.
 - The no-project sidebar exposes `Open Project`, `Start Home Shell`, and recent projects as one coherent recovery surface.
 - Recent projects are the primary center-stage content in the no-project main panel, while a secondary window-scope panel explains the home shell boundary.
 - On no-project startup, `Project Home` remains the single primary surface; the shell right rail, `Next`, and HIL drawer should not auto-expand over it.

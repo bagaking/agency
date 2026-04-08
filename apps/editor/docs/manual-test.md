@@ -35,6 +35,7 @@
 - [ ] In `Detached Cells`, confirm `missing` and `detached` Cells use different attachment copy, keep session/evidence counts visible, and route the primary action to `View Details`.
 - [ ] Open a detached Cell from `View Details` and confirm the main pane shows attachment-management details plus `Archive Cell`, `Clear Attachment`, and `Delete Cell` instead of the generic terminal empty animation.
 - [ ] Open a legacy archived record and confirm it appears only under `Legacy Archived`, with low-emphasis compatibility treatment rather than re-taking ownership of the default workspace rail.
+- [ ] Confirm `Tracked / Detached / Unmanaged / Legacy` all read as one shared rail-card family rather than mixing bright rounded pills, white outline boxes, and section-specific button grammars.
 - [ ] Restart with an attached Cell whose session registry is empty and confirm the window does not auto-create a `Default` session.
 - [ ] In the empty terminal state for such a Cell, click `Create Session` and confirm a session is created only at that explicit step.
 - [ ] Open `Create Cell` and confirm `Create Project-root Cell`, `Create Branch Worktree`, `Track Existing Worktree`, and `Bind Existing Branch` are separate modes.
@@ -77,6 +78,7 @@
 
 ## Terminal
 - [ ] With no project selected, confirm Explorer and Agent Cells both show the same `Project Home` state instead of a fake local Cell/session row.
+- [ ] With no project selected, confirm `Agent Cells` does not render `Local Terminal` / home-shell placeholders inside the tracked Cell rail.
 - [ ] On no-project startup, confirm the right-side attention rail and HIL drawer do not auto-expand over `Project Home`.
 - [ ] On no-project startup, confirm Status Bar does not surface `Next` attention or Session Map controls that imply Project/Session context.
 - [ ] In the no-project state, confirm the main Project Home surface reads as one primary repository-selection surface plus one lower-noise window-scope summary rather than a generic dashboard split.
