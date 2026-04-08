@@ -40,6 +40,8 @@ import {
 import { isArchivedCell, resolveCellAttachmentMeta, resolveCellBranchMeta } from './cellPresentation';
 import { DetachedCellCleanupCard } from './DetachedCellCleanupCard';
 import { ArchivedCellCard } from './ArchivedCellCard';
+import { TrackedCellRailCard } from './TrackedCellRailCard';
+import { UnmanagedWorktreeRailCard } from './UnmanagedWorktreeRailCard';
 import {
   deriveCellNameFromWorktree,
   deriveUnmanagedWorktreeDisplay,
@@ -1043,6 +1045,30 @@ export function AgentCellsSessionsPanel({
     [onCreateCell]
   );
 
+  const openCreateSessionMenu = useCallback(
+    (cell: any, event: React.MouseEvent<HTMLButtonElement>) => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openUpwards = spaceBelow < 320;
+      setCreateMenu({
+        cellId: cell.id,
+        x: rect.left,
+        y: openUpwards ? rect.top - 6 : rect.bottom + 6,
+        openUpwards,
+      });
+    },
+    []
+  );
+
+  const openOverflowMenu = useCallback((cell: any, event: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setClosedMenu({
+      cellId: cell.id,
+      x: rect.left,
+      y: rect.bottom + 6,
+    });
+  }, []);
+
   return (
     <>
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
@@ -1105,237 +1131,27 @@ export function AgentCellsSessionsPanel({
                     const showRootDropZone = draggingSession?.cellId === cell.id && Boolean(onMoveSessionNode);
 
                   return (
-                    <div
+                    <TrackedCellRailCard
                       key={cell.id}
-                      className={`${buildAgentCellsWorkspacePanelClass({
-                        selected: isSelectedCell,
-                        tone: 'tracked',
-                        attentionClass: resolveAttentionCardClass(cellAttention?.strongest),
-                      })} transition-colors`}
+                      cell={cell}
+                      attachmentMeta={attachmentMeta}
+                      branchMeta={branchMeta}
+                      cellAttention={cellAttention}
+                      selected={isSelectedCell}
+                      collapsed={isCollapsed}
+                      isWindowHome={isWindowHome}
+                      isProjectRootRuntime={isProjectRootRuntime}
+                      hasRunnableRuntimeRoot={hasRunnableRuntimeRoot}
+                      hasOverflow={hasOverflow}
+                      onSelect={onSelect}
+                      onToggleCollapse={toggleCellCollapse}
+                      onJumpAttention={attention.jumpToAttention}
+                      onOpenExplorer={onOpenExplorer}
+                      onCreateSessionMenu={openCreateSessionMenu}
+                      onBindBranch={handleBindBranchForCell}
+                      onCreateAttachment={handleCreateAttachmentForCell}
+                      onOpenOverflow={openOverflowMenu}
                     >
-                  <div
-                    role="treeitem"
-                    aria-level={1}
-                    aria-expanded={!isCollapsed}
-                    aria-selected={isSelectedCell}
-                    tabIndex={0}
-                    onClick={() => onSelect?.(cell.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        onSelect?.(cell.id);
-                        return;
-                      }
-                      if (event.key === 'ArrowLeft' && !isCollapsed) {
-                        event.preventDefault();
-                        toggleCellCollapse(cell.id);
-                        return;
-                      }
-                      if (event.key === 'ArrowRight' && isCollapsed) {
-                        event.preventDefault();
-                        toggleCellCollapse(cell.id);
-                      }
-                    }}
-                    data-testid={`cell-item-${cell.id}`}
-                    className={`group flex w-full items-start gap-2.5 px-2.5 py-2 text-left transition-colors ${
-                      isSelectedCell ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        toggleCellCollapse(cell.id);
-                      }}
-                      className="mt-0.5 rounded p-0.5 text-muted-foreground/60 hover:bg-muted/30 hover:text-foreground"
-                      title={isCollapsed ? 'Expand sessions' : 'Collapse sessions'}
-                    >
-                      {isCollapsed ? (
-                        <ChevronRight size={12} strokeWidth={1.5} />
-                      ) : (
-                        <ChevronDown size={12} strokeWidth={1.5} />
-                      )}
-                    </button>
-                    <div
-                      className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border ${
-                        cell.isVirtual
-                          ? 'border-primary/16 bg-primary/[0.09] text-primary/82'
-                          : 'border-black/24 bg-[linear-gradient(180deg,rgba(0,0,0,0.14),rgba(0,0,0,0.24))] text-foreground/72'
-                      }`}
-                    >
-                      {cell.isVirtual ? (
-                        <SquareTerminal size={14} strokeWidth={1.6} />
-                      ) : (
-                        <GitBranch size={14} strokeWidth={1.6} />
-                      )}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="truncate text-[12px] font-semibold tracking-[0.01em]">
-                          {cell.name}
-                        </span>
-                        {cell.isVirtual ? (
-                          <span className={`${AGENT_CELLS_SECTION_BADGE_BASE} border-primary/18 bg-primary/[0.1] text-primary/78`}>
-                            Local
-                          </span>
-                        ) : null}
-                        {!cell.isVirtual && attachmentMeta.attachmentState !== 'attached' ? (
-                          <span
-                            className={`${AGENT_CELLS_SECTION_BADGE_BASE} ${attachmentMeta.tone}`}
-                            title={attachmentMeta.pathLabel || attachmentMeta.label}
-                          >
-                            {attachmentMeta.label}
-                          </span>
-                        ) : null}
-                        {cellAttention?.strongest ? (
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              attention.jumpToAttention(cellAttention.strongest);
-                            }}
-                            className="shrink-0"
-                            aria-label={buildAttentionActionLabel({
-                              item: cellAttention.strongest,
-                              ownerLabel: cell.name || cell.id,
-                              count: cellAttention.count,
-                            })}
-                            title={cellAttention.strongest.detail}
-                          >
-                            <AttentionPill
-                              item={cellAttention.strongest}
-                              count={cellAttention.count}
-                              className="px-1.5 py-[2px]"
-                            />
-                          </button>
-                        ) : null}
-                      </div>
-                      <div
-                        className={`mt-1 flex min-w-0 items-center gap-1.5 text-[9px] ${
-                          branchMeta.isDetachedHead ? 'text-amber-100/78' : 'text-muted-foreground/72'
-                        }`}
-                      >
-                        {cell.isVirtual ? (
-                          <SquareTerminal size={10} strokeWidth={1.7} className="shrink-0" />
-                        ) : (
-                          <GitBranch size={10} strokeWidth={1.7} className="shrink-0" />
-                        )}
-                        <span className="truncate" title={branchMeta.title || undefined}>
-                          {cell.isVirtual
-                            ? cell.worktreePath || 'Local shell'
-                            : attachmentMeta.attachmentState === 'attached'
-                              ? branchMeta.label || attachmentMeta.pathLabel || 'Attached worktree'
-                              : branchMeta.label
-                                ? `Project root · ${branchMeta.label}`
-                                : 'Project root runtime'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="ml-auto flex items-center gap-1 self-center opacity-100">
-                      {!cell.isVirtual ? (
-                        <IconButton
-                          label="Open in Explorer"
-                          focusRing="sidebar"
-                          className="h-7 w-7 rounded-md text-muted-foreground/65 transition-colors hover:bg-white/[0.06] hover:text-foreground"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onOpenExplorer?.(cell.id);
-                          }}
-                        >
-                          <FolderOpen size={13} strokeWidth={1.7} aria-hidden="true" />
-                        </IconButton>
-                      ) : null}
-                      {!isWindowHome ? (
-                        <IconButton
-                          label="New Session"
-                          focusRing="sidebar"
-                          disabled={!hasRunnableRuntimeRoot}
-                          className="h-7 w-7 rounded-md text-primary transition-colors hover:bg-primary/12 hover:text-primary disabled:text-muted-foreground/40 disabled:hover:bg-transparent"
-                          title={
-                            hasRunnableRuntimeRoot
-                              ? isProjectRootRuntime
-                                ? 'Create a session on the project root.'
-                                : 'Create a session inside the attached worktree.'
-                              : 'This Cell cannot start sessions until it has a valid runtime root.'
-                          }
-                          onClick={(event) => {
-                            if (!hasRunnableRuntimeRoot) {
-                              return;
-                            }
-                            event.stopPropagation();
-                            const rect = event.currentTarget.getBoundingClientRect();
-                            const spaceBelow = window.innerHeight - rect.bottom;
-                            const openUpwards = spaceBelow < 320;
-                            setCreateMenu({
-                              cellId: cell.id,
-                              x: rect.left,
-                              y: openUpwards ? rect.top - 6 : rect.bottom + 6,
-                              openUpwards,
-                            });
-                          }}
-                        >
-                          <Plus size={14} strokeWidth={1.8} aria-hidden="true" />
-                        </IconButton>
-                      ) : null}
-                      {isProjectRootRuntime ? (
-                        <IconButton
-                          label="Bind Branch"
-                          focusRing="sidebar"
-                          className="h-7 w-7 rounded-md text-sky-100/78 transition-colors hover:bg-sky-500/12 hover:text-sky-50"
-                          title={
-                            cell?.branch
-                              ? 'Update the branch metadata for this Cell without creating a worktree.'
-                              : 'Bind this Cell to an existing branch without creating a worktree.'
-                          }
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleBindBranchForCell(cell);
-                          }}
-                        >
-                          <GitBranch size={13} strokeWidth={1.7} aria-hidden="true" />
-                        </IconButton>
-                      ) : null}
-                      {isProjectRootRuntime ? (
-                        <IconButton
-                          label="Create Worktree Attachment"
-                          focusRing="sidebar"
-                          className="h-7 w-7 rounded-md text-sky-100/78 transition-colors hover:bg-sky-500/12 hover:text-sky-50"
-                          title={
-                            cell?.branch
-                              ? 'Materialize a live worktree attachment for this Cell.'
-                              : 'Choose a branch and materialize a live worktree attachment for this Cell.'
-                          }
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleCreateAttachmentForCell(cell);
-                          }}
-                        >
-                          <ArrowUpLeft size={13} strokeWidth={1.7} aria-hidden="true" />
-                        </IconButton>
-                      ) : null}
-                      {hasOverflow ? (
-                        <IconButton
-                          label="Detached and closed sessions"
-                          focusRing="sidebar"
-                          className="h-7 w-7 rounded-md text-muted-foreground/65 transition-colors hover:bg-white/[0.06] hover:text-foreground"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            const rect = event.currentTarget.getBoundingClientRect();
-                            setClosedMenu({
-                              cellId: cell.id,
-                              x: rect.left,
-                              y: rect.bottom + 6,
-                            });
-                          }}
-                        >
-                          <MoreHorizontal size={13} strokeWidth={1.7} aria-hidden="true" />
-                        </IconButton>
-                      ) : null}
-                    </div>
-                  </div>
-
                   {!isCollapsed ? (
                     <div className="space-y-1 border-t border-black/18 px-2 pb-1.5 pt-1.5" role="group">
                       {visibleRows.map((row) => {
@@ -1581,10 +1397,7 @@ export function AgentCellsSessionsPanel({
                                         })}
                                         title={sessionAttention.detail}
                                       >
-                                        <AttentionPill
-                                          item={sessionAttention}
-                                          className="px-1.5 py-[2px]"
-                                        />
+                                        <AttentionPill item={sessionAttention} variant="agentCells" className="px-1.5 py-[2px]" />
                                       </button>
                                     ) : null}
                                   </div>
@@ -1666,7 +1479,7 @@ export function AgentCellsSessionsPanel({
                       ) : null}
                     </div>
                   ) : null}
-                    </div>
+                    </TrackedCellRailCard>
                   );
                   })}
                 </div>
@@ -1735,85 +1548,14 @@ export function AgentCellsSessionsPanel({
                   {visibleUnmanagedWorktrees.map((worktree) => {
                     const display = deriveUnmanagedWorktreeDisplay(worktree);
                     return (
-                      <div
+                      <UnmanagedWorktreeRailCard
                         key={worktree.path}
-                        data-testid={`unmanaged-worktree-${pathBaseName(worktree.path)}`}
-                        className={`${buildAgentCellsWorkspacePanelClass({
-                          selected: false,
-                          tone: 'unmanaged',
-                        })} px-3 py-2.5`}
-                      >
-                        <div className="flex items-start gap-2.5">
-                          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border border-[rgba(34,54,72,0.94)] bg-sky-500/[0.08] text-sky-100/80">
-                            <GitBranch size={14} strokeWidth={1.6} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <div className="truncate text-[12px] font-semibold text-foreground">
-                                {display.title}
-                              </div>
-                              <span
-                                className={`${AGENT_CELLS_SECTION_BADGE_BASE} ${
-                                  display.detachedHeadLabel
-                                    ? 'border-amber-300/16 bg-amber-500/[0.09] text-amber-100/82'
-                                    : 'border-sky-300/16 bg-sky-500/[0.09] text-sky-100/82'
-                                }`}
-                              >
-                                {display.detachedHeadLabel || display.branchLabel}
-                              </span>
-                            </div>
-                            <div className="mt-1 truncate font-mono text-[10px] text-muted-foreground/72">
-                              {worktree.path}
-                            </div>
-                            {display.helperText ? (
-                              <div className="mt-1 text-[10px] leading-4 text-muted-foreground/72">
-                                {display.helperText}
-                              </div>
-                            ) : null}
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                              {display.primaryAction === 'bind' ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleBindSuggestedCell(worktree)}
-                                  className="rounded-lg bg-sky-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-50 transition-colors hover:bg-sky-500/30"
-                                >
-                                  {display.primaryLabel}
-                                </button>
-                              ) : null}
-                              {display.primaryAction === 'create' ? (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleCreateCellFromWorktree(worktree)}
-                                  className="rounded-lg bg-sky-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-50 transition-colors hover:bg-sky-500/30"
-                                >
-                                  {display.primaryLabel}
-                                </button>
-                              ) : null}
-                              {display.secondaryCreateLabel ? (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleCreateCellFromWorktree(worktree)}
-                                  className="rounded-lg border border-sky-300/22 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-100 transition-colors hover:bg-sky-500/12"
-                                >
-                                  {display.secondaryCreateLabel}
-                                </button>
-                              ) : null}
-                              {display.availabilityLabel ? (
-                                <span className="inline-flex items-center rounded-md border border-amber-300/16 bg-amber-500/[0.08] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-100/84">
-                                  {display.availabilityLabel}
-                                </span>
-                              ) : null}
-                              <button
-                                type="button"
-                                onClick={() => void handleIgnoreUnmanagedWorktree(worktree.path)}
-                                className="rounded-lg border border-border/40 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:border-primary/35 hover:text-foreground"
-                              >
-                                Ignore For Now
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                        worktree={worktree}
+                        display={display}
+                        onBind={handleBindSuggestedCell}
+                        onCreate={(item) => void handleCreateCellFromWorktree(item)}
+                        onIgnore={(worktreePath) => void handleIgnoreUnmanagedWorktree(worktreePath)}
+                      />
                     );
                   })}
                 </div>

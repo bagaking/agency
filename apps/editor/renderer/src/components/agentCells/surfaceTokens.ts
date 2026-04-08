@@ -4,6 +4,30 @@ export const AGENT_CELLS_SECTION_BADGE_BASE =
 export const AGENT_CELLS_PANEL_BASE =
   'overflow-hidden rounded-[18px] border shadow-[0_18px_42px_-34px_rgba(0,0,0,0.72)]';
 
+export function buildAgentCellsIconWellClass(tone: 'tracked' | 'detached' | 'unmanaged' | 'virtual') {
+  const classes = {
+    tracked:
+      'border-black/24 bg-[linear-gradient(180deg,rgba(0,0,0,0.14),rgba(0,0,0,0.24))] text-foreground/72',
+    detached: 'border-[rgba(74,57,35,0.94)] bg-amber-500/[0.08] text-amber-100/80',
+    unmanaged: 'border-[rgba(34,54,72,0.94)] bg-sky-500/[0.08] text-sky-100/80',
+    virtual: 'border-primary/16 bg-primary/[0.09] text-primary/82',
+  } as const;
+  return classes[tone];
+}
+
+export function buildAgentCellsGhostControlClass() {
+  return 'rounded-lg border border-black/22 bg-black/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-black/30 hover:text-foreground';
+}
+
+export function buildAgentCellsPrimaryActionClass(tone: 'sky' | 'amber' | 'neutral' = 'sky') {
+  const classes = {
+    sky: 'rounded-lg border border-[rgba(34,54,72,0.94)] bg-sky-500/[0.16] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-50 transition-colors hover:bg-sky-500/[0.24]',
+    amber: 'rounded-lg border border-[rgba(74,57,35,0.94)] bg-amber-500/[0.16] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-50 transition-colors hover:bg-amber-500/[0.24]',
+    neutral: 'rounded-lg border border-black/22 bg-black/12 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground transition-colors hover:border-black/30 hover:bg-black/16',
+  } as const;
+  return classes[tone];
+}
+
 export function buildAgentCellsWorkspacePanelClass({
   selected,
   tone,
