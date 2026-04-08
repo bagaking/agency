@@ -15,6 +15,7 @@ type DetachedCellCleanupCardProps = {
   attentionItem?: AttentionItem | null;
   attentionCount?: number;
   onSelect?: (cellId: string) => void;
+  onJumpAttention?: (item: AttentionItem) => void;
   testId?: string;
   shellClassName?: string;
 };
@@ -38,6 +39,7 @@ export function DetachedCellCleanupCard({
   attentionItem = null,
   attentionCount = 0,
   onSelect,
+  onJumpAttention,
   testId,
   shellClassName = '',
 }: DetachedCellCleanupCardProps) {
@@ -88,6 +90,7 @@ export function DetachedCellCleanupCard({
       ]}
       attentionItem={attentionItem}
       attentionCount={attentionCount}
+      onAttentionClick={onJumpAttention}
       primaryAction={{
         label: 'View Details',
         icon: ArrowUpRight,

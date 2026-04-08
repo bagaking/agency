@@ -147,7 +147,7 @@ function SessionKindBadge({ nodeKind }: { nodeKind?: string }) {
   }
   const label = normalized === 'sub_terminal' ? 'sub' : normalized === 'fork' ? 'fork' : normalized;
   return (
-    <span className="rounded border border-primary/20 bg-primary/10 px-1 py-0.5 text-[8px] font-bold uppercase tracking-widest text-primary/80">
+    <span className={`${AGENT_CELLS_SECTION_BADGE_BASE} border-primary/16 bg-primary/[0.08] text-primary/72`}>
       {label}
     </span>
   );
@@ -1477,6 +1477,7 @@ export function AgentCellsSessionsPanel({
                         attentionItem={cellAttention?.strongest || null}
                         attentionCount={cellAttention?.count || 0}
                         onSelect={onSelect}
+                        onJumpAttention={attention.jumpToAttention}
                         testId={`detached-cell-card-${cell.id}`}
                         shellClassName={selectedId === cell.id ? '' : buildAgentCellsAttentionCardClass(resolveAgentCellsAttentionTone(String(cellAttention?.strongest?.kind || '')))}
                       />
@@ -1581,6 +1582,7 @@ export function AgentCellsSessionsPanel({
                           sessions={resolveCellSessions(String(cell.id))}
                           selected={selectedId === cell.id}
                           onSelect={onSelect}
+                          onJumpAttention={attention.jumpToAttention}
                           testId={`legacy-archived-cell-${cell.id}`}
                         />
                       );

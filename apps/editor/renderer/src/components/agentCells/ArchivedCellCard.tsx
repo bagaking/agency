@@ -16,6 +16,7 @@ type ArchivedCellCardProps = {
   attentionItem?: AttentionItem | null;
   attentionCount?: number;
   onSelect?: (cellId: string) => void;
+  onJumpAttention?: (item: AttentionItem) => void;
   testId?: string;
   shellClassName?: string;
 };
@@ -27,6 +28,7 @@ export function ArchivedCellCard({
   attentionItem = null,
   attentionCount = 0,
   onSelect,
+  onJumpAttention,
   testId,
   shellClassName = '',
 }: ArchivedCellCardProps) {
@@ -82,6 +84,7 @@ export function ArchivedCellCard({
       ]}
       attentionItem={attentionItem}
       attentionCount={attentionCount}
+      onAttentionClick={onJumpAttention}
       secondaryAction={{
         label: 'View Details',
         icon: ArrowUpRight,

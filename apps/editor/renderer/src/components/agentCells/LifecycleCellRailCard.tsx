@@ -48,6 +48,7 @@ type LifecycleCellRailCardProps = {
   secondaryAction?: LifecycleAction | null;
   testId?: string;
   shellClassName?: string;
+  onAttentionClick?: (item: AttentionItem) => void;
 };
 
 const focusRingClass = focusRing.dark;
@@ -93,6 +94,7 @@ export function LifecycleCellRailCard({
   secondaryAction = null,
   testId,
   shellClassName = '',
+  onAttentionClick,
 }: LifecycleCellRailCardProps) {
   const toneClass = toneClassByKind[tone];
 
@@ -101,11 +103,11 @@ export function LifecycleCellRailCard({
       data-testid={testId}
       className={`${selected ? toneClass.shellSelected : toneClass.shell} ${shellClassName}`.trim()}
     >
-      <div className={`px-4 py-3.5 ${toneClass.inset}`}>
+      <div className={`px-3 py-2.5 ${toneClass.inset}`}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-start gap-x-2 gap-y-1">
-              <span className="truncate text-[14px] font-semibold tracking-[0.005em] text-foreground">
+              <span className="truncate text-[12px] font-semibold tracking-[0.01em] text-foreground">
                 {title}
               </span>
               {chips.length ? (
@@ -128,17 +130,36 @@ export function LifecycleCellRailCard({
             </div>
           </div>
           {attentionItem ? (
-            <AttentionPill
-              item={attentionItem}
-              count={attentionCount}
-              variant="agentCells"
-              className="shrink-0 px-1.5 py-[2px]"
-            />
+            onAttentionClick ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onAttentionClick(attentionItem);
+                }}
+                className="shrink-0"
+                title={attentionItem.detail}
+              >
+                <AttentionPill
+                  item={attentionItem}
+                  count={attentionCount}
+                  variant="agentCells"
+                  className="shrink-0 px-1.5 py-[2px]"
+                />
+              </button>
+            ) : (
+              <AttentionPill
+                item={attentionItem}
+                count={attentionCount}
+                variant="agentCells"
+                className="shrink-0 px-1.5 py-[2px]"
+              />
+            )
           ) : null}
         </div>
       </div>
 
-      <div className="border-t border-black/18 bg-black/16 px-4 py-3">
+      <div className="border-t border-black/18 bg-black/14 px-3 py-2.5">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <span className={`text-[9px] font-semibold uppercase tracking-[0.22em] ${toneClass.eyebrow}`}>
             {eyebrow}
@@ -157,12 +178,12 @@ export function LifecycleCellRailCard({
           })}
         </div>
 
-        <p className="mt-2.5 max-w-[62ch] text-[12px] leading-[1.58] text-muted-foreground/82">
+        <p className="mt-2 max-w-[62ch] text-[11px] leading-[1.55] text-muted-foreground/80">
           {body}
         </p>
 
         {(primaryAction || secondaryAction) ? (
-          <div className="mt-3 flex items-center justify-between gap-2">
+          <div className="mt-2.5 flex items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
               {primaryAction ? (
                 <LifecycleActionButton action={primaryAction} toneClass={toneClass.primary} />
