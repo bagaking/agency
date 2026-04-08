@@ -3,22 +3,22 @@ import { GitBranch } from 'lucide-react';
 
 import { AGENT_CELLS_SECTION_BADGE_BASE, buildAgentCellsGhostControlClass, buildAgentCellsIconWellClass, buildAgentCellsPrimaryActionClass, buildAgentCellsWorkspacePanelClass } from './surfaceTokens';
 import { pathBaseName } from './unmanagedWorktreePresentation';
+import type { UnmanagedWorktreeRailModel } from './railModels';
 
 type UnmanagedWorktreeRailCardProps = {
-  worktree: any;
-  display: any;
+  model: UnmanagedWorktreeRailModel;
   onBind?: (worktree: any) => void;
   onCreate?: (worktree: any) => void;
   onIgnore?: (worktreePath: string) => void;
 };
 
 export function UnmanagedWorktreeRailCard({
-  worktree,
-  display,
+  model,
   onBind,
   onCreate,
   onIgnore,
 }: UnmanagedWorktreeRailCardProps) {
+  const { worktree, display } = model;
   return (
     <div
       data-testid={`unmanaged-worktree-${pathBaseName(worktree.path)}`}

@@ -43,6 +43,12 @@ import { ArchivedCellCard } from './ArchivedCellCard';
 import { TrackedCellRailCard } from './TrackedCellRailCard';
 import { UnmanagedWorktreeRailCard } from './UnmanagedWorktreeRailCard';
 import {
+  buildTrackedCellRailModel,
+  buildUnmanagedWorktreeRailModel,
+  type AgentCellsCellRecord,
+  type AgentCellsSessionRecord,
+} from './railModels';
+import {
   deriveCellNameFromWorktree,
   deriveUnmanagedWorktreeDisplay,
   normalizeWorktreePath,
@@ -51,8 +57,11 @@ import {
 } from './unmanagedWorktreePresentation';
 import {
   AGENT_CELLS_SECTION_BADGE_BASE,
+  buildAgentCellsAttentionCardClass,
+  buildAgentCellsAttentionRowClass,
   buildAgentCellsInlineControlClass,
   buildAgentCellsWorkspacePanelClass,
+  resolveAgentCellsAttentionTone,
 } from './surfaceTokens';
 
 const EMPTY_TREE: AgentCellSessionTreeProjection = {
@@ -79,7 +88,7 @@ type SessionDropTarget = {
 };
 
 type AgentCellsSessionsPanelProps = {
-  cells?: any[];
+  cells?: AgentCellsCellRecord[];
   selectedId?: string | null;
   projectRoot?: string;
   onSelect?: (cellId: string) => void;
@@ -90,7 +99,7 @@ type AgentCellsSessionsPanelProps = {
   onSelectProject?: () => void;
   recentProjects?: any[];
   onOpenRecentProject?: (rootPath: string) => void;
-  sessionsByCellId?: Record<string, any[]>;
+  sessionsByCellId?: Record<string, AgentCellsSessionRecord[]>;
   activeSessionByCellId?: Record<string, string>;
   sessionActivityByKey?: Record<string, number>;
   terminusProfiles?: any[];
@@ -179,40 +188,6 @@ function SessionStatusMeta({
       <span className="truncate text-[9px] font-medium tabular-nums tracking-wide">{idleLabel === '—' ? 'now' : idleLabel}</span>
     </div>
   );
-}
-
-function resolveAttentionCardClass(item: AttentionItem | null | undefined): string {
-  switch (item?.kind) {
-    case 'failed':
-      return 'border-[rgba(82,46,52,0.94)] bg-rose-500/[0.055] hover:bg-rose-500/[0.07]';
-    case 'pending_confirmation':
-      return 'border-[rgba(74,57,35,0.94)] bg-amber-500/[0.055] hover:bg-amber-500/[0.07]';
-    case 'return_required':
-      return 'border-[rgba(34,54,72,0.94)] bg-cyan-500/[0.048] hover:bg-cyan-500/[0.064]';
-    case 'running':
-      return 'border-[rgba(34,54,72,0.94)] bg-sky-500/[0.045] hover:bg-sky-500/[0.06]';
-    case 'unread':
-      return 'border-[rgba(45,50,60,0.94)] bg-white/[0.02] hover:bg-white/[0.035]';
-    default:
-      return '';
-  }
-}
-
-function resolveAttentionRowClass(item: AttentionItem | null | undefined): string {
-  switch (item?.kind) {
-    case 'failed':
-      return 'border-[rgba(82,46,52,0.86)] bg-rose-500/[0.05] hover:bg-rose-500/[0.07]';
-    case 'pending_confirmation':
-      return 'border-[rgba(74,57,35,0.86)] bg-amber-500/[0.048] hover:bg-amber-500/[0.066]';
-    case 'return_required':
-      return 'border-[rgba(34,54,72,0.86)] bg-cyan-500/[0.042] hover:bg-cyan-500/[0.062]';
-    case 'running':
-      return 'border-[rgba(34,54,72,0.86)] bg-sky-500/[0.038] hover:bg-sky-500/[0.055]';
-    case 'unread':
-      return 'border-[rgba(45,50,60,0.86)] bg-white/[0.018] hover:bg-white/[0.034]';
-    default:
-      return '';
-  }
 }
 
 function buildAttentionActionLabel({
@@ -415,21 +390,20 @@ export function AgentCellsSessionsPanel({
 
   const cellsById = useMemo(
     () =>
-      new Map<string, any>((cells || []).filter(Boolean).map((cell: any) => [String(cell.id), cell])),
+      new Map<string, AgentCellsCellRecord>((cells || []).filter(Boolean).map((cell) => [String(cell.id), cell])),
     [cells]
   );
 
   const { trackedCells, detachedCells, legacyArchivedCells } = useMemo(() => {
-    const tracked: any[] = [];
-    const detached: any[] = [];
-    const legacyArchived: any[] = [];
-    (cells || []).forEach((cell: any) => {
+    const tracked: AgentCellsCellRecord[] = [];
+    const detached: AgentCellsCellRecord[] = [];
+    const legacyArchived: AgentCellsCellRecord[] = [];
+    (cells || []).forEach((cell) => {
       if (isArchivedCell(cell)) {
         legacyArchived.push(cell);
         return;
       }
       if (cell?.isVirtual) {
-        tracked.push(cell);
         return;
       }
       const attachmentMeta = resolveCellAttachmentMeta(cell);
@@ -595,7 +569,7 @@ export function AgentCellsSessionsPanel({
     });
   }, [activeSessionByCellId]);
 
-  const resolveCellSessions = useCallback((cellId: string): any[] => sessionsByCellId?.[cellId] || [], [
+  const resolveCellSessions = useCallback((cellId: string): AgentCellsSessionRecord[] => sessionsByCellId?.[cellId] || [], [
     sessionsByCellId,
   ]);
 
@@ -985,6 +959,10 @@ export function AgentCellsSessionsPanel({
       if (!normalizedPath || !suggestedCellId) {
         return;
       }
+      const targetCell = cellsById.get(suggestedCellId);
+      if (!targetCell) {
+        return;
+      }
       const suggestedAttachmentState = String(
         worktree?.bindSuggestion?.cellAttachmentState || ''
       ).trim().toLowerCase();
@@ -993,23 +971,14 @@ export function AgentCellsSessionsPanel({
           mode: 'branch',
           existingBranch: worktree.branch,
           name: worktree?.bindSuggestion?.cellName || deriveCellNameFromWorktree(worktree),
-          initialBindBranchTargetCell:
-            cellsById.get(suggestedCellId) || {
-              id: suggestedCellId,
-              name: worktree?.bindSuggestion?.cellName || suggestedCellId,
-              branch: worktree.branch,
-            },
+          initialBindBranchTargetCell: targetCell,
         });
         return;
       }
       onCreateCell?.({
         mode: 'worktree',
         reusePath: normalizedPath,
-        initialBindTargetCell:
-          cellsById.get(suggestedCellId) || {
-            id: suggestedCellId,
-            name: worktree?.bindSuggestion?.cellName || suggestedCellId,
-          },
+        initialBindTargetCell: targetCell,
       });
     },
     [cellsById, onCreateCell]
@@ -1114,10 +1083,6 @@ export function AgentCellsSessionsPanel({
                     const attachmentMeta = resolveCellAttachmentMeta(cell);
                     const branchMeta = resolveCellBranchMeta(cell);
                     const isWindowHome = isWindowHomeCell(cell);
-                    const isProjectRootRuntime = attachmentMeta.attachmentState === 'project_root';
-                    const hasRunnableRuntimeRoot =
-                      !isWindowHome &&
-                      ['attached', 'project_root'].includes(attachmentMeta.attachmentState);
                     const projection = projectionsByCellId[cell.id] || EMPTY_TREE;
                     const visibleRows = visibleRowsByCellId[cell.id] || [];
                     const activeSessionId =
@@ -1129,20 +1094,22 @@ export function AgentCellsSessionsPanel({
                       projection.overflowDetachedSessions.length > 0 ||
                       projection.overflowClosedSessions.length > 0;
                     const showRootDropZone = draggingSession?.cellId === cell.id && Boolean(onMoveSessionNode);
+                    const trackedModel = buildTrackedCellRailModel({
+                      cell,
+                      attachmentMeta,
+                      branchMeta,
+                      attentionItem: cellAttention?.strongest || null,
+                      attentionCount: cellAttention?.count || 0,
+                      selected: isSelectedCell,
+                      collapsed: isCollapsed,
+                      hasOverflow,
+                      isWindowHome,
+                    });
 
                   return (
                     <TrackedCellRailCard
                       key={cell.id}
-                      cell={cell}
-                      attachmentMeta={attachmentMeta}
-                      branchMeta={branchMeta}
-                      cellAttention={cellAttention}
-                      selected={isSelectedCell}
-                      collapsed={isCollapsed}
-                      isWindowHome={isWindowHome}
-                      isProjectRootRuntime={isProjectRootRuntime}
-                      hasRunnableRuntimeRoot={hasRunnableRuntimeRoot}
-                      hasOverflow={hasOverflow}
+                      model={trackedModel}
                       onSelect={onSelect}
                       onToggleCollapse={toggleCellCollapse}
                       onJumpAttention={attention.jumpToAttention}
@@ -1220,7 +1187,7 @@ export function AgentCellsSessionsPanel({
                               className={`group relative flex w-full min-w-0 items-center gap-2.5 rounded-xl border border-transparent py-1.5 pr-2 text-left text-[11px] transition-all duration-200 select-none ${
                                 isSelectedSession
                                   ? 'border-primary/20 bg-primary/10 text-foreground shadow-[0_8px_18px_-16px_rgba(59,130,246,0.7)]'
-                                  : `bg-transparent text-muted-foreground hover:text-foreground ${resolveAttentionRowClass(sessionAttention)}`
+                                  : `bg-transparent text-muted-foreground hover:text-foreground ${buildAgentCellsAttentionRowClass(resolveAgentCellsAttentionTone(String(sessionAttention?.kind || '')))}`
                               } ${
                                 activeDropTarget?.intent === 'into'
                                   ? 'ring-1 ring-primary/30 bg-primary/5'
@@ -1511,9 +1478,7 @@ export function AgentCellsSessionsPanel({
                         attentionCount={cellAttention?.count || 0}
                         onSelect={onSelect}
                         testId={`detached-cell-card-${cell.id}`}
-                        shellClassName={
-                          selectedId === cell.id ? '' : resolveAttentionCardClass(cellAttention?.strongest)
-                        }
+                        shellClassName={selectedId === cell.id ? '' : buildAgentCellsAttentionCardClass(resolveAgentCellsAttentionTone(String(cellAttention?.strongest?.kind || '')))}
                       />
                     );
                   })}
@@ -1546,12 +1511,21 @@ export function AgentCellsSessionsPanel({
                 />
                 <div className="space-y-2">
                   {visibleUnmanagedWorktrees.map((worktree) => {
-                    const display = deriveUnmanagedWorktreeDisplay(worktree);
+                    const suggestedCellId = String(worktree?.bindSuggestion?.cellId || '').trim();
+                    const hasTrackedSuggestion = suggestedCellId ? cellsById.has(suggestedCellId) : false;
+                    const effectiveWorktree =
+                      hasTrackedSuggestion || !worktree?.bindSuggestion
+                        ? worktree
+                        : { ...worktree, bindSuggestion: null };
+                    const display = deriveUnmanagedWorktreeDisplay(effectiveWorktree);
+                    const unmanagedModel = buildUnmanagedWorktreeRailModel({
+                      worktree: effectiveWorktree,
+                      display,
+                    });
                     return (
                       <UnmanagedWorktreeRailCard
                         key={worktree.path}
-                        worktree={worktree}
-                        display={display}
+                        model={unmanagedModel}
                         onBind={handleBindSuggestedCell}
                         onCreate={(item) => void handleCreateCellFromWorktree(item)}
                         onIgnore={(worktreePath) => void handleIgnoreUnmanagedWorktree(worktreePath)}

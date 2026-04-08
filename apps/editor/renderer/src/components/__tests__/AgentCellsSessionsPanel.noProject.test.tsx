@@ -84,7 +84,8 @@ test('AgentCellsSessionsPanel keeps no-project placeholder out of session creati
 
     assert.match(html, /No project selected/);
     assert.doesNotMatch(html, /New Session/);
-    assert.match(html, /Local Terminal/);
+    assert.doesNotMatch(html, /Local Terminal/);
+    assert.match(html, /No tracked cells yet/);
   } finally {
     console.error = originalConsoleError;
   }

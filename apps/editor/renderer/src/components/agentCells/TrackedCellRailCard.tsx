@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUpLeft, ChevronDown, ChevronRight, FolderOpen, GitBranch, MoreHorizontal, Plus, SquareTerminal } from 'lucide-react';
+import { ChevronDown, ChevronRight, FolderOpen, GitBranch, MoreHorizontal, Plus } from 'lucide-react';
 
 import { AttentionPill } from '../attention/AttentionPill';
 import { IconButton } from '../ui/IconButton';
@@ -7,19 +7,13 @@ import {
   AGENT_CELLS_SECTION_BADGE_BASE,
   buildAgentCellsIconWellClass,
   buildAgentCellsWorkspacePanelClass,
+  buildAgentCellsGhostControlClass,
+  buildAgentCellsPrimaryActionClass,
 } from './surfaceTokens';
+import type { TrackedCellRailModel } from './railModels';
 
 type TrackedCellRailCardProps = {
-  cell: any;
-  attachmentMeta: any;
-  branchMeta: any;
-  cellAttention?: any;
-  selected?: boolean;
-  collapsed?: boolean;
-  isWindowHome?: boolean;
-  isProjectRootRuntime?: boolean;
-  hasRunnableRuntimeRoot?: boolean;
-  hasOverflow?: boolean;
+  model: TrackedCellRailModel;
   onSelect?: (cellId: string) => void;
   onToggleCollapse?: (cellId: string) => void;
   onJumpAttention?: (item: any) => void;
@@ -32,16 +26,7 @@ type TrackedCellRailCardProps = {
 };
 
 export function TrackedCellRailCard({
-  cell,
-  attachmentMeta,
-  branchMeta,
-  cellAttention,
-  selected = false,
-  collapsed = false,
-  isWindowHome = false,
-  isProjectRootRuntime = false,
-  hasRunnableRuntimeRoot = false,
-  hasOverflow = false,
+  model,
   onSelect,
   onToggleCollapse,
   onJumpAttention,
@@ -52,19 +37,40 @@ export function TrackedCellRailCard({
   onOpenOverflow,
   children,
 }: TrackedCellRailCardProps) {
+  const {
+    cell,
+    attachmentMeta,
+    branchMeta,
+    attention,
+    isSelected,
+    isCollapsed,
+    isWindowHome,
+    isProjectRootRuntime,
+    hasRunnableRuntimeRoot,
+    hasOverflow,
+    runtimeLabel,
+    runtimeTitle,
+    canOpenExplorer,
+    canCreateSession,
+    createSessionTitle,
+    canBindBranch,
+    bindBranchTitle,
+    canCreateAttachment,
+    createAttachmentTitle,
+  } = model;
   return (
     <div
       className={`${buildAgentCellsWorkspacePanelClass({
-        selected,
+        selected: isSelected,
         tone: 'tracked',
-        attentionClass: '',
+        attentionTone: attention?.tone || 'none',
       })} transition-colors`}
     >
       <div
         role="treeitem"
         aria-level={1}
-        aria-expanded={!collapsed}
-        aria-selected={selected}
+        aria-expanded={!isCollapsed}
+        aria-selected={isSelected}
         tabIndex={0}
         onClick={() => onSelect?.(cell.id)}
         onKeyDown={(event) => {
@@ -73,19 +79,19 @@ export function TrackedCellRailCard({
             onSelect?.(cell.id);
             return;
           }
-          if (event.key === 'ArrowLeft' && !collapsed) {
+          if (event.key === 'ArrowLeft' && !isCollapsed) {
             event.preventDefault();
             onToggleCollapse?.(cell.id);
             return;
           }
-          if (event.key === 'ArrowRight' && collapsed) {
+          if (event.key === 'ArrowRight' && isCollapsed) {
             event.preventDefault();
             onToggleCollapse?.(cell.id);
           }
         }}
         data-testid={`cell-item-${cell.id}`}
         className={`group flex w-full items-start gap-2.5 px-2.5 py-2 text-left transition-colors ${
-          selected ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+          isSelected ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
         }`}
       >
         <button
@@ -95,27 +101,20 @@ export function TrackedCellRailCard({
             onToggleCollapse?.(cell.id);
           }}
           className="mt-0.5 rounded p-0.5 text-muted-foreground/60 hover:bg-muted/30 hover:text-foreground"
-          title={collapsed ? 'Expand sessions' : 'Collapse sessions'}
+          title={isCollapsed ? 'Expand sessions' : 'Collapse sessions'}
         >
-          {collapsed ? <ChevronRight size={12} strokeWidth={1.5} /> : <ChevronDown size={12} strokeWidth={1.5} />}
+          {isCollapsed ? <ChevronRight size={12} strokeWidth={1.5} /> : <ChevronDown size={12} strokeWidth={1.5} />}
         </button>
         <div
-          className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border ${
-            cell.isVirtual ? buildAgentCellsIconWellClass('virtual') : buildAgentCellsIconWellClass('tracked')
-          }`}
+          className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border ${buildAgentCellsIconWellClass('tracked')}`}
         >
-          {cell.isVirtual ? <SquareTerminal size={14} strokeWidth={1.6} /> : <GitBranch size={14} strokeWidth={1.6} />}
+          <GitBranch size={14} strokeWidth={1.6} />
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
             <span className="truncate text-[12px] font-semibold tracking-[0.01em]">{cell.name}</span>
-            {cell.isVirtual ? (
-              <span className={`${AGENT_CELLS_SECTION_BADGE_BASE} border-primary/18 bg-primary/[0.1] text-primary/78`}>
-                Local
-              </span>
-            ) : null}
-            {!cell.isVirtual && attachmentMeta.attachmentState !== 'attached' ? (
+            {attachmentMeta.attachmentState !== 'attached' ? (
               <span
                 className={`${AGENT_CELLS_SECTION_BADGE_BASE} ${attachmentMeta.tone}`}
                 title={attachmentMeta.pathLabel || attachmentMeta.label}
@@ -123,19 +122,19 @@ export function TrackedCellRailCard({
                 {attachmentMeta.label}
               </span>
             ) : null}
-            {cellAttention?.strongest ? (
+            {attention?.item ? (
               <button
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
-                  onJumpAttention?.(cellAttention.strongest);
+                  onJumpAttention?.(attention.item);
                 }}
                 className="shrink-0"
-                title={cellAttention.strongest.detail}
+                title={attention.item.detail}
               >
                 <AttentionPill
-                  item={cellAttention.strongest}
-                  count={cellAttention.count}
+                  item={attention.item}
+                  count={attention.count}
                   variant="agentCells"
                   className="px-1.5 py-[2px]"
                 />
@@ -147,25 +146,13 @@ export function TrackedCellRailCard({
               branchMeta.isDetachedHead ? 'text-amber-100/78' : 'text-muted-foreground/72'
             }`}
           >
-            {cell.isVirtual ? (
-              <SquareTerminal size={10} strokeWidth={1.7} className="shrink-0" />
-            ) : (
-              <GitBranch size={10} strokeWidth={1.7} className="shrink-0" />
-            )}
-            <span className="truncate" title={branchMeta.title || undefined}>
-              {cell.isVirtual
-                ? cell.worktreePath || 'Local shell'
-                : attachmentMeta.attachmentState === 'attached'
-                  ? branchMeta.label || attachmentMeta.pathLabel || 'Attached worktree'
-                  : branchMeta.label
-                    ? `Project root · ${branchMeta.label}`
-                    : 'Project root runtime'}
-            </span>
+            <GitBranch size={10} strokeWidth={1.7} className="shrink-0" />
+            <span className="truncate" title={runtimeTitle}>{runtimeLabel}</span>
           </div>
         </div>
 
         <div className="ml-auto flex items-center gap-1 self-center opacity-100">
-          {!cell.isVirtual ? (
+          {canOpenExplorer ? (
             <IconButton
               label="Open in Explorer"
               focusRing="sidebar"
@@ -182,17 +169,11 @@ export function TrackedCellRailCard({
             <IconButton
               label="New Session"
               focusRing="sidebar"
-              disabled={!hasRunnableRuntimeRoot}
+              disabled={!canCreateSession}
               className="h-7 w-7 rounded-md text-primary transition-colors hover:bg-primary/12 hover:text-primary disabled:text-muted-foreground/40 disabled:hover:bg-transparent"
-              title={
-                hasRunnableRuntimeRoot
-                  ? isProjectRootRuntime
-                    ? 'Create a session on the project root.'
-                    : 'Create a session inside the attached worktree.'
-                  : 'This Cell cannot start sessions until it has a valid runtime root.'
-              }
+              title={createSessionTitle}
               onClick={(event) => {
-                if (!hasRunnableRuntimeRoot) {
+                if (!canCreateSession) {
                   return;
                 }
                 event.stopPropagation();
@@ -200,42 +181,6 @@ export function TrackedCellRailCard({
               }}
             >
               <Plus size={14} strokeWidth={1.8} aria-hidden="true" />
-            </IconButton>
-          ) : null}
-          {isProjectRootRuntime ? (
-            <IconButton
-              label="Bind Branch"
-              focusRing="sidebar"
-              className="h-7 w-7 rounded-md text-sky-100/78 transition-colors hover:bg-sky-500/12 hover:text-sky-50"
-              title={
-                cell?.branch
-                  ? 'Update the branch metadata for this Cell without creating a worktree.'
-                  : 'Bind this Cell to an existing branch without creating a worktree.'
-              }
-              onClick={(event) => {
-                event.stopPropagation();
-                onBindBranch?.(cell);
-              }}
-            >
-              <GitBranch size={13} strokeWidth={1.7} aria-hidden="true" />
-            </IconButton>
-          ) : null}
-          {isProjectRootRuntime ? (
-            <IconButton
-              label="Create Worktree Attachment"
-              focusRing="sidebar"
-              className="h-7 w-7 rounded-md text-sky-100/78 transition-colors hover:bg-sky-500/12 hover:text-sky-50"
-              title={
-                cell?.branch
-                  ? 'Materialize a live worktree attachment for this Cell.'
-                  : 'Choose a branch and materialize a live worktree attachment for this Cell.'
-              }
-              onClick={(event) => {
-                event.stopPropagation();
-                onCreateAttachment?.(cell);
-              }}
-            >
-              <ArrowUpLeft size={13} strokeWidth={1.7} aria-hidden="true" />
             </IconButton>
           ) : null}
           {hasOverflow ? (
@@ -253,6 +198,37 @@ export function TrackedCellRailCard({
           ) : null}
         </div>
       </div>
+
+      {isProjectRootRuntime && (canBindBranch || canCreateAttachment) ? (
+        <div className="flex items-center gap-2 border-t border-black/18 px-2.5 py-2">
+          {canBindBranch ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onBindBranch?.(cell);
+              }}
+              title={bindBranchTitle}
+              className={buildAgentCellsGhostControlClass()}
+            >
+              Bind Branch
+            </button>
+          ) : null}
+          {canCreateAttachment ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onCreateAttachment?.(cell);
+              }}
+              title={createAttachmentTitle}
+              className={buildAgentCellsPrimaryActionClass('sky')}
+            >
+              Create Worktree Attachment
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {children}
     </div>

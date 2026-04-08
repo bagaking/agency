@@ -223,6 +223,25 @@ test('AgentCellsSessionsPanel renders project-root cells in the main tracked sec
   assert.match(html, /Project root · main/);
 });
 
+test('AgentCellsSessionsPanel does not surface virtual window-home placeholders in tracked cells', () => {
+  const html = renderToStaticMarkup(
+    renderPanel({
+      cells: [
+        {
+          id: 'local-terminal',
+          name: 'Local Terminal',
+          isVirtual: true,
+          ownerKind: 'window-home',
+          worktreePath: '/Users/bytedance',
+        },
+      ],
+    })
+  );
+
+  assert.doesNotMatch(html, /data-testid="cell-item-local-terminal"/);
+  assert.doesNotMatch(html, /Local Terminal/);
+});
+
 test('AgentCellsSessionsPanel renders detached cells as management cards instead of session trees', () => {
   const html = renderToStaticMarkup(
     renderPanel({
@@ -377,6 +396,14 @@ test('project-root unmanaged bind suggestions route to branch bind mode instead 
       root.render(
         renderPanel({
           projectRoot: '/repo',
+          cells: [
+            {
+              id: 'cell-main',
+              name: 'main',
+              branch: 'main',
+              attachmentState: 'project_root',
+            },
+          ],
           onCreateCell: (payload: any) => launches.push(payload),
         })
       );
@@ -405,9 +432,55 @@ test('project-root unmanaged bind suggestions route to branch bind mode instead 
           id: 'cell-main',
           name: 'main',
           branch: 'main',
+          attachmentState: 'project_root',
         },
       },
     ]);
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    delete (window as any).agency;
+    env.cleanup();
+  }
+});
+
+test('unmanaged worktree with stale bindSuggestion does not render a synthetic bind action', async () => {
+  const env = setupDom();
+  try {
+    (window as any).agency = {
+      listUnmanagedWorktrees: async () => [
+        {
+          id: 'unmanaged-missing-cell',
+          path: '/repo/.worktrees/main',
+          branch: 'main',
+          head: 'abc1234',
+          hasBranch: true,
+          isDetachedHead: false,
+          ignored: false,
+          bindSuggestion: {
+            kind: 'unique_branch_match',
+            cellId: 'missing-cell',
+            cellName: 'missing-cell',
+            cellAttachmentState: 'project_root',
+          },
+        },
+      ],
+    };
+    const root = createRoot(document.getElementById('root')!);
+
+    await act(async () => {
+      root.render(renderPanel({ projectRoot: '/repo', cells: [] }));
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    assert.doesNotMatch(document.body.textContent || '', /Bind missing-cell/);
+    assert.match(document.body.textContent || '', /Create Cell/);
 
     await act(async () => {
       root.unmount();

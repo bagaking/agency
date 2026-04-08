@@ -4,7 +4,11 @@ import type { LucideIcon } from 'lucide-react';
 import { AttentionPill } from '../attention/AttentionPill';
 import type { AttentionItem } from '../../attention/attentionModel';
 import { focusRing } from '../ui/focusRing';
-import { buildAgentCellsWorkspacePanelClass } from './surfaceTokens';
+import {
+  buildAgentCellsGhostControlClass,
+  buildAgentCellsPrimaryActionClass,
+  buildAgentCellsWorkspacePanelClass,
+} from './surfaceTokens';
 
 type LifecycleMetaItem = {
   icon: LucideIcon;
@@ -55,8 +59,7 @@ const toneClassByKind = {
     inset: 'bg-[linear-gradient(180deg,rgba(255,245,220,0.012),rgba(255,255,255,0.004))]',
     eyebrow: 'text-amber-100/72',
     path: 'text-stone-300/54',
-    primary:
-      'bg-[linear-gradient(180deg,rgba(246,210,126,0.2),rgba(202,138,4,0.18))] text-amber-50 hover:bg-[linear-gradient(180deg,rgba(250,220,150,0.26),rgba(217,148,8,0.24))] shadow-[0_10px_24px_-18px_rgba(251,191,36,0.45)]',
+    primary: buildAgentCellsPrimaryActionClass('amber'),
   },
   archived: {
     shell: buildAgentCellsWorkspacePanelClass({ selected: false, tone: 'legacy' }),
@@ -64,8 +67,7 @@ const toneClassByKind = {
     inset: 'bg-[linear-gradient(180deg,rgba(255,255,255,0.018),rgba(255,255,255,0.006))]',
     eyebrow: 'text-slate-100/66',
     path: 'text-slate-300/52',
-    primary:
-      'bg-white/[0.08] text-slate-50 hover:bg-white/[0.12] shadow-[0_10px_24px_-18px_rgba(148,163,184,0.14)]',
+    primary: buildAgentCellsPrimaryActionClass('neutral'),
   },
 } as const;
 
@@ -110,9 +112,7 @@ export function LifecycleCellRailCard({
                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pt-[1px]">
                   {chips.map((chip, index) => (
                     <React.Fragment key={chip.key}>
-                      {index > 0 ? (
-                        <span className="h-1 w-1 rounded-full bg-white/[0.14]" aria-hidden="true" />
-                      ) : null}
+                      {index > 0 ? <span className="h-1 w-1 rounded-full bg-black/24" aria-hidden="true" /> : null}
                       <span className={chip.className} title={chip.title}>
                         {chip.icon}
                         <span>{chip.label}</span>
@@ -128,7 +128,12 @@ export function LifecycleCellRailCard({
             </div>
           </div>
           {attentionItem ? (
-            <AttentionPill item={attentionItem} count={attentionCount} className="shrink-0 px-1.5 py-[2px]" />
+            <AttentionPill
+              item={attentionItem}
+              count={attentionCount}
+              variant="agentCells"
+              className="shrink-0 px-1.5 py-[2px]"
+            />
           ) : null}
         </div>
       </div>
@@ -205,7 +210,7 @@ function LifecycleSecondaryActionButton({
       type="button"
       onClick={action.onClick}
       title={action.title}
-      className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-medium text-muted-foreground/82 transition-colors hover:bg-white/[0.04] hover:text-foreground ${focusRingClass}`}
+      className={`${buildAgentCellsGhostControlClass()} inline-flex gap-1.5 ${focusRingClass}`}
     >
       <Icon size={12} strokeWidth={1.7} />
       <span>{action.label}</span>

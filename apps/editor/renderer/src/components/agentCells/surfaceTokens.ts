@@ -4,6 +4,14 @@ export const AGENT_CELLS_SECTION_BADGE_BASE =
 export const AGENT_CELLS_PANEL_BASE =
   'overflow-hidden rounded-[18px] border shadow-[0_18px_42px_-34px_rgba(0,0,0,0.72)]';
 
+export type AgentCellsAttentionTone =
+  | 'none'
+  | 'failed'
+  | 'pending_confirmation'
+  | 'return_required'
+  | 'running'
+  | 'unread';
+
 export function buildAgentCellsIconWellClass(tone: 'tracked' | 'detached' | 'unmanaged' | 'virtual') {
   const classes = {
     tracked:
@@ -28,14 +36,61 @@ export function buildAgentCellsPrimaryActionClass(tone: 'sky' | 'amber' | 'neutr
   return classes[tone];
 }
 
+export function resolveAgentCellsAttentionTone(kind: string): AgentCellsAttentionTone {
+  switch (String(kind || '').trim().toLowerCase()) {
+    case 'failed':
+    case 'pending_confirmation':
+    case 'return_required':
+    case 'running':
+    case 'unread':
+      return String(kind || '').trim().toLowerCase() as AgentCellsAttentionTone;
+    default:
+      return 'none';
+  }
+}
+
+export function buildAgentCellsAttentionCardClass(tone: AgentCellsAttentionTone): string {
+  switch (tone) {
+    case 'failed':
+      return 'border-[rgba(82,46,52,0.94)] bg-rose-500/[0.055] hover:bg-rose-500/[0.07]';
+    case 'pending_confirmation':
+      return 'border-[rgba(74,57,35,0.94)] bg-amber-500/[0.055] hover:bg-amber-500/[0.07]';
+    case 'return_required':
+      return 'border-[rgba(34,54,72,0.94)] bg-cyan-500/[0.048] hover:bg-cyan-500/[0.064]';
+    case 'running':
+      return 'border-[rgba(34,54,72,0.94)] bg-sky-500/[0.045] hover:bg-sky-500/[0.06]';
+    case 'unread':
+      return 'border-[rgba(45,50,60,0.94)] bg-white/[0.02] hover:bg-white/[0.035]';
+    default:
+      return '';
+  }
+}
+
+export function buildAgentCellsAttentionRowClass(tone: AgentCellsAttentionTone): string {
+  switch (tone) {
+    case 'failed':
+      return 'border-[rgba(82,46,52,0.86)] bg-rose-500/[0.05] hover:bg-rose-500/[0.07]';
+    case 'pending_confirmation':
+      return 'border-[rgba(74,57,35,0.86)] bg-amber-500/[0.048] hover:bg-amber-500/[0.066]';
+    case 'return_required':
+      return 'border-[rgba(34,54,72,0.86)] bg-cyan-500/[0.042] hover:bg-cyan-500/[0.062]';
+    case 'running':
+      return 'border-[rgba(34,54,72,0.86)] bg-sky-500/[0.038] hover:bg-sky-500/[0.055]';
+    case 'unread':
+      return 'border-[rgba(45,50,60,0.86)] bg-white/[0.018] hover:bg-white/[0.034]';
+    default:
+      return '';
+  }
+}
+
 export function buildAgentCellsWorkspacePanelClass({
   selected,
   tone,
-  attentionClass = '',
+  attentionTone = 'none',
 }: {
   selected: boolean;
   tone: 'tracked' | 'detached' | 'unmanaged' | 'legacy';
-  attentionClass?: string;
+  attentionTone?: AgentCellsAttentionTone;
 }) {
   const baseByTone = {
     tracked:
@@ -56,7 +111,7 @@ export function buildAgentCellsWorkspacePanelClass({
   if (selected) {
     return `${AGENT_CELLS_PANEL_BASE} ${selectedByTone[tone]}`;
   }
-  return `${AGENT_CELLS_PANEL_BASE} ${baseByTone[tone]} ${attentionClass}`.trim();
+  return `${AGENT_CELLS_PANEL_BASE} ${baseByTone[tone]} ${buildAgentCellsAttentionCardClass(attentionTone)}`.trim();
 }
 
 export function buildAgentCellsInlineControlClass() {
