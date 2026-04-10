@@ -13,8 +13,11 @@
 - [x] 3.1 Make the Electron browser-surface service consume the authoritative Workbench viewport host geometry.
 - [x] 3.2 Fail closed on invalid geometry or missing renderer-view seam instead of preserving stale placement.
 - [x] 3.3 Keep navigation/history bounded while preserving Workbench tab metadata as SSOT for the research object.
+- [ ] 3.4 Verify whether the BrowserWindow content-area seam is sufficient in production, or replace it with a stronger explicit owner seam if runtime evidence still shows clipping/drift.
 
 ## 4. Validation
 - [x] 4.1 Add unit coverage for viewport-host ownership and invalidation/hide behavior.
 - [x] 4.2 Add regression coverage for removal of the shell relay path and fail-closed native geometry mapping.
 - [x] 4.3 Run targeted tests and attempt packaged verification; document environment blockers when packaging preflight cannot complete.
+- [ ] 4.4 Add a deterministic browser probe page / fixture so host alignment can be verified independently of third-party website layout.
+- [ ] 4.5 Re-run packaged validation and compare probe-page bounds against runtime logs after the remaining seam/layout work lands.

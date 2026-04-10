@@ -27,6 +27,10 @@ What is still wrong is the ownership model for placement. A tab-local renderer f
   - Why: a nested host is useful for renderer-local state and testing, but it is not the correct owner for a native pane.
 - Decision: main-side geometry must fail closed when renderer-view bounds cannot be resolved.
   - Why: trusting raw renderer coordinates recreates the same coordinate-space drift under a stricter name.
+- Decision: third-party websites are not authoritative geometry fixtures.
+  - Why: sites such as GitHub legitimately use centered columns, gutters, and load-phase layout transitions that can look like host offset even when the native surface is aligned.
+- Decision: host geometry verification needs a controlled probe page in addition to real-site manual checks.
+  - Why: without a deterministic probe, the team cannot reliably separate host-placement bugs from page-layout choices.
 - Decision: native browser visibility must include an explicit occlusion state.
   - Why: shell overlays do not naturally compose with `WebContentsView`; "still visible but visually wrong" is worse than bounded hide/suspend behavior.
   - Participating shell surfaces:
@@ -80,10 +84,13 @@ flowchart TD
   - Mitigation: define a small state machine (`visible | suspended | hidden`) and test transition edges.
 - Incremental rollout may temporarily mix old and new geometry paths.
   - Mitigation: keep one adapter boundary and delete projected-host ownership once shell path is validated.
+- BrowserWindow content-area fallback may still be an approximation of the renderer/native seam.
+  - Mitigation: keep the fallback explicit, log it, and validate host alignment against a controlled probe page before treating real-site screenshots as evidence of host failure.
 
 ## Migration Plan
 1. Add spec/docs for shell-owned browser lane geometry and occlusion.
 2. Introduce a shell geometry model that can be observed and logged without changing native placement yet.
 3. Switch native browser placement to consume shell geometry.
 4. Remove tab-local authoritative placement assumptions and delete the projected-host fallback path.
-5. Add regression coverage for rail/drawer/modal layout changes and packaged behavior.
+5. Add a deterministic probe page and regression coverage so host alignment can be verified independently of third-party site layout.
+6. Add regression coverage for rail/drawer/modal layout changes and packaged behavior.

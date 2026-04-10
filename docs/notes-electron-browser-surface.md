@@ -94,6 +94,26 @@ The durable debugging rule is:
 - if there is no browser-lane log, do not assume the lane is healthy;
 - instead assume the failure happened before native navigation, and instrument host-sync stages first.
 
+## What Can Fool You
+
+Not every screenshot that looks “off” is a native-host geometry bug.
+
+Third-party sites often add their own:
+- centered content columns;
+- max-width containers;
+- internal gutters;
+- sticky headers with background changes;
+- layout transitions during initial data load.
+
+So a page can look inset even when the native browser surface is perfectly aligned.
+
+That means visual diagnosis must separate two questions:
+1. Is the native browser surface aligned to the intended Workbench lane rectangle?
+2. Does the third-party page itself choose to render inset content inside that rectangle?
+
+Do not use GitHub or any other third-party website as the only geometry oracle.
+Use a controlled probe page with obvious edge markers before concluding that the host itself is misplaced.
+
 ## Canonical Host Model
 
 The correct mental model in Agency is a workbench-owned viewport host plus an explicit renderer-view native seam, not renderer-owned layout with native paint grafted into it.
@@ -238,6 +258,11 @@ The practical rules are short.
 - Do not relay geometry through nested browser fragments, shell proxy hosts, or percentage-height descendants.
 - If logs show `width > 0` and `height = 0`, treat that as a host-geometry failure, not a navigation failure.
 - Prefer an explicit renderer-view bounds seam; if discovery cannot resolve renderer-view bounds, fail closed instead of trusting raw renderer coordinates.
+- When diagnosing placement, compare three things explicitly:
+  - the Workbench main viewport rect;
+  - the browser-lane frame rect;
+  - the final mapped native bounds.
+- If those three align but the site still looks inset, suspect the site layout before changing host geometry.
 
 ### Layering
 
@@ -250,6 +275,7 @@ The practical rules are short.
 - Instrument both renderer sync stages and main-process navigation stages.
 - Distinguish "button did not fire" from "sync never produced valid bounds" from "navigation failed."
 - Use packaged runtime logs as the source of truth for packaged behavior.
+- Keep one deterministic browser probe page available for geometry verification so host correctness can be tested independently of GitHub or other external layouts.
 
 ### Product posture
 
