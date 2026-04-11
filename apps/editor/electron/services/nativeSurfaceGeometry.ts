@@ -11,6 +11,7 @@ type ViewLike = {
 type BrowserWindowLike = {
   webContents?: {
     id?: number;
+    getZoomFactor?: () => number;
   };
   getContentView?: () => ViewLike | null | undefined;
   getContentBounds?: () => Rectangle | null | undefined;
@@ -96,6 +97,16 @@ export function resolveOwnerRendererViewBounds(ownerWindow: BrowserWindowLike | 
   return candidate.getBounds() || null;
 }
 
+export function resolveOwnerRendererZoomFactor(
+  ownerWindow: BrowserWindowLike | null | undefined
+): number {
+  const zoomFactor = Number(ownerWindow?.webContents?.getZoomFactor?.() ?? 1);
+  if (!Number.isFinite(zoomFactor) || zoomFactor <= 0) {
+    return 1;
+  }
+  return zoomFactor;
+}
+
 export function mapRendererRectToNativeContentRect(
   ownerWindow: BrowserWindowLike | null | undefined,
   rendererRect: Rectangle | null | undefined
@@ -108,12 +119,17 @@ export function mapRendererRectToNativeContentRect(
   if (!rendererViewBounds) {
     return null;
   }
+  const rendererZoomFactor = resolveOwnerRendererZoomFactor(ownerWindow);
 
   const mappedRect = {
-    x: Math.floor(Number(rendererViewBounds.x || 0) + Number(rendererRect.x || 0)),
-    y: Math.floor(Number(rendererViewBounds.y || 0) + Number(rendererRect.y || 0)),
-    width: Math.floor(Number(rendererRect.width || 0)),
-    height: Math.floor(Number(rendererRect.height || 0)),
+    x: Math.floor(
+      Number(rendererViewBounds.x || 0) + Number(rendererRect.x || 0) * rendererZoomFactor
+    ),
+    y: Math.floor(
+      Number(rendererViewBounds.y || 0) + Number(rendererRect.y || 0) * rendererZoomFactor
+    ),
+    width: Math.floor(Number(rendererRect.width || 0) * rendererZoomFactor),
+    height: Math.floor(Number(rendererRect.height || 0) * rendererZoomFactor),
   };
 
   return clampRectangleToParent(mappedRect, rendererViewBounds);

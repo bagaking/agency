@@ -199,6 +199,16 @@ In the current BrowserWindow-based shell, the seam resolves in this order:
 
 The important rule is not which of those three wins; it is that the browser service no longer guesses by trusting raw renderer coordinates.
 
+Renderer host rects are measured in renderer CSS pixels, while native `View` bounds are applied in Electron content-space coordinates.
+If the renderer shell is zoomed away from 100%, those two spaces diverge.
+
+So the integration rule is:
+- resolve the renderer-view seam;
+- resolve the current renderer zoom factor;
+- normalize the renderer host rect through that zoom factor before mapping into native bounds.
+
+If changing renderer zoom makes browser alignment visibly change, suspect CSS-pixel-to-native normalization before changing lane ownership again.
+
 ### The One Correct Integration Pattern
 
 For Agency's current hybrid renderer/native shell, the only correct integration pattern is:

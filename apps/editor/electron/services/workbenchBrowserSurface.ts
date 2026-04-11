@@ -4,6 +4,7 @@ import { normalizeSupportedPublicUrl } from '../../shared/publicUrl';
 import {
   mapRendererRectToNativeContentRect,
   resolveOwnerRendererViewBounds,
+  resolveOwnerRendererZoomFactor,
 } from './nativeSurfaceGeometry';
 import { logRuntime } from './runtimeLog';
 
@@ -714,6 +715,7 @@ function syncWorkbenchBrowserSurfaceWithService(
     throw new Error('Valid browser-surface bounds are required.');
   }
   const rendererViewBounds = resolveOwnerRendererViewBounds(ownerWindow as any);
+  const rendererZoomFactor = resolveOwnerRendererZoomFactor(ownerWindow as any);
   const bounds = mapRendererRectToNativeContentRect(ownerWindow as any, rendererBounds);
   if (!bounds) {
     void logRuntime('warn', 'browser surface mapped bounds unavailable', {
@@ -721,6 +723,7 @@ function syncWorkbenchBrowserSurfaceWithService(
       tabId,
       rendererBounds,
       rendererViewBounds,
+      rendererZoomFactor,
       windowBounds: ownerWindow.getBounds?.() || null,
       contentBounds: ownerWindow.getContentBounds?.() || null,
     });
@@ -744,6 +747,7 @@ function syncWorkbenchBrowserSurfaceWithService(
     tabId,
     rendererBounds,
     rendererViewBounds,
+    rendererZoomFactor,
     mappedBounds: bounds,
     windowBounds: ownerWindow.getBounds?.() || null,
     contentBounds: ownerWindow.getContentBounds?.() || null,

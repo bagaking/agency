@@ -10,6 +10,7 @@ const {
 const {
   mapRendererRectToNativeContentRect,
   resolveOwnerRendererViewBounds,
+  resolveOwnerRendererZoomFactor,
 } = require('../nativeSurfaceGeometry');
 
 class FakeEventEmitter {
@@ -134,16 +135,20 @@ class FakeWindow extends FakeEventEmitter {
   webContents: {
     id: number;
     send: () => void;
+    getZoomFactor: () => number;
   };
+  zoomFactor: number;
   destroyed: boolean;
   constructor(id) {
     super();
     this.id = id;
     this._contentView = new FakeView();
     this.rendererViewBounds = null;
+    this.zoomFactor = 1;
     this.webContents = {
       id: 1000 + id,
       send: () => {},
+      getZoomFactor: () => this.zoomFactor,
     };
     this.destroyed = false;
   }
@@ -243,6 +248,28 @@ test('maps renderer rects through the owner renderer view bounds', () => {
       y: 228,
       width: 640,
       height: 480,
+    }
+  );
+});
+
+test('normalizes renderer css pixels through the owner zoom factor before mapping to native bounds', () => {
+  const fakeWindow = new FakeWindow(1);
+  fakeWindow.rendererViewBounds = { x: 0, y: 0, width: 1200, height: 800 };
+  fakeWindow.zoomFactor = 0.5;
+
+  assert.equal(resolveOwnerRendererZoomFactor(fakeWindow), 0.5);
+  assert.deepEqual(
+    mapRendererRectToNativeContentRect(fakeWindow, {
+      x: 200,
+      y: 100,
+      width: 600,
+      height: 400,
+    }),
+    {
+      x: 100,
+      y: 50,
+      width: 300,
+      height: 200,
     }
   );
 });
