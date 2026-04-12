@@ -299,6 +299,7 @@ Artifacts are written to `apps/editor/dist/release` (DMG + ZIP). Install by open
 Unsigned builds may require Gatekeeper bypass (right-click → Open once, or run `xattr -dr com.apple.quarantine /Applications/Agency.app`).
 Packaging uses `TMPDIR=/tmp` to avoid `hdiutil` failures on some macOS setups.
 Packaging now runs a preparation step before build/sign/DMG work. The prepare step checks disk space on the project volume, `/tmp`, and the Electron Builder cache volume, then clears stale generated outputs under `apps/editor/dist/release` that would conflict with the current mode before continuing.
+Packaging now seeds `electron-builder` from an isolated temporary copy of `node_modules/electron/dist` instead of relying on `app-builder unpack-electron`. This avoids the current macOS unpack regression that can produce an `Electron.app` shell with an empty `Contents/MacOS` directory while still keeping the installed Electron skeleton immutable.
 Packaging commands are intentionally packageability-first: they verify that the desktop artifact can be produced, but they do not enforce the renderer bundle budget gate.
 
 From repo root:

@@ -78,7 +78,8 @@ Why this split exists:
 - Budget enforcement answers “did the boot footprint regress beyond the accepted state?” and belongs on the explicit budgeted/release entrypoints.
 - This rejects the tempting but wrong shortcut of making every local package command enforce the same front-end budget gate.
 - Accepted-state updates are a deliberate bless step, not an incidental edit: use `make editor-accept-renderer-budget` / `pnpm run accept:renderer-bundle-budget` after intentionally approving the new boot footprint.
-- Do not point `build.electronDist` at `node_modules/electron/dist` for local packaging. That custom path can destabilize mac packaging and can mutate the installed Electron skeleton. Let electron-builder resolve the official Electron distribution on its default path.
+- Do not point `build.electronDist` directly at `node_modules/electron/dist` for local packaging. That custom path can destabilize mac packaging and can mutate the installed Electron skeleton.
+- Current repo workaround: `apps/editor/scripts/run-package.ts` copies `node_modules/electron/dist` into a temporary directory and passes that isolated path to `electron-builder` via `-c.electronDist=...`. This avoids the current `app-builder unpack-electron` regression on macOS while keeping the installed Electron skeleton immutable.
 
 ## Install
 1. Open the DMG and drag `Agency.app` into `/Applications`.

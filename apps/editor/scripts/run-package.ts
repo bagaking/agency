@@ -1,3 +1,6 @@
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { spawn } from 'node:child_process';
 
 type PackageMode = 'full' | 'lite' | 'dir';
@@ -64,6 +67,30 @@ function resolveBuilderArgs(mode: PackageMode): string[] {
       : ['exec', 'electron-builder', '--mac'];
 }
 
+async function withIsolatedElectronDist<T>(runWithDist: (electronDist: string) => Promise<T>): Promise<T> {
+  const projectRoot = process.cwd();
+  const sourceElectronDist = path.join(projectRoot, 'node_modules', 'electron', 'dist');
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agency-electrondist-'));
+  const isolatedElectronDist = path.join(tempRoot, 'dist');
+
+  try {
+    await fs.cp(sourceElectronDist, isolatedElectronDist, {
+      recursive: true,
+      force: true,
+      dereference: false,
+      verbatimSymlinks: true,
+    });
+    return await runWithDist(isolatedElectronDist);
+  } finally {
+    await fs.rm(tempRoot, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 100,
+    });
+  }
+}
+
 async function main() {
   const { mode, governance } = parseArgs();
   await run('pnpm', ['run', 'package:prepare', '--', '--mode', mode, '--governance', governance]);
@@ -73,8 +100,10 @@ async function main() {
   }
   await run('pnpm', ['run', 'build:electron']);
   await run('pnpm', ['run', 'build:speech-helper']);
-  await run('pnpm', resolveBuilderArgs(mode), {
-    TMPDIR: '/tmp',
+  await withIsolatedElectronDist(async (electronDist) => {
+    await run('pnpm', [...resolveBuilderArgs(mode), `-c.electronDist=${electronDist}`], {
+      TMPDIR: '/tmp',
+    });
   });
 }
 
