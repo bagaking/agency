@@ -240,7 +240,7 @@ test('AgentCellsSessionsPanel renders project-root cells in the main tracked sec
   assert.match(html, /mainline-review/);
   assert.match(html, /Project root · main/);
   assert.match(html, /data-testid="agent-cells-section-header-tracked-cells"/);
-  assert.match(html, /rounded-xl bg-black\/12/);
+  assert.match(html, /Session-first Cells running either on a live worktree attachment or on the project root/);
 });
 
 test('AgentCellsSessionsPanel uses tactical session row and root drop-zone grammar while reordering sessions', async () => {
@@ -288,7 +288,7 @@ test('AgentCellsSessionsPanel uses tactical session row and root drop-zone gramm
       '[data-testid="agent-cells-section-header-tracked-cells"]'
     ) as HTMLElement | null;
     assert.ok(header);
-    assert.match(header.getAttribute('class') || '', /rounded-xl bg-black\/12/);
+    assert.match(header.textContent || '', /Tracked Cells/);
 
     const sessionRow = document.querySelector(
       '[data-testid="session-tab-session-main"]'
