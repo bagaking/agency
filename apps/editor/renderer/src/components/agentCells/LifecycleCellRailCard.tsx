@@ -5,10 +5,12 @@ import type { AttentionItem } from '../../attention/attentionModel';
 import { focusRing } from '../ui/focusRing';
 import { AgentCellsAttentionBadge } from './AgentCellsAttentionBadge';
 import {
+  buildAgentCellsBadgeClass,
   resolveAgentCellsAttentionTone,
   buildAgentCellsGhostControlClass,
   buildAgentCellsPrimaryActionClass,
   buildAgentCellsWorkspacePanelClass,
+  type AgentCellsBadgeTone,
   type AgentCellsAttentionTone,
 } from './surfaceTokens';
 
@@ -26,10 +28,10 @@ type LifecycleAction = {
   tone?: 'primary' | 'secondary';
 };
 
-type LifecycleChip = {
+export type LifecycleChip = {
   key: string;
   label: string;
-  className: string;
+  tone: AgentCellsBadgeTone;
   title?: string;
   icon?: React.ReactNode;
 };
@@ -125,7 +127,7 @@ export function LifecycleCellRailCard({
                   {chips.map((chip, index) => (
                     <React.Fragment key={chip.key}>
                       {index > 0 ? <span className="h-1 w-1 rounded-full bg-black/24" aria-hidden="true" /> : null}
-                      <span className={chip.className} title={chip.title}>
+                      <span className={`${buildAgentCellsBadgeClass(chip.tone)} gap-1`} title={chip.title}>
                         {chip.icon}
                         <span>{chip.label}</span>
                       </span>
@@ -220,7 +222,7 @@ function LifecycleActionButton({
       type="button"
       onClick={action.onClick}
       title={action.title}
-      className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] transition-colors ${toneClass} ${focusRingClass}`}
+      className={`inline-flex items-center gap-1.5 ${toneClass} ${focusRingClass}`}
     >
       <Icon size={12} strokeWidth={1.8} />
       <span>{action.label}</span>

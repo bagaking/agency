@@ -8,7 +8,7 @@ import {
   resolveCellAttachmentMeta,
 } from './cellPresentation';
 import { resolveAgentCellsAttentionTone } from './surfaceTokens';
-import { LifecycleCellRailCard } from './LifecycleCellRailCard';
+import { LifecycleCellRailCard, type LifecycleChip } from './LifecycleCellRailCard';
 
 type ArchivedCellCardProps = {
   cell: any;
@@ -35,23 +35,22 @@ export function ArchivedCellCard({
   const sessionSummary = buildCellSessionSummary(sessions);
   const copy = buildArchivedCellCopy(cell, sessionSummary);
   const worktreeLabel = attachmentMeta.pathLabel || `${attachmentMeta.label} worktree`;
-  const chips = [
+  const chips: LifecycleChip[] = [
     {
       key: 'archived',
       label: 'Archived',
-      className:
-        'inline-flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.18em] text-slate-100/60',
+      tone: 'legacy',
       icon: <FolderArchive size={10} strokeWidth={1.7} />,
     },
     {
       key: 'attachment',
       label: attachmentMeta.label,
-      className:
+      tone:
         attachmentMeta.attachmentState === 'attached'
-          ? 'inline-flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.18em] text-emerald-100/58'
+          ? 'attached'
           : attachmentMeta.attachmentState === 'missing'
-            ? 'inline-flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.18em] text-rose-200/58'
-            : 'inline-flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.18em] text-amber-100/58',
+            ? 'missing'
+            : 'detached',
       title: worktreeLabel,
     },
   ];

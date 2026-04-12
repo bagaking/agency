@@ -7,7 +7,7 @@ import {
   resolveCellAttachmentMeta,
 } from './cellPresentation';
 import { resolveAgentCellsAttentionTone } from './surfaceTokens';
-import { LifecycleCellRailCard } from './LifecycleCellRailCard';
+import { LifecycleCellRailCard, type LifecycleChip } from './LifecycleCellRailCard';
 
 type DetachedCellCleanupCardProps = {
   cell: any;
@@ -46,19 +46,16 @@ export function DetachedCellCleanupCard({
   const sessionSummary = buildCellSessionSummary(sessions);
   const copy = buildCleanupCopy(cell, sessionSummary);
   const worktreeLabel = attachmentMeta.pathLabel || `${attachmentMeta.label} worktree`;
-  const chips = [
+  const chips: LifecycleChip[] = [
     {
       key: 'state',
       label: String(cell?.state || 'draft'),
-      className: 'inline-flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.18em] text-white/48',
+      tone: 'legacy',
     },
     {
       key: 'attachment',
       label: attachmentMeta.label,
-      className:
-        attachmentMeta.attachmentState === 'missing'
-          ? 'inline-flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.18em] text-rose-200/72'
-          : 'inline-flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.18em] text-amber-100/74',
+      tone: attachmentMeta.attachmentState === 'missing' ? 'missing' : 'detached',
       title: worktreeLabel,
     },
   ];

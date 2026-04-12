@@ -246,7 +246,7 @@ function LifecycleSectionHeader({
 
   return (
     <div
-      className="space-y-1 rounded-xl bg-black/12 px-2.5 py-2 shadow-[inset_0_0_0_1px_rgba(8,10,14,0.34)]"
+      className="space-y-1 px-1"
       data-testid={`agent-cells-section-header-${sectionId || 'section'}`}
     >
       <div className="flex items-center justify-between gap-2">
@@ -1350,7 +1350,8 @@ export function AgentCellsSessionsPanel({
                                         cancelRenameSession();
                                       }
                                     }}
-                                    className="w-full min-w-0 bg-transparent p-0 text-[11px] font-medium text-foreground outline-none placeholder:text-muted-foreground/30 focus:ring-0 selection:bg-primary/20"
+                                    aria-label={`Rename session ${session.name || session.id}`}
+                                    className="w-full min-w-0 rounded-md bg-transparent px-1 py-0.5 text-[11px] font-medium text-foreground outline-none placeholder:text-muted-foreground/30 focus-visible:bg-black/14 focus-visible:ring-1 focus-visible:ring-primary/35 selection:bg-primary/20"
                                     autoFocus
                                     onFocus={(event) => event.target.select()}
                                   />
@@ -1392,7 +1393,7 @@ export function AgentCellsSessionsPanel({
                               {!isEditing ? (
                                 <div
                                   className={`absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 transition-all duration-200 ${
-                                    isSelectedSession ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                                    isSelectedSession ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
                                   }`}
                                 >
                                   <IconButton

@@ -90,7 +90,7 @@ export function TrackedCellRailCard({
           }
         }}
         data-testid={`cell-item-${cell.id}`}
-        className={`group flex w-full items-start gap-2.5 px-2.5 py-2 text-left transition-colors ${
+        className={`group flex w-full items-start gap-2.5 rounded-[16px] px-2.5 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/30 ${
           isSelected ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
         }`}
       >

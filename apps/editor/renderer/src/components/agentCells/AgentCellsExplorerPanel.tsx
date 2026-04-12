@@ -539,17 +539,17 @@ export function AgentCellsExplorerPanel({
 
   return (
     <div
-      className="mt-2 shrink-0 -mx-2 border-t border-border/40 bg-sidebar/20"
+      className="mt-2 shrink-0 -mx-2 bg-sidebar/20 shadow-[inset_0_1px_0_rgba(0,0,0,0.22)]"
       data-testid="agent-cells-file-dashboard"
       onDragOver={handleFileDashboardDragOver}
       onDrop={handleFileDashboardDrop}
     >
       <div className="flex items-center justify-between px-3 py-2 text-[11px] font-medium text-muted-foreground">
-        <span className="inline-flex min-w-0 items-center gap-1.5">
-          <FileText size={11} strokeWidth={1.6} />
-          <span className="truncate">Explorer</span>
+          <span className="inline-flex min-w-0 items-center gap-1.5">
+            <FileText size={11} strokeWidth={1.6} />
+            <span className="truncate">Explorer</span>
           {fileDashboardOpen ? (
-            <span className="rounded bg-background/60 px-1 text-[9px] font-mono text-muted-foreground/80">
+            <span className="rounded-[7px] bg-black/18 px-1.5 py-[2px] text-[8px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/78">
               {fileDashboardEntries.length}
             </span>
           ) : null}
@@ -576,8 +576,10 @@ export function AgentCellsExplorerPanel({
             onClick={() => setFileDashboardOpen((current) => !current)}
             disabled={!projectReady || !explorerRootPath}
             data-testid="agent-cells-file-dashboard-toggle"
-            className={`inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors ${
-              fileDashboardOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+            className={`inline-flex items-center rounded-[7px] px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wide transition-colors ${
+              fileDashboardOpen
+                ? 'bg-sky-500/[0.14] text-sky-100'
+                : 'bg-black/14 text-muted-foreground hover:bg-black/22 hover:text-foreground'
             }`}
             title={fileDashboardOpen ? 'Hide Explorer panel' : 'Open Explorer panel'}
           >
@@ -620,10 +622,10 @@ export function AgentCellsExplorerPanel({
                 <button
                   type="button"
                   onClick={() => setFileDashboardCellFilter('changes')}
-                  className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors ${
+                  className={`rounded-[7px] px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wide transition-colors ${
                     fileDashboardCellFilter === 'changes'
-                      ? 'bg-primary/15 text-primary'
-                      : 'text-muted-foreground hover:text-foreground'
+                      ? 'bg-sky-500/[0.14] text-sky-100'
+                      : 'bg-black/14 text-muted-foreground hover:bg-black/22 hover:text-foreground'
                   }`}
                 >
                   Changes
@@ -631,10 +633,10 @@ export function AgentCellsExplorerPanel({
                 <button
                   type="button"
                   onClick={() => setFileDashboardCellFilter('all')}
-                  className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors ${
+                  className={`rounded-[7px] px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wide transition-colors ${
                     fileDashboardCellFilter === 'all'
-                      ? 'bg-primary/15 text-primary'
-                      : 'text-muted-foreground hover:text-foreground'
+                      ? 'bg-sky-500/[0.14] text-sky-100'
+                      : 'bg-black/14 text-muted-foreground hover:bg-black/22 hover:text-foreground'
                   }`}
                 >
                   All
@@ -645,10 +647,10 @@ export function AgentCellsExplorerPanel({
                 <button
                   type="button"
                   onClick={() => setFileDashboardMode('flat')}
-                  className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors ${
+                  className={`rounded-[7px] px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wide transition-colors ${
                     fileDashboardMode === 'flat'
-                      ? 'bg-primary/15 text-primary'
-                      : 'text-muted-foreground hover:text-foreground'
+                      ? 'bg-sky-500/[0.14] text-sky-100'
+                      : 'bg-black/14 text-muted-foreground hover:bg-black/22 hover:text-foreground'
                   }`}
                 >
                   Flat
@@ -656,10 +658,10 @@ export function AgentCellsExplorerPanel({
                 <button
                   type="button"
                   onClick={() => setFileDashboardMode('tree')}
-                  className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition-colors ${
+                  className={`rounded-[7px] px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wide transition-colors ${
                     fileDashboardMode === 'tree'
-                      ? 'bg-primary/15 text-primary'
-                      : 'text-muted-foreground hover:text-foreground'
+                      ? 'bg-sky-500/[0.14] text-sky-100'
+                      : 'bg-black/14 text-muted-foreground hover:bg-black/22 hover:text-foreground'
                   }`}
                 >
                   Tree
@@ -709,7 +711,7 @@ export function AgentCellsExplorerPanel({
         </div>
         ) : (
           <div className="px-3 pb-3 text-[10px] text-muted-foreground">
-            <div className="rounded-lg border border-dashed border-border/60 bg-background/40 px-3 py-3">
+            <div className="rounded-lg bg-black/14 px-3 py-3 shadow-[inset_0_0_0_1px_rgba(8,10,14,0.34)]">
               <div className="font-medium text-foreground/85">Explorer unavailable</div>
               <div className="mt-1">
                 This Cell does not have an attached worktree. Reattach or create a new attachment to browse Cell-local files.
