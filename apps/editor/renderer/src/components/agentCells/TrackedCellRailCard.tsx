@@ -1,8 +1,8 @@
 import React from 'react';
 import { ChevronDown, ChevronRight, FolderOpen, GitBranch, MoreHorizontal, Plus } from 'lucide-react';
 
-import { AttentionPill } from '../attention/AttentionPill';
 import { IconButton } from '../ui/IconButton';
+import { AgentCellsAttentionBadge } from './AgentCellsAttentionBadge';
 import {
   buildAgentCellsBadgeClass,
   buildAgentCellsIconWellClass,
@@ -132,10 +132,9 @@ export function TrackedCellRailCard({
                 className="shrink-0"
                 title={attention.item.detail}
               >
-                <AttentionPill
+                <AgentCellsAttentionBadge
                   item={attention.item}
                   count={attention.count}
-                  variant="agentCells"
                 />
               </button>
             ) : null}

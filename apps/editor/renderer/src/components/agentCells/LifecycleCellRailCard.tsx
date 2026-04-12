@@ -1,9 +1,9 @@
 import React from 'react';
 import type { LucideIcon } from 'lucide-react';
 
-import { AttentionPill } from '../attention/AttentionPill';
 import type { AttentionItem } from '../../attention/attentionModel';
 import { focusRing } from '../ui/focusRing';
+import { AgentCellsAttentionBadge } from './AgentCellsAttentionBadge';
 import {
   resolveAgentCellsAttentionTone,
   buildAgentCellsGhostControlClass,
@@ -150,18 +150,16 @@ export function LifecycleCellRailCard({
                 className="shrink-0"
                 title={attentionItem.detail}
               >
-                <AttentionPill
+                <AgentCellsAttentionBadge
                   item={attentionItem}
                   count={attentionCount}
-                  variant="agentCells"
                   className="shrink-0"
                 />
               </button>
             ) : (
-              <AttentionPill
+              <AgentCellsAttentionBadge
                 item={attentionItem}
                 count={attentionCount}
-                variant="agentCells"
                 className="shrink-0"
               />
             )

@@ -3,7 +3,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { AttentionPill } from '../../attention/AttentionPill';
+import { AgentCellsAttentionBadge } from '../AgentCellsAttentionBadge';
 import {
   AGENT_CELLS_PANEL_BASE,
   buildAgentCellsAttentionPillClass,
@@ -30,9 +30,9 @@ test('Agent Cells shared shell tokens stay mass-first and avoid border-owned gra
   });
 });
 
-test('AttentionPill agentCells variant renders as a dark micro-plate instead of a rounded border pill', () => {
+test('AgentCellsAttentionBadge renders as a dark micro-plate instead of a rounded border pill', () => {
   const html = renderToStaticMarkup(
-    <AttentionPill item={{ kind: 'unread', label: 'Unread', detail: 'Needs review' } as any} count={2} variant="agentCells" />
+    <AgentCellsAttentionBadge item={{ kind: 'unread', label: 'Unread', detail: 'Needs review' } as any} count={2} />
   );
 
   assert.doesNotMatch(html, /rounded-full border/);

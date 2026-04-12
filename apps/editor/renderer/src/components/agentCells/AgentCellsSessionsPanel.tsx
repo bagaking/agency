@@ -14,7 +14,6 @@ import {
 import { RecentProjectsList } from '../RecentProjectsList';
 import { useCommanderSessionActions } from '../commander/useCommanderSessionActions';
 import { SessionContextMenu, SessionCreateMenu, SessionOverflowMenu } from '../SessionMenus';
-import { AttentionPill } from '../attention/AttentionPill';
 import { AgentAvatarBadge } from '../ui/AgentAvatarBadge';
 import { AvatarPickerMenu } from '../ui/AvatarPickerMenu';
 import { IconButton } from '../ui/IconButton';
@@ -38,6 +37,7 @@ import {
   listUnmanagedWorktrees as agencyListUnmanagedWorktrees,
 } from '../../services/agencyBridge';
 import { isArchivedCell, resolveCellAttachmentMeta, resolveCellBranchMeta } from './cellPresentation';
+import { AgentCellsAttentionBadge } from './AgentCellsAttentionBadge';
 import { DetachedCellCleanupCard } from './DetachedCellCleanupCard';
 import { ArchivedCellCard } from './ArchivedCellCard';
 import { TrackedCellRailCard } from './TrackedCellRailCard';
@@ -1374,7 +1374,7 @@ export function AgentCellsSessionsPanel({
                                         })}
                                         title={sessionAttention.detail}
                                       >
-                                        <AttentionPill item={sessionAttention} variant="agentCells" />
+                                        <AgentCellsAttentionBadge item={sessionAttention} />
                                       </button>
                                     ) : null}
                                   </div>
