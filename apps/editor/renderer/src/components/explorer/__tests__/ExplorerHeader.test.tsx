@@ -276,6 +276,8 @@ test('ExplorerHeader keeps working-set controls in the compact title rail', () =
   assert.match(html, />Tree</);
   assert.match(html, />Changed</);
   assert.match(html, /Changes only/);
+  assert.doesNotMatch(html, /View: Tree/);
+  assert.doesNotMatch(html, /Scope:/);
 });
 
 test('ExplorerHeader layout resolver stacks secondary controls before the shell gets squeezed', () => {

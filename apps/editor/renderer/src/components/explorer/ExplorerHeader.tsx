@@ -77,17 +77,7 @@ export function ExplorerHeader({
   const contextBits = showFilterMenuButton ? [activeFilterSummary || ''].filter(Boolean) : [];
   const workingSets = Array.isArray(workingSetOptions) ? workingSetOptions : [];
   const searchModeDescriptors = Array.isArray(searchModeOptions) ? searchModeOptions : [];
-  const activeWorkingSetLabel =
-    workingSets.find((option) => option.id === activeWorkingSetViewId)?.label || '';
-  const selectedCellName =
-    Array.isArray(cells) && selectedId
-      ? cells.find((cell: any) => cell.id === selectedId)?.name || ''
-      : '';
-  const headerBadges = [
-    activeWorkingSetLabel ? `View: ${activeWorkingSetLabel}` : '',
-    selectedCellName ? `Scope: ${selectedCellName}` : '',
-    ...contextBits,
-  ].filter(Boolean);
+  const headerBadges = [...contextBits].filter(Boolean);
   const activeSearchModeDescriptor =
     searchModeDescriptors.find((option) => option.id === searchMode) || searchModeDescriptors[0];
   const searchPlaceholder = activeSearchModeDescriptor?.placeholder || 'Search files…';
