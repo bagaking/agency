@@ -35,7 +35,8 @@
 - [ ] In `Detached Cells`, confirm `missing` and `detached` Cells use different attachment copy, keep session/evidence counts visible, and route the primary action to `View Details`.
 - [ ] Open a detached Cell from `View Details` and confirm the main pane shows attachment-management details plus `Archive Cell`, `Clear Attachment`, and `Delete Cell` instead of the generic terminal empty animation.
 - [ ] Open a legacy archived record and confirm it appears only under `Legacy Archived`, with low-emphasis compatibility treatment rather than re-taking ownership of the default workspace rail.
-- [ ] Confirm `Tracked / Detached / Unmanaged / Legacy` all read as one shared rail-card family rather than mixing bright rounded pills, white outline boxes, and section-specific button grammars.
+- [ ] Confirm `Tracked / Detached / Unmanaged / Legacy` all read as one shared rail-card family rather than mixing bright rounded pills, white outline boxes, white inset edge highlights, and section-specific button grammars.
+- [ ] Confirm the outer Cell cards and micro-plates still read correctly if you ignore their edges: the surface should stand on massing, spacing, and hierarchy rather than bright card outlines.
 - [ ] Restart with an attached Cell whose session registry is empty and confirm the window does not auto-create a `Default` session.
 - [ ] In the empty terminal state for such a Cell, click `Create Session` and confirm a session is created only at that explicit step.
 - [ ] Open `Create Cell` and confirm `Create Project-root Cell`, `Create Branch Worktree`, `Track Existing Worktree`, and `Bind Existing Branch` are separate modes.

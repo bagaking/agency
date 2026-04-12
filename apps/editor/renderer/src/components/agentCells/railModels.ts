@@ -1,6 +1,6 @@
 import type { AttentionItem } from '../../attention/attentionModel';
 import type { CellAttachmentMeta, CellBranchMeta } from './cellPresentation';
-import type { UnmanagedWorktree } from './unmanagedWorktreePresentation';
+import { deriveUnmanagedWorktreeDisplay, type UnmanagedWorktree } from './unmanagedWorktreePresentation';
 import { resolveAgentCellsAttentionTone, type AgentCellsAttentionTone } from './surfaceTokens';
 
 export type AgentCellsAttentionSummary = {
@@ -19,6 +19,8 @@ export type AgentCellsCellRecord = {
   projectRoot?: string;
   repoRoot?: string;
   attachmentState?: string;
+  ownerKind?: string;
+  isVirtual?: boolean;
 };
 
 export type AgentCellsSessionRecord = {
@@ -54,16 +56,7 @@ export type TrackedCellRailModel = {
 
 export type UnmanagedWorktreeRailModel = {
   worktree: UnmanagedWorktree;
-  display: {
-    title: string;
-    branchLabel: string;
-    detachedHeadLabel: string;
-    helperText: string;
-    primaryAction: 'bind' | 'create' | 'none';
-    primaryLabel: string;
-    secondaryCreateLabel: string;
-    availabilityLabel: string;
-  };
+  display: ReturnType<typeof deriveUnmanagedWorktreeDisplay>;
 };
 
 export function buildTrackedCellRailModel({

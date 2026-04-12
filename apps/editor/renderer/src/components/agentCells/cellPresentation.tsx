@@ -1,6 +1,6 @@
 import React from 'react';
 import { Circle } from 'lucide-react';
-import { AGENT_CELLS_SECTION_BADGE_BASE } from './surfaceTokens';
+import { buildAgentCellsBadgeClass, type AgentCellsBadgeTone } from './surfaceTokens';
 
 const cellStateColors: Record<string, string> = {
   draft: 'text-muted-foreground',
@@ -9,17 +9,17 @@ const cellStateColors: Record<string, string> = {
   archived: 'text-slate-500',
 };
 
-const cellStateBadgeTone: Record<string, string> = {
-  draft: 'border-black/24 bg-black/12 text-white/58',
-  active: 'border-[rgba(31,78,54,0.92)] bg-emerald-500/[0.075] text-emerald-200/86',
-  paused: 'border-[rgba(74,57,35,0.92)] bg-amber-500/[0.075] text-amber-100/86',
-  archived: 'border-black/22 bg-black/12 text-slate-300/70',
+const cellStateBadgeTone: Record<string, AgentCellsBadgeTone> = {
+  draft: 'default',
+  active: 'active',
+  paused: 'paused',
+  archived: 'legacy',
 };
 
 export type CellAttachmentMeta = {
   attachmentState: 'attached' | 'project_root' | 'detached' | 'missing';
   label: string;
-  tone: string;
+  tone: AgentCellsBadgeTone;
   pathLabel: string;
 };
 
@@ -37,9 +37,7 @@ export function CellStateBadge({ state }: { state?: string }) {
   const label = normalized === 'archived' ? 'legacy archived' : `legacy ${normalized}`;
   return (
     <span
-      className={`${AGENT_CELLS_SECTION_BADGE_BASE} gap-1 ${
-        cellStateBadgeTone[normalized] || cellStateBadgeTone.draft
-      }`}
+      className={`${buildAgentCellsBadgeClass(cellStateBadgeTone[normalized] || cellStateBadgeTone.draft)} gap-1`}
     >
       <Circle size={6} className={cellStateColors[normalized] || cellStateColors.draft} fill="currentColor" />
       <span>{label}</span>
@@ -56,7 +54,7 @@ export function resolveCellAttachmentMeta(cell: any): CellAttachmentMeta {
     return {
       attachmentState: 'project_root',
       label: 'Project Root',
-      tone: 'border-[rgba(34,54,72,0.92)] bg-sky-500/[0.075] text-sky-100/80',
+      tone: 'project_root',
       pathLabel: String(cell?.projectRoot || cell?.repoRoot || '').trim(),
     };
   }
@@ -64,7 +62,7 @@ export function resolveCellAttachmentMeta(cell: any): CellAttachmentMeta {
     return {
       attachmentState: 'missing',
       label: 'Missing',
-      tone: 'border-[rgba(82,46,52,0.92)] bg-rose-500/[0.075] text-rose-100/82',
+      tone: 'missing',
       pathLabel: pathLabelBase,
     };
   }
@@ -72,14 +70,14 @@ export function resolveCellAttachmentMeta(cell: any): CellAttachmentMeta {
     return {
       attachmentState: 'detached',
       label: 'Detached',
-      tone: 'border-[rgba(74,57,35,0.92)] bg-amber-500/[0.075] text-amber-100/82',
+      tone: 'detached',
       pathLabel: pathLabelBase,
     };
   }
   return {
     attachmentState: 'attached',
     label: 'Attached',
-    tone: 'border-[rgba(31,78,54,0.92)] bg-emerald-500/[0.072] text-emerald-100/82',
+    tone: 'attached',
     pathLabel: String(cell?.branch || pathLabelBase || '').trim(),
   };
 }

@@ -56,11 +56,10 @@ import {
   type UnmanagedWorktree,
 } from './unmanagedWorktreePresentation';
 import {
-  AGENT_CELLS_SECTION_BADGE_BASE,
-  buildAgentCellsAttentionCardClass,
-  buildAgentCellsAttentionRowClass,
+  buildAgentCellsBadgeClass,
   buildAgentCellsInlineControlClass,
-  buildAgentCellsWorkspacePanelClass,
+  buildAgentCellsPrimaryActionClass,
+  buildAgentCellsSessionRowClass,
   resolveAgentCellsAttentionTone,
 } from './surfaceTokens';
 
@@ -147,7 +146,7 @@ function SessionKindBadge({ nodeKind }: { nodeKind?: string }) {
   }
   const label = normalized === 'sub_terminal' ? 'sub' : normalized === 'fork' ? 'fork' : normalized;
   return (
-    <span className={`${AGENT_CELLS_SECTION_BADGE_BASE} border-primary/16 bg-primary/[0.08] text-primary/72`}>
+    <span className={buildAgentCellsBadgeClass('default')}>
       {label}
     </span>
   );
@@ -232,31 +231,37 @@ function LifecycleSectionHeader({
     legacy: 'text-slate-200/72',
   } as const;
   const countClassByTone = {
-    default: 'border-black/25 bg-black/14 text-foreground/68',
-    detached: 'border-[rgba(74,57,35,0.92)] bg-amber-500/[0.07] text-amber-100/74',
-    unmanaged: 'border-[rgba(34,54,72,0.92)] bg-sky-500/[0.07] text-sky-100/76',
-    legacy: 'border-black/22 bg-black/12 text-slate-200/66',
+    default: buildAgentCellsBadgeClass('default'),
+    detached: buildAgentCellsBadgeClass('detached'),
+    unmanaged: buildAgentCellsBadgeClass('unmanaged'),
+    legacy: buildAgentCellsBadgeClass('legacy'),
   } as const;
   const toneClass = toneClassByTone[tone];
   const countClass = countClassByTone[tone];
+  const sectionId = String(label || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
 
   return (
-    <div className="space-y-1 px-1">
+    <div
+      className="space-y-1 rounded-xl bg-black/12 px-2.5 py-2 shadow-[inset_0_0_0_1px_rgba(8,10,14,0.34)]"
+      data-testid={`agent-cells-section-header-${sectionId || 'section'}`}
+    >
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <span className={`truncate text-[10px] font-semibold uppercase tracking-[0.18em] ${toneClass}`}>
             {label}
           </span>
-          <span
-            className={`${AGENT_CELLS_SECTION_BADGE_BASE} ${countClass}`}
-          >
+          <span className={countClass}>
             {count}
           </span>
         </div>
         {action}
       </div>
       {description ? (
-        <p className="text-[10px] leading-4 text-muted-foreground/66">{description}</p>
+        <p className="text-[10px] leading-4 text-muted-foreground/72">{description}</p>
       ) : null}
     </div>
   );
@@ -297,7 +302,7 @@ function DropLine({ active }: { active: boolean }) {
   return (
     <div
       className={`pointer-events-none absolute left-2 right-2 h-[2px] rounded-full transition-opacity ${
-        active ? 'opacity-100 bg-primary shadow-[0_0_0_1px_rgba(59,130,246,0.2)]' : 'opacity-0'
+        active ? 'opacity-100 bg-primary shadow-[0_6px_16px_-12px_rgba(59,130,246,0.55)]' : 'opacity-0'
       }`}
     />
   );
@@ -318,10 +323,10 @@ function OutdentHint({
 
   return (
     <div
-      className={`pointer-events-none absolute top-1/2 z-10 flex h-5 -translate-y-1/2 items-center gap-1 rounded-md border px-1.5 text-[8px] font-bold uppercase tracking-widest transition-colors ${
+      className={`pointer-events-none absolute top-1/2 z-10 flex h-5 -translate-y-1/2 items-center gap-1 rounded-md px-1.5 text-[8px] font-bold uppercase tracking-widest transition-colors shadow-[inset_0_0_0_1px_rgba(8,10,14,0.28)] ${
         active
-          ? 'border-primary/50 bg-primary/15 text-primary shadow-[0_0_0_1px_rgba(59,130,246,0.15)]'
-          : 'border-border/40 bg-background/70 text-muted-foreground/55'
+          ? 'bg-primary/15 text-primary shadow-[inset_0_0_0_1px_rgba(44,82,140,0.3),0_0_18px_-12px_rgba(59,130,246,0.42)]'
+          : 'bg-background/70 text-muted-foreground/55'
       }`}
       style={{ left: `${left}px` }}
     >
@@ -1043,14 +1048,22 @@ export function AgentCellsSessionsPanel({
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
         {!projectReady ? (
           <>
-            <div className="mb-3 rounded-lg border border-dashed border-border px-3 py-3 text-[11px] text-muted-foreground">
-              <div className="font-medium text-foreground">No project selected</div>
-              <div className="mt-1">Choose a project directory to load Cells.</div>
+            <div
+              className="mb-3 rounded-[16px] bg-[linear-gradient(180deg,rgba(17,20,26,0.965),rgba(12,15,20,0.99))] px-3 py-3 text-[11px] text-muted-foreground/82 shadow-[0_18px_36px_-30px_rgba(0,0,0,0.8),inset_0_0_0_1px_rgba(8,10,14,0.38)]"
+              data-testid="agent-cells-no-project-panel"
+            >
+              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground/66">
+                No project selected
+              </div>
+              <div className="mt-1.5 text-[11px] leading-[1.45] text-muted-foreground/82">
+                Choose a project directory to load Cells.
+              </div>
               {projectError ? <div className="mt-2 text-rose-300">{projectError}</div> : null}
               <button
                 type="button"
                 onClick={onSelectProject}
-                className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary transition-colors hover:bg-primary/10"
+                className={`${buildAgentCellsPrimaryActionClass('sky')} mt-3 inline-flex items-center gap-2`}
+                data-testid="agent-cells-no-project-select"
               >
                 Select Project
               </button>
@@ -1118,9 +1131,9 @@ export function AgentCellsSessionsPanel({
                       onBindBranch={handleBindBranchForCell}
                       onCreateAttachment={handleCreateAttachmentForCell}
                       onOpenOverflow={openOverflowMenu}
-                    >
-                  {!isCollapsed ? (
-                    <div className="space-y-1 border-t border-black/18 px-2 pb-1.5 pt-1.5" role="group">
+                      sessionTree={
+                        !isCollapsed ? (
+                    <div className="space-y-1">
                       {visibleRows.map((row) => {
                         const session = row.session;
                         const sessionAttention =
@@ -1184,19 +1197,16 @@ export function AgentCellsSessionsPanel({
                               tabIndex={0}
                               data-session-tab-id={session.id}
                               data-cell-id={cell.id}
-                              className={`group relative flex w-full min-w-0 items-center gap-2.5 rounded-xl border border-transparent py-1.5 pr-2 text-left text-[11px] transition-all duration-200 select-none ${
-                                isSelectedSession
-                                  ? 'border-primary/20 bg-primary/10 text-foreground shadow-[0_8px_18px_-16px_rgba(59,130,246,0.7)]'
-                                  : `bg-transparent text-muted-foreground hover:text-foreground ${buildAgentCellsAttentionRowClass(resolveAgentCellsAttentionTone(String(sessionAttention?.kind || '')))}`
-                              } ${
-                                activeDropTarget?.intent === 'into'
-                                  ? 'ring-1 ring-primary/30 bg-primary/5'
-                                  : ''
-                              } ${
-                                draggingSession?.cellId === cell.id && draggingSession?.sessionId === session.id
-                                  ? 'opacity-45'
-                                  : ''
-                              }`}
+                              className={buildAgentCellsSessionRowClass({
+                                selected: isSelectedSession,
+                                attentionTone: resolveAgentCellsAttentionTone(
+                                  String(sessionAttention?.kind || '')
+                                ),
+                                dropInto: activeDropTarget?.intent === 'into',
+                                dragging:
+                                  draggingSession?.cellId === cell.id &&
+                                  draggingSession?.sessionId === session.id,
+                              })}
                               style={{ paddingLeft: `${rowPaddingLeft}px` }}
                               data-testid={`session-tab-${session.id}`}
                               data-active={isSelectedSession ? 'true' : 'false'}
@@ -1294,7 +1304,7 @@ export function AgentCellsSessionsPanel({
                                   )}
                                 </button>
                               ) : (
-                                <div className="absolute left-[7px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border border-black/22 bg-background/80" />
+                                <div className="absolute left-[7px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-background/80 shadow-[inset_0_0_0_1px_rgba(8,10,14,0.28)]" />
                               )}
 
                               <div className="relative flex shrink-0 items-center justify-center">
@@ -1364,7 +1374,7 @@ export function AgentCellsSessionsPanel({
                                         })}
                                         title={sessionAttention.detail}
                                       >
-                                        <AttentionPill item={sessionAttention} variant="agentCells" className="px-1.5 py-[2px]" />
+                                        <AttentionPill item={sessionAttention} variant="agentCells" />
                                       </button>
                                     ) : null}
                                   </div>
@@ -1405,11 +1415,12 @@ export function AgentCellsSessionsPanel({
 
                       {showRootDropZone ? (
                         <div
-                          className={`mt-1 rounded-md border border-dashed px-2 py-1 text-[9px] font-medium transition-colors ${
+                          className={`mt-1 rounded-lg px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] transition-colors shadow-[inset_0_0_0_1px_rgba(8,10,14,0.34)] ${
                             dropTarget?.cellId === cell.id && dropTarget?.intent === 'root'
-                              ? 'border-primary/50 bg-primary/10 text-primary'
-                              : 'border-border/50 text-muted-foreground/70'
+                              ? 'bg-sky-500/[0.1] text-sky-100 shadow-[inset_0_0_0_1px_rgba(29,65,94,0.42),0_12px_20px_-18px_rgba(56,189,248,0.42)]'
+                              : 'bg-black/14 text-muted-foreground/72'
                           }`}
+                          data-testid={`session-root-drop-zone-${cell.id}`}
                           onDragOver={(event) => {
                             if (!draggingSession || draggingSession.cellId !== cell.id) {
                               return;
@@ -1445,8 +1456,9 @@ export function AgentCellsSessionsPanel({
                         </div>
                       ) : null}
                     </div>
-                  ) : null}
-                    </TrackedCellRailCard>
+                        ) : null
+                      }
+                    />
                   );
                   })}
                 </div>
@@ -1479,7 +1491,6 @@ export function AgentCellsSessionsPanel({
                         onSelect={onSelect}
                         onJumpAttention={attention.jumpToAttention}
                         testId={`detached-cell-card-${cell.id}`}
-                        shellClassName={selectedId === cell.id ? '' : buildAgentCellsAttentionCardClass(resolveAgentCellsAttentionTone(String(cellAttention?.strongest?.kind || '')))}
                       />
                     );
                   })}

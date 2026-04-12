@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, FolderOpen, GitBranch, MoreHorizontal, Plus 
 import { AttentionPill } from '../attention/AttentionPill';
 import { IconButton } from '../ui/IconButton';
 import {
-  AGENT_CELLS_SECTION_BADGE_BASE,
+  buildAgentCellsBadgeClass,
   buildAgentCellsIconWellClass,
   buildAgentCellsWorkspacePanelClass,
   buildAgentCellsGhostControlClass,
@@ -22,7 +22,7 @@ type TrackedCellRailCardProps = {
   onBindBranch?: (cell: any) => void;
   onCreateAttachment?: (cell: any) => void;
   onOpenOverflow?: (cell: any, event: React.MouseEvent<HTMLButtonElement>) => void;
-  children?: React.ReactNode;
+  sessionTree?: React.ReactNode;
 };
 
 export function TrackedCellRailCard({
@@ -35,7 +35,7 @@ export function TrackedCellRailCard({
   onBindBranch,
   onCreateAttachment,
   onOpenOverflow,
-  children,
+  sessionTree,
 }: TrackedCellRailCardProps) {
   const {
     cell,
@@ -106,7 +106,7 @@ export function TrackedCellRailCard({
           {isCollapsed ? <ChevronRight size={12} strokeWidth={1.5} /> : <ChevronDown size={12} strokeWidth={1.5} />}
         </button>
         <div
-          className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border ${buildAgentCellsIconWellClass('tracked')}`}
+          className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] ${buildAgentCellsIconWellClass('tracked')}`}
         >
           <GitBranch size={14} strokeWidth={1.6} />
         </div>
@@ -116,7 +116,7 @@ export function TrackedCellRailCard({
             <span className="truncate text-[12px] font-semibold tracking-[0.01em]">{cell.name}</span>
             {attachmentMeta.attachmentState !== 'attached' ? (
               <span
-                className={`${AGENT_CELLS_SECTION_BADGE_BASE} ${attachmentMeta.tone}`}
+                className={buildAgentCellsBadgeClass(attachmentMeta.tone)}
                 title={attachmentMeta.pathLabel || attachmentMeta.label}
               >
                 {attachmentMeta.label}
@@ -136,7 +136,6 @@ export function TrackedCellRailCard({
                   item={attention.item}
                   count={attention.count}
                   variant="agentCells"
-                  className="px-1.5 py-[2px]"
                 />
               </button>
             ) : null}
@@ -156,7 +155,7 @@ export function TrackedCellRailCard({
             <IconButton
               label="Open in Explorer"
               focusRing="sidebar"
-              className="h-7 w-7 rounded-md text-muted-foreground/65 transition-colors hover:bg-black/14 hover:text-foreground"
+              className="h-7 w-7 rounded-md bg-black/18 text-muted-foreground/72 shadow-[inset_0_0_0_1px_rgba(8,10,14,0.34)] transition-colors hover:bg-black/26 hover:text-foreground"
               onClick={(event) => {
                 event.stopPropagation();
                 onOpenExplorer?.(cell.id);
@@ -170,7 +169,7 @@ export function TrackedCellRailCard({
               label="New Session"
               focusRing="sidebar"
               disabled={!canCreateSession}
-              className="h-7 w-7 rounded-md text-primary transition-colors hover:bg-primary/12 hover:text-primary disabled:text-muted-foreground/40 disabled:hover:bg-transparent"
+              className="h-7 w-7 rounded-md bg-sky-500/[0.18] text-sky-50 shadow-[inset_0_0_0_1px_rgba(29,65,94,0.42)] transition-colors hover:bg-sky-500/[0.26] hover:text-sky-50 disabled:bg-black/14 disabled:text-muted-foreground/40 disabled:hover:bg-black/14 disabled:shadow-[inset_0_0_0_1px_rgba(8,10,14,0.24)]"
               title={createSessionTitle}
               onClick={(event) => {
                 if (!canCreateSession) {
@@ -187,7 +186,7 @@ export function TrackedCellRailCard({
             <IconButton
               label="Detached and closed sessions"
               focusRing="sidebar"
-              className="h-7 w-7 rounded-md text-muted-foreground/65 transition-colors hover:bg-black/14 hover:text-foreground"
+              className="h-7 w-7 rounded-md bg-black/18 text-muted-foreground/72 shadow-[inset_0_0_0_1px_rgba(8,10,14,0.34)] transition-colors hover:bg-black/26 hover:text-foreground"
               onClick={(event) => {
                 event.stopPropagation();
                 onOpenOverflow?.(cell, event);
@@ -200,7 +199,7 @@ export function TrackedCellRailCard({
       </div>
 
       {isProjectRootRuntime && (canBindBranch || canCreateAttachment) ? (
-        <div className="flex items-center gap-2 border-t border-black/18 px-2.5 py-2">
+        <div className="flex items-center gap-2 bg-black/14 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(0,0,0,0.24)]">
           {canBindBranch ? (
             <button
               type="button"
@@ -230,7 +229,11 @@ export function TrackedCellRailCard({
         </div>
       ) : null}
 
-      {children}
+      {sessionTree ? (
+        <div className="bg-black/10 px-2.5 pb-1.5 pt-1.5 shadow-[inset_0_1px_0_rgba(0,0,0,0.24)]" role="group">
+          {sessionTree}
+        </div>
+      ) : null}
     </div>
   );
 }

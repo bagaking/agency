@@ -279,7 +279,7 @@ Unmanaged worktrees in detached HEAD state SHALL not present `Create Cell` as an
 #### Scenario: Agent Cells rail uses one coherent control grammar
 - **WHEN** tracked, detached, unmanaged, and legacy compatibility surfaces render together in Agent Cells
 - **THEN** they share one cohesive rail-card grammar with consistent badge, attention, and action treatment
-- **AND** the surface does not regress into section-specific bright pills, white outline boxes, or mismatched button families
+- **AND** the surface does not regress into section-specific bright pills, white outline boxes, white inset edge highlights, or mismatched button families
 
 #### Scenario: Deterministic unmanaged match prefers reattach
 - **WHEN** an unmanaged worktree has a deterministic match to an existing detached Cell

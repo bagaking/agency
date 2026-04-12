@@ -6,6 +6,7 @@ import {
   buildCellSessionSummary,
   resolveCellAttachmentMeta,
 } from './cellPresentation';
+import { resolveAgentCellsAttentionTone } from './surfaceTokens';
 import { LifecycleCellRailCard } from './LifecycleCellRailCard';
 
 type DetachedCellCleanupCardProps = {
@@ -17,7 +18,6 @@ type DetachedCellCleanupCardProps = {
   onSelect?: (cellId: string) => void;
   onJumpAttention?: (item: AttentionItem) => void;
   testId?: string;
-  shellClassName?: string;
 };
 
 function buildCleanupCopy(cell: any, sessionSummary: string[]) {
@@ -41,7 +41,6 @@ export function DetachedCellCleanupCard({
   onSelect,
   onJumpAttention,
   testId,
-  shellClassName = '',
 }: DetachedCellCleanupCardProps) {
   const attachmentMeta = resolveCellAttachmentMeta(cell);
   const sessionSummary = buildCellSessionSummary(sessions);
@@ -67,9 +66,9 @@ export function DetachedCellCleanupCard({
   return (
     <LifecycleCellRailCard
       testId={testId || `detached-cell-cleanup-${cell?.id || 'unknown'}`}
-      shellClassName={shellClassName}
       tone="cleanup"
       selected={selected}
+      attentionTone={resolveAgentCellsAttentionTone(String(attentionItem?.kind || ''))}
       title={cell?.name || 'Detached Cell'}
       chips={chips}
       pathLabel={worktreeLabel}

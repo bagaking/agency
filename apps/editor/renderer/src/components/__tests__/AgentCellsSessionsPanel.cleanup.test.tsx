@@ -92,6 +92,24 @@ function setupDom() {
   };
 }
 
+function createDragEvent(type: string): Event {
+  const event = new window.Event(type, {
+    bubbles: true,
+    cancelable: true,
+  });
+  const dataTransfer = {
+    effectAllowed: '',
+    dropEffect: '',
+    setData: () => undefined,
+    getData: () => '',
+  };
+  Object.defineProperty(event, 'dataTransfer', {
+    configurable: true,
+    value: dataTransfer,
+  });
+  return event;
+}
+
 function renderPanel(props: Record<string, unknown> = {}) {
   return (
     <ModalProvider>
@@ -221,6 +239,91 @@ test('AgentCellsSessionsPanel renders project-root cells in the main tracked sec
   assert.match(html, /Create Worktree Attachment/);
   assert.match(html, /mainline-review/);
   assert.match(html, /Project root · main/);
+  assert.match(html, /data-testid="agent-cells-section-header-tracked-cells"/);
+  assert.match(html, /rounded-xl bg-black\/12/);
+});
+
+test('AgentCellsSessionsPanel uses tactical session row and root drop-zone grammar while reordering sessions', async () => {
+  const env = setupDom();
+  try {
+    const root = createRoot(document.getElementById('root')!);
+
+    await act(async () => {
+      root.render(
+        renderPanel({
+          cells: [
+            {
+              id: 'cell-main',
+              name: 'mainline-review',
+              state: 'active',
+              attachmentState: 'attached',
+              worktreePath: '/repo/.worktrees/mainline-review',
+            },
+          ],
+          selectedId: 'cell-main',
+          sessionsByCellId: {
+            'cell-main': [
+              {
+                id: 'session-main',
+                name: 'Main',
+                status: 'active',
+              },
+              {
+                id: 'session-child',
+                name: 'Child',
+                status: 'active',
+                parentSessionId: 'session-main',
+              },
+            ],
+          },
+          activeSessionByCellId: {
+            'cell-main': 'session-main',
+          },
+          onMoveSessionNode: async () => undefined,
+        })
+      );
+    });
+
+    const header = document.querySelector(
+      '[data-testid="agent-cells-section-header-tracked-cells"]'
+    ) as HTMLElement | null;
+    assert.ok(header);
+    assert.match(header.getAttribute('class') || '', /rounded-xl bg-black\/12/);
+
+    const sessionRow = document.querySelector(
+      '[data-testid="session-tab-session-main"]'
+    ) as HTMLElement | null;
+    assert.ok(sessionRow);
+    assert.match(
+      sessionRow.getAttribute('class') || '',
+      /bg-primary\/\[0\.1\]/
+    );
+
+    await act(async () => {
+      sessionRow.dispatchEvent(createDragEvent('dragstart'));
+    });
+
+    const rootDropZone = document.querySelector(
+      '[data-testid="session-root-drop-zone-cell-main"]'
+    ) as HTMLElement | null;
+    assert.ok(rootDropZone);
+    assert.match(rootDropZone.getAttribute('class') || '', /bg-black\/14/);
+
+    await act(async () => {
+      rootDropZone.dispatchEvent(createDragEvent('dragover'));
+    });
+
+    assert.match(
+      rootDropZone.getAttribute('class') || '',
+      /bg-sky-500\/\[0\.1\]/
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+  } finally {
+    env.cleanup();
+  }
 });
 
 test('AgentCellsSessionsPanel does not surface virtual window-home placeholders in tracked cells', () => {

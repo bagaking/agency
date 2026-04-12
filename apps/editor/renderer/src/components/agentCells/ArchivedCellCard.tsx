@@ -7,6 +7,7 @@ import {
   buildCellSessionSummary,
   resolveCellAttachmentMeta,
 } from './cellPresentation';
+import { resolveAgentCellsAttentionTone } from './surfaceTokens';
 import { LifecycleCellRailCard } from './LifecycleCellRailCard';
 
 type ArchivedCellCardProps = {
@@ -18,7 +19,6 @@ type ArchivedCellCardProps = {
   onSelect?: (cellId: string) => void;
   onJumpAttention?: (item: AttentionItem) => void;
   testId?: string;
-  shellClassName?: string;
 };
 
 export function ArchivedCellCard({
@@ -30,7 +30,6 @@ export function ArchivedCellCard({
   onSelect,
   onJumpAttention,
   testId,
-  shellClassName = '',
 }: ArchivedCellCardProps) {
   const attachmentMeta = resolveCellAttachmentMeta(cell);
   const sessionSummary = buildCellSessionSummary(sessions);
@@ -61,9 +60,9 @@ export function ArchivedCellCard({
     <LifecycleCellRailCard
       data-testid={testId || `archived-cell-card-${cell?.id || 'unknown'}`}
       testId={testId || `archived-cell-card-${cell?.id || 'unknown'}`}
-      shellClassName={shellClassName}
       tone="archived"
       selected={selected}
+      attentionTone={resolveAgentCellsAttentionTone(String(attentionItem?.kind || ''))}
       title={cell?.name || 'Archived Cell'}
       chips={chips}
       pathLabel={worktreeLabel}

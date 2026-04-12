@@ -1,7 +1,13 @@
 import React from 'react';
 import { GitBranch } from 'lucide-react';
 
-import { AGENT_CELLS_SECTION_BADGE_BASE, buildAgentCellsGhostControlClass, buildAgentCellsIconWellClass, buildAgentCellsPrimaryActionClass, buildAgentCellsWorkspacePanelClass } from './surfaceTokens';
+import {
+  buildAgentCellsBadgeClass,
+  buildAgentCellsGhostControlClass,
+  buildAgentCellsIconWellClass,
+  buildAgentCellsPrimaryActionClass,
+  buildAgentCellsWorkspacePanelClass,
+} from './surfaceTokens';
 import { pathBaseName } from './unmanagedWorktreePresentation';
 import type { UnmanagedWorktreeRailModel } from './railModels';
 
@@ -29,7 +35,7 @@ export function UnmanagedWorktreeRailCard({
     >
       <div className="flex items-start gap-2.5">
         <div
-          className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border ${buildAgentCellsIconWellClass(
+          className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] ${buildAgentCellsIconWellClass(
             'unmanaged'
           )}`}
         >
@@ -39,11 +45,9 @@ export function UnmanagedWorktreeRailCard({
           <div className="flex flex-wrap items-center gap-2">
             <div className="truncate text-[12px] font-semibold text-foreground">{display.title}</div>
             <span
-              className={`${AGENT_CELLS_SECTION_BADGE_BASE} ${
-                display.detachedHeadLabel
-                  ? 'border-[rgba(74,57,35,0.92)] bg-amber-500/[0.075] text-amber-100/82'
-                  : 'border-[rgba(34,54,72,0.92)] bg-sky-500/[0.075] text-sky-100/82'
-              }`}
+              className={buildAgentCellsBadgeClass(
+                display.detachedHeadLabel ? 'detached' : 'unmanaged'
+              )}
             >
               {display.detachedHeadLabel || display.branchLabel}
             </span>
@@ -81,7 +85,7 @@ export function UnmanagedWorktreeRailCard({
               </button>
             ) : null}
             {display.availabilityLabel ? (
-              <span className={`${AGENT_CELLS_SECTION_BADGE_BASE} border-[rgba(74,57,35,0.92)] bg-amber-500/[0.075] text-amber-100/84`}>
+              <span className={buildAgentCellsBadgeClass('detached')}>
                 {display.availabilityLabel}
               </span>
             ) : null}
