@@ -45,6 +45,9 @@ async function resolveSigningIdentity() {
 }
 
 async function signHelperApp({ appOutDir, appName }: { appOutDir: string; appName: string }) {
+  if (process.env.AGENCY_SKIP_LOCAL_CODESIGN === '1') {
+    return;
+  }
   const helperPath = path.join(
     appOutDir,
     `${appName}.app`,

@@ -1,3 +1,4 @@
+import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -41,6 +42,18 @@ function run(command: string, args: string[], extraEnv: Record<string, string> =
   });
 }
 
+function execFileAsync(command: string, args: string[]) {
+  return new Promise<void>((resolve, reject) => {
+    execFile(command, args, (error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
 function buildReleaseBudgetEnv() {
   const env: Record<string, string> = {
     AGENCY_RENDERER_ALLOW_OVERRIDE: '',
@@ -74,12 +87,25 @@ async function withIsolatedElectronDist<T>(runWithDist: (electronDist: string) =
   const isolatedElectronDist = path.join(tempRoot, 'dist');
 
   try {
-    await fs.cp(sourceElectronDist, isolatedElectronDist, {
-      recursive: true,
-      force: true,
-      dereference: false,
-      verbatimSymlinks: true,
-    });
+    if (process.platform === 'darwin') {
+      try {
+        await execFileAsync('/bin/cp', ['-cR', sourceElectronDist, isolatedElectronDist]);
+      } catch {
+        await fs.cp(sourceElectronDist, isolatedElectronDist, {
+          recursive: true,
+          force: true,
+          dereference: false,
+          verbatimSymlinks: true,
+        });
+      }
+    } else {
+      await fs.cp(sourceElectronDist, isolatedElectronDist, {
+        recursive: true,
+        force: true,
+        dereference: false,
+        verbatimSymlinks: true,
+      });
+    }
     return await runWithDist(isolatedElectronDist);
   } finally {
     await fs.rm(tempRoot, {
@@ -101,9 +127,16 @@ async function main() {
   await run('pnpm', ['run', 'build:electron']);
   await run('pnpm', ['run', 'build:speech-helper']);
   await withIsolatedElectronDist(async (electronDist) => {
-    await run('pnpm', [...resolveBuilderArgs(mode), `-c.electronDist=${electronDist}`], {
+    const builderArgs = [...resolveBuilderArgs(mode), `-c.electronDist=${electronDist}`];
+    const packagingEnv: Record<string, string> = {
       TMPDIR: '/tmp',
-    });
+    };
+    if (governance === 'packageable') {
+      builderArgs.push('-c.mac.identity=null');
+      packagingEnv.AGENCY_SKIP_LOCAL_CODESIGN = '1';
+      packagingEnv.CSC_IDENTITY_AUTO_DISCOVERY = 'false';
+    }
+    await run('pnpm', builderArgs, packagingEnv);
   });
 }
 
