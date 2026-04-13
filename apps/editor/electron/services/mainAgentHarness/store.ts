@@ -58,6 +58,18 @@ function getRunPath(runId) {
   return path.join(getHarnessRunsDir(), `${normalizedRunId}.json`);
 }
 
+async function readJsonFile(filePath, { allowMalformed = false } = {}) {
+  const raw = await fsp.readFile(filePath, 'utf-8');
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    if (allowMalformed && error instanceof SyntaxError) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 async function writeJsonAtomic(filePath, payload) {
   await fsp.mkdir(path.dirname(filePath), { recursive: true });
   const content = JSON.stringify(payload, null, 2);
@@ -169,8 +181,8 @@ function createFileHarnessRunStore() {
       if (!fs.existsSync(filePath)) {
         return null;
       }
-      const raw = await fsp.readFile(filePath, 'utf-8');
-      return cloneValue(JSON.parse(raw));
+      const parsed = await readJsonFile(filePath, { allowMalformed: true });
+      return parsed ? cloneValue(parsed) : null;
     },
     async update(runId, updater) {
       const key = String(runId || '').trim();
@@ -197,11 +209,9 @@ function createFileHarnessRunStore() {
       const files = entries.filter((entry) => entry.endsWith('.json'));
       const runs = [];
       for (const fileName of files) {
-        try {
-          const raw = await fsp.readFile(path.join(runsDir, fileName), 'utf-8');
-          runs.push(JSON.parse(raw));
-        } catch (_error) {
-          // ignore invalid files
+        const parsed = await readJsonFile(path.join(runsDir, fileName), { allowMalformed: true });
+        if (parsed) {
+          runs.push(parsed);
         }
       }
       return runs

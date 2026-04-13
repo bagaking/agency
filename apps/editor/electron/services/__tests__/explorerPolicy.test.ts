@@ -109,4 +109,33 @@ test('readExplorerProjectPolicy loads and normalizes .agency/explorer.yaml defau
   });
 });
 
+test('readExplorerProjectPolicy falls back to defaults when .agency/explorer.yaml is malformed', async (t) => {
+  await withExplorerPolicyService(async ({ readExplorerProjectPolicy }) => {
+    const rootDir = await createGitRoot();
+    t.after(async () => {
+      await fs.rm(rootDir, { recursive: true, force: true });
+    });
+
+    await fs.mkdir(path.join(rootDir, '.agency'), { recursive: true });
+    await fs.writeFile(
+      path.join(rootDir, '.agency', 'explorer.yaml'),
+      'filters: [\n',
+      'utf8'
+    );
+
+    process.env.AGENCY_TEST_MODE = '1';
+    process.env.AGENCY_TEST_PROJECT_ROOT = rootDir;
+
+    const result = await readExplorerProjectPolicy({ rootPath: rootDir });
+
+    assert.equal(await fs.realpath(result.projectRoot), await fs.realpath(rootDir));
+    assert.match(result.sourcePath, /\.agency\/explorer\.yaml$/);
+    assert.deepEqual(result.policy.filters, {});
+    assert.equal(result.policy.search.defaultMode, 'path');
+    assert.equal(result.policy.research.enabled, true);
+    assert.equal(result.warnings.length, 1);
+    assert.match(result.warnings[0], /Failed to parse \.agency\/explorer\.yaml/i);
+  });
+});
+
 export {};

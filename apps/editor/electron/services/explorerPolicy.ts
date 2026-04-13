@@ -186,7 +186,19 @@ async function readExplorerProjectPolicy({ rootPath }: any = {}) {
   }
 
   const raw = await fsp.readFile(sourcePath, 'utf8');
-  const parsed = yaml.load(raw) || {};
+  let parsed: any = {};
+  try {
+    parsed = yaml.load(raw) || {};
+  } catch (error) {
+    return {
+      projectRoot,
+      sourcePath,
+      policy: { ...DEFAULT_EXPLORER_PROJECT_POLICY },
+      warnings: [
+        `Failed to parse .agency/${path.basename(sourcePath)}: ${error?.message || String(error)}`,
+      ],
+    };
+  }
   return {
     projectRoot,
     sourcePath,
