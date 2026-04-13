@@ -88,6 +88,7 @@ test('WindowTitleBar exposes a dedicated drag surface and uses avatar-based wind
     <WindowTitleBar
       projectRoot="/tmp/agency/test-cell"
       windows={buildWindows()}
+      ownerWindowStateId="window-a"
       onCreateWindow={() => undefined}
       onFocusWindow={() => undefined}
       onToggleWindowZoom={() => undefined}
@@ -96,8 +97,9 @@ test('WindowTitleBar exposes a dedicated drag surface and uses avatar-based wind
   );
 
   assert.match(html, /data-testid="window-titlebar-drag-surface"/);
-  assert.match(html, /data-testid="window-titlebar-project-button"/);
+  assert.match(html, /data-testid="window-titlebar-project-rail"/);
   assert.match(html, /data-testid="window-titlebar-project-path"/);
+  assert.match(html, /data-testid="window-titlebar-project-copy"/);
   assert.match(html, /data-testid="window-titlebar-window-avatars"/);
   assert.match(html, /data-testid="window-titlebar-zoom-button"/);
   assert.doesNotMatch(html, />Windows</);
@@ -120,6 +122,7 @@ test('WindowTitleBar copies the project path when the summary rail is clicked', 
         <WindowTitleBar
           projectRoot="/tmp/agency/test-cell"
           windows={buildWindows()}
+          ownerWindowStateId="window-a"
           onCreateWindow={() => undefined}
           onFocusWindow={() => undefined}
           onToggleWindowZoom={() => undefined}
@@ -128,7 +131,7 @@ test('WindowTitleBar copies the project path when the summary rail is clicked', 
       );
     });
 
-    const summaryButton = document.querySelector('[data-testid="window-titlebar-project-button"]');
+    const summaryButton = document.querySelector('[data-testid="window-titlebar-project-copy"]');
     assert.ok(summaryButton);
 
     await act(async () => {
@@ -151,6 +154,7 @@ test('WindowTitleBar flips the zoom control label when the focused window is alr
     <WindowTitleBar
       projectRoot="/tmp/agency/test-cell"
       windows={buildWindows([{ isMaximized: true }])}
+      ownerWindowStateId="window-a"
       onCreateWindow={() => undefined}
       onFocusWindow={() => undefined}
       onToggleWindowZoom={() => undefined}

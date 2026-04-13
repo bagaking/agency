@@ -22,6 +22,7 @@ type WindowTitleBarProps = {
   projectRoot: string;
   projectError?: string;
   windows: WindowShellItem[];
+  ownerWindowStateId?: string;
   onCreateWindow: () => Promise<void> | void;
   onFocusWindow: (windowStateId: string) => Promise<void> | void;
   onToggleWindowZoom: (windowStateId?: string) => Promise<void> | void;
@@ -138,6 +139,7 @@ export function WindowTitleBar({
   projectRoot,
   projectError = '',
   windows,
+  ownerWindowStateId = '',
   onCreateWindow,
   onFocusWindow,
   onToggleWindowZoom,
@@ -199,9 +201,13 @@ export function WindowTitleBar({
     ? projectRoot
     : 'Open a repository or keep this window in its window-owned home shell.';
   const projectBadge = projectError ? 'Check' : hasProject ? '' : 'Window-owned';
-  const focusedWindow = useMemo(
-    () => windows.find((window) => window.isFocused) || windows[0] || null,
-    [windows]
+  const ownerWindow = useMemo(
+    () =>
+      windows.find((window) => window.windowStateId === ownerWindowStateId) ||
+      windows.find((window) => window.isFocused) ||
+      windows[0] ||
+      null,
+    [ownerWindowStateId, windows]
   );
   const filteredWindows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -260,7 +266,7 @@ export function WindowTitleBar({
     }
   };
 
-  const zoomedWindow = Boolean(focusedWindow?.isFullScreen || focusedWindow?.isMaximized);
+  const zoomedWindow = Boolean(ownerWindow?.isFullScreen || ownerWindow?.isMaximized);
   const ZoomIcon = zoomedWindow ? Minimize2 : Maximize2;
 
   return (
@@ -478,23 +484,12 @@ export function WindowTitleBar({
         ) : null}
       </div>
 
-      <div className="relative z-10 min-w-0 flex flex-1 items-center overflow-hidden px-2">
+      <div className="pointer-events-none relative z-10 min-w-0 flex flex-1 items-center overflow-hidden px-2">
         <div className="min-w-0 flex-1">
           {hasProject ? (
-            <button
-              type="button"
-              data-testid="window-titlebar-project-button"
-              onClick={() => {
-                void handleCopyProjectPath();
-              }}
-              title={
-                copiedProjectPath
-                  ? 'Project path copied'
-                  : projectError
-                    ? `${projectRoot}\n${projectError}`
-                    : projectRoot
-              }
-              className={`app-no-drag group flex min-w-0 max-w-full items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-left transition-colors hover:border-white/[0.14] hover:bg-white/[0.08] ${focusRingClass}`}
+            <div
+              data-testid="window-titlebar-project-rail"
+              className="flex min-w-0 max-w-full items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-left"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-2">
@@ -525,15 +520,31 @@ export function WindowTitleBar({
                   }`}
                   title={projectSubtitle}
                 >
-                  {projectSubtitle}
+                    {projectSubtitle}
+                  </div>
                 </div>
-              </div>
-              {copiedProjectPath ? (
-                <Check size={13} className="shrink-0 text-emerald-200" />
-              ) : (
-                <Copy size={13} className="shrink-0 text-muted-foreground/70 transition-colors group-hover:text-foreground" />
-              )}
-            </button>
+              <button
+                type="button"
+                data-testid="window-titlebar-project-copy"
+                onClick={() => {
+                  void handleCopyProjectPath();
+                }}
+                title={
+                  copiedProjectPath
+                    ? 'Project path copied'
+                    : projectError
+                      ? `${projectRoot}\n${projectError}`
+                      : projectRoot
+                }
+                className={`app-no-drag inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground/74 transition-colors hover:bg-white/[0.08] hover:text-foreground ${focusRingClass}`}
+              >
+                {copiedProjectPath ? (
+                  <Check size={13} className="text-emerald-200" />
+                ) : (
+                  <Copy size={13} />
+                )}
+              </button>
+            </div>
           ) : (
             <div className="pointer-events-none min-w-0 flex-1 select-none">
               <div className="flex min-w-0 items-center gap-2">
@@ -581,7 +592,7 @@ export function WindowTitleBar({
           aria-label={zoomedWindow ? 'Restore Window' : 'Zoom Window'}
           data-testid="window-titlebar-zoom-button"
           onClick={() => {
-            void onToggleWindowZoom(focusedWindow?.windowStateId);
+            void onToggleWindowZoom(ownerWindowStateId || undefined);
           }}
           className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-foreground/88 transition-colors hover:bg-white/[0.08] hover:text-foreground ${focusRingClass}`}
         >

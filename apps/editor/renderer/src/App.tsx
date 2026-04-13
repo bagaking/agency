@@ -1026,6 +1026,7 @@ function AppShell() {
           projectRoot={projectRoot}
           projectError={projectError}
           windows={windowShellState.windows}
+          ownerWindowStateId={windowShellState.ownerWindowStateId}
           onCreateWindow={windowShellState.handleCreateWindow}
           onFocusWindow={windowShellState.handleFocusWindow}
           onToggleWindowZoom={windowShellState.handleToggleWindowZoom}
