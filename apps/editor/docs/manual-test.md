@@ -6,6 +6,9 @@
 - [ ] With no project selected, confirm the title-bar summary rail reads as `Project Home` / window-owned context rather than pretending a repository is already attached.
 - [ ] Open a brand-new empty window and confirm no `Session Action Failed` notice appears before a project is selected.
 - [ ] Open a second window and confirm the left title-bar window switcher lists both windows, exposes `Create New Window` inside its menu, and can switch focus between them without disturbing the repository/home summary rail.
+- [ ] With multiple windows open, confirm the left window-switcher trigger uses a window icon plus project avatars rather than the Agency logo or a literal `Windows` label.
+- [ ] With a project open, click the title-bar project summary rail and confirm the full project path is copied with inline confirmation rather than a popup.
+- [ ] Toggle the title-bar zoom button and confirm it maximizes/restores only the focused window while the icon/label updates to match the current zoom state.
 - [ ] On macOS, confirm the Dock stays on the native/default menu path instead of an app-defined window list.
 - [ ] On macOS, click the Dock icon while no editor window is focused and confirm an editor window is restored/focused.
 - [ ] On macOS, with multiple editor windows already frontmost, repeatedly click the Dock icon and confirm focus advances through them in a stable order.

@@ -1371,12 +1371,31 @@ The custom title bar SHALL keep window controls, current project/home context, a
 The title bar SHALL use:
 - a dedicated window-switcher control that may expose `New Window` within the same menu surface,
 - one left-aligned project/home context summary rail,
-- one explicit `Open/Switch Project` action.
+- one explicit `Open/Switch Project` action,
+- and one current-window zoom control adjacent to the project action.
+The window-switcher trigger SHALL use window-oriented iconography and compact per-window project avatars instead of repurposing the Agency product logo as a generic window-control glyph.
+When a project is open, the summary rail SHALL make the project name prominent while keeping the current path directly visible, and it SHALL expose a copy affordance for that path without consuming the title bar's main drag surface.
 
 #### Scenario: Title bar separates context from window controls
 - **WHEN** a user views the custom title bar
 - **THEN** the current repository or home-state context is readable without scanning through window-management controls
 - **AND** window-switcher / new-window actions stay grouped separately from project-selection actions
+
+#### Scenario: Project summary rail exposes path copy without stealing drag
+- **WHEN** a project is open and the user activates the title-bar project's copy affordance
+- **THEN** the editor copies the active project path
+- **AND** the interaction confirms that copy inline without using a disruptive popup
+- **AND** the non-interactive portion of the summary rail still behaves like ordinary title-bar drag surface
+
+#### Scenario: Window switcher trigger uses project avatars
+- **WHEN** multiple editor windows are open
+- **THEN** the left window-switcher trigger shows compact per-window project avatars together with window-oriented iconography
+- **AND** it does not render the Agency product logo as the generic window-switcher icon
+
+#### Scenario: Title bar zoom control tracks the current window state
+- **WHEN** the focused window is normal, maximized, or full-screen
+- **THEN** the title-bar zoom control uses the matching maximize/restore affordance
+- **AND** activating it toggles only the current window's zoom state
 
 ### Requirement: Terminal Workspace Chrome
 The active terminal workspace SHALL show its tracked Cell identity and active session path directly above the terminal.

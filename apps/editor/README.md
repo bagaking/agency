@@ -28,6 +28,9 @@
 
 - The activity bar includes Explorer and Hierarchy entries; the home logo returns to Agent Cells.
 - The custom title bar keeps one left-aligned repository/home summary rail between the window switcher and the project action, so window controls, current window identity, and `Open/Switch Project` remain visually distinct.
+- The left window switcher now uses window-oriented iconography plus compact project avatars rather than the Agency logo or a literal `Windows` label.
+- The center summary rail makes the project name/path more legible and exposes a dedicated inline copy affordance when a project is open, without turning the whole title bar into a click target.
+- The right action cluster keeps `Open/Switch Project` as the primary project action and adds a focused-window zoom toggle beside it.
 - Settings provides a context-first dashboard with workspace summary, runtime/system status, recent projects, and entry cards for core runtime/configuration capabilities such as Actions, Harness Providers, App Shortcuts, Reply Quick Prompts, and Softlinks.
 - The docked sidebar supports resize/collapse and persists width state across launches; collapse/expand is owned by the shell-level Activity Bar control rather than per-surface edge handles.
 - Agent Cells focuses on tracked Cells, detached Cells, unmanaged worktrees, and jump links to core configuration.
@@ -277,7 +280,7 @@
 - The home shell starts from the user home directory and stays window-owned; it does not create repo-backed Cell/session records.
 - Use **Open Project** to choose a repository for the current window.
 - The app keeps one desktop instance and routes additional launches into that instance as new windows instead of relying on isolated parallel app processes.
-- Clicking the custom title-bar app icon opens a window switcher for the currently open editor windows and also exposes `New Window`.
+- Clicking the custom title-bar window-switcher control opens a window switcher for the currently open editor windows and also exposes `New Window`.
 - On macOS, Agency stays on the native/default Dock menu path instead of replacing it with an app-defined window list.
 - On macOS, Dock activation restores a meaningful editor window; when multiple editor windows are already frontmost, repeated Dock activation advances through them in a stable order.
 - The custom title bar always shows the active window's current repository/home context and keeps project identity separate from window controls.
