@@ -99,6 +99,7 @@ const INVOKE_CHANNELS: Record<string, string> = {
   listWindowShells: 'window-shell:list',
   createWindowShell: 'window-shell:new',
   focusWindowShell: 'window-shell:focus',
+  toggleWindowShellZoom: 'window-shell:toggleZoom',
   listSessions: 'sessions:list',
   createSession: 'sessions:create',
   closeSession: 'sessions:close',

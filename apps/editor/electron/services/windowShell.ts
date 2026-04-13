@@ -13,6 +13,8 @@ export type WindowShellSummary = {
   title: string;
   isFocused: boolean;
   isMinimized: boolean;
+  isMaximized: boolean;
+  isFullScreen: boolean;
   attentionSummary: any;
 };
 
@@ -25,6 +27,8 @@ export type EditorWindowRecord = {
   title: string;
   isFocused: boolean;
   isMinimized: boolean;
+  isMaximized: boolean;
+  isFullScreen: boolean;
   attentionSummary: any;
 };
 
@@ -231,6 +235,8 @@ export function collectEditorWindows(): EditorWindowRecord[] {
         title: getWindowDisplayTitle(projectRoot),
         isFocused: window.isFocused(),
         isMinimized: window.isMinimized(),
+        isMaximized: window.isMaximized?.() || false,
+        isFullScreen: window.isFullScreen?.() || false,
         attentionSummary: normalizeWindowAttentionSummary(windowUiState?.attentionSummary),
       };
     })
@@ -282,6 +288,21 @@ export function focusEditorWindow(window: BrowserWindow): void {
   }
   window.show();
   window.focus();
+}
+
+export function toggleEditorWindowZoom(window: BrowserWindow): void {
+  if (!window || window.isDestroyed?.()) {
+    return;
+  }
+  if (window.isFullScreen?.()) {
+    window.setFullScreen(false);
+    return;
+  }
+  if (window.isMaximized?.()) {
+    window.unmaximize?.();
+    return;
+  }
+  window.maximize?.();
 }
 
 export function resolveActivatedEditorWindow<T extends { windowStateId: string }>(

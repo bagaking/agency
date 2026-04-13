@@ -145,8 +145,12 @@ export const cancelMainAgentHarnessRun = createOptionalInvoke('cancelMainAgentHa
 export const resumeMainAgentHarnessRun = createOptionalInvoke('resumeMainAgentHarnessRun');
 export const listMainAgentHarnessRuns = createOptionalInvoke('listMainAgentHarnessRuns', {
   fallback: [],
+  recoverOnSyntaxError: true,
 });
-export const getMainAgentHarnessSettings = createOptionalInvoke('getMainAgentHarnessSettings');
+export const getMainAgentHarnessSettings = createOptionalInvoke('getMainAgentHarnessSettings', {
+  fallback: null,
+  recoverOnSyntaxError: true,
+});
 export const setMainAgentHarnessSettings = createOptionalInvoke('setMainAgentHarnessSettings');
 export const getCommanderStatus = createOptionalInvoke('getCommanderStatus');
 export const performCommanderAction = createOptionalInvoke('performCommanderAction');
@@ -179,6 +183,7 @@ export const setProjectRoot = createOptionalInvoke('setProjectRoot');
 export const listWindowShells = createOptionalInvoke('listWindowShells', { fallback: { windows: [] } });
 export const createWindowShell = createOptionalInvoke('createWindowShell');
 export const focusWindowShell = createOptionalInvoke('focusWindowShell');
+export const toggleWindowShellZoom = createOptionalInvoke('toggleWindowShellZoom');
 export const openExternalUrl = createOptionalInvoke('openExternalUrl');
 export const openSystemPermissions = createOptionalInvoke('openSystemPermissions');
 

@@ -1,11 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, FolderOpen, Plus, Rows3, Search } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  Copy,
+  FolderOpen,
+  House,
+  Maximize2,
+  Minimize2,
+  PanelsTopLeft,
+  Plus,
+  Search,
+} from 'lucide-react';
 
-import { Logo } from './Logo';
 import { focusRing } from './ui/focusRing';
 import type { WindowShellItem } from '../app/useWindowShellState';
 import type { AttentionItem } from '../attention/attentionModel';
 import { AttentionPill } from './attention/AttentionPill';
+import { writeTextToClipboard } from '../utils/clipboard';
 
 type WindowTitleBarProps = {
   projectRoot: string;
@@ -13,6 +24,7 @@ type WindowTitleBarProps = {
   windows: WindowShellItem[];
   onCreateWindow: () => Promise<void> | void;
   onFocusWindow: (windowStateId: string) => Promise<void> | void;
+  onToggleWindowZoom: (windowStateId?: string) => Promise<void> | void;
   onSelectProject: () => Promise<void> | void;
 };
 
@@ -51,17 +63,90 @@ function resolveWindowProjectDetail(window: WindowShellItem | null | undefined):
   return projectRoot || 'Window-owned home state';
 }
 
+const WINDOW_AVATAR_TONES = [
+  'bg-sky-500/18 text-sky-100 ring-sky-400/35',
+  'bg-emerald-500/18 text-emerald-100 ring-emerald-400/35',
+  'bg-amber-500/18 text-amber-100 ring-amber-400/35',
+  'bg-fuchsia-500/18 text-fuchsia-100 ring-fuchsia-400/35',
+  'bg-cyan-500/18 text-cyan-100 ring-cyan-400/35',
+];
+
+function hashWindowProjectSeed(value: string): number {
+  let hash = 0;
+  for (const char of String(value || '')) {
+    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  }
+  return hash;
+}
+
+function resolveWindowAvatarTone(window: WindowShellItem | null | undefined): string {
+  const seed = String(window?.projectRoot || window?.projectName || window?.windowStateId || '');
+  return WINDOW_AVATAR_TONES[hashWindowProjectSeed(seed) % WINDOW_AVATAR_TONES.length];
+}
+
+function resolveWindowAvatarInitials(window: WindowShellItem | null | undefined): string {
+  const label = resolveWindowProjectLabel(window);
+  if (label === 'Project Home') {
+    return '';
+  }
+  const parts = label
+    .split(/[\s._/-]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const initials = (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
+  return initials.toUpperCase() || label.slice(0, 2).toUpperCase();
+}
+
+function WindowProjectAvatar({
+  window,
+  sizeClass = 'h-5 w-5',
+}: {
+  window: WindowShellItem | null | undefined;
+  sizeClass?: string;
+}) {
+  const tone = resolveWindowAvatarTone(window);
+  const initials = resolveWindowAvatarInitials(window);
+  const isHome = !String(window?.projectRoot || '').trim();
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center justify-center rounded-full ring-1 ${sizeClass} ${tone}`}
+      title={resolveWindowProjectLabel(window)}
+      aria-hidden="true"
+    >
+      {isHome ? <House size={11} strokeWidth={2} /> : <span className="text-[9px] font-black uppercase tracking-[0.08em]">{initials}</span>}
+    </span>
+  );
+}
+
+function WindowProjectAvatarStrip({ windows }: { windows: WindowShellItem[] }) {
+  const visibleWindows = (windows || []).slice(0, 3);
+  return (
+    <span data-testid="window-titlebar-window-avatars" className="flex items-center -space-x-1.5">
+      {visibleWindows.map((window) => (
+        <span
+          key={window.windowStateId}
+          className={`rounded-full bg-[#171b22] p-[1px] ${window.isFocused ? 'ring-1 ring-primary/35' : ''}`}
+        >
+          <WindowProjectAvatar window={window} />
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export function WindowTitleBar({
   projectRoot,
   projectError = '',
   windows,
   onCreateWindow,
   onFocusWindow,
+  onToggleWindowZoom,
   onSelectProject,
 }: WindowTitleBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeResultIndex, setActiveResultIndex] = useState(0);
+  const [copiedProjectPath, setCopiedProjectPath] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const queryInputRef = useRef<HTMLInputElement | null>(null);
   const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform);
@@ -85,6 +170,16 @@ export function WindowTitleBar({
     setQuery('');
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (!copiedProjectPath) {
+      return;
+    }
+    const timeout = window.setTimeout(() => setCopiedProjectPath(false), 1400);
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [copiedProjectPath]);
+
   const projectName = useMemo(() => {
     const normalized = String(projectRoot || '').trim();
     if (!normalized) {
@@ -98,14 +193,16 @@ export function WindowTitleBar({
   const projectEyebrow = projectError
     ? 'Project Needs Attention'
     : hasProject
-      ? 'Repository'
+      ? ''
       : 'Project Home';
-  const projectSubtitle = projectError
-    ? projectError
-    : hasProject
-      ? projectRoot
-      : 'Open a repository or keep this window in its window-owned home shell.';
+  const projectSubtitle = hasProject
+    ? projectRoot
+    : 'Open a repository or keep this window in its window-owned home shell.';
   const projectBadge = projectError ? 'Check' : hasProject ? '' : 'Window-owned';
+  const focusedWindow = useMemo(
+    () => windows.find((window) => window.isFocused) || windows[0] || null,
+    [windows]
+  );
   const filteredWindows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) {
@@ -151,6 +248,21 @@ export function WindowTitleBar({
     await onFocusWindow(windowStateId);
   };
 
+  const handleCopyProjectPath = async () => {
+    if (!hasProject) {
+      return;
+    }
+    try {
+      await writeTextToClipboard(projectRoot);
+      setCopiedProjectPath(true);
+    } catch {
+      // Best effort only.
+    }
+  };
+
+  const zoomedWindow = Boolean(focusedWindow?.isFullScreen || focusedWindow?.isMaximized);
+  const ZoomIcon = zoomedWindow ? Minimize2 : Maximize2;
+
   return (
     <header
       data-testid="window-titlebar"
@@ -172,8 +284,9 @@ export function WindowTitleBar({
           data-testid="window-titlebar-menu-button"
           className={`inline-flex h-8 items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2.5 text-[10px] font-medium text-foreground/90 transition-colors hover:bg-white/[0.08] hover:text-foreground ${focusRingClass}`}
         >
-          <Logo size={14} className="shrink-0" />
-          <span className="font-semibold tracking-[0.01em] text-foreground/92">Windows</span>
+          <PanelsTopLeft size={14} className="shrink-0 text-primary/90" />
+          <WindowProjectAvatarStrip windows={windows} />
+          <span className="sr-only">Window switcher</span>
           <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-1 py-[1px] text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             {windows.length}
           </span>
@@ -186,17 +299,6 @@ export function WindowTitleBar({
           <ChevronDown size={11} className={`text-muted-foreground transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
         </button>
 
-        <button
-          type="button"
-          aria-label="Open new window"
-          onClick={() => {
-            void onCreateWindow();
-          }}
-          className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-foreground/88 transition-colors hover:bg-white/[0.08] hover:text-foreground ${focusRingClass}`}
-        >
-          <Plus size={14} className="text-primary" />
-        </button>
-
         {menuOpen ? (
           <div
             data-testid="window-titlebar-menu"
@@ -204,7 +306,7 @@ export function WindowTitleBar({
           >
             <div className="border-b border-border/60 px-3 py-2.5">
               <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                <Rows3 size={11} />
+                <PanelsTopLeft size={11} />
                 <span>Window Switcher</span>
               </div>
               <div className="mt-1 text-[11px] text-foreground/85">Search, focus, or create another Agency window.</div>
@@ -286,6 +388,7 @@ export function WindowTitleBar({
                           activeResultIndex === 0 ? 'ring-1 ring-primary/30 bg-white/[0.05]' : 'bg-white/[0.04]'
                         }`}
                       >
+                        <WindowProjectAvatar window={currentWindow} sizeClass="h-6 w-6" />
                         <div className="min-w-0 flex-1">
                           <div className="flex min-w-0 items-center gap-2">
                             <div className="truncate text-[11px] font-medium text-foreground">
@@ -336,6 +439,7 @@ export function WindowTitleBar({
                                 : ''
                             }`}
                           >
+                            <WindowProjectAvatar window={window} sizeClass="h-6 w-6" />
                             <div className="min-w-0 flex-1">
                               <div className="flex min-w-0 items-center gap-2">
                                 <div className="truncate text-[11px] font-medium text-foreground">
@@ -374,41 +478,115 @@ export function WindowTitleBar({
         ) : null}
       </div>
 
-      <div className="pointer-events-none relative z-10 min-w-0 flex flex-1 select-none items-center overflow-hidden px-2">
+      <div className="relative z-10 min-w-0 flex flex-1 items-center overflow-hidden px-2">
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground/58">
-              {projectEyebrow}
-            </div>
-            {projectBadge ? (
-              <span
-                className={`rounded-full border px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-[0.16em] ${
-                  projectError
-                    ? 'border-rose-400/20 bg-rose-500/10 text-rose-200/90'
-                    : 'border-white/[0.08] bg-white/[0.04] text-muted-foreground/82'
-                }`}
-              >
-                {projectBadge}
-              </span>
-            ) : null}
-            <div className="h-1 w-1 shrink-0 rounded-full bg-white/18" />
-            <div className="truncate text-[12px] font-semibold tracking-[0.01em] text-foreground">
-              <span data-testid="window-titlebar-project-name">{projectName}</span>
-            </div>
-            <div className="h-1 w-1 shrink-0 rounded-full bg-white/18" />
-            <div
-              className={`truncate text-[10px] ${
-                projectError ? 'text-rose-100/86' : 'text-muted-foreground'
-              }`}
-              title={projectSubtitle}
+          {hasProject ? (
+            <button
+              type="button"
+              data-testid="window-titlebar-project-button"
+              onClick={() => {
+                void handleCopyProjectPath();
+              }}
+              title={
+                copiedProjectPath
+                  ? 'Project path copied'
+                  : projectError
+                    ? `${projectRoot}\n${projectError}`
+                    : projectRoot
+              }
+              className={`app-no-drag group flex min-w-0 max-w-full items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-left transition-colors hover:border-white/[0.14] hover:bg-white/[0.08] ${focusRingClass}`}
             >
-              {projectSubtitle}
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className="truncate text-[13px] font-semibold tracking-[0.01em] text-foreground">
+                    <span data-testid="window-titlebar-project-name">{projectName}</span>
+                  </div>
+                  {projectBadge ? (
+                    <span
+                      className={`rounded-full border px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-[0.16em] ${
+                        projectError
+                          ? 'border-rose-400/20 bg-rose-500/10 text-rose-200/90'
+                          : 'border-white/[0.08] bg-white/[0.04] text-muted-foreground/82'
+                      }`}
+                    >
+                      {projectBadge}
+                    </span>
+                  ) : null}
+                  {copiedProjectPath ? (
+                    <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-[0.16em] text-emerald-100">
+                      Copied
+                    </span>
+                  ) : null}
+                </div>
+                <div
+                  data-testid="window-titlebar-project-path"
+                  className={`truncate text-[10px] ${
+                    projectError ? 'text-rose-100/86' : 'font-mono text-muted-foreground/92'
+                  }`}
+                  title={projectSubtitle}
+                >
+                  {projectSubtitle}
+                </div>
+              </div>
+              {copiedProjectPath ? (
+                <Check size={13} className="shrink-0 text-emerald-200" />
+              ) : (
+                <Copy size={13} className="shrink-0 text-muted-foreground/70 transition-colors group-hover:text-foreground" />
+              )}
+            </button>
+          ) : (
+            <div className="pointer-events-none min-w-0 flex-1 select-none">
+              <div className="flex min-w-0 items-center gap-2">
+                {projectEyebrow ? (
+                  <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground/58">
+                    {projectEyebrow}
+                  </div>
+                ) : null}
+                {projectBadge ? (
+                  <span
+                    className={`rounded-full border px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-[0.16em] ${
+                      projectError
+                        ? 'border-rose-400/20 bg-rose-500/10 text-rose-200/90'
+                        : 'border-white/[0.08] bg-white/[0.04] text-muted-foreground/82'
+                    }`}
+                  >
+                    {projectBadge}
+                  </span>
+                ) : null}
+                {projectEyebrow || projectBadge ? (
+                  <div className="h-1 w-1 shrink-0 rounded-full bg-white/18" />
+                ) : null}
+                <div className="truncate text-[12px] font-semibold tracking-[0.01em] text-foreground">
+                  <span data-testid="window-titlebar-project-name">{projectName}</span>
+                </div>
+                <div className="h-1 w-1 shrink-0 rounded-full bg-white/18" />
+                <div
+                  data-testid="window-titlebar-project-path"
+                  className={`truncate text-[10px] ${
+                    projectError ? 'text-rose-100/86' : 'text-muted-foreground'
+                  }`}
+                  title={projectSubtitle}
+                >
+                  {projectSubtitle}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
       <div className="app-no-drag flex items-center gap-2">
+        <button
+          type="button"
+          aria-label={zoomedWindow ? 'Restore Window' : 'Zoom Window'}
+          data-testid="window-titlebar-zoom-button"
+          onClick={() => {
+            void onToggleWindowZoom(focusedWindow?.windowStateId);
+          }}
+          className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-foreground/88 transition-colors hover:bg-white/[0.08] hover:text-foreground ${focusRingClass}`}
+        >
+          <ZoomIcon size={13} className="text-primary" />
+        </button>
         <button
           type="button"
           onClick={() => onSelectProject()}

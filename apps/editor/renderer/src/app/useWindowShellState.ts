@@ -9,6 +9,7 @@ import {
   focusWindowShell,
   listWindowShells,
   onWindowShellUpdated,
+  toggleWindowShellZoom,
 } from '../services/agencyBridge';
 
 export type WindowShellItem = {
@@ -19,6 +20,8 @@ export type WindowShellItem = {
   title: string;
   isFocused: boolean;
   isMinimized: boolean;
+  isMaximized: boolean;
+  isFullScreen: boolean;
   attentionSummary: WindowAttentionSummary | null;
 };
 
@@ -33,6 +36,8 @@ function normalizeWindowShells(payload: any): WindowShellItem[] {
       title: String(entry?.title || '').trim() || 'Agency',
       isFocused: Boolean(entry?.isFocused),
       isMinimized: Boolean(entry?.isMinimized),
+      isMaximized: Boolean(entry?.isMaximized),
+      isFullScreen: Boolean(entry?.isFullScreen),
       attentionSummary: normalizeWindowAttentionSummary(entry?.attentionSummary),
     }))
     .filter((entry) => entry.windowId > 0 && entry.windowStateId);
@@ -69,6 +74,14 @@ export function useWindowShellState() {
     }
   }, []);
 
+  const handleToggleWindowZoom = useCallback(async (windowStateId?: string) => {
+    try {
+      await toggleWindowShellZoom(windowStateId ? { windowStateId } : {});
+    } catch (error) {
+      console.error(error);
+    }
+  }, []);
+
   useEffect(() => {
     void refreshWindows();
     const unsubscribe = onWindowShellUpdated((payload: any) => {
@@ -86,5 +99,6 @@ export function useWindowShellState() {
     refreshWindows,
     handleCreateWindow,
     handleFocusWindow,
+    handleToggleWindowZoom,
   };
 }

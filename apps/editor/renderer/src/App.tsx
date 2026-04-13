@@ -1028,6 +1028,7 @@ function AppShell() {
           windows={windowShellState.windows}
           onCreateWindow={windowShellState.handleCreateWindow}
           onFocusWindow={windowShellState.handleFocusWindow}
+          onToggleWindowZoom={windowShellState.handleToggleWindowZoom}
           onSelectProject={handleSelectProjectRoot}
         />
         <AppLayout {...appLayoutProps} />

@@ -5,6 +5,7 @@ const { BrowserWindow: ElectronBrowserWindow, ipcMain } = require('electron');
 const {
   broadcastWindowShellUpdated,
   describeEditorWindows,
+  toggleEditorWindowZoom,
 } = require('../../services/windowShell');
 
 type CreateEditorWindow = (options?: {
@@ -14,7 +15,7 @@ type CreateEditorWindow = (options?: {
   allowStoredProjectRoot?: boolean;
 }) => Promise<BrowserWindow | undefined>;
 
-function resolveTargetWindow(payload: any): BrowserWindow | null {
+function resolveTargetWindow(payload: any, ownerWindow?: BrowserWindow | null): BrowserWindow | null {
   const targetWindowId = Number(payload?.windowId || 0);
   const targetWindowStateId = String(payload?.windowStateId || '').trim();
   const windows = ElectronBrowserWindow.getAllWindows().filter((window: BrowserWindow) => !window.isDestroyed?.());
@@ -31,6 +32,9 @@ function resolveTargetWindow(payload: any): BrowserWindow | null {
     if (matched) {
       return matched;
     }
+  }
+  if (ownerWindow && !ownerWindow.isDestroyed?.()) {
+    return ownerWindow;
   }
   return null;
 }
@@ -64,6 +68,21 @@ function setupWindowShellHandlers({ createEditorWindow }: { createEditorWindow: 
     }
     targetWindow.show();
     targetWindow.focus();
+    broadcastWindowShellUpdated();
+    return {
+      ok: true,
+      windows: describeEditorWindows(),
+      windowStateId: String((targetWindow as any).__agencyWindowStateId || '').trim(),
+    };
+  });
+
+  ipcMain.handle('window-shell:toggleZoom', async (event: any, payload: any) => {
+    const ownerWindow = ElectronBrowserWindow.fromWebContents?.(event?.sender) || null;
+    const targetWindow = resolveTargetWindow(payload, ownerWindow);
+    if (!targetWindow) {
+      throw new Error('Target window was not found.');
+    }
+    toggleEditorWindowZoom(targetWindow);
     broadcastWindowShellUpdated();
     return {
       ok: true,
