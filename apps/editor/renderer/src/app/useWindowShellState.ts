@@ -45,11 +45,13 @@ function normalizeWindowShells(payload: any): WindowShellItem[] {
 
 export function useWindowShellState() {
   const [windows, setWindows] = useState<WindowShellItem[]>([]);
+  const [ownerWindowStateId, setOwnerWindowStateId] = useState('');
 
   const refreshWindows = useCallback(async () => {
     try {
       const payload = await listWindowShells();
       setWindows(normalizeWindowShells(payload));
+      setOwnerWindowStateId(String(payload?.ownerWindowStateId || '').trim());
     } catch (error) {
       console.error(error);
     }
@@ -86,6 +88,7 @@ export function useWindowShellState() {
     void refreshWindows();
     const unsubscribe = onWindowShellUpdated((payload: any) => {
       setWindows(normalizeWindowShells(payload));
+      setOwnerWindowStateId(String(payload?.ownerWindowStateId || '').trim());
     });
     return () => {
       if (unsubscribe) {
@@ -96,6 +99,7 @@ export function useWindowShellState() {
 
   return {
     windows,
+    ownerWindowStateId,
     refreshWindows,
     handleCreateWindow,
     handleFocusWindow,

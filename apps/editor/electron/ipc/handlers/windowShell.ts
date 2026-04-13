@@ -40,8 +40,12 @@ function resolveTargetWindow(payload: any, ownerWindow?: BrowserWindow | null): 
 }
 
 function setupWindowShellHandlers({ createEditorWindow }: { createEditorWindow: CreateEditorWindow }) {
-  ipcMain.handle('window-shell:list', async () => {
-    return { windows: describeEditorWindows() };
+  ipcMain.handle('window-shell:list', async (event: any) => {
+    const ownerWindow = ElectronBrowserWindow.fromWebContents?.(event?.sender) || null;
+    return {
+      windows: describeEditorWindows(),
+      ownerWindowStateId: String((ownerWindow as any)?.__agencyWindowStateId || '').trim(),
+    };
   });
 
   ipcMain.handle('window-shell:new', async (_event: unknown, payload: any) => {
@@ -55,6 +59,7 @@ function setupWindowShellHandlers({ createEditorWindow }: { createEditorWindow: 
       ok: Boolean(createdWindow),
       windows: describeEditorWindows(),
       windowStateId: String((createdWindow as any)?.__agencyWindowStateId || '').trim(),
+      ownerWindowStateId: String((createdWindow as any)?.__agencyWindowStateId || '').trim(),
     };
   });
 
@@ -73,6 +78,7 @@ function setupWindowShellHandlers({ createEditorWindow }: { createEditorWindow: 
       ok: true,
       windows: describeEditorWindows(),
       windowStateId: String((targetWindow as any).__agencyWindowStateId || '').trim(),
+      ownerWindowStateId: String((targetWindow as any).__agencyWindowStateId || '').trim(),
     };
   });
 
@@ -88,6 +94,7 @@ function setupWindowShellHandlers({ createEditorWindow }: { createEditorWindow: 
       ok: true,
       windows: describeEditorWindows(),
       windowStateId: String((targetWindow as any).__agencyWindowStateId || '').trim(),
+      ownerWindowStateId: String((targetWindow as any).__agencyWindowStateId || '').trim(),
     };
   });
 }

@@ -337,11 +337,13 @@ export function syncWindowTitle(window: BrowserWindow): void {
 
 export function broadcastWindowShellUpdated(): void {
   const windows = describeEditorWindows();
-  const payload = { windows };
   BrowserWindow.getAllWindows().forEach((window) => {
     if (window.isDestroyed?.()) {
       return;
     }
-    window.webContents.send('window-shell:updated', payload);
+    window.webContents.send('window-shell:updated', {
+      windows,
+      ownerWindowStateId: String((window as any).__agencyWindowStateId || '').trim(),
+    });
   });
 }
