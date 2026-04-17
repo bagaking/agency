@@ -277,4 +277,9 @@ const agencyBridge = {
   },
 };
 
+if (process.env.AGENCY_TEST_MODE === '1') {
+  (agencyBridge as any).getWorkbenchBrowserSurfaceTestState = () =>
+    ipcRenderer.invoke('workbench:browserSurface:testState');
+}
+
 contextBridge.exposeInMainWorld('agency', agencyBridge);

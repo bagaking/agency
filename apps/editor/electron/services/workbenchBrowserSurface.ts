@@ -29,6 +29,7 @@ type BrowserSurfaceWebContents = {
   on: (event: string, handler: (...args: any[]) => void) => unknown;
   removeListener: (event: string, handler: (...args: any[]) => void) => unknown;
   loadURL: (url: string) => Promise<unknown> | void;
+  getURL?: () => string;
   focus?: () => void;
   destroy?: () => void;
   getTitle?: () => string;
@@ -128,6 +129,79 @@ type BrowserSurfaceDependencies = {
   publishEvent?: (payload: BrowserSurfaceEventPayload) => void;
 };
 
+const BROWSER_SURFACE_PROBE_HOST = 'agency-browser-probe.test';
+const BROWSER_SURFACE_PROBE_URL = new URL(
+  'surface-probe',
+  `https://${BROWSER_SURFACE_PROBE_HOST}`
+).href;
+const BROWSER_SURFACE_PROBE_DATA_URL_PREFIX = 'data:text/html;charset=utf-8,';
+
+const buildBrowserSurfaceProbeHtml = () => `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Agency Browser Surface Probe</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: #061114;
+        color: #dffcff;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      body {
+        box-shadow: inset 0 0 0 10px #18f0c8, inset 0 0 0 18px #0b0d11;
+      }
+      main {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+      }
+      [data-probe-anchor] {
+        padding: 18px 22px;
+        border: 2px solid #ffcc66;
+        background: rgba(24, 240, 200, 0.12);
+      }
+    </style>
+  </head>
+  <body>
+    <main data-agency-browser-surface-probe="ready">
+      <section data-probe-anchor>Agency Browser Surface Probe</section>
+    </main>
+  </body>
+</html>`;
+
+function isBrowserSurfaceProbeUrl(value: unknown) {
+  try {
+    const parsed = new URL(String(value || ''));
+    return parsed.protocol === 'https:' && parsed.hostname === BROWSER_SURFACE_PROBE_HOST;
+  } catch (_error) {
+    return false;
+  }
+}
+
+function resolveBrowserSurfaceLoadUrl(url: string) {
+  if (!isBrowserSurfaceProbeUrl(url)) {
+    return url;
+  }
+  return `${BROWSER_SURFACE_PROBE_DATA_URL_PREFIX}${encodeURIComponent(buildBrowserSurfaceProbeHtml())}`;
+}
+
+function isBrowserSurfaceInternalProbeLoadUrl(record: BrowserSurfaceRecord, value: unknown) {
+  return (
+    isBrowserSurfaceProbeUrl(record.url) &&
+    String(value || '').startsWith(BROWSER_SURFACE_PROBE_DATA_URL_PREFIX)
+  );
+}
+
+function normalizeBrowserSurfaceEventUrl(record: BrowserSurfaceRecord, value: unknown) {
+  if (isBrowserSurfaceInternalProbeLoadUrl(record, value)) {
+    return record.url;
+  }
+  return String(value || record.url || '');
+}
+
 type BrowserSurfaceHistoryResult = {
   windowId: number;
   tabId: string;
@@ -221,6 +295,7 @@ function createWorkbenchBrowserSurfaceService(deps: BrowserSurfaceDependencies) 
       navigationKey: record.navigationKey,
       canGoBack: Boolean(record.view.webContents.canGoBack?.()),
       canGoForward: Boolean(record.view.webContents.canGoForward?.()),
+      nativeUrl: String(record.view.webContents.getURL?.() || ''),
     };
   }
 
@@ -269,7 +344,8 @@ function createWorkbenchBrowserSurfaceService(deps: BrowserSurfaceDependencies) 
     record.url = nextUrl;
     record.error = '';
     record.phase = 'loading';
-    const loadTask = record.view.webContents.loadURL(nextUrl);
+    const loadUrl = resolveBrowserSurfaceLoadUrl(nextUrl);
+    const loadTask = record.view.webContents.loadURL(loadUrl);
     if (loadTask && typeof (loadTask as Promise<unknown>).catch === 'function') {
       void (loadTask as Promise<unknown>).catch((error: any) => {
         const message = error?.message || String(error);
@@ -324,7 +400,7 @@ function createWorkbenchBrowserSurfaceService(deps: BrowserSurfaceDependencies) 
         return;
       }
       publishRecord(record, {
-        url: String(nextUrl || record.url || ''),
+        url: normalizeBrowserSurfaceEventUrl(record, nextUrl),
         phase: 'loading',
         error: '',
       });
@@ -334,7 +410,7 @@ function createWorkbenchBrowserSurfaceService(deps: BrowserSurfaceDependencies) 
       publishRecord(
         record,
         {
-          url: String(nextUrl || record.url || ''),
+          url: normalizeBrowserSurfaceEventUrl(record, nextUrl),
         },
         { keepPhase: true }
       );
@@ -344,7 +420,7 @@ function createWorkbenchBrowserSurfaceService(deps: BrowserSurfaceDependencies) 
       publishRecord(
         record,
         {
-          url: String(nextUrl || record.url || ''),
+          url: normalizeBrowserSurfaceEventUrl(record, nextUrl),
         },
         { keepPhase: true }
       );
@@ -393,7 +469,7 @@ function createWorkbenchBrowserSurfaceService(deps: BrowserSurfaceDependencies) 
           return;
         }
         publishRecord(record, {
-          url: String(validatedURL || record.url || ''),
+          url: normalizeBrowserSurfaceEventUrl(record, validatedURL),
           phase: 'error',
           error: String(errorDescription || 'Failed to load page.'),
         });
@@ -649,6 +725,14 @@ function createWorkbenchBrowserSurfaceService(deps: BrowserSurfaceDependencies) 
     return buildState(getRecord(windowId, tabId));
   }
 
+  function listBrowserSurfaceStates(windowId?: unknown) {
+    const targetWindowId = Number(windowId || 0);
+    return Array.from(surfaces.values())
+      .filter((record) => !targetWindowId || record.windowId === targetWindowId)
+      .map((record) => buildState(record))
+      .filter(Boolean);
+  }
+
   return {
     ensureBrowserSurface,
     showBrowserSurface,
@@ -657,6 +741,7 @@ function createWorkbenchBrowserSurfaceService(deps: BrowserSurfaceDependencies) 
     navigateBrowserSurface,
     disposeBrowserSurface,
     getBrowserSurfaceState,
+    listBrowserSurfaceStates,
     goBackBrowserSurface,
     goForwardBrowserSurface,
   };
@@ -842,9 +927,11 @@ function goForwardWorkbenchBrowserSurface({
 }
 
 module.exports = {
+  BROWSER_SURFACE_PROBE_URL,
   createWorkbenchBrowserSurfaceService,
   ...defaultService,
   normalizeBrowserSurfaceUrl,
+  resolveBrowserSurfaceLoadUrl,
   normalizeWorkbenchBrowserSurfaceBounds: sanitizeBounds,
   mapRendererRectToNativeContentRect,
   syncWorkbenchBrowserSurface,

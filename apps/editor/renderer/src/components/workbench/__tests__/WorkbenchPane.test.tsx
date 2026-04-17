@@ -8,6 +8,24 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { WorkbenchPane } from '../WorkbenchPane';
 
+const TestCodeWorkbenchView = ({
+  onEditorReady,
+}: {
+  onEditorReady?: (editor: unknown) => void;
+}) => {
+  React.useEffect(() => {
+    onEditorReady?.({
+      getAction: () => ({ run() {} }),
+      getModel: () => ({ getLineCount: () => 1 }),
+      focus() {},
+      revealPositionInCenter() {},
+      setPosition() {},
+    });
+    return () => onEditorReady?.(null);
+  }, [onEditorReady]);
+  return <div data-testid="test-code-workbench-view" />;
+};
+
 function renderWorkbenchPane(kind: string) {
   return renderToStaticMarkup(
     <WorkbenchPane
@@ -51,6 +69,7 @@ function renderWorkbenchPane(kind: string) {
       pendingJump={null}
       onJumpHandled={() => undefined}
       onRevealPathInExplorer={() => undefined}
+      CodeWorkbenchViewComponent={TestCodeWorkbenchView}
     />
   );
 }
@@ -94,6 +113,7 @@ function setupDom() {
       content: `content for ${targetPath}\n`,
       size: 24,
       mtimeMs: 1,
+      binary: targetPath.endsWith('.binary'),
     }),
     statWorkbenchEntry: async () => ({
       size: 24,
@@ -185,6 +205,7 @@ async function mountWorkbenchPane(
         pendingJump={null}
         onJumpHandled={() => undefined}
         onRevealPathInExplorer={() => undefined}
+        CodeWorkbenchViewComponent={TestCodeWorkbenchView}
       />
     );
   });
@@ -249,6 +270,7 @@ async function mountInteractiveWorkbenchPane() {
         pendingJump={null}
         onJumpHandled={() => undefined}
         onRevealPathInExplorer={() => undefined}
+        CodeWorkbenchViewComponent={TestCodeWorkbenchView}
       />
     );
   }
@@ -479,6 +501,7 @@ test('WorkbenchPane keeps bounded web research fallback inside the workbench sur
           pendingJump={null}
           onJumpHandled={() => undefined}
           onRevealPathInExplorer={() => undefined}
+          CodeWorkbenchViewComponent={TestCodeWorkbenchView}
         />
       );
     });
@@ -553,6 +576,7 @@ test('WorkbenchPane disposes bounded browser surfaces when their owning tab clos
           pendingJump={null}
           onJumpHandled={() => undefined}
           onRevealPathInExplorer={() => undefined}
+          CodeWorkbenchViewComponent={TestCodeWorkbenchView}
         />
       );
     }

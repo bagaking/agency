@@ -2,9 +2,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  BROWSER_SURFACE_PROBE_URL,
   createWorkbenchBrowserSurfaceService,
   normalizeBrowserSurfaceUrl,
   normalizeWorkbenchBrowserSurfaceBounds,
+  resolveBrowserSurfaceLoadUrl,
   syncWorkbenchBrowserSurfaceWithService,
 } = require('../workbenchBrowserSurface');
 const {
@@ -69,6 +71,9 @@ class FakeWebContents extends FakeEventEmitter {
   }
   loadURL(url) {
     this.loadUrls.push(url);
+  }
+  getURL() {
+    return this.loadUrls[this.loadUrls.length - 1] || '';
   }
   focus() {
     this.focused = true;
@@ -201,8 +206,16 @@ function ensureSurface(service, window, tabId = 'tab-1') {
 test('normalizeBrowserSurfaceUrl keeps browser-surface navigation on public http urls', () => {
   assert.equal(normalizeBrowserSurfaceUrl('https://example.com/docs'), 'https://example.com/docs');
   assert.equal(normalizeBrowserSurfaceUrl('http://example.com/docs'), 'http://example.com/docs');
+  assert.equal(normalizeBrowserSurfaceUrl(BROWSER_SURFACE_PROBE_URL), BROWSER_SURFACE_PROBE_URL);
   assert.equal(normalizeBrowserSurfaceUrl('ftp://example.com/file.txt'), '');
   assert.equal(normalizeBrowserSurfaceUrl('about:blank'), '');
+});
+
+test('probe url stays public-looking while loading deterministic local html', () => {
+  const resolved = resolveBrowserSurfaceLoadUrl(BROWSER_SURFACE_PROBE_URL);
+  assert.equal(resolved.startsWith('data:text/html'), true);
+  assert.equal(decodeURIComponent(resolved).includes('Agency Browser Surface Probe'), true);
+  assert.equal(resolveBrowserSurfaceLoadUrl('https://example.com/'), 'https://example.com/');
 });
 
 test('normalizeWorkbenchBrowserSurfaceBounds clamps and rejects empty rects', () => {
@@ -324,6 +337,23 @@ test('ensures browser surface state per window + tab', () => {
   const state = service.getBrowserSurfaceState({ windowId: fakeWindow.id, tabId: 'tab-ensure' });
   assert.equal(state.url, 'https://example.com/');
   assert.deepEqual(state.bounds, { x: 0, y: 0, width: 320, height: 200 });
+  assert.equal(state.nativeUrl, 'https://example.com/');
+});
+
+test('lists browser surface state for deterministic probe verification', () => {
+  const { service, fakeWindow } = setupService();
+  service.ensureBrowserSurface({
+    windowId: fakeWindow.id,
+    tabId: 'tab-probe',
+    url: BROWSER_SURFACE_PROBE_URL,
+    bounds: { x: 4, y: 6, width: 320, height: 200 },
+  });
+
+  const states = service.listBrowserSurfaceStates(fakeWindow.id);
+  assert.equal(states.length, 1);
+  assert.equal(states[0].url, BROWSER_SURFACE_PROBE_URL);
+  assert.equal(states[0].nativeUrl.startsWith('data:text/html'), true);
+  assert.deepEqual(states[0].bounds, { x: 4, y: 6, width: 320, height: 200 });
 });
 
 test('keeps separate surfaces per tab and only one visible per window', () => {

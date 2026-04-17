@@ -20,5 +20,5 @@
 ## 4. Validation
 - [x] 4.1 Add unit coverage for browser-host lifecycle state and bounded research tab state transitions.
 - [x] 4.2 Add regression coverage for browser-lane geometry ownership and HIL/sidebar coexistence.
-- [ ] 4.3 Add E2E coverage for browser-surface navigation and blocked-site behavior.
-- [ ] 4.4 Run typecheck, targeted tests, and packaged build verification.
+- [x] 4.3 Add E2E coverage for browser-surface navigation and blocked-site behavior.
+- [x] 4.4 Run typecheck, targeted tests, and packaged build verification.

@@ -146,10 +146,11 @@ test('AgentCellsSessionsPanel keeps attention inline instead of rendering a queu
       </ModalProvider>
     );
 
-    assert.doesNotMatch(html, /data-attention-queue="true"/);
-    assert.match(html, /Cell Action Failed/);
-    assert.match(html, /Session needs intervention\./);
-    assert.match(html, /data-testid="session-tab-session-main"/);
+    assert.equal(html.includes('data-attention-queue="true"'), false);
+    assert.equal(html.includes('Cell needs intervention.'), true);
+    assert.equal(html.includes('aria-label="Main. 1 item. Session needs intervention."'), true);
+    assert.equal(html.includes('>Failed<'), true);
+    assert.equal(html.includes('data-testid="session-tab-session-main"'), true);
   } finally {
     console.error = originalConsoleError;
   }

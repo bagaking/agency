@@ -76,6 +76,7 @@ export function WorkbenchPane({
   pendingJump,
   onJumpHandled,
   onRevealPathInExplorer,
+  CodeWorkbenchViewComponent = CodeWorkbenchView,
 }: any) {
   if (!projectReady) {
     return (
@@ -100,6 +101,7 @@ export function WorkbenchPane({
       pendingJump={pendingJump}
       onJumpHandled={onJumpHandled}
       onRevealPathInExplorer={onRevealPathInExplorer}
+      CodeWorkbenchViewComponent={CodeWorkbenchViewComponent}
     />
   );
 }
@@ -116,6 +118,7 @@ function WorkbenchPaneContent({
   pendingJump,
   onJumpHandled,
   onRevealPathInExplorer,
+  CodeWorkbenchViewComponent,
 }: any) {
   const modal = useModal();
   const { 
@@ -882,7 +885,7 @@ function WorkbenchPaneContent({
         ) : activeState.kind === 'code' && activeState.researchSourceUrl ? (
           <div className="flex h-full min-h-0 bg-[#0b0d11]">
             <div className="min-w-0 flex-[1.08] border-r border-white/[0.05]">
-              <CodeWorkbenchView
+              <CodeWorkbenchViewComponent
                 value={activeState.content || ''}
                 language={resolvedActiveLanguage}
                 diffHunks={activeState.diffEnabled ? activeState.diffHunks || [] : []}
@@ -971,7 +974,7 @@ function WorkbenchPaneContent({
             onCursorChange={setStatusPosition}
           />
         ) : activeState.kind === 'code' ? (
-          <CodeWorkbenchView
+          <CodeWorkbenchViewComponent
             value={activeState.content || ''}
             language={resolvedActiveLanguage}
             diffHunks={activeState.diffEnabled ? activeState.diffHunks || [] : []}

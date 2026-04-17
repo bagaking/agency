@@ -14,6 +14,7 @@ const {
   disposeWorkbenchBrowserSurface,
   goBackWorkbenchBrowserSurface,
   goForwardWorkbenchBrowserSurface,
+  listBrowserSurfaceStates,
 } = require('../../services/workbenchBrowserSurface');
 
 function setupWorkbenchHandlers() {
@@ -89,6 +90,17 @@ function setupWorkbenchHandlers() {
       tabId: payload?.tabId,
     });
   });
+
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    ipcMain.handle('workbench:browserSurface:testState', async (event) => {
+      const ownerWindow = BrowserWindow.fromWebContents(event.sender);
+      return {
+        windowId: ownerWindow?.id || 0,
+        contentBounds: ownerWindow?.getContentBounds?.() || null,
+        states: listBrowserSurfaceStates(ownerWindow?.id || 0),
+      };
+    });
+  }
 }
 
 export { setupWorkbenchHandlers };

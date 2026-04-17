@@ -7,6 +7,7 @@ const { test, expect, _electron: electron } = require('@playwright/test');
 const TEST_REPO = '/tmp/agency/test-cell';
 const SECOND_TEST_REPO = '/tmp/agency/test-cell-second';
 const THIRD_TEST_REPO = '/tmp/agency/test-cell-third';
+const BROWSER_SURFACE_PROBE_URL = 'https://agency-browser-probe.test/surface-probe';
 const PORT_FILE = process.env.AGENCY_RENDERER_PORT_FILE
   || path.join(os.tmpdir(), 'agency-editor-renderer.json');
 
@@ -218,6 +219,15 @@ const getProjectContext = async (window) => {
 
 const getWindowUiState = async (window) => {
   return window.evaluate(async () => window.agency.getUiState());
+};
+
+const getWorkbenchBrowserSurfaceStates = async (page) => {
+  const testState = await page.evaluate(async () => window.agency.getWorkbenchBrowserSurfaceTestState());
+  const contentBounds = testState?.contentBounds || null;
+  return (testState?.states || []).map((state) => ({
+    ...state,
+    contentBounds,
+  }));
 };
 
 const getFirstWindow = async (electronApp, timeoutMs = 15_000) => {
@@ -551,6 +561,86 @@ test('url-shaped explorer input opens a bounded web research tab in Workbench', 
     await expect(window.getByTestId('workbench-web-research-open-browser')).toBeVisible();
     await expect(window.getByTestId('workbench-web-research-save-markdown')).toBeVisible();
     await expect(window.getByTestId('workbench-web-research-cite')).toBeVisible();
+  } finally {
+    await cleanupTransientElectronApp();
+  }
+});
+
+test('browser surface syncs deterministic probe and rejects blocked private navigation', async () => {
+  const electronApp = await launchTestApp();
+
+  try {
+    const window = await getFirstWindow(electronApp);
+    await expect(window.getByTestId('sidebar')).toBeVisible();
+
+    const tabId = 'e2e-browser-probe';
+    const bounds = { x: 120, y: 140, width: 520, height: 320 };
+    await window.evaluate(async ({ tabId, url, bounds }) => {
+      return window.agency.syncWorkbenchBrowserSurface({
+        tabId,
+        url,
+        visible: true,
+        navigationKey: 1,
+        bounds,
+      });
+    }, { tabId, url: BROWSER_SURFACE_PROBE_URL, bounds });
+
+    await expect
+      .poll(async () => {
+        const states = await getWorkbenchBrowserSurfaceStates(window);
+        const probeState = states.find((state) => state.tabId === tabId);
+        const bounds = probeState?.bounds || null;
+        const contentBounds = probeState?.contentBounds || null;
+        return {
+          url: probeState?.url || '',
+          phase: probeState?.phase || '',
+          title: probeState?.title || '',
+          nativeUrl: probeState?.nativeUrl || '',
+          visible: Boolean(probeState?.visible),
+          hasBounds: Boolean(bounds?.width && bounds?.height),
+          withinContent:
+            Boolean(bounds && contentBounds) &&
+            bounds.x >= 0 &&
+            bounds.y >= 0 &&
+            bounds.x + bounds.width <= contentBounds.width &&
+            bounds.y + bounds.height <= contentBounds.height,
+        };
+      })
+      .toMatchObject({
+        url: BROWSER_SURFACE_PROBE_URL,
+        phase: 'ready',
+        title: 'Agency Browser Surface Probe',
+        visible: true,
+        hasBounds: true,
+        withinContent: true,
+      });
+
+    const beforeBlocked = await getWorkbenchBrowserSurfaceStates(window);
+    const beforeProbeState = beforeBlocked.find((state) => state.tabId === tabId);
+    expect(beforeProbeState?.nativeUrl || '').toContain('Agency%20Browser%20Surface%20Probe');
+
+    const blockedResult = await window.evaluate(async ({ tabId, bounds }) => {
+      try {
+        await window.agency.syncWorkbenchBrowserSurface({
+          tabId,
+          url: 'http://localhost:4173/private',
+          visible: true,
+          navigationKey: 2,
+          bounds,
+        });
+        return { ok: true, error: '' };
+      } catch (error) {
+        return { ok: false, error: String(error?.message || error) };
+      }
+    }, { tabId, bounds });
+    expect(blockedResult).toMatchObject({
+      ok: false,
+      error: expect.stringContaining('public http/https URL'),
+    });
+
+    const afterBlocked = await getWorkbenchBrowserSurfaceStates(window);
+    const afterProbeState = afterBlocked.find((state) => state.tabId === tabId);
+    expect(afterProbeState?.nativeUrl).toBe(beforeProbeState?.nativeUrl);
   } finally {
     await cleanupTransientElectronApp();
   }

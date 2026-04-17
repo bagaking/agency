@@ -16,4 +16,4 @@
 ## 4. Verification
 - [x] 4.1 Add unit coverage for shared language resolution and project policy normalization.
 - [x] 4.2 Add renderer coverage for Workbench language control, override persistence, and effective language decision seams.
-- [ ] 4.3 Run targeted tests plus `pnpm -C apps/editor run test:unit` and `pnpm -C apps/editor run typecheck`.
+- [x] 4.3 Run targeted tests plus `pnpm -C apps/editor run test:unit` and `pnpm -C apps/editor run typecheck`.
