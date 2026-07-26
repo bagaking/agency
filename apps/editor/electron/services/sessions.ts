@@ -30,6 +30,7 @@ const {
   getLastPaneActivity,
   capturePane,
   setAgencySessionMetadata,
+  listTmuxSessionStates,
 } = require('./tmux');
 const { getRepoRoot } = require('./git');
 const { readSessionMap } = require('./sessionMap');
@@ -592,6 +593,13 @@ async function listSessions({ worktreePath, cellId, projectRoot }) {
   }
   ensureWorktreePath(runtimeRoot.path);
   await ensureTmuxAvailable();
+  const tmuxSessionStates = await listTmuxSessionStates();
+  const hasBatchedTmuxState = Array.isArray(tmuxSessionStates);
+  const tmuxStateByName = new Map(
+    (hasBatchedTmuxState ? tmuxSessionStates : [])
+      .map((entry) => [String(entry?.tmuxSession || '').trim(), entry])
+      .filter(([tmuxSession]) => Boolean(tmuxSession))
+  );
   let changed = false;
 
   const sessions = await Promise.all(
@@ -613,7 +621,12 @@ async function listSessions({ worktreePath, cellId, projectRoot }) {
       }
       let sessionChanged = false;
       let metadataSyncNeeded = !session?.metadataSyncedAt;
-      const isAlive = await hasSession(session.tmuxSession);
+      const tmuxState = hasBatchedTmuxState
+        ? tmuxStateByName.get(String(session.tmuxSession || '').trim())
+        : null;
+      const isAlive = hasBatchedTmuxState
+        ? Boolean(tmuxState)
+        : await hasSession(session.tmuxSession);
       const nextStatus =
         session.status === SESSION_STATUSES.detached
           ? isAlive
@@ -643,7 +656,9 @@ async function listSessions({ worktreePath, cellId, projectRoot }) {
       }
 
       if (isAlive) {
-        const activityAt = await getLastPaneActivity(resolved.tmuxSession);
+        const activityAt = hasBatchedTmuxState
+          ? tmuxState?.lastActivityAt || null
+          : await getLastPaneActivity(resolved.tmuxSession);
         if (activityAt && activityAt !== resolved.lastActivityAt) {
           if (
             !shouldIgnoreAttachActivity({

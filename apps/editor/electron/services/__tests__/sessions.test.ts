@@ -15,6 +15,8 @@ async function withSessionsService(options, run) {
   const state = {
     registry: options?.registry || { version: 1, sessions: [] },
     createCalls: [],
+    hasSessionCalls: [],
+    listTmuxSessionStatesCalls: 0,
     syncCalls: [],
   };
 
@@ -91,8 +93,16 @@ async function withSessionsService(options, run) {
     if (request === './tmux') {
       return {
         ensureTmuxAvailable: async () => undefined,
-        hasSession: async (tmuxSession) =>
-          options?.onHasSession ? options.onHasSession(tmuxSession, state) : false,
+        hasSession: async (tmuxSession) => {
+          state.hasSessionCalls.push(tmuxSession);
+          return options?.onHasSession ? options.onHasSession(tmuxSession, state) : false;
+        },
+        listTmuxSessionStates: async () => {
+          state.listTmuxSessionStatesCalls += 1;
+          return options?.onListTmuxSessionStates
+            ? options.onListTmuxSessionStates(state)
+            : [];
+        },
         createSession: async (tmuxSession, cwd) => {
           state.createCalls.push({ tmuxSession, cwd });
         },
@@ -192,6 +202,24 @@ test('listSessions preserves sessions added while refreshing registry status', a
         }
         return false;
       },
+      onListTmuxSessionStates: async (state) => {
+        if (!state.registry.sessions.some((session) => session.id === 'sess-new')) {
+          state.registry = {
+            ...state.registry,
+            sessions: [
+              ...state.registry.sessions,
+              {
+                id: 'sess-new',
+                name: 'New',
+                tmuxSession: 'agency-cell-main-new',
+                cellId: 'cell-main',
+                status: 'active',
+              },
+            ],
+          };
+        }
+        return [];
+      },
     },
     async ({ listSessions }, state, repoRoot) => {
       await listSessions({
@@ -205,6 +233,52 @@ test('listSessions preserves sessions added while refreshing registry status', a
       );
       assert.equal(state.registry.sessions[0].status, 'stale');
       assert.equal(state.registry.sessions[1].status, 'active');
+    }
+  );
+});
+
+test('listSessions uses a batched tmux state snapshot instead of per-session probes', async () => {
+  await withSessionsService(
+    {
+      registry: {
+        version: 1,
+        sessions: [
+          {
+            id: 'sess-active',
+            name: 'Active',
+            tmuxSession: 'agency-cell-main-active',
+            cellId: 'cell-main',
+            status: 'stale',
+          },
+          {
+            id: 'sess-stale',
+            name: 'Stale',
+            tmuxSession: 'agency-cell-main-stale',
+            cellId: 'cell-main',
+            status: 'active',
+          },
+        ],
+      },
+      onHasSession: async () => {
+        throw new Error('hasSession should not be called by listSessions.');
+      },
+      onListTmuxSessionStates: async () => [
+        {
+          tmuxSession: 'agency-cell-main-active',
+          lastActivityAt: null,
+        },
+      ],
+    },
+    async ({ listSessions }, state, repoRoot) => {
+      const sessions = await listSessions({
+        cellId: 'cell-main',
+        projectRoot: repoRoot,
+      });
+
+      assert.equal(state.listTmuxSessionStatesCalls, 1);
+      assert.deepEqual(state.hasSessionCalls, []);
+      assert.equal(sessions.find((session) => session.id === 'sess-active')?.status, 'active');
+      assert.equal(sessions.find((session) => session.id === 'sess-stale')?.status, 'stale');
     }
   );
 });

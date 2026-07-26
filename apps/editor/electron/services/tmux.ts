@@ -109,6 +109,61 @@ async function listAgencySessionsWithMetadata() {
     .filter((row) => row.tmuxSession);
 }
 
+function paneActivityToIso(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+  return new Date(parsed * 1000).toISOString();
+}
+
+async function listTmuxSessionStates() {
+  if (process.env.AGENCY_TEST_MODE === '1') {
+    return null;
+  }
+  let output = '';
+  try {
+    const result = await execFileAsync('tmux', [
+      'list-panes',
+      '-a',
+      '-F',
+      '#{session_name}\t#{pane_activity}',
+    ]);
+    output = String(result?.stdout || '');
+  } catch (_error) {
+    return null;
+  }
+
+  const states = new Map();
+  output
+    .split(/\r?\n/)
+    .map((line) => String(line || '').trim())
+    .filter(Boolean)
+    .forEach((line) => {
+      const [tmuxSession, paneActivity] = line.split('\t');
+      const sessionName = String(tmuxSession || '').trim();
+      if (!sessionName) {
+        return;
+      }
+      const activityValue = Number(paneActivity);
+      const current = states.get(sessionName) || {
+        tmuxSession: sessionName,
+        activityValue: 0,
+        lastActivityAt: null,
+      };
+      if (Number.isFinite(activityValue) && activityValue > current.activityValue) {
+        current.activityValue = activityValue;
+        current.lastActivityAt = paneActivityToIso(activityValue);
+      }
+      states.set(sessionName, current);
+    });
+
+  return Array.from(states.values()).map((state) => ({
+    tmuxSession: state.tmuxSession,
+    lastActivityAt: state.lastActivityAt,
+  }));
+}
+
 async function ensureTmuxAvailable() {
   if (process.env.AGENCY_TEST_MODE === '1') {
     return;
@@ -425,4 +480,5 @@ export {
   sendKeys,
   setAgencySessionMetadata,
   listAgencySessionsWithMetadata,
+  listTmuxSessionStates,
 };
