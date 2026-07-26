@@ -18,12 +18,16 @@ const readRendererPortFile = (portFile) => {
   }
 };
 
-const resolveRendererUrl = () => {
+const resolveRendererUrl = (options: { isPackaged?: boolean } = {}) => {
+  const { isPackaged = false } = options;
   const envUrl = process.env.AGENCY_RENDERER_URL || process.env.ELECTRON_RENDERER_URL;
   if (envUrl) {
     return { url: envUrl, source: 'env' };
   }
   const portFile = resolveRendererPortFile();
+  if (isPackaged) {
+    return { url: '', source: 'none', portFile };
+  }
   const portInfo = readRendererPortFile(portFile);
   if (portInfo?.url) {
     return { url: portInfo.url, source: 'port-file', portFile };

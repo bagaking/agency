@@ -1,4 +1,4 @@
-const { BrowserWindow } = require('electron');
+const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const { resolveRendererUrl } = require('../../services/rendererUrl');
@@ -13,7 +13,7 @@ function buildFileOverlayUrl(requestId, displayId) {
 
 function buildOverlayUrls(requestId, displayId) {
   const fallbackUrl = buildFileOverlayUrl(requestId, displayId);
-  const rendererUrl = resolveRendererUrl().url;
+  const rendererUrl = resolveRendererUrl({ isPackaged: app.isPackaged }).url;
   if (!rendererUrl) {
     return { initialUrl: fallbackUrl, fallbackUrl: '' };
   }

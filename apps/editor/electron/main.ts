@@ -341,7 +341,7 @@ function isAllowedRendererNavigationUrl(candidateUrl: string): boolean {
     return true;
   }
 
-  const rendererInfo = (resolveRendererUrl() || {}) as RendererInfo;
+  const rendererInfo = (resolveRendererUrl({ isPackaged: app.isPackaged }) || {}) as RendererInfo;
   const rendererUrl = String(rendererInfo.url || '').trim();
   if (rendererUrl) {
     try {
@@ -358,7 +358,7 @@ function isAllowedRendererNavigationUrl(candidateUrl: string): boolean {
 }
 
 function loadRendererWindow(win: BrowserWindow): void {
-  const rendererInfo = (resolveRendererUrl() || {}) as RendererInfo;
+  const rendererInfo = (resolveRendererUrl({ isPackaged: app.isPackaged }) || {}) as RendererInfo;
   const rendererUrl = rendererInfo.url || '';
   const useDevRenderer = Boolean(rendererUrl);
 
@@ -418,7 +418,7 @@ function attachWindowDiagnostics(win: BrowserWindow): void {
       return;
     }
 
-    const rendererInfo = (resolveRendererUrl() || {}) as RendererInfo;
+    const rendererInfo = (resolveRendererUrl({ isPackaged: app.isPackaged }) || {}) as RendererInfo;
     if (!app.isPackaged && rendererInfo.url) {
       return;
     }
@@ -848,7 +848,7 @@ async function bootstrapApp(): Promise<void> {
         logRuntime('warn', 'dock icon missing');
       }
 
-      const rendererInfo = (resolveRendererUrl() || {}) as RendererInfo;
+      const rendererInfo = (resolveRendererUrl({ isPackaged: app.isPackaged }) || {}) as RendererInfo;
       if (rendererInfo.url && !app.isPackaged) {
         app.dock.setBadge('DEV');
       }
