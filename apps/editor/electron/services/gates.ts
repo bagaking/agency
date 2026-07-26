@@ -1,4 +1,3 @@
-// @ts-nocheck
 const { app } = require('electron');
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -235,7 +234,9 @@ function buildGateEnv({ cellName, worktreePath, stage }) {
   };
 }
 
-function runCommand(command, cwd, envOverrides) {
+type GateCommandResult = { code: number; stdout: string; stderr: string };
+
+function runCommand(command, cwd, envOverrides): Promise<GateCommandResult> {
   return new Promise((resolve) => {
     if (!command) {
       resolve({ code: 0, stdout: '', stderr: '' });
@@ -348,8 +349,6 @@ export {
   STAGES,
   DEFAULT_GATES,
   getGlobalGatesPath,
-  getProjectGatesPath,
-  getAgentGatesPath,
   getGates,
   setGates,
   evaluateGates,
