@@ -275,3 +275,96 @@ test('useWorkbenchBrowserSurface can hide on unmount without disposing the nativ
     env.cleanup();
   }
 });
+
+test('useWorkbenchBrowserSurface coalesces scroll syncs and skips unchanged bounds', async () => {
+  const env = setupDom();
+  try {
+    const syncCalls: Array<Record<string, any>> = [];
+    const root = createRoot(document.getElementById('root')!);
+    const rafCallbacks: Array<FrameRequestCallback | null> = [];
+
+    (window as any).requestAnimationFrame = (callback: FrameRequestCallback) => {
+      rafCallbacks.push(callback);
+      return rafCallbacks.length;
+    };
+    (window as any).cancelAnimationFrame = (frameId: number) => {
+      rafCallbacks[frameId - 1] = null;
+    };
+
+    async function flushRaf() {
+      const callbacks = rafCallbacks.splice(0);
+      await act(async () => {
+        callbacks.forEach((callback) => callback?.(performance.now()));
+        await Promise.resolve();
+      });
+    }
+
+    (window as any).agency = {
+      syncWorkbenchBrowserSurface: async (payload: Record<string, any>) => {
+        syncCalls.push(payload);
+        return {
+          tabId: payload.tabId,
+          url: payload.url,
+          title: 'Example View',
+          phase: payload.visible === false ? 'hidden' : 'ready',
+          error: '',
+          visible: payload.visible !== false,
+          canGoBack: false,
+          canGoForward: false,
+        };
+      },
+      disposeWorkbenchBrowserSurface: async () => ({ ok: true }),
+      onWorkbenchBrowserSurfaceEvent: () => () => undefined,
+    };
+
+    function Harness() {
+      const browserSurface = useWorkbenchBrowserSurface({
+        tabId: 'tab-scroll',
+        url: 'https://example.com/docs',
+        visible: true,
+        navigationKey: 0,
+      });
+
+      return (
+        <div
+          ref={(node) => {
+            browserSurface.hostRef.current = node;
+            if (node) {
+              node.getBoundingClientRect = () =>
+                ({
+                  left: 24,
+                  top: 36,
+                  width: 640,
+                  height: 420,
+                  right: 664,
+                  bottom: 456,
+                }) as DOMRect;
+            }
+          }}
+        />
+      );
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+    });
+
+    window.dispatchEvent(new Event('scroll'));
+    window.dispatchEvent(new Event('scroll'));
+    window.dispatchEvent(new Event('scroll'));
+
+    await flushRaf();
+    assert.equal(syncCalls.length, 1);
+
+    window.dispatchEvent(new Event('scroll'));
+    await flushRaf();
+    assert.equal(syncCalls.length, 1);
+
+    await act(async () => {
+      root.unmount();
+    });
+    delete (window as any).agency;
+  } finally {
+    env.cleanup();
+  }
+});

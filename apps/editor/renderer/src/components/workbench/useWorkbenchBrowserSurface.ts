@@ -52,6 +52,11 @@ export function useWorkbenchBrowserSurface({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const retryTimerRef = useRef<number | null>(null);
   const retryAttemptRef = useRef(0);
+  const scheduledSyncFrameRef = useRef<{
+    id: number;
+    cancel: (id: number) => void;
+  } | null>(null);
+  const lastVisibleSyncSignatureRef = useRef('');
   const [surfaceState, setSurfaceState] = useState<WorkbenchBrowserSurfaceEvent>({
     tabId,
     url,
@@ -84,6 +89,15 @@ export function useWorkbenchBrowserSurface({
     [tabId, url]
   );
 
+  const cancelScheduledSurfaceSync = useCallback(() => {
+    const scheduledFrame = scheduledSyncFrameRef.current;
+    if (!scheduledFrame) {
+      return;
+    }
+    scheduledSyncFrameRef.current = null;
+    scheduledFrame.cancel(scheduledFrame.id);
+  }, []);
+
   useEffect(() => {
     if (!normalizedTabId) {
       return undefined;
@@ -104,11 +118,13 @@ export function useWorkbenchBrowserSurface({
   }, [applySurfaceState, browserSurfaceAvailable, normalizedTabId, tabId, url]);
 
   const hideSurface = useCallback(() => {
+    cancelScheduledSurfaceSync();
     if (retryTimerRef.current !== null) {
       window.clearTimeout(retryTimerRef.current);
       retryTimerRef.current = null;
     }
     retryAttemptRef.current = 0;
+    lastVisibleSyncSignatureRef.current = '';
     if (!browserSurfaceAvailable || !normalizedTabId) {
       return;
     }
@@ -149,7 +165,15 @@ export function useWorkbenchBrowserSurface({
           canGoForward: false,
         });
       });
-  }, [applySurfaceState, browserSurfaceAvailable, navigationKey, normalizedTabId, tabId, url]);
+  }, [
+    applySurfaceState,
+    browserSurfaceAvailable,
+    cancelScheduledSurfaceSync,
+    navigationKey,
+    normalizedTabId,
+    tabId,
+    url,
+  ]);
 
   const syncSurface = useCallback(() => {
     if (!browserSurfaceAvailable || !normalizedTabId) {
@@ -202,14 +226,29 @@ export function useWorkbenchBrowserSurface({
       retryTimerRef.current = null;
     }
     retryAttemptRef.current = 0;
-    logBrowserSurfaceRenderer('browser surface sync requested', {
-      tabId,
-      url,
-      navigationKey,
+    const bounds = {
       x: Math.round(rect.left),
       y: Math.round(rect.top),
       width: Math.round(rect.width),
       height: Math.round(rect.height),
+    };
+    const syncSignature = JSON.stringify({
+      tabId: normalizedTabId,
+      url,
+      navigationKey,
+      bounds,
+    });
+    if (syncSignature === lastVisibleSyncSignatureRef.current) {
+      return;
+    }
+    logBrowserSurfaceRenderer('browser surface sync requested', {
+      tabId,
+      url,
+      navigationKey,
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: bounds.height,
       devicePixelRatio:
         typeof window.devicePixelRatio === 'number' ? Number(window.devicePixelRatio.toFixed(3)) : 1,
     });
@@ -218,16 +257,12 @@ export function useWorkbenchBrowserSurface({
       url,
       visible: true,
       navigationKey,
-      bounds: {
-        x: Math.round(rect.left),
-        y: Math.round(rect.top),
-        width: Math.round(rect.width),
-        height: Math.round(rect.height),
-      },
+      bounds,
     });
     if (!syncTask) {
       return;
     }
+    lastVisibleSyncSignatureRef.current = syncSignature;
     void syncTask
       .then((payload) => {
         logBrowserSurfaceRenderer('browser surface sync acknowledged', {
@@ -238,6 +273,7 @@ export function useWorkbenchBrowserSurface({
         applySurfaceState(payload as WorkbenchBrowserSurfaceEvent);
       })
       .catch((error: any) => {
+        lastVisibleSyncSignatureRef.current = '';
         logBrowserSurfaceRenderer('browser surface sync failed', {
           tabId: normalizedTabId,
           error: error?.message || String(error),
@@ -263,33 +299,64 @@ export function useWorkbenchBrowserSurface({
     visible,
   ]);
 
+  const scheduleSurfaceSync = useCallback(() => {
+    if (scheduledSyncFrameRef.current !== null) {
+      return;
+    }
+    const hasRequestAnimationFrame = typeof window.requestAnimationFrame === 'function';
+    const schedule =
+      hasRequestAnimationFrame ? window.requestAnimationFrame.bind(window) : requestAnimationFrameFallback;
+    const cancel =
+      hasRequestAnimationFrame && typeof window.cancelAnimationFrame === 'function'
+        ? window.cancelAnimationFrame.bind(window)
+        : window.clearTimeout.bind(window);
+    const frameId = schedule(() => {
+      scheduledSyncFrameRef.current = null;
+      syncSurface();
+    });
+    scheduledSyncFrameRef.current = {
+      id: frameId as number,
+      cancel,
+    };
+  }, [syncSurface]);
+
   useLayoutEffect(() => {
     if (!browserSurfaceAvailable || !normalizedTabId) {
       return undefined;
     }
 
-    const schedule =
-      typeof window.requestAnimationFrame === 'function'
-        ? window.requestAnimationFrame.bind(window)
-        : requestAnimationFrameFallback;
+    if (visible) {
+      scheduleSurfaceSync();
+    }
 
-    const frameId = schedule(() => {
-      syncSurface();
-    });
-
-    const handleWindowChange = () => syncSurface();
+    const handleWindowChange = () => {
+      if (!visible) {
+        return;
+      }
+      scheduleSurfaceSync();
+    };
     window.addEventListener('resize', handleWindowChange);
     window.addEventListener('scroll', handleWindowChange, true);
 
     const observedNodes = [hostRef.current].filter(Boolean) as HTMLElement[];
-    const handleTransitionEnd = () => syncSurface();
+    const handleTransitionEnd = () => {
+      if (!visible) {
+        return;
+      }
+      scheduleSurfaceSync();
+    };
     observedNodes.forEach((node) => {
       node.addEventListener('transitionend', handleTransitionEnd);
     });
 
     let observer: ResizeObserver | null = null;
     if (typeof ResizeObserver !== 'undefined' && observedNodes.length) {
-      observer = new ResizeObserver(() => syncSurface());
+      observer = new ResizeObserver(() => {
+        if (!visible) {
+          return;
+        }
+        scheduleSurfaceSync();
+      });
       observedNodes.forEach((node) => observer?.observe(node));
     }
 
@@ -298,11 +365,7 @@ export function useWorkbenchBrowserSurface({
         window.clearTimeout(retryTimerRef.current);
         retryTimerRef.current = null;
       }
-      if (typeof window.cancelAnimationFrame === 'function') {
-        window.cancelAnimationFrame(frameId as number);
-      } else {
-        window.clearTimeout(frameId as number);
-      }
+      cancelScheduledSurfaceSync();
       window.removeEventListener('resize', handleWindowChange);
       window.removeEventListener('scroll', handleWindowChange, true);
       observedNodes.forEach((node) => {
@@ -310,7 +373,13 @@ export function useWorkbenchBrowserSurface({
       });
       observer?.disconnect();
     };
-  }, [browserSurfaceAvailable, normalizedTabId, syncSurface]);
+  }, [
+    browserSurfaceAvailable,
+    cancelScheduledSurfaceSync,
+    normalizedTabId,
+    scheduleSurfaceSync,
+    visible,
+  ]);
 
   useEffect(() => {
     if (!browserSurfaceAvailable || !normalizedTabId) {
