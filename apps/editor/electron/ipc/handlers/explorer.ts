@@ -19,6 +19,53 @@ const {
 } = require('../../services/explorer');
 const { readExplorerProjectPolicy } = require('../../services/explorerPolicy');
 
+const explorerWatchSubscriptions = new Map();
+const explorerWatchCleanupRegistered = new Set();
+
+function hasExplorerWatchSubscribers(rootPath) {
+  for (const subscribedRoot of explorerWatchSubscriptions.values()) {
+    if (subscribedRoot === rootPath) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function releaseExplorerWatchSubscription(webContentsId) {
+  const previousRoot = explorerWatchSubscriptions.get(webContentsId) || '';
+  if (!previousRoot) {
+    return;
+  }
+  explorerWatchSubscriptions.delete(webContentsId);
+  if (!hasExplorerWatchSubscribers(previousRoot)) {
+    stopExplorerWatch(previousRoot);
+  }
+}
+
+function registerExplorerWatchCleanup(sender) {
+  const webContentsId = sender?.id;
+  if (!webContentsId || explorerWatchCleanupRegistered.has(webContentsId)) {
+    return;
+  }
+  explorerWatchCleanupRegistered.add(webContentsId);
+  sender.once('destroyed', () => {
+    explorerWatchCleanupRegistered.delete(webContentsId);
+    releaseExplorerWatchSubscription(webContentsId);
+  });
+}
+
+function broadcastExplorerChange(change) {
+  BrowserWindow.getAllWindows().forEach((win) => {
+    if (win.isDestroyed()) {
+      return;
+    }
+    if (explorerWatchSubscriptions.get(win.webContents.id) !== change.rootPath) {
+      return;
+    }
+    win.webContents.send('explorer:changed', change);
+  });
+}
+
 function setupExplorerHandlers() {
   ipcMain.handle('explorer:root', async (_event, payload) => {
     const rootPath = payload?.rootPath;
@@ -147,19 +194,27 @@ function setupExplorerHandlers() {
     return readEntry({ rootPath, targetPath });
   });
 
-  ipcMain.handle('explorer:watch', async (_event, payload) => {
+  ipcMain.handle('explorer:watch', async (event, payload) => {
     const rootPath = payload?.rootPath || '';
+    const sender = event?.sender;
+    const webContentsId = sender?.id;
+    const previousRoot = webContentsId ? explorerWatchSubscriptions.get(webContentsId) || '' : '';
     if (!rootPath) {
-      stopExplorerWatch();
+      if (webContentsId) {
+        releaseExplorerWatchSubscription(webContentsId);
+      } else {
+        stopExplorerWatch();
+      }
       return { watching: false };
     }
-    const result = startExplorerWatch(rootPath, (change) => {
-      BrowserWindow.getAllWindows().forEach((win) => {
-        if (!win.isDestroyed()) {
-          win.webContents.send('explorer:changed', change);
-        }
-      });
-    });
+    const result = startExplorerWatch(rootPath, broadcastExplorerChange);
+    if (webContentsId) {
+      explorerWatchSubscriptions.set(webContentsId, rootPath);
+      registerExplorerWatchCleanup(sender);
+      if (previousRoot && previousRoot !== rootPath && !hasExplorerWatchSubscribers(previousRoot)) {
+        stopExplorerWatch(previousRoot);
+      }
+    }
     return result;
   });
 }

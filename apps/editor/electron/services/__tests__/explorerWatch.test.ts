@@ -13,12 +13,18 @@ function wait(ms) {
 async function withStubbedWatch(run) {
   const originalWatch = fs.watch;
   const originalDebounce = process.env.AGENCY_EXPLORER_WATCH_DEBOUNCE_MS;
-  let watchCallback = null;
+  const watchers = new Map();
 
-  fs.watch = function watchStub(_rootPath, _options, callback) {
-    watchCallback = callback;
+  fs.watch = function watchStub(rootPath, _options, callback) {
+    const record = {
+      callback,
+      closed: false,
+    };
+    watchers.set(rootPath, record);
     return {
-      close() {},
+      close() {
+        record.closed = true;
+      },
     };
   };
   process.env.AGENCY_EXPLORER_WATCH_DEBOUNCE_MS = '5';
@@ -28,9 +34,13 @@ async function withStubbedWatch(run) {
   try {
     await run({
       explorerWatch,
-      emit(filename) {
-        assert.ok(watchCallback, 'watch callback was registered');
-        watchCallback('change', filename);
+      emit(rootPath, filename) {
+        const watcher = watchers.get(rootPath);
+        assert.ok(watcher, `watch callback was registered for ${rootPath}`);
+        watcher.callback('change', filename);
+      },
+      watcherFor(rootPath) {
+        return watchers.get(rootPath);
       },
     });
   } finally {
@@ -47,8 +57,9 @@ async function withStubbedWatch(run) {
 
 test('startExplorerWatch suppresses generated workspace noise before dispatching changes', async () => {
   await withStubbedWatch(async ({ explorerWatch, emit }) => {
+    const rootPath = '/tmp/agency-project';
     const changes = [];
-    explorerWatch.startExplorerWatch('/tmp/agency-project', (payload) => {
+    explorerWatch.startExplorerWatch(rootPath, (payload) => {
       changes.push(payload);
     });
 
@@ -58,16 +69,55 @@ test('startExplorerWatch suppresses generated workspace noise before dispatching
       'dist/renderer/assets/index.js',
       '.worktrees/feature/src/file.ts',
       'coverage/lcov.info',
-    ].forEach((filename) => emit(filename));
+    ].forEach((filename) => emit(rootPath, filename));
 
     await wait(25);
     assert.deepEqual(changes, []);
 
-    emit('src/index.ts');
+    emit(rootPath, 'src/index.ts');
     await wait(25);
 
     assert.equal(changes.length, 1);
     assert.deepEqual(changes[0].paths, ['src']);
+  });
+});
+
+test('startExplorerWatch keeps independent root watchers active', async () => {
+  await withStubbedWatch(async ({ explorerWatch, emit, watcherFor }) => {
+    const rootA = '/tmp/agency-project-a';
+    const rootB = '/tmp/agency-project-b';
+    const changes = [];
+    const onChange = (payload) => {
+      changes.push(payload);
+    };
+
+    explorerWatch.startExplorerWatch(rootA, onChange);
+    explorerWatch.startExplorerWatch(rootB, onChange);
+
+    assert.equal(watcherFor(rootA)?.closed, false);
+    assert.equal(watcherFor(rootB)?.closed, false);
+
+    emit(rootA, 'src/a.ts');
+    emit(rootB, 'docs/b.ts');
+    await wait(25);
+
+    assert.deepEqual(
+      changes.map((entry) => [entry.rootPath, entry.paths]),
+      [
+        [rootA, ['src']],
+        [rootB, ['docs']],
+      ]
+    );
+
+    explorerWatch.stopExplorerWatch(rootA);
+    assert.equal(watcherFor(rootA)?.closed, true);
+    assert.equal(watcherFor(rootB)?.closed, false);
+
+    emit(rootB, 'docs/c.ts');
+    await wait(25);
+
+    assert.deepEqual(changes.at(-1)?.rootPath, rootB);
+    assert.deepEqual(changes.at(-1)?.paths, ['docs']);
   });
 });
 

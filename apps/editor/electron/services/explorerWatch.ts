@@ -16,10 +16,7 @@ const DEFAULT_EXCLUDES = new Set([
 ]);
 const DEBOUNCE_MS = Number(process.env.AGENCY_EXPLORER_WATCH_DEBOUNCE_MS || 300);
 
-let watcher = null;
-let watcherRoot = '';
-let pendingDirs = new Set();
-let debounceHandle = null;
+const watcherStatesByRoot = new Map();
 
 function shouldIgnore(relativePath) {
   if (!relativePath) {
@@ -33,40 +30,53 @@ function shouldIgnore(relativePath) {
   return DEFAULT_EXCLUDES.has(head);
 }
 
-function flushChanges(onChange) {
-  if (!pendingDirs.size) {
+function flushChanges(state) {
+  if (!state.pendingDirs.size) {
     return;
   }
-  const paths = Array.from(pendingDirs);
-  pendingDirs = new Set();
-  onChange({
-    rootPath: watcherRoot,
+  const paths = Array.from(state.pendingDirs);
+  state.pendingDirs = new Set();
+  state.onChange({
+    rootPath: state.rootPath,
     paths,
     timestamp: Date.now(),
   });
 }
 
-function scheduleFlush(onChange) {
-  if (debounceHandle) {
-    clearTimeout(debounceHandle);
+function scheduleFlush(state) {
+  if (state.debounceHandle) {
+    clearTimeout(state.debounceHandle);
   }
-  debounceHandle = setTimeout(() => {
-    debounceHandle = null;
-    flushChanges(onChange);
+  state.debounceHandle = setTimeout(() => {
+    state.debounceHandle = null;
+    flushChanges(state);
   }, DEBOUNCE_MS);
 }
 
-function stopExplorerWatch() {
-  if (debounceHandle) {
-    clearTimeout(debounceHandle);
-    debounceHandle = null;
+function closeWatcherState(state) {
+  if (state.debounceHandle) {
+    clearTimeout(state.debounceHandle);
+    state.debounceHandle = null;
   }
-  pendingDirs = new Set();
-  if (watcher) {
-    watcher.close();
-    watcher = null;
+  state.pendingDirs = new Set();
+  if (state.watcher) {
+    state.watcher.close();
+    state.watcher = null;
   }
-  watcherRoot = '';
+}
+
+function stopExplorerWatch(rootPath = '') {
+  const requestedRoot = rootPath || '';
+  if (requestedRoot) {
+    const state = watcherStatesByRoot.get(requestedRoot);
+    if (state) {
+      closeWatcherState(state);
+      watcherStatesByRoot.delete(requestedRoot);
+    }
+    return;
+  }
+  watcherStatesByRoot.forEach((state) => closeWatcherState(state));
+  watcherStatesByRoot.clear();
 }
 
 function startExplorerWatch(rootPath, onChange) {
@@ -74,24 +84,30 @@ function startExplorerWatch(rootPath, onChange) {
     stopExplorerWatch();
     return { watching: false };
   }
-  if (watcher && watcherRoot === rootPath) {
+  if (watcherStatesByRoot.has(rootPath)) {
     return { watching: true, rootPath };
   }
-  stopExplorerWatch();
-  watcherRoot = rootPath;
+  const state = {
+    rootPath,
+    watcher: null,
+    pendingDirs: new Set(),
+    debounceHandle: null,
+    onChange,
+  };
   try {
-    watcher = fs.watch(rootPath, { recursive: true }, (_eventType, filename) => {
+    state.watcher = fs.watch(rootPath, { recursive: true }, (_eventType, filename) => {
       const relative = normalizeRelPath(filename || '');
       if (shouldIgnore(relative)) {
         return;
       }
       const dir = relative ? normalizeRelPath(path.posix.dirname(relative)) : '';
-      pendingDirs.add(dir === '.' ? '' : dir);
-      scheduleFlush(onChange);
+      state.pendingDirs.add(dir === '.' ? '' : dir);
+      scheduleFlush(state);
     });
+    watcherStatesByRoot.set(rootPath, state);
     return { watching: true, rootPath };
   } catch (error) {
-    stopExplorerWatch();
+    closeWatcherState(state);
     throw error;
   }
 }
