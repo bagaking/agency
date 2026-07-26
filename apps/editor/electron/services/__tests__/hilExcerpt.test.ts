@@ -64,4 +64,11 @@ test('detectEmbeddingBlockReason flags x-frame-options and frame-ancestors block
   );
 });
 
+test('requiring hilExcerpt does not load jsdom or readability into the process', () => {
+  const heavyModules = Object.keys(require.cache).filter(
+    (cachedPath) => cachedPath.includes('/jsdom/') || cachedPath.includes('/@mozilla/readability/')
+  );
+  assert.deepEqual(heavyModules, []);
+});
+
 export {};

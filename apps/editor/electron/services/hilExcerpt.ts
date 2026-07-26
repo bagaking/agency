@@ -1,7 +1,19 @@
 const { net } = require('electron');
 const nodeNet = require('net');
-const { JSDOM } = require('jsdom');
-const { Readability } = require('@mozilla/readability');
+
+let readabilityToolkit: { JSDOM: any; Readability: any } | null = null;
+
+// jsdom is one of the heaviest modules to require; only excerpt fetches need it,
+// so keep it off the main-process boot path.
+function loadReadabilityToolkit() {
+  if (!readabilityToolkit) {
+    readabilityToolkit = {
+      JSDOM: require('jsdom').JSDOM,
+      Readability: require('@mozilla/readability').Readability,
+    };
+  }
+  return readabilityToolkit;
+}
 
 const EXCERPT_TIMEOUT_MS = 10000;
 const EXCERPT_MAX_HTML_BYTES = 2 * 1024 * 1024;
@@ -188,6 +200,7 @@ async function fetchHtml(url) {
 
 async function fetchHilExcerpt({ url }) {
   const normalizedUrl = normalizeExcerptUrl(url);
+  const { JSDOM, Readability } = loadReadabilityToolkit();
   const { html, embeddingBlockReason } = await fetchHtml(normalizedUrl);
   const dom = new JSDOM(html, { url: normalizedUrl });
   const reader = new Readability(dom.window.document);
