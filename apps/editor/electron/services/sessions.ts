@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const {
   readRegistry,
-  writeRegistry,
+  updateRegistry,
   upsertSession,
   removeSession,
 } = require('./sessionRegistry');
@@ -487,6 +487,60 @@ function shouldIgnoreAttachActivity({ lastAttachedAt, lastActivityAt, nextActivi
   return activityTs === attachTs;
 }
 
+function valuesEqual(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function mergeListSessionRefresh(latestRegistry, baseSessions, refreshedSessions) {
+  const baseById = new Map((baseSessions || []).map((session) => [session.id, session]));
+  const refreshedById = new Map((refreshedSessions || []).map((session) => [session.id, session]));
+  let changed = false;
+
+  const sessions = (latestRegistry.sessions || []).map((latestSession) => {
+    const baseSession = baseById.get(latestSession.id);
+    const refreshedSession = refreshedById.get(latestSession.id);
+    if (!baseSession || !refreshedSession) {
+      return latestSession;
+    }
+
+    let nextSession = latestSession;
+    const applyField = (field) => {
+      if (!Object.prototype.hasOwnProperty.call(refreshedSession, field)) {
+        return;
+      }
+      if (!valuesEqual(latestSession[field], baseSession[field])) {
+        return;
+      }
+      if (valuesEqual(latestSession[field], refreshedSession[field])) {
+        return;
+      }
+      nextSession = { ...nextSession, [field]: refreshedSession[field] };
+      changed = true;
+    };
+
+    [
+      'status',
+      'cellId',
+      'cellName',
+      'projectRoot',
+      'lastActivityAt',
+      'metadataSyncedAt',
+    ].forEach(applyField);
+
+    if (!normalizeSessionName(latestSession.name) && normalizeSessionName(refreshedSession.name)) {
+      nextSession = { ...nextSession, name: refreshedSession.name };
+      changed = true;
+    }
+
+    return nextSession;
+  });
+
+  return {
+    changed,
+    registry: changed ? { ...latestRegistry, sessions } : latestRegistry,
+  };
+}
+
 async function listSessions({ worktreePath, cellId, projectRoot }) {
   const context = await resolveSessionServiceContext({
     cellId,
@@ -495,12 +549,13 @@ async function listSessions({ worktreePath, cellId, projectRoot }) {
   });
   const runtimeRoot = resolveOptionalSessionRuntimeRoot(context);
   const registry = await readRegistry(context.registryContext);
+  const baseSessions = registry.sessions || [];
   const projectMetadata = await resolveProjectMetadata({
     worktreePath: runtimeRoot.path || context.worktreePath || context.repoRoot,
     projectRoot: context.repoRoot,
   });
   if (!runtimeRoot.path) {
-    const sessions = (registry.sessions || []).map((session, index) => {
+    const sessions = baseSessions.map((session, index) => {
       let resolved = ensureSessionName(session, index);
       const resolvedCellId = resolveSessionCellId(resolved) || context.cellId;
       const resolvedCellName = resolveSessionCellName(resolved) || resolvedCellId;
@@ -526,8 +581,12 @@ async function listSessions({ worktreePath, cellId, projectRoot }) {
       }
       return resolved;
     });
-    if (JSON.stringify(sessions) !== JSON.stringify(registry.sessions || [])) {
-      await writeRegistry(context.registryContext, { ...registry, sessions });
+    if (JSON.stringify(sessions) !== JSON.stringify(baseSessions)) {
+      const updatedRegistry = await updateRegistry(context.registryContext, (latestRegistry) => {
+        const merged = mergeListSessionRefresh(latestRegistry, baseSessions, sessions);
+        return merged.registry;
+      });
+      return updatedRegistry.sessions || [];
     }
     return sessions;
   }
@@ -536,7 +595,7 @@ async function listSessions({ worktreePath, cellId, projectRoot }) {
   let changed = false;
 
   const sessions = await Promise.all(
-    registry.sessions.map(async (session, index) => {
+    baseSessions.map(async (session, index) => {
       if (session.status === SESSION_STATUSES.closed) {
         let resolved = ensureSessionName(session, index);
         const resolvedCellId = resolveSessionCellId(resolved);
@@ -638,7 +697,11 @@ async function listSessions({ worktreePath, cellId, projectRoot }) {
   );
 
   if (changed) {
-    await writeRegistry(context.registryContext, { ...registry, sessions });
+    const updatedRegistry = await updateRegistry(context.registryContext, (latestRegistry) => {
+      const merged = mergeListSessionRefresh(latestRegistry, baseSessions, sessions);
+      return merged.registry;
+    });
+    return updatedRegistry.sessions || [];
   }
 
   return sessions;
@@ -739,9 +802,10 @@ async function createNewSession({
       session,
       status: SESSION_STATUSES.active,
     });
-    const nextRegistry = upsertSession(registry, session);
-    await writeRegistry(context.registryContext, nextRegistry);
-    return session;
+    const savedRegistry = await updateRegistry(context.registryContext, (latestRegistry) =>
+      upsertSession(latestRegistry, session)
+    );
+    return savedRegistry.sessions.find((item) => item.id === sessionId) || session;
   }
 
   await createSession(tmuxSession, runtimeRoot.path);
@@ -774,9 +838,10 @@ async function createNewSession({
     status: SESSION_STATUSES.active,
   });
 
-  const nextRegistry = upsertSession(registry, session);
-  await writeRegistry(context.registryContext, nextRegistry);
-  return session;
+  const savedRegistry = await updateRegistry(context.registryContext, (latestRegistry) =>
+    upsertSession(latestRegistry, session)
+  );
+  return savedRegistry.sessions.find((item) => item.id === sessionId) || session;
 }
 
 async function ensureDefaultSession({ cellId, worktreePath, rootPath, projectRoot }) {
@@ -814,8 +879,9 @@ async function recreateSession({ cellId, worktreePath, sessionId, rootPath, proj
   const registry = await readRegistry(context.registryContext);
   const existing = registry.sessions.find((session) => session.id === sessionId);
   revokeMobileProxyToken({ worktreePath: context.worktreePath, sessionId: existing?.id || sessionId });
-  const nextRegistry = removeSession(registry, sessionId);
-  await writeRegistry(context.registryContext, nextRegistry);
+  await updateRegistry(context.registryContext, (latestRegistry) =>
+    removeSession(latestRegistry, sessionId)
+  );
   return createNewSession({
     cellId: context.cellId,
     worktreePath: runtimeRoot.path,
@@ -852,13 +918,16 @@ async function closeSessionById({ worktreePath, sessionId, cellId, projectRoot }
     }
   }
   const updatedAt = new Date().toISOString();
-  const nextRegistry = upsertSession(registry, {
-    ...existing,
-    status: SESSION_STATUSES.closed,
-    updatedAt,
-    closedAt: updatedAt,
+  const nextRegistry = await updateRegistry(context.registryContext, (latestRegistry) => {
+    const latestExisting =
+      (latestRegistry.sessions || []).find((session) => session.id === sessionId) || existing;
+    return upsertSession(latestRegistry, {
+      ...latestExisting,
+      status: SESSION_STATUSES.closed,
+      updatedAt,
+      closedAt: updatedAt,
+    });
   });
-  await writeRegistry(context.registryContext, nextRegistry);
   revokeMobileProxyToken({ worktreePath: context.worktreePath, sessionId: existing.id });
   return nextRegistry.sessions.find((session) => session.id === sessionId);
 }
@@ -884,23 +953,32 @@ async function detachSessionById({ worktreePath, sessionId, cellId, projectRoot 
     throw new Error('Session already closed.');
   }
   const updatedAt = new Date().toISOString();
-  const nextSession = {
+  const syncedSession = {
     ...existing,
     status: SESSION_STATUSES.detached,
     updatedAt,
     detachedAt: updatedAt,
     metadataSyncedAt: updatedAt,
   };
-  const nextRegistry = upsertSession(registry, nextSession);
   await syncSessionTmuxMetadata({
     worktreePath: runtimeRoot.path,
     runtimeRootKind: runtimeRoot.kind,
     projectMetadata,
-    session: nextSession,
+    session: syncedSession,
     status: SESSION_STATUSES.detached,
   });
-  await writeRegistry(context.registryContext, nextRegistry);
-  return nextRegistry.sessions.find((session) => session.id === sessionId);
+  const savedRegistry = await updateRegistry(context.registryContext, (latestRegistry) => {
+    const latestExisting =
+      (latestRegistry.sessions || []).find((session) => session.id === sessionId) || existing;
+    return upsertSession(latestRegistry, {
+      ...latestExisting,
+      status: SESSION_STATUSES.detached,
+      updatedAt,
+      detachedAt: updatedAt,
+      metadataSyncedAt: updatedAt,
+    });
+  });
+  return savedRegistry.sessions.find((session) => session.id === sessionId);
 }
 
 async function renameSessionById({ worktreePath, sessionId, name, cellId, projectRoot }) {
@@ -925,31 +1003,38 @@ async function renameSessionById({ worktreePath, sessionId, name, cellId, projec
     throw new Error('Session name cannot be empty.');
   }
   const updatedAt = new Date().toISOString();
-  const nextSession = {
-    ...existing,
-    name: trimmed,
-    updatedAt,
-    metadataSyncedAt: existing?.metadataSyncedAt || undefined,
-  };
-  const nextRegistry = upsertSession(registry, nextSession);
+  let metadataSyncedAt = existing?.metadataSyncedAt || undefined;
   try {
     if (await hasSession(existing.tmuxSession)) {
-      nextSession.metadataSyncedAt = updatedAt;
+      metadataSyncedAt = updatedAt;
       await syncSessionTmuxMetadata({
         worktreePath: context.attachedWorktreePath || context.worktreePath,
         projectMetadata,
-        session: nextSession,
+        session: {
+          ...existing,
+          name: trimmed,
+          updatedAt,
+          metadataSyncedAt,
+        },
         status: existing.status,
       });
-      const syncedRegistry = upsertSession(nextRegistry, nextSession);
-      await writeRegistry(context.registryContext, syncedRegistry);
-      return syncedRegistry.sessions.find((session) => session.id === sessionId);
     }
   } catch (_error) {
     // Metadata sync is best effort.
   }
-  await writeRegistry(context.registryContext, nextRegistry);
-  return nextRegistry.sessions.find((session) => session.id === sessionId);
+  const savedRegistry = await updateRegistry(context.registryContext, (latestRegistry) => {
+    const latestExisting = (latestRegistry.sessions || []).find((session) => session.id === sessionId);
+    if (!latestExisting) {
+      throw new Error('Session not found.');
+    }
+    return upsertSession(latestRegistry, {
+      ...latestExisting,
+      name: trimmed,
+      updatedAt,
+      metadataSyncedAt,
+    });
+  });
+  return savedRegistry.sessions.find((session) => session.id === sessionId);
 }
 
 async function updateSessionMeta({ worktreePath, sessionId, avatar, cellId, projectRoot }) {
@@ -964,14 +1049,17 @@ async function updateSessionMeta({ worktreePath, sessionId, avatar, cellId, proj
     throw new Error('Session not found.');
   }
   const updatedAt = new Date().toISOString();
-  const nextSession = { ...existing, updatedAt };
-  if (avatar === null || avatar === undefined || String(avatar).trim() === '') {
-    delete nextSession.avatar;
-  } else {
-    nextSession.avatar = String(avatar).trim();
-  }
-  const nextRegistry = upsertSession(registry, nextSession);
-  await writeRegistry(context.registryContext, nextRegistry);
+  const nextRegistry = await updateRegistry(context.registryContext, (latestRegistry) => {
+    const latestExisting =
+      (latestRegistry.sessions || []).find((session) => session.id === sessionId) || existing;
+    const updatedSession = { ...latestExisting, updatedAt };
+    if (avatar === null || avatar === undefined || String(avatar).trim() === '') {
+      delete updatedSession.avatar;
+    } else {
+      updatedSession.avatar = String(avatar).trim();
+    }
+    return upsertSession(latestRegistry, updatedSession);
+  });
   return nextRegistry.sessions.find((session) => session.id === sessionId);
 }
 
@@ -989,22 +1077,23 @@ async function moveSessionNodeById({
     projectRoot,
   });
   const registry = await readRegistry(context.registryContext);
-  const moved = moveSessionNodeInRegistry(registry, {
-    sessionId,
-    parentSessionId,
-    beforeSessionId,
-  });
-  if (!moved.changed) {
-    return registry.sessions.find((session) => session.id === sessionId) || null;
-  }
   const updatedAt = new Date().toISOString();
-  const nextRegistry = {
-    ...moved.registry,
-    sessions: moved.registry.sessions.map((session) =>
-      session.id === sessionId ? { ...session, updatedAt } : session
-    ),
-  };
-  await writeRegistry(context.registryContext, nextRegistry);
+  const nextRegistry = await updateRegistry(context.registryContext, (latestRegistry) => {
+    const moved = moveSessionNodeInRegistry(latestRegistry, {
+      sessionId,
+      parentSessionId,
+      beforeSessionId,
+    });
+    if (!moved.changed) {
+      return latestRegistry;
+    }
+    return {
+      ...moved.registry,
+      sessions: moved.registry.sessions.map((session) =>
+        session.id === sessionId ? { ...session, updatedAt } : session
+      ),
+    };
+  });
   return nextRegistry.sessions.find((session) => session.id === sessionId) || null;
 }
 
@@ -1046,23 +1135,29 @@ async function resolveSessionForAttach({ worktreePath, sessionId, cellId, projec
   }
   const isAlive = await hasSession(existing.tmuxSession);
   if (!isAlive) {
-    const nextRegistry = upsertSession(registry, {
-      ...existing,
-      status: SESSION_STATUSES.stale,
-      updatedAt: new Date().toISOString(),
+    await updateRegistry(context.registryContext, (latestRegistry) => {
+      const latestExisting =
+        (latestRegistry.sessions || []).find((session) => session.id === sessionId) || existing;
+      return upsertSession(latestRegistry, {
+        ...latestExisting,
+        status: SESSION_STATUSES.stale,
+        updatedAt: new Date().toISOString(),
+      });
     });
-    await writeRegistry(context.registryContext, nextRegistry);
     throw new Error('Session is stale. Create a new session.');
   }
   const updatedAt = new Date().toISOString();
-  const nextRegistry = upsertSession(registry, {
-    ...existing,
-    status: SESSION_STATUSES.active,
-    updatedAt,
-    lastAttachedAt: updatedAt,
-    metadataSyncedAt: updatedAt,
+  const nextRegistry = await updateRegistry(context.registryContext, (latestRegistry) => {
+    const latestExisting =
+      (latestRegistry.sessions || []).find((session) => session.id === sessionId) || existing;
+    return upsertSession(latestRegistry, {
+      ...latestExisting,
+      status: SESSION_STATUSES.active,
+      updatedAt,
+      lastAttachedAt: updatedAt,
+      metadataSyncedAt: updatedAt,
+    });
   });
-  await writeRegistry(context.registryContext, nextRegistry);
   await setMouse(existing.tmuxSession, true);
   await setExtendedKeys(existing.tmuxSession, true);
   const resolved = nextRegistry.sessions.find((session) => session.id === sessionId);

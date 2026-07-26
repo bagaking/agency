@@ -26,6 +26,11 @@ async function withSessionsService(options, run) {
           state.registry = next;
           return next;
         },
+        updateRegistry: async (_ctx, mutate) => {
+          const next = await mutate(state.registry);
+          state.registry = next;
+          return next;
+        },
         upsertSession: (registry, session) => {
           const sessions = Array.isArray(registry.sessions) ? [...registry.sessions] : [];
           const index = sessions.findIndex((item) => item.id === session.id);
@@ -86,7 +91,8 @@ async function withSessionsService(options, run) {
     if (request === './tmux') {
       return {
         ensureTmuxAvailable: async () => undefined,
-        hasSession: async () => false,
+        hasSession: async (tmuxSession) =>
+          options?.onHasSession ? options.onHasSession(tmuxSession, state) : false,
         createSession: async (tmuxSession, cwd) => {
           state.createCalls.push({ tmuxSession, cwd });
         },
@@ -151,4 +157,54 @@ test('createNewSession uses project root as runtime root for project-root cells'
     assert.equal(state.syncCalls[0].runtimeRootKind, 'project');
     assert.equal(state.syncCalls[0].runtimeRootPath, repoRoot);
   });
+});
+
+test('listSessions preserves sessions added while refreshing registry status', async () => {
+  await withSessionsService(
+    {
+      registry: {
+        version: 1,
+        sessions: [
+          {
+            id: 'sess-existing',
+            name: 'Existing',
+            tmuxSession: 'agency-cell-main-existing',
+            cellId: 'cell-main',
+            status: 'active',
+          },
+        ],
+      },
+      onHasSession: async (_tmuxSession, state) => {
+        if (!state.registry.sessions.some((session) => session.id === 'sess-new')) {
+          state.registry = {
+            ...state.registry,
+            sessions: [
+              ...state.registry.sessions,
+              {
+                id: 'sess-new',
+                name: 'New',
+                tmuxSession: 'agency-cell-main-new',
+                cellId: 'cell-main',
+                status: 'active',
+              },
+            ],
+          };
+        }
+        return false;
+      },
+    },
+    async ({ listSessions }, state, repoRoot) => {
+      await listSessions({
+        cellId: 'cell-main',
+        projectRoot: repoRoot,
+      });
+
+      assert.deepEqual(
+        state.registry.sessions.map((session) => session.id),
+        ['sess-existing', 'sess-new']
+      );
+      assert.equal(state.registry.sessions[0].status, 'stale');
+      assert.equal(state.registry.sessions[1].status, 'active');
+    }
+  );
 });

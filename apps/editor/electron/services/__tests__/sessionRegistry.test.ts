@@ -7,6 +7,7 @@ const os = require('node:os');
 const {
   readRegistry,
   writeRegistry,
+  updateRegistry,
   getLegacySessionRegistryPath,
 } = require('../sessionRegistry');
 
@@ -49,6 +50,40 @@ test('readRegistry round-trips a healthy registry unchanged', async (t) => {
   const registry = await readRegistry(worktreePath);
   assert.equal(registry.sessions.length, 1);
   assert.equal(registry.sessions[0].id, 'sess-a');
+});
+
+test('updateRegistry serializes concurrent read-modify-write mutations', async (t) => {
+  const worktreePath = await createTempWorktree(t);
+  const waiters = [];
+
+  const first = updateRegistry(worktreePath, async (registry) => {
+    await new Promise((resolve) => waiters.push(resolve));
+    return {
+      ...registry,
+      sessions: [
+        ...(registry.sessions || []),
+        { id: 'sess-a', name: 'A', tmuxSession: 'agency-a', status: 'active' },
+      ],
+    };
+  });
+  const second = updateRegistry(worktreePath, async (registry) => ({
+    ...registry,
+    sessions: [
+      ...(registry.sessions || []),
+      { id: 'sess-b', name: 'B', tmuxSession: 'agency-b', status: 'active' },
+    ],
+  }));
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(waiters.length, 1, 'second mutation should wait for the first registry lock');
+  waiters.forEach((resolve) => resolve());
+  await Promise.all([first, second]);
+
+  const registry = await readRegistry(worktreePath);
+  assert.deepEqual(
+    registry.sessions.map((session) => session.id),
+    ['sess-a', 'sess-b']
+  );
 });
 
 export {};

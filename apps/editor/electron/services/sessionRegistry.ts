@@ -12,6 +12,7 @@ const AGENCY_DIR = '.agency';
 const SESSION_PREFIX = 'sessions-';
 const SESSION_EXT = '.yaml';
 const CELL_SESSION_FILENAME = 'sessions.yaml';
+const registryFileLocks = new Map();
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -139,6 +140,39 @@ function buildEmptyRegistry() {
   });
 }
 
+function withRegistryFileLock(filePath, task) {
+  const key = normalizeText(filePath);
+  if (!key) {
+    return task();
+  }
+  const previous = registryFileLocks.get(key) || Promise.resolve();
+  const current = previous.catch(() => undefined).then(task);
+  const stored = current.catch(() => undefined);
+  registryFileLocks.set(key, stored);
+  return current.finally(() => {
+    if (registryFileLocks.get(key) === stored) {
+      registryFileLocks.delete(key);
+    }
+  });
+}
+
+async function resolveWritableRegistryPath(input = {}) {
+  const context = await resolveRegistryContext(input);
+  if (context.legacyOnly) {
+    return getLegacySessionRegistryPath(context.worktreePath);
+  }
+  if (context.repoRoot && context.cellId) {
+    const repoPath = getCellSessionRegistryPath(context.repoRoot, context.cellId);
+    if (repoPath) {
+      return repoPath;
+    }
+  }
+  if (context.worktreePath) {
+    return getLegacySessionRegistryPath(context.worktreePath);
+  }
+  throw new Error('Unable to resolve session registry path.');
+}
+
 async function readRegistry(input = {}) {
   const context = await resolveRegistryContext(input);
   if (context.legacyOnly) {
@@ -177,20 +211,20 @@ async function readRegistry(input = {}) {
 }
 
 async function writeRegistry(input = {}, registry) {
-  const context = await resolveRegistryContext(input);
-  if (context.legacyOnly) {
-    const legacyPath = getLegacySessionRegistryPath(context.worktreePath);
-    return writeRegistryFile(legacyPath, registry);
+  const filePath = await resolveWritableRegistryPath(input);
+  return withRegistryFileLock(filePath, () => writeRegistryFile(filePath, registry));
+}
+
+async function updateRegistry(input = {}, mutate) {
+  if (typeof mutate !== 'function') {
+    throw new Error('Registry update requires a mutate function.');
   }
-  if (context.repoRoot && context.cellId) {
-    const repoPath = getCellSessionRegistryPath(context.repoRoot, context.cellId);
-    return writeRegistryFile(repoPath, registry);
-  }
-  if (context.worktreePath) {
-    const legacyPath = getLegacySessionRegistryPath(context.worktreePath);
-    return writeRegistryFile(legacyPath, registry);
-  }
-  throw new Error('Unable to resolve session registry path.');
+  const filePath = await resolveWritableRegistryPath(input);
+  return withRegistryFileLock(filePath, async () => {
+    const registry = await readRegistry(input);
+    const nextRegistry = await mutate(registry);
+    return writeRegistryFile(filePath, nextRegistry || registry);
+  });
 }
 
 function upsertSession(registry, session) {
@@ -218,6 +252,7 @@ export {
   getCellSessionRegistryPath,
   readRegistry,
   writeRegistry,
+  updateRegistry,
   upsertSession,
   removeSession,
 };
