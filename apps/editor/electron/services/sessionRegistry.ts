@@ -38,9 +38,39 @@ function normalizeRegistry(registry) {
   return normalizeSessionRegistry(registry || {}).registry;
 }
 
+function logRegistryEvent(level, message, context) {
+  try {
+    const { logRuntime } = require('./runtimeLog');
+    logRuntime(level, message, context);
+  } catch {
+    // Logging must never break registry access (e.g. outside an Electron runtime).
+  }
+}
+
+async function quarantineCorruptRegistryFile(filePath, error) {
+  const backupPath = `${filePath}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+  try {
+    await fsp.rename(filePath, backupPath);
+  } catch {
+    return '';
+  }
+  logRegistryEvent('warn', 'session registry corrupt; quarantined and reset', {
+    filePath,
+    backupPath,
+    error: String(error?.message || error),
+  });
+  return backupPath;
+}
+
 async function readRegistryFile(filePath) {
   const raw = await fsp.readFile(filePath, 'utf-8');
-  const parsed = (yaml.load(raw) || {}) || {};
+  let parsed;
+  try {
+    parsed = (yaml.load(raw) || {}) || {};
+  } catch (error) {
+    await quarantineCorruptRegistryFile(filePath, error);
+    return buildEmptyRegistry();
+  }
   return normalizeRegistry({
     version: parsed.version || 1,
     sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
@@ -53,7 +83,15 @@ async function writeRegistryFile(filePath, registry) {
   const content = yaml.dump(normalized, { lineWidth: 120 });
   const tempSuffix = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const tempPath = `${filePath}.tmp-${tempSuffix}`;
-  await fsp.writeFile(tempPath, content, 'utf-8');
+  const handle = await fsp.open(tempPath, 'w');
+  try {
+    await handle.writeFile(content, 'utf-8');
+    // Rename alone is atomic but not durable; sync before rename so a crash
+    // cannot commit a truncated registry (see sessions-agency.yaml.corrupt incident).
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
   await fsp.rename(tempPath, filePath);
   return normalized;
 }
