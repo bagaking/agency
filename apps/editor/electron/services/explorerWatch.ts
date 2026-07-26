@@ -2,7 +2,18 @@ const fs = require('fs');
 const path = require('path');
 const { normalizeRelPath } = require('./shared/pathSafety');
 
-const DEFAULT_EXCLUDES = new Set(['.git']);
+const DEFAULT_EXCLUDES = new Set([
+  '.git',
+  '.electron-build',
+  '.next',
+  '.turbo',
+  '.vite',
+  '.worktrees',
+  'build',
+  'coverage',
+  'dist',
+  'node_modules',
+]);
 const DEBOUNCE_MS = Number(process.env.AGENCY_EXPLORER_WATCH_DEBOUNCE_MS || 300);
 
 let watcher = null;
