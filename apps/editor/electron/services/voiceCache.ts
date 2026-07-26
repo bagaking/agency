@@ -2,11 +2,15 @@ const { app } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
+const { registerAssetRoot } = require('./assetProtocolPolicy');
+
 const fsp = fs.promises;
 const CACHE_DIR_NAME = 'voice-cache';
 
 function getVoiceCacheDir() {
-  return path.join(app.getPath('userData'), CACHE_DIR_NAME);
+  const cacheDir = path.join(app.getPath('userData'), CACHE_DIR_NAME);
+  registerAssetRoot(cacheDir);
+  return cacheDir;
 }
 
 async function ensureVoiceCacheDir() {

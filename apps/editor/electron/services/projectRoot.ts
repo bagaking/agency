@@ -2,6 +2,7 @@ const { app, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { getRepoRoot } = require('./git');
+const { registerAssetRoot } = require('./assetProtocolPolicy');
 const {
   readAppUiState,
   readWindowUiState,
@@ -141,6 +142,7 @@ function setWindowProjectRoot(windowId, projectRoot) {
     return;
   }
   windowProjectRoots.set(windowId, normalized);
+  registerAssetRoot(normalized);
 }
 
 function clearWindowProjectRoot(windowId) {
@@ -199,6 +201,7 @@ async function setProjectRoot(projectRoot, params: any = {}) {
     };
   }
   const repoRoot = await getRepoRoot(normalized);
+  registerAssetRoot(repoRoot);
   if (process.env.AGENCY_TEST_MODE === '1') {
     testProjectRootCleared = false;
   }

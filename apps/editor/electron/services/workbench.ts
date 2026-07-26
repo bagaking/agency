@@ -6,6 +6,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 
 const { getRepoRoot } = require('./git');
+const { registerAssetRoot } = require('./assetProtocolPolicy');
 const { resolveProjectRoot } = require('./projectRoot');
 const {
   normalizeRelPath,
@@ -135,6 +136,7 @@ async function writeTextFile({ rootPath, targetPath, content }) {
 
 async function resolveFileUrl({ rootPath, targetPath }) {
   const entry = await statEntry({ rootPath, targetPath });
+  registerAssetRoot(rootPath);
   // Using custom protocol to bypass webSecurity restrictions
   return {
     path: entry.path,

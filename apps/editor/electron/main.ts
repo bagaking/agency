@@ -18,6 +18,7 @@ import { setupMainIpcHandlers } from './main/ipcSetup';
 import { createStartupTimeline, type StartupMeta } from './main/startupTimeline';
 
 const { getRepoRoot } = require('./services/git');
+const { isAllowedAssetPath } = require('./services/assetProtocolPolicy');
 const {
   getAppShortcuts,
   applyAppShortcuts,
@@ -621,6 +622,11 @@ function setupAssetProtocol(): void {
     const filePath = decodeURIComponent(url.pathname);
     const normalizedPath =
       process.platform === 'win32' && filePath.startsWith('/') ? filePath.slice(1) : filePath;
+
+    if (!isAllowedAssetPath(normalizedPath)) {
+      logRuntime('warn', 'asset protocol path rejected', { path: normalizedPath });
+      return new Response('Forbidden', { status: 403 });
+    }
 
     try {
       return await net.fetch(pathToFileURL(normalizedPath).toString());
