@@ -48,7 +48,13 @@
     "afterPack": ".electron-build/electron/buildHooks/afterPack.js",
     "files": [
       "electron/**/*",
+      "!electron/**/__tests__/**",
+      "!electron/**/*.test.*",
+      "!electron/**/*.spec.*",
       ".electron-build/**/*",
+      "!.electron-build/**/__tests__/**",
+      "!.electron-build/**/*.test.*",
+      "!.electron-build/**/*.spec.*",
       "dist/renderer/**/*",
       "package.json"
     ],

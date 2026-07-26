@@ -42,6 +42,39 @@ function assertOutput(): void {
   });
 }
 
+function assertNoTestArtifacts(): void {
+  const testArtifacts: string[] = [];
+
+  function visit(dirPath: string): void {
+    if (!fs.existsSync(dirPath)) {
+      return;
+    }
+    fs.readdirSync(dirPath, { withFileTypes: true }).forEach((entry) => {
+      const absolutePath = path.join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === "__tests__") {
+          testArtifacts.push(absolutePath);
+          return;
+        }
+        visit(absolutePath);
+        return;
+      }
+      if (entry.name.includes(".test.") || entry.name.includes(".spec.")) {
+        testArtifacts.push(absolutePath);
+      }
+    });
+  }
+
+  visit(outDir);
+  if (testArtifacts.length) {
+    throw new Error(
+      `Electron build contains test artifacts:\n${testArtifacts
+        .map((filePath) => path.relative(projectRoot, filePath))
+        .join("\n")}`
+    );
+  }
+}
+
 function main(): void {
   fs.rmSync(outDir, { recursive: true, force: true });
 
@@ -50,13 +83,14 @@ function main(): void {
     cwd: projectRoot,
     env: process.env,
   });
-  run(pnpmCommand, ["exec", "tsc", "-p", "tsconfig.electron.json"], {
+  run(pnpmCommand, ["exec", "tsc", "-p", "tsconfig.electron.build.json"], {
     cwd: projectRoot,
     env: process.env,
   });
 
   copyNativeAssets();
   assertOutput();
+  assertNoTestArtifacts();
 }
 
 main();

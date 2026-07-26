@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.electron.json",
+  "exclude": [
+    ".electron-build",
+    "electron/native",
+    "electron/**/__tests__/**",
+    "electron/**/*.test.ts",
+    "electron/**/*.spec.ts"
+  ]
+}
