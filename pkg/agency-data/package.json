@@ -21,6 +21,7 @@
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "pnpm run clean && tsc -p tsconfig.json",
+    "test": "tsx --test src/__tests__/*.test.ts tests/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.2.1",
+    "tsx": "4.21.0",
     "typescript": "^5.9.3"
   }
 }

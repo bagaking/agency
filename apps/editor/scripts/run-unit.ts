@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const ROOT_DIR = path.join(__dirname, '..');
+const WORKSPACE_ROOT = path.join(ROOT_DIR, '..', '..');
 const TEST_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
 
 function collectTestFiles(dirPath: string, bucket: string[]): void {
@@ -31,6 +32,8 @@ function collectAllUnitTests(): string[] {
   const testFiles: string[] = [];
   collectTestFiles(path.join(ROOT_DIR, 'electron'), testFiles);
   collectTestFiles(path.join(ROOT_DIR, 'renderer', 'src'), testFiles);
+  collectTestFiles(path.join(WORKSPACE_ROOT, 'pkg', 'agency-data', 'src'), testFiles);
+  collectTestFiles(path.join(WORKSPACE_ROOT, 'pkg', 'agency-data', 'tests'), testFiles);
   return testFiles.sort((left, right) => left.localeCompare(right));
 }
 
